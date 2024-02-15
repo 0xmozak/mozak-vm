@@ -22,7 +22,7 @@ for profile in "${PROFILES[@]}"; do
                     continue
                     ;;
                 # For this, we skip without writing to skipped because we
-                # run the native version along with the zkvm version.
+                # run the native version along with the mozakvm version.
                 "merkleproof-trustedroot-native")
                     echo "(mozak-cli) skipping (${profile}): ${bin}"
                     continue
@@ -45,7 +45,7 @@ for profile in "${PROFILES[@]}"; do
             # Double quoting the iotapes here is not what we want since we
             # want an empty argument if iotapes are not required.
             cmd=$(cargo run --bin mozak-cli \
-                run -vvv examples/target/riscv32im-mozak-zkvm-elf/"${profile}"/"${bin}" \
+                run -vvv examples/target/riscv32im-mozak-mozakvm-elf/"${profile}"/"${bin}" \
                 ${private_iotape} \
                 ${public_iotape})
 

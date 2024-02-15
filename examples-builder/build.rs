@@ -19,7 +19,7 @@ macro_rules! ecrate {
         Crate {
             crate_path: concat!("../examples/", $name),
             elf_path: concat!(
-                "../examples/target/riscv32im-mozak-zkvm-elf/release/",
+                "../examples/target/riscv32im-mozak-mozakvm-elf/release/",
                 $file
             ),
             glob_name: $glob,
