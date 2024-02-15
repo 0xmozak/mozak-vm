@@ -23,9 +23,27 @@ fn test_fibonacci_mozak_elf() {
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
+
 #[test]
 fn test_fibonacci_mozak_elf_new_api() {
-    let args = RuntimeArguments::default();
+    let fibonacci = |n: u32| -> u32 {
+        if n < 2 {
+            return n;
+        }
+        let (mut curr, mut last) = (1_u32, 0_u32);
+        for _i in 0..(n - 2) {
+            (curr, last) = (curr.wrapping_add(last), curr);
+        }
+        curr
+    };
+    let n: u32 = 16;
+    let out = fibonacci(n);
+    let args = RuntimeArguments::new(
+        vec![],
+        n.to_le_bytes().to_vec(),
+        out.to_le_bytes().to_vec(),
+        vec![],
+    );
     let program =
         Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF_NEW_API, &args).unwrap();
     let state = State::<GoldilocksField>::new(program.clone(), args);

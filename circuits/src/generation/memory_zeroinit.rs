@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use mozak_runner::elf::Program;
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -14,6 +15,7 @@ use crate::utils::pad_trace_with_default;
 pub fn generate_memory_zero_init_trace<F: RichField>(
     mem_init_rows: &[MemoryInit<F>],
     step_rows: &[Row<F>],
+    program: &Program,
 ) -> Vec<MemoryZeroInit<F>> {
     let mut zeroinit_set: HashSet<F> = HashSet::new();
     let meminit_map: HashSet<F> = mem_init_rows
@@ -31,11 +33,15 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
         .iter()
         .filter(|row| {
             row.aux.mem.is_some()
-                && matches!(
+                && (matches!(
                     row.instruction.op,
                     Op::LB | Op::LBU | Op::SB | Op::SH | Op::LH | Op::LHU | Op::LW | Op::SW
-                )
-                || (row.instruction.op == Op::ECALL && row.aux.poseidon2.is_some())
+                ) || (row.instruction.op == Op::ECALL && row.aux.poseidon2.is_some()))
+                && !program
+                    .mozak_ro_memory
+                    .as_ref()
+                    .unwrap()
+                    .is_address_belongs_to_mozak_ro_memory(row.aux.mem.unwrap().addr)
         })
         .for_each(|row| {
             let addr = row.aux.mem.unwrap_or_default().addr;
@@ -99,7 +105,8 @@ mod tests {
     fn generate_trace() {
         let (program, record) = memory_trace_test_case(1);
         let memory_init_rows = generate_memory_init_trace(&program);
-        let trace = generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
+        let trace =
+            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
 
         assert_eq!(
             trace,

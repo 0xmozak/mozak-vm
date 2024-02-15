@@ -123,7 +123,7 @@ impl MozakMemory {
         )
     }
 
-    fn is_address_belongs_to_mozak_ro_memory(&self, address: u32) -> bool {
+    pub fn is_address_belongs_to_mozak_ro_memory(&self, address: u32) -> bool {
         let mem_addresses = [
             self.context_variables.memory_range(),
             self.io_tape_public.memory_range(),
