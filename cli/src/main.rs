@@ -54,7 +54,7 @@ pub struct RuntimeArguments {
     #[arg(long)]
     io_tape_public: Option<Input>,
     #[arg(long)]
-    transcript: Option<Input>,
+    call_tape: Option<Input>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -77,7 +77,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
     fn from(value: RuntimeArguments) -> Self {
         let mut io_tape_private = vec![];
         let mut io_tape_public = vec![];
-        let mut transcript = vec![];
+        let mut call_tape = vec![];
 
         if let Some(mut t) = value.io_tape_private {
             let bytes_read = t
@@ -93,17 +93,15 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
             debug!("Read {bytes_read} of io_tape data.");
         };
 
-        if let Some(mut t) = value.transcript {
-            let bytes_read = t.read_to_end(&mut transcript).expect("Read should pass");
-            debug!("Read {bytes_read} of transcript data.");
+        if let Some(mut t) = value.call_tape {
+            let bytes_read = t.read_to_end(&mut call_tape).expect("Read should pass");
+            debug!("Read {bytes_read} of call_tape data.");
         };
 
         Self {
-            // TODO(bing): use `context_variables`
-            context_variables: vec![],
             io_tape_private,
             io_tape_public,
-            transcript,
+            call_tape,
         }
     }
 }
@@ -156,11 +154,9 @@ Read {} of event tape data.",
     );
 
     mozak_runner::elf::RuntimeArguments {
-        // TODO(bing): use context variables
-        context_variables: vec![],
         io_tape_public: public_tape_bytes.to_vec(),
         io_tape_private: private_tape_bytes.to_vec(),
-        transcript: call_tape_bytes.to_vec(),
+        call_tape: call_tape_bytes.to_vec(),
     }
 }
 
@@ -226,17 +222,21 @@ fn main() -> Result<()> {
                 mozak_runner::elf::RuntimeArguments::default,
                 tapes_to_runtime_arguments,
             );
+            let args =
+                mozak_runner::elf::RuntimeArguments::new(vec![1, 2, 3], vec![4, 5, 6], vec![
+                    7, 8, 9,
+                ]);
+
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args);
             let state = step(&program, state)?.last_state;
-            debug!("{:?}", state.registers);
         }
         Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
             let args = system_tape.map_or_else(
                 mozak_runner::elf::RuntimeArguments::default,
                 tapes_to_runtime_arguments,
             );
-            mozak_sdk::sys::SystemTapes::load_from_args(args.transcript.as_slice());
+            mozak_sdk::sys::SystemTapes::load_from_args(args.call_tape.as_slice());
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args);
 
