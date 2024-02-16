@@ -17,7 +17,9 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::select_verifier;
-use crate::stark::recursive_verifier::circuit_data_for_recursion;
+use crate::stark::recursive_verifier::{
+    circuit_data_for_recursion, FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
+};
 
 fn from_slice<F: RichField + Extendable<D>, const D: usize>(
     slice: &[Target],
@@ -65,7 +67,7 @@ impl LeafSubCircuit {
         C::Hasher: AlgebraicHasher<F>, {
         let mut common_data = circuit_data_for_recursion::<F, C, D>(
             &CircuitConfig::standard_recursion_config(),
-            13,
+            FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
             0,
         )
         .common;
