@@ -40,6 +40,10 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
         .for_each(|row| {
             let addr = row.aux.mem.unwrap_or_default().addr;
 
+            if addr >= 1073741824 && addr < 1073741828 {
+                log::debug!("{}", addr);
+            }
+
             let addresses = match row.instruction.op {
                 Op::LB | Op::LBU | Op::SB => vec![F::from_canonical_u32(addr)],
                 Op::LH | Op::LHU | Op::SH => (0..2)
