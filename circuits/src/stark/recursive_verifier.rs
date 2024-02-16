@@ -34,10 +34,8 @@ use crate::stark::proof::{
     StarkProofWithMetadata, StarkProofWithPublicInputsTarget,
 };
 
-/// Plonky2's recursion threshold is 2^12 gates. We use a slightly relaxed
-/// threshold here to support the case that two proofs are verified in the same
-/// recursion (rec-proof).
-pub const FINAL_RECURSION_THRESHOLD_DEGREE_BITS: usize = 13;
+/// Plonky2's recursion threshold is 2^12 gates.
+pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 pub const VM_PUBLIC_INPUT_SIZE: usize = 129;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
@@ -623,8 +621,8 @@ mod tests {
     use crate::stark::prover::prove;
     use crate::stark::recursive_verifier::{
         recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
-        verify_recursive_vm_proof, FINAL_RECURSION_THRESHOLD_DEGREE_BITS, VM_PUBLIC_INPUT_SIZE,
-        VM_RECURSION_CONFIG,
+        verify_recursive_vm_proof, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
+        VM_RECURSION_THRESHOLD_DEGREE_BITS,
     };
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
@@ -767,7 +765,7 @@ mod tests {
         info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
         info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
 
-        let target_degree_bits = FINAL_RECURSION_THRESHOLD_DEGREE_BITS;
+        let target_degree_bits = VM_RECURSION_THRESHOLD_DEGREE_BITS;
         let (final_circuit0, final_proof0) = shrink_to_target_degree_bits_circuit(
             &recursion_circuit0.circuit,
             &VM_RECURSION_CONFIG,

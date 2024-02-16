@@ -17,8 +17,8 @@ use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
     circuit_data_for_recursion, recursive_mozak_stark_circuit,
-    shrink_to_target_degree_bits_circuit, FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
-    VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
+    shrink_to_target_degree_bits_circuit, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
+    VM_RECURSION_THRESHOLD_DEGREE_BITS,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
@@ -209,7 +209,7 @@ fn main() -> Result<()> {
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
                     &recursive_circuit.circuit,
                     &VM_RECURSION_CONFIG,
-                    FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
+                    VM_RECURSION_THRESHOLD_DEGREE_BITS,
                     &recursive_all_proof,
                 )?;
                 assert_eq!(
@@ -242,7 +242,7 @@ fn main() -> Result<()> {
         Command::VerifyRecursiveProof { mut proof, mut vk } => {
             let mut circuit = circuit_data_for_recursion::<F, C, D>(
                 &VM_RECURSION_CONFIG,
-                FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
+                VM_RECURSION_THRESHOLD_DEGREE_BITS,
                 VM_PUBLIC_INPUT_SIZE,
             );
 
