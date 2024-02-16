@@ -1,11 +1,8 @@
-use std::fs;
-use std::path::Path;
-
 use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{CPCMessage, Event, ProgramIdentifier, RawMessage};
+use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -29,27 +26,23 @@ pub struct SystemTapes {
 
 #[cfg(target_os = "zkvm")]
 extern "C" {
-    static _mozak_tapes_start: usize;
-    static _mozak_tapes_len: usize;
-
-    // static _mozak_tapes_public_start: usize;
-    // static _mozak_tapes_public_len: usize;
-    // static _mozak_tapes_private_start: usize;
-    // static _mozak_tapes_private_len: usize;
-    // static _mozak_tapes_call_start: usize;
-    // static _mozak_tapes_call_len: usize;
-    // static _mozak_tapes_events_start: usize;
-    // static _mozak_tapes_events_len: usize;
-
+    static _mozak_public_io_tape: usize;
+    static _mozak_public_io_tape_len: usize;
+    static _mozak_private_io_tape: usize;
+    static _mozak_private_io_tape_len: usize;
+    static _mozak_call_tape: usize;
+    static _mozak_call_tape_len: usize;
+    static _mozak_event_tape: usize;
+    static _mozak_event_tape_len: usize;
 }
 
 #[allow(dead_code)]
 impl SystemTapes {
-    fn new() -> Self {
+    fn new(messages: Vec<CPCMessage>) -> Self {
         Self {
             private_tape: RawTape::new(),
             public_tape: RawTape::new(),
-            call_tape: CallTape::default(),
+            call_tape: CallTape::new(messages),
             event_tape: EventTape::new(),
         }
     }
@@ -60,24 +53,6 @@ impl SystemTapes {
     //         ContextVariable::SelfProgramIdentifier(id),
     //     ));
     // }
-    //
-    //
-    pub fn load_from_file(call_tape_path: &Path) -> Self {
-        let call_tape = fs::read(call_tape_path).unwrap();
-        let archived = unsafe { rkyv::archived_root::<Vec<CPCMessage>>(&call_tape[..]) };
-        let calls: Vec<CPCMessage> = archived.deserialize(&mut rkyv::Infallible).unwrap();
-
-        let tapes = SystemTapes {
-            private_tape: RawTape::new(),
-            public_tape: RawTape::new(),
-            call_tape: CallTape::new(calls),
-            event_tape: EventTape::new(),
-        };
-
-        unsafe { *SYSTEM_TAPES = tapes.clone() };
-
-        tapes
-    }
 
     pub fn load_from_args(call_tape: &[u8]) -> Self {
         let archived = unsafe { rkyv::archived_root::<Vec<CPCMessage>>(&call_tape[..]) };
@@ -92,7 +67,27 @@ impl SystemTapes {
     }
 }
 
-static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| SystemTapes::new());
+static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
+    #[cfg(target_os = "zkvm")]
+    {
+        let mut buf = [0; 244];
+        let buf_ptr = buf.as_mut_ptr();
+        let call_tape_ptr = _mozak_call_tape as *const u8;
+        for i in 0..isize::try_from(244).expect("pass") {
+            buf_ptr.offset(i).write(call_tape_ptr.offset(i).read());
+        }
+
+        let calls = rkyv::from_bytes_unchecked::<Vec<CPCMessage>>(&buf).unwrap();
+        // let calls = vec![CPCMessage::default(), CPCMessage::default()];
+        return SystemTapes::new(calls);
+    }
+
+    #[cfg(not(target_os = "zkvm"))]
+    {
+        let calls = vec![CPCMessage::default(), CPCMessage::default()];
+        return SystemTapes::new(calls);
+    }
+});
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
@@ -121,9 +116,6 @@ impl RawTape {
 pub struct CallTape {
     #[cfg(target_os = "zkvm")]
     self_prog_id: ProgramIdentifier,
-    #[cfg(target_os = "zkvm")]
-    messages: Vec<CPCMessage>,
-    #[cfg(not(target_os = "zkvm"))]
     writer: Vec<CPCMessage>,
 }
 
@@ -133,7 +125,7 @@ impl CallTape {
             #[cfg(target_os = "zkvm")]
             self_prog_id: ProgramIdentifier::default(),
             #[cfg(target_os = "zkvm")]
-            messages,
+            writer: messages,
             #[cfg(not(target_os = "zkvm"))]
             writer: Vec::new(),
         }
@@ -142,9 +134,11 @@ impl CallTape {
     #[cfg(target_os = "zkvm")]
     pub(crate) fn set_self_prog_id(&mut self, id: ProgramIdentifier) { self.self_prog_id = id; }
 
-    #[cfg(target_os = "zkvm")]
     pub fn from_mailbox(&self) -> Option<(CPCMessage, usize)> {
-        return Some((self.messages[0].clone(), 0));
+        #[cfg(target_os = "zkvm")]
+        return Some((self.writer[0].clone(), 0));
+
+        return Some((CPCMessage::default(), 0));
     }
 
     pub fn to_mailbox<A, R>(
@@ -290,8 +284,8 @@ pub fn event_emit(id: ProgramIdentifier, event: Event) {
 /// Receive one message from mailbox targetted to us and its index
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
-#[cfg(target_os = "zkvm")]
 pub fn call_receive() -> Option<(CPCMessage, usize)> {
+    // unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
     unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
 }
 
