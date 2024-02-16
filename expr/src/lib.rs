@@ -4,31 +4,31 @@ use bumpalo::Bump;
 
 // Publicly available struct
 #[derive(Clone, Copy)]
-pub struct E<'a, V> {
+pub struct Expr<'a, V> {
     expr: &'a ExprTree<'a, V>,
     builder: &'a ExprBuilder,
 }
 
-impl<'a, V> Add for E<'a, V> {
-    type Output = E<'a, V>;
+impl<'a, V> Add for Expr<'a, V> {
+    type Output = Expr<'a, V>;
 
     fn add(self, rhs: Self) -> Self::Output { self.builder.add(self, rhs) }
 }
 
-impl<'a, V> Sub for E<'a, V> {
-    type Output = E<'a, V>;
+impl<'a, V> Sub for Expr<'a, V> {
+    type Output = Expr<'a, V>;
 
     fn sub(self, rhs: Self) -> Self::Output { self.builder.sub(self, rhs) }
 }
 
-impl<'a, V> Mul for E<'a, V> {
-    type Output = E<'a, V>;
+impl<'a, V> Mul for Expr<'a, V> {
+    type Output = Expr<'a, V>;
 
     fn mul(self, rhs: Self) -> Self::Output { self.builder.mul(self, rhs) }
 }
 
-impl<'a, V> Div for E<'a, V> {
-    type Output = E<'a, V>;
+impl<'a, V> Div for Expr<'a, V> {
+    type Output = Expr<'a, V>;
 
     fn div(self, rhs: Self) -> Self::Output { self.builder.div(self, rhs) }
 }
@@ -40,39 +40,41 @@ pub struct ExprBuilder {
 impl ExprBuilder {
     pub fn new() -> Self { Self { arena: Bump::new() } }
 
-    fn expr<'a, V>(&'a self, expr: &'a mut ExprTree<'a, V>) -> E<'a, V> {
+    fn expr<'a, V>(&'a self, expr: &'a mut ExprTree<'a, V>) -> Expr<'a, V> {
         // TODO: Consider interning it here
-        E {
+        Expr {
             expr,
             builder: self,
         }
     }
 
     // Convenience alias for from
-    pub fn lit<'a, V>(&'a self, v: V) -> E<'a, V> { self.expr(self.arena.alloc(ExprTree::lit(v))) }
+    pub fn lit<'a, V>(&'a self, v: V) -> Expr<'a, V> {
+        self.expr(self.arena.alloc(ExprTree::lit(v)))
+    }
 
-    pub fn add<'a, V>(&'a self, left: E<'a, V>, right: E<'a, V>) -> E<'a, V> {
+    pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         let left = left.expr;
         let right = right.expr;
 
         self.expr(self.arena.alloc(ExprTree::add(left, right)))
     }
 
-    pub fn sub<'a, V>(&'a self, left: E<'a, V>, right: E<'a, V>) -> E<'a, V> {
+    pub fn sub<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         let left = left.expr;
         let right = right.expr;
 
         self.expr(self.arena.alloc(ExprTree::sub(left, right)))
     }
 
-    pub fn mul<'a, V>(&'a self, left: E<'a, V>, right: E<'a, V>) -> E<'a, V> {
+    pub fn mul<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         let left = left.expr;
         let right = right.expr;
 
         self.expr(self.arena.alloc(ExprTree::mul(left, right)))
     }
 
-    pub fn div<'a, V>(&'a self, left: E<'a, V>, right: E<'a, V>) -> E<'a, V> {
+    pub fn div<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         let left = left.expr;
         let right = right.expr;
 
@@ -125,7 +127,7 @@ pub trait Evaluator<V>
 where
     V: Copy, {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
-    fn eval<'a>(&mut self, expr: E<'a, V>) -> V {
+    fn eval<'a>(&mut self, expr: Expr<'a, V>) -> V {
         // Default eval
         big_step(self, expr.expr)
     }

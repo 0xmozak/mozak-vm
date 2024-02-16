@@ -1,5 +1,4 @@
-use expr::Evaluator;
-pub use expr::{BinOp, ExprBuilder, E};
+use expr::{BinOp, Evaluator, Expr};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
@@ -56,7 +55,7 @@ where
         }
     }
 
-    pub fn constraint_first_row(&mut self, constraints: E<'_, ExtensionTarget<D>>) {
+    pub fn constraint_first_row(&mut self, constraints: Expr<'_, ExtensionTarget<D>>) {
         let mut evaluator = CircuitBuilderEvaluator {
             builder: self.builder,
         };
@@ -65,7 +64,7 @@ where
             .constraint_first_row(self.builder, built_constraints);
     }
 
-    pub fn constraint(&mut self, constraints: E<'_, ExtensionTarget<D>>) {
+    pub fn constraint(&mut self, constraints: Expr<'_, ExtensionTarget<D>>) {
         let mut evaluator = CircuitBuilderEvaluator {
             builder: self.builder,
         };
@@ -74,7 +73,7 @@ where
             .constraint(self.builder, built_constraints);
     }
 
-    pub fn constraint_transition(&mut self, constraints: E<'_, ExtensionTarget<D>>) {
+    pub fn constraint_transition(&mut self, constraints: Expr<'_, ExtensionTarget<D>>) {
         let mut evaluator = CircuitBuilderEvaluator {
             builder: self.builder,
         };
