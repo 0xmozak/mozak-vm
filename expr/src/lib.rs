@@ -5,7 +5,7 @@ use bumpalo::Bump;
 // Publicly available struct
 #[derive(Clone, Copy)]
 pub struct E<'a, V> {
-    expr: &'a Expr<'a, V>,
+    expr: &'a ExprTree<'a, V>,
     builder: &'a ExprBuilder,
 }
 
@@ -40,7 +40,7 @@ pub struct ExprBuilder {
 impl ExprBuilder {
     pub fn new() -> Self { Self { arena: Bump::new() } }
 
-    fn expr<'a, V>(&'a self, expr: &'a mut Expr<'a, V>) -> E<'a, V> {
+    fn expr<'a, V>(&'a self, expr: &'a mut ExprTree<'a, V>) -> E<'a, V> {
         // TODO: Consider interning it here
         E {
             expr,
@@ -49,43 +49,43 @@ impl ExprBuilder {
     }
 
     // Convenience alias for from
-    pub fn lit<'a, V>(&'a self, v: V) -> E<'a, V> { self.expr(self.arena.alloc(Expr::lit(v))) }
+    pub fn lit<'a, V>(&'a self, v: V) -> E<'a, V> { self.expr(self.arena.alloc(ExprTree::lit(v))) }
 
     pub fn add<'a, V>(&'a self, left: E<'a, V>, right: E<'a, V>) -> E<'a, V> {
         let left = left.expr;
         let right = right.expr;
 
-        self.expr(self.arena.alloc(Expr::add(left, right)))
+        self.expr(self.arena.alloc(ExprTree::add(left, right)))
     }
 
     pub fn sub<'a, V>(&'a self, left: E<'a, V>, right: E<'a, V>) -> E<'a, V> {
         let left = left.expr;
         let right = right.expr;
 
-        self.expr(self.arena.alloc(Expr::sub(left, right)))
+        self.expr(self.arena.alloc(ExprTree::sub(left, right)))
     }
 
     pub fn mul<'a, V>(&'a self, left: E<'a, V>, right: E<'a, V>) -> E<'a, V> {
         let left = left.expr;
         let right = right.expr;
 
-        self.expr(self.arena.alloc(Expr::mul(left, right)))
+        self.expr(self.arena.alloc(ExprTree::mul(left, right)))
     }
 
     pub fn div<'a, V>(&'a self, left: E<'a, V>, right: E<'a, V>) -> E<'a, V> {
         let left = left.expr;
         let right = right.expr;
 
-        self.expr(self.arena.alloc(Expr::div(left, right)))
+        self.expr(self.arena.alloc(ExprTree::div(left, right)))
     }
 }
 
 #[derive(Debug)]
-enum Expr<'a, V> {
+enum ExprTree<'a, V> {
     BinOp {
         op: BinOp,
-        left: &'a Expr<'a, V>,
-        right: &'a Expr<'a, V>,
+        left: &'a ExprTree<'a, V>,
+        right: &'a ExprTree<'a, V>,
     },
     Literal {
         value: V,
@@ -100,24 +100,24 @@ pub enum BinOp {
     Div,
 }
 
-impl<V> From<V> for Expr<'_, V> {
-    fn from(value: V) -> Self { Expr::Literal { value } }
+impl<V> From<V> for ExprTree<'_, V> {
+    fn from(value: V) -> Self { ExprTree::Literal { value } }
 }
 
 // Big step evaluator
-fn big_step<'a, E, V>(evaluator: &mut E, expr: &'a Expr<'a, V>) -> V
+fn big_step<'a, E, V>(evaluator: &mut E, expr: &'a ExprTree<'a, V>) -> V
 where
     V: Copy,
     E: ?Sized,
     E: Evaluator<V>, {
     match expr {
-        Expr::BinOp { op, left, right } => {
+        ExprTree::BinOp { op, left, right } => {
             let l = big_step(evaluator, left);
             let r = big_step(evaluator, right);
 
             evaluator.bin_op(op, l, r)
         }
-        Expr::Literal { value } => *value,
+        ExprTree::Literal { value } => *value,
     }
 }
 
@@ -155,35 +155,35 @@ where
     }
 }
 
-impl<'a, V> Expr<'a, V> {
-    pub fn lit(value: V) -> Self { Expr::Literal { value } }
+impl<'a, V> ExprTree<'a, V> {
+    pub fn lit(value: V) -> Self { ExprTree::Literal { value } }
 
-    pub fn add(left: &'a Expr<'a, V>, right: &'a Expr<'a, V>) -> Self {
-        Expr::BinOp {
+    pub fn add(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
+        ExprTree::BinOp {
             op: BinOp::Add,
             left,
             right,
         }
     }
 
-    pub fn sub(left: &'a Expr<'a, V>, right: &'a Expr<'a, V>) -> Self {
-        Expr::BinOp {
+    pub fn sub(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
+        ExprTree::BinOp {
             op: BinOp::Sub,
             left,
             right,
         }
     }
 
-    pub fn mul(left: &'a Expr<'a, V>, right: &'a Expr<'a, V>) -> Self {
-        Expr::BinOp {
+    pub fn mul(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
+        ExprTree::BinOp {
             op: BinOp::Mul,
             left,
             right,
         }
     }
 
-    pub fn div(left: &'a Expr<'a, V>, right: &'a Expr<'a, V>) -> Self {
-        Expr::BinOp {
+    pub fn div(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
+        ExprTree::BinOp {
             op: BinOp::Div,
             left,
             right,
