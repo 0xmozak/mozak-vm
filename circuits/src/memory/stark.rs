@@ -189,7 +189,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
-        let expr = ExprBuilder::new();
+        let expr = ExprBuilder::default();
 
         let one = expr.lit(builder.one_extension());
 

@@ -1,8 +1,11 @@
+//! Simple library for handling ASTs in Rust
+
 use std::ops::{Add, Div, Mul, Sub};
 
 use bumpalo::Bump;
 
-// Publicly available struct
+/// Publicly available struct.  Contains a reference to [`ExprTree`] that is
+/// managed by [`ExprBuilder`].
 #[derive(Clone, Copy)]
 pub struct Expr<'a, V> {
     expr_tree: &'a ExprTree<'a, V>,
@@ -33,13 +36,18 @@ impl<'a, V> Div for Expr<'a, V> {
     fn div(self, rhs: Self) -> Self::Output { self.builder.div(self, rhs) }
 }
 
+/// Expression Builder.  Contains a [`Bump`] memory arena that will allocate
+/// store all the [`ExprTree`]s.
 pub struct ExprBuilder {
     arena: Bump,
 }
 
-impl ExprBuilder {
-    pub fn new() -> Self { Self { arena: Bump::new() } }
+impl Default for ExprBuilder {
+    fn default() -> Self { Self { arena: Bump::new() } }
+}
 
+impl ExprBuilder {
+    /// Create an [`Expr`] from [`ExprTree`].
     fn expr<'a, V>(&'a self, expr_tree: &'a mut ExprTree<'a, V>) -> Expr<'a, V> {
         // TODO: Consider interning it here
         Expr {
@@ -48,8 +56,8 @@ impl ExprBuilder {
         }
     }
 
-    pub fn lit<'a, V>(&'a self, v: V) -> Expr<'a, V> {
-        self.expr(self.arena.alloc(ExprTree::lit(v)))
+    pub fn lit<'a, V>(&'a self, value: V) -> Expr<'a, V> {
+        self.expr(self.arena.alloc(ExprTree::lit(value)))
     }
 
     pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
@@ -81,6 +89,7 @@ impl ExprBuilder {
     }
 }
 
+/// Internal type to represent the expression trees
 #[derive(Debug)]
 enum ExprTree<'a, V> {
     BinOp {
@@ -93,6 +102,7 @@ enum ExprTree<'a, V> {
     },
 }
 
+/// Enum for binary operations
 #[derive(Debug)]
 pub enum BinOp {
     Add,
@@ -101,7 +111,7 @@ pub enum BinOp {
     Div,
 }
 
-// Big step evaluator
+/// Big step evaluator
 fn big_step<'a, E, V>(evaluator: &mut E, expr: &'a ExprTree<'a, V>) -> V
 where
     V: Copy,
@@ -118,6 +128,7 @@ where
     }
 }
 
+/// Evaluator that can evaluate [`Expr`] to `V`.
 pub trait Evaluator<V>
 where
     V: Copy, {
@@ -128,10 +139,11 @@ where
     }
 }
 
+/// Default evaluator for pure values.
 pub struct PureEvaluator {}
 
-impl PureEvaluator {
-    pub fn new() -> Self { Self {} }
+impl Default for PureEvaluator {
+    fn default() -> Self { Self {} }
 }
 
 impl<V> Evaluator<V> for PureEvaluator
@@ -153,9 +165,9 @@ where
 }
 
 impl<'a, V> ExprTree<'a, V> {
-    pub fn lit(value: V) -> Self { ExprTree::Literal { value } }
+    fn lit(value: V) -> Self { ExprTree::Literal { value } }
 
-    pub fn add(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
+    fn add(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
         ExprTree::BinOp {
             op: BinOp::Add,
             left,
@@ -163,7 +175,7 @@ impl<'a, V> ExprTree<'a, V> {
         }
     }
 
-    pub fn sub(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
+    fn sub(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
         ExprTree::BinOp {
             op: BinOp::Sub,
             left,
@@ -171,7 +183,7 @@ impl<'a, V> ExprTree<'a, V> {
         }
     }
 
-    pub fn mul(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
+    fn mul(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
         ExprTree::BinOp {
             op: BinOp::Mul,
             left,
@@ -179,7 +191,7 @@ impl<'a, V> ExprTree<'a, V> {
         }
     }
 
-    pub fn div(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
+    fn div(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
         ExprTree::BinOp {
             op: BinOp::Div,
             left,
@@ -194,12 +206,12 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let expr = ExprBuilder::new();
+        let expr = ExprBuilder::default();
 
         let a = expr.lit(7);
         let b = expr.lit(5);
 
-        let mut p = PureEvaluator::new();
+        let mut p = PureEvaluator::default();
 
         assert_eq!(p.eval(a + b), 12);
         assert_eq!(p.eval(a - b), 2);
