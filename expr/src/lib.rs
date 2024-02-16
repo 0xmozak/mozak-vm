@@ -5,7 +5,7 @@ use bumpalo::Bump;
 // Publicly available struct
 #[derive(Clone, Copy)]
 pub struct Expr<'a, V> {
-    expr: &'a ExprTree<'a, V>,
+    expr_tree: &'a ExprTree<'a, V>,
     builder: &'a ExprBuilder,
 }
 
@@ -40,43 +40,42 @@ pub struct ExprBuilder {
 impl ExprBuilder {
     pub fn new() -> Self { Self { arena: Bump::new() } }
 
-    fn expr<'a, V>(&'a self, expr: &'a mut ExprTree<'a, V>) -> Expr<'a, V> {
+    fn expr<'a, V>(&'a self, expr_tree: &'a mut ExprTree<'a, V>) -> Expr<'a, V> {
         // TODO: Consider interning it here
         Expr {
-            expr,
+            expr_tree,
             builder: self,
         }
     }
 
-    // Convenience alias for from
     pub fn lit<'a, V>(&'a self, v: V) -> Expr<'a, V> {
         self.expr(self.arena.alloc(ExprTree::lit(v)))
     }
 
     pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        let left = left.expr;
-        let right = right.expr;
+        let left = left.expr_tree;
+        let right = right.expr_tree;
 
         self.expr(self.arena.alloc(ExprTree::add(left, right)))
     }
 
     pub fn sub<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        let left = left.expr;
-        let right = right.expr;
+        let left = left.expr_tree;
+        let right = right.expr_tree;
 
         self.expr(self.arena.alloc(ExprTree::sub(left, right)))
     }
 
     pub fn mul<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        let left = left.expr;
-        let right = right.expr;
+        let left = left.expr_tree;
+        let right = right.expr_tree;
 
         self.expr(self.arena.alloc(ExprTree::mul(left, right)))
     }
 
     pub fn div<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        let left = left.expr;
-        let right = right.expr;
+        let left = left.expr_tree;
+        let right = right.expr_tree;
 
         self.expr(self.arena.alloc(ExprTree::div(left, right)))
     }
@@ -125,7 +124,7 @@ where
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
     fn eval<'a>(&mut self, expr: Expr<'a, V>) -> V {
         // Default eval
-        big_step(self, expr.expr)
+        big_step(self, expr.expr_tree)
     }
 }
 
