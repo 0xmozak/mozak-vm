@@ -2,32 +2,52 @@
 extern crate alloc;
 
 // use alloc::vec::Vec;
-use mozak_sdk::coretypes::{Address, Event, ProgramIdentifier, Signature, StateObject};
-use mozak_sdk::cpc::cross_program_call;
-use mozak_sdk::sys::event_emit;
+use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};
+use mozak_sdk::sys::{call_send, event_emit};
+use rkyv::{Archive, Deserialize, Serialize};
 
-#[repr(u8)]
-pub enum Methods {
-    Mint,
-    Burn,
-    Transfer,
-    GetAmount,
-    Split,
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub enum MethodArgs {
+    // Mint,
+    // Burn,
+    Transfer(
+        ProgramIdentifier,
+        StateObject,
+        Signature,
+        ProgramIdentifier,
+        ProgramIdentifier,
+    ),
+    // GetAmount,
+    // Split,
 }
 
-// // TODO: how do we verify owner?
-// pub fn mint(address: Address, amount: u64) {
-//     // TODO
-// }
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub enum MethodReturns {
+    Transfer,
+}
 
-// pub fn burn(object: StateObject) {
-//     // TODO
-// }
+// TODO: Remove later
+impl Default for MethodReturns {
+    fn default() -> Self { Self::Transfer }
+}
 
-// pub fn split(original_object: StateObject, new_object_location: Address,
-// new_object_amount: u64) {     // TODO
-// }
+#[allow(dead_code)]
+pub fn dispatch(args: MethodArgs) -> MethodReturns {
+    match args {
+        MethodArgs::Transfer(id, object, signature, remitter, remittee) => {
+            transfer(id, object, signature, remitter, remittee);
+            MethodReturns::Transfer
+        }
+    }
+}
 
+#[allow(dead_code)]
 pub fn transfer(
     self_prog_id: ProgramIdentifier, // ContextVariables Table
     token_object: StateObject,       //
@@ -35,16 +55,31 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    assert!(cross_program_call(
+    event_emit(
         self_prog_id,
-        remitter_wallet,
-        wallet::MethodsIdentifiers::ApproveSignature as u8,
-        wallet::MethodArgs::ApproveSignature(
-            token_object.clone(),
-            wallet::Operation::TransferTo(remittee_wallet),
-            remitter_signature
+        mozak_sdk::coretypes::Event::ReadContextVariable(
+            mozak_sdk::coretypes::ContextVariable::SelfProgramIdentifier(self_prog_id),
         ),
-        true,
-    ));
-    event_emit(Event::UpdatedStateObject(token_object));
+    );
+
+    assert_eq!(
+        call_send(
+            self_prog_id,
+            remitter_wallet,
+            wallet::MethodArgs::ApproveSignature(
+                remitter_wallet,
+                token_object.clone(),
+                wallet::Operation::TransferTo(remittee_wallet),
+                remitter_signature.clone()
+            ),
+            wallet::dispatch,
+            || -> wallet::MethodReturns {
+                wallet::MethodReturns::ApproveSignature(true) // TODO read from
+                                                              // private tape
+            }
+        ),
+        wallet::MethodReturns::ApproveSignature(true),
+        "wallet approval not found"
+    );
+    event_emit(self_prog_id, Event::UpdatedStateObject(token_object));
 }

@@ -246,7 +246,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            RuntimeArguments::new(vec![], vec![content], vec![], vec![]),
+            RuntimeArguments::new(vec![content], vec![], vec![]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -266,7 +266,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            RuntimeArguments::new(vec![], vec![], vec![content], vec![]),
+            RuntimeArguments::new(vec![], vec![content], vec![]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -286,7 +286,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            RuntimeArguments::new(vec![], vec![], vec![], vec![content]),
+            RuntimeArguments::new(vec![], vec![], vec![content]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -334,7 +334,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            RuntimeArguments::new(vec![], vec![content], vec![content], vec![content]),
+            RuntimeArguments::new(vec![content], vec![content], vec![content]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -404,12 +404,7 @@ mod tests {
                 (imm.wrapping_add(offset).wrapping_add(3), 0),
             ],
             &[],
-            RuntimeArguments::new(
-                vec![],
-                vec![content, content, content, content],
-                vec![],
-                vec![],
-            ),
+            RuntimeArguments::new(vec![content, content, content, content], vec![], vec![]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }

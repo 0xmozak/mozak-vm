@@ -60,7 +60,7 @@ pub struct State<F: RichField> {
     pub ro_memory: HashMap<u32, u8>,
     pub mozak_ro_memory: HashMap<u32, u8>,
     pub io_tape: IoTape,
-    pub transcript: IoTapeData,
+    pub call_tape: IoTapeData,
     _phantom: PhantomData<F>,
 }
 
@@ -108,7 +108,7 @@ impl<F: RichField> Default for State<F> {
             ro_memory: HashMap::default(),
             mozak_ro_memory: HashMap::default(),
             io_tape: IoTape::from((vec![], vec![])),
-            transcript: IoTapeData {
+            call_tape: IoTapeData {
                 data: [].into(),
                 read_index: 0,
             },
@@ -208,6 +208,7 @@ impl<F: RichField> State<F> {
         Program {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
+            mozak_ro_memory,
             entry_point: pc,
             ..
         }: Program,
@@ -217,10 +218,26 @@ impl<F: RichField> State<F> {
             ..
         }: RuntimeArguments,
     ) -> Self {
+        let mut mem = HashMap::new();
+        if let Some(ro_memory) = mozak_ro_memory {
+            let all_ro_memory: HashMap<u32, u8> = ro_memory
+                .io_tape_public
+                .data
+                .0
+                .into_iter()
+                .chain(ro_memory.io_tape_private.data.0)
+                .chain(ro_memory.call_tape.data.0)
+                .collect();
+            for (index, item) in all_ro_memory {
+                mem.insert(index, item);
+            }
+        }
+
         Self {
             pc,
             rw_memory,
             ro_memory,
+            mozak_ro_memory: mem,
             // TODO(bing): Handle the case where iotapes are
             // in .mozak_global sections in the RISC-V binary.
             // Now, the CLI simply does unwrap_or_default() to either
@@ -253,10 +270,9 @@ impl<F: RichField> State<F> {
             ro_memory,
             mozak_ro_memory: if let Some(mrm) = mozak_ro_memory {
                 chain!(
-                    mrm.context_variables.data.iter(),
                     mrm.io_tape_private.data.iter(),
                     mrm.io_tape_public.data.iter(),
-                    mrm.transcript.data.iter(),
+                    mrm.call_tape.data.iter(),
                 )
                 .map(|(addr, value)| (*addr, *value))
                 .collect()
@@ -393,6 +409,7 @@ impl<F: RichField> State<F> {
     pub fn load_u8(&self, addr: u32) -> u8 {
         self.ro_memory
             .get(&addr)
+            .or_else(|| self.mozak_ro_memory.get(&addr))
             .or_else(|| self.rw_memory.get(&addr))
             .or_else(|| self.mozak_ro_memory.get(&addr))
             .copied()

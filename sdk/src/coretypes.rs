@@ -1,4 +1,4 @@
-use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
@@ -130,7 +130,7 @@ impl std::fmt::Debug for ProgramIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "PID(Pos2H): {}-{}-{}",
+            "MZK-{}-{}-{}",
             &self
                 .program_rom_hash
                 .to_le_bytes()
@@ -176,14 +176,14 @@ pub struct StateObject {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-pub struct RawMessage(Vec<u8>);
+pub struct RawMessage(pub Vec<u8>);
 
 #[cfg(not(target_os = "zkvm"))]
 impl std::fmt::Debug for RawMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "RawMessage({:?})",
+            "0x{}",
             &self
                 .iter()
                 .map(|x| hex::encode([*x]))
@@ -204,6 +204,10 @@ impl From<Vec<u8>> for RawMessage {
     fn from(value: Vec<u8>) -> RawMessage { RawMessage(value) }
 }
 
+impl From<AlignedVec> for RawMessage {
+    fn from(value: AlignedVec) -> RawMessage { RawMessage(value.into_vec()) }
+}
+
 /// Canonical "address" type of object in "mozak vm".
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
@@ -218,7 +222,6 @@ pub struct CPCMessage {
     /// recipient of cross-program-call message. Tuple of ProgramID
     /// and methodID
     pub callee_prog: ProgramIdentifier,
-    pub callee_fnid: u8,
 
     /// raw message over cpc
     pub args: RawMessage,

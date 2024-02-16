@@ -23,12 +23,14 @@ use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
+use mozak_sdk::sys::SystemTapes;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
+use rkyv::Deserialize;
 use starky::config::StarkConfig;
 
 #[derive(Parser, Debug, Clone)]
@@ -52,22 +54,22 @@ pub struct RuntimeArguments {
     #[arg(long)]
     io_tape_public: Option<Input>,
     #[arg(long)]
-    transcript: Option<Input>,
+    call_tape: Option<Input>,
 }
 
 #[derive(Clone, Debug, Args)]
 pub struct RunArgs {
     elf: Input,
-    #[command(flatten)]
-    args: RuntimeArguments,
+    #[arg(long)]
+    system_tape: Option<Input>,
 }
 
 #[derive(Clone, Debug, Args)]
 pub struct ProveArgs {
     elf: Input,
     proof: Output,
-    #[command(flatten)]
-    args: RuntimeArguments,
+    #[arg(long)]
+    system_tape: Option<Input>,
     recursive_proof: Option<Output>,
 }
 
@@ -75,7 +77,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
     fn from(value: RuntimeArguments) -> Self {
         let mut io_tape_private = vec![];
         let mut io_tape_public = vec![];
-        let mut transcript = vec![];
+        let mut call_tape = vec![];
 
         if let Some(mut t) = value.io_tape_private {
             let bytes_read = t
@@ -91,18 +93,70 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
             debug!("Read {bytes_read} of io_tape data.");
         };
 
-        if let Some(mut t) = value.transcript {
-            let bytes_read = t.read_to_end(&mut transcript).expect("Read should pass");
-            debug!("Read {bytes_read} of transcript data.");
+        if let Some(mut t) = value.call_tape {
+            let bytes_read = t.read_to_end(&mut call_tape).expect("Read should pass");
+            debug!("Read {bytes_read} of call_tape data.");
         };
 
         Self {
-            // TODO(bing): use `context_variables`
-            context_variables: vec![],
             io_tape_private,
             io_tape_public,
-            transcript,
+            call_tape,
         }
+    }
+}
+
+/// Deserializes an rkyv-serialized system tape binary file into `SystemTapes`.
+///
+/// # Errors
+///
+/// Errors if reading from the binary file fails.
+///
+/// # Panics
+///
+/// Panics if deserialization fails.
+pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
+    let mut sys_tapes_bytes = Vec::new();
+    let bytes_read = bin.read_to_end(&mut sys_tapes_bytes)?;
+    debug!("Read {bytes_read} of system tape data.");
+    let sys_tapes_archived = unsafe { rkyv::archived_root::<SystemTapes>(&sys_tapes_bytes[..]) };
+    let deserialized: SystemTapes = sys_tapes_archived
+        .deserialize(&mut rkyv::Infallible)
+        .unwrap();
+    Ok(deserialized)
+}
+
+/// Deserializes an rkyv-serialized system tape binary file into
+/// [`SystemTapes`](mozak_sdk::sys::SystemTapes).
+///
+/// # Panics
+///
+/// Panics if conversion from rkyv-serialized system tape to
+/// [`RuntimeArguments`](mozak_runner::elf::RuntimeArguments)
+/// fails.
+pub fn tapes_to_runtime_arguments(tape_bin: Input) -> mozak_runner::elf::RuntimeArguments {
+    let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
+    debug!("{sys_tapes:?}");
+
+    let public_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape).unwrap();
+    let private_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape).unwrap();
+    let call_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape).unwrap();
+    let event_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.event_tape).unwrap();
+    debug!(
+        "Read {} of public tape data.
+Read {} of private tape data.
+Read {} of call tape data.
+Read {} of event tape data.",
+        public_tape_bytes.len(),
+        private_tape_bytes.len(),
+        call_tape_bytes.len(),
+        event_tape_bytes.len(),
+    );
+
+    mozak_runner::elf::RuntimeArguments {
+        io_tape_public: public_tape_bytes.to_vec(),
+        io_tape_private: private_tape_bytes.to_vec(),
+        call_tape: call_tape_bytes.to_vec(),
     }
 }
 
@@ -125,6 +179,8 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
+    /// Deserialize a `SystemTape` from a binary. Useful for debugging.
+    DeserializeTape { tapes: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -134,6 +190,17 @@ fn load_program(mut elf: Input) -> Result<Program> {
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
     Program::load_elf(&elf_bytes)
+}
+
+fn load_program_with_args(
+    mut elf: Input,
+    args: &mozak_runner::elf::RuntimeArguments,
+) -> Result<Program> {
+    let mut elf_bytes = Vec::new();
+    let bytes_read = elf.read_to_end(&mut elf_bytes)?;
+    debug!("Read {bytes_read} of ELF data.");
+
+    Program::mozak_load_program(&elf_bytes, args)
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -150,26 +217,44 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run(RunArgs { elf, args }) => {
-            let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+        Command::Run(RunArgs { elf, system_tape }) => {
+            let args = system_tape.map_or_else(
+                mozak_runner::elf::RuntimeArguments::default,
+                tapes_to_runtime_arguments,
+            );
+            let args =
+                mozak_runner::elf::RuntimeArguments::new(vec![1, 2, 3], vec![4, 5, 6], vec![
+                    7, 8, 9,
+                ]);
+
+            let program = load_program_with_args(elf, &args).unwrap();
+            let state = State::<GoldilocksField>::new(program.clone(), args);
             let state = step(&program, state)?.last_state;
-            debug!("{:?}", state.registers);
         }
-        Command::ProveAndVerify(RunArgs { elf, args }) => {
-            let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+        Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
+            let args = system_tape.map_or_else(
+                mozak_runner::elf::RuntimeArguments::default,
+                tapes_to_runtime_arguments,
+            );
+            mozak_sdk::sys::SystemTapes::load_from_args(args.call_tape.as_slice());
+            let program = load_program_with_args(elf, &args).unwrap();
+            let state = State::<GoldilocksField>::new(program.clone(), args);
+
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
         Command::Prove(ProveArgs {
             elf,
-            args,
+            system_tape,
             mut proof,
             recursive_proof,
         }) => {
-            let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let args = system_tape.map_or_else(
+                mozak_runner::elf::RuntimeArguments::default,
+                tapes_to_runtime_arguments,
+            );
+            let program = load_program_with_args(elf, &args).unwrap();
+            let state = State::<GoldilocksField>::new(program.clone(), args);
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -286,7 +371,10 @@ fn main() -> Result<()> {
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
         }
-
+        Command::DeserializeTape { tapes } => {
+            let sys_tapes: SystemTapes = deserialize_system_tape(tapes)?;
+            println!("{sys_tapes:?}");
+        }
         Command::Bench(bench) => {
             let time_taken = timeit(&|| bench.run())?.as_secs_f64();
             println!("{time_taken}");

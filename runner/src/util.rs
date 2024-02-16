@@ -31,7 +31,7 @@ pub fn execute_code_with_ro_memory(
     let RuntimeArguments {
         io_tape_private,
         io_tape_public,
-        transcript,
+        call_tape,
         ..
     } = runtime_args;
     let _ = env_logger::try_init();
@@ -67,10 +67,9 @@ pub fn execute_code_with_ro_memory(
     };
 
     let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
-        context_variables: vec![],
         io_tape_private,
         io_tape_public,
-        transcript,
+        call_tape,
     });
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {

@@ -1,22 +1,14 @@
 #![feature(restricted_std)]
 mod core_logic;
-use std::fs::File;
 
 use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
-use mozak_sdk::cpc::globaltrace_dump_to_disk;
-use mozak_sdk::io::{
-    from_tape_deserialized, from_tape_function_id, from_tape_rawbuf, get_tapes_native,
-    to_tape_function_id, to_tape_rawbuf, to_tape_serialized,
-};
+use mozak_sdk::sys::call_send;
+#[cfg(not(target_os = "zkvm"))]
 use mozak_sdk::sys::dump_tapes;
-use simple_logger::{set_up_color_terminal, SimpleLogger};
-use token::transfer;
+use token::{dispatch, MethodArgs, MethodReturns};
 
 fn main() {
-    SimpleLogger::new().init().unwrap();
-    set_up_color_terminal();
-
-    log::info!("Running token-native");
+    println!("------>   Running token-native");
 
     let token_program = ProgramIdentifier {
         program_rom_hash: [11, 113, 20, 251].into(),
@@ -44,16 +36,24 @@ fn main() {
 
     let remitter_signature = vec![70u8, 20, 56, 33].into();
 
-    transfer(
+    call_send(
+        ProgramIdentifier::default(),
         token_program,
-        token_object,
-        remitter_signature,
-        remitter_wallet,
-        remittee_wallet,
+        MethodArgs::Transfer(
+            token_program,
+            token_object,
+            remitter_signature,
+            remitter_wallet,
+            remittee_wallet,
+        ),
+        dispatch,
+        || -> MethodReturns {
+            MethodReturns::Transfer // TODO read from
+                                    // private tape
+        },
     );
 
     dump_tapes("wallet_tfr".to_string());
-    // globaltrace_dump_to_disk("wallet_transfer_cpc".to_string());
 
-    log::info!("Generated tapes and verified proof, all done!");
+    println!("------>   Generated tapes!");
 }

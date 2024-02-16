@@ -76,11 +76,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89d92a4743f9a61002fae18374ed11e7973f530cb3a3255fb354818118b2203c"
 
 [[package]]
-name = "mozak-system"
-version = "0.1.0"
-
-[[package]]
-name = "mozak_sdk"
+name = "mozak-sdk"
 version = "0.1.0"
 dependencies = [
  "hex",
@@ -89,6 +85,10 @@ dependencies = [
  "once_cell",
  "rkyv",
 ]
+
+[[package]]
+name = "mozak-system"
+version = "0.1.0"
 
 [[package]]
 name = "once_cell"

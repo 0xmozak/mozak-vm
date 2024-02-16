@@ -3,47 +3,20 @@
 
 mod core_logic;
 
-use mozak_sdk::io::{get_tapes, Extractor};
-use mozak_sdk::sys::mailbox_receive;
+use core;
+use std::path::{Path, PathBuf};
+
+use mozak_sdk::coretypes::{CPCMessage, ProgramIdentifier};
+use mozak_sdk::sys::call_receive;
 
 pub fn main() {
-    // let (mut public_tape, mut _private_tape) = get_tapes();
-
-    sdk::set_self_prog(prog_id);
-
-    ///
-    for message in mailbox_receive().unwrap() { // iterator
-         // if (message.caller == self_prog_id) {
-         //     // dispatch and check
-         // }
+    if let Some(message) = call_receive() {
+        if message.0.caller_prog != ProgramIdentifier::default() {
+            panic!("Caller is not the null program");
+        };
     }
 
-    // Vec<Element>
-    // Element: Vec<Element> | Message
-
-    // / under B
-    // / | A | B | B->C | B->C->B | B | C |
-
-    // #[allow(clippy::single_match)]
-    // match public_tape.get_u8() {
-
-    //     /// AMM  (Top level)
-    //     ///  USDC (Responders)
-    //     ///    WALLET  (Responders)
-    //     ///
-    //     0 => {
-    //         // Single function execution
-    //         // match public_tape.get_u8() {
-    //         //     unimplemented!()
-    //         // }
-    //     }
-    //     _ => {
-    //         // Multi-function execution based on recepient
-    //         // for calls in global_transcript_calls(program_id) {
-    //         //     // Do those calls
-    //         // }
-    //     }
-    // }
+    guest::env::write(b"1");
 }
 
 // We define `main()` to be the program's entry point.
