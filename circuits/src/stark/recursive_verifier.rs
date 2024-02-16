@@ -460,16 +460,20 @@ pub fn circuit_data_for_recursion<
 ) -> CircuitData<F, C, D>
 where
     C::Hasher: AlgebraicHasher<F>, {
-    let mut builder = CircuitBuilder::<F, D>::new(config.clone());
-    while builder.num_gates() < 1 << 12 {
-        builder.add_gate(NoopGate, vec![]);
-    }
-    let data = builder.build::<C>();
+    // Generate a simple circuit that will be recursively verified in the out
+    // circuit.
+    let common = {
+        let mut builder = CircuitBuilder::<F, D>::new(config.clone());
+        while builder.num_gates() < 1 << 5 {
+            builder.add_gate(NoopGate, vec![]);
+        }
+        builder.build::<C>().common
+    };
 
     let mut builder = CircuitBuilder::<F, D>::new(config.clone());
-    let proof = builder.add_virtual_proof_with_pis(&data.common);
-    let verifier_data = builder.add_virtual_verifier_data(data.common.config.fri_config.cap_height);
-    builder.verify_proof::<C>(&proof, &verifier_data, &data.common);
+    let proof = builder.add_virtual_proof_with_pis(&common);
+    let verifier_data = builder.add_virtual_verifier_data(common.config.fri_config.cap_height);
+    builder.verify_proof::<C>(&proof, &verifier_data, &common);
     for _ in 0..public_input_size {
         builder.add_virtual_public_input();
     }
@@ -676,7 +680,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    // #[ignore]
     #[allow(clippy::too_many_lines)]
     fn same_circuit_verify_different_vm_proofs() -> Result<()> {
         let stark = S::default();

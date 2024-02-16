@@ -124,7 +124,7 @@ enum Command {
     /// Verify the given proof from file.
     Verify { proof: Input },
     /// Verify the given recursive proof from file.
-    VerifyRecursiveProof { proof: Input, vk: Input },
+    VerifyRecursiveProof { proof: Input, verifier_key: Input },
     /// Compute the Program Rom Hash of the given ELF.
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
@@ -239,7 +239,10 @@ fn main() -> Result<()> {
             verify_proof(&stark, all_proof, &config)?;
             println!("proof verified successfully!");
         }
-        Command::VerifyRecursiveProof { mut proof, mut vk } => {
+        Command::VerifyRecursiveProof {
+            mut proof,
+            mut verifier_key,
+        } => {
             let mut circuit = circuit_data_for_recursion::<F, C, D>(
                 &VM_RECURSION_CONFIG,
                 VM_RECURSION_THRESHOLD_DEGREE_BITS,
@@ -247,7 +250,7 @@ fn main() -> Result<()> {
             );
 
             let mut vk_buffer: Vec<u8> = vec![];
-            vk.read_to_end(&mut vk_buffer)?;
+            verifier_key.read_to_end(&mut vk_buffer)?;
             circuit.verifier_only = VerifierOnlyCircuitData::from_bytes(vk_buffer).unwrap();
 
             let mut proof_buffer: Vec<u8> = vec![];
