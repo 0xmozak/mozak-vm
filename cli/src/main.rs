@@ -18,6 +18,7 @@ use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
     recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
+    FINAL_RECURSION_THRESHOLD_DEGREE_BITS, VM_PUBLIC_INPUT_SIZE,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
@@ -139,9 +140,6 @@ fn load_program(mut elf: Input) -> Result<Program> {
     Program::load_elf(&elf_bytes)
 }
 
-const PUBLIC_INPUT_SIZE: usize = 129;
-const TARGET_DEGREE_BITS: usize = 12;
-
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
 /// iotape.txt`
 #[allow(clippy::too_many_lines)]
@@ -212,12 +210,12 @@ fn main() -> Result<()> {
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
                     &recursive_circuit.circuit,
                     &circuit_config,
-                    TARGET_DEGREE_BITS,
+                    FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
                     &recursive_all_proof,
                 )?;
                 assert_eq!(
                     final_circuit.circuit.common.num_public_inputs,
-                    PUBLIC_INPUT_SIZE
+                    VM_PUBLIC_INPUT_SIZE
                 );
 
                 let s = final_proof.to_bytes();
@@ -245,8 +243,8 @@ fn main() -> Result<()> {
         Command::VerifyRecursiveProof { mut proof, mut vk } => {
             let mut circuit = circuit_data_for_recursion::<F, C, D>(
                 &CircuitConfig::standard_recursion_config(),
-                TARGET_DEGREE_BITS,
-                PUBLIC_INPUT_SIZE,
+                FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
+                VM_PUBLIC_INPUT_SIZE,
             );
 
             let mut vk_buffer: Vec<u8> = vec![];
