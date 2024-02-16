@@ -32,6 +32,10 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
     step_rows
         .iter()
         .filter(|row| {
+            // This if-else ensure that mozak-ro-memory addresses are filtered out. No need
+            // to insert zero-init rows for mozak-ro-addresses. All this in case
+            // mozak-ro-memory indeed exist, because this code should work for a vanilla
+            // ELF too
             if program.mozak_ro_memory.is_some() {
                 row.aux.mem.is_some()
                     && (matches!(

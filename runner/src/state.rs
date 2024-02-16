@@ -251,20 +251,16 @@ impl<F: RichField> State<F> {
             pc,
             rw_memory,
             ro_memory,
-            mozak_ro_memory: mozak_ro_memory.map_or_else(
-                #[allow(clippy::redundant_closure)]
-                || HashMap::default(),
-                |mrm| {
-                    chain!(
-                        mrm.context_variables.data.iter(),
-                        mrm.io_tape_private.data.iter(),
-                        mrm.io_tape_public.data.iter(),
-                        mrm.transcript.data.iter(),
-                    )
-                    .map(|(addr, value)| (*addr, *value))
-                    .collect()
-                },
-            ),
+            mozak_ro_memory: mozak_ro_memory.map_or_else(HashMap::default, |mrm| {
+                chain!(
+                    mrm.context_variables.data.iter(),
+                    mrm.io_tape_private.data.iter(),
+                    mrm.io_tape_public.data.iter(),
+                    mrm.transcript.data.iter(),
+                )
+                .map(|(addr, value)| (*addr, *value))
+                .collect()
+            }),
             ..Default::default()
         }
     }
