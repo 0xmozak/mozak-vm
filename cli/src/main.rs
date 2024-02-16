@@ -12,13 +12,13 @@ use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
-use mozak_circuits::recproof::unbounded::circuit_data_for_recursion;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
-    recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
-    FINAL_RECURSION_THRESHOLD_DEGREE_BITS, VM_PUBLIC_INPUT_SIZE,
+    circuit_data_for_recursion, recursive_mozak_stark_circuit,
+    shrink_to_target_degree_bits_circuit, FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
+    VM_PUBLIC_INPUT_SIZE,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
