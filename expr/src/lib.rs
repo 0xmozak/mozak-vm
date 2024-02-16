@@ -47,46 +47,58 @@ impl Default for ExprBuilder {
 }
 
 impl ExprBuilder {
-    /// Create an [`Expr`] from [`ExprTree`].
-    fn expr<'a, V>(&'a self, expr_tree: &'a mut ExprTree<'a, V>) -> Expr<'a, V> {
-        // TODO: Consider interning it here
+    /// Internalise an [`ExprTree`] by moving it to memory allocated by the
+    /// [`Bump`] arena owned by [`ExprBuilder`].
+    fn intern<'a, V>(&'a self, expr_tree: ExprTree<'a, V>) -> Expr<'a, V> {
+        let expr_tree = self.arena.alloc(expr_tree);
         Expr {
             expr_tree,
             builder: self,
         }
     }
 
+    /// Convenience method for creating `BinOp` nodes
+    fn bin_op<'a, V>(&'a self, op: BinOp, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
+        let left = left.expr_tree;
+        let right = right.expr_tree;
+        let expr_tree = ExprTree::BinOp { op, left, right };
+
+        self.intern(expr_tree)
+    }
+
+    /// Create a `Literal` expression
     pub fn lit<'a, V>(&'a self, value: V) -> Expr<'a, V> {
-        self.expr(self.arena.alloc(ExprTree::lit(value)))
+        self.intern(ExprTree::Literal { value })
     }
 
+    /// Create an `Add` expression
     pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        let left = left.expr_tree;
-        let right = right.expr_tree;
-
-        self.expr(self.arena.alloc(ExprTree::add(left, right)))
+        self.bin_op(BinOp::Add, left, right)
     }
 
+    /// Create a `Sub` expression
     pub fn sub<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        let left = left.expr_tree;
-        let right = right.expr_tree;
-
-        self.expr(self.arena.alloc(ExprTree::sub(left, right)))
+        self.bin_op(BinOp::Sub, left, right)
     }
 
+    /// Create a `Mul` expression
     pub fn mul<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        let left = left.expr_tree;
-        let right = right.expr_tree;
-
-        self.expr(self.arena.alloc(ExprTree::mul(left, right)))
+        self.bin_op(BinOp::Mul, left, right)
     }
 
+    /// Create a `div` expression
     pub fn div<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        let left = left.expr_tree;
-        let right = right.expr_tree;
-
-        self.expr(self.arena.alloc(ExprTree::div(left, right)))
+        self.bin_op(BinOp::Div, left, right)
     }
+}
+
+/// Enum for binary operations
+#[derive(Debug)]
+pub enum BinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
 }
 
 /// Internal type to represent the expression trees
@@ -100,15 +112,6 @@ enum ExprTree<'a, V> {
     Literal {
         value: V,
     },
-}
-
-/// Enum for binary operations
-#[derive(Debug)]
-pub enum BinOp {
-    Add,
-    Sub,
-    Mul,
-    Div,
 }
 
 /// Big step evaluator
@@ -160,42 +163,6 @@ where
             BinOp::Sub => left - right,
             BinOp::Mul => left * right,
             BinOp::Div => left / right,
-        }
-    }
-}
-
-impl<'a, V> ExprTree<'a, V> {
-    fn lit(value: V) -> Self { ExprTree::Literal { value } }
-
-    fn add(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
-        ExprTree::BinOp {
-            op: BinOp::Add,
-            left,
-            right,
-        }
-    }
-
-    fn sub(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
-        ExprTree::BinOp {
-            op: BinOp::Sub,
-            left,
-            right,
-        }
-    }
-
-    fn mul(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
-        ExprTree::BinOp {
-            op: BinOp::Mul,
-            left,
-            right,
-        }
-    }
-
-    fn div(left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Self {
-        ExprTree::BinOp {
-            op: BinOp::Div,
-            left,
-            right,
         }
     }
 }
