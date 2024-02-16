@@ -106,7 +106,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &poseidon2_output_bytes_rows,
     );
     let memory_zeroinit_rows =
-        generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
+        generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);

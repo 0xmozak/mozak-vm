@@ -4,6 +4,7 @@ use std::rc::Rc;
 use anyhow::{anyhow, Result};
 use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
+use itertools::chain;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
@@ -57,6 +58,7 @@ pub struct State<F: RichField> {
     pub pc: u32,
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
+    pub mozak_ro_memory: HashMap<u32, u8>,
     pub io_tape: IoTape,
     pub transcript: IoTapeData,
     _phantom: PhantomData<F>,
@@ -104,6 +106,7 @@ impl<F: RichField> Default for State<F> {
             pc: Default::default(),
             rw_memory: HashMap::default(),
             ro_memory: HashMap::default(),
+            mozak_ro_memory: HashMap::default(),
             io_tape: IoTape::from((vec![], vec![])),
             transcript: IoTapeData {
                 data: [].into(),
@@ -229,6 +232,9 @@ impl<F: RichField> State<F> {
 
     #[must_use]
     #[allow(clippy::similar_names)]
+    /// # Panics
+    /// should not panic since access to the `mozak_ro_memory.unwrap()` takes
+    /// place after `is_some` check
     // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
     // will be removed, I will rename this function to `new`
     pub fn new_mozak_api(
@@ -236,6 +242,7 @@ impl<F: RichField> State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
+            mozak_ro_memory,
             ..
         }: Program,
         RuntimeArguments { .. }: RuntimeArguments,
@@ -244,6 +251,18 @@ impl<F: RichField> State<F> {
             pc,
             rw_memory,
             ro_memory,
+            mozak_ro_memory: if let Some(mrm) = mozak_ro_memory {
+                chain!(
+                    mrm.context_variables.data.iter(),
+                    mrm.io_tape_private.data.iter(),
+                    mrm.io_tape_public.data.iter(),
+                    mrm.transcript.data.iter(),
+                )
+                .map(|(addr, value)| (*addr, *value))
+                .collect()
+            } else {
+                HashMap::default()
+            },
             ..Default::default()
         }
     }
@@ -375,6 +394,7 @@ impl<F: RichField> State<F> {
         self.ro_memory
             .get(&addr)
             .or_else(|| self.rw_memory.get(&addr))
+            .or_else(|| self.mozak_ro_memory.get(&addr))
             .copied()
             .unwrap_or_default()
     }

@@ -101,6 +101,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let zero_init_clk = P::ONES - lv.clk;
         let elf_init_clk = lv.clk;
 
+        // first row init is always one or its a dummy row
+        yield_constr.constraint_first_row((P::ONES - lv.is_init) * lv.is_executed());
+
         // All init ops happen prior to exec and the `clk` would be `0` or `1`.
         yield_constr.constraint(lv.is_init * zero_init_clk * elf_init_clk);
         // All zero inits should have value `0`.
@@ -183,6 +186,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
         let one = builder.one_extension();
+        let one_minus_is_init = builder.sub_extension(one, lv.is_init);
+        let one_minus_is_init_times_executed =
+            builder.mul_extension(one_minus_is_init, lv_is_executed);
+        yield_constr.constraint_first_row(builder, one_minus_is_init_times_executed);
+
         let one_sub_clk = builder.sub_extension(one, lv.clk);
         let is_init_mul_one_sub_clk = builder.mul_extension(lv.is_init, one_sub_clk);
 
@@ -245,13 +253,37 @@ mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;
+    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
+    use plonky2::util::timing::TimingTree;
+    use starky::prover::prove;
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
+    use starky::verifier::verify_stark_proof;
 
+    use crate::cross_table_lookup::ctl_utils::check_single_ctl;
+    use crate::cross_table_lookup::CrossTableLookup;
+    use crate::generation::fullword_memory::generate_fullword_memory_trace;
+    use crate::generation::halfword_memory::generate_halfword_memory_trace;
+    use crate::generation::io_memory::{
+        generate_io_memory_private_trace, generate_io_memory_public_trace,
+    };
+    use crate::generation::memory::generate_memory_trace;
+    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
+    use crate::generation::memoryinit::{
+        generate_elf_memory_init_trace, generate_memory_init_trace,
+        generate_mozak_memory_init_trace,
+    };
+    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
+    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::stark::mozak_stark::MozakStark;
-    use crate::test_utils::ProveAndVerify;
+    use crate::stark::mozak_stark::{
+        ElfMemoryInitTable, MemoryTable, MemoryZeroInitTable, MozakMemoryInitTable, MozakStark,
+        TableKindSetBuilder,
+    };
+    use crate::stark::utils::trace_rows_to_poly_values;
+    use crate::test_utils::{fast_test_config, ProveAndVerify};
+    use crate::{memory, memory_zeroinit, memoryinit};
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -315,6 +347,104 @@ mod tests {
         ];
         let (program, record) = execute_code(instructions, &[], &[(1, iterations)]);
         Stark::prove_and_verify(&program, &record)
+    }
+
+    /// if all addresses are equal in memorytable, then
+    /// making all `is_init` as zero should fail.
+    /// Note this is required since this time, `diff_addr_inv` logic
+    /// can't help detect `is_init` for first row.
+    #[test]
+    fn no_init_fail() {
+        let instructions = [Instruction {
+            op: Op::SB,
+            args: Args {
+                rs1: 1,
+                rs2: 1,
+                imm: 0,
+                ..Args::default()
+            },
+        }];
+        let (program, record) = execute_code(instructions, &[(0, 0)], &[(1, 0)]);
+        let memory_init_rows = generate_elf_memory_init_trace(&program);
+        let mozak_memory_init_rows = generate_mozak_memory_init_trace(&program);
+        let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
+        let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
+        let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
+        let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+        let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+        #[allow(unused)]
+        let poseidon2_output_bytes_rows =
+            generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
+        let mut memory_rows = generate_memory_trace(
+            &record.executed,
+            &generate_memory_init_trace(&program),
+            &halfword_memory_rows,
+            &fullword_memory_rows,
+            &io_memory_private_rows,
+            &io_memory_public_rows,
+            &poseiden2_sponge_rows,
+            &poseidon2_output_bytes_rows,
+        );
+        // malicious prover makes first memory row's is_init as zero
+        memory_rows[0].is_init = F::ZERO;
+        // fakes a load instead of init
+        memory_rows[0].is_load = F::ONE;
+        // now all addresses are same, and all inits are zero
+        assert!(memory_rows
+            .iter()
+            .all(|row| row.is_init == F::ZERO && row.addr == F::ZERO));
+
+        let memory_zeroinit_rows =
+            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
+
+        // ctl for is_init values
+        let ctl = CrossTableLookup::new(
+            vec![
+                ElfMemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
+                MozakMemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
+                MemoryZeroInitTable::new(
+                    memory_zeroinit::columns::data_for_memory(),
+                    memory_zeroinit::columns::filter_for_memory(),
+                ),
+            ],
+            MemoryTable::new(
+                memory::columns::data_for_memoryinit(),
+                memory::columns::filter_for_memoryinit(),
+            ),
+        );
+
+        let memory_trace = trace_rows_to_poly_values(memory_rows);
+        let trace = TableKindSetBuilder {
+            memory_stark: memory_trace.clone(),
+            elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+            memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
+            mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
+            ..Default::default()
+        }
+        .build();
+
+        let config = fast_test_config();
+
+        let stark = S::default();
+
+        // ctl for malicious prover indeed fails, showing inconsistency in is_init
+        assert!(check_single_ctl::<F>(&trace, &ctl).is_err());
+        let proof = prove::<F, C, S, D>(
+            stark,
+            &config,
+            memory_trace,
+            &[],
+            &mut TimingTree::default(),
+        )
+        .unwrap();
+        // so memory stark proof should fail too.
+        assert!(verify_stark_proof(stark, proof, &config).is_err());
     }
 
     #[test]
