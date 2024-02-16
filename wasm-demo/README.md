@@ -1,4 +1,5 @@
 # WASM DEMO
+
 This demo tries to run Mozak-VM and its proof system on WASM. For now it just tries to execute single instruction of ADD.
 The execution and proving works :sparkles:.
 
@@ -7,14 +8,17 @@ The execution and proving works :sparkles:.
 This test suite depnds on
 
 - `node` (`v20.11.0`),
-- `rust`, (version in `../rust-toolchain.toml`), and
+- `rust`, (version in `../rust-toolchain.toml`),
+- `wasmtime`,
 - `playwright`.
 
 In order to run tests you need to install `playwright` browsers by running
 
 ```bash
-npx playwright install
+npx playwright install --with-deps
 ```
+
+which will install playwright and all its associated runners needed to run the browsers.
 
 ## First build
 
@@ -35,19 +39,31 @@ All final build artifacts will be placed in `./dist` directory.
 
 ## Automated Testing
 
-You can run the Playwright test suite by using
+You can run the Wasmtime test suite by using
 
 ```bash
 npm test
 ```
 
 which will
+- test `wasm32-wasi` in `wasmtime`.
 
-- test `wasm32-wasi` in `wasmtime`, and
-- test `wasm32-unknown-unknown` in 3 major browsers,
+And you can run the Playwright test suite by using
+
+```bash
+npm run test-slow
+```
+
+which will
+
+- test `wasm32-unknown-unknown` in 3 major browsers, and
 - test `wasm32-wasi` in 3 major browsers.
 
-Note that we need to run `wasmer` first as `playwright` might open a browser window if any tests fails.
+Note that upon failure playwright will open the report.  You can manually reopen the report by running
+
+```bash
+npx playwright show-report
+```
 
 ## Rebuild
 
@@ -62,8 +78,6 @@ which will call
 - `wasm-pack build --target web`,
 - `cargo build --target wasm32-wasi`, and
 - `webpack`.
-
-If you
 
 ## Opening in browser
 
