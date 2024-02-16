@@ -3,22 +3,20 @@
 
 mod core_logic;
 
+use core;
 use std::path::{Path, PathBuf};
 
-use mozak_sdk::coretypes::ProgramIdentifier;
-use mozak_sdk::io::{get_tapes, Extractor};
-use mozak_sdk::sys::{call_receive, SystemTapes};
+use mozak_sdk::coretypes::{CPCMessage, ProgramIdentifier};
+use mozak_sdk::sys::call_receive;
 
 pub fn main() {
-    assert_eq!(1, 1);
+    if let Some(message) = call_receive() {
+        if message.0.caller_prog != ProgramIdentifier::default() {
+            panic!("Caller is not the null program");
+        };
+    }
+
     guest::env::write(b"1");
-    //    SystemTapes::load_from_file(Path::new("wallet_tfr.tape_bin"));
-    //
-    //    if let Some(message) = call_receive() {
-    //        if message.0.callee_prog != ProgramIdentifier::default() {
-    //            panic!("Program identifiers do not match");
-    //        };
-    //    }
 }
 
 // We define `main()` to be the program's entry point.
