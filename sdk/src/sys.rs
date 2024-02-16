@@ -67,7 +67,7 @@ impl SystemTapes {
     }
 }
 
-static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
+static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| unsafe {
     #[cfg(target_os = "zkvm")]
     {
         let mut buf = [0; 244];
