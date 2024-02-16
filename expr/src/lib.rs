@@ -102,10 +102,6 @@ pub enum BinOp {
     Div,
 }
 
-impl<V> From<V> for ExprTree<'_, V> {
-    fn from(value: V) -> Self { ExprTree::Literal { value } }
-}
-
 // Big step evaluator
 fn big_step<'a, E, V>(evaluator: &mut E, expr: &'a ExprTree<'a, V>) -> V
 where
