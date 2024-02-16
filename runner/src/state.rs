@@ -251,7 +251,8 @@ impl<F: RichField> State<F> {
             pc,
             rw_memory,
             ro_memory,
-            mozak_ro_memory: if let Some(mrm) = mozak_ro_memory {
+            mozak_ro_memory: mozak_ro_memory.map_or_else(
+                || HashMap::default(), |mrm| {
                 chain!(
                     mrm.context_variables.data.iter(),
                     mrm.io_tape_private.data.iter(),
@@ -260,9 +261,8 @@ impl<F: RichField> State<F> {
                 )
                 .map(|(addr, value)| (*addr, *value))
                 .collect()
-            } else {
-                HashMap::default()
             },
+          ),
             ..Default::default()
         }
     }
