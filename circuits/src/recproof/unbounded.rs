@@ -49,22 +49,32 @@ pub fn common_data_for_recursion<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     const D: usize,
->() -> CommonCircuitData<F, D>
+>(
+    config: &CircuitConfig,
+    target_degree_bits: usize,
+    public_input_size: usize,
+) -> CommonCircuitData<F, D>
 where
     C::Hasher: AlgebraicHasher<F>, {
-    let config = CircuitConfig::standard_recursion_config();
-    let mut builder = CircuitBuilder::<F, D>::new(config);
+    let mut builder = CircuitBuilder::<F, D>::new(config.clone());
     while builder.num_gates() < 1 << 12 {
         builder.add_gate(NoopGate, vec![]);
     }
     let data = builder.build::<C>();
 
-    let config = CircuitConfig::standard_recursion_config();
-    let mut builder = CircuitBuilder::<F, D>::new(config);
+    let mut builder = CircuitBuilder::<F, D>::new(config.clone());
     let proof = builder.add_virtual_proof_with_pis(&data.common);
     let verifier_data = builder.add_virtual_verifier_data(data.common.config.fri_config.cap_height);
     builder.verify_proof::<C>(&proof, &verifier_data, &data.common);
-    while builder.num_gates() < 1 << 12 {
+    for _ in 0..public_input_size {
+        builder.add_virtual_public_input();
+    }
+    // We don't want to pad all the way up to 2^target_degree_bits, as the builder
+    // will add a few special gates afterward. So just pad to
+    // 2^(target_degree_bits - 1) + 1. Then the builder will pad to the next
+    // power of two.
+    let min_gates = (1 << (target_degree_bits - 1)) + 1;
+    while builder.num_gates() < min_gates {
         builder.add_gate(NoopGate, vec![]);
     }
     builder.build::<C>().common
@@ -89,7 +99,11 @@ impl LeafSubCircuit {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         C::Hasher: AlgebraicHasher<F>, {
-        let mut common_data = common_data_for_recursion::<F, C, D>();
+        let mut common_data = common_data_for_recursion::<F, C, D>(
+            &CircuitConfig::standard_recursion_config(),
+            13,
+            0,
+        );
         let verifier_data_target = builder.add_verifier_data_public_inputs();
         common_data.num_public_inputs = builder.num_public_inputs();
 
