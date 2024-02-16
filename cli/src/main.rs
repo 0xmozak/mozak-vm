@@ -18,7 +18,7 @@ use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
     circuit_data_for_recursion, recursive_mozak_stark_circuit,
     shrink_to_target_degree_bits_circuit, FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
-    VM_PUBLIC_INPUT_SIZE,
+    VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
@@ -30,7 +30,7 @@ use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
-use plonky2::plonk::circuit_data::{CircuitConfig, VerifierOnlyCircuitData};
+use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -196,12 +196,11 @@ fn main() -> Result<()> {
 
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
-                let circuit_config = CircuitConfig::standard_recursion_config();
                 let degree_bits = all_proof.degree_bits(&config);
                 let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
                     &stark,
                     &degree_bits,
-                    &circuit_config,
+                    &VM_RECURSION_CONFIG,
                     &config,
                 );
 
@@ -209,7 +208,7 @@ fn main() -> Result<()> {
 
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
                     &recursive_circuit.circuit,
-                    &circuit_config,
+                    &VM_RECURSION_CONFIG,
                     FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
                     &recursive_all_proof,
                 )?;
@@ -242,7 +241,7 @@ fn main() -> Result<()> {
         }
         Command::VerifyRecursiveProof { mut proof, mut vk } => {
             let mut circuit = circuit_data_for_recursion::<F, C, D>(
-                &CircuitConfig::standard_recursion_config(),
+                &VM_RECURSION_CONFIG,
                 FINAL_RECURSION_THRESHOLD_DEGREE_BITS,
                 VM_PUBLIC_INPUT_SIZE,
             );
