@@ -114,20 +114,23 @@ enum ExprTree<'a, V> {
     },
 }
 
-/// Big step evaluator
-fn big_step<'a, E, V>(evaluator: &mut E, expr: &'a ExprTree<'a, V>) -> V
+impl<V> ExprTree<'_, V>
 where
     V: Copy,
-    E: ?Sized,
-    E: Evaluator<V>, {
-    match expr {
-        ExprTree::BinOp { op, left, right } => {
-            let l = big_step(evaluator, left);
-            let r = big_step(evaluator, right);
+{
+    fn eval_with<E>(&self, evaluator: &mut E) -> V
+    where
+        E: Evaluator<V>,
+        E: ?Sized, {
+        match self {
+            ExprTree::BinOp { op, left, right } => {
+                let left = left.eval_with(evaluator);
+                let right = right.eval_with(evaluator);
 
-            evaluator.bin_op(op, l, r)
+                evaluator.bin_op(op, left, right)
+            }
+            ExprTree::Literal { value } => *value,
         }
-        ExprTree::Literal { value } => *value,
     }
 }
 
@@ -136,10 +139,7 @@ pub trait Evaluator<V>
 where
     V: Copy, {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
-    fn eval<'a>(&mut self, expr: Expr<'a, V>) -> V {
-        // Default eval
-        big_step(self, expr.expr_tree)
-    }
+    fn eval<'a>(&mut self, expr: Expr<'a, V>) -> V { expr.expr_tree.eval_with(self) }
 }
 
 /// Default evaluator for pure values.
