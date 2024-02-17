@@ -32,7 +32,7 @@ where
     }
 }
 
-pub struct ConstraintBuilder<'a, F, const D: usize>
+pub struct ConstraintBuilderExt<'a, F, const D: usize>
 where
     F: RichField,
     F: Extendable<D>, {
@@ -40,7 +40,7 @@ where
     builder: &'a mut CircuitBuilder<F, D>,
 }
 
-impl<'a, F, const D: usize> ConstraintBuilder<'a, F, D>
+impl<'a, F, const D: usize> ConstraintBuilderExt<'a, F, D>
 where
     F: RichField,
     F: Extendable<D>,
