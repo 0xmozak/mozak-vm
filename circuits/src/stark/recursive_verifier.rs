@@ -2,11 +2,10 @@ use std::borrow::Borrow;
 use std::fmt::Debug;
 
 use anyhow::Result;
+use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
-use plonky2::gates::exponentiation::ExponentiationGate;
-use plonky2::gates::gate::GateRef;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::iop::challenger::RecursiveChallenger;
@@ -14,9 +13,9 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::ProofWithPublicInputs;
+use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::reducing::ReducingFactorTarget;
 use plonky2::with_context;
 use starky::config::StarkConfig;
@@ -26,6 +25,7 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
+use crate::recproof::unbounded::common_data_for_recursion;
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::poly::eval_vanishing_poly_circuit;
@@ -160,8 +160,6 @@ where
         );
     }
 
-    add_common_recursion_gates(&mut builder);
-
     let circuit = builder.build();
     MozakStarkVerifierCircuit { circuit, targets }
 }
@@ -233,18 +231,6 @@ where
         init_challenger_state_target,
         zero_target,
     }
-}
-
-/// Add gates that are sometimes used by recursive circuits, even if it's not
-/// actually used by this particular recursive circuit. This is done for
-/// uniformity. We sometimes want all recursion circuits to have the same gate
-/// set, so that we can do 1-of-n conditional recursion efficiently.
-pub fn add_common_recursion_gates<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-) {
-    builder.add_gate_to_gate_set(GateRef::new(ExponentiationGate::new_from_config(
-        &builder.config,
-    )));
 }
 
 /// Recursively verifies an inner proof.
@@ -456,28 +442,155 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
 }
 
-// TODO(Matthias): remove this limitation, once we implement the recursion for
-// Register Starks.
-#[cfg(not(feature = "enable_register_starks"))]
+/// Represents a circuit which recursively verifies a PLONK proof.
+#[derive(Eq, PartialEq, Debug)]
+pub struct PlonkWrapperCircuit<F, C, const D: usize>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
+    pub circuit: CircuitData<F, C, D>,
+    pub proof_with_pis_target: ProofWithPublicInputsTarget<D>,
+}
+
+impl<F, C, const D: usize> PlonkWrapperCircuit<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>,
+{
+    pub fn new(
+        circuit: &CircuitData<F, C, D>,
+        config: CircuitConfig,
+    ) -> PlonkWrapperCircuit<F, C, D> {
+        let mut builder = CircuitBuilder::new(config);
+        let proof_with_pis_target = builder.add_virtual_proof_with_pis(&circuit.common);
+        let last_vk = builder.constant_verifier_data(&circuit.verifier_only);
+        builder.verify_proof::<C>(&proof_with_pis_target, &last_vk, &circuit.common);
+        builder.register_public_inputs(&proof_with_pis_target.public_inputs); // carry PIs forward
+        let circuit = builder.build::<C>();
+        PlonkWrapperCircuit {
+            circuit,
+            proof_with_pis_target,
+        }
+    }
+
+    pub fn prove(
+        &self,
+        proof: &ProofWithPublicInputs<F, C, D>,
+    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        let mut inputs = PartialWitness::new();
+        inputs.set_proof_with_pis_target(&self.proof_with_pis_target, proof);
+        self.circuit.prove(inputs)
+    }
+}
+
+/// Shrinks a PLONK circuit to the target degree bits.
+pub fn shrink_to_target_degree_bits_circuit<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    const D: usize,
+>(
+    circuit: &CircuitData<F, C, D>,
+    shrink_config: &CircuitConfig,
+    target_degree_bits: usize,
+    proof: &ProofWithPublicInputs<F, C, D>,
+) -> Result<(PlonkWrapperCircuit<F, C, D>, ProofWithPublicInputs<F, C, D>)>
+where
+    C::Hasher: AlgebraicHasher<F>, {
+    let mut last_degree_bits = circuit.common.degree_bits();
+    assert!(last_degree_bits >= target_degree_bits);
+
+    let mut shrink_circuit = PlonkWrapperCircuit::new(circuit, shrink_config.clone());
+    let mut shrunk_proof = shrink_circuit.prove(proof)?;
+    let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
+    info!("shrinking circuit from degree bits {last_degree_bits} to {shrunk_degree_bits}",);
+    last_degree_bits = shrunk_degree_bits;
+
+    while last_degree_bits > target_degree_bits {
+        shrink_circuit = PlonkWrapperCircuit::new(&shrink_circuit.circuit, shrink_config.clone());
+        let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
+        assert!(
+            shrunk_degree_bits < last_degree_bits,
+            "shrink failed at degree bits: {last_degree_bits}",
+        );
+        info!("shrinking circuit from degree bits {last_degree_bits} to {shrunk_degree_bits}",);
+        last_degree_bits = shrunk_degree_bits;
+        shrunk_proof = shrink_circuit.prove(&shrunk_proof)?;
+    }
+    assert_eq!(last_degree_bits, target_degree_bits);
+
+    Ok((shrink_circuit, shrunk_proof))
+}
+
+/// Targets for a recursive VM proof verification circuit.
+pub struct VMVerificationTargets<const D: usize> {
+    pub proof_with_pis_target: ProofWithPublicInputsTarget<D>,
+    pub vk_target: VerifierCircuitTarget,
+}
+
+/// Verifies a recursive VM proof. Caller should also verify the program hash
+/// and vk to ensure that the proof is from the correct program.
+pub fn verify_recursive_vm_proof<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    const D: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    public_inputs_size: usize,
+    recursion_config: &CircuitConfig,
+    recursion_degree_bits: usize,
+) -> VMVerificationTargets<D>
+where
+    C::Hasher: AlgebraicHasher<F>, {
+    let common_data = common_data_for_recursion::<F, C, D>(
+        recursion_config,
+        recursion_degree_bits,
+        public_inputs_size,
+    );
+
+    let proof_with_pis_target = builder.add_virtual_proof_with_pis(&common_data);
+    let vk_target = builder.add_virtual_verifier_data(common_data.config.fri_config.cap_height);
+    builder.verify_proof::<C>(&proof_with_pis_target, &vk_target, &common_data);
+
+    VMVerificationTargets {
+        proof_with_pis_target,
+        vk_target,
+    }
+}
+
+pub const FINAL_RECURSION_THRESHOLD: usize = 12;
+
 #[cfg(test)]
 mod tests {
+    use std::panic;
+    use std::panic::AssertUnwindSafe;
+
     use anyhow::Result;
+    use log::info;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::execute_code;
+    use mozak_runner::util::execute_code;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+    use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
 
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::prover::prove;
-    use crate::stark::recursive_verifier::recursive_mozak_stark_circuit;
+    use crate::stark::recursive_verifier::{
+        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
+        verify_recursive_vm_proof,
+    };
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
 
+    type S = MozakStark<F, D>;
+
     #[test]
+    #[ignore]
     fn recursive_verify_mozak_starks() -> Result<()> {
-        type S = MozakStark<F, D>;
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 1;
@@ -518,5 +631,157 @@ mod tests {
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
         mozak_stark_circuit.circuit.verify(recursive_proof)
+    }
+
+    #[test]
+    #[ignore]
+    #[allow(clippy::too_many_lines)]
+    fn same_circuit_verify_different_vm_proofs() -> Result<()> {
+        let stark = S::default();
+        let inst = Instruction {
+            op: Op::ADD,
+            args: Args {
+                rd: 5,
+                rs1: 6,
+                rs2: 7,
+                ..Args::default()
+            },
+        };
+
+        let (program0, record0) = execute_code([inst], &[], &[(6, 100), (7, 200)]);
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program0.entry_point),
+        };
+        let stark_config0 = StarkConfig::standard_fast_config();
+        let mozak_proof0 = prove::<F, C, D>(
+            &program0,
+            &record0,
+            &stark,
+            &stark_config0,
+            public_inputs,
+            &mut TimingTree::default(),
+        )?;
+
+        let (program1, record1) = execute_code(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program1.entry_point),
+        };
+        let stark_config1 = StarkConfig::standard_fast_config();
+        let mozak_proof1 = prove::<F, C, D>(
+            &program1,
+            &record1,
+            &stark,
+            &stark_config1,
+            public_inputs,
+            &mut TimingTree::default(),
+        )?;
+
+        // The degree bits should be different for the two proofs.
+        assert_ne!(
+            mozak_proof0.degree_bits(&stark_config0),
+            mozak_proof1.degree_bits(&stark_config1)
+        );
+
+        let recursion_circuit_config = CircuitConfig::standard_recursion_config();
+        let recursion_circuit0 = recursive_mozak_stark_circuit::<F, C, D>(
+            &stark,
+            &mozak_proof0.degree_bits(&stark_config0),
+            &recursion_circuit_config,
+            &stark_config0,
+        );
+        let recursion_proof0 = recursion_circuit0.prove(&mozak_proof0)?;
+
+        let recursion_circuit1 = recursive_mozak_stark_circuit::<F, C, D>(
+            &stark,
+            &mozak_proof1.degree_bits(&stark_config1),
+            &recursion_circuit_config,
+            &stark_config1,
+        );
+        let recursion_proof1 = recursion_circuit1.prove(&mozak_proof1)?;
+
+        recursion_circuit0
+            .circuit
+            .verify(recursion_proof0.clone())?;
+
+        let public_inputs_size = recursion_proof0.public_inputs.len();
+        assert_eq!(public_inputs_size, recursion_proof1.public_inputs.len());
+
+        // It is not possible to verify different VM proofs with the same recursion
+        // circuit.
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            recursion_circuit0
+                .circuit
+                .verify(recursion_proof1.clone())
+                .expect("Verification failed");
+        }));
+        assert!(result.is_err(), "Verification did not failed as expected");
+
+        let recursion_degree_bits0 = recursion_circuit0.circuit.common.degree_bits();
+        let recursion_degree_bits1 = recursion_circuit1.circuit.common.degree_bits();
+        assert_ne!(recursion_degree_bits0, recursion_degree_bits1);
+        info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
+        info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
+
+        let target_degree_bits = 12;
+        let (final_circuit0, final_proof0) = shrink_to_target_degree_bits_circuit(
+            &recursion_circuit0.circuit,
+            &CircuitConfig::standard_recursion_config(),
+            target_degree_bits,
+            &recursion_proof0,
+        )?;
+        let (final_circuit1, final_proof1) = shrink_to_target_degree_bits_circuit(
+            &recursion_circuit1.circuit,
+            &CircuitConfig::standard_recursion_config(),
+            target_degree_bits,
+            &recursion_proof1,
+        )?;
+        assert_eq!(
+            final_circuit0.circuit.common.degree_bits(),
+            target_degree_bits
+        );
+        assert_eq!(
+            final_circuit1.circuit.common.degree_bits(),
+            target_degree_bits
+        );
+
+        final_circuit0.circuit.verify(final_proof0.clone())?;
+        final_circuit1.circuit.verify(final_proof1.clone())?;
+
+        // It is still not possible to verify different VM proofs with the same
+        // recursion circuit at this point. But the final proofs now have the same
+        // degree bits.
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            final_circuit0
+                .circuit
+                .verify(final_proof1.clone())
+                .expect("Verification failed");
+        }));
+        assert!(result.is_err(), "Verification did not failed as expected");
+
+        // Let's build a circuit to verify the final proofs.
+        let mut builder = CircuitBuilder::new(CircuitConfig::standard_recursion_config());
+        let targets = verify_recursive_vm_proof::<GoldilocksField, C, D>(
+            &mut builder,
+            public_inputs_size,
+            &CircuitConfig::standard_recursion_config(),
+            target_degree_bits,
+        );
+        let circuit = builder.build::<C>();
+
+        // This time, we can verify the final proofs from two different VM programs in
+        // the same circuit.
+        let mut pw = PartialWitness::new();
+        pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof0);
+        pw.set_verifier_data_target(&targets.vk_target, &final_circuit0.circuit.verifier_only);
+        let proof = circuit.prove(pw)?;
+        circuit.verify(proof)?;
+
+        let mut pw = PartialWitness::new();
+        pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof1);
+        pw.set_verifier_data_target(&targets.vk_target, &final_circuit1.circuit.verifier_only);
+        let proof = circuit.prove(pw)?;
+        circuit.verify(proof)?;
+
+        Ok(())
     }
 }

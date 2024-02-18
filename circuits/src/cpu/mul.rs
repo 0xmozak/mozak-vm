@@ -224,7 +224,8 @@ mod tests {
 
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code, i32_extra, u32_extra};
+    use mozak_runner::test_utils::{i32_extra, u32_extra};
+    use mozak_runner::util::execute_code;
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use proptest::prelude::ProptestConfig;
