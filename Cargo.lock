@@ -1034,7 +1034,10 @@ version = "0.1.0"
 name = "mozak-node"
 version = "0.1.0"
 dependencies = [
- "mimalloc",
+ "iter_fixed",
+ "itertools 0.12.1",
+ "mozak-circuits",
+ "plonky2",
  "serde",
 ]
 
