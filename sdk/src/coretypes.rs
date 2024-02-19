@@ -77,7 +77,7 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
     fn from(value: [u8; STATE_TREE_DEPTH]) -> Self { Address(value) }
 }
 
-/// Each program in the mozak ecosystem is identifyable by two
+/// Each program in the mozak ecosystem is identifiable by two
 /// hashes: `program_rom_hash` & `memory_init_hash` and a program
 /// entry point `entry_point`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
