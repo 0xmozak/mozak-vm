@@ -12,10 +12,14 @@ use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, TableKindArray};
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
-use mozak_circuits::stark::recursive_verifier::recursive_mozak_stark_circuit;
+use mozak_circuits::stark::recursive_verifier::{
+    circuit_data_for_recursion, recursive_mozak_stark_circuit,
+    shrink_to_target_degree_bits_circuit, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
+    VM_RECURSION_THRESHOLD_DEGREE_BITS,
+};
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
@@ -26,7 +30,7 @@ use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
-use plonky2::plonk::circuit_data::CircuitConfig;
+use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -120,7 +124,7 @@ enum Command {
     /// Verify the given proof from file.
     Verify { proof: Input },
     /// Verify the given recursive proof from file.
-    VerifyRecursiveProof { proof: Input, degree_bits: Input },
+    VerifyRecursiveProof { proof: Input, verifier_key: Input },
     /// Compute the Program Rom Hash of the given ELF.
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
@@ -192,26 +196,37 @@ fn main() -> Result<()> {
 
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
-                let circuit_config = CircuitConfig::standard_recursion_config();
                 let degree_bits = all_proof.degree_bits(&config);
                 let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
                     &stark,
                     &degree_bits,
-                    &circuit_config,
+                    &VM_RECURSION_CONFIG,
                     &config,
                 );
 
                 let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
-                let s = recursive_all_proof.to_bytes();
+
+                let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
+                    &recursive_circuit.circuit,
+                    &VM_RECURSION_CONFIG,
+                    VM_RECURSION_THRESHOLD_DEGREE_BITS,
+                    &recursive_all_proof,
+                )?;
+                assert_eq!(
+                    final_circuit.circuit.common.num_public_inputs,
+                    VM_PUBLIC_INPUT_SIZE
+                );
+
+                let s = final_proof.to_bytes();
                 recursive_proof_output.write_all(&s)?;
 
-                // Generate the degree bits file
-                let mut degree_bits_output_path = recursive_proof_output.path().clone();
-                degree_bits_output_path.set_extension("db");
-                let mut degree_bits_output = degree_bits_output_path.create()?;
+                // Generate the verifier key file
+                let mut vk_output_path = recursive_proof_output.path().clone();
+                vk_output_path.set_extension("vk");
+                let mut vk_output = vk_output_path.create()?;
 
-                let serialized = serde_json::to_string(&degree_bits)?;
-                degree_bits_output.write_all(serialized.as_bytes())?;
+                let bytes = final_circuit.circuit.verifier_only.to_bytes().unwrap();
+                vk_output.write_all(&bytes)?;
             }
 
             debug!("proof generated successfully!");
@@ -226,31 +241,29 @@ fn main() -> Result<()> {
         }
         Command::VerifyRecursiveProof {
             mut proof,
-            mut degree_bits,
+            mut verifier_key,
         } => {
-            let mut degree_bits_buffer: Vec<u8> = vec![];
-            degree_bits.read_to_end(&mut degree_bits_buffer)?;
-            let degree_bits: TableKindArray<usize> = serde_json::from_slice(&degree_bits_buffer)?;
-
-            let stark = S::default();
-            let circuit_config = CircuitConfig::standard_recursion_config();
-            let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
-                &stark,
-                &degree_bits,
-                &circuit_config,
-                &config,
+            let mut circuit = circuit_data_for_recursion::<F, C, D>(
+                &VM_RECURSION_CONFIG,
+                VM_RECURSION_THRESHOLD_DEGREE_BITS,
+                VM_PUBLIC_INPUT_SIZE,
             );
 
-            let mut buffer: Vec<u8> = vec![];
-            proof.read_to_end(&mut buffer)?;
-            let recursive_proof: ProofWithPublicInputs<F, C, D> =
-                ProofWithPublicInputs::from_bytes(buffer, &recursive_circuit.circuit.common)
-                    .map_err(|_| {
-                        anyhow::Error::msg("ProofWithPublicInputs deserialization failed.")
-                    })?;
+            let mut vk_buffer: Vec<u8> = vec![];
+            verifier_key.read_to_end(&mut vk_buffer)?;
+            circuit.verifier_only = VerifierOnlyCircuitData::from_bytes(vk_buffer).unwrap();
 
-            recursive_circuit.circuit.verify(recursive_proof)?;
-            println!("Recursive proof verified successfully!");
+            let mut proof_buffer: Vec<u8> = vec![];
+            proof.read_to_end(&mut proof_buffer)?;
+            let proof: ProofWithPublicInputs<F, C, D> =
+                ProofWithPublicInputs::from_bytes(proof_buffer, &circuit.common).map_err(|_| {
+                    anyhow::Error::msg("ProofWithPublicInputs deserialization failed.")
+                })?;
+            println!("Public Inputs: {:?}", proof.public_inputs);
+            println!("Verifier Key: {:?}", circuit.verifier_only);
+
+            circuit.verify(proof.clone())?;
+            println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
             let program = load_program(elf)?;
