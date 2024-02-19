@@ -1,6 +1,6 @@
 //! Simple library for handling ASTs in Rust
 
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Mul, Sub};
 
 use bumpalo::Bump;
 
@@ -30,27 +30,21 @@ impl<'a, V> Mul for Expr<'a, V> {
     fn mul(self, rhs: Self) -> Self::Output { self.builder.mul(self, rhs) }
 }
 
-impl<'a, V> Div for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn div(self, rhs: Self) -> Self::Output { self.builder.div(self, rhs) }
-}
-
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate
 /// store all the [`ExprTree`]s.
 pub struct ExprBuilder {
-    arena: Bump,
+    bump: Bump,
 }
 
 impl Default for ExprBuilder {
-    fn default() -> Self { Self { arena: Bump::new() } }
+    fn default() -> Self { Self { bump: Bump::new() } }
 }
 
 impl ExprBuilder {
     /// Internalise an [`ExprTree`] by moving it to memory allocated by the
     /// [`Bump`] arena owned by [`ExprBuilder`].
     fn intern<'a, V>(&'a self, expr_tree: ExprTree<'a, V>) -> Expr<'a, V> {
-        let expr_tree = self.arena.alloc(expr_tree);
+        let expr_tree = self.bump.alloc(expr_tree);
         Expr {
             expr_tree,
             builder: self,
@@ -90,11 +84,6 @@ impl ExprBuilder {
         self.bin_op(BinOp::Mul, left, right)
     }
 
-    /// Create a `div` expression
-    pub fn div<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        self.bin_op(BinOp::Div, left, right)
-    }
-
     pub fn is_binary<'a, V>(&'a self, x: Expr<'a, V>) -> Expr<'a, V>
     where
         V: Copy, {
@@ -108,7 +97,6 @@ pub enum BinOp {
     Add,
     Sub,
     Mul,
-    Div,
 }
 
 /// Internal type to represent the expression trees
@@ -168,7 +156,6 @@ where
     V: Add<Output = V>,
     V: Sub<Output = V>,
     V: Mul<Output = V>,
-    V: Div<Output = V>,
     V: From<u8>,
 {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V {
@@ -176,7 +163,6 @@ where
             BinOp::Add => left + right,
             BinOp::Sub => left - right,
             BinOp::Mul => left * right,
-            BinOp::Div => left / right,
         }
     }
 
@@ -199,6 +185,5 @@ mod tests {
         assert_eq!(p.eval(a + b), 12);
         assert_eq!(p.eval(a - b), 2);
         assert_eq!(p.eval(a * b), 35);
-        assert_eq!(p.eval(a / b), 1);
     }
 }

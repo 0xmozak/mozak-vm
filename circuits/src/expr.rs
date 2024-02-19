@@ -1,11 +1,12 @@
-use expr::{BinOp, Evaluator, Expr, ExprBuilder};
-use plonky2::field::extension::Extendable;
+use std::marker::PhantomData;
+
+use expr::{BinOp, Evaluator, Expr};
+use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::RecursiveConstraintConsumer;
-
-use crate::memory::columns::Memory;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
 struct CircuitBuilderEvaluator<'a, F, const D: usize>
 where
@@ -29,14 +30,36 @@ where
             BinOp::Add => self.builder.add_extension(left, right),
             BinOp::Sub => self.builder.sub_extension(left, right),
             BinOp::Mul => self.builder.mul_extension(left, right),
-            BinOp::Div => self.builder.div_extension(left, right),
         }
     }
 
     fn one(&mut self) -> ExtensionTarget<D> { self.builder.one_extension() }
 }
 
-struct Constraint<E> {
+#[derive(Default)]
+struct PackedFieldEvaluator<P, const D: usize, const D2: usize> {
+    _marker: PhantomData<P>,
+}
+
+impl<F, FE, P, const D: usize, const D2: usize> Evaluator<P> for PackedFieldEvaluator<P, D, D2>
+where
+    F: RichField,
+    F: Extendable<D>,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>,
+{
+    fn bin_op(&mut self, op: &BinOp, left: P, right: P) -> P {
+        match op {
+            BinOp::Add => left + right,
+            BinOp::Sub => left - right,
+            BinOp::Mul => left * right,
+        }
+    }
+
+    fn one(&mut self) -> P { P::ONES }
+}
+
+pub struct Constraint<E> {
     constraint_type: ConstraintType,
     constraint: E,
 }
@@ -47,18 +70,24 @@ enum ConstraintType {
     ConstraintTransition,
 }
 
-pub struct ConstraintBuilderExt<'a, const D: usize> {
-    constraints: Vec<Constraint<Expr<'a, ExtensionTarget<D>>>>,
+pub struct ConstraintBuilderExt<E> {
+    constraints: Vec<Constraint<E>>,
 }
 
-impl<'a, const D: usize> ConstraintBuilderExt<'a, D> {
-    pub fn new() -> Self {
+impl<E> Default for ConstraintBuilderExt<E> {
+    fn default() -> Self {
         Self {
             constraints: Vec::new(),
         }
     }
+}
 
-    pub fn constraint_first_row(&mut self, constraint: Expr<'a, ExtensionTarget<D>>) {
+impl<E> From<Vec<Constraint<E>>> for ConstraintBuilderExt<E> {
+    fn from(constraints: Vec<Constraint<E>>) -> Self { Self { constraints } }
+}
+
+impl<E> ConstraintBuilderExt<E> {
+    pub fn constraint_first_row(&mut self, constraint: E) {
         let c = Constraint {
             constraint_type: ConstraintType::ConstraintFirstRow,
             constraint,
@@ -66,7 +95,7 @@ impl<'a, const D: usize> ConstraintBuilderExt<'a, D> {
         self.constraints.push(c)
     }
 
-    pub fn constraint(&mut self, constraint: Expr<'a, ExtensionTarget<D>>) {
+    pub fn constraint(&mut self, constraint: E) {
         let c = Constraint {
             constraint_type: ConstraintType::Constraint,
             constraint,
@@ -74,7 +103,7 @@ impl<'a, const D: usize> ConstraintBuilderExt<'a, D> {
         self.constraints.push(c)
     }
 
-    pub fn constraint_transition(&mut self, constraint: Expr<'a, ExtensionTarget<D>>) {
+    pub fn constraint_transition(&mut self, constraint: E) {
         let c = Constraint {
             constraint_type: ConstraintType::ConstraintTransition,
             constraint,
@@ -82,49 +111,62 @@ impl<'a, const D: usize> ConstraintBuilderExt<'a, D> {
         self.constraints.push(c)
     }
 
-    pub fn build<F>(
-        self,
-        circuit_builder: &mut CircuitBuilder<F, D>,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-    ) where
-        F: RichField,
-        F: Extendable<D>, {
-        let mut evaluator = CircuitBuilderEvaluator {
-            builder: circuit_builder,
-        };
-
-        let evaluated = self
-            .constraints
-            .into_iter()
-            .map(|c| Constraint {
-                constraint_type: c.constraint_type,
-                constraint: evaluator.eval(c.constraint),
-            })
-            .collect::<Vec<_>>();
-
-        evaluated.into_iter().for_each(|c| match c.constraint_type {
-            ConstraintType::ConstraintFirstRow =>
-                yield_constr.constraint_first_row(circuit_builder, c.constraint),
-            ConstraintType::Constraint => yield_constr.constraint(circuit_builder, c.constraint),
-            ConstraintType::ConstraintTransition =>
-                yield_constr.constraint_transition(circuit_builder, c.constraint),
-        })
-    }
+    pub fn collect(self) -> Vec<Constraint<E>> { self.constraints }
 }
 
-pub fn inject_memory<'a, V>(expr_builder: &'a ExprBuilder, m: &Memory<V>) -> Memory<Expr<'a, V>>
-where
-    V: Clone, {
-    let m = m.clone();
-    Memory {
-        is_writable: expr_builder.lit(m.is_writable),
-        addr: expr_builder.lit(m.addr),
-        clk: expr_builder.lit(m.clk),
-        is_store: expr_builder.lit(m.is_store),
-        is_load: expr_builder.lit(m.is_load),
-        is_init: expr_builder.lit(m.is_init),
-        value: expr_builder.lit(m.value),
-        diff_clk: expr_builder.lit(m.diff_clk),
-        diff_addr_inv: expr_builder.lit(m.diff_addr_inv),
+pub fn build_ext<'a, F, const D: usize>(
+    cb: ConstraintBuilderExt<Expr<'a, ExtensionTarget<D>>>,
+    circuit_builder: &mut CircuitBuilder<F, D>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) where
+    F: RichField,
+    F: Extendable<D>, {
+    let mut evaluator = CircuitBuilderEvaluator {
+        builder: circuit_builder,
+    };
+
+    let evaluated = cb
+        .constraints
+        .into_iter()
+        .map(|c| Constraint {
+            constraint_type: c.constraint_type,
+            constraint: evaluator.eval(c.constraint),
+        })
+        .collect::<Vec<_>>();
+
+    evaluated.into_iter().for_each(|c| match c.constraint_type {
+        ConstraintType::ConstraintFirstRow =>
+            yield_constr.constraint_first_row(circuit_builder, c.constraint),
+        ConstraintType::Constraint => yield_constr.constraint(circuit_builder, c.constraint),
+        ConstraintType::ConstraintTransition =>
+            yield_constr.constraint_transition(circuit_builder, c.constraint),
+    })
+}
+
+pub fn build_packed<'a, F, FE, P, const D: usize, const D2: usize>(
+    cb: ConstraintBuilderExt<Expr<'a, P>>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) where
+    F: RichField,
+    F: Extendable<D>,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>, {
+    let mut evaluator = PackedFieldEvaluator::default();
+    let evaluated = cb
+        .constraints
+        .into_iter()
+        .map(|c| Constraint {
+            constraint_type: c.constraint_type,
+            constraint: evaluator.eval(c.constraint),
+        })
+        .collect::<Vec<_>>();
+
+    for c in evaluated {
+        match c.constraint_type {
+            ConstraintType::ConstraintFirstRow => yield_constr.constraint_first_row(c.constraint),
+            ConstraintType::Constraint => yield_constr.constraint(c.constraint),
+            ConstraintType::ConstraintTransition =>
+                yield_constr.constraint_transition(c.constraint),
+        }
     }
 }

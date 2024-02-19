@@ -12,9 +12,8 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{inject_memory, ConstraintBuilderExt};
+use crate::expr::{build_ext, build_packed, Constraint, ConstraintBuilderExt};
 use crate::memory::columns::Memory;
-use crate::stark::utils::is_binary;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -38,7 +37,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    // Constraints design: https://docs.google.com/presentation/d/1G4tmGl8V1W0Wqxv-MwjGjaM3zUF99dzTvFhpiood4x4/edit?usp=sharing
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
@@ -46,126 +44,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        // TODO(Matthias): add a constraint to forbid two is_init in a row (with the
-        // same address).  See `circuits/src/generation/memoryinit.rs` in
-        // `a75c8fbc2701a4a6b791b2ff71857795860c5591`
-        let lv: &Memory<P> = vars.get_local_values().into();
-        let nv: &Memory<P> = vars.get_next_values().into();
-
-        // Boolean constraints
-        // -------------------
-        // Constrain certain columns of the memory table to be only
-        // boolean values.
-        is_binary(yield_constr, lv.is_writable);
-        is_binary(yield_constr, lv.is_store);
-        is_binary(yield_constr, lv.is_load);
-        is_binary(yield_constr, lv.is_init);
-        is_binary(yield_constr, lv.is_executed());
-
-        // Memory initialization Constraints
-        // ---------------------------------
-        // The memory table is assumed to be ordered by `addr` in ascending order.
-        // such that whenever we describe an memory init / access
-        // pattern of an "address", a correct table guarantees the following:
-        //
-        // All rows for a specific `addr` MUST start with one, or both, of:
-        //   1) a zero init (case for heap / other dynamic addresses).
-        //   2) a memory init via static ELF (hereby referred to as elf init), or
-        // For these starting rows, `is_init` will be true.
-        //
-        // 1) Zero Init
-        //   All zero initialized memory will have clk `0` and value `0`. They
-        //   should also be writable.
-        //
-        // 2) ELF Init
-        //   All elf init rows will have clk `1`.
-        //
-        // In principle, zero initializations for a certain address MUST come
-        // before any elf initializations to ensure we don't zero out any memory
-        // initialized by the ELF. This is constrained via a rangecheck on `diff_clk`.
-        // Since clk is in ascending order, any memory address with a zero init
-        // (`clk` == 0) after an elf init (`clk` == 1) would be caught by
-        // this range check.
-        //
-        // Note that if `diff_clk` range check is removed, we must
-        // include a new constraint that constrains the above relationship.
-        //
-        // NOTE: We rely on 'Ascending ordered, contiguous
-        // "address" view constraint' to provide us with a guarantee of single
-        // contiguous block of rows per `addr`. If that guarantee does not exist,
-        // for some address `x`, different contiguous blocks of rows in memory
-        // table can present case for them being derived from static ELF and
-        // dynamic (execution) at the same time or being writable as
-        // well as non-writable at the same time.
-        //
-        // A zero init at clk == 0,
-        // while an ELF init happens at clk == 1.
-        let zero_init_clk = P::ONES - lv.clk;
-        let elf_init_clk = lv.clk;
-
-        // first row init is always one or its a dummy row
-        yield_constr.constraint_first_row((P::ONES - lv.is_init) * lv.is_executed());
-
-        // All init ops happen prior to exec and the `clk` would be `0` or `1`.
-        yield_constr.constraint(lv.is_init * zero_init_clk * elf_init_clk);
-        // All zero inits should have value `0`.
-        // (Assumption: `is_init` == 1, `clk` == 0)
-        yield_constr.constraint(lv.is_init * zero_init_clk * lv.value);
-        // All zero inits should be writable.
-        // (Assumption: `is_init` == 1, `clk` == 0)
-        yield_constr.constraint(lv.is_init * zero_init_clk * (P::ONES - lv.is_writable));
-
-        // Operation constraints
-        // ---------------------
-        // No `SB` operation can be seen if memory address is not marked `writable`
-        yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_store);
-
-        // For all "load" operations, the value cannot change between rows
-        yield_constr.constraint(nv.is_load * (nv.value - lv.value));
-
-        // Clock constraints
-        // -----------------
-        // `diff_clk` assumes the value "new row's `clk`" - "current row's `clk`" in
-        // case both new row and current row talk about the same addr. However,
-        // in case the "new row" describes an `addr` different from the current
-        // row, we expect `diff_clk` to be `0`. New row's clk remains
-        // unconstrained in such situation.
-        yield_constr
-            .constraint_transition((P::ONES - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
-        yield_constr.constraint_transition(lv.is_init * lv.diff_clk);
-
-        // Padding constraints
-        // -------------------
-        // Once we have padding, all subsequent rows are padding; ie not
-        // `is_executed`.
-        yield_constr
-            .constraint_transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
-
-        // We can have init == 1 row only when address is changing. More specifically,
-        // is_init has to be the first row in an address block.
-        // a) checking diff-addr-inv was computed correctly
-        // If next.address - current.address == 0
-        // --> next.diff_addr_inv = 0
-        // Else current.address - next.address != 0
-        //  --> next.diff_addr_inv != 0 but (lv.addr - nv.addr) * nv.diff_addr_inv == 1
-        //  --> so, expression: (P::ONES - (lv.addr - nv.addr) * nv.diff_addr_inv) == 0
-        // NOTE: we don't really have to constrain diff-addr-inv to be zero when address
-        // does not change at all, so, this constrain can be removed, and the
-        // `diff_addr * nv.diff_addr_inv - nv.is_init` constrain will be enough to
-        // ensure that diff-addr-inv for the case of address change was indeed computed
-        // correctly. We still prefer to leave this code, because maybe diff-addr-inv
-        // can be usefull for feature scenarios, BUT if we will want to take advantage
-        // on last 0.001% of perf, it can be removed (if other parts of the code will
-        // not use it somewhere)
-        // TODO(Roman): how we insure sorted addresses - via RangeCheck:
-        // MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed())
-        // Please add test that fails with not-sorted memory trace
-        let diff_addr = nv.addr - lv.addr;
-        yield_constr.constraint_transition(diff_addr * (P::ONES - diff_addr * nv.diff_addr_inv));
-
-        // b) checking that nv.is_init == 1 only when nv.diff_addr_inv != 0
-        // Note: nv.diff_addr_inv != 0 IFF: lv.addr != nv.addr
-        yield_constr.constraint_transition(diff_addr * nv.diff_addr_inv - nv.is_init);
+        let eb = ExprBuilder::default();
+        let lv: &Memory<_> = vars.get_local_values().into();
+        let lv = lv.map(|x| eb.lit(x));
+        let nv: &Memory<_> = vars.get_next_values().into();
+        let nv = nv.map(|x| eb.lit(x));
+        let cb = generate_constraints(&eb, lv, nv).into();
+        build_packed(cb, yield_constr)
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -177,45 +62,145 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let mut cb = ConstraintBuilderExt::new();
         let eb = ExprBuilder::default();
-        let one = eb.one();
-        let lv: Memory<Expr<'_, ExtensionTarget<D>>> =
-            inject_memory(&eb, vars.get_local_values().into());
-        let nv: Memory<Expr<'_, ExtensionTarget<D>>> =
-            inject_memory(&eb, vars.get_next_values().into());
-
-        let lv_is_executed = lv.is_executed();
-        let nv_is_executed = nv.is_executed();
-
-        let zero_init_clk = one - lv.clk;
-        let elf_init_clk = lv.clk;
-
-        // Helper variable
-        let diff_addr = nv.addr - lv.addr;
-
-        cb.constraint(eb.is_binary(lv.is_writable));
-        cb.constraint(eb.is_binary(lv.is_store));
-        cb.constraint(eb.is_binary(lv.is_load));
-        cb.constraint(eb.is_binary(lv.is_init));
-        cb.constraint(eb.is_binary(lv_is_executed));
-
-        cb.constraint_first_row((one - lv.is_init) * lv_is_executed);
-
-        cb.constraint(lv.is_init * zero_init_clk * elf_init_clk);
-        cb.constraint(lv.is_init * zero_init_clk * lv.value);
-        cb.constraint(lv.is_init * zero_init_clk * (one - lv.is_writable));
-        cb.constraint((one - lv.is_writable) * lv.is_store);
-        cb.constraint(nv.is_load * (nv.value - lv.value));
-
-        cb.constraint_transition((one - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
-        cb.constraint_transition(lv.is_init * lv.diff_clk);
-        cb.constraint_transition((lv_is_executed - nv_is_executed) * nv_is_executed);
-        cb.constraint_transition(diff_addr * (one - diff_addr * nv.diff_addr_inv));
-        cb.constraint_transition((diff_addr * nv.diff_addr_inv) - nv.is_init);
-
-        cb.build(circuit_builder, yield_constr)
+        let lv: &Memory<_> = vars.get_local_values().into();
+        let lv = lv.map(|x| eb.lit(x));
+        let nv: &Memory<_> = vars.get_next_values().into();
+        let nv = nv.map(|x| eb.lit(x));
+        let cb = generate_constraints(&eb, lv, nv).into();
+        build_ext(cb, circuit_builder, yield_constr)
     }
+}
+
+// A Script to generate constraints
+// Constraints design: https://docs.google.com/presentation/d/1G4tmGl8V1W0Wqxv-MwjGjaM3zUF99dzTvFhpiood4x4/edit?usp=sharing
+fn generate_constraints<'a, V>(
+    eb: &'a ExprBuilder,
+    lv: Memory<Expr<'a, V>>,
+    nv: Memory<Expr<'a, V>>,
+) -> Vec<Constraint<Expr<'a, V>>>
+where
+    V: Copy, {
+    // TODO(Matthias): add a constraint to forbid two is_init in a row (with the
+    // same address).  See `circuits/src/generation/memoryinit.rs` in
+    // `a75c8fbc2701a4a6b791b2ff71857795860c5591`
+    let one: Expr<'_, V> = eb.one();
+    let mut cb = ConstraintBuilderExt::default();
+
+    // Memory initialization Constraints
+    // ---------------------------------
+    // The memory table is assumed to be ordered by `addr` in ascending order.
+    // such that whenever we describe an memory init / access
+    // pattern of an "address", a correct table guarantees the following:
+    //
+    // All rows for a specific `addr` MUST start with one, or both, of:
+    //   1) a zero init (case for heap / other dynamic addresses).
+    //   2) a memory init via static ELF (hereby referred to as elf init), or
+    // For these starting rows, `is_init` will be true.
+    //
+    // 1) Zero Init
+    //   All zero initialized memory will have clk `0` and value `0`. They
+    //   should also be writable.
+    //
+    // 2) ELF Init
+    //   All elf init rows will have clk `1`.
+    //
+    // In principle, zero initializations for a certain address MUST come
+    // before any elf initializations to ensure we don't zero out any memory
+    // initialized by the ELF. This is constrained via a rangecheck on `diff_clk`.
+    // Since clk is in ascending order, any memory address with a zero init
+    // (`clk` == 0) after an elf init (`clk` == 1) would be caught by
+    // this range check.
+    //
+    // Note that if `diff_clk` range check is removed, we must
+    // include a new constraint that constrains the above relationship.
+    //
+    // NOTE: We rely on 'Ascending ordered, contiguous
+    // "address" view constraint' to provide us with a guarantee of single
+    // contiguous block of rows per `addr`. If that guarantee does not exist,
+    // for some address `x`, different contiguous blocks of rows in memory
+    // table can present case for them being derived from static ELF and
+    // dynamic (execution) at the same time or being writable as
+    // well as non-writable at the same time.
+    //
+    // A zero init at clk == 0,
+    // while an ELF init happens at clk == 1.
+    let zero_init_clk = one - lv.clk;
+    let elf_init_clk = lv.clk;
+
+    // Boolean constraints
+    // -------------------
+    // Constrain certain columns of the memory table to be only
+    // boolean values.
+    cb.constraint(eb.is_binary(lv.is_writable));
+    cb.constraint(eb.is_binary(lv.is_store));
+    cb.constraint(eb.is_binary(lv.is_load));
+    cb.constraint(eb.is_binary(lv.is_init));
+    cb.constraint(eb.is_binary(lv.is_executed()));
+
+    // first row init is always one or its a dummy row
+    cb.constraint_first_row((one - lv.is_init) * lv.is_executed());
+
+    // All init ops happen prior to exec and the `clk` would be `0` or `1`.
+    cb.constraint(lv.is_init * zero_init_clk * elf_init_clk);
+    // All zero inits should have value `0`.
+    // (Assumption: `is_init` == 1, `clk` == 0)
+    cb.constraint(lv.is_init * zero_init_clk * lv.value);
+    // All zero inits should be writable.
+    // (Assumption: `is_init` == 1, `clk` == 0)
+    cb.constraint(lv.is_init * zero_init_clk * (one - lv.is_writable));
+
+    // Operation constraints
+    // ---------------------
+    // No `SB` operation can be seen if memory address is not marked `writable`
+    cb.constraint((one - lv.is_writable) * lv.is_store);
+
+    // For all "load" operations, the value cannot change between rows
+    cb.constraint(nv.is_load * (nv.value - lv.value));
+
+    // Clock constraints
+    // -----------------
+    // `diff_clk` assumes the value "new row's `clk`" - "current row's `clk`" in
+    // case both new row and current row talk about the same addr. However,
+    // in case the "new row" describes an `addr` different from the current
+    // row, we expect `diff_clk` to be `0`. New row's clk remains
+    // unconstrained in such situation.
+    cb.constraint_transition((one - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
+    cb.constraint_transition(lv.is_init * lv.diff_clk);
+
+    // Padding constraints
+    // -------------------
+    // Once we have padding, all subsequent rows are padding; ie not
+    // `is_executed`.
+    cb.constraint_transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
+
+    // We can have init == 1 row only when address is changing. More specifically,
+    // is_init has to be the first row in an address block.
+    // a) checking diff-addr-inv was computed correctly
+    // If next.address - current.address == 0
+    // --> next.diff_addr_inv = 0
+    // Else current.address - next.address != 0
+    //  --> next.diff_addr_inv != 0 but (lv.addr - nv.addr) * nv.diff_addr_inv == 1
+    //  --> so, expression: (P::ONES - (lv.addr - nv.addr) * nv.diff_addr_inv) == 0
+    // NOTE: we don't really have to constrain diff-addr-inv to be zero when address
+    // does not change at all, so, this constrain can be removed, and the
+    // `diff_addr * nv.diff_addr_inv - nv.is_init` constrain will be enough to
+    // ensure that diff-addr-inv for the case of address change was indeed computed
+    // correctly. We still prefer to leave this code, because maybe diff-addr-inv
+    // can be usefull for feature scenarios, BUT if we will want to take advantage
+    // on last 0.001% of perf, it can be removed (if other parts of the code will
+    // not use it somewhere)
+    // TODO(Roman): how we insure sorted addresses - via RangeCheck:
+    // MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed())
+    // Please add test that fails with not-sorted memory trace
+    let diff_addr = nv.addr - lv.addr;
+    cb.constraint_transition(diff_addr * (one - diff_addr * nv.diff_addr_inv));
+
+    // b) checking that nv.is_init == 1 only when nv.diff_addr_inv != 0
+    // Note: nv.diff_addr_inv != 0 IFF: lv.addr != nv.addr
+    cb.constraint_transition((diff_addr * nv.diff_addr_inv) - nv.is_init);
+
+    cb.collect()
 }
 
 #[cfg(test)]
