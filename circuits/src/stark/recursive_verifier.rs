@@ -6,8 +6,7 @@ use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
-use plonky2::gates::exponentiation::ExponentiationGate;
-use plonky2::gates::gate::GateRef;
+use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::iop::challenger::RecursiveChallenger;
@@ -15,7 +14,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::reducing::ReducingFactorTarget;
@@ -34,6 +33,11 @@ use crate::stark::proof::{
     AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
     StarkProofWithMetadata, StarkProofWithPublicInputsTarget,
 };
+
+/// Plonky2's recursion threshold is 2^12 gates.
+pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
+pub const VM_PUBLIC_INPUT_SIZE: usize = 129;
+pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
 #[derive(Eq, PartialEq, Debug)]
@@ -161,8 +165,6 @@ where
         );
     }
 
-    add_common_recursion_gates(&mut builder);
-
     let circuit = builder.build();
     MozakStarkVerifierCircuit { circuit, targets }
 }
@@ -234,18 +236,6 @@ where
         init_challenger_state_target,
         zero_target,
     }
-}
-
-/// Add gates that are sometimes used by recursive circuits, even if it's not
-/// actually used by this particular recursive circuit. This is done for
-/// uniformity. We sometimes want all recursion circuits to have the same gate
-/// set, so that we can do 1-of-n conditional recursion efficiently.
-pub fn add_common_recursion_gates<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-) {
-    builder.add_gate_to_gate_set(GateRef::new(ExponentiationGate::new_from_config(
-        &builder.config,
-    )));
 }
 
 /// Recursively verifies an inner proof.
@@ -457,6 +447,47 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
 }
 
+// Generates `CircuitData` usable for recursion.
+#[must_use]
+pub fn circuit_data_for_recursion<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    const D: usize,
+>(
+    config: &CircuitConfig,
+    target_degree_bits: usize,
+    public_input_size: usize,
+) -> CircuitData<F, C, D>
+where
+    C::Hasher: AlgebraicHasher<F>, {
+    // Generate a simple circuit that will be recursively verified in the out
+    // circuit.
+    let common = {
+        let mut builder = CircuitBuilder::<F, D>::new(config.clone());
+        while builder.num_gates() < 1 << 5 {
+            builder.add_gate(NoopGate, vec![]);
+        }
+        builder.build::<C>().common
+    };
+
+    let mut builder = CircuitBuilder::<F, D>::new(config.clone());
+    let proof = builder.add_virtual_proof_with_pis(&common);
+    let verifier_data = builder.add_virtual_verifier_data(common.config.fri_config.cap_height);
+    builder.verify_proof::<C>(&proof, &verifier_data, &common);
+    for _ in 0..public_input_size {
+        builder.add_virtual_public_input();
+    }
+    // We don't want to pad all the way up to 2^target_degree_bits, as the builder
+    // will add a few special gates afterward. So just pad to
+    // 2^(target_degree_bits - 1) + 1. Then the builder will pad to the next
+    // power of two.
+    let min_gates = (1 << (target_degree_bits - 1)) + 1;
+    while builder.num_gates() < min_gates {
+        builder.add_gate(NoopGate, vec![]);
+    }
+    builder.build::<C>()
+}
+
 /// Represents a circuit which recursively verifies a PLONK proof.
 #[derive(Eq, PartialEq, Debug)]
 pub struct PlonkWrapperCircuit<F, C, const D: usize>
@@ -482,7 +513,6 @@ where
         let last_vk = builder.constant_verifier_data(&circuit.verifier_only);
         builder.verify_proof::<C>(&proof_with_pis_target, &last_vk, &circuit.common);
         builder.register_public_inputs(&proof_with_pis_target.public_inputs); // carry PIs forward
-        add_common_recursion_gates(&mut builder);
         let circuit = builder.build::<C>();
         PlonkWrapperCircuit {
             circuit,
@@ -538,15 +568,40 @@ where
     Ok((shrink_circuit, shrunk_proof))
 }
 
-#[must_use]
-/// The usual recursion threshold is 2^12 gates, but a few more gates for a
-/// constant inner VK and public inputs are used. This pushes the threshold to
-/// 2^13. A narrower witness is used as long as the number of gates is below
-/// this threshold.
-pub fn shrinking_config() -> CircuitConfig {
-    CircuitConfig {
-        num_routed_wires: 40,
-        ..CircuitConfig::standard_recursion_config()
+/// Targets for a recursive VM proof verification circuit.
+pub struct VMVerificationTargets<const D: usize> {
+    pub proof_with_pis_target: ProofWithPublicInputsTarget<D>,
+    pub vk_target: VerifierCircuitTarget,
+}
+
+/// Verifies a recursive VM proof. Caller should also verify the program hash
+/// and vk to ensure that the proof is from the correct program.
+pub fn verify_recursive_vm_proof<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    const D: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    public_inputs_size: usize,
+    recursion_config: &CircuitConfig,
+    recursion_degree_bits: usize,
+) -> VMVerificationTargets<D>
+where
+    C::Hasher: AlgebraicHasher<F>, {
+    let common_data = circuit_data_for_recursion::<F, C, D>(
+        recursion_config,
+        recursion_degree_bits,
+        public_inputs_size,
+    )
+    .common;
+
+    let proof_with_pis_target = builder.add_virtual_proof_with_pis(&common_data);
+    let vk_target = builder.add_virtual_verifier_data(common_data.config.fri_config.cap_height);
+    builder.verify_proof::<C>(&proof_with_pis_target, &vk_target, &common_data);
+
+    VMVerificationTargets {
+        proof_with_pis_target,
+        vk_target,
     }
 }
 
@@ -558,7 +613,10 @@ mod tests {
     use anyhow::Result;
     use log::info;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::execute_code;
+    use mozak_runner::util::execute_code;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+    use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
@@ -566,7 +624,9 @@ mod tests {
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::prover::prove;
     use crate::stark::recursive_verifier::{
-        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit, shrinking_config,
+        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
+        verify_recursive_vm_proof, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
+        VM_RECURSION_THRESHOLD_DEGREE_BITS,
     };
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
@@ -689,6 +749,10 @@ mod tests {
             .circuit
             .verify(recursion_proof0.clone())?;
 
+        let public_inputs_size = recursion_proof0.public_inputs.len();
+        assert_eq!(VM_PUBLIC_INPUT_SIZE, public_inputs_size);
+        assert_eq!(public_inputs_size, recursion_proof1.public_inputs.len());
+
         // It is not possible to verify different VM proofs with the same recursion
         // circuit.
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
@@ -705,16 +769,16 @@ mod tests {
         info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
         info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
 
-        let target_degree_bits = 13;
+        let target_degree_bits = VM_RECURSION_THRESHOLD_DEGREE_BITS;
         let (final_circuit0, final_proof0) = shrink_to_target_degree_bits_circuit(
             &recursion_circuit0.circuit,
-            &shrinking_config(),
+            &VM_RECURSION_CONFIG,
             target_degree_bits,
             &recursion_proof0,
         )?;
-        let (final_circuit1, final_poof1) = shrink_to_target_degree_bits_circuit(
+        let (final_circuit1, final_proof1) = shrink_to_target_degree_bits_circuit(
             &recursion_circuit1.circuit,
-            &shrinking_config(),
+            &VM_RECURSION_CONFIG,
             target_degree_bits,
             &recursion_proof1,
         )?;
@@ -727,8 +791,8 @@ mod tests {
             target_degree_bits
         );
 
-        final_circuit0.circuit.verify(final_proof0)?;
-        final_circuit1.circuit.verify(final_poof1.clone())?;
+        final_circuit0.circuit.verify(final_proof0.clone())?;
+        final_circuit1.circuit.verify(final_proof1.clone())?;
 
         // It is still not possible to verify different VM proofs with the same
         // recursion circuit at this point. But the final proofs now have the same
@@ -736,10 +800,34 @@ mod tests {
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
             final_circuit0
                 .circuit
-                .verify(final_poof1)
+                .verify(final_proof1.clone())
                 .expect("Verification failed");
         }));
         assert!(result.is_err(), "Verification did not failed as expected");
+
+        // Let's build a circuit to verify the final proofs.
+        let mut builder = CircuitBuilder::new(CircuitConfig::standard_recursion_config());
+        let targets = verify_recursive_vm_proof::<GoldilocksField, C, D>(
+            &mut builder,
+            public_inputs_size,
+            &VM_RECURSION_CONFIG,
+            target_degree_bits,
+        );
+        let circuit = builder.build::<C>();
+
+        // This time, we can verify the final proofs from two different VM programs in
+        // the same circuit.
+        let mut pw = PartialWitness::new();
+        pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof0);
+        pw.set_verifier_data_target(&targets.vk_target, &final_circuit0.circuit.verifier_only);
+        let proof = circuit.prove(pw)?;
+        circuit.verify(proof)?;
+
+        let mut pw = PartialWitness::new();
+        pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof1);
+        pw.set_verifier_data_target(&targets.vk_target, &final_circuit1.circuit.verifier_only);
+        let proof = circuit.prove(pw)?;
+        circuit.verify(proof)?;
 
         Ok(())
     }

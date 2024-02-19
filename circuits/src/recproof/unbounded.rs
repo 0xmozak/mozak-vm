@@ -17,6 +17,12 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::select_verifier;
+use crate::stark::recursive_verifier::circuit_data_for_recursion;
+
+/// Plonky2's recursion threshold is 2^12 gates. We use a slightly relaxed
+/// threshold here to support the case that two proofs are verified in the same
+/// circuit.
+const RECPROOF_RECURSION_THRESHOLD_DEGREE_BITS: usize = 13;
 
 fn from_slice<F: RichField + Extendable<D>, const D: usize>(
     slice: &[Target],
@@ -43,33 +49,6 @@ fn from_slice<F: RichField + Extendable<D>, const D: usize>(
     }
 }
 
-// Generates `CommonCircuitData` usable for recursion.
-#[must_use]
-pub fn common_data_for_recursion<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    const D: usize,
->() -> CommonCircuitData<F, D>
-where
-    C::Hasher: AlgebraicHasher<F>, {
-    let config = CircuitConfig::standard_recursion_config();
-    let mut builder = CircuitBuilder::<F, D>::new(config);
-    while builder.num_gates() < 1 << 12 {
-        builder.add_gate(NoopGate, vec![]);
-    }
-    let data = builder.build::<C>();
-
-    let config = CircuitConfig::standard_recursion_config();
-    let mut builder = CircuitBuilder::<F, D>::new(config);
-    let proof = builder.add_virtual_proof_with_pis(&data.common);
-    let verifier_data = builder.add_virtual_verifier_data(data.common.config.fri_config.cap_height);
-    builder.verify_proof::<C>(&proof, &verifier_data, &data.common);
-    while builder.num_gates() < 1 << 12 {
-        builder.add_gate(NoopGate, vec![]);
-    }
-    builder.build::<C>().common
-}
-
 pub struct Targets {
     pub verifier_data_target: VerifierCircuitTarget,
 }
@@ -89,7 +68,12 @@ impl LeafSubCircuit {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         C::Hasher: AlgebraicHasher<F>, {
-        let mut common_data = common_data_for_recursion::<F, C, D>();
+        let mut common_data = circuit_data_for_recursion::<F, C, D>(
+            &CircuitConfig::standard_recursion_config(),
+            RECPROOF_RECURSION_THRESHOLD_DEGREE_BITS,
+            0,
+        )
+        .common;
         let verifier_data_target = builder.add_verifier_data_public_inputs();
         common_data.num_public_inputs = builder.num_public_inputs();
 

@@ -15,7 +15,7 @@ fn test_prove_and_verify_recursive_proof_command() {
     let transcript = temp_path.join("transcript.txt");
     let proof_file = temp_path.join("proof.bin");
     let recursive_proof_file = temp_path.join("recursive_proof.bin");
-    let recursive_proof_db = temp_path.join("recursive_proof.db");
+    let recursive_proof_vk = temp_path.join("recursive_proof.vk");
 
     let elf_file: &str = "../examples/target/riscv32im-mozak-mozakvm-elf/release/fibonacci";
 
@@ -49,7 +49,7 @@ fn test_prove_and_verify_recursive_proof_command() {
     );
 
     // Assert the existence of output files
-    for file in &[&proof_file, &recursive_proof_file, &recursive_proof_db] {
+    for file in &[&proof_file, &recursive_proof_file, &recursive_proof_vk] {
         let file_exists = file.exists();
         assert!(file_exists, "Expected file {:?} not found", file);
     }
@@ -61,7 +61,7 @@ fn test_prove_and_verify_recursive_proof_command() {
             "--",
             "verify-recursive-proof",
             &recursive_proof_file.to_string_lossy(),
-            &recursive_proof_db.to_string_lossy(),
+            &recursive_proof_vk.to_string_lossy(),
         ])
         .output()
         .expect("Failed to execute verify-recursive-proof command");
