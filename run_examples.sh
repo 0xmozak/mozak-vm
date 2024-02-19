@@ -15,29 +15,29 @@ for profile in "${PROFILES[@]}"; do
             private_iotape=""
             public_iotape=""
             case ${bin} in
-                # TODO(bing): fix to work with this script
-                "panic")
-                    echo "(mozak-cli) skipping (${profile}): ${bin}"
-                    skipped="${skipped}${bin} (${profile})\n"
-                    continue
-                    ;;
-                # For this, we skip without writing to skipped because we
-                # run the native version along with the mozakvm version.
-                "merkleproof-trustedroot-native")
-                    echo "(mozak-cli) skipping (${profile}): ${bin}"
-                    continue
-                    ;;
-                "fibonacci-input")
-                    private_iotape="examples/${member}/iotape_private"
-                    public_iotape="examples/${member}/iotape_public"
-                    ;;
-                "merkleproof-trustedroot")
-                    host_target=$(rustc --version --verbose | grep 'host' | cut -d ' ' -f2)
-                    cargo run --manifest-path=examples/"${bin}"/Cargo.toml --release --features="native" --bin merkleproof-trustedroot-native --target "$host_target"
+            # TODO(bing): fix to work with this script
+            "panic")
+                echo "(mozak-cli) skipping (${profile}): ${bin}"
+                skipped="${skipped}${bin} (${profile})\n"
+                continue
+                ;;
+            # For this, we skip without writing to skipped because we
+            # run the native version along with the mozakvm version.
+            "merkleproof-trustedroot-native")
+                echo "(mozak-cli) skipping (${profile}): ${bin}"
+                continue
+                ;;
+            "fibonacci-input")
+                private_iotape="examples/${member}/iotape_private"
+                public_iotape="examples/${member}/iotape_public"
+                ;;
+            "merkleproof-trustedroot")
+                host_target=$(rustc --version --verbose | grep 'host' | cut -d ' ' -f2)
+                cargo run --manifest-path=examples/"${bin}"/Cargo.toml --release --features="native" --bin merkleproof-trustedroot-native --target "$host_target"
 
-                    private_iotape="private_input.tape"
-                    public_iotape="public_input.tape"
-                    ;;
+                private_iotape="private_input.tape"
+                public_iotape="public_input.tape"
+                ;;
 
             esac
 
