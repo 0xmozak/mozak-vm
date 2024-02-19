@@ -13,8 +13,8 @@ use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::ConstraintBuilderExt;
-use crate::memory::columns::{is_executed_ext_circuit, Memory};
-use crate::stark::utils::{is_binary, is_binary_ext_circuit};
+use crate::memory::columns::Memory;
+use crate::stark::utils::is_binary;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -177,53 +177,64 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
+        let mut cb = ConstraintBuilderExt::new(yield_constr, builder);
         let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
         let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
 
-        is_binary_ext_circuit(builder, lv.is_writable, yield_constr);
-        is_binary_ext_circuit(builder, lv.is_store, yield_constr);
-        is_binary_ext_circuit(builder, lv.is_load, yield_constr);
-        is_binary_ext_circuit(builder, lv.is_init, yield_constr);
-        let lv_is_executed = is_executed_ext_circuit(builder, lv);
-        let nv_is_executed = is_executed_ext_circuit(builder, nv);
+        cb.is_binary(lv.is_writable);
+        cb.is_binary(lv.is_store);
+        cb.is_binary(lv.is_load);
+        cb.is_binary(lv.is_init);
 
-        is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
+        let lv_is_executed = cb.is_executed(lv);
+        let nv_is_executed = cb.is_executed(nv);
+
+        cb.is_binary(lv_is_executed);
 
         let eb = ExprBuilder::default();
 
-        let one = eb.lit(builder.one_extension());
+        // Literals
+        let one = eb.lit(cb.one());
 
         let zero_init_clk = one - eb.lit(lv.clk);
         let elf_init_clk = eb.lit(lv.clk);
 
-        let mut cb = ConstraintBuilderExt::new(yield_constr, builder);
+        // LV
+        let lv_addr = eb.lit(lv.addr);
+        let lv_clk = eb.lit(lv.clk);
+        let lv_diff_clk = eb.lit(lv.diff_clk);
+        let lv_is_executed = eb.lit(lv_is_executed);
+        let lv_is_init = eb.lit(lv.is_init);
+        let lv_is_store = eb.lit(lv.is_store);
+        let lv_is_writable = eb.lit(lv.is_writable);
+        let lv_value = eb.lit(lv.value);
 
-        cb.constraint_first_row((one - eb.lit(lv.is_init)) * eb.lit(lv_is_executed));
+        // NV
+        let nv_addr = eb.lit(nv.addr);
+        let nv_clk = eb.lit(nv.clk);
+        let nv_diff_addr_inv = eb.lit(nv.diff_addr_inv);
+        let nv_diff_clk = eb.lit(nv.diff_clk);
+        let nv_is_executed = eb.lit(nv_is_executed);
+        let nv_is_init = eb.lit(nv.is_init);
+        let nv_is_load = eb.lit(nv.is_load);
+        let nv_value = eb.lit(nv.value);
 
-        cb.constraint(eb.lit(lv.is_init) * zero_init_clk * elf_init_clk);
+        // Helper variable
+        let diff_addr = nv_addr - lv_addr;
 
-        cb.constraint(eb.lit(lv.is_init) * zero_init_clk * eb.lit(lv.value));
+        cb.constraint_first_row((one - lv_is_init) * lv_is_executed);
 
-        cb.constraint(eb.lit(lv.is_init) * zero_init_clk * (one - eb.lit(lv.is_writable)));
+        cb.constraint(lv_is_init * zero_init_clk * elf_init_clk);
+        cb.constraint(lv_is_init * zero_init_clk * lv_value);
+        cb.constraint(lv_is_init * zero_init_clk * (one - lv_is_writable));
+        cb.constraint((one - lv_is_writable) * lv_is_store);
+        cb.constraint(nv_is_load * (nv_value - lv_value));
 
-        cb.constraint((one - eb.lit(lv.is_writable)) * eb.lit(lv.is_store));
-
-        cb.constraint(eb.lit(nv.is_load) * (eb.lit(nv.value) - eb.lit(lv.value)));
-
-        cb.constraint_transition(
-            (one - eb.lit(nv.is_init)) * (eb.lit(nv.diff_clk) - (eb.lit(nv.clk) - eb.lit(lv.clk))),
-        );
-
-        cb.constraint_transition(eb.lit(lv.is_init) * eb.lit(lv.diff_clk));
-
-        cb.constraint_transition(
-            (eb.lit(lv_is_executed) - eb.lit(nv_is_executed)) * eb.lit(nv_is_executed),
-        );
-
-        let diff_addr = eb.lit(nv.addr) - eb.lit(lv.addr);
-        cb.constraint_transition(diff_addr * (one - diff_addr * eb.lit(nv.diff_addr_inv)));
-
-        cb.constraint_transition((diff_addr * eb.lit(nv.diff_addr_inv)) - eb.lit(nv.is_init));
+        cb.constraint_transition((one - nv_is_init) * (nv_diff_clk - (nv_clk - lv_clk)));
+        cb.constraint_transition(lv_is_init * lv_diff_clk);
+        cb.constraint_transition((lv_is_executed - nv_is_executed) * nv_is_executed);
+        cb.constraint_transition(diff_addr * (one - diff_addr * nv_diff_addr_inv));
+        cb.constraint_transition((diff_addr * nv_diff_addr_inv) - nv_is_init);
     }
 }
 

@@ -5,6 +5,9 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::RecursiveConstraintConsumer;
 
+use crate::memory::columns::{is_executed_ext_circuit, Memory};
+use crate::stark::utils::is_binary_ext_circuit;
+
 struct CircuitBuilderEvaluator<'a, F, const D: usize>
 where
     F: RichField,
@@ -37,7 +40,7 @@ where
     F: RichField,
     F: Extendable<D>, {
     yield_constr: &'a mut RecursiveConstraintConsumer<F, D>,
-    builder: &'a mut CircuitBuilder<F, D>,
+    circuit_builder: &'a mut CircuitBuilder<F, D>,
 }
 
 impl<'a, F, const D: usize> ConstraintBuilderExt<'a, F, D>
@@ -47,38 +50,48 @@ where
 {
     pub fn new(
         yield_constr: &'a mut RecursiveConstraintConsumer<F, D>,
-        builder: &'a mut CircuitBuilder<F, D>,
+        circuit_builder: &'a mut CircuitBuilder<F, D>,
     ) -> Self {
         Self {
             yield_constr,
-            builder,
+            circuit_builder,
         }
     }
 
     pub fn constraint_first_row(&mut self, constraints: Expr<'_, ExtensionTarget<D>>) {
         let mut evaluator = CircuitBuilderEvaluator {
-            builder: self.builder,
+            builder: self.circuit_builder,
         };
         let built_constraints = evaluator.eval(constraints);
         self.yield_constr
-            .constraint_first_row(self.builder, built_constraints);
+            .constraint_first_row(self.circuit_builder, built_constraints);
     }
 
     pub fn constraint(&mut self, constraints: Expr<'_, ExtensionTarget<D>>) {
         let mut evaluator = CircuitBuilderEvaluator {
-            builder: self.builder,
+            builder: self.circuit_builder,
         };
         let built_constraints = evaluator.eval(constraints);
         self.yield_constr
-            .constraint(self.builder, built_constraints);
+            .constraint(self.circuit_builder, built_constraints);
     }
 
     pub fn constraint_transition(&mut self, constraints: Expr<'_, ExtensionTarget<D>>) {
         let mut evaluator = CircuitBuilderEvaluator {
-            builder: self.builder,
+            builder: self.circuit_builder,
         };
         let built_constraints = evaluator.eval(constraints);
         self.yield_constr
-            .constraint_transition(self.builder, built_constraints);
+            .constraint_transition(self.circuit_builder, built_constraints);
     }
+
+    pub fn is_binary(&mut self, x: ExtensionTarget<D>) {
+        is_binary_ext_circuit(self.circuit_builder, x, self.yield_constr)
+    }
+
+    pub fn is_executed(&mut self, values: &Memory<ExtensionTarget<D>>) -> ExtensionTarget<D> {
+        is_executed_ext_circuit(self.circuit_builder, values)
+    }
+
+    pub fn one(&mut self) -> ExtensionTarget<D> { self.circuit_builder.one_extension() }
 }
