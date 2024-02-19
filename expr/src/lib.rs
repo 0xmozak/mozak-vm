@@ -71,6 +71,10 @@ impl ExprBuilder {
         self.intern(ExprTree::Literal { value })
     }
 
+    // Create a `One` expression
+
+    pub fn one<'a, V>(&'a self) -> Expr<'a, V> { self.intern(ExprTree::One) }
+
     /// Create an `Add` expression
     pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         self.bin_op(BinOp::Add, left, right)
@@ -89,6 +93,12 @@ impl ExprBuilder {
     /// Create a `div` expression
     pub fn div<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         self.bin_op(BinOp::Div, left, right)
+    }
+
+    pub fn is_binary<'a, V>(&'a self, x: Expr<'a, V>) -> Expr<'a, V>
+    where
+        V: Copy, {
+        x * (self.one() - x)
     }
 }
 
@@ -112,6 +122,7 @@ enum ExprTree<'a, V> {
     Literal {
         value: V,
     },
+    One,
 }
 
 impl<V> ExprTree<'_, V>
@@ -130,6 +141,7 @@ where
                 evaluator.bin_op(op, left, right)
             }
             ExprTree::Literal { value } => *value,
+            ExprTree::One => evaluator.one(),
         }
     }
 }
@@ -139,6 +151,7 @@ pub trait Evaluator<V>
 where
     V: Copy, {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
+    fn one(&mut self) -> V;
     fn eval<'a>(&mut self, expr: Expr<'a, V>) -> V { expr.expr_tree.eval_with(self) }
 }
 
@@ -156,6 +169,7 @@ where
     V: Sub<Output = V>,
     V: Mul<Output = V>,
     V: Div<Output = V>,
+    V: From<u8>,
 {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V {
         match op {
@@ -165,6 +179,8 @@ where
             BinOp::Div => left / right,
         }
     }
+
+    fn one(&mut self) -> V { 1u8.into() }
 }
 
 #[cfg(test)]
