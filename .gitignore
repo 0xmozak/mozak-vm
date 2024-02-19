@@ -27,6 +27,8 @@ tmp
 
 # Generated IOTapes
 *.tape
+*.tape_bin
+*.tape_debug
 
 riscv-testdata/testdata/*.o
 riscv-testdata/testdata/*.s
