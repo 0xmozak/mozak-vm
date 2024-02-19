@@ -1,4 +1,4 @@
-use expr::{BinOp, Evaluator, Expr};
+use expr::{BinOp, Evaluator, Expr, ExprBuilder};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;

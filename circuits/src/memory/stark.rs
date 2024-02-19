@@ -178,6 +178,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let mut cb = ConstraintBuilderExt::new(yield_constr, builder);
+        let eb = ExprBuilder::default();
         let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
         let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
 
@@ -190,8 +191,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let nv_is_executed = cb.is_executed(nv);
 
         cb.is_binary(lv_is_executed);
-
-        let eb = ExprBuilder::default();
 
         // Literals
         let one = eb.lit(cb.one());
