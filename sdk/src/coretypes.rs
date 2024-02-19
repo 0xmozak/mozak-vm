@@ -209,7 +209,7 @@ impl From<AlignedVec> for RawMessage {
     fn from(value: AlignedVec) -> RawMessage { RawMessage(value.into_vec()) }
 }
 
-/// Canonical "address" type of object in "mozak vm".
+/// Canonical Cross-Program call message.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
