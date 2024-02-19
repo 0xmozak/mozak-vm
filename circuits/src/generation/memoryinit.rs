@@ -27,13 +27,26 @@ pub fn generate_mozak_memory_init_trace<F: RichField>(program: &Program) -> Vec<
     let mut memory_inits: Vec<MemoryInit<F>> = mozak_memory_init(program);
     memory_inits.sort_by_key(|init| init.element.address.to_canonical_u64());
 
+    for tr in &memory_inits {
+        if tr.element.address == F::from_canonical_usize(1073741824)
+            || tr.element.address == F::from_canonical_usize(1073741825)
+            || tr.element.address == F::from_canonical_usize(1073741826)
+            || tr.element.address == F::from_canonical_usize(1073741827)
+            || tr.element.address == F::from_canonical_usize(1073741828)
+        {
+            log::debug!("init tr: {:#?}", tr);
+        }
+    }
+
     let trace = pad_trace_with_default(memory_inits);
+    log::debug!("MozakMemoryInit trace {:?}", trace);
     log::trace!("MozakMemoryInit trace {:?}", trace);
     trace
 }
 
 #[must_use]
 pub fn mozak_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
+    println!("program mem: {:?}", program.mozak_ro_memory);
     program
         .mozak_ro_memory
         .iter()
@@ -45,13 +58,15 @@ pub fn mozak_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> 
                 mozak_ro_memory.call_tape.data.iter(),
             }
         })
-        .map(|(&addr, &value)| MemoryInit {
-            filter: F::ONE,
-            is_writable: F::ZERO,
-            element: MemElement {
-                address: F::from_canonical_u32(addr),
-                value: F::from_canonical_u8(value),
-            },
+        .map(|(&addr, &value)| {
+            return MemoryInit {
+                filter: F::ONE,
+                is_writable: F::ZERO,
+                element: MemElement {
+                    address: F::from_canonical_u32(addr),
+                    value: F::from_canonical_u8(value),
+                },
+            };
         })
         .collect_vec()
 }

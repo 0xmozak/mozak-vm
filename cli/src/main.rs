@@ -222,10 +222,6 @@ fn main() -> Result<()> {
                 mozak_runner::elf::RuntimeArguments::default,
                 tapes_to_runtime_arguments,
             );
-            let args =
-                mozak_runner::elf::RuntimeArguments::new(vec![1, 2, 3], vec![4, 5, 6], vec![
-                    7, 8, 9,
-                ]);
 
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args);
@@ -236,7 +232,9 @@ fn main() -> Result<()> {
                 mozak_runner::elf::RuntimeArguments::default,
                 tapes_to_runtime_arguments,
             );
-            mozak_sdk::sys::SystemTapes::load_from_args(args.call_tape.as_slice());
+            let args = mozak_runner::elf::RuntimeArguments::new(vec![], vec![], vec![]);
+
+            // mozak_sdk::sys::SystemTapes::load_from_args(args.call_tape.as_slice());
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args);
 

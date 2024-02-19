@@ -78,7 +78,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| unsafe {
         }
 
         let calls = rkyv::from_bytes_unchecked::<Vec<CPCMessage>>(&buf).unwrap();
-        // let calls = vec![CPCMessage::default(), CPCMessage::default()];
+        let calls = vec![CPCMessage::default(), CPCMessage::default()];
         return SystemTapes::new(calls);
     }
 

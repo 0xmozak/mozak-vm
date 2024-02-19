@@ -46,6 +46,15 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
         })
         .map(|row| {
             let addr: F = get_memory_inst_addr(row);
+            if addr == F::from_canonical_usize(1073741824)
+                || addr == F::from_canonical_usize(1073741825)
+                || addr == F::from_canonical_usize(1073741826)
+                || addr == F::from_canonical_usize(1073741827)
+                || addr == F::from_canonical_usize(1073741828)
+            {
+                log::debug!("call tape addr: {:#?}", row);
+            }
+
             let op = row.instruction.op;
             Memory {
                 addr,
@@ -117,6 +126,17 @@ pub fn transform_fullword<F: RichField>(
 pub fn transform_io<F: RichField>(
     io_memory: &[InputOutputMemory<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
+    for row in io_memory {
+        if row.addr == F::from_canonical_usize(1073741824)
+            || row.addr == F::from_canonical_usize(1073741825)
+            || row.addr == F::from_canonical_usize(1073741826)
+            || row.addr == F::from_canonical_usize(1073741827)
+            || row.addr == F::from_canonical_usize(1073741828)
+        {
+            log::debug!("call tape addr: {:#?}", row);
+        }
+    }
+
     io_memory.iter().filter_map(Option::<Memory<F>>::from)
 }
 
@@ -159,6 +179,17 @@ pub fn generate_memory_trace<F: RichField>(
         transform_io(io_memory_public_rows),
     )
     .collect();
+
+    for tr in &merged_trace {
+        if tr.addr == F::from_canonical_usize(1073741824)
+            || tr.addr == F::from_canonical_usize(1073741825)
+            || tr.addr == F::from_canonical_usize(1073741826)
+            || tr.addr == F::from_canonical_usize(1073741827)
+            || tr.addr == F::from_canonical_usize(1073741828)
+        {
+            log::debug!("merged tr: {:#?}", tr);
+        }
+    }
 
     #[cfg(feature = "enable_poseidon_starks")]
     merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));

@@ -87,6 +87,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
+
+    log::debug!("fwmem: {:#?}", fullword_memory_rows);
+    log::debug!("hwmem: {:#?}", halfword_memory_rows);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
     let io_transcript_rows = generate_io_transcript_trace(&record.executed);
@@ -105,6 +108,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &poseiden2_sponge_rows,
         &poseidon2_output_bytes_rows,
     );
+
+    log::debug!("mem: {:#?}", memory_rows);
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
