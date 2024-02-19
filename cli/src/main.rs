@@ -144,7 +144,7 @@ pub fn tapes_to_runtime_arguments(tape_bin: Input) -> mozak_runner::elf::Runtime
 
     let public_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape).unwrap();
     let private_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape).unwrap();
-    let call_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape).unwrap();
+    let call_tape_bytes = rkyv::to_bytes::<_, 244>(&sys_tapes.call_tape).unwrap();
     let event_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.event_tape).unwrap();
     debug!(
         "Read {} of public tape data.
@@ -236,7 +236,6 @@ fn main() -> Result<()> {
                 mozak_runner::elf::RuntimeArguments::default,
                 tapes_to_runtime_arguments,
             );
-            let args = mozak_runner::elf::RuntimeArguments::new(vec![], vec![], vec![]);
 
             // mozak_sdk::sys::SystemTapes::load_from_args(args.call_tape.as_slice());
             let program = load_program_with_args(elf, &args).unwrap();

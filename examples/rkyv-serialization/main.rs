@@ -5,6 +5,7 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 
+use mozak_sdk::coretypes::CPCMessage;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
@@ -33,6 +34,10 @@ pub fn main() {
 
     // Serializing is as easy as a single function call
     let bytes = rkyv::to_bytes::<_, 256>(&value).unwrap();
+
+    let mut buf = [0; 244];
+    let calls = unsafe { rkyv::from_bytes_unchecked::<Vec<CPCMessage>>(&buf).unwrap() };
+    println!("CPCs: {:?}", calls);
 
     // Or you can use the unsafe API for maximum performance
     let archived = unsafe { rkyv::archived_root::<Test>(&bytes[..]) };

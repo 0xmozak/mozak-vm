@@ -668,6 +668,7 @@ name = "rkyv-serialization-mozak-guest"
 version = "0.1.0"
 dependencies = [
  "guest",
+ "mozak-sdk",
  "rkyv",
 ]
 
@@ -878,6 +879,7 @@ dependencies = [
  "hex",
  "log",
  "mozak-sdk",
+ "mozak-system",
  "rkyv",
  "simple_logger",
  "wallet-mozak-guest",

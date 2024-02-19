@@ -1,8 +1,11 @@
+use std::cell::UnsafeCell;
+
+use mozak_system::system::syscall_halt;
 use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
+use crate::coretypes::{CPCMessage, Event, Poseidon2HashType, ProgramIdentifier, RawMessage};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -67,17 +70,41 @@ impl SystemTapes {
     }
 }
 
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub struct ProgramIdentifier2 {
+    /// ProgramRomHash defines the hash of the text section of the
+    /// static ELF program concerned
+    pub program_rom_hash: Poseidon2HashType,
+
+    /// MemoryInitHash defines the hash of the static memory initialization
+    /// regions of the static ELF program concerned
+    pub memory_init_hash: Poseidon2HashType,
+
+    /// Entry point of the program
+    pub entry_point: u32,
+}
+
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| unsafe {
     #[cfg(target_os = "zkvm")]
     {
-        let mut buf = [0; 244];
-        let buf_ptr = buf.as_mut_ptr();
+        let mut buf = [0_u8; 244];
+        let buf_ptr: *mut u8 = buf.as_mut_ptr();
         let call_tape_ptr = _mozak_call_tape as *const u8;
+
+        // fixme
         for i in 0..isize::try_from(244).expect("pass") {
-            buf_ptr.offset(i).write(call_tape_ptr.offset(i).read());
+            buf_ptr
+                .offset(i)
+                .write_unaligned(call_tape_ptr.offset(i).read_unaligned());
         }
 
-        let calls = rkyv::from_bytes_unchecked::<Vec<CPCMessage>>(&buf).unwrap();
+        type Foo = ProgramIdentifier;
+        let archived = unsafe { rkyv::archived_root::<Foo>(&buf[..]) };
+        let calls_foo: Foo = archived.deserialize(&mut rkyv::Infallible).unwrap();
+        syscall_halt(16);
         let calls = vec![CPCMessage::default(), CPCMessage::default()];
         return SystemTapes::new(calls);
     }
@@ -94,19 +121,12 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| unsafe {
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct RawTape {
-    // start: usize,
-    // len: usize,
-    // offset: UnsafeCell<usize>,
+    start: u32,
+    len: u32,
 }
 
 impl RawTape {
-    pub fn new() -> Self {
-        Self {
-            // start: 0,
-            // len: 0,
-            // offset: UnsafeCell::new(0),
-        }
-    }
+    pub fn new() -> Self { Self { start: 0, len: 0 } }
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]

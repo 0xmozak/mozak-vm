@@ -212,11 +212,7 @@ impl<F: RichField> State<F> {
             entry_point: pc,
             ..
         }: Program,
-        RuntimeArguments {
-            io_tape_private,
-            io_tape_public,
-            ..
-        }: RuntimeArguments,
+        RuntimeArguments { .. }: RuntimeArguments,
     ) -> Self {
         let mut mem = HashMap::new();
         if let Some(ro_memory) = mozak_ro_memory {
@@ -242,7 +238,6 @@ impl<F: RichField> State<F> {
             // in .mozak_global sections in the RISC-V binary.
             // Now, the CLI simply does unwrap_or_default() to either
             // use an iotape from file or default to an empty input.
-            io_tape: (io_tape_private, io_tape_public).into(),
             ..Default::default()
         }
     }

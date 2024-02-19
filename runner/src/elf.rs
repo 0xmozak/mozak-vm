@@ -33,7 +33,7 @@ impl MozakMemoryRegion {
     }
 
     fn fill(&mut self, data: &[u8]) {
-        log::debug!("data.len = {}", data.len());
+        log::debug!("data = {:?}", data);
 
         log::debug!(
             "self.starting_address: {} {:x}",
