@@ -1,5 +1,4 @@
 use anyhow::Result;
-use iter_fixed::IntoIteratorFixed;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -9,7 +8,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
-use super::{and_helper, summarized, unpruned, verify_address};
+use super::{at_least_one_true, hashes_equal, summarized, unpruned, verify_address};
 pub struct LeafCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
@@ -44,36 +43,34 @@ where
         let new_targets = new_inputs.build(&mut builder);
         let address_targets = address_inputs.build(&mut builder);
 
-        let old_hash = old_targets.unpruned_hash.elements;
-        let new_hash = new_targets.unpruned_hash.elements;
+        let old_hash = old_targets.unpruned_hash;
+        let new_hash = new_targets.unpruned_hash;
 
-        // Summarize both old and new by hashing them together
-        let write_slot = [address_targets.node_address]
+        let unchanged = hashes_equal(&mut builder, old_hash, new_hash);
+
+        // We can't be changed (unchanged == 0) and not-present in the summary
+        at_least_one_true(&mut builder, [
+            unchanged,
+            summarized_targets.summary_hash_present,
+        ]);
+
+        // Make the observation
+        let observation = [address_targets.node_address]
             .into_iter()
-            .chain(old_hash)
-            .chain(new_hash)
+            .chain(old_hash.elements)
+            .chain(new_hash.elements)
             .collect();
-        let write_slot = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(write_slot);
+        let observation = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(observation);
 
         // zero it out based on if this node is being summarized
-        let slot = write_slot
+        let observation = observation
             .elements
             .map(|e| builder.mul(e, summarized_targets.summary_hash_present.target));
 
         // This should be the summary hash
-        builder.connect_hashes(HashOutTarget::from(slot), summarized_targets.summary_hash);
-
-        // Ensure the presence is based on if there's any change
-        let unchanged = old_hash
-            .into_iter_fixed()
-            .zip(new_hash)
-            .map(|(old, new)| builder.is_equal(old, new))
-            .collect();
-        let unchanged = and_helper(&mut builder, unchanged);
-        let changed = builder.not(unchanged);
-        builder.connect(
-            changed.target,
-            summarized_targets.summary_hash_present.target,
+        builder.connect_hashes(
+            HashOutTarget::from(observation),
+            summarized_targets.summary_hash,
         );
 
         let circuit = builder.build();
@@ -302,7 +299,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "was set twice with different values")]
+    #[should_panic(expected = "Tried to invert zero")]
     fn bad_leaf_create() {
         let circuit_config = CircuitConfig::standard_recursion_config();
         let circuit = LeafCircuit::<F, C, D>::new(&circuit_config);

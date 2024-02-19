@@ -194,3 +194,20 @@ where
     // Select the hash based on presence
     hash_or_forward(builder, left_non_zero, left, right_non_zero, right)
 }
+
+/// Guarantee at least one `BoolTarget` is `true`.
+/// Does nothing if no targets are provided
+fn at_least_one_true<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    targets: impl IntoIterator<Item = BoolTarget>,
+) where
+    F: RichField + Extendable<D>, {
+    let mut targets = targets.into_iter();
+    let Some(first) = targets.next() else { return };
+
+    // Sum all the booleans
+    let total = targets.fold(first.target, |total, i| builder.add(total, i.target));
+
+    // If all booleans were 0, self-division will be unsatisfiable
+    builder.div(total, total);
+}
