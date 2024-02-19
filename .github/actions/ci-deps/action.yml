@@ -27,11 +27,11 @@ runs:
       shell: bash
       run: |
         # Remove previously installed nix profiles
-        nix profile remove '.*'
+        sudo nix profile remove '.*'
         # Install the current one
-        nix profile install .#ci-deps
+        sudo nix profile install .#ci-deps
         # Set up CI environment
-        nix run .#ci-env >> $GITHUB_ENV
+        sudo nix run .#ci-env >> $GITHUB_ENV
 
     - id: get-info
       name: Get info
