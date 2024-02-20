@@ -3,7 +3,7 @@ use std::io::Read;
 
 pub struct MozakIo<'a> {
     pub stdin: Box<dyn Read + 'a>,
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     pub file: String,
 }
 
@@ -11,7 +11,7 @@ pub struct MozakIoPrivate<'a>(pub MozakIo<'a>);
 pub struct MozakIoPublic<'a>(pub MozakIo<'a>);
 pub struct MozakTranscript<'a>(pub MozakIo<'a>);
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 macro_rules! native_io_impl {
     ($s: ident) => {
         impl<'a> std::ops::Deref for $s<'a> {
@@ -26,12 +26,12 @@ macro_rules! native_io_impl {
     };
 }
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 native_io_impl!(MozakIoPublic);
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 native_io_impl!(MozakIoPrivate);
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl<'a> Read for MozakIo<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         {
@@ -49,7 +49,7 @@ impl<'a> Read for MozakIo<'a> {
     }
 }
 
-#[cfg(target_os = "zkvm")]
+#[cfg(target_os = "mozakvm")]
 impl<'a> Read for MozakIoPrivate<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         {
@@ -59,7 +59,7 @@ impl<'a> Read for MozakIoPrivate<'a> {
     }
 }
 
-#[cfg(target_os = "zkvm")]
+#[cfg(target_os = "mozakvm")]
 impl<'a> Read for MozakIoPublic<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         {
@@ -69,7 +69,7 @@ impl<'a> Read for MozakIoPublic<'a> {
     }
 }
 
-#[cfg(target_os = "zkvm")]
+#[cfg(target_os = "mozakvm")]
 impl<'a> Read for MozakTranscript<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         {
