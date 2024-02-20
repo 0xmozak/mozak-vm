@@ -33,7 +33,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
 #[cfg(test)]
 mod tests {
-    use mozak_runner::test_utils::execute_code;
+    use mozak_runner::util::execute_code;
     use plonky2::util::timing::TimingTree;
 
     use crate::stark::mozak_stark::PublicInputs;

@@ -81,7 +81,8 @@ pub(crate) fn slt_constraints_circuit<F: RichField + Extendable<D>, const D: usi
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code, u32_extra};
+    use mozak_runner::test_utils::u32_extra;
+    use mozak_runner::util::execute_code;
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
