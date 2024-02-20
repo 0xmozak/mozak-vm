@@ -36,25 +36,27 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
             // to insert zero-init rows for mozak-ro-addresses. All this in case
             // mozak-ro-memory indeed exist, because this code should work for a vanilla
             // ELF too
-            if program.mozak_ro_memory.is_some() {
-                row.aux.mem.is_some()
-                    && (matches!(
-                        row.instruction.op,
-                        Op::LB | Op::LBU | Op::SB | Op::SH | Op::LH | Op::LHU | Op::LW | Op::SW
-                    ) || (row.instruction.op == Op::ECALL && row.aux.poseidon2.is_some()))
-                    && !program
-                        .mozak_ro_memory
-                        .as_ref()
-                        .unwrap()
-                        .is_address_belongs_to_mozak_ro_memory(row.aux.mem.unwrap().addr)
-            } else {
-                row.aux.mem.is_some()
-                    && matches!(
-                        row.instruction.op,
-                        Op::LB | Op::LBU | Op::SB | Op::SH | Op::LH | Op::LHU | Op::LW | Op::SW
-                    )
-                    || (row.instruction.op == Op::ECALL && row.aux.poseidon2.is_some())
-            }
+
+            // Note: here is a brief description how this filtering works:
+            // If row related to memory (row.aux.mem.is_some)
+            // -> Then:
+            //         1) instruction.op is-memory-op
+            //         2) If in addition mozak-ro-memory exist - we should filter-it-out ->
+            //            check address does NOT belong to it
+            // OR ->
+            //         1) instruction.op is ECALL
+            //         2) row related to poseidon2 (row.aux.poseidon2.is_some)
+            (row.aux.mem.is_some()
+                && matches!(
+                    row.instruction.op,
+                    Op::LB | Op::LBU | Op::SB | Op::SH | Op::LH | Op::LHU | Op::LW | Op::SW
+                )
+                && (if let Some(mrm) = program.mozak_ro_memory.as_ref() {
+                    !mrm.is_address_belongs_to_mozak_ro_memory(row.aux.mem.unwrap().addr)
+                } else {
+                    true
+                }))
+                || (row.instruction.op == Op::ECALL && row.aux.poseidon2.is_some())
         })
         .for_each(|row| {
             let addr = row.aux.mem.unwrap_or_default().addr;
