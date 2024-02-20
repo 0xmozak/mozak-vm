@@ -38,10 +38,10 @@ jobs:
           }
 
           # Try to find runners for this repo
-          curl_runners "https://api.github.com/repos/${{ github.repository }}/actions/runners"
+          # curl_runners "https://api.github.com/repos/${{ github.repository }}/actions/runners"
 
           # Try to find runners for this org
-          curl_runners "https://api.github.com/orgs/${{ github.repository_owner }}/actions/runners"
+          # curl_runners "https://api.github.com/orgs/${{ github.repository_owner }}/actions/runners"
 
           # We couldn't find any self-hosted runners, so fallback to GitHub runners
           echo "runner-label=ubuntu-latest" | tee --append "${GITHUB_OUTPUT}"
