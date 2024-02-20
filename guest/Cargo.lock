@@ -260,7 +260,7 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/0xmozak/plonky2.git#ec95756268799d296565c6fd779d4ef90703bd57"
+source = "git+https://github.com/0xmozak/plonky2.git#ce9ee7146678253418a936b78945e5ebaea0e0d5"
 dependencies = [
  "ahash",
  "anyhow",
@@ -283,7 +283,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#ec95756268799d296565c6fd779d4ef90703bd57"
+source = "git+https://github.com/0xmozak/plonky2.git#ce9ee7146678253418a936b78945e5ebaea0e0d5"
 dependencies = [
  "anyhow",
  "itertools",
@@ -298,12 +298,12 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#ec95756268799d296565c6fd779d4ef90703bd57"
+source = "git+https://github.com/0xmozak/plonky2.git#ce9ee7146678253418a936b78945e5ebaea0e0d5"
 
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#ec95756268799d296565c6fd779d4ef90703bd57"
+source = "git+https://github.com/0xmozak/plonky2.git#ce9ee7146678253418a936b78945e5ebaea0e0d5"
 
 [[package]]
 name = "ppv-lite86"
