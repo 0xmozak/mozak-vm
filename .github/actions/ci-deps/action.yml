@@ -1,10 +1,10 @@
 name: Install CI deps
+description: "Install dependencies needed to run CI jobs"
 
 inputs:
   cache-key:
     required: false
-  local-cache:
-    required: false
+    description: "Cache key for caching Rust artifacts"
   runner-label:
     required: true
     description: "label for the runner the action will be executed on"
@@ -45,7 +45,7 @@ runs:
 
     - id: toolchain-cache-restore
       name: Restore Cargo Cache (Local Restore)
-      if: ${{ inputs.local-cache }}
+      if: ${{ inputs.runner-label == 'self-hosted' }}
       uses: 0xmozak/local-cache/restore@ff33c7264117faa1bbd99aa0ddb467a9ccc3919e
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}

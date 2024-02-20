@@ -32,7 +32,6 @@ jobs:
         uses: ./.github/actions/ci-deps
         with:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compile and archive all the tests
@@ -51,7 +50,6 @@ jobs:
         uses: ./.github/actions/ci-deps
         with:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and run examples
@@ -69,7 +67,6 @@ jobs:
         uses: ./.github/actions/ci-deps
         with:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Clippy linter
@@ -89,7 +86,6 @@ jobs:
         uses: ./.github/actions/ci-deps
         with:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build all examples
@@ -106,7 +102,6 @@ jobs:
         uses: ./.github/actions/ci-deps
         with:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run fmt
@@ -133,7 +128,6 @@ jobs:
         uses: ./.github/actions/ci-deps
         with:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: taplo fmt
