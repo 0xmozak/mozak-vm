@@ -191,6 +191,7 @@ impl Add for FinalizeOutcome {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
+        #[allow(clippy::match_same_arms)]
         match (self, rhs) {
             (Self::Prune, Self::Prune) => Self::Prune,
             (Self::Prune, Self::Recalc) => Self::Recalc,
@@ -837,14 +838,17 @@ impl AuxStateData {
         let outcome = left_outcome + right_outcome;
 
         if let FinalizeOutcome::Recalc = outcome {
-            self.recalc_branch_helper(branch, true)
+            self.recalc_branch_helper(branch, true);
         }
 
         outcome
     }
 
     fn finalize_leaf(&self, leaf: &mut SparseMerkleLeaf, _addr: Address) -> FinalizeOutcome {
-        use LeafKind::*;
+        use LeafKind::{
+            BeingCreated, BeingDeleted, BeingRead, BeingUpdated, DeleteEmptyLeaf, ReadEmptyLeaf,
+            Unused,
+        };
         let (old_hash, object) = match leaf.kind {
             Unused { .. } => return FinalizeOutcome::NoOp,
             DeleteEmptyLeaf { .. } | ReadEmptyLeaf { .. } | BeingDeleted { .. } =>
