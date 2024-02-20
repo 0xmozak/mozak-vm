@@ -33,13 +33,13 @@ impl MozakMemoryRegion {
     }
 
     fn fill(&mut self, data: &[u8]) {
-        log::debug!("data = {:?}", data);
+        // log::debug!("data = {:?}", data);
 
-        log::debug!(
-            "self.starting_address: {} {:x}",
-            self.starting_address,
-            self.starting_address,
-        );
+        // log::debug!(
+        //     "self.starting_address: {} {:x}",
+        //     self.starting_address,
+        //     self.starting_address,
+        // );
         assert!(
             data.len() <= self.capacity.try_into().unwrap(),
             "fill data must fit into capacity"
@@ -156,19 +156,19 @@ impl MozakMemory {
             })
         };
         self.io_tape_public.starting_address = get("_mozak_public_io_tape");
-        log::debug!(
-            "_mozak_public_io_tape: 0x{:0x}",
-            self.io_tape_public.starting_address
-        );
+        // log::debug!(
+        //     "_mozak_public_io_tape: 0x{:0x}",
+        //     self.io_tape_public.starting_address
+        // );
 
         self.io_tape_private.starting_address = get("_mozak_private_io_tape");
-        log::debug!(
-            "_mozak_private_io_tape: 0x{:0x}",
-            self.io_tape_private.starting_address
-        );
+        // log::debug!(
+        //     "_mozak_private_io_tape: 0x{:0x}",
+        //     self.io_tape_private.starting_address
+        // );
 
         self.call_tape.starting_address = get("_mozak_call_tape");
-        log::debug!("_mozak_call_tape: 0x{:0x}", self.call_tape.starting_address);
+        // log::debug!("_mozak_call_tape: 0x{:0x}", self.call_tape.starting_address);
 
         // compute capacity, assume single memory region (refer to linker-script)
         self.io_tape_public.capacity =
@@ -538,6 +538,7 @@ impl Program {
             .fill(args.io_tape_private.as_slice());
         mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
 
+        log::debug!("PROGRAM'S CALLTAPE: {:?}", program.mozak_ro_memory.clone().unwrap().call_tape);
         Ok(program)
     }
 }

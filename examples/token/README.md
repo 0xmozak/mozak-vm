@@ -21,3 +21,21 @@ MOZAK_STARK_DEBUG=true ./target/debug/mozak-cli prove-and-verify \
     examples/token/private_input.tape \
     examples/token/public_input.tape
 ```
+
+
+
+### Scratch
+Native exec:
+```
+rm *.tape_* && \
+    cargo run --release --features="native" --bin token-native --target aarch64-apple-darwin
+```
+
+Prove and verify:
+```
+cargo build && \
+    cd examples && \
+    cargo build --release --bin tokenbin && \
+    MOZAK_STARK_DEBUG=true ../target/debug/mozak-cli prove-and-verify -vvv target/riscv32im-mozak-zkvm-elf/release/tokenbin --system-tape wallet_tfr.tape_bin;
+    cd ..
+```

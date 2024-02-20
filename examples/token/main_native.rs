@@ -1,7 +1,6 @@
-#![feature(restricted_std)]
 mod core_logic;
 
-use mozak_sdk::coretypes::{CPCMessage, ProgramIdentifier, StateObject};
+use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
 use mozak_sdk::sys::call_send;
 #[cfg(not(target_os = "zkvm"))]
 use mozak_sdk::sys::dump_tapes;
@@ -52,10 +51,10 @@ fn main() {
                                     // private tape
         },
     );
-    let foo: Vec<CPCMessage> = vec![];
+    // let foo: Vec<CPCMessage> = vec![];
 
-    let bytes = rkyv::to_bytes::<_, 256>(&foo).unwrap();
-    println!("bytes: {:?}", bytes);
+    // let bytes = rkyv::to_bytes::<_, 256>(&foo).unwrap();
+    // println!("bytes: {:?}", bytes);
 
     dump_tapes("wallet_tfr".to_string());
 

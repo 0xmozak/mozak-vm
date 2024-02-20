@@ -37,7 +37,7 @@ pub fn main() {
 
     let mut buf = [0; 244];
     let calls = unsafe { rkyv::from_bytes_unchecked::<Vec<CPCMessage>>(&buf).unwrap() };
-    println!("CPCs: {:?}", calls);
+    // println!("CPCs: {:?}", calls);
 
     // Or you can use the unsafe API for maximum performance
     let archived = unsafe { rkyv::archived_root::<Test>(&bytes[..]) };

@@ -27,19 +27,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amm-mozak-guest"
-version = "0.1.0"
-dependencies = [
- "guest",
- "hex",
- "log",
- "mozak-sdk",
- "rkyv",
- "simple_logger",
- "token-mozak-guest",
-]
-
-[[package]]
 name = "anyhow"
 version = "1.0.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"

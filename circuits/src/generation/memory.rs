@@ -46,7 +46,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
         })
         .map(|row| {
             let addr: F = get_memory_inst_addr(row);
-            log::debug!("tmi {}", addr);
+            // log::debug!("tmi {}", addr);
 
             if addr == F::from_canonical_usize(1073741824)
                 || addr == F::from_canonical_usize(1073741825)
@@ -54,7 +54,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 || addr == F::from_canonical_usize(1073741827)
                 || addr == F::from_canonical_usize(1073741828)
             {
-                log::debug!("call tape addr: {:#?}", row);
+                // log::debug!("call tape addr: {:#?}", row);
             }
 
             let op = row.instruction.op;
@@ -79,7 +79,7 @@ pub fn transform_memory_init<F: RichField>(
     memory_init_rows: &[MemoryInit<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
     for row in memory_init_rows {
-        log::debug!("tmi {}", row.element.address);
+        // log::debug!("tmi {}", row.element.address);
     }
     memory_init_rows
         .iter()
@@ -94,7 +94,7 @@ pub fn transform_halfword<F: RichField>(
     halfword_memory: &[HalfWordMemory<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
     for row in halfword_memory {
-        log::debug!("hfm {:?}", row.addrs);
+        // log::debug!("hfm {:?}", row.addrs);
     }
     halfword_memory
         .iter()
@@ -123,7 +123,7 @@ pub fn transform_fullword<F: RichField>(
     fullword_memory: &[FullWordMemory<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
     for row in fullword_memory {
-        log::debug!("ffm {:?}", row.addrs);
+        // log::debug!("ffm {:?}", row.addrs);
     }
     fullword_memory
         .iter()
@@ -138,7 +138,7 @@ pub fn transform_io<F: RichField>(
     io_memory: &[InputOutputMemory<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
     for row in io_memory {
-        log::debug!("io {:?}", row.addr);
+        // log::debug!("io {:?}", row.addr);
     }
     for row in io_memory {
         if row.addr == F::from_canonical_usize(1073741824)
@@ -147,7 +147,7 @@ pub fn transform_io<F: RichField>(
             || row.addr == F::from_canonical_usize(1073741827)
             || row.addr == F::from_canonical_usize(1073741828)
         {
-            log::debug!("call tape addr: {:#?}", row);
+            // log::debug!("call tape addr: {:#?}", row);
         }
     }
 
@@ -201,7 +201,7 @@ pub fn generate_memory_trace<F: RichField>(
             || tr.addr == F::from_canonical_usize(1073741827)
             || tr.addr == F::from_canonical_usize(1073741828)
         {
-            log::debug!("merged tr: {:#?}", tr);
+            // log::debug!("merged tr: {:#?}", tr);
         }
     }
 

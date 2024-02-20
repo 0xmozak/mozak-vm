@@ -1,12 +1,10 @@
 #![no_main]
+#![allow(unused_attributes)]
 #![feature(restricted_std)]
 
 mod core_logic;
 
-use core;
-use std::path::{Path, PathBuf};
-
-use mozak_sdk::coretypes::{CPCMessage, ProgramIdentifier};
+use mozak_sdk::coretypes::ProgramIdentifier;
 use mozak_sdk::sys::call_receive;
 
 pub fn main() {

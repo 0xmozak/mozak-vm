@@ -42,11 +42,11 @@ extern "C" {
 
 #[allow(dead_code)]
 impl SystemTapes {
-    fn new(messages: Vec<CPCMessage>) -> Self {
+    fn new() -> Self {
         Self {
             private_tape: RawTape::new(),
             public_tape: RawTape::new(),
-            call_tape: CallTape::new(messages),
+            call_tape: CallTape::new(),
             event_tape: EventTape::new(),
         }
     }
@@ -57,18 +57,6 @@ impl SystemTapes {
     //         ContextVariable::SelfProgramIdentifier(id),
     //     ));
     // }
-
-    pub fn load_from_args(call_tape: &[u8]) -> Self {
-        let archived = unsafe { rkyv::archived_root::<Vec<CPCMessage>>(&call_tape[..]) };
-        let calls: Vec<CPCMessage> = archived.deserialize(&mut rkyv::Infallible).unwrap();
-
-        Self {
-            private_tape: RawTape::new(),
-            public_tape: RawTape::new(),
-            call_tape: CallTape::new(calls),
-            event_tape: EventTape::new(),
-        }
-    }
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
@@ -88,24 +76,38 @@ pub struct ProgramIdentifier2 {
     pub entry_point: u32,
 }
 
-static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| unsafe {
+static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "zkvm")]
     {
-        let call_tape_ptr = _mozak_call_tape as *const u8;
-        let call_tape_len = _mozak_call_tape_len as usize;
+        unsafe {
+            assert!(_mozak_call_tape == 536870912);
+        }
+        // let call_tape_ptr = _mozak_call_tape as *const ArchivedCallTape;
+        // // let call_tape_len = _mozak_call_tape_len as usize;
 
-        let call_tape = from_raw_parts(call_tape_ptr, call_tape_len);
+        // // let call_tape = from_raw_parts(call_tape_ptr, 1);
 
-        type Foo = Vec<CPCMessage>;
-        let archived = unsafe { rkyv::archived_root::<Foo>(&call_tape[..]) };
-        let calls: Foo = archived.deserialize(&mut rkyv::Infallible).unwrap();
-        return SystemTapes::new(calls);
+        // type Foo = CallTape;
+        // let archived = unsafe { 
+        //     &*call_tape_ptr
+        // };
+        // let calls: Foo = archived.deserialize(&mut rkyv::Infallible).unwrap();
+        
+        // assert!(calls.writer.len() > 0);
+        // assert!(calls.writer[0].callee_prog == ProgramIdentifier::default());
+
+        SystemTapes::default()
+        // SystemTapes {
+        //     call_tape: calls,
+        //     ..SystemTapes::default()
+        // }
+        // return SystemTapes::new(calls.writer);
     }
 
     #[cfg(not(target_os = "zkvm"))]
     {
-        let calls = vec![CPCMessage::default(), CPCMessage::default()];
-        return SystemTapes::new(calls);
+        // let calls = vec![CPCMessage::default(), CPCMessage::default()];
+        SystemTapes::default()
     }
 });
 
@@ -135,13 +137,10 @@ pub struct CallTape {
 }
 
 impl CallTape {
-    pub fn new(messages: Vec<CPCMessage>) -> Self {
+    pub fn new() -> Self {
         Self {
             #[cfg(target_os = "zkvm")]
             self_prog_id: ProgramIdentifier::default(),
-            #[cfg(target_os = "zkvm")]
-            writer: messages,
-            #[cfg(not(target_os = "zkvm"))]
             writer: Vec::new(),
             #[cfg(target_os = "zkvm")]
             index: 0,

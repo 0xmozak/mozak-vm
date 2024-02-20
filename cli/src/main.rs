@@ -27,7 +27,7 @@ use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
-use mozak_sdk::sys::SystemTapes;
+use mozak_sdk::sys::{CallTape, SystemTapes};
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -140,12 +140,17 @@ pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
 /// fails.
 pub fn tapes_to_runtime_arguments(tape_bin: Input) -> mozak_runner::elf::RuntimeArguments {
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
-    debug!("{sys_tapes:?}");
+    debug!("SYSTAPE READOUT: {sys_tapes:#?}");
+    // TODO(supra): remove
+    // sys_tapes.call_tape = CallTape::new(vec![]);
 
     let public_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape).unwrap();
     let private_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape).unwrap();
     let call_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape).unwrap();
     let event_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.event_tape).unwrap();
+
+    debug!("CALLTAPE_BYTES: {:?}", call_tape_bytes);
+
     debug!(
         "Read {} of public tape data.
 Read {} of private tape data.
@@ -232,15 +237,15 @@ fn main() -> Result<()> {
             let state = step(&program, state)?.last_state;
         }
         Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
-            // let args = system_tape.map_or_else(
-            //     mozak_runner::elf::RuntimeArguments::default,
-            //     tapes_to_runtime_arguments,
-            // );
-            let args = mozak_runner::elf::RuntimeArguments {
-                io_tape_public: vec![],
-                io_tape_private: vec![],
-                call_tape: vec![0, 0, 0, 0, 0, 0, 0, 0],
-            };
+            let args = system_tape.map_or_else(
+                mozak_runner::elf::RuntimeArguments::default,
+                tapes_to_runtime_arguments,
+            );
+            // let args = mozak_runner::elf::RuntimeArguments {
+            //     io_tape_public: vec![],
+            //     io_tape_private: vec![],
+            //     call_tape: vec![0, 0, 0, 0, 0, 0, 0, 0],
+            // };
 
             // mozak_sdk::sys::SystemTapes::load_from_args(args.call_tape.as_slice());
             let program = load_program_with_args(elf, &args).unwrap();
