@@ -538,7 +538,10 @@ impl Program {
             .fill(args.io_tape_private.as_slice());
         mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
 
-        log::debug!("PROGRAM'S CALLTAPE: {:?}", program.mozak_ro_memory.clone().unwrap().call_tape);
+        log::debug!(
+            "PROGRAM'S CALLTAPE: {:?}",
+            program.mozak_ro_memory.clone().unwrap().call_tape
+        );
         Ok(program)
     }
 }

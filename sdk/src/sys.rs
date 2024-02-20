@@ -1,4 +1,5 @@
 use std::cell::UnsafeCell;
+use std::ptr::slice_from_raw_parts;
 use std::slice::from_raw_parts;
 
 use mozak_system::system::syscall_halt;
@@ -6,7 +7,9 @@ use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{CPCMessage, Event, Poseidon2HashType, ProgramIdentifier, RawMessage};
+use crate::coretypes::{
+    ArchivedCPCMessage, CPCMessage, Event, Poseidon2HashType, ProgramIdentifier, RawMessage,
+};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -28,17 +31,17 @@ pub struct SystemTapes {
     pub event_tape: EventTape,
 }
 
-#[cfg(target_os = "zkvm")]
-extern "C" {
-    static _mozak_public_io_tape: usize;
-    static _mozak_public_io_tape_len: usize;
-    static _mozak_private_io_tape: usize;
-    static _mozak_private_io_tape_len: usize;
-    static _mozak_call_tape: usize;
-    static _mozak_call_tape_len: usize;
-    static _mozak_event_tape: usize;
-    static _mozak_event_tape_len: usize;
-}
+// #[cfg(target_os = "zkvm")]
+// extern "C" {
+//     static _mozak_public_io_tape: usize;
+//     // static _mozak_public_io_tape_len: usize;
+//     static _mozak_private_io_tape: usize;
+//     // static _mozak_private_io_tape_len: usize;
+//     static _mozak_call_tape: u32;
+//     // static _mozak_call_tape_len: usize;
+//     static _mozak_event_tape: usize;
+//     // static _mozak_event_tape_len: usize;
+// }
 
 #[allow(dead_code)]
 impl SystemTapes {
@@ -79,29 +82,33 @@ pub struct ProgramIdentifier2 {
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "zkvm")]
     {
-        unsafe {
-            assert!(_mozak_call_tape == 536870912);
+        // These values should be derived from linker script and reserved memory
+        // somewhere
+        let call_tape_start: u32 = 0x40000000;
+
+        // This runner should inject somewhere deterministic in memory and has to be
+        // exact HARDCODED HERE: for token example, fix later
+        let call_tape_len_dynamic = 244;
+        type PreSerializationType = Vec<CPCMessage>;
+
+        let archived = unsafe {
+            let reserved_mem_slice =
+                &*slice_from_raw_parts::<u8>(call_tape_start as *const u8, call_tape_len_dynamic);
+            rkyv::archived_root::<PreSerializationType>(reserved_mem_slice)
+        };
+
+        let calls: PreSerializationType = archived.deserialize(&mut rkyv::Infallible).unwrap();
+
+        // HARDCODED HERE: for token example, fix later
+        assert!(calls.len() == 2);
+
+        SystemTapes {
+            call_tape: CallTape {
+                writer: calls,
+                ..Default::default()
+            },
+            ..SystemTapes::default()
         }
-        // let call_tape_ptr = _mozak_call_tape as *const ArchivedCallTape;
-        // // let call_tape_len = _mozak_call_tape_len as usize;
-
-        // // let call_tape = from_raw_parts(call_tape_ptr, 1);
-
-        // type Foo = CallTape;
-        // let archived = unsafe { 
-        //     &*call_tape_ptr
-        // };
-        // let calls: Foo = archived.deserialize(&mut rkyv::Infallible).unwrap();
-        
-        // assert!(calls.writer.len() > 0);
-        // assert!(calls.writer[0].callee_prog == ProgramIdentifier::default());
-
-        SystemTapes::default()
-        // SystemTapes {
-        //     call_tape: calls,
-        //     ..SystemTapes::default()
-        // }
-        // return SystemTapes::new(calls.writer);
     }
 
     #[cfg(not(target_os = "zkvm"))]
@@ -131,7 +138,7 @@ impl RawTape {
 pub struct CallTape {
     #[cfg(target_os = "zkvm")]
     self_prog_id: ProgramIdentifier,
-    writer: Vec<CPCMessage>,
+    pub writer: Vec<CPCMessage>,
     #[cfg(target_os = "zkvm")]
     index: u32,
 }
