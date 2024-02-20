@@ -92,7 +92,7 @@ impl<E> ConstraintBuilderExt<E> {
             constraint_type: ConstraintType::ConstraintFirstRow,
             constraint,
         };
-        self.constraints.push(c)
+        self.constraints.push(c);
     }
 
     pub fn constraint(&mut self, constraint: E) {
@@ -100,7 +100,7 @@ impl<E> ConstraintBuilderExt<E> {
             constraint_type: ConstraintType::Constraint,
             constraint,
         };
-        self.constraints.push(c)
+        self.constraints.push(c);
     }
 
     pub fn constraint_transition(&mut self, constraint: E) {
@@ -108,14 +108,15 @@ impl<E> ConstraintBuilderExt<E> {
             constraint_type: ConstraintType::ConstraintTransition,
             constraint,
         };
-        self.constraints.push(c)
+        self.constraints.push(c);
     }
 
+    #[must_use]
     pub fn collect(self) -> Vec<Constraint<E>> { self.constraints }
 }
 
-pub fn build_ext<'a, F, const D: usize>(
-    cb: ConstraintBuilderExt<Expr<'a, ExtensionTarget<D>>>,
+pub fn build_ext<F, const D: usize>(
+    cb: ConstraintBuilderExt<Expr<'_, ExtensionTarget<D>>>,
     circuit_builder: &mut CircuitBuilder<F, D>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) where
@@ -140,11 +141,11 @@ pub fn build_ext<'a, F, const D: usize>(
         ConstraintType::Constraint => yield_constr.constraint(circuit_builder, c.constraint),
         ConstraintType::ConstraintTransition =>
             yield_constr.constraint_transition(circuit_builder, c.constraint),
-    })
+    });
 }
 
-pub fn build_packed<'a, F, FE, P, const D: usize, const D2: usize>(
-    cb: ConstraintBuilderExt<Expr<'a, P>>,
+pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
+    cb: ConstraintBuilderExt<Expr<'_, P>>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) where
     F: RichField,

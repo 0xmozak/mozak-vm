@@ -61,13 +61,11 @@ impl ExprBuilder {
     }
 
     /// Create a `Literal` expression
-    pub fn lit<'a, V>(&'a self, value: V) -> Expr<'a, V> {
-        self.intern(ExprTree::Literal { value })
-    }
+    pub fn lit<V>(&self, value: V) -> Expr<'_, V> { self.intern(ExprTree::Literal { value }) }
 
     // Create a `One` expression
 
-    pub fn one<'a, V>(&'a self) -> Expr<'a, V> { self.intern(ExprTree::One) }
+    pub fn one<V>(&self) -> Expr<'_, V> { self.intern(ExprTree::One) }
 
     /// Create an `Add` expression
     pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
@@ -140,15 +138,12 @@ where
     V: Copy, {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
     fn one(&mut self) -> V;
-    fn eval<'a>(&mut self, expr: Expr<'a, V>) -> V { expr.expr_tree.eval_with(self) }
+    fn eval(&mut self, expr: Expr<'_, V>) -> V { expr.expr_tree.eval_with(self) }
 }
 
 /// Default evaluator for pure values.
+#[derive(Default)]
 pub struct PureEvaluator {}
-
-impl Default for PureEvaluator {
-    fn default() -> Self { Self {} }
-}
 
 impl<V> Evaluator<V> for PureEvaluator
 where

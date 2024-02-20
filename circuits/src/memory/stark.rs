@@ -50,7 +50,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let nv: &Memory<_> = vars.get_next_values().into();
         let nv = nv.map(|x| eb.lit(x));
         let cb = generate_constraints(&eb, lv, nv).into();
-        build_packed(cb, yield_constr)
+        build_packed(cb, yield_constr);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -68,7 +68,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let nv: &Memory<_> = vars.get_next_values().into();
         let nv = nv.map(|x| eb.lit(x));
         let cb = generate_constraints(&eb, lv, nv).into();
-        build_ext(cb, circuit_builder, yield_constr)
+        build_ext(cb, circuit_builder, yield_constr);
     }
 }
 
