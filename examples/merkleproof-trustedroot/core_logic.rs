@@ -29,7 +29,7 @@ pub struct ProofData {
     pub leaves_len: u32,
 }
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::fmt::Debug for ProofData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProofData")
