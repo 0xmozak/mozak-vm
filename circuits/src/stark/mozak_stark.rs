@@ -63,8 +63,10 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub program_stark: ProgramStark<F, D>,
     #[StarkSet(stark_kind = "Memory")]
     pub memory_stark: MemoryStark<F, D>,
-    #[StarkSet(stark_kind = "MemoryInit")]
-    pub memory_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "ElfMemoryInit")]
+    pub elf_memory_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "MozakMemoryInit")]
+    pub mozak_memory_init_stark: MemoryInitStark<F, D>,
     // TODO(Bing): find a way to natively constrain zero initializations within
     // the `MemoryStark`, instead of relying on a CTL between this and the
     // `MemoryStark`.
@@ -333,7 +335,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             shift_amount_stark: BitshiftStark::default(),
             program_stark: ProgramStark::default(),
             memory_stark: MemoryStark::default(),
-            memory_init_stark: MemoryInitStark::default(),
+            elf_memory_init_stark: MemoryInitStark::default(),
+            mozak_memory_init_stark: MemoryInitStark::default(),
             memory_zeroinit_stark: MemoryZeroInitStark::default(),
             rangecheck_u8_stark: RangeCheckU8Stark::default(),
             halfword_memory_stark: HalfWordMemoryStark::default(),
@@ -424,7 +427,8 @@ table_impl!(XorTable, TableKind::Xor);
 table_impl!(BitshiftTable, TableKind::Bitshift);
 table_impl!(ProgramTable, TableKind::Program);
 table_impl!(MemoryTable, TableKind::Memory);
-table_impl!(MemoryInitTable, TableKind::MemoryInit);
+table_impl!(ElfMemoryInitTable, TableKind::ElfMemoryInit);
+table_impl!(MozakMemoryInitTable, TableKind::MozakMemoryInit);
 table_impl!(MemoryZeroInitTable, TableKind::MemoryZeroInit);
 table_impl!(RangeCheckU8Table, TableKind::RangeCheckU8);
 table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
@@ -558,7 +562,11 @@ impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![
-                MemoryInitTable::new(
+                ElfMemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
+                MozakMemoryInitTable::new(
                     memoryinit::columns::data_for_memory(),
                     memoryinit::columns::filter_for_memory(),
                 ),

@@ -31,11 +31,12 @@ RUN git submodule update --init --depth=1 --recursive && \
     git rev-parse HEAD | tee .testdata_generated_from_this_commit
 
 # Build the tests - we are interested in rv32ui and rv32um
+# We want to add the CFLAGS "-save-temps -frandom-seed=1" to the build,
+# but upstream forces us to repeat all their default flags here, too.
 RUN autoconf && \
     ./configure --prefix=/root/riscv-tests && \
     cd isa && \
-    make rv32ui XLEN=32 && \
-    make rv32um XLEN=32
+    make rv32ui rv32um XLEN=32 RISCV_GCC_OPTS="-save-temps -frandom-seed=1 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles"
 
 RUN rm -f /root/riscv-tests/isa/.gitignore
 

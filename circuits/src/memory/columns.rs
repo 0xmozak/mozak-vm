@@ -50,6 +50,9 @@ pub struct Memory<T> {
 
     /// Difference between current and previous clock.
     pub diff_clk: T,
+
+    /// Difference between current and previous addresses inversion
+    pub diff_addr_inv: T,
 }
 columns_view_impl!(Memory);
 make_col_map!(Memory);
