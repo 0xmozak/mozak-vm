@@ -21,9 +21,7 @@ tmp
 *.csv
 .env
 /perftool/build
-*.svg
-!air.svg
-!main-logo.svg
+perftool/plots/*.svg
 
 # Generated IOTapes
 *.tape
