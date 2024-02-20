@@ -1975,6 +1975,7 @@ name = "signatures"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "criterion",
  "env_logger",
  "hex",
  "itertools 0.12.1",
