@@ -391,8 +391,8 @@ impl<F: RichField> State<F> {
     pub fn load_u8(&self, addr: u32) -> u8 {
         self.ro_memory
             .get(&addr)
-            .or_else(|| self.rw_memory.get(&addr))
             .or_else(|| self.mozak_ro_memory.get(&addr))
+            .or_else(|| self.rw_memory.get(&addr))
             .copied()
             .unwrap_or_default()
     }
