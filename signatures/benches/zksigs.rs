@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 use rand::Rng;
@@ -31,13 +31,13 @@ fn bench_sig<S: Signature<F, C, D>>() -> Result<()> {
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("sha256", |b| {
-        b.iter(bench_sig::<ZkSigSha256Signer<F, C, D>>)
+        b.iter(black_box(bench_sig::<ZkSigSha256Signer<F, C, D>>))
     });
     c.bench_function("keccak256", |b| {
-        b.iter(bench_sig::<ZkSigKeccak256Signer<F, C, D>>)
+        b.iter(black_box(bench_sig::<ZkSigKeccak256Signer<F, C, D>>))
     });
     c.bench_function("poseidon", |b| {
-        b.iter(bench_sig::<ZkSigPoseidonSigner<F, C, D>>)
+        b.iter(black_box(bench_sig::<ZkSigPoseidonSigner<F, C, D>>))
     });
 }
 
