@@ -1,4 +1,5 @@
 use std::mem;
+use std::ops::Add;
 
 use itertools::{chain, Itertools};
 use mozak_circuits::recproof::state_update;
@@ -51,6 +52,7 @@ pub struct Address(pub u64);
 
 impl Address {
     fn next(self, height: usize) -> (Option<PartialAddress>, Dir) {
+        debug_assert!(self.0 <= (1 << height));
         PartialAddress { height, addr: self }.next()
     }
 
@@ -76,12 +78,35 @@ impl PartialAddress {
         };
 
         if self.height == 0 {
-            debug_assert_eq!(self.addr.0, 0);
+            debug_assert_eq!(self.addr.0 >> 1, 0);
             (None, dir)
         } else {
             let height = self.height - 1;
             let addr = Address(self.addr.0 >> 1);
             (Some(Self { height, addr }), dir)
+        }
+    }
+
+    fn root(height: usize) -> Self {
+        Self {
+            height,
+            addr: Address(0),
+        }
+    }
+
+    fn child(mut self, dir: Dir) -> Result<PartialAddress, Address> {
+        self.addr = Address(
+            self.addr.0 << 1
+                | match dir {
+                    Dir::Left => 0,
+                    Dir::Right => 1,
+                },
+        );
+        if self.height == 0 {
+            Err(self.addr)
+        } else {
+            self.height -= 1;
+            Ok(self)
         }
     }
 }
@@ -156,6 +181,32 @@ enum LeafKind {
     },
 }
 
+enum FinalizeOutcome {
+    Prune,
+    Recalc,
+    NoOp,
+}
+
+impl Add for FinalizeOutcome {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Self::Prune, Self::Prune) => Self::Prune,
+            (Self::Prune, Self::Recalc) => Self::Recalc,
+            (Self::Prune, Self::NoOp) => Self::NoOp,
+
+            (Self::Recalc, Self::Prune) => Self::Recalc,
+            (Self::Recalc, Self::Recalc) => Self::Recalc,
+            (Self::Recalc, Self::NoOp) => Self::NoOp,
+
+            (Self::NoOp, Self::Prune) => Self::NoOp,
+            (Self::NoOp, Self::Recalc) => Self::Recalc,
+            (Self::NoOp, Self::NoOp) => Self::NoOp,
+        }
+    }
+}
+
 #[allow(clippy::struct_field_names)]
 struct LeafHashes<'a> {
     old_hash: &'a [F; 4],
@@ -188,7 +239,7 @@ impl AuxStateData {
         let empty_leaf_hash = [F::ZERO; 4];
 
         let mut curr = empty_leaf_hash;
-        let empty_branch_hashes = (0..max_tree_depth)
+        let empty_branch_hashes = (0..=max_tree_depth)
             .map(|_| {
                 curr = hash_branch(&curr, &curr);
                 curr
@@ -197,7 +248,7 @@ impl AuxStateData {
 
         let leaf_circuit = state_update::LeafCircuit::<F, C, D>::new(config);
         let mut init = state_update::BranchCircuit::<F, C, D>::from_leaf(config, &leaf_circuit);
-        let branch_circuits = (0..max_tree_depth)
+        let branch_circuits = (0..=max_tree_depth)
             .map(|_| {
                 let next = state_update::BranchCircuit::<F, C, D>::from_branch(config, &init);
                 mem::replace(&mut init, next)
@@ -277,7 +328,7 @@ impl AuxStateData {
         });
 
         if recalc {
-            self.recalc_branch_helper(branch);
+            self.recalc_branch_helper(branch, false);
         }
 
         recalc
@@ -373,7 +424,7 @@ impl AuxStateData {
         recalc
     }
 
-    fn recalc_branch_helper(&self, branch: &mut SparseMerkleBranch) {
+    fn recalc_branch_helper(&self, branch: &mut SparseMerkleBranch, set_old: bool) {
         let (empty_hash, empty_proof) = self.get_empty_child_helper(branch.height);
 
         let ((left_hash, left_proof), (right_hash, right_proof), summary) =
@@ -404,6 +455,9 @@ impl AuxStateData {
             };
 
         branch.new_hash = hash_branch(left_hash, right_hash);
+        if set_old {
+            branch.old_hash = branch.new_hash;
+        }
         branch.summary_hash = summary;
         branch.proof = self.branch_circuits[branch.height]
             .prove(
@@ -742,6 +796,88 @@ impl AuxStateData {
             Operation::Upsert(object) => self.being_created(addr, object),
         }
     }
+
+    fn finalize(&self, root: &mut SparseMerkleBranch) {
+        self.finalize_branch(root, PartialAddress::root(root.height));
+    }
+
+    fn finalize_branch(
+        &self,
+        branch: &mut SparseMerkleBranch,
+        addr: PartialAddress,
+    ) -> FinalizeOutcome {
+        let left_outcome = if let Some(mut left) = branch.left.take() {
+            let outcome = match (&mut *left, addr.child(Dir::Left)) {
+                (SparseMerkleNode::Branch(branch), Ok(addr)) => self.finalize_branch(branch, addr),
+                (SparseMerkleNode::Leaf(leaf), Err(addr)) => self.finalize_leaf(leaf, addr),
+                (_, _) => unreachable!("bad address or tree"),
+            };
+            if !matches!(outcome, FinalizeOutcome::Prune) {
+                branch.left = Some(left);
+            }
+            outcome
+        } else {
+            FinalizeOutcome::Prune
+        };
+
+        let right_outcome = if let Some(mut right) = branch.right.take() {
+            let outcome = match (&mut *right, addr.child(Dir::Right)) {
+                (SparseMerkleNode::Branch(branch), Ok(addr)) => self.finalize_branch(branch, addr),
+                (SparseMerkleNode::Leaf(leaf), Err(addr)) => self.finalize_leaf(leaf, addr),
+                (_, _) => unreachable!("bad address or tree"),
+            };
+            if !matches!(outcome, FinalizeOutcome::Prune) {
+                branch.right = Some(right);
+            }
+            outcome
+        } else {
+            FinalizeOutcome::Prune
+        };
+
+        let outcome = left_outcome + right_outcome;
+
+        if let FinalizeOutcome::Recalc = outcome {
+            self.recalc_branch_helper(branch, true)
+        }
+
+        outcome
+    }
+
+    fn finalize_leaf(&self, leaf: &mut SparseMerkleLeaf, _addr: Address) -> FinalizeOutcome {
+        use LeafKind::*;
+        let (old_hash, object) = match leaf.kind {
+            Unused { .. } => return FinalizeOutcome::NoOp,
+            DeleteEmptyLeaf { .. } | ReadEmptyLeaf { .. } | BeingDeleted { .. } =>
+                return FinalizeOutcome::Prune,
+            BeingCreated {
+                new_hash,
+                new_object,
+                ..
+            }
+            | BeingUpdated {
+                new_hash,
+                new_object,
+                ..
+            } => (new_hash, new_object),
+            BeingRead {
+                old_hash, object, ..
+            } => (old_hash, object),
+        };
+
+        leaf.kind = Unused { old_hash, object };
+
+        leaf.proof = self
+            .leaf_circuit
+            .prove(
+                old_hash.into(),
+                old_hash.into(),
+                self.empty_summary_hash.into(),
+                None,
+            )
+            .unwrap();
+
+        FinalizeOutcome::Recalc
+    }
 }
 
 pub struct State<'a> {
@@ -767,6 +903,8 @@ impl<'a> State<'a> {
     pub fn apply_operation(&mut self, addr: Address, new: Operation) {
         self.aux.apply_operation(&mut self.root, addr, new);
     }
+
+    pub fn finalize(&mut self) { self.aux.finalize(&mut self.root); }
 }
 
 #[cfg(test)]
@@ -785,16 +923,16 @@ mod test {
     }
 
     #[test]
-    fn simple() {
+    fn tiny_tree() {
         let config = CircuitConfig::standard_recursion_config();
-        let aux = AuxStateData::new(&config, 16);
-        let mut state = State::new(&aux, 15);
+        let aux = AuxStateData::new(&config, 0);
+        let mut state = State::new(&aux, 0);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
 
-        state.apply_operation(super::Address(10), Operation::Read);
+        state.apply_operation(super::Address(1), Operation::Read);
         state.apply_operation(
-            super::Address(10),
+            super::Address(1),
             Operation::Upsert(Object {
                 constraint_owner: ProgramHash(non_zero_hash_1),
                 last_updated: F::from_canonical_u64(10),
@@ -802,5 +940,52 @@ mod test {
                 data: non_zero_hash_2,
             }),
         );
+
+        state.finalize();
+    }
+
+    #[test]
+    fn small_tree() {
+        let config = CircuitConfig::standard_recursion_config();
+        let aux = AuxStateData::new(&config, 8);
+        let mut state = State::new(&aux, 8);
+        let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
+        let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
+
+        state.apply_operation(super::Address(42), Operation::Read);
+        state.apply_operation(
+            super::Address(42),
+            Operation::Upsert(Object {
+                constraint_owner: ProgramHash(non_zero_hash_1),
+                last_updated: F::from_canonical_u64(10),
+                credits: F::from_canonical_u64(10000),
+                data: non_zero_hash_2,
+            }),
+        );
+
+        state.finalize();
+    }
+
+    #[test]
+    #[ignore]
+    fn big_tree() {
+        let config = CircuitConfig::standard_recursion_config();
+        let aux = AuxStateData::new(&config, 63);
+        let mut state = State::new(&aux, 63);
+        let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
+        let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
+
+        state.apply_operation(super::Address(42 << 7), Operation::Read);
+        state.apply_operation(
+            super::Address(42 << 7),
+            Operation::Upsert(Object {
+                constraint_owner: ProgramHash(non_zero_hash_1),
+                last_updated: F::from_canonical_u64(10),
+                credits: F::from_canonical_u64(10000),
+                data: non_zero_hash_2,
+            }),
+        );
+
+        state.finalize();
     }
 }
