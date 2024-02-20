@@ -24,7 +24,6 @@ pub enum MethodArgs {
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub enum MethodReturns {
     ApproveSignature(bool),
 }

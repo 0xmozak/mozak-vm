@@ -1,4 +1,5 @@
 use std::cell::UnsafeCell;
+use std::slice::from_raw_parts;
 
 use mozak_system::system::syscall_halt;
 use once_cell::unsync::Lazy;
@@ -90,22 +91,14 @@ pub struct ProgramIdentifier2 {
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| unsafe {
     #[cfg(target_os = "zkvm")]
     {
-        let mut buf = [0_u8; 244];
-        let buf_ptr: *mut u8 = buf.as_mut_ptr();
         let call_tape_ptr = _mozak_call_tape as *const u8;
+        let call_tape_len = _mozak_call_tape_len as usize;
 
-        // fixme
-        for i in 0..isize::try_from(244).expect("pass") {
-            buf_ptr
-                .offset(i)
-                .write_unaligned(call_tape_ptr.offset(i).read_unaligned());
-        }
+        let call_tape = from_raw_parts(call_tape_ptr, call_tape_len);
 
-        type Foo = ProgramIdentifier;
-        let archived = unsafe { rkyv::archived_root::<Foo>(&buf[..]) };
-        let calls_foo: Foo = archived.deserialize(&mut rkyv::Infallible).unwrap();
-        syscall_halt(16);
-        let calls = vec![CPCMessage::default(), CPCMessage::default()];
+        type Foo = Vec<CPCMessage>;
+        let archived = unsafe { rkyv::archived_root::<Foo>(&call_tape[..]) };
+        let calls: Foo = archived.deserialize(&mut rkyv::Infallible).unwrap();
         return SystemTapes::new(calls);
     }
 
@@ -137,6 +130,8 @@ pub struct CallTape {
     #[cfg(target_os = "zkvm")]
     self_prog_id: ProgramIdentifier,
     writer: Vec<CPCMessage>,
+    #[cfg(target_os = "zkvm")]
+    index: u32,
 }
 
 impl CallTape {
@@ -148,17 +143,34 @@ impl CallTape {
             writer: messages,
             #[cfg(not(target_os = "zkvm"))]
             writer: Vec::new(),
+            #[cfg(target_os = "zkvm")]
+            index: 0,
         }
     }
 
     #[cfg(target_os = "zkvm")]
     pub(crate) fn set_self_prog_id(&mut self, id: ProgramIdentifier) { self.self_prog_id = id; }
 
-    pub fn from_mailbox(&self) -> Option<(CPCMessage, usize)> {
+    pub fn from_mailbox<'a>(&'a mut self) -> Option<(&'a CPCMessage, usize)> {
         #[cfg(target_os = "zkvm")]
-        return Some((self.writer[0].clone(), 0));
+        {
+            if self.index as usize >= self.writer.len() {
+                return None;
+            }
 
-        return Some((CPCMessage::default(), 0));
+            self.index += 1;
+
+            return Some((
+                &self.writer[(self.index - 1) as usize],
+                (self.index - 1) as usize,
+            ));
+        }
+
+        #[cfg(not(target_os = "zkvm"))]
+        {
+            // TODO(bing): implement native from_mailbox()
+            return None;
+        }
     }
 
     pub fn to_mailbox<A, R>(
@@ -304,7 +316,7 @@ pub fn event_emit(id: ProgramIdentifier, event: Event) {
 /// Receive one message from mailbox targetted to us and its index
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
-pub fn call_receive() -> Option<(CPCMessage, usize)> {
+pub fn call_receive<'a>() -> Option<(&'a CPCMessage, usize)> {
     // unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
     unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
 }
