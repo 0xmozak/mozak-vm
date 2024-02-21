@@ -2,3 +2,4 @@
 channel = "nightly-2024-01-23"
 components = ["rustfmt", "rust-src", "rust-analyzer", "clippy"]
 profile = "minimal"
+targets = ["wasm32-unknown-unknown", "wasm32-wasi"]
