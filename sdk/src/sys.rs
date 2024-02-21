@@ -1,15 +1,10 @@
-use std::cell::UnsafeCell;
-use std::ptr::{addr_of, slice_from_raw_parts};
-use std::slice::from_raw_parts;
+use std::ptr::addr_of;
 
-use mozak_system::system::syscall_halt;
 use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{
-    ArchivedCPCMessage, CPCMessage, Event, Poseidon2HashType, ProgramIdentifier, RawMessage,
-};
+use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -54,17 +49,18 @@ impl SystemTapes {
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "zkvm")]
     {
+        use std::ptr::slice_from_raw_parts;
         // These values should be derived from linker script and reserved memory
         // somewhere
-        const PROG_IDENT: u32 = 0x20000000;
-        const PUBL_START: u32 = 0x21000000;
-        const PUBL_MAXLN: u32 = 0x0F000000;
-        const PRIV_START: u32 = 0x30000000;
-        const PRIV_MAXLN: u32 = 0x10000000;
-        const CALL_START: u32 = 0x40000000;
-        const CALL_MAXLN: u32 = 0x08000000;
-        const EVNT_START: u32 = 0x48000000;
-        const EVNT_MAXLN: u32 = 0x08000000;
+        // const PROG_IDENT: u32 = 0x20000000;
+        // const PUBL_START: u32 = 0x21000000;
+        // const PUBL_MAXLN: u32 = 0x0F000000;
+        // const PRIV_START: u32 = 0x30000000;
+        // const PRIV_MAXLN: u32 = 0x10000000;
+        // const CALL_START: u32 = 0x40000000;
+        // const CALL_MAXLN: u32 = 0x08000000;
+        // const EVNT_START: u32 = 0x48000000;
+        // const EVNT_MAXLN: u32 = 0x08000000;
 
         /// Zero-copy deserialization on a memory region starting at `addr`
         /// Expected layout to be `[<data_region len (N) in 4
@@ -78,9 +74,8 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
         }
 
         // let self_prog_id = unsafe { *{ PROG_IDENT as *const ProgramIdentifier } };
-        let calltape_zcd = get_zcd_repr::<Vec<CPCMessage>>(unsafe {
-            core::ptr::addr_of!(_mozak_call_tape) as *const u8
-        });
+        let calltape_zcd =
+            get_zcd_repr::<Vec<CPCMessage>>(unsafe { addr_of!(_mozak_call_tape) as *const u8 });
 
         // HARDCODED HERE: for token example, fix later
         assert!(calltape_zcd.len() == 2);
@@ -228,7 +223,7 @@ pub struct EventTape {
     // #[cfg(target_os = "zkvm")]
     // // offset: UnsafeCell<usize>,
     #[cfg(not(target_os = "zkvm"))]
-    writer: Vec<EventTapeSingle>,
+    pub writer: Vec<EventTapeSingle>,
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
@@ -281,7 +276,6 @@ impl EventTape {
 
 #[cfg(not(target_os = "zkvm"))]
 pub fn dump_tapes(file_template: String) {
-    use std::ptr::addr_of;
     fn write_to_file(file_path: &String, content: &[u8]) {
         use std::io::Write;
         let path = std::path::Path::new(file_path.as_str());

@@ -78,9 +78,9 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
 pub fn transform_memory_init<F: RichField>(
     memory_init_rows: &[MemoryInit<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
-    for row in memory_init_rows {
-        // log::debug!("tmi {}", row.element.address);
-    }
+    // for row in memory_init_rows {
+    //     // log::debug!("tmi {}", row.element.address);
+    // }
     memory_init_rows
         .iter()
         .filter_map(Option::<Memory<F>>::from)
@@ -93,9 +93,9 @@ pub fn transform_memory_init<F: RichField>(
 pub fn transform_halfword<F: RichField>(
     halfword_memory: &[HalfWordMemory<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
-    for row in halfword_memory {
-        // log::debug!("hfm {:?}", row.addrs);
-    }
+    // for row in halfword_memory {
+    //     // log::debug!("hfm {:?}", row.addrs);
+    // }
     halfword_memory
         .iter()
         .flat_map(Into::<Vec<Memory<F>>>::into)
@@ -122,9 +122,9 @@ pub fn transform_poseidon2_output_bytes<F: RichField>(
 pub fn transform_fullword<F: RichField>(
     fullword_memory: &[FullWordMemory<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
-    for row in fullword_memory {
-        // log::debug!("ffm {:?}", row.addrs);
-    }
+    // for row in fullword_memory {
+    //     // log::debug!("ffm {:?}", row.addrs);
+    // }
     fullword_memory
         .iter()
         .flat_map(Into::<Vec<Memory<F>>>::into)
@@ -137,9 +137,9 @@ pub fn transform_fullword<F: RichField>(
 pub fn transform_io<F: RichField>(
     io_memory: &[InputOutputMemory<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
-    for row in io_memory {
-        // log::debug!("io {:?}", row.addr);
-    }
+    // for row in io_memory {
+    //     // log::debug!("io {:?}", row.addr);
+    // }
     for row in io_memory {
         if row.addr == F::from_canonical_usize(1073741824)
             || row.addr == F::from_canonical_usize(1073741825)

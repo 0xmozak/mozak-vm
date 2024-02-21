@@ -3,6 +3,7 @@ use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
+#[cfg_attr(not(target_os = "zkvm"), derive(serde::Serialize, serde::Deserialize))]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct Poseidon2HashType([u8; 4]);
@@ -36,6 +37,15 @@ impl Poseidon2HashType {
 
 impl From<[u8; 4]> for Poseidon2HashType {
     fn from(value: [u8; 4]) -> Self { Poseidon2HashType(value) }
+}
+
+impl From<Vec<u8>> for Poseidon2HashType {
+    fn from(value: Vec<u8>) -> Poseidon2HashType {
+        assert_eq!(value.len(), 4);
+        <&[u8] as TryInto<[u8; 4]>>::try_into(&value[0..4])
+            .expect("Vec<u8> must have exactly 4 elements")
+            .into()
+    }
 }
 
 pub const STATE_TREE_DEPTH: usize = 8;
@@ -81,6 +91,7 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
 /// hashes: `program_rom_hash` & `memory_init_hash` and a program
 /// entry point `entry_point`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
+#[cfg_attr(not(target_os = "zkvm"), derive(serde::Serialize, serde::Deserialize))]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct ProgramIdentifier {
@@ -147,6 +158,34 @@ impl std::fmt::Debug for ProgramIdentifier {
                 .join(""),
             &self.entry_point,
         )
+    }
+}
+
+#[cfg(not(target_os = "zkvm"))]
+impl From<String> for ProgramIdentifier {
+    fn from(value: String) -> ProgramIdentifier {
+        fn even_str(s: String) -> String {
+            if s.len() % 2 == 1{
+                return s + "0"
+            }
+            s
+        }
+        let components: Vec<&str> = value.split("-").collect();
+        assert_eq!(components.len(), 4);
+        assert_eq!(components[0], "MZK");
+        let mut entry_point_vec_repr: Vec<u8> = hex::decode(even_str(components[3].to_string())).unwrap();
+        assert!(entry_point_vec_repr.len() <= 4);
+        entry_point_vec_repr.resize(4, 0);
+
+        ProgramIdentifier {
+            program_rom_hash: hex::decode(components[1]).unwrap().into(),
+            memory_init_hash: hex::decode(components[2]).unwrap().into(),
+            entry_point: u32::from_le_bytes(
+                <&[u8] as TryInto<[u8; 4]>>::try_into(&entry_point_vec_repr[0..4])
+                    .expect("Vec<u8> must have exactly 4 elements")
+                    .into(),
+            ),
+        }
     }
 }
 

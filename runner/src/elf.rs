@@ -33,13 +33,6 @@ impl MozakMemoryRegion {
     }
 
     fn fill(&mut self, data: &[u8]) {
-        // log::debug!("data = {:?}", data);
-
-        // log::debug!(
-        //     "self.starting_address: {} {:x}",
-        //     self.starting_address,
-        //     self.starting_address,
-        // );
         assert!(
             data.len() <= self.capacity.try_into().unwrap(),
             "fill data must fit into capacity"
@@ -185,22 +178,32 @@ impl MozakMemory {
     }
 }
 
-/// A Mozak program runtime arguments
+/// A Mozak program runtime arguments, all fields are 4 LE bytes length prefixed
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RuntimeArguments {
+    pub self_prog_id: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
     pub call_tape: Vec<u8>,
+    pub event_tape: Vec<u8>,
 }
 
 impl RuntimeArguments {
     /// # Panics
     #[must_use]
-    pub fn new(io_tape_private: Vec<u8>, io_tape_public: Vec<u8>, call_tape: Vec<u8>) -> Self {
+    pub fn new(
+        self_prog_id: Vec<u8>,
+        io_tape_private: Vec<u8>,
+        io_tape_public: Vec<u8>,
+        call_tape: Vec<u8>,
+        event_tape: Vec<u8>,
+    ) -> Self {
         RuntimeArguments {
+            self_prog_id,
             io_tape_private,
             io_tape_public,
             call_tape,
+            event_tape,
         }
     }
 }
@@ -538,10 +541,6 @@ impl Program {
             .fill(args.io_tape_private.as_slice());
         mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
 
-        log::debug!(
-            "PROGRAM'S CALLTAPE: {:?}",
-            program.mozak_ro_memory.clone().unwrap().call_tape
-        );
         Ok(program)
     }
 }

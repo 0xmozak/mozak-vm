@@ -27,7 +27,8 @@ use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
-use mozak_sdk::sys::{CallTape, SystemTapes};
+use mozak_sdk::coretypes::ProgramIdentifier;
+use mozak_sdk::sys::SystemTapes;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -51,6 +52,8 @@ struct Cli {
 
 #[derive(Clone, Debug, Args)]
 pub struct RuntimeArguments {
+    #[arg(long)]
+    self_prog_id: Option<Input>,
     /// Private input.
     #[arg(long)]
     io_tape_private: Option<Input>,
@@ -59,6 +62,8 @@ pub struct RuntimeArguments {
     io_tape_public: Option<Input>,
     #[arg(long)]
     call_tape: Option<Input>,
+    #[arg(long)]
+    event_tape: Option<Input>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -66,6 +71,8 @@ pub struct RunArgs {
     elf: Input,
     #[arg(long)]
     system_tape: Option<Input>,
+    #[arg(long)]
+    self_prog_id: String,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -74,14 +81,22 @@ pub struct ProveArgs {
     proof: Output,
     #[arg(long)]
     system_tape: Option<Input>,
+    #[arg(long)]
+    self_prog_id: String,
     recursive_proof: Option<Output>,
 }
 
 impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
     fn from(value: RuntimeArguments) -> Self {
+        let mut self_prog_id = ProgramIdentifier::default();
         let mut io_tape_private = vec![];
         let mut io_tape_public = vec![];
         let mut call_tape = vec![];
+        let mut event_tape = vec![];
+
+        if let Some(t) = value.self_prog_id {
+            self_prog_id = t.to_string().into();
+        }
 
         if let Some(mut t) = value.io_tape_private {
             let bytes_read = t
@@ -102,10 +117,17 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
             debug!("Read {bytes_read} of call_tape data.");
         };
 
+        if let Some(mut t) = value.event_tape {
+            let bytes_read = t.read_to_end(&mut event_tape).expect("Read should pass");
+            debug!("Read {bytes_read} of event_tape data.");
+        };
+
         Self {
+            self_prog_id: self_prog_id.to_le_bytes().to_vec(),
             io_tape_private,
             io_tape_public,
             call_tape,
+            event_tape,
         }
     }
 }
@@ -130,6 +152,20 @@ pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
     Ok(deserialized)
 }
 
+fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
+    let data_len = data.len();
+    let mut len_prefix_bytes = Vec::with_capacity(data_len + 4);
+    len_prefix_bytes.extend_from_slice(&(data.len() as u32).to_le_bytes());
+    len_prefix_bytes.extend(data);
+    debug!(
+        "LengthPrefixEncoded {} of len: {}, net_len: {}",
+        dgb_string,
+        data_len,
+        len_prefix_bytes.len()
+    );
+    len_prefix_bytes
+}
+
 /// Deserializes an rkyv-serialized system tape binary file into
 /// [`SystemTapes`](mozak_sdk::sys::SystemTapes).
 ///
@@ -138,37 +174,38 @@ pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
 /// Panics if conversion from rkyv-serialized system tape to
 /// [`RuntimeArguments`](mozak_runner::elf::RuntimeArguments)
 /// fails.
-pub fn tapes_to_runtime_arguments(tape_bin: Input) -> mozak_runner::elf::RuntimeArguments {
+pub fn tapes_to_runtime_arguments(tape_bin: Input, self_prog_id: String) -> mozak_runner::elf::RuntimeArguments {
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
-    debug!("SYSTAPE READOUT: {sys_tapes:#?}");
-    // TODO(supra): remove
-    // sys_tapes.call_tape = CallTape::new(vec![]);
-
-    let public_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape).unwrap();
-    let private_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape).unwrap();
-    let call_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape.writer).unwrap();
-    let event_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.event_tape).unwrap();
-
-    debug!("CALLTAPE_BYTES: {:?}", call_tape_bytes);
-
-    let mut call_tape = (call_tape_bytes.len() as u32).to_le_bytes().to_vec();
-    call_tape.extend(call_tape_bytes.iter());
-
-    debug!(
-        "Read {} of public tape data.
-Read {} of private tape data.
-Read {} of call tape data.
-Read {} of event tape data.",
-        public_tape_bytes.len(),
-        private_tape_bytes.len(),
-        call_tape_bytes.len(),
-        event_tape_bytes.len(),
-    );
+    let self_prog_id: ProgramIdentifier = self_prog_id.into();
+    debug!("SELF PROG ID: {self_prog_id:#?}");
+    // debug!("SYSTAPE READOUT: {sys_tapes:#?}");
 
     mozak_runner::elf::RuntimeArguments {
-        io_tape_public: public_tape_bytes.to_vec(),
-        io_tape_private: private_tape_bytes.to_vec(),
-        call_tape,
+        self_prog_id: self_prog_id.to_le_bytes().to_vec(),
+        io_tape_public: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape)
+                .unwrap()
+                .into(),
+            "IO_TAPE_PUBLIC",
+        ),
+        io_tape_private: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape)
+                .unwrap()
+                .into(),
+            "IO_TAPE_PRIVATE",
+        ),
+        call_tape: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape.writer)
+                .unwrap()
+                .into(),
+            "CALL_TAPE",
+        ),
+        event_tape: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(&sys_tapes.event_tape.writer)
+                .unwrap()
+                .into(),
+            "EVENT_TAPE",
+        ),
     }
 }
 
@@ -229,28 +266,15 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run(RunArgs { elf, system_tape }) => {
-            let args = system_tape.map_or_else(
-                mozak_runner::elf::RuntimeArguments::default,
-                tapes_to_runtime_arguments,
-            );
-
+        Command::Run(RunArgs { elf, system_tape, self_prog_id}) => {
+            let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args);
-            let state = step(&program, state)?.last_state;
+            let _state = step(&program, state)?.last_state;
         }
-        Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
-            let args = system_tape.map_or_else(
-                mozak_runner::elf::RuntimeArguments::default,
-                tapes_to_runtime_arguments,
-            );
-            // let args = mozak_runner::elf::RuntimeArguments {
-            //     io_tape_public: vec![],
-            //     io_tape_private: vec![],
-            //     call_tape: vec![0, 0, 0, 0, 0, 0, 0, 0],
-            // };
+        Command::ProveAndVerify(RunArgs { elf, system_tape , self_prog_id}) => {
+            let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
 
-            // mozak_sdk::sys::SystemTapes::load_from_args(args.call_tape.as_slice());
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args);
 
@@ -260,13 +284,11 @@ fn main() -> Result<()> {
         Command::Prove(ProveArgs {
             elf,
             system_tape,
+            self_prog_id,
             mut proof,
             recursive_proof,
         }) => {
-            let args = system_tape.map_or_else(
-                mozak_runner::elf::RuntimeArguments::default,
-                tapes_to_runtime_arguments,
-            );
+            let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args);
             let record = step(&program, state)?;

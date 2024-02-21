@@ -1119,6 +1119,7 @@ dependencies = [
  "log",
  "mimalloc",
  "mozak-examples",
+ "mozak-sdk",
  "mozak-system",
  "plonky2",
  "proptest",
@@ -1136,6 +1137,7 @@ dependencies = [
  "mozak-system",
  "once_cell",
  "rkyv",
+ "serde",
 ]
 
 [[package]]

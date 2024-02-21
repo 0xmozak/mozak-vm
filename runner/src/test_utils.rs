@@ -75,10 +75,11 @@ pub fn execute_code_with_ro_memory(
     runtime_args: RuntimeArguments,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     let RuntimeArguments {
+        self_prog_id,
         io_tape_private,
         io_tape_public,
         call_tape,
-        ..
+        event_tape,
     } = runtime_args;
     let _ = env_logger::try_init();
     let ro_code = Code(
@@ -113,9 +114,11 @@ pub fn execute_code_with_ro_memory(
     };
 
     let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
+        self_prog_id,
         io_tape_private,
         io_tape_public,
         call_tape,
+        event_tape,
     });
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
