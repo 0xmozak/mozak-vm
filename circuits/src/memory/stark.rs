@@ -395,7 +395,7 @@ mod tests {
             .all(|row| row.is_init == F::ZERO && row.addr == F::ZERO));
 
         let memory_zeroinit_rows =
-            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
+            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
 
         // ctl for is_init values
         let ctl = CrossTableLookup::new(
