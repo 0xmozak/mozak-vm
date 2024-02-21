@@ -229,7 +229,6 @@ impl RuntimeArguments {
     }
 }
 
-#[cfg(any(feature = "test", test))]
 impl From<&RuntimeArguments> for MozakMemory {
     fn from(args: &RuntimeArguments) -> Self {
         let mut mozak_ro_memory = MozakMemory::default();
@@ -372,8 +371,10 @@ impl From<HashMap<u32, u32>> for Data {
         )
     }
 }
+
 type CheckProgramFlags =
     fn(flags: u32, program_headers: &ProgramHeader, mozak_memory: &Option<MozakMemory>) -> bool;
+
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
     /// should rename it later, with `vanilla_` prefix
@@ -659,6 +660,7 @@ impl Program {
 #[cfg(test)]
 mod test {
     use crate::elf::{MozakMemory, MozakMemoryRegion, Program, RuntimeArguments};
+
     #[test]
     fn test_serialize_deserialize() {
         let program = Program::default();
@@ -687,6 +689,7 @@ mod test {
             assert_eq!(data[usize::try_from(*k).unwrap()], *v);
         });
     }
+
     #[test]
     fn test_empty_elf_with_empty_args() {
         let mozak_ro_memory =
@@ -699,6 +702,7 @@ mod test {
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
         assert_eq!(mozak_ro_memory.transcript.data.len(), 0);
     }
+
     #[test]
     fn test_empty_elf_with_args() {
         let mozak_ro_memory = Program::mozak_load_program(
