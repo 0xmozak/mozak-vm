@@ -37,7 +37,7 @@ rand = {version = "0.8.5", optional = true }
 proptest = "1.4"
 
 [features]
-bench = [
+cli_bench = [
     "p3-baby-bear",
     "p3-challenger",
     "p3-commit",

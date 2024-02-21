@@ -18,7 +18,7 @@ clap = { version = "4.4", features = [
   "wrap_help",
 ] }
 mozak-circuits = { path = "../circuits", features = ["test"] }
-mozak-circuits3 = { path = "../circuits3", features = ["bench"] }
+mozak-circuits3 = { path = "../circuits3", features = ["cli_bench"], optional = true }
 mozak-examples = { path = "../examples-builder", features = ["fibonacci-input"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 # TODO(Matthias): implement shell completion for CLI via clap_complete
@@ -34,23 +34,12 @@ plonky2 = "0.1"
 serde_json = "1.0.113"
 starky = "0.1"
 tempfile = "3"
-
-p3-air = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-commit = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-dft = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-field = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-fri = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-goldilocks = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-keccak = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-mds = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3.git" , optional = true }
 
 [dev-dependencies]
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
+
+[features]
+bench = ["mozak-circuits3", "p3-uni-stark"]

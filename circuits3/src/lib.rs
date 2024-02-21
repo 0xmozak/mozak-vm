@@ -8,5 +8,5 @@ pub mod generation;
 pub mod utils;
 pub mod xor;
 
-#[cfg(any(feature = "bench", test))]
+#[cfg(any(feature = "cli_bench", test))]
 pub mod config;
