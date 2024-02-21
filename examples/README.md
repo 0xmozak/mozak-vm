@@ -1,8 +1,8 @@
 # Guest Programs
 
-*WARNING*: this workspace specifies default cargo target as `riscv32im-mozak-zkvm-elf`, which means that for building native versions we need to manually specify the system target via `--target` (see below).
+*WARNING*: this workspace specifies default cargo target as `riscv32im-mozak-mozakvm-elf`, which means that for building native versions we need to manually specify the system target via `--target` (see below).
 
-Examples contains cargo projects which generate ELF compatible with MozakVM. The target ISA is RISC-V with I and M extensions, described best in `.cargo/riscv32im-mozak-zkvm-elf.json`.
+Examples contains cargo projects which generate ELF compatible with MozakVM. The target ISA is RISC-V with I and M extensions, described best in `.cargo/riscv32im-mozak-mozakvm-elf.json`.
 
 Building the programs require Rust nightly toolchain. Exploring the generated ELF requires RISC-V toolkit, especially `objdump` or equivalent.
 
@@ -10,7 +10,7 @@ Building the programs require Rust nightly toolchain. Exploring the generated EL
 
 ### Mozak ZK-VM
 
-By default, we configure Cargo to build for the mozak-zkvm, so a plain
+By default, we configure Cargo to build for the mozak-mozakvm, so a plain
 build command uses our custom target and linker script:
 
 ```bash
@@ -23,7 +23,7 @@ Some examples use `std`:
 cargo build --release --features=std
 ```
 
-This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/release/`.
+This would build ELF executables under `target/riscv32im-mozak-mozakvm-elf/release/`.
 
 For more details, our configuration is found at `.cargo/config.toml` at the root of the `examples` directory.
 
@@ -71,7 +71,7 @@ Note: For `cargo run` to work `mozak-cli` must be present at `../target/release/
 
 Otherwise use `mozak-cli`'s run command to execute generated ELF.
 ```bash
-mozak-cli -vvv run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
+mozak-cli -vvv run target/riscv32im-mozak-mozakvm-elf/debug/<ELF_NAME>
 ```
 
 ### Native
@@ -96,7 +96,7 @@ You can either run the binaries directly at
 ```bash
 RUSTFLAGS="--emit asm" cargo +nightly build
 ```
-After this, `target/riscv32im-risc0-zkvm-elf/debug/deps/` would contain assembly files with `.s` extension
+After this, `target/riscv32im-risc0-mozakvm-elf/debug/deps/` would contain assembly files with `.s` extension
 
 ### Exploring via `objdump`
 `objdump` utility (differently built for riscV) can be fetched via
@@ -107,11 +107,11 @@ Once done, this should feature as `riscv64-unknown-elf-objdump` in your `$PATH`.
 
 **Find sections**
 ```bash
-riscv64-unknown-elf-objdump -h target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
+riscv64-unknown-elf-objdump -h target/riscv32im-mozak-mozakvm-elf/debug/<ELF_NAME>
 ```
 **Find contents of specific section**
 ```bash
-riscv64-unknown-elf-objdump -d -j .sdata target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
+riscv64-unknown-elf-objdump -d -j .sdata target/riscv32im-mozak-mozakvm-elf/debug/<ELF_NAME>
 ```
 
 NOTE: The build config tries to optimize binary size, and location information is removed. Kindly update config if you want location info.

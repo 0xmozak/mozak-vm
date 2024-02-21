@@ -1,7 +1,7 @@
-#![cfg_attr(target_os = "zkvm", no_main)]
+#![cfg_attr(target_os = "mozakvm", no_main)]
 #![feature(restricted_std)]
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 use std::env;
 use std::io::{stdin, BufReader, Read};
 
@@ -19,11 +19,11 @@ fn fibonacci(n: u32) -> u32 {
 }
 
 pub fn main() {
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     let args: Vec<String> = env::args().collect();
     let mut mozak_io_private = MozakIoPrivate(MozakIo {
         stdin: Box::new(BufReader::new(stdin())),
-        #[cfg(not(target_os = "zkvm"))]
+        #[cfg(not(target_os = "mozakvm"))]
         file: args[1].clone(),
     });
     // read from private iotape, the input
@@ -35,7 +35,7 @@ pub fn main() {
     // read from public iotape, the output
     let mut mozak_io_public = MozakIoPublic(MozakIo {
         stdin: Box::new(BufReader::new(stdin())),
-        #[cfg(not(target_os = "zkvm"))]
+        #[cfg(not(target_os = "mozakvm"))]
         file: args[2].clone(),
     });
     let mut buffer = [0_u8; 4];
