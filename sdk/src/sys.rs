@@ -250,8 +250,8 @@ pub struct EventTape {
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct EventTapeSingle {
-    id: ProgramIdentifier,
-    contents: Vec<Event>,
+    pub id: ProgramIdentifier,
+    pub contents: Vec<Event>,
 }
 
 impl EventTape {

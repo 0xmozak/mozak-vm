@@ -27,7 +27,7 @@ use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
-use mozak_sdk::coretypes::ProgramIdentifier;
+use mozak_sdk::coretypes::{Event, ProgramIdentifier};
 use mozak_sdk::sys::SystemTapes;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
@@ -180,6 +180,16 @@ pub fn tapes_to_runtime_arguments(
 ) -> mozak_runner::elf::RuntimeArguments {
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.into();
+    let mut event_tape_single: Option<&Vec<Event>> = None;
+    for single_tape in &sys_tapes.event_tape.writer {
+        if single_tape.id == self_prog_id {
+            event_tape_single = Some(&single_tape.contents);
+        }
+    }
+    assert!(
+        event_tape_single.is_some(),
+        "event tape not found in bundle"
+    );
     debug!("SELF PROG ID: {self_prog_id:#?}");
     // debug!("SYSTAPE READOUT: {sys_tapes:#?}");
 
@@ -204,7 +214,7 @@ pub fn tapes_to_runtime_arguments(
             "CALL_TAPE",
         ),
         event_tape: length_prefixed_bytes(
-            rkyv::to_bytes::<_, 256>(&sys_tapes.event_tape.writer)
+            rkyv::to_bytes::<_, 256>(event_tape_single.unwrap())
                 .unwrap()
                 .into(),
             "EVENT_TAPE",

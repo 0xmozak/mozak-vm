@@ -310,9 +310,6 @@ impl<F: RichField> State<F> {
         ];
         let (raw_value, dst_val) = op(&mem);
 
-        if self.clk == 272 {
-            log::debug!("272: {:?} {:?} {:?} {:?}", data, mem, raw_value, dst_val);
-        }
         (
             Aux {
                 dst_val,

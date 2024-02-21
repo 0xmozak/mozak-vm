@@ -14,7 +14,6 @@ use elf::symbol::SymbolTable;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{chain, iproduct, izip, Itertools};
-use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
@@ -34,7 +33,6 @@ impl MozakMemoryRegion {
     }
 
     fn fill(&mut self, data: &[u8]) {
-        debug!("{:?} {:?}", data.len(), self);
         assert!(
             data.len() <= self.capacity.try_into().unwrap(),
             "fill data must fit into capacity"
