@@ -83,8 +83,7 @@ pub fn syscall_poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mu
 }
 
 pub fn syscall_ioread_private(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
-    #[cfg(all(target_os = "zkvm", feature = "legacy-ecall-api"))]
+    #[cfg(all(target_os = "mozakvm", feature = "legacy-ecall-api"))]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -93,8 +92,7 @@ pub fn syscall_ioread_private(buf_ptr: *mut u8, buf_len: usize) {
             in ("a2") buf_len,
         );
     }
-    #[cfg(all(target_os = "mozakvm", feature = "mozak-ro-memory"))]
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     // TODO(Roman): later on please add assert(capacity >= buf_len)
     // NOTE: it is up to the application owner how to implement this, it can be implemented using
     // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
@@ -120,7 +118,7 @@ pub fn syscall_ioread_private(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(all(target_os = "zkvm", feature = "legacy-ecall-api"))]
+    #[cfg(all(target_os = "mozakvm", feature = "legacy-ecall-api"))]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -129,8 +127,7 @@ pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
         in ("a2") buf_len,
         );
     }
-    #[cfg(all(target_os = "mozakvm", feature = "mozak-ro-memory"))]
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     // TODO(Roman): later on please add assert(capacity >= buf_len)
     // NOTE: it is up to the application owner how to implement this, it can be implemented using
     // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
@@ -156,8 +153,7 @@ pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 pub fn syscall_transcript_read(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
-    #[cfg(all(target_os = "zkvm", feature = "legacy-ecall-api"))]
+    #[cfg(all(target_os = "mozakvm", feature = "legacy-ecall-api"))]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -166,8 +162,7 @@ pub fn syscall_transcript_read(buf_ptr: *mut u8, buf_len: usize) {
         in ("a2") buf_len,
         );
     }
-    #[cfg(all(target_os = "mozakvm", feature = "mozak-ro-memory"))]
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     // TODO(Roman): later on please add assert(capacity >= buf_len)
     // NOTE: it is up to the application owner how to implement this, it can be implemented using
     // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
