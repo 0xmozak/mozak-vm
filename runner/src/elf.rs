@@ -104,7 +104,6 @@ impl Default for MozakMemory {
     }
 }
 
-
 /// Deprecated
 impl From<(&[u8], &[u8])> for MozakMemory {
     fn from((private, public): (&[u8], &[u8])) -> Self {
@@ -201,7 +200,8 @@ impl MozakMemory {
         // `end-of-mozak-region`...
         self.io_tape_private.capacity =
             self.call_tape.starting_address - self.io_tape_private.starting_address;
-        self.call_tape.capacity = self.event_tape.starting_address - self.call_tape.starting_address;
+        self.call_tape.capacity =
+            self.event_tape.starting_address - self.call_tape.starting_address;
         self.event_tape.capacity = 0x50000000 - self.event_tape.starting_address;
     }
 }

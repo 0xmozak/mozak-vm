@@ -42,9 +42,11 @@ pub fn mozak_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> 
         .flat_map(|mozak_ro_memory| {
             // TODO(Roman): once context variables will be in use, extend it here !
             chain! {
+                mozak_ro_memory.self_prog_id.data.iter(),
                 mozak_ro_memory.io_tape_public.data.iter(),
                 mozak_ro_memory.io_tape_private.data.iter(),
                 mozak_ro_memory.call_tape.data.iter(),
+                mozak_ro_memory.event_tape.data.iter(),
             }
         })
         .map(|(&addr, &value)| {

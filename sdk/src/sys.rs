@@ -2,7 +2,6 @@ use std::ptr::addr_of;
 
 use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
-use rkyv::with::{AsBox, With};
 use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
@@ -76,22 +75,11 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
             }
         }
 
-        // TODO: FIX THIS
-        // let self_prog_id = unsafe { *{ addr_of!(_mozak_self_prog_id) as *const
-        // ProgramIdentifier } }; assert!(self_prog_id ==
-        // ProgramIdentifier::default());
-
-        // HARDCODED PLACEHOLDER (for token program)
-        let self_prog_id = ProgramIdentifier {
-            program_rom_hash: [11, 113, 20, 251].into(),
-            memory_init_hash: [2, 31, 3, 62].into(),
-            entry_point: 0,
-        };
+        let self_prog_id = unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } }; 
+        assert!(self_prog_id != ProgramIdentifier::default()); // Reserved for null caller
 
         let calltape_zcd =
             get_zcd_repr::<Vec<CPCMessage>>(unsafe { addr_of!(_mozak_call_tape) as *const u8 });
-        // HARDCODED HERE: for token example, fix later
-        assert!(calltape_zcd.len() == 2);
 
         SystemTapes {
             call_tape: CallTape {
