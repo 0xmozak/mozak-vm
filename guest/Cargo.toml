@@ -8,7 +8,7 @@ version = "0.1.0"
 [dependencies]
 mozak-system = { path = "../system" }
 
-[target.'cfg(not(target_os="zkvm"))'.dependencies.plonky2]
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.plonky2]
 default-features = false
 git = "https://github.com/0xmozak/plonky2.git"
 

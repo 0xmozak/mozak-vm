@@ -17,27 +17,27 @@ for profile in "${PROFILES[@]}"; do
             private_iotape=""
             public_iotape=""
             case ${bin} in
-            # TODO(bing): fix to work with this script
-            "panic")
-                echo "(mozak-cli) skipping (${profile}): ${bin}"
-                skipped="${skipped}${bin} (${profile})\n"
-                continue
-                ;;
-            # For this, we skip without writing to skipped because we
-            # run the native version along with the zkvm version.
-            "merkleproof-trustedroot-native")
-                echo "(mozak-cli) skipping (${profile}): ${bin}"
-                continue
-                ;;
-            "fibonacci-input")
-                private_iotape="--io-tape-private examples/${member}/iotape_private"
-                public_iotape="--io-tape-public examples/${member}/iotape_public"
-                ;;
-            "merkleproof-trustedroot")
-                echo "(mozak-cli) skipping (${profile}): ${bin}"
-                skipped="${skipped}${bin} (${profile})\n"
-                continue
-                ;;
+                # TODO(bing): fix to work with this script
+                "panic")
+                    echo "(mozak-cli) skipping (${profile}): ${bin}"
+                    skipped="${skipped}${bin} (${profile})\n"
+                    continue
+                    ;;
+                # For this, we skip without writing to skipped because we
+                # run the native version along with the mozakvm version.
+                "merkleproof-trustedroot-native")
+                    echo "(mozak-cli) skipping (${profile}): ${bin}"
+                    continue
+                    ;;
+                "fibonacci-input")
+                    private_iotape="--io-tape-private examples/${member}/iotape_private"
+                    public_iotape="--io-tape-public examples/${member}/iotape_public"
+                    ;;
+                "merkleproof-trustedroot")
+                    echo "(mozak-cli) skipping (${profile}): ${bin}"
+                    skipped="${skipped}${bin} (${profile})\n"
+                    continue
+                    ;;
 
             esac
 
@@ -45,7 +45,7 @@ for profile in "${PROFILES[@]}"; do
             # Double quoting the iotapes here is not what we want since we
             # want an empty argument if iotapes are not required.
             if ! cargo run --bin mozak-cli \
-                run -vvv examples/target/riscv32im-mozak-zkvm-elf/"${profile}"/"${bin}" \
+                run -vvv examples/target/riscv32im-mozak-mozakvm-elf/"${profile}"/"${bin}" \
                 ${private_iotape} \
                 ${public_iotape}; then
                 failed="${failed}${bin} (${profile})\n"

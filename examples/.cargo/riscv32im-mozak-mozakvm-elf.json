@@ -11,7 +11,7 @@
   "linker-flavor": "ld.lld",
   "llvm-target": "riscv32",
   "max-atomic-width": 32,
-  "os": "zkvm",
+  "os": "mozakvm",
   "panic-strategy": "abort",
   "relocation-model": "static",
   "singlethread": true,
