@@ -114,9 +114,17 @@ impl MozakMemory {
         }
     }
 
+    // TODO(Roman): refactor this function, caller can parse p_vaddr, so pure u32
+    // address will be enough
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
-        let address: u32 = u32::try_from(program_header.p_vaddr)
-            .expect("p_vaddr for zk-vm expected to be cast-able to u32");
+        self.is_address_belongs_to_mozak_ro_memory(
+            u32::try_from(program_header.p_vaddr)
+                .expect("p_vaddr for zk-vm expected to be cast-able to u32"),
+        )
+    }
+
+    #[must_use]
+    pub fn is_address_belongs_to_mozak_ro_memory(&self, address: u32) -> bool {
         let mem_addresses = [
             self.context_variables.memory_range(),
             self.io_tape_public.memory_range(),
