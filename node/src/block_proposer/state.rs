@@ -63,6 +63,9 @@ impl Address {
     }
 }
 
+/// A partial address which is constructed by slowly consuming
+/// an initial `Address` as one traverses down the tree toward
+/// the initial leaf.
 #[derive(Debug, Clone, Copy)]
 struct PartialAddress {
     height: usize,
@@ -70,23 +73,39 @@ struct PartialAddress {
 }
 
 impl PartialAddress {
-    fn next(&self) -> (Option<Self>, Dir) {
-        let dir = if self.addr.0 & (1 << self.height) != 0 {
+    fn next(mut self) -> (Option<Self>, Dir) {
+        // look at the MSB for the current direction
+        let bit = 1 << self.height;
+
+        let dir = if self.addr.0 & bit != 0 {
             Dir::Right
         } else {
             Dir::Left
         };
 
+        // Pop the MSB
+        self.addr.0 &= bit - 1;
+
         if self.height == 0 {
-            debug_assert_eq!(self.addr.0 >> 1, 0);
+            debug_assert_eq!(self.addr.0, 0);
             (None, dir)
         } else {
-            let height = self.height - 1;
-            let addr = Address(self.addr.0 >> 1);
-            (Some(Self { height, addr }), dir)
+            self.height -= 1;
+            (Some(self), dir)
         }
     }
+}
 
+/// A partial address which is constructed starting at the root and moving
+/// downward, adding on one bit at a time based on a provided direction
+#[derive(Debug, Clone, Copy)]
+struct BranchAddress {
+    height: usize,
+    addr: Address,
+}
+
+impl BranchAddress {
+    /// Initialize the `BranchAddress` to the root node
     fn root(height: usize) -> Self {
         Self {
             height,
@@ -94,7 +113,9 @@ impl PartialAddress {
         }
     }
 
-    fn child(mut self, dir: Dir) -> Result<PartialAddress, Address> {
+    /// Move downward, adding a `0|1` bit based on the dir (`Left|Right`).
+    /// If we've reached the bottom, return an `Address` instead
+    fn child(mut self, dir: Dir) -> Result<Self, Address> {
         self.addr = Address(
             self.addr.0 << 1
                 | match dir {
@@ -799,13 +820,13 @@ impl AuxStateData {
     }
 
     fn finalize(&self, root: &mut SparseMerkleBranch) {
-        self.finalize_branch(root, PartialAddress::root(root.height));
+        self.finalize_branch(root, BranchAddress::root(root.height));
     }
 
     fn finalize_branch(
         &self,
         branch: &mut SparseMerkleBranch,
-        addr: PartialAddress,
+        addr: BranchAddress,
     ) -> FinalizeOutcome {
         let left_outcome = if let Some(mut left) = branch.left.take() {
             let outcome = match (&mut *left, addr.child(Dir::Left)) {
