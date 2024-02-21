@@ -2,7 +2,7 @@
 
 Consider the following scenario.
 
-Alice owns a USDC token in her USDC wallet. She has to transfer the token to Bob, who has his own USDC wallet.
+Alice owns a USDC token in her  wallet. She has to transfer the token to Bob, who has his own wallet.
 
 A USDC token is represented as `StateObject` with the constraint owner being the USDC token program represented through `ProgramIdentifier`. The USDC token, along with the amount, also stores the details of its owner (in this case, Alice) and her wallet program. The USDC program would require approval from Alice's wallet program in order to transfer the economic ownership to Bob and his wallet program.
 
