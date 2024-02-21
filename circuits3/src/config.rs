@@ -53,7 +53,7 @@ impl Mozak3StarkConfig for DefaultConfig {
     /// Function used to combine `2` (hashed) nodes of Merkle tree
     type MyCompress = TruncatedPermutation<Self::Perm, 2, { Self::CHUNK }, { Self::WIDTH }>;
     type MyConfig =
-        StarkConfig<Self::Val, Self::Challenge, Self::PackedChallenge, Self::Pcs, Self::Challenger>;
+        StarkConfig<Self::Val, Self::Challenge, Self::Pcs, Self::Challenger>;
     type MyHash = SerializingHasher64<Keccak256Hash>;
     type PackedChallenge = BinomialExtensionField<<Self::Val as Field>::Packing, { Self::D }>;
     type Pcs = TwoAdicFriPcs<
@@ -116,7 +116,7 @@ impl Mozak3StarkConfig for BabyBearConfig {
     /// Function used to combine `2` (hashed) nodes of Merkle tree
     type MyCompress = TruncatedPermutation<Self::Perm, 2, { Self::CHUNK }, { Self::WIDTH }>;
     type MyConfig =
-        StarkConfig<Self::Val, Self::Challenge, Self::PackedChallenge, Self::Pcs, Self::Challenger>;
+        StarkConfig<Self::Val, Self::Challenge, Self::Pcs, Self::Challenger>;
     type MyHash = SerializingHasher32<Keccak256Hash>;
     type PackedChallenge = BinomialExtensionField<<Self::Val as Field>::Packing, { Self::D }>;
     type Pcs = TwoAdicFriPcs<
