@@ -2,6 +2,7 @@ use std::ptr::addr_of;
 
 use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
+use rkyv::with::{AsBox, With};
 use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
@@ -13,7 +14,7 @@ pub type RkyvShared = rkyv::ser::serializers::SharedSerializeMap;
 pub trait RkyvSerializable =
     rkyv::Serialize<CompositeSerializer<RkyvSerializer, RkyvScratch, RkyvShared>>;
 pub trait CallArgument = Sized + RkyvSerializable;
-pub trait CallReturn = Sized + Clone + Default + RkyvSerializable;
+pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
 
 #[derive(Default, Clone)]
 #[cfg_attr(not(target_os = "zkvm"), derive(Archive, Serialize, Deserialize))]
@@ -166,7 +167,8 @@ impl CallTape {
 
                 // if we are the callee, return this message
                 if self.self_prog_id == callee {
-                    let full_deserialized: CPCMessage = zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
+                    let full_deserialized: CPCMessage =
+                        zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
                     self.index += 1;
                     return Some((full_deserialized, self.index - 1));
                 }
@@ -192,7 +194,28 @@ impl CallTape {
     ) -> R
     where
         A: CallArgument,
-        R: CallReturn, {
+        R: CallReturn,
+        <R as Archive>::Archived: Deserialize<R, rkyv::Infallible>, {
+        #[cfg(target_os = "zkvm")]
+        {
+            assert!(self.index < self.reader.unwrap().len());
+
+            let zcd_cpcmsg = &self.reader.unwrap()[self.index];
+            let cpcmsg: CPCMessage = zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
+
+            assert!(cpcmsg.caller_prog == self.self_prog_id);
+            assert!(cpcmsg.callee_prog == callee_prog);
+            assert!(cpcmsg.args.0 == rkyv::to_bytes::<_, 256>(&call_args).unwrap().to_vec());
+
+            self.index += 1;
+
+            let zcd_ret = unsafe { rkyv::archived_root::<R>(&cpcmsg.ret.0[..]) };
+            <<R as Archive>::Archived as Deserialize<R, rkyv::Infallible>>::deserialize(
+                zcd_ret,
+                &mut rkyv::Infallible,
+            )
+            .unwrap()
+        }
         #[cfg(not(target_os = "zkvm"))]
         {
             let msg = CPCMessage {
@@ -215,10 +238,6 @@ impl CallTape {
             );
 
             retval
-        }
-        #[cfg(target_os = "zkvm")]
-        {
-            R::default()
         }
     }
 }
@@ -341,7 +360,8 @@ pub fn call_send<A, R>(
 ) -> R
 where
     A: CallArgument,
-    R: CallReturn, {
+    R: CallReturn,
+    <R as Archive>::Archived: Deserialize<R, rkyv::Infallible>, {
     unsafe {
         SYSTEM_TAPES.call_tape.to_mailbox(
             caller_prog,

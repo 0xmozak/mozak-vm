@@ -55,13 +55,6 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    event_emit(
-        self_prog_id,
-        mozak_sdk::coretypes::Event::ReadContextVariable(
-            mozak_sdk::coretypes::ContextVariable::SelfProgramIdentifier(self_prog_id),
-        ),
-    );
-
     assert_eq!(
         call_send(
             self_prog_id,
