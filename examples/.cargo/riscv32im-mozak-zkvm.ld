@@ -68,15 +68,16 @@ SECTIONS {
 
     /* mozak_globals, NOTE: needs to sync with memory regions defined above */
     .mozak_globals : {
+        /* KEEP(*(.mozak_globals)) */
         /* Space left intentional for further use */
         _mozak_public_io_tape             = 0x20000000;
-        _mozak_public_io_tape_len         = 0x10000000;
+        /* _mozak_public_io_tape_len         = 0x10000000; */
         _mozak_private_io_tape            = 0x30000000;
-        _mozak_private_io_tape_len        = 0x10000000;
+        /* _mozak_private_io_tape_len        = 0x10000000; */
         _mozak_call_tape                  = 0x40000000;
-        _mozak_call_tape_len              = 0x08000000;
+        /* _mozak_call_tape_len              = 0x08000000; */
         _mozak_event_tape                 = 0x48000000;
-        _mozak_event_tape_len             = 0x08000000;
+        /* _mozak_event_tape_len             = 0x08000000; */
     } > mozak_context
 
     /* For memory region: `elf_rwdata` -------------------------------------------------------------------   */

@@ -1,5 +1,5 @@
 use std::cell::UnsafeCell;
-use std::ptr::slice_from_raw_parts;
+use std::ptr::{addr_of, slice_from_raw_parts};
 use std::slice::from_raw_parts;
 
 use mozak_system::system::syscall_halt;
@@ -31,17 +31,13 @@ pub struct SystemTapes {
     pub event_tape: EventTape,
 }
 
-// #[cfg(target_os = "zkvm")]
-// extern "C" {
-//     static _mozak_public_io_tape: usize;
-//     // static _mozak_public_io_tape_len: usize;
-//     static _mozak_private_io_tape: usize;
-//     // static _mozak_private_io_tape_len: usize;
-//     static _mozak_call_tape: u32;
-//     // static _mozak_call_tape_len: usize;
-//     static _mozak_event_tape: usize;
-//     // static _mozak_event_tape_len: usize;
-// }
+#[cfg(target_os = "zkvm")]
+extern "C" {
+    static _mozak_public_io_tape: usize;
+    static _mozak_private_io_tape: usize;
+    static _mozak_call_tape: usize;
+    static _mozak_event_tape: usize;
+}
 
 #[allow(dead_code)]
 impl SystemTapes {
@@ -53,13 +49,6 @@ impl SystemTapes {
             event_tape: EventTape::new(),
         }
     }
-
-    // pub fn read_self_prog_id(&mut self, id: ProgramIdentifier) {
-    //     self.call_tape.set_self_prog_id(id);
-    //     self.event_tape.emit_event(Event::ReadContextVariable(
-    //         ContextVariable::SelfProgramIdentifier(id),
-    //     ));
-    // }
 }
 
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
@@ -80,38 +69,21 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
         /// Zero-copy deserialization on a memory region starting at `addr`
         /// Expected layout to be `[<data_region len (N) in 4
         /// bytes>|<data_region N bytes>]`
-        fn get_zcd_repr<T: rkyv::Archive>(addr: u32) -> &'static <T as Archive>::Archived {
+        fn get_zcd_repr<T: rkyv::Archive>(addr: *const u8) -> &'static <T as Archive>::Archived {
             let mem_len = unsafe { *{ addr as *const u32 } } as usize;
             unsafe {
-                let mem_slice = &*slice_from_raw_parts::<u8>((addr + 4) as *const u8, mem_len);
+                let mem_slice = &*slice_from_raw_parts::<u8>(addr.add(4), mem_len);
                 rkyv::archived_root::<T>(mem_slice)
             }
         }
 
         // let self_prog_id = unsafe { *{ PROG_IDENT as *const ProgramIdentifier } };
-        let calltape_zcd = get_zcd_repr::<Vec<CPCMessage>>(CALL_START);
+        let calltape_zcd = get_zcd_repr::<Vec<CPCMessage>>(unsafe {
+            core::ptr::addr_of!(_mozak_call_tape) as *const u8
+        });
 
         // HARDCODED HERE: for token example, fix later
-        // assert!(calltape_zcd.len() == 2);
-
-        // This runner should inject somewhere deterministic in memory and has to be
-        // exact HARDCODED HERE: for token example, fix later
-
-        // CallTape: 0x40000000 ... [0 0 0 0 | .....] 0x40000004..
-        // type PreSerializationType = Vec<CPCMessage>;
-
-        // let archived = unsafe {
-        //     let reserved_mem_slice =
-        //         &*slice_from_raw_parts::<u8>(CALL_START as *const u8,
-        // call_tape_len_dynamic);
-        //     rkyv::archived_root::<PreSerializationType>(reserved_mem_slice)
-        // };
-
-        // let calls: PreSerializationType = archived.deserialize(&mut
-        // rkyv::Infallible).unwrap();
-
-        // HARDCODED HERE: for token example, fix later
-        // assert!(calls.len() == calls1.len());
+        assert!(calltape_zcd.len() == 2);
 
         SystemTapes {
             call_tape: CallTape {
@@ -185,8 +157,8 @@ impl CallTape {
             // self.index += 1;
 
             // let a = &self.reader.unwrap()[(self.index - 1) as usize];
-            // let k: ProgramIdentifier = a.callee_prog.deserialize(&mut rkyv::Infallible).unwrap();
-            // if k != self.self_prog_id {
+            // let k: ProgramIdentifier = a.callee_prog.deserialize(&mut
+            // rkyv::Infallible).unwrap(); if k != self.self_prog_id {
             //     panic!("hello")
             // };
             // return Some((
