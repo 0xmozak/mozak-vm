@@ -7,7 +7,6 @@ use super::columns::XorColumnsView;
 use crate::columns_view::NumberOfColumns;
 use crate::utils::reduce_with_powers;
 
-#[allow(clippy::module_name_repetitions)]
 pub struct XorStark;
 
 impl<F> BaseAir<F> for XorStark {
@@ -73,8 +72,6 @@ mod tests {
 
         verify(&config, &XorStark, &mut verifer_challenger, &proof)
     }
-<<<<<<< HEAD
-=======
 
     #[test]
     #[allow(clippy::items_after_statements)]
@@ -92,5 +89,4 @@ mod tests {
 
         verify(&config, &XorStark, &mut verifer_challenger, &proof)
     }
->>>>>>> origin/main
 }
