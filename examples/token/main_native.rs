@@ -30,7 +30,7 @@ fn main() {
     let token_object = StateObject {
         address: [4, 0, 0, 0, 0, 0, 0, 0].into(),
         constraint_owner: token_program,
-        data: vec![],
+        data: vec![100],
     };
 
     let remitter_signature = vec![70u8, 20, 56, 33].into();
@@ -51,10 +51,6 @@ fn main() {
                                     // private tape
         },
     );
-    // let foo: Vec<CPCMessage> = vec![];
-
-    // let bytes = rkyv::to_bytes::<_, 256>(&foo).unwrap();
-    // println!("bytes: {:?}", bytes);
 
     dump_tapes("wallet_tfr".to_string());
 

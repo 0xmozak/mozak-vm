@@ -55,6 +55,7 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
+    event_emit(self_prog_id, Event::ReadStateObject(token_object.clone()));
     assert_eq!(
         call_send(
             self_prog_id,
@@ -74,5 +75,8 @@ pub fn transfer(
         wallet::MethodReturns::ApproveSignature(true),
         "wallet approval not found"
     );
-    event_emit(self_prog_id, Event::UpdatedStateObject(token_object));
+    event_emit(self_prog_id, Event::UpdatedStateObject(StateObject{
+        data: vec![200],
+        ..token_object
+    }));
 }

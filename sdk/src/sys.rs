@@ -75,16 +75,25 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
             }
         }
 
-        let self_prog_id = unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } }; 
+        let self_prog_id =
+            unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } };
         assert!(self_prog_id != ProgramIdentifier::default()); // Reserved for null caller
 
         let calltape_zcd =
             get_zcd_repr::<Vec<CPCMessage>>(unsafe { addr_of!(_mozak_call_tape) as *const u8 });
 
+        let eventtape_zcd =
+            get_zcd_repr::<Vec<Event>>(unsafe { addr_of!(_mozak_event_tape) as *const u8 });
+
         SystemTapes {
             call_tape: CallTape {
                 self_prog_id,
                 reader: Some(calltape_zcd),
+                index: 0,
+            },
+            event_tape: EventTape {
+                self_prog_id,
+                reader: Some(eventtape_zcd),
                 index: 0,
             },
             ..SystemTapes::default()
@@ -230,19 +239,19 @@ impl CallTape {
     }
 }
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
+#[derive(Default, Clone)]
+#[cfg_attr(not(target_os = "zkvm"), derive(Archive, Deserialize, Serialize))]
+#[cfg_attr(not(target_os = "zkvm"), archive_attr(derive(Debug)))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct EventTape {
-    // #[cfg(target_os = "zkvm")]
-    // start: usize,
-    // #[cfg(target_os = "zkvm")]
-    // len: usize,
-    // #[cfg(target_os = "zkvm")]
-    // // offset: UnsafeCell<usize>,
+    #[cfg(target_os = "zkvm")]
+    self_prog_id: ProgramIdentifier,
+    #[cfg(target_os = "zkvm")]
+    reader: Option<&'static <Vec<Event> as Archive>::Archived>,
     #[cfg(not(target_os = "zkvm"))]
     pub writer: Vec<EventTapeSingle>,
+    #[cfg(target_os = "zkvm")]
+    index: usize,
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
@@ -257,23 +266,43 @@ pub struct EventTapeSingle {
 impl EventTape {
     pub fn new() -> Self {
         Self {
-            // #[cfg(target_os = "zkvm")]
-            // start: 0,
-            // #[cfg(target_os = "zkvm")]
-            // len: 0,
-            // #[cfg(target_os = "zkvm")]
-            // offset: UnsafeCell::new(0),
+            #[cfg(target_os = "zkvm")]
+            self_prog_id: ProgramIdentifier::default(),
+            #[cfg(target_os = "zkvm")]
+            reader: None,
             #[cfg(not(target_os = "zkvm"))]
-            writer: Vec::new(),
+            writer: vec![],
+            #[cfg(target_os = "zkvm")]
+            index: 0,
         }
     }
 
     pub fn emit_event(&mut self, id: ProgramIdentifier, event: Event) {
         #[cfg(target_os = "zkvm")]
-        {}
+        {
+            assert!(self.index < self.reader.unwrap().len());
+
+            let zcd_event = &self.reader.unwrap()[self.index];
+            let event_deserialized: Event = zcd_event.deserialize(&mut rkyv::Infallible).unwrap();
+
+            assert!(event == event_deserialized);
+
+            assert!(
+                match event {
+                    Event::ReadStateObject(s) => s.constraint_owner,
+                    Event::CreatedStateObject(s) => s.constraint_owner,
+                    Event::DeletedStateObject(s) => s.constraint_owner,
+                    Event::UpdatedStateObject(s) => s.constraint_owner,
+                    _ => self.self_prog_id,
+                } == self.self_prog_id
+            );
+
+            self.index += 1;
+        }
         #[cfg(not(target_os = "zkvm"))]
         {
             println!("[EVENT] Add: {:#?}", event);
+
             // TODO: Sad code, fix later
             for single_tape in self.writer.iter_mut() {
                 if single_tape.id == id {
@@ -285,10 +314,6 @@ impl EventTape {
                 id,
                 contents: vec![event],
             });
-            // unsafe {
-            //     self.writer.push(event);
-            // }
-            // self.writer.borrow_mut().push(event);
         }
     }
 }
