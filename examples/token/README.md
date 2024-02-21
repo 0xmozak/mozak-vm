@@ -34,8 +34,21 @@ rm *.tape_* && \
 Prove and verify:
 ```
 cargo build && \
-    cd examples && \
-    cargo build --release --bin tokenbin && \
-    MOZAK_STARK_DEBUG=true ../target/debug/mozak-cli prove-and-verify -vvv target/riscv32im-mozak-zkvm-elf/release/tokenbin --system-tape wallet_tfr.tape_bin;
-    cd ..
+cd examples && \
+cargo build --release --bin tokenbin && \
+MOZAK_STARK_DEBUG=true \
+    ../target/debug/mozak-cli prove-and-verify -vvv \
+    target/riscv32im-mozak-zkvm-elf/release/tokenbin \
+    --system-tape wallet_tfr.tape_bin \
+    --self-prog-id MZK-0b7114fb-021f033e-0;
+cd ..
 ```
+cargo build && \
+cd examples && \
+cargo build --release --bin tokenbin && \
+MOZAK_STARK_DEBUG=true \
+    ../target/debug/mozak-cli prove-and-verify -vvv \
+    target/riscv32im-mozak-zkvm-elf/release/tokenbin \
+    --system-tape wallet_tfr.tape_bin \
+    --self-prog-id MZK-00000000-00000000-0;
+cd ..

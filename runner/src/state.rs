@@ -221,8 +221,10 @@ impl<F: RichField> State<F> {
                 .data
                 .0
                 .into_iter()
+                .chain(ro_memory.self_prog_id.data.0)
                 .chain(ro_memory.io_tape_private.data.0)
                 .chain(ro_memory.call_tape.data.0)
+                .chain(ro_memory.event_tape.data.0)
                 .collect();
             for (index, item) in all_ro_memory {
                 mem.insert(index, item);
@@ -268,6 +270,8 @@ impl<F: RichField> State<F> {
                     mrm.io_tape_private.data.iter(),
                     mrm.io_tape_public.data.iter(),
                     mrm.call_tape.data.iter(),
+                    mrm.self_prog_id.data.iter(),
+                    mrm.event_tape.data.iter()
                 )
                 .map(|(addr, value)| (*addr, *value))
                 .collect()

@@ -165,15 +165,16 @@ impl std::fmt::Debug for ProgramIdentifier {
 impl From<String> for ProgramIdentifier {
     fn from(value: String) -> ProgramIdentifier {
         fn even_str(s: String) -> String {
-            if s.len() % 2 == 1{
-                return s + "0"
+            if s.len() % 2 == 1 {
+                return s + "0";
             }
             s
         }
         let components: Vec<&str> = value.split("-").collect();
         assert_eq!(components.len(), 4);
         assert_eq!(components[0], "MZK");
-        let mut entry_point_vec_repr: Vec<u8> = hex::decode(even_str(components[3].to_string())).unwrap();
+        let mut entry_point_vec_repr: Vec<u8> =
+            hex::decode(even_str(components[3].to_string())).unwrap();
         assert!(entry_point_vec_repr.len() <= 4);
         entry_point_vec_repr.resize(4, 0);
 

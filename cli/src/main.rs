@@ -174,7 +174,10 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
 /// Panics if conversion from rkyv-serialized system tape to
 /// [`RuntimeArguments`](mozak_runner::elf::RuntimeArguments)
 /// fails.
-pub fn tapes_to_runtime_arguments(tape_bin: Input, self_prog_id: String) -> mozak_runner::elf::RuntimeArguments {
+pub fn tapes_to_runtime_arguments(
+    tape_bin: Input,
+    self_prog_id: String,
+) -> mozak_runner::elf::RuntimeArguments {
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.into();
     debug!("SELF PROG ID: {self_prog_id:#?}");
@@ -266,13 +269,21 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run(RunArgs { elf, system_tape, self_prog_id}) => {
+        Command::Run(RunArgs {
+            elf,
+            system_tape,
+            self_prog_id,
+        }) => {
             let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args);
             let _state = step(&program, state)?.last_state;
         }
-        Command::ProveAndVerify(RunArgs { elf, system_tape , self_prog_id}) => {
+        Command::ProveAndVerify(RunArgs {
+            elf,
+            system_tape,
+            self_prog_id,
+        }) => {
             let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
 
             let program = load_program_with_args(elf, &args).unwrap();

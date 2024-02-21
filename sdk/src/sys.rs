@@ -28,6 +28,7 @@ pub struct SystemTapes {
 
 #[cfg(target_os = "zkvm")]
 extern "C" {
+    static _mozak_self_prog_id: usize;
     static _mozak_public_io_tape: usize;
     static _mozak_private_io_tape: usize;
     static _mozak_call_tape: usize;
@@ -50,6 +51,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "zkvm")]
     {
         use std::ptr::slice_from_raw_parts;
+
         // These values should be derived from linker script and reserved memory
         // somewhere
         // const PROG_IDENT: u32 = 0x20000000;
@@ -73,16 +75,26 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
             }
         }
 
-        // let self_prog_id = unsafe { *{ PROG_IDENT as *const ProgramIdentifier } };
+        // TODO: FIX THIS
+        // let self_prog_id = unsafe { *{ addr_of!(_mozak_self_prog_id) as *const
+        // ProgramIdentifier } }; assert!(self_prog_id ==
+        // ProgramIdentifier::default());
+
+        // HARDCODED PLACEHOLDER (for token program)
+        let self_prog_id = ProgramIdentifier {
+            program_rom_hash: [11, 113, 20, 251].into(),
+            memory_init_hash: [2, 31, 3, 62].into(),
+            entry_point: 0,
+        };
+
         let calltape_zcd =
             get_zcd_repr::<Vec<CPCMessage>>(unsafe { addr_of!(_mozak_call_tape) as *const u8 });
-
         // HARDCODED HERE: for token example, fix later
         assert!(calltape_zcd.len() == 2);
 
         SystemTapes {
             call_tape: CallTape {
-                self_prog_id: ProgramIdentifier::default(),
+                self_prog_id,
                 reader: Some(calltape_zcd),
                 index: 0,
             },
@@ -122,7 +134,7 @@ pub struct CallTape {
     #[cfg(not(target_os = "zkvm"))]
     pub writer: Vec<CPCMessage>,
     #[cfg(target_os = "zkvm")]
-    index: u32,
+    index: usize,
 }
 
 impl CallTape {
@@ -142,24 +154,24 @@ impl CallTape {
     #[cfg(target_os = "zkvm")]
     pub(crate) fn set_self_prog_id(&mut self, id: ProgramIdentifier) { self.self_prog_id = id; }
 
-    pub fn from_mailbox<'a>(&'a mut self) -> Option<(&'a CPCMessage, usize)> {
+    pub fn from_mailbox(&mut self) -> Option<(CPCMessage, usize)> {
         #[cfg(target_os = "zkvm")]
         {
-            // if self.index as usize >= self.reader.unwrap().len() {
-            //     return None;
-            // }
+            while self.index < self.reader.unwrap().len() {
+                let zcd_cpcmsg = &self.reader.unwrap()[self.index];
+                let callee: ProgramIdentifier = zcd_cpcmsg
+                    .callee_prog
+                    .deserialize(&mut rkyv::Infallible)
+                    .unwrap();
 
-            // self.index += 1;
-
-            // let a = &self.reader.unwrap()[(self.index - 1) as usize];
-            // let k: ProgramIdentifier = a.callee_prog.deserialize(&mut
-            // rkyv::Infallible).unwrap(); if k != self.self_prog_id {
-            //     panic!("hello")
-            // };
-            // return Some((
-            //     &self.reader.unwrap()[(self.index - 1) as usize],
-            //     (self.index - 1) as usize,
-            // ));
+                // if we are the callee, return this message
+                if self.self_prog_id == callee {
+                    let full_deserialized: CPCMessage = zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
+                    self.index += 1;
+                    return Some((full_deserialized, self.index - 1));
+                }
+                self.index += 1;
+            }
             None
         }
 
@@ -312,7 +324,7 @@ pub fn event_emit(id: ProgramIdentifier, event: Event) {
 /// Receive one message from mailbox targetted to us and its index
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
-pub fn call_receive<'a>() -> Option<(&'a CPCMessage, usize)> {
+pub fn call_receive() -> Option<(CPCMessage, usize)> {
     // unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
     unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
 }

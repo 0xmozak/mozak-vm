@@ -14,6 +14,7 @@ use elf::symbol::SymbolTable;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{chain, iproduct, izip, Itertools};
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
@@ -33,6 +34,7 @@ impl MozakMemoryRegion {
     }
 
     fn fill(&mut self, data: &[u8]) {
+        debug!("{:?} {:?}", data.len(), self);
         assert!(
             data.len() <= self.capacity.try_into().unwrap(),
             "fill data must fit into capacity"
@@ -49,12 +51,16 @@ impl MozakMemoryRegion {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemory {
+    // self_prog_id
+    pub self_prog_id: MozakMemoryRegion,
     // io private
     pub io_tape_private: MozakMemoryRegion,
     // io public
     pub io_tape_public: MozakMemoryRegion,
     // call_tape
     pub call_tape: MozakMemoryRegion,
+    // event_tape
+    pub event_tape: MozakMemoryRegion,
 }
 
 #[cfg(test)]
@@ -69,9 +75,14 @@ impl Default for MozakMemory {
         // it will be possible to implement test that load mozak-empty-ELF and check
         // that all expected addresses and capacities are indeed aligned with the code.
         MozakMemory {
-            io_tape_public: MozakMemoryRegion {
+            self_prog_id: MozakMemoryRegion {
                 starting_address: 0x2000_0000_u32,
-                capacity: 0x1000_0000_u32,
+                capacity: 12_u32,
+                ..Default::default()
+            },
+            io_tape_public: MozakMemoryRegion {
+                starting_address: 0x2100_0000_u32,
+                capacity: 0x0F00_0000_u32,
                 ..Default::default()
             },
             io_tape_private: MozakMemoryRegion {
@@ -84,10 +95,17 @@ impl Default for MozakMemory {
                 capacity: 0x0800_0000_u32,
                 ..Default::default()
             },
+            event_tape: MozakMemoryRegion {
+                starting_address: 0x4800_0000_u32,
+                capacity: 0x0800_0000_u32,
+                ..Default::default()
+            },
         }
     }
 }
 
+
+/// Deprecated
 impl From<(&[u8], &[u8])> for MozakMemory {
     fn from((private, public): (&[u8], &[u8])) -> Self {
         let mut mozak_memory = MozakMemory::create();
@@ -100,9 +118,11 @@ impl From<(&[u8], &[u8])> for MozakMemory {
 impl MozakMemory {
     fn create() -> MozakMemory {
         MozakMemory {
+            self_prog_id: MozakMemoryRegion::default(),
             io_tape_private: MozakMemoryRegion::default(),
             io_tape_public: MozakMemoryRegion::default(),
             call_tape: MozakMemoryRegion::default(),
+            event_tape: MozakMemoryRegion::default(),
         }
     }
 
@@ -118,9 +138,11 @@ impl MozakMemory {
     #[must_use]
     pub fn is_address_belongs_to_mozak_ro_memory(&self, address: u32) -> bool {
         let mem_addresses = [
+            self.self_prog_id.memory_range(),
             self.io_tape_public.memory_range(),
             self.io_tape_private.memory_range(),
             self.call_tape.memory_range(),
+            self.event_tape.memory_range(),
         ];
         log::trace!(
             "mozak-memory-addresses: {:?}, address: {:?}",
@@ -148,6 +170,9 @@ impl MozakMemory {
                 )
             })
         };
+
+        self.self_prog_id.starting_address = get("_mozak_self_prog_id");
+
         self.io_tape_public.starting_address = get("_mozak_public_io_tape");
         // log::debug!(
         //     "_mozak_public_io_tape: 0x{:0x}",
@@ -161,9 +186,11 @@ impl MozakMemory {
         // );
 
         self.call_tape.starting_address = get("_mozak_call_tape");
+        self.event_tape.starting_address = get("_mozak_event_tape");
         // log::debug!("_mozak_call_tape: 0x{:0x}", self.call_tape.starting_address);
 
         // compute capacity, assume single memory region (refer to linker-script)
+        self.self_prog_id.capacity = 12_u32;
         self.io_tape_public.capacity =
             self.io_tape_private.starting_address - self.io_tape_public.starting_address;
         // refer to linker-script to understand this magic number ...
@@ -174,7 +201,8 @@ impl MozakMemory {
         // `end-of-mozak-region`...
         self.io_tape_private.capacity =
             self.call_tape.starting_address - self.io_tape_private.starting_address;
-        self.call_tape.capacity = 0x5000_0000_u32 - self.call_tape.starting_address;
+        self.call_tape.capacity = self.event_tape.starting_address - self.call_tape.starting_address;
+        self.event_tape.capacity = 0x50000000 - self.event_tape.starting_address;
     }
 }
 
@@ -531,6 +559,9 @@ impl Program {
             .as_mut()
             .expect("MozakMemory should exist for mozak-elf case");
         // Context Variables address
+        mozak_ro_memory
+            .self_prog_id
+            .fill(&args.self_prog_id.as_slice());
         // IO public
         mozak_ro_memory
             .io_tape_public
@@ -540,6 +571,7 @@ impl Program {
             .io_tape_private
             .fill(args.io_tape_private.as_slice());
         mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
+        mozak_ro_memory.event_tape.fill(args.event_tape.as_slice());
 
         Ok(program)
     }
