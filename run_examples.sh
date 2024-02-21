@@ -17,27 +17,27 @@ for profile in "${PROFILES[@]}"; do
             private_iotape=""
             public_iotape=""
             case ${bin} in
-            # TODO(bing): fix to work with this script
-            "panic")
-                echo "(mozak-cli) skipping (${profile}): ${bin}"
-                skipped="${skipped}${bin} (${profile})\n"
-                continue
-                ;;
-            # For this, we skip without writing to skipped because we
-            # run the native version along with the mozakvm version.
-            "merkleproof-trustedroot-native")
-                echo "(mozak-cli) skipping (${profile}): ${bin}"
-                continue
-                ;;
-            "fibonacci-input")
-                private_iotape="--io-tape-private examples/${member}/iotape_private"
-                public_iotape="--io-tape-public examples/${member}/iotape_public"
-                ;;
-            "merkleproof-trustedroot")
-                echo "(mozak-cli) skipping (${profile}): ${bin}"
-                skipped="${skipped}${bin} (${profile})\n"
-                continue
-                ;;
+                # TODO(bing): fix to work with this script
+                "panic")
+                    echo "(mozak-cli) skipping (${profile}): ${bin}"
+                    skipped="${skipped}${bin} (${profile})\n"
+                    continue
+                    ;;
+                # For this, we skip without writing to skipped because we
+                # run the native version along with the mozakvm version.
+                "merkleproof-trustedroot-native")
+                    echo "(mozak-cli) skipping (${profile}): ${bin}"
+                    continue
+                    ;;
+                "fibonacci-input")
+                    private_iotape="--io-tape-private examples/${member}/iotape_private"
+                    public_iotape="--io-tape-public examples/${member}/iotape_public"
+                    ;;
+                "merkleproof-trustedroot")
+                    echo "(mozak-cli) skipping (${profile}): ${bin}"
+                    skipped="${skipped}${bin} (${profile})\n"
+                    continue
+                    ;;
 
             esac
 
