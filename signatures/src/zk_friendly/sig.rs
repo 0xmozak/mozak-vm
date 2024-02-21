@@ -97,7 +97,7 @@ where
         builder.register_public_inputs(&public_key_target);
         builder.register_public_inputs(&msg_target);
 
-        dbg!(builder.print_gate_counts(0));
+        builder.print_gate_counts(0);
         let circuit = builder.build::<C>();
         let proof = circuit.prove(witness).unwrap();
         (circuit, proof.into())
