@@ -4,7 +4,7 @@ Lets setup the scenario.
 
 Alice owns a USDC token in her USDC wallet. She has to transfer the token to Bob, who has his own USDC wallet.
 
-A USDC token is represented as `StateObject` with constraint owner being USDC token program represented through `ProgramIdentifier`. 
+A USDC token is represented as `StateObject` with constraint owner being USDC token program represented through `ProgramIdentifier`.
 
 ```rust
 struct StateObject{
@@ -42,7 +42,6 @@ let usdc_token_object = StateObject{
 
 The USDC token transfer also needs to interact with wallets of Alice and Bob. Namely it needs approval from their respective wallet programs to do the token transfer.
 
-
 ```rust
 S    let alice_wallet = ProgramIdentifier {
         program_rom_hash: [21, 90, 121, 87].into(),
@@ -60,5 +59,7 @@ S    let alice_wallet = ProgramIdentifier {
 on high level, the programs be responsible for the following:
 
 - `usdc_token_program` :
-- - read `usdc_token_object` from global state
-  - ensure its data matches
+- - "call" `alice_wallet` program to approve the transfer of `usdc_token_object` to `bob_wallet`
+  - once it "receives" an approval from the program, it "broadcasts" that it has updated `usdc_token_object` with its new owner.
+- `alice_wallet`
+- - "receive" request of approval from `alice_wallet` to do the transfer of `usdc
