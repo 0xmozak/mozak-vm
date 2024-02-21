@@ -151,6 +151,9 @@ pub fn tapes_to_runtime_arguments(tape_bin: Input) -> mozak_runner::elf::Runtime
 
     debug!("CALLTAPE_BYTES: {:?}", call_tape_bytes);
 
+    let mut call_tape = (call_tape_bytes.len() as u32).to_le_bytes().to_vec();
+    call_tape.extend(call_tape_bytes.iter());
+
     debug!(
         "Read {} of public tape data.
 Read {} of private tape data.
@@ -165,7 +168,7 @@ Read {} of event tape data.",
     mozak_runner::elf::RuntimeArguments {
         io_tape_public: public_tape_bytes.to_vec(),
         io_tape_private: private_tape_bytes.to_vec(),
-        call_tape: call_tape_bytes.to_vec(),
+        call_tape,
     }
 }
 

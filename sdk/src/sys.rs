@@ -20,9 +20,9 @@ pub trait RkyvSerializable =
 pub trait CallArgument = Sized + RkyvSerializable;
 pub trait CallReturn = Sized + Clone + Default + RkyvSerializable;
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
+#[derive(Default, Clone)]
+#[cfg_attr(not(target_os = "zkvm"), derive(Archive, Serialize, Deserialize))]
+#[cfg_attr(not(target_os = "zkvm"), archive_attr(derive(Debug)))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct SystemTapes {
     pub private_tape: RawTape,
@@ -62,50 +62,62 @@ impl SystemTapes {
     // }
 }
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
-pub struct ProgramIdentifier2 {
-    /// ProgramRomHash defines the hash of the text section of the
-    /// static ELF program concerned
-    pub program_rom_hash: Poseidon2HashType,
-
-    /// MemoryInitHash defines the hash of the static memory initialization
-    /// regions of the static ELF program concerned
-    pub memory_init_hash: Poseidon2HashType,
-
-    /// Entry point of the program
-    pub entry_point: u32,
-}
-
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "zkvm")]
     {
         // These values should be derived from linker script and reserved memory
         // somewhere
-        let call_tape_start: u32 = 0x40000000;
+        const PROG_IDENT: u32 = 0x20000000;
+        const PUBL_START: u32 = 0x21000000;
+        const PUBL_MAXLN: u32 = 0x0F000000;
+        const PRIV_START: u32 = 0x30000000;
+        const PRIV_MAXLN: u32 = 0x10000000;
+        const CALL_START: u32 = 0x40000000;
+        const CALL_MAXLN: u32 = 0x08000000;
+        const EVNT_START: u32 = 0x48000000;
+        const EVNT_MAXLN: u32 = 0x08000000;
+
+        /// Zero-copy deserialization on a memory region starting at `addr`
+        /// Expected layout to be `[<data_region len (N) in 4
+        /// bytes>|<data_region N bytes>]`
+        fn get_zcd_repr<T: rkyv::Archive>(addr: u32) -> &'static <T as Archive>::Archived {
+            let mem_len = unsafe { *{ addr as *const u32 } } as usize;
+            unsafe {
+                let mem_slice = &*slice_from_raw_parts::<u8>((addr + 4) as *const u8, mem_len);
+                rkyv::archived_root::<T>(mem_slice)
+            }
+        }
+
+        // let self_prog_id = unsafe { *{ PROG_IDENT as *const ProgramIdentifier } };
+        let calltape_zcd = get_zcd_repr::<Vec<CPCMessage>>(CALL_START);
+
+        // HARDCODED HERE: for token example, fix later
+        // assert!(calltape_zcd.len() == 2);
 
         // This runner should inject somewhere deterministic in memory and has to be
         // exact HARDCODED HERE: for token example, fix later
-        let call_tape_len_dynamic = 244;
-        type PreSerializationType = Vec<CPCMessage>;
 
-        let archived = unsafe {
-            let reserved_mem_slice =
-                &*slice_from_raw_parts::<u8>(call_tape_start as *const u8, call_tape_len_dynamic);
-            rkyv::archived_root::<PreSerializationType>(reserved_mem_slice)
-        };
+        // CallTape: 0x40000000 ... [0 0 0 0 | .....] 0x40000004..
+        // type PreSerializationType = Vec<CPCMessage>;
 
-        let calls: PreSerializationType = archived.deserialize(&mut rkyv::Infallible).unwrap();
+        // let archived = unsafe {
+        //     let reserved_mem_slice =
+        //         &*slice_from_raw_parts::<u8>(CALL_START as *const u8,
+        // call_tape_len_dynamic);
+        //     rkyv::archived_root::<PreSerializationType>(reserved_mem_slice)
+        // };
+
+        // let calls: PreSerializationType = archived.deserialize(&mut
+        // rkyv::Infallible).unwrap();
 
         // HARDCODED HERE: for token example, fix later
-        assert!(calls.len() == 2);
+        // assert!(calls.len() == calls1.len());
 
         SystemTapes {
             call_tape: CallTape {
-                writer: calls,
-                ..Default::default()
+                self_prog_id: ProgramIdentifier::default(),
+                reader: Some(calltape_zcd),
+                index: 0,
             },
             ..SystemTapes::default()
         }
@@ -131,13 +143,16 @@ impl RawTape {
     pub fn new() -> Self { Self { start: 0, len: 0 } }
 }
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
+#[derive(Default, Clone)]
+#[cfg_attr(not(target_os = "zkvm"), derive(Archive, Deserialize, Serialize))]
+#[cfg_attr(not(target_os = "zkvm"), archive_attr(derive(Debug)))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct CallTape {
     #[cfg(target_os = "zkvm")]
     self_prog_id: ProgramIdentifier,
+    #[cfg(target_os = "zkvm")]
+    reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
+    #[cfg(not(target_os = "zkvm"))]
     pub writer: Vec<CPCMessage>,
     #[cfg(target_os = "zkvm")]
     index: u32,
@@ -148,6 +163,9 @@ impl CallTape {
         Self {
             #[cfg(target_os = "zkvm")]
             self_prog_id: ProgramIdentifier::default(),
+            #[cfg(target_os = "zkvm")]
+            reader: None,
+            #[cfg(not(target_os = "zkvm"))]
             writer: Vec::new(),
             #[cfg(target_os = "zkvm")]
             index: 0,
@@ -160,16 +178,22 @@ impl CallTape {
     pub fn from_mailbox<'a>(&'a mut self) -> Option<(&'a CPCMessage, usize)> {
         #[cfg(target_os = "zkvm")]
         {
-            if self.index as usize >= self.writer.len() {
-                return None;
-            }
+            // if self.index as usize >= self.reader.unwrap().len() {
+            //     return None;
+            // }
 
-            self.index += 1;
+            // self.index += 1;
 
-            return Some((
-                &self.writer[(self.index - 1) as usize],
-                (self.index - 1) as usize,
-            ));
+            // let a = &self.reader.unwrap()[(self.index - 1) as usize];
+            // let k: ProgramIdentifier = a.callee_prog.deserialize(&mut rkyv::Infallible).unwrap();
+            // if k != self.self_prog_id {
+            //     panic!("hello")
+            // };
+            // return Some((
+            //     &self.reader.unwrap()[(self.index - 1) as usize],
+            //     (self.index - 1) as usize,
+            // ));
+            None
         }
 
         #[cfg(not(target_os = "zkvm"))]
