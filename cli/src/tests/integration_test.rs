@@ -17,7 +17,7 @@ fn test_prove_and_verify_recursive_proof_command() {
     let recursive_proof_file = temp_path.join("recursive_proof.bin");
     let recursive_proof_vk = temp_path.join("recursive_proof.vk");
 
-    let elf_file: &str = "../examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci";
+    let elf_file: &str = "../examples/target/riscv32im-mozak-mozakvm-elf/release/fibonacci";
 
     // Create mock IO tape files
     fs::write(&io_tape_private, b"").expect("Failed to create IO tape private file");
