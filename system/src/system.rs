@@ -1,4 +1,4 @@
-#[cfg(target_os = "zkvm")]
+#[cfg(target_os = "mozakvm")]
 use core::arch::asm;
 
 pub mod ecall {
@@ -7,8 +7,22 @@ pub mod ecall {
     pub const IO_READ_PRIVATE: u32 = 2;
     pub const POSEIDON2: u32 = 3;
     pub const IO_READ_PUBLIC: u32 = 4;
+    pub const IO_READ_TRANSCRIPT: u32 = 5;
     /// Syscall to output the VM trace log at `clk`. Useful for debugging.
-    pub const VM_TRACE_LOG: u32 = 5;
+    pub const VM_TRACE_LOG: u32 = 6;
+
+    pub fn log<'a>(raw_ecall: u32) -> &'a str {
+        match raw_ecall {
+            HALT => "halt",
+            PANIC => "panic",
+            IO_READ_PUBLIC => "ioread public tape",
+            POSEIDON2 => "poseidon2",
+            IO_READ_PRIVATE => "ioread private tape",
+            IO_READ_TRANSCRIPT => "ioread transcript",
+            VM_TRACE_LOG => "vm trace log",
+            _ => "",
+        }
+    }
 }
 
 pub mod reg_abi {
@@ -49,7 +63,7 @@ pub mod reg_abi {
 }
 
 pub fn syscall_poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -59,7 +73,7 @@ pub fn syscall_poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mu
             in ("a3") output_ptr,
         );
     }
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     {
         let _ = input_ptr;
         let _ = input_len;
@@ -69,7 +83,7 @@ pub fn syscall_poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mu
 }
 
 pub fn syscall_ioread_private(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -78,7 +92,24 @@ pub fn syscall_ioread_private(buf_ptr: *mut u8, buf_len: usize) {
             in ("a2") buf_len,
         );
     }
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(all(target_os = "mozakvm", feature = "mozak-ro-memory"))]
+    // TODO(Roman): later on please add assert(capacity >= buf_len)
+    // NOTE: it is up to the application owner how to implement this, it can be implemented using
+    // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
+    // _mozak_private_io_tape`
+    unsafe {
+        extern "C" {
+            #[link_name = "_mozak_private_io_tape"]
+            static _mozak_private_io_tape: usize;
+        }
+        let io_tape_ptr = &raw const _mozak_private_io_tape as *const u8;
+        for i in 0..isize::try_from(buf_len)
+            .expect("syscall_ioread_private: usize to isize cast should succeed for buf_len")
+        {
+            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
+        }
+    }
+    #[cfg(not(target_os = "mozakvm"))]
     {
         let _ = buf_ptr;
         let _ = buf_len;
@@ -87,7 +118,7 @@ pub fn syscall_ioread_private(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -96,7 +127,59 @@ pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
         in ("a2") buf_len,
         );
     }
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(all(target_os = "mozakvm", feature = "mozak-ro-memory"))]
+    // TODO(Roman): later on please add assert(capacity >= buf_len)
+    // NOTE: it is up to the application owner how to implement this, it can be implemented using
+    // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
+    // _mozak_public_io_tape`
+    unsafe {
+        extern "C" {
+            #[link_name = "_mozak_public_io_tape"]
+            static _mozak_public_io_tape: usize;
+        }
+        let io_tape_ptr = &raw const _mozak_public_io_tape as *const u8;
+        for i in 0..isize::try_from(buf_len)
+            .expect("syscall_ioread_public: usize to isize cast should succeed for buf_len")
+        {
+            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
+        }
+    }
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        let _ = buf_ptr;
+        let _ = buf_len;
+        unimplemented!()
+    }
+}
+
+pub fn syscall_transcript_read(buf_ptr: *mut u8, buf_len: usize) {
+    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") ecall::IO_READ_TRANSCRIPT,
+        in ("a1") buf_ptr,
+        in ("a2") buf_len,
+        );
+    }
+    #[cfg(all(target_os = "mozakvm", feature = "mozak-ro-memory"))]
+    // TODO(Roman): later on please add assert(capacity >= buf_len)
+    // NOTE: it is up to the application owner how to implement this, it can be implemented using
+    // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
+    // _mozak_transcript`
+    unsafe {
+        extern "C" {
+            #[link_name = "_mozak_transcript"]
+            static _mozak_transcript: usize;
+        }
+        let io_tape_ptr = &raw const _mozak_transcript as *const u8;
+        for i in 0..isize::try_from(buf_len)
+            .expect("syscall_transcript_read: usize to isize cast should succeed for buf_len")
+        {
+            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
+        }
+    }
+    #[cfg(not(target_os = "mozakvm"))]
     {
         let _ = buf_ptr;
         let _ = buf_len;
@@ -105,7 +188,7 @@ pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 pub fn syscall_panic(msg_ptr: *const u8, msg_len: usize) {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -114,7 +197,7 @@ pub fn syscall_panic(msg_ptr: *const u8, msg_len: usize) {
             in ("a2") msg_ptr,
         );
     }
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     {
         let _ = msg_ptr;
         let _ = msg_len;
@@ -123,7 +206,7 @@ pub fn syscall_panic(msg_ptr: *const u8, msg_len: usize) {
 }
 
 pub fn syscall_trace(msg_ptr: *const u8, msg_len: usize) {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -132,7 +215,7 @@ pub fn syscall_trace(msg_ptr: *const u8, msg_len: usize) {
             in ("a2") msg_ptr,
         );
     }
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     {
         let _ = msg_ptr;
         let _ = msg_len;
@@ -141,7 +224,7 @@ pub fn syscall_trace(msg_ptr: *const u8, msg_len: usize) {
 }
 
 pub fn syscall_halt(output: u8) {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     // HALT syscall
     //
     // As per RISC-V Calling Convention a0/a1 (which are actually X10/X11) can be
@@ -156,7 +239,7 @@ pub fn syscall_halt(output: u8) {
         );
         unreachable!();
     }
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     {
         let _ = output;
         unimplemented!()

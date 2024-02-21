@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
     types:
       - opened
@@ -28,16 +28,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
         with:
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compile
-        run: cargo nextest run --no-run --locked --all-targets
+      - name: Compile and archive all the tests
+        run: nice cargo nextest archive --locked --features="enable_poseidon_starks" --all-targets --archive-file mozak-vm-tests.tar.zst
 
-      - name: Test
-        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
+      - name: Run all the tests from the archive
+        run: MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
+
+  run-examples:
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
+        with:
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and run examples
+        run: |
+          cd examples && nice cargo build --release
+          cd .. && nice ./run_examples.sh
 
   cargo-clippy:
     needs: check-runner
@@ -45,10 +63,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
         with:
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
@@ -63,15 +82,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
         with:
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build all examples
         run: |
-          cd examples-builder
-          cargo build --all-features
+          cd examples-builder && cargo build --all-features
 
   cargo-fmt:
     needs: check-runner
@@ -79,14 +98,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
         with:
-          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
-
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run fmt
         run: cargo fmt --all --check
+
+  shellcheck:
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run shellcheck and shfmt
+        uses: luizm/action-sh-checker@v0.8.0
+        env:
+          SHFMT_OPTS: --indent 4 --case-indent
 
   taplo-fmt:
     needs: check-runner
@@ -94,10 +124,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install taplo-cli
-        run: |
-          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
-            gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
+        with:
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: taplo fmt
         run: taplo fmt --check

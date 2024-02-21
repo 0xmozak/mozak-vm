@@ -64,5 +64,16 @@
                 "bench_function": "xor-stark3" 
             }
         }
+    },
+    "poseidon2": {
+        "description": "Benching Poseidon2 ECALL",
+        "parameter": "input_len",
+        "output": "time taken (in s)",
+        "benches": {
+            "poseidon2": {
+                "commit": "latest",
+                "bench_function": "poseidon2-bench"
+            }
+        }
     }
 }

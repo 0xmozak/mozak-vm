@@ -6,7 +6,7 @@ use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::plonk_common::reduce_with_powers;
+use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
@@ -14,6 +14,7 @@ use starky::stark::Stark;
 use super::columns::{FIELDS_COUNT, NUM_POSEIDON2_OUTPUT_BYTES_COLS};
 use crate::columns_view::HasNamedColumns;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -44,6 +45,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &Poseidon2OutputBytes<_> = vars.get_local_values().into();
+        is_binary(yield_constr, lv.is_executed);
         for i in 0..FIELDS_COUNT {
             let start_index = i * 8;
             let end_index = i * 8 + 8;
@@ -58,11 +60,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &Poseidon2OutputBytes<ExtensionTarget<D>> = vars.get_local_values().into();
+        is_binary_ext_circuit(builder, lv.is_executed, yield_constr);
+        let two_to_eight = builder.constant(F::from_canonical_u16(256));
+        for i in 0..FIELDS_COUNT {
+            let start_index = i * 8;
+            let end_index = i * 8 + 8;
+            let x = reduce_with_powers_ext_circuit(
+                builder,
+                &lv.output_bytes[start_index..end_index],
+                two_to_eight,
+            );
+            let x_sub_of = builder.sub_extension(x, lv.output_fields[i]);
+            yield_constr.constraint(builder, x_sub_of);
+        }
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -81,7 +96,7 @@ mod tests {
     use proptest::{prop_assert_eq, proptest};
     use starky::config::StarkConfig;
     use starky::prover::prove;
-    use starky::stark_testing::test_stark_low_degree;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
     use starky::verifier::verify_stark_proof;
 
     use super::Poseidon2OutputBytesStark;
@@ -163,5 +178,12 @@ mod tests {
     fn poseidon2_stark_degree() -> Result<()> {
         let stark = S::default();
         test_stark_low_degree(stark)
+    }
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
     }
 }

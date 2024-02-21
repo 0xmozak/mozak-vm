@@ -61,13 +61,14 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, PrimeField64};
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
+    use crate::generation::generate_poseidon2_output_bytes_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
         generate_io_memory_private_trace, generate_io_memory_public_trace,
@@ -76,11 +77,12 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::rangecheck::generate_rangecheck_trace;
+    use crate::generation::register::generate_register_trace;
 
     #[test]
     fn test_generate_trace() {
         type F = GoldilocksField;
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::SB,
                 args: Args {
@@ -95,12 +97,14 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
+        let register_rows = generate_register_trace::<F>(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let memory_rows = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
@@ -109,8 +113,10 @@ mod tests {
             &io_memory_private,
             &io_memory_public,
             &poseidon2_trace,
+            &poseidon2_output_bytes,
         );
-        let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
+        let rangecheck_rows =
+            generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
 
         let trace = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
 
@@ -121,7 +127,10 @@ mod tests {
         }
 
         assert_eq!(trace[0].value, F::from_canonical_u8(0));
-        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(20));
+        assert_eq!(
+            trace[0].multiplicity,
+            F::from_canonical_u64(20 + 6 * u64::from(cfg!(feature = "enable_register_starks")))
+        );
         assert_eq!(trace[255].value, F::from_canonical_u8(u8::MAX));
         assert_eq!(trace[255].multiplicity, F::from_canonical_u64(9));
     }

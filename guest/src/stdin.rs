@@ -1,61 +1,80 @@
 use std::io;
 use std::io::Read;
 
-/// TODO(Roman): maybe avoid code dup later
-pub struct MozakIoPrivate<'a> {
+pub struct MozakIo<'a> {
     pub stdin: Box<dyn Read + 'a>,
-    #[cfg(not(target_os = "zkvm"))]
-    pub io_tape_file: String,
+    #[cfg(not(target_os = "mozakvm"))]
+    pub file: String,
 }
 
-impl<'a> Read for MozakIoPrivate<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        #[cfg(target_os = "zkvm")]
-        {
-            mozak_system::system::syscall_ioread_private(buf.as_mut_ptr(), buf.len());
-            Ok(buf.len())
+pub struct MozakIoPrivate<'a>(pub MozakIo<'a>);
+pub struct MozakIoPublic<'a>(pub MozakIo<'a>);
+pub struct MozakTranscript<'a>(pub MozakIo<'a>);
+
+#[cfg(not(target_os = "mozakvm"))]
+macro_rules! native_io_impl {
+    ($s: ident) => {
+        impl<'a> std::ops::Deref for $s<'a> {
+            type Target = MozakIo<'a>;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
         }
-        #[cfg(not(target_os = "zkvm"))]
+
+        impl<'a> std::ops::DerefMut for $s<'a> {
+            fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+        }
+    };
+}
+
+#[cfg(not(target_os = "mozakvm"))]
+native_io_impl!(MozakIoPublic);
+#[cfg(not(target_os = "mozakvm"))]
+native_io_impl!(MozakIoPrivate);
+
+#[cfg(not(target_os = "mozakvm"))]
+impl<'a> Read for MozakIo<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         {
             let n_bytes = self.stdin.read(buf).expect("read should not fail");
             // open I/O log file in append mode.
             use std::io::Write;
-            let mut io_tape = std::fs::OpenOptions::new()
+            let mut out = std::fs::OpenOptions::new()
                 .append(true)
                 .create(true)
-                .open(self.io_tape_file.as_str())
-                .expect("cannot open tape");
-            io_tape.write(buf).expect("write failed");
+                .open(self.file.as_str())
+                .expect("cannot open file");
+            out.write(buf).expect("write failed");
             Ok(n_bytes)
         }
     }
 }
 
-pub struct MozakIoPublic<'a> {
-    pub stdin: Box<dyn Read + 'a>,
-    #[cfg(not(target_os = "zkvm"))]
-    pub io_tape_file: String,
+#[cfg(target_os = "mozakvm")]
+impl<'a> Read for MozakIoPrivate<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        {
+            mozak_system::system::syscall_ioread_private(buf.as_mut_ptr(), buf.len());
+            Ok(buf.len())
+        }
+    }
 }
 
+#[cfg(target_os = "mozakvm")]
 impl<'a> Read for MozakIoPublic<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        #[cfg(target_os = "zkvm")]
         {
             mozak_system::system::syscall_ioread_public(buf.as_mut_ptr(), buf.len());
             Ok(buf.len())
         }
-        #[cfg(not(target_os = "zkvm"))]
+    }
+}
+
+#[cfg(target_os = "mozakvm")]
+impl<'a> Read for MozakTranscript<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         {
-            let n_bytes = self.stdin.read(buf).expect("read should not fail");
-            // open I/O log file in append mode.
-            use std::io::Write;
-            let mut io_tape = std::fs::OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(self.io_tape_file.as_str())
-                .expect("cannot open tape");
-            io_tape.write(buf).expect("write failed");
-            Ok(n_bytes)
+            mozak_system::system::syscall_transcript_read(buf.as_mut_ptr(), buf.len());
+            Ok(buf.len())
         }
     }
 }

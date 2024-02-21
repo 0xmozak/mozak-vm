@@ -1,5 +1,5 @@
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
-use mozak_runner::elf::Program;
+use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -19,8 +19,26 @@ fn fibonacci(n: u32) -> u32 {
 pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
     let program = Program::load_elf(mozak_examples::FIBONACCI_INPUT_ELF).unwrap();
     let out = fibonacci(n);
-    let state =
-        State::<GoldilocksField>::new(program.clone(), &n.to_le_bytes(), &out.to_le_bytes());
+    let state = State::<GoldilocksField>::new(program.clone(), RuntimeArguments {
+        context_variables: vec![],
+        io_tape_private: n.to_le_bytes().to_vec(),
+        io_tape_public: out.to_le_bytes().to_vec(),
+        transcript: vec![],
+    });
+    let record = step(&program, state).unwrap();
+    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+}
+
+pub fn fibonacci_input_mozak_elf(n: u32) -> Result<(), anyhow::Error> {
+    let out = fibonacci(n);
+    let args = RuntimeArguments::new(
+        vec![],
+        n.to_le_bytes().to_vec(),
+        out.to_le_bytes().to_vec(),
+        vec![],
+    );
+    let program = Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF, &args).unwrap();
+    let state = State::<GoldilocksField>::new_mozak_api(program.clone(), args);
     let record = step(&program, state).unwrap();
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
@@ -36,10 +54,25 @@ mod tests {
     }
 
     #[test]
+    fn test_fibonacci_with_input_mozak_elf() {
+        let n = 10;
+        super::fibonacci_input_mozak_elf(n).unwrap();
+    }
+
+    #[test]
     fn test_fibonacci_with_input_run() {
         let n = 10;
         let bench = BenchArgs {
             function: BenchFunction::FiboInputBench { n },
+        };
+        bench.run().unwrap();
+    }
+
+    #[test]
+    fn test_fibonacci_with_input_mozak_elf_run() {
+        let n = 10;
+        let bench = BenchArgs {
+            function: BenchFunction::FiboInputBenchMozakElf { n },
         };
         bench.run().unwrap();
     }

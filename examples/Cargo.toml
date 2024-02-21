@@ -11,7 +11,9 @@ members = [
   "rkyv-serialization",
   "stdin",
   "fibonacci-input",
+  "fibonacci-input-new-api",
   "merkleproof-trustedroot",
+  "empty",
 ]
 resolver = "2"
 

@@ -5,8 +5,8 @@
 # `native` targets are supposed to be built for dev machines'
 # specifications e.g. `x86_64-unknown-linux-gnu` or `aarch64-apple-darwin`.
 # `mozak` targets are supposed to be built with
-# `buildtarget/riscv32im-mozak-zkvm-elf.json` or originally:
-# https://github.com/0xmozak/mozak-vm/blob/main/examples/.cargo/riscv32im-mozak-zkvm-elf.json
+# `buildtarget/riscv32im-mozak-mozakvm-elf.json` or originally:
+# https://github.com/0xmozak/mozak-vm/blob/main/examples/.cargo/riscv32im-mozak-mozakvm-elf.json
 #
 # The `members` described below list only crates with `native` target
 # The `exclude` described below list only crates with `mozak` target
@@ -16,7 +16,7 @@
 
 [workspace]
 exclude = ["sdk"]
-members = ["cli", "examples-builder", "runner", "circuits", "node-cli", "node", "rpc", "state", "circuits3"]
+members = ["cli", "examples-builder", "runner", "circuits", "node-cli", "node", "rpc", "state", "circuits3", "signatures", "wasm-demo"]
 resolver = "2"
 
 [profile.dev]

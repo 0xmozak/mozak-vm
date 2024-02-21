@@ -2,12 +2,11 @@ use core::ops::Add;
 
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
-use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::GenericHashOut;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
@@ -15,6 +14,7 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::MemoryInit;
+use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
@@ -50,6 +50,9 @@ pub struct Memory<T> {
 
     /// Difference between current and previous clock.
     pub diff_clk: T,
+
+    /// Difference between current and previous addresses inversion
+    pub diff_addr_inv: T,
 }
 columns_view_impl!(Memory);
 make_col_map!(Memory);
@@ -114,7 +117,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
         } else {
             let rate = Poseidon2Permutation::<F>::RATE;
             // each Field element in preimage represents a byte.
-            let mut inputs: Vec<Memory<F>> = (0..rate)
+            (0..rate)
                 .map(|i| Memory {
                     clk: value.clk,
                     addr: value.input_addr
@@ -123,26 +126,28 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
                     value: value.preimage[i],
                     ..Default::default()
                 })
-                .collect();
-            if value.gen_output.is_one() {
-                let hash_out: [F; NUM_HASH_OUT_ELTS] = value.output[..NUM_HASH_OUT_ELTS]
-                    .try_into()
-                    .expect("shouldn't fail");
-                let output_bytes: Vec<u8> = HashOut::<F>::from(hash_out).to_bytes();
-                let outputs: Vec<Memory<F>> = (0..output_bytes.len())
-                    .map(|i| Memory {
-                        clk: value.clk,
-                        addr: value.output_addr
-                            + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
-                        is_store: F::ONE,
-                        value: F::from_canonical_u8(output_bytes[i]),
-                        ..Default::default()
-                    })
-                    .collect();
-                inputs.extend(outputs);
-            }
-            inputs
-            // TODO: Handle OUTPUT Bytes
+                .collect()
+        }
+    }
+}
+
+impl<F: RichField> From<&Poseidon2OutputBytes<F>> for Vec<Memory<F>> {
+    fn from(value: &Poseidon2OutputBytes<F>) -> Self {
+        if value.is_executed.is_zero() {
+            vec![]
+        } else {
+            (0..BYTES_COUNT)
+                .map(|i| Memory {
+                    clk: value.clk,
+                    addr: value.output_addr
+                        + F::from_canonical_u8(u8::try_from(i).expect(
+                            "BYTES_COUNT of poseidon output should be representable by a u8",
+                        )),
+                    is_store: F::ONE,
+                    value: value.output_bytes[i],
+                    ..Default::default()
+                })
+                .collect()
         }
     }
 }
