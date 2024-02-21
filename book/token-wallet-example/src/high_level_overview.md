@@ -1,10 +1,10 @@
 # High level overview
 
-Let's setup the scenario.
+Consider the following scenario.
 
 Alice owns a USDC token in her USDC wallet. She has to transfer the token to Bob, who has his own USDC wallet.
 
-A USDC token is represented as `StateObject` with constraint owner being USDC token program represented through `ProgramIdentifier`. The USDC token, along with amount, also stores the details of its owner (in this case, Alice) and her wallet program. The USDC program would require approval from the Alice's wallet program in order to transfer the economic ownership to Bob and his wallet program.
+A USDC token is represented as `StateObject` with the constraint owner being the USDC token program represented through `ProgramIdentifier`. The USDC token, along with the amount, also stores the details of its owner (in this case, Alice) and her wallet program. The USDC program would require approval from Alice's wallet program in order to transfer the economic ownership to Bob and his wallet program.
 
 ```rust
 let alice_wallet: ProgramIdentifier;
@@ -25,7 +25,7 @@ let usdc_token_object = StateObject{
 }
 ```
 
-on high level, the programs be responsible for the following:
+At a high level, the programs are responsible for the following:
 
 - `usdc_token_program` :
 - - request `alice_wallet` to "make a call"  to function that approves the transfer of `usdc_token_object` to `bob_wallet`.
@@ -37,12 +37,12 @@ on high level, the programs be responsible for the following:
   - sends "output of call", that is the approval of transfer back to `usdc_token_program`
 
 But what exactly would happen when we say "make a call", get or send "output of call" and "propose a change" occur?
-The reality is that these won't occur in usual sense. That is, "make a call" or send "output of call" don't correspond to a program calling another program or sending a response to other program. Nor "propose a change" refers to sending it some entity who is listening.
+In practice, these won't occur in the usual sense. "Make a call" or send "output of call" don't correspond to a program calling another program or sending a response to other program. "Propose a change" does not refer to sending it to some entity who is listening in.
 
-What actually would happen is that these programs would demonstrate that they have actually followed a script together, complied with other's requests, as well as sent and received the intended responses. Each of the program continues the execution as if it had "made the call" with correct arguments, computed the correct "output of call", and sent the intended response and "proposed" the intended state change.
-This entire script is stored in two parts. `CallTape` is the part where the "make a call" and "output of call" events are stored. While `EventTape` is the part where all the proposed changes to final state are stored.
+What would actually happen is that these programs would demonstrate that they have actually followed a script together, complied with each other's requests, and sent and received the intended responses. Each of the programs continues the execution as if it had "made the call" with correct arguments, computed the correct "output of call", and sent the intended response and "proposed" the intended state change.
+This entire script is stored in two parts. `CallTape` is the part where the "make a call" and "output of call" events are stored. `EventTape` is the part where all the proposed changes to final state are stored.
 
-Now how these tapes are created? The idea is that the play is performed, and then the script is created. Each program has two types of execution, native and zkvm. In the native execution all the "make a call", sending and receiving of "output of call" and "proposal to state change" are emulated in the intended manner, and the  `CallTape `and `EventTape `is generated. In the zkvm execution,  the actual functions mentioned in the `CallTape ` are executed by corresponding program, and their output is shown to be the same as the ones mentioned in the `CallTape`.'
+We briefly describe how these tapes are created. The idea is that the play is performed, and then the script is created. Each program has two types of execution, native and zkvm. In the native execution all the "make a call", sending and receiving of "output of call" and "proposal to state change" are emulated in the intended manner, and the  `CallTape `and `EventTape `is generated. In the zkvm execution,  the actual functions mentioned in the `CallTape ` are executed by corresponding program, and their output is shown to be the same as the ones mentioned in the `CallTape`.'
 
 In this scenario, the `CallTape` would attest to following events
 
@@ -50,9 +50,9 @@ In this scenario, the `CallTape` would attest to following events
 - `alice_wallet` program approved the transfer, and returned the boolean value `true`
 - `usdc_token_program` read the response `true`.
 
-The `EventTape` would attest to the events
+The `EventTape` would attest to the following events
 
 - `usdc_token_program` read `usdc_token_object` from the global state (before seeking approval from wallet program)
-- `usdc_token_program` proposed an update to `usdc_token_object` with updating owner's public key, and wallet to that of Bob. (after getting approval from wallet program)
+- `usdc_token_program` proposed an update to `usdc_token_object` while updating owner's public key, and wallet to that of Bob (after getting approval from the wallet program)
 
 A zkvm execution of both programs produces a proof of their execution. The proof, along with attestation to `CallTape`, confirms that the programs followed the script mentioned in `CallTape`, that is complied with each other's requests and computed the correct function with correct output.
