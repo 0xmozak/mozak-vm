@@ -31,17 +31,13 @@ pub struct SystemTapes {
     pub event_tape: EventTape,
 }
 
-// #[cfg(target_os = "zkvm")]
-// extern "C" {
-//     static _mozak_public_io_tape: usize;
-//     // static _mozak_public_io_tape_len: usize;
-//     static _mozak_private_io_tape: usize;
-//     // static _mozak_private_io_tape_len: usize;
-//     static _mozak_call_tape: u32;
-//     // static _mozak_call_tape_len: usize;
-//     static _mozak_event_tape: usize;
-//     // static _mozak_event_tape_len: usize;
-// }
+#[cfg(target_os = "zkvm")]
+extern "C" {
+    static _mozak_public_io_tape: usize;
+    static _mozak_private_io_tape: usize;
+    static _mozak_call_tape: usize;
+    static _mozak_event_tape: usize;
+}
 
 #[allow(dead_code)]
 impl SystemTapes {
@@ -82,9 +78,7 @@ pub struct ProgramIdentifier2 {
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "zkvm")]
     {
-        // These values should be derived from linker script and reserved memory
-        // somewhere
-        let call_tape_start: u32 = 0x40000000;
+        let call_tape_start: usize = unsafe { core::ptr::addr_of!(_mozak_call_tape) as usize };
 
         // This runner should inject somewhere deterministic in memory and has to be
         // exact HARDCODED HERE: for token example, fix later
