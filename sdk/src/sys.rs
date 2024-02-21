@@ -78,7 +78,8 @@ pub struct ProgramIdentifier2 {
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "zkvm")]
     {
-        let call_tape_start: usize = unsafe { core::ptr::addr_of!(_mozak_call_tape) as usize };
+        let call_tape_start: *const u8 =
+            unsafe { core::ptr::addr_of!(_mozak_call_tape) as *const u8 };
 
         // This runner should inject somewhere deterministic in memory and has to be
         // exact HARDCODED HERE: for token example, fix later
@@ -87,7 +88,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
 
         let archived = unsafe {
             let reserved_mem_slice =
-                &*slice_from_raw_parts::<u8>(call_tape_start as *const u8, call_tape_len_dynamic);
+                &*slice_from_raw_parts::<u8>(call_tape_start, call_tape_len_dynamic);
             rkyv::archived_root::<PreSerializationType>(reserved_mem_slice)
         };
 
