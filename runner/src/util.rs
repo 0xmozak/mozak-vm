@@ -3,7 +3,7 @@ use itertools::{chain, izip};
 use mozak_system::system::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 
-use crate::elf::{Code, Data, Program, RuntimeArguments};
+use crate::elf::{Code, Program, RuntimeArguments};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
@@ -28,12 +28,6 @@ pub fn execute_code_with_ro_memory(
     regs: &[(u8, u32)],
     runtime_args: RuntimeArguments,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    let RuntimeArguments {
-        io_tape_private,
-        io_tape_public,
-        transcript,
-        ..
-    } = runtime_args;
     let _ = env_logger::try_init();
     let ro_code = Code(
         izip!(
@@ -58,20 +52,11 @@ pub fn execute_code_with_ro_memory(
         )
         .collect(),
     );
-
-    let program = Program {
-        ro_memory: Data(ro_mem.iter().copied().collect()),
-        rw_memory: Data(rw_mem.iter().copied().collect()),
-        ro_code,
-        ..Default::default()
-    };
-
-    let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
-        context_variables: vec![],
-        io_tape_private,
-        io_tape_public,
-        transcript,
-    });
+    #[cfg(any(feature = "test", test))]
+    let program = Program::create_vanilla(ro_mem, rw_mem, &ro_code, &runtime_args);
+    #[cfg(not(any(feature = "test", test)))]
+    let program = Program::create(ro_mem, rw_mem, &ro_code, &runtime_args);
+    let state0 = State::new(program.clone(), runtime_args);
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
