@@ -70,11 +70,11 @@ enum ConstraintType {
     ConstraintTransition,
 }
 
-pub struct ConstraintBuilderExt<E> {
+pub struct ConstraintBuilder<E> {
     constraints: Vec<Constraint<E>>,
 }
 
-impl<E> Default for ConstraintBuilderExt<E> {
+impl<E> Default for ConstraintBuilder<E> {
     fn default() -> Self {
         Self {
             constraints: Vec::new(),
@@ -82,11 +82,11 @@ impl<E> Default for ConstraintBuilderExt<E> {
     }
 }
 
-impl<E> From<Vec<Constraint<E>>> for ConstraintBuilderExt<E> {
+impl<E> From<Vec<Constraint<E>>> for ConstraintBuilder<E> {
     fn from(constraints: Vec<Constraint<E>>) -> Self { Self { constraints } }
 }
 
-impl<E> ConstraintBuilderExt<E> {
+impl<E> ConstraintBuilder<E> {
     pub fn constraint_first_row(&mut self, constraint: E) {
         let c = Constraint {
             constraint_type: ConstraintType::ConstraintFirstRow,
@@ -116,7 +116,7 @@ impl<E> ConstraintBuilderExt<E> {
 }
 
 pub fn build_ext<F, const D: usize>(
-    cb: ConstraintBuilderExt<Expr<'_, ExtensionTarget<D>>>,
+    cb: ConstraintBuilder<Expr<'_, ExtensionTarget<D>>>,
     circuit_builder: &mut CircuitBuilder<F, D>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) where
@@ -145,7 +145,7 @@ pub fn build_ext<F, const D: usize>(
 }
 
 pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
-    cb: ConstraintBuilderExt<Expr<'_, P>>,
+    cb: ConstraintBuilder<Expr<'_, P>>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) where
     F: RichField,

@@ -12,7 +12,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, Constraint, ConstraintBuilderExt};
+use crate::expr::{build_ext, build_packed, Constraint, ConstraintBuilder};
 use crate::memory::columns::Memory;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -85,7 +85,7 @@ where
     // same address).  See `circuits/src/generation/memoryinit.rs` in
     // `a75c8fbc2701a4a6b791b2ff71857795860c5591`
     let one: Expr<'_, V> = eb.one();
-    let mut cb = ConstraintBuilderExt::default();
+    let mut cb = ConstraintBuilder::default();
 
     // Memory initialization Constraints
     // ---------------------------------
