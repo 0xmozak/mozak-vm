@@ -57,19 +57,11 @@ pub fn u8_extra() -> impl Strategy<Value = u8> { u32_extra().prop_map(|x| x as u
 
 #[cfg(any(feature = "test", test))]
 pub fn reg() -> impl Strategy<Value = u8> { u8_extra().prop_map(|x| 1 + (x % 31)) }
+
 #[cfg(any(feature = "test", test))]
 #[allow(clippy::cast_sign_loss)]
 pub fn u32_extra_except_mozak_ro_memory() -> impl Strategy<Value = u32> {
-    u32_extra().prop_map(|x| {
-        let mozak_ro_memory = MozakMemory::default();
-        let mut value = x;
-        while mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(value) {
-            if value.eq(&x) {
-                value = 42;
-            } else {
-                value += 1;
-            }
-        }
-        value
+    u32_extra().prop_filter("filter out mozak-ro-memory addresses", |addr| {
+        !MozakMemory::default().is_address_belongs_to_mozak_ro_memory(*addr)
     })
 }
