@@ -23,7 +23,7 @@ mozak-system = { path = "../system" }
 plonky2 = { version = "0", default-features = false }
 rayon = "1.8"
 serde = { version = "1.0", features = ["derive"] }
-starky = { version = "0", default-features = false, features=["std"] }
+starky = { version = "0", default-features = false, features = ["std"] }
 thiserror = "1.0"
 tt-call = "1.0"
 
