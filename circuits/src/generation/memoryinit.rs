@@ -35,7 +35,6 @@ pub fn generate_mozak_memory_init_trace<F: RichField>(program: &Program) -> Vec<
 
 #[must_use]
 pub fn mozak_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
-    // println!("program mem: {:?}", program.mozak_ro_memory);
     program
         .mozak_ro_memory
         .iter()
@@ -43,6 +42,7 @@ pub fn mozak_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> 
             // TODO(Roman): once context variables will be in use, extend it here !
             chain! {
                 mozak_ro_memory.self_prog_id.data.iter(),
+                mozak_ro_memory.cast_list.data.iter(),
                 mozak_ro_memory.io_tape_public.data.iter(),
                 mozak_ro_memory.io_tape_private.data.iter(),
                 mozak_ro_memory.call_tape.data.iter(),

@@ -30,6 +30,7 @@ pub fn execute_code_with_ro_memory(
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     let RuntimeArguments {
         self_prog_id,
+        cast_list,
         io_tape_private,
         io_tape_public,
         call_tape,
@@ -69,6 +70,7 @@ pub fn execute_code_with_ro_memory(
 
     let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
         self_prog_id,
+        cast_list,
         io_tape_private,
         io_tape_public,
         call_tape,

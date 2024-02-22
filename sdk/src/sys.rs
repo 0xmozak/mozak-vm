@@ -29,6 +29,7 @@ pub struct SystemTapes {
 #[cfg(target_os = "zkvm")]
 extern "C" {
     static _mozak_self_prog_id: usize;
+    static _mozak_cast_list: usize;
     static _mozak_public_io_tape: usize;
     static _mozak_private_io_tape: usize;
     static _mozak_call_tape: usize;
@@ -52,18 +53,6 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     {
         use std::ptr::slice_from_raw_parts;
 
-        // These values should be derived from linker script and reserved memory
-        // somewhere
-        // const PROG_IDENT: u32 = 0x20000000;
-        // const PUBL_START: u32 = 0x21000000;
-        // const PUBL_MAXLN: u32 = 0x0F000000;
-        // const PRIV_START: u32 = 0x30000000;
-        // const PRIV_MAXLN: u32 = 0x10000000;
-        // const CALL_START: u32 = 0x40000000;
-        // const CALL_MAXLN: u32 = 0x08000000;
-        // const EVNT_START: u32 = 0x48000000;
-        // const EVNT_MAXLN: u32 = 0x08000000;
-
         /// Zero-copy deserialization on a memory region starting at `addr`
         /// Expected layout to be `[<data_region len (N) in 4
         /// bytes>|<data_region N bytes>]`
@@ -79,6 +68,11 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
             unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } };
         assert!(self_prog_id != ProgramIdentifier::default()); // Reserved for null caller
 
+        let castlist_zcd =
+            get_zcd_repr::<Vec<ProgramIdentifier>>(unsafe { addr_of!(_mozak_cast_list) as *const u8 });
+
+        assert!(castlist_zcd.len() == 2);
+            
         let calltape_zcd =
             get_zcd_repr::<Vec<CPCMessage>>(unsafe { addr_of!(_mozak_call_tape) as *const u8 });
 

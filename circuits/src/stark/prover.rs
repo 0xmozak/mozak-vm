@@ -3,8 +3,8 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
-use log::{debug, log_enabled};
 use log::Level::Debug;
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
