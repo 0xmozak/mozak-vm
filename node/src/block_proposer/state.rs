@@ -2,7 +2,7 @@ use std::mem;
 use std::ops::Add;
 
 use itertools::{chain, Itertools};
-use mozak_circuits::recproof::state_update;
+use mozak_circuits::recproof::state_update::{self, AddressPresent};
 use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::plonk::circuit_data::CircuitConfig;
@@ -51,9 +51,9 @@ impl Object {
 pub struct Address(pub u64);
 
 impl Address {
-    fn next(self, height: usize) -> (Option<PartialAddress>, Dir) {
+    fn next(self, height: usize) -> (Option<AddressPath>, Dir) {
         debug_assert!(self.0 <= (1 << height));
-        PartialAddress { height, addr: self }.next()
+        AddressPath { height, addr: self }.next()
     }
 
     // Must be kept in sync with `state_update::LeafCircuit::new`
@@ -63,16 +63,15 @@ impl Address {
     }
 }
 
-/// A partial address which is constructed by slowly consuming
-/// an initial `Address` as one traverses down the tree toward
-/// the initial leaf.
+/// The remaining bits of an address to be consumed as one traverses down the
+/// tree towards a leaf.
 #[derive(Debug, Clone, Copy)]
-struct PartialAddress {
+struct AddressPath {
     height: usize,
     addr: Address,
 }
 
-impl PartialAddress {
+impl AddressPath {
     fn next(mut self) -> (Option<Self>, Dir) {
         // look at the MSB for the current direction
         let bit = 1 << self.height;
@@ -220,7 +219,7 @@ impl Add for FinalizeOutcome {
 
             (Self::Recalc, Self::Prune) => Self::Recalc,
             (Self::Recalc, Self::Recalc) => Self::Recalc,
-            (Self::Recalc, Self::NoOp) => Self::NoOp,
+            (Self::Recalc, Self::NoOp) => Self::Recalc,
 
             (Self::NoOp, Self::Prune) => Self::NoOp,
             (Self::NoOp, Self::Recalc) => Self::Recalc,
@@ -292,7 +291,7 @@ impl AuxStateData {
             .map(|(circuit, hash)| {
                 let hash = (*hash).into();
                 init = circuit
-                    .prove(&init, &init, hash, hash, empty_summary_hash.into())
+                    .prove(&init, &init, hash, hash, empty_summary_hash.into(), ())
                     .unwrap();
                 init.clone()
             })
@@ -310,15 +309,23 @@ impl AuxStateData {
     }
 
     fn apply_operation(&self, root: &mut SparseMerkleBranch, addr: Address, new: Operation) {
-        let (part_addr, dir) = addr.next(root.height);
-        let _ = self.apply_operation_helper(root, addr, part_addr, dir, new);
+        let (path, dir) = addr.next(root.height);
+        let _ = self.apply_operation_helper(
+            root,
+            addr,
+            Some(BranchAddress::root(root.height)),
+            path,
+            dir,
+            new,
+        );
     }
 
     fn apply_operation_helper(
         &self,
         branch: &mut SparseMerkleBranch,
         addr: Address,
-        part_addr: Option<PartialAddress>,
+        branch_addr: Option<BranchAddress>,
+        path: Option<AddressPath>,
         dir: Dir,
         new: Operation,
     ) -> bool {
@@ -329,10 +336,10 @@ impl AuxStateData {
         let recalc;
 
         *child = Some(if let Some(mut child) = child.take() {
-            recalc = match (part_addr, &mut *child) {
-                (Some(part_addr), SparseMerkleNode::Branch(branch)) => {
-                    let (part_addr, dir) = part_addr.next();
-                    self.apply_operation_helper(branch, addr, part_addr, dir, new)
+            recalc = match (path, &mut *child) {
+                (Some(path), SparseMerkleNode::Branch(branch)) => {
+                    let (path, dir) = path.next();
+                    self.apply_operation_helper(branch, addr, None, path, dir, new)
                 }
                 (None, SparseMerkleNode::Leaf(leaf)) => self.apply_operation_leaf(leaf, addr, new),
                 (_, _) => unreachable!("bad address or tree"),
@@ -342,15 +349,14 @@ impl AuxStateData {
         } else {
             recalc = true;
 
-            Box::new(match part_addr {
-                Some(part_addr) =>
-                    SparseMerkleNode::Branch(self.create_branch_helper(addr, part_addr, new)),
+            Box::new(match path {
+                Some(path) => SparseMerkleNode::Branch(self.create_branch_helper(addr, path, new)),
                 None => SparseMerkleNode::Leaf(self.create_leaf_helper(addr, new)),
             })
         });
 
         if recalc {
-            self.recalc_branch_helper(branch, false);
+            self.recalc_branch_helper(branch, false, branch_addr);
         }
 
         recalc
@@ -446,7 +452,12 @@ impl AuxStateData {
         recalc
     }
 
-    fn recalc_branch_helper(&self, branch: &mut SparseMerkleBranch, set_old: bool) {
+    fn recalc_branch_helper(
+        &self,
+        branch: &mut SparseMerkleBranch,
+        set_old: bool,
+        addr: Option<BranchAddress>,
+    ) {
         let (empty_hash, empty_proof) = self.get_empty_child_helper(branch.height);
 
         let ((left_hash, left_proof), (right_hash, right_proof), summary) =
@@ -488,6 +499,9 @@ impl AuxStateData {
                 branch.old_hash.into(),
                 branch.new_hash.into(),
                 branch.summary_hash.into(),
+                addr.map_or(AddressPresent::Implicit, |v| {
+                    AddressPresent::Present(v.addr.0)
+                }),
             )
             .unwrap();
     }
@@ -527,11 +541,11 @@ impl AuxStateData {
     fn create_branch_helper(
         &self,
         addr: Address,
-        part_addr: PartialAddress,
+        path: AddressPath,
         new: Operation,
     ) -> SparseMerkleBranch {
-        let (part_addr, dir) = part_addr.next();
-        match part_addr {
+        let (path, dir) = path.next();
+        match path {
             None => {
                 let leaf = self.create_leaf_helper(addr, new);
                 let LeafHashes {
@@ -560,6 +574,7 @@ impl AuxStateData {
                         old_hash.into(),
                         new_hash.into(),
                         leaf_summary.into(),
+                        (),
                     )
                     .unwrap();
                 let leaf = Some(Box::new(SparseMerkleNode::Leaf(leaf)));
@@ -580,8 +595,8 @@ impl AuxStateData {
                     right,
                 }
             }
-            Some(part_addr) => {
-                let child = self.create_branch_helper(addr, part_addr, new);
+            Some(path) => {
+                let child = self.create_branch_helper(addr, path, new);
                 let height = child.height + 1;
                 let empty_child_hash = &self.empty_branch_hashes[height - 1];
                 let child_new = &child.new_hash;
@@ -608,6 +623,7 @@ impl AuxStateData {
                         old_hash.into(),
                         new_hash.into(),
                         child_summary.into(),
+                        (),
                     )
                     .unwrap();
                 let child = Some(Box::new(SparseMerkleNode::Branch(child)));
@@ -859,7 +875,7 @@ impl AuxStateData {
         let outcome = left_outcome + right_outcome;
 
         if let FinalizeOutcome::Recalc = outcome {
-            self.recalc_branch_helper(branch, true);
+            self.recalc_branch_helper(branch, true, None);
         }
 
         outcome
@@ -930,6 +946,46 @@ impl<'a> State<'a> {
     }
 
     pub fn finalize(&mut self) { self.aux.finalize(&mut self.root); }
+
+    pub fn get_state(&self, addr: Address) -> (Option<&Object>, Option<&Object>) {
+        let (path, dir) = addr.next(self.root.height);
+        Self::get_state_helper(&self.root, path, dir)
+    }
+
+    fn get_state_helper(
+        branch: &SparseMerkleBranch,
+        path: Option<AddressPath>,
+        dir: Dir,
+    ) -> (Option<&Object>, Option<&Object>) {
+        let child = match dir {
+            Dir::Left => &branch.left,
+            Dir::Right => &branch.right,
+        };
+        if let Some(child) = child.as_ref() {
+            match (path, &**child) {
+                (Some(path), SparseMerkleNode::Branch(branch)) => {
+                    let (path, dir) = path.next();
+                    Self::get_state_helper(branch, path, dir)
+                }
+                (None, SparseMerkleNode::Leaf(leaf)) => match &leaf.kind {
+                    LeafKind::DeleteEmptyLeaf { .. } | LeafKind::ReadEmptyLeaf { .. } =>
+                        (None, None),
+                    LeafKind::BeingCreated { new_object, .. } => (None, Some(new_object)),
+                    LeafKind::Unused { object, .. } | LeafKind::BeingRead { object, .. } =>
+                        (Some(object), Some(object)),
+                    LeafKind::BeingDeleted { object, .. } => (Some(object), None),
+                    LeafKind::BeingUpdated {
+                        old_object,
+                        new_object,
+                        ..
+                    } => (Some(old_object), Some(new_object)),
+                },
+                (_, _) => unreachable!("bad address or tree"),
+            }
+        } else {
+            (None, None)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -940,7 +996,7 @@ mod test {
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::Hasher;
 
-    use super::{AuxStateData, Object, Operation, ProgramHash, State, F};
+    use super::{Address, AuxStateData, Object, Operation, ProgramHash, State, F};
 
     pub fn hash_str(v: &str) -> HashOut<F> {
         let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
@@ -955,18 +1011,26 @@ mod test {
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
 
-        state.apply_operation(super::Address(1), Operation::Read);
-        state.apply_operation(
-            super::Address(1),
-            Operation::Upsert(Object {
-                constraint_owner: ProgramHash(non_zero_hash_1),
-                last_updated: F::from_canonical_u64(10),
-                credits: F::from_canonical_u64(10000),
-                data: non_zero_hash_2,
-            }),
-        );
+        state.apply_operation(Address(1), Operation::Read);
+        let (before, after) = state.get_state(Address(1));
+        assert_eq!(before, None);
+        assert_eq!(after, None);
+
+        let obj = Object {
+            constraint_owner: ProgramHash(non_zero_hash_1),
+            last_updated: F::from_canonical_u64(10),
+            credits: F::from_canonical_u64(10000),
+            data: non_zero_hash_2,
+        };
+        state.apply_operation(Address(1), Operation::Upsert(obj));
+        let (before, after) = state.get_state(Address(1));
+        assert_eq!(before, None);
+        assert_eq!(after, Some(&obj));
 
         state.finalize();
+        let (before, after) = state.get_state(Address(1));
+        assert_eq!(before, Some(&obj));
+        assert_eq!(after, Some(&obj));
     }
 
     #[test]
@@ -977,18 +1041,26 @@ mod test {
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
 
-        state.apply_operation(super::Address(42), Operation::Read);
-        state.apply_operation(
-            super::Address(42),
-            Operation::Upsert(Object {
-                constraint_owner: ProgramHash(non_zero_hash_1),
-                last_updated: F::from_canonical_u64(10),
-                credits: F::from_canonical_u64(10000),
-                data: non_zero_hash_2,
-            }),
-        );
+        state.apply_operation(Address(42), Operation::Read);
+        let (before, after) = state.get_state(Address(42));
+        assert_eq!(before, None);
+        assert_eq!(after, None);
+
+        let obj = Object {
+            constraint_owner: ProgramHash(non_zero_hash_1),
+            last_updated: F::from_canonical_u64(10),
+            credits: F::from_canonical_u64(10000),
+            data: non_zero_hash_2,
+        };
+        state.apply_operation(Address(42), Operation::Upsert(obj));
+        let (before, after) = state.get_state(Address(42));
+        assert_eq!(before, None);
+        assert_eq!(after, Some(&obj));
 
         state.finalize();
+        let (before, after) = state.get_state(Address(42));
+        assert_eq!(before, Some(&obj));
+        assert_eq!(after, Some(&obj));
     }
 
     #[test]
@@ -1000,17 +1072,25 @@ mod test {
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
 
-        state.apply_operation(super::Address(42 << 7), Operation::Read);
-        state.apply_operation(
-            super::Address(42 << 7),
-            Operation::Upsert(Object {
-                constraint_owner: ProgramHash(non_zero_hash_1),
-                last_updated: F::from_canonical_u64(10),
-                credits: F::from_canonical_u64(10000),
-                data: non_zero_hash_2,
-            }),
-        );
+        state.apply_operation(Address(42 << 7), Operation::Read);
+        let (before, after) = state.get_state(Address(42 << 7));
+        assert_eq!(before, None);
+        assert_eq!(after, None);
+
+        let obj = Object {
+            constraint_owner: ProgramHash(non_zero_hash_1),
+            last_updated: F::from_canonical_u64(10),
+            credits: F::from_canonical_u64(10000),
+            data: non_zero_hash_2,
+        };
+        state.apply_operation(Address(42 << 7), Operation::Upsert(obj));
+        let (before, after) = state.get_state(Address(42 << 7));
+        assert_eq!(before, None);
+        assert_eq!(after, Some(&obj));
 
         state.finalize();
+        let (before, after) = state.get_state(Address(42 << 7));
+        assert_eq!(before, Some(&obj));
+        assert_eq!(after, Some(&obj));
     }
 }
