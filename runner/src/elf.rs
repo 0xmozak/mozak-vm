@@ -66,7 +66,7 @@ impl Default for MozakMemory {
         // it will be possible to implement test that load mozak-empty-ELF and check
         // that all expected addresses and capacities are indeed aligned with the code.
         // We have test, that loads `empty-ILF` compiled with mozak-linker-script
-        // This test ensures that assumed symbols are defined
+        // This test ensures that assumed symbols are defined.
         MozakMemory {
             context_variables: MozakMemoryRegion {
                 starting_address: 0x2000_0000_u32,
