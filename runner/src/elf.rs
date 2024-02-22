@@ -65,7 +65,7 @@ impl Default for MozakMemory {
         // TODO(Roman): Once `end-of-mozak-region` symbol will be added to linker-script
         // it will be possible to implement test that load mozak-empty-ELF and check
         // that all expected addresses and capacities are indeed aligned with the code.
-        // We have test, that loads `empty-ILF` compiled with mozak-linker-script
+        // We have test, that loads `empty-ELF` compiled with mozak-linker-script.
         // This test ensures that assumed symbols are defined.
         MozakMemory {
             context_variables: MozakMemoryRegion {
