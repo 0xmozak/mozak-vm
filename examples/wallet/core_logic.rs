@@ -2,7 +2,7 @@
 extern crate alloc;
 use guest::hash::poseidon2_hash;
 // use alloc::vec::Vec;
-use mozak_sdk::coretypes::{ProgramIdentifier, Signature, StateObject};
+use mozak_sdk::coretypes::ProgramIdentifier;
 use mozak_sdk::sys::event_emit;
 use rkyv::{Archive, Deserialize, Serialize};
 
@@ -17,13 +17,11 @@ impl From<[u8; 32]> for PublicKey {
     fn from(value: [u8; 32]) -> Self { PublicKey(value) }
 }
 
+/// A generic private key used by the wallet.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
-pub enum Operation {
-    TransferTo(ProgramIdentifier),
-}
+pub struct PrivateKey([u8; 32]);
 
 /// Amount of tokens to transfer.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
@@ -105,10 +103,10 @@ const PUB_KEY: PublicKey = PublicKey([
     31, 100, 7, 100, 189, 2, 100,
 ]);
 
-const PRIV_KEY: [u8; 32] = [
+const PRIV_KEY: PrivateKey = PrivateKey([
     21, 33, 31, 0, 7, 251, 189, 98, 22, 3, 1, 10, 71, 2, 90, 0, 1, 55, 55, 11, 62, 189, 181, 21, 0,
     31, 100, 7, 100, 189, 2, 100,
-];
+]);
 
 // TODO(bing): Read private key from private tape.
 // TODO(bing): Read public key from call tape.
@@ -116,9 +114,11 @@ const PRIV_KEY: [u8; 32] = [
 /// Return true if signature is approved.
 pub fn approve_signature<T>(pub_key: PublicKey, _black_box: T) -> () {
     // TODO(bing): Read private key from private tape
-    let digest = poseidon2_hash(&PRIV_KEY);
+    let digest = poseidon2_hash(&PRIV_KEY.0);
     // assert_eq!(pub_key.0, *digest);
 
+    // TODO(bing): Do we need to emit events here, even for the simplest
+    // possible wallet that just approves signatures?
     //    event_emit(
     //        self_prog_id,
     //        mozak_sdk::coretypes::Event::ReadContextVariable(
