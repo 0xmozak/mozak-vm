@@ -4,4 +4,4 @@ build-std-features = ["compiler-builtins-mem"]
 
 [build]
 rustflags = ["-C", "passes=loweratomic"]
-target = "../buildtarget/riscv32im-mozak-zkvm-elf.json"
+target = "../buildtarget/riscv32im-mozak-mozakvm-elf.json"

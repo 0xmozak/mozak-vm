@@ -25,13 +25,13 @@ Checkout `examples/.cargo` and uncomment the "WITHOUT linker-script" `rustflags`
 rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
 
 # Uncomment the following to build WITH linker script
-# rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld"]
+# rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-mozakvm.ld"]
 ########   LINKER SCRIPT ###########
 ```
 
 If we explore via
 ```
-./riscv64-unknown-elf-objdump -h mozak-vm/examples/target/riscv32im-mozak-zkvm-elf/release/bss-tester
+./riscv64-unknown-elf-objdump -h mozak-vm/examples/target/riscv32im-mozak-mozakvm-elf/release/bss-tester
 ```
 
 we get
@@ -83,7 +83,7 @@ Checkout `examples/.cargo` and uncomment the "WITH linker-script" `rustflags`. I
 # rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
 
 # Uncomment the following to build WITH linker script
-rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld"]
+rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-mozakvm.ld"]
 ########   LINKER SCRIPT ###########
 ```
 Based losely on the following setup:

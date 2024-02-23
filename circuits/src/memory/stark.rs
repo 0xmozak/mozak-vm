@@ -207,7 +207,7 @@ where
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::execute_code;
+    use mozak_runner::util::execute_code;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
@@ -350,7 +350,7 @@ mod tests {
             .all(|row| row.is_init == F::ZERO && row.addr == F::ZERO));
 
         let memory_zeroinit_rows =
-            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
+            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
 
         // ctl for is_init values
         let ctl = CrossTableLookup::new(

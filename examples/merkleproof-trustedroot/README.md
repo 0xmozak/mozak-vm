@@ -17,7 +17,7 @@ cargo run --release --features="native" --bin merkleproof-trustedroot-native --t
 Test the ELF in mozak-vm using:
 ```
 MOZAK_STARK_DEBUG=true ./target/debug/mozak-cli prove-and-verify \
-    examples/target/riscv32im-mozak-zkvm-elf/release/merkleproof-trustedroot \
+    examples/target/riscv32im-mozak-mozakvm-elf/release/merkleproof-trustedroot \
     examples/merkleproof-trustedroot/private_input.tape \
     examples/merkleproof-trustedroot/public_input.tape
 ```
