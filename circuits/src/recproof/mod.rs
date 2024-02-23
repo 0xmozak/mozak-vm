@@ -9,11 +9,13 @@ use plonky2::plonk::circuit_data::VerifierCircuitTarget;
 
 pub mod make_tree;
 pub mod merge;
+pub mod propagate;
 pub mod state_update;
 pub mod summarized;
 pub mod unbounded;
 pub mod unpruned;
 pub mod verify_address;
+pub mod verify_event;
 
 /// Computes `if b { h0 } else { h1 }`.
 pub(crate) fn select_hash<F, const D: usize>(
