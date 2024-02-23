@@ -5,6 +5,7 @@ extern crate alloc;
 use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::sys::{call_send, event_emit};
 use rkyv::{Archive, Deserialize, Serialize};
+use wallet::TokenObject;
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
@@ -47,36 +48,44 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
     }
 }
 
+fn state_object_data_to_token_object(value: StateObject) -> TokenObject {
+    let archived = unsafe { rkyv::archived_root::<TokenObject>(&value.data[..]) };
+    let token_object: TokenObject = archived.deserialize(&mut rkyv::Infallible).unwrap();
+    token_object
+}
+
 #[allow(dead_code)]
 pub fn transfer(
     self_prog_id: ProgramIdentifier, // ContextVariables Table
-    token_object: StateObject,       //
+    state_object: StateObject,       //
     remitter_signature: Signature,
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    event_emit(self_prog_id, Event::ReadStateObject(token_object.clone()));
+    event_emit(self_prog_id, Event::ReadStateObject(state_object.clone()));
+    let token_object: TokenObject = state_object_data_to_token_object(state_object.clone());
     assert_eq!(
         call_send(
             self_prog_id,
             remitter_wallet,
             wallet::MethodArgs::ApproveSignature(
-                remitter_wallet,
-                token_object.clone(),
-                wallet::Operation::TransferTo(remittee_wallet),
-                remitter_signature.clone()
+                token_object.pub_key.clone(),
+                wallet::BlackBox::new(remitter_wallet, remittee_wallet, token_object),
             ),
             wallet::dispatch,
             || -> wallet::MethodReturns {
-                wallet::MethodReturns::ApproveSignature(true) // TODO read from
-                                                              // private tape
+                wallet::MethodReturns::ApproveSignature(()) // TODO read from
+                                                            // private tape
             }
         ),
-        wallet::MethodReturns::ApproveSignature(true),
+        wallet::MethodReturns::ApproveSignature(()),
         "wallet approval not found"
     );
-    event_emit(self_prog_id, Event::UpdatedStateObject(StateObject{
-        data: vec![200],
-        ..token_object
-    }));
+    event_emit(
+        self_prog_id,
+        Event::UpdatedStateObject(StateObject {
+            data: vec![200],
+            ..state_object
+        }),
+    );
 }
