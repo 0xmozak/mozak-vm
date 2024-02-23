@@ -226,5 +226,106 @@ where
 
 #[cfg(test)]
 mod test {
-    // TODO
+    use anyhow::Result;
+    use itertools::Itertools;
+    use plonky2::field::types::Field;
+    use plonky2::plonk::circuit_data::CircuitConfig;
+    use plonky2::plonk::config::Hasher;
+
+    use super::*;
+    use crate::test_utils::{hash_branch, C, D, F};
+
+    fn hash_event<F: RichField>(
+        constraint_owner: [F; 4],
+        ty: u64,
+        address: u64,
+        value: [F; 4],
+    ) -> HashOut<F> {
+        Poseidon2Hash::hash_no_pad(
+            &chain!(
+                constraint_owner,
+                [ty, address].map(F::from_canonical_u64),
+                value,
+            )
+            .collect_vec(),
+        )
+    }
+
+    #[test]
+    fn verify_simple() -> Result<()> {
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let leaf = LeafCircuit::<F, C, D>::new(&circuit_config);
+        let branch = BranchCircuit::<F, C, D>::new(&circuit_config, &leaf);
+        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+
+        let zero_val = [F::ZERO; 4];
+        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
+        let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
+
+        // Duplicate or conflicting events are actually fine as far as this circuit
+        // cares
+        let event_42_read_0 = hash_event(program_hash_1, 1, 42, zero_val);
+        let event_42_write_1 = hash_event(program_hash_1, 0, 42, non_zero_val_1);
+        let event_42_write_2 = hash_event(program_hash_1, 0, 42, non_zero_val_2);
+
+        // Read zero
+        let read_proof = leaf.prove(
+            program_hash_1,
+            1,
+            42,
+            zero_val,
+            Some(event_42_read_0),
+            &branch,
+        )?;
+        leaf.circuit.verify(read_proof.clone())?;
+
+        // Write pi
+        let write_proof_1 = leaf.prove(
+            program_hash_1,
+            0,
+            42,
+            non_zero_val_1,
+            Some(event_42_write_1),
+            &branch,
+        )?;
+        leaf.circuit.verify(write_proof_1.clone())?;
+
+        // Write phi
+        let write_proof_2 = leaf.prove(
+            program_hash_1,
+            0,
+            42,
+            non_zero_val_2,
+            Some(event_42_write_2),
+            &branch,
+        )?;
+        leaf.circuit.verify(write_proof_2.clone())?;
+
+        let branch_1_hash = hash_branch(&event_42_write_1, &event_42_write_2);
+        let branch_2_hash = hash_branch(&event_42_read_0, &branch_1_hash);
+
+        // Combine writes
+        let branch_proof_1 = branch.prove(
+            Some(branch_1_hash),
+            Some(program_hash_1),
+            true,
+            true,
+            &write_proof_1,
+            &write_proof_2,
+        )?;
+        branch.circuit.verify(branch_proof_1.clone())?;
+
+        // Combine with reads
+        let branch_proof_2 = branch.prove(
+            Some(branch_2_hash),
+            Some(program_hash_1),
+            true,
+            false,
+            &read_proof,
+            &branch_proof_1,
+        )?;
+        branch.circuit.verify(branch_proof_2)?;
+
+        Ok(())
+    }
 }
