@@ -23,6 +23,9 @@ impl From<[u8; 32]> for PublicKey {
 #[archive_attr(derive(Debug))]
 pub struct PrivateKey([u8; 32]);
 
+impl From<[u8; 32]> for PrivateKey {
+    fn from(value: [u8; 32]) -> Self { PrivateKey(value) }
+}
 /// Amount of tokens to transfer.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
