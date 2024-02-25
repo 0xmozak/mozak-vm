@@ -64,6 +64,17 @@ pub struct Constraint<E> {
     constraint: E,
 }
 
+impl<E> Constraint<E> {
+    fn map<B, F>(self, mut f: F) -> Constraint<B>
+    where
+        F: FnMut(E) -> B, {
+        Constraint {
+            constraint_type: self.constraint_type,
+            constraint: f(self.constraint),
+        }
+    }
+}
+
 enum ConstraintType {
     ConstraintFirstRow,
     Constraint,
@@ -129,10 +140,7 @@ pub fn build_ext<F, const D: usize>(
     let evaluated = cb
         .constraints
         .into_iter()
-        .map(|c| Constraint {
-            constraint_type: c.constraint_type,
-            constraint: evaluator.eval(c.constraint),
-        })
+        .map(|c| c.map(|constraint| evaluator.eval(constraint)))
         .collect::<Vec<_>>();
 
     evaluated.into_iter().for_each(|c| match c.constraint_type {
@@ -156,10 +164,7 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     let evaluated = cb
         .constraints
         .into_iter()
-        .map(|c| Constraint {
-            constraint_type: c.constraint_type,
-            constraint: evaluator.eval(c.constraint),
-        })
+        .map(|c| c.map(|constraint| evaluator.eval(constraint)))
         .collect::<Vec<_>>();
 
     for c in evaluated {
