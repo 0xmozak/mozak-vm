@@ -50,4 +50,4 @@ The cross table lookup is implemented in [cross_table_lookup.rs].
 
 [LogUp]: https://eprint.iacr.org/2022/1530.pdf
 [sumcheck protocol]: https://dl.acm.org/doi/pdf/10.1145/146585.146605
-[cross_table_lookup.rs]: ../../circuits/src/cross_table_lookup.rs
+[cross_table_lookup.rs]: ../../../circuits/src/cross_table_lookup.rs
