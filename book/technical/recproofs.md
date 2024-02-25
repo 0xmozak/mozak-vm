@@ -22,4 +22,4 @@ We refer the reader to the [recproofs] paper for a graphical visualization and p
 
 [recproofs]: https://uploads-ssl.webflow.com/6460ebf2b6ff254688bebf1c/64e4dd54d9198fde8d58ef44_main.pdf
 [this folder]: ../../circuits/src/recproof
-[state.rs]: ../../../node/src/block_proposer/state.rs
+[state.rs]: ../../node/src/block_proposer/state.rs
