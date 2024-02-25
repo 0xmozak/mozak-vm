@@ -15,6 +15,7 @@
 - [Memory Design and Checking](technical/memory_design_and_checking.md)
 - [LookUp Arguments](technical/lookups/main.md)
     - [LogUp](technical/lookups/logup.md)
+- [Recproofs](technical/recproofs.md)
 
 <!-- # Reference Guide
 
