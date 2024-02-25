@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::panic::Location;
 
 use expr::{BinOp, Evaluator, Expr};
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -61,6 +62,7 @@ where
 
 pub struct Constraint<E> {
     constraint_type: ConstraintType,
+    location: &'static Location<'static>,
     constraint: E,
 }
 
@@ -70,6 +72,7 @@ impl<E> Constraint<E> {
         F: FnMut(E) -> B, {
         Constraint {
             constraint_type: self.constraint_type,
+            location: self.location,
             constraint: f(self.constraint),
         }
     }
@@ -98,28 +101,37 @@ impl<E> From<Vec<Constraint<E>>> for ConstraintBuilder<E> {
 }
 
 impl<E> ConstraintBuilder<E> {
+    #[track_caller]
     pub fn constraint_first_row(&mut self, constraint: E) {
         let constraint_type = ConstraintType::ConstraintFirstRow;
+        let location = Location::caller();
         let c = Constraint {
             constraint_type,
+            location,
             constraint,
         };
         self.constraints.push(c);
     }
 
+    #[track_caller]
     pub fn constraint(&mut self, constraint: E) {
         let constraint_type = ConstraintType::Constraint;
+        let location = Location::caller();
         let c = Constraint {
             constraint_type,
+            location,
             constraint,
         };
         self.constraints.push(c);
     }
 
+    #[track_caller]
     pub fn constraint_transition(&mut self, constraint: E) {
         let constraint_type = ConstraintType::ConstraintTransition;
+        let location = Location::caller();
         let c = Constraint {
             constraint_type,
+            location,
             constraint,
         };
         self.constraints.push(c);
@@ -170,7 +182,15 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
         .map(|c| c.map(|constraint| evaluator.eval(constraint)))
         .collect::<Vec<_>>();
 
+    let mozak_stark_debug = std::env::var("MOZAK_STARK_DEBUG").is_ok();
     for c in evaluated {
+        if mozak_stark_debug && !c.constraint.is_zeros() {
+            log::error!(
+                "ConstraintConsumer - DEBUG trace (non-zero-constraint): {}",
+                c.location
+            );
+        }
+
         match c.constraint_type {
             ConstraintType::ConstraintFirstRow => yield_constr.constraint_first_row(c.constraint),
             ConstraintType::Constraint => yield_constr.constraint(c.constraint),
