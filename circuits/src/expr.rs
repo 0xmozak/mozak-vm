@@ -99,24 +99,27 @@ impl<E> From<Vec<Constraint<E>>> for ConstraintBuilder<E> {
 
 impl<E> ConstraintBuilder<E> {
     pub fn constraint_first_row(&mut self, constraint: E) {
+        let constraint_type = ConstraintType::ConstraintFirstRow;
         let c = Constraint {
-            constraint_type: ConstraintType::ConstraintFirstRow,
+            constraint_type,
             constraint,
         };
         self.constraints.push(c);
     }
 
     pub fn constraint(&mut self, constraint: E) {
+        let constraint_type = ConstraintType::Constraint;
         let c = Constraint {
-            constraint_type: ConstraintType::Constraint,
+            constraint_type,
             constraint,
         };
         self.constraints.push(c);
     }
 
     pub fn constraint_transition(&mut self, constraint: E) {
+        let constraint_type = ConstraintType::ConstraintTransition;
         let c = Constraint {
-            constraint_type: ConstraintType::ConstraintTransition,
+            constraint_type,
             constraint,
         };
         self.constraints.push(c);
