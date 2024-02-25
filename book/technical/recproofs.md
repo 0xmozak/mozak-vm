@@ -17,7 +17,7 @@ At a high level, recproofs achieves batch opening of leafs whose indices are in 
 
 When the verifier verify the proof through the merkle authentication path recursively, it verifiers both the canonical hash and the merkle hash are hashed correctly. At the leaf node of the tree, the verifier checks that the canonical hash of the leaf is equal to its merkle hash.
 
-We refer the reader to the [recproofs] paper for a graphical visualization and pseudocode  of the scheme. Our implementation of recproofs is in [this folder]. Each time a leaf is modified, the hashes and proofs are updated. Checkout how the state interacts with the circuit in [state.rs].
+We refer the reader to the [recproofs] paper for a graphical visualization and pseudocode of the scheme. Our implementation of recproofs is in [this folder]. Each time a leaf is modified, the hashes and proofs are updated. Checkout how the state interacts with the circuit in [state.rs].
 
 
 [recproofs]: https://uploads-ssl.webflow.com/6460ebf2b6ff254688bebf1c/64e4dd54d9198fde8d58ef44_main.pdf
