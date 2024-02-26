@@ -16,7 +16,7 @@ Each observable defines its own protocol, which is a directed graph $ G_o = (\ma
 
 Note how the protocol for the entire system is the intersection of the protocols for each observable.  In other words, **each constituent protocol has a veto** over which state transitions are allowed.  This is a very powerful idea, and it's the key to our approach.
 
-To get a useful protocol out of this, we require that each observable's protocol allow all state changes that leave its own observable unchanged.  Formally, we require that $E_o \supseteq \operatorname{const}_o$ where $ \operatorname{const}_o := \left\{ (s, t) \mid o\left(s\right) = o\left(t\right), s, t \in \mathbb{S}\right\} $.  We will also occasionally refer to this protocol as $ o = o $ or as $ =_o $.
+To get a useful protocol out of this, we require that each observable's protocol allow all state changes that leave its own observable unchanged.  Formally, we require that $ E_o \supseteq \operatorname{const}_o $ where $ \operatorname{const}_o := \left\{ (s, t) \mid o\left(s\right) = o\left(t\right), s, t \in \mathbb{S}\right\} $.  We will also occasionally refer to this protocol as $ o = o $ or as $ =_o $.
 
 <!-- ---
 
