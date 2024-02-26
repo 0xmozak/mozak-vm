@@ -172,6 +172,7 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
             hash_0_and_0,
             hash_0_and_1,
             slot_3_r0w1,
+            (),
         )
         .unwrap();
 
@@ -182,6 +183,7 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
             hash_0_and_0,
             hash_1_and_0,
             slot_4_r0w1,
+            (),
         )
         .unwrap();
 
@@ -211,6 +213,7 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
                     hash_0_and_0,
                     hash_0_and_1,
                     slot_3_r0w1,
+                    (),
                 )
                 .unwrap()
         })
@@ -233,6 +236,7 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
                     hash_00_and_00,
                     hash_01_and_10,
                     slot_3_and_4,
+                    (),
                 )
                 .unwrap()
         })
