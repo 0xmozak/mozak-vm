@@ -38,18 +38,6 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     ]
 }
 
-/// Columns containing the data which are looked up from the Memory Table
-#[must_use]
-pub fn mozak_data_for_memory<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::constant(F::ZERO),
-        Column::single(col_map().element.address),
-        // clk:
-        Column::constant(F::ONE),
-        Column::single(col_map().element.value),
-    ]
-}
-
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]
 pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(col_map().filter) }
