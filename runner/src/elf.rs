@@ -120,6 +120,7 @@ impl MozakMemory {
         )
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.context_variables.data.is_empty()
             && self.io_tape_public.data.is_empty()
