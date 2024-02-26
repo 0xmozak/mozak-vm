@@ -169,6 +169,9 @@ where
         proof.quotient_polys_cap.clone(),
     ];
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
     verify_fri_proof::<F, C, D>(
         &stark.fri_instance(
             challenges.stark_zeta,
