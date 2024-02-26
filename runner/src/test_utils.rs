@@ -8,6 +8,8 @@ use proptest::prop_oneof;
 #[cfg(any(feature = "test", test))]
 use proptest::strategy::{Just, Strategy};
 
+#[cfg(any(feature = "test", test))]
+use crate::elf::MozakMemory;
 use crate::elf::{Code, Data, Program, RuntimeArguments};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
@@ -153,4 +155,12 @@ pub fn execute_code_with_runtime_args(
     runtime_args: RuntimeArguments,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     execute_code_with_ro_memory(code, &[], rw_mem, regs, runtime_args)
+}
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+pub fn u32_extra_except_mozak_ro_memory() -> impl Strategy<Value = u32> {
+    u32_extra().prop_filter("filter out mozak-ro-memory addresses", |addr| {
+        !MozakMemory::default().is_address_belongs_to_mozak_ro_memory(*addr)
+    })
 }

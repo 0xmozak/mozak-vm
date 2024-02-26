@@ -1,4 +1,4 @@
-#![cfg_attr(target_os = "zkvm", no_main)]
+#![cfg_attr(target_os = "mozakvm", no_main)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
@@ -46,7 +46,7 @@ pub fn main() {
     // And you can always deserialize back to the original type
     let deserialized: Test = archived.deserialize(&mut rkyv::Infallible).unwrap();
     assert_eq!(deserialized, value);
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     println!("Deserialized Value: {:?}", deserialized);
     let bytes = rkyv::to_bytes::<_, 256>(&deserialized).unwrap();
     guest::env::write(&bytes);

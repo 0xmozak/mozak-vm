@@ -482,7 +482,7 @@ dependencies = [
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/0xmozak/plonky2.git#ce9ee7146678253418a936b78945e5ebaea0e0d5"
+source = "git+https://github.com/0xmozak/plonky2.git#1017c3065b0c6a07621af69a78007938e8c036a1"
 dependencies = [
  "ahash 0.8.6",
  "anyhow",
@@ -505,7 +505,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#ce9ee7146678253418a936b78945e5ebaea0e0d5"
+source = "git+https://github.com/0xmozak/plonky2.git#1017c3065b0c6a07621af69a78007938e8c036a1"
 dependencies = [
  "anyhow",
  "itertools",
@@ -520,12 +520,12 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#ce9ee7146678253418a936b78945e5ebaea0e0d5"
+source = "git+https://github.com/0xmozak/plonky2.git#1017c3065b0c6a07621af69a78007938e8c036a1"
 
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#ce9ee7146678253418a936b78945e5ebaea0e0d5"
+source = "git+https://github.com/0xmozak/plonky2.git#1017c3065b0c6a07621af69a78007938e8c036a1"
 
 [[package]]
 name = "poseidon2-example-mozak-guest"

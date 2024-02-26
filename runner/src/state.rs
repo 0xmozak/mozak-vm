@@ -204,7 +204,7 @@ impl<F: RichField> State<F> {
     // `new_mozak_elf` will be added specifically for new io-tapes mechanism
     // NOTE: currently, both mozak-elf and vanilla elf will use this API since there
     // is still no stark-backend that supports new-io-tapes
-    pub fn new(
+    pub fn legacy_ecall_api_new(
         Program {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
@@ -252,7 +252,7 @@ impl<F: RichField> State<F> {
     /// place after `is_some` check
     // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
     // will be removed, I will rename this function to `new`
-    pub fn new_mozak_api(
+    pub fn new(
         Program {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),

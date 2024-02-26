@@ -63,17 +63,14 @@ pub struct MozakMemory {
     pub event_tape: MozakMemoryRegion,
 }
 
-#[cfg(test)]
 impl Default for MozakMemory {
-    /// Assumed to be used only from tests
-    // TODO(Roman): maybe `default` should be swapped with MozakMemory::create()
-    // function, and `create()` will be used only by the tests and renamed to
-    // `default_for_tests()` + conditional compilation ?
     fn default() -> Self {
         // These magic numbers taken from mozak-linker-script
         // TODO(Roman): Once `end-of-mozak-region` symbol will be added to linker-script
         // it will be possible to implement test that load mozak-empty-ELF and check
         // that all expected addresses and capacities are indeed aligned with the code.
+        // We have test, that loads `empty-ELF` compiled with mozak-linker-script.
+        // This test ensures that assumed symbols are defined.
         MozakMemory {
             self_prog_id: MozakMemoryRegion {
                 starting_address: 0x2000_0000_u32,
@@ -236,6 +233,31 @@ impl RuntimeArguments {
             event_tape,
         }
     }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.io_tape_private.is_empty()
+            && self.io_tape_public.is_empty()
+            && self.call_tape.is_empty()
+    }
+}
+
+impl From<&RuntimeArguments> for MozakMemory {
+    fn from(args: &RuntimeArguments) -> Self {
+        let mut mozak_ro_memory = MozakMemory::default();
+        // IO public
+        mozak_ro_memory
+            .io_tape_public
+            .fill(args.io_tape_public.as_slice());
+        // IO private
+        mozak_ro_memory
+            .io_tape_private
+            .fill(args.io_tape_private.as_slice());
+        // Transcript
+        mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
+        // Return result
+        mozak_ro_memory
+    }
 }
 
 /// A RISC-V program
@@ -358,8 +380,10 @@ impl From<HashMap<u32, u32>> for Data {
         )
     }
 }
+
 type CheckProgramFlags =
     fn(flags: u32, program_headers: &ProgramHeader, mozak_memory: &Option<MozakMemory>) -> bool;
+
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
     /// should rename it later, with `vanilla_` prefix
@@ -578,11 +602,76 @@ impl Program {
 
         Ok(program)
     }
+
+    /// # Panics
+    /// When some of the provided addresses (rw,ro,code) belongs to
+    /// `mozak-ro-memory`
+    /// # Errors
+    /// When some of the provided addresses (rw,ro,code) belongs to
+    /// `mozak-ro-memory`
+    #[must_use]
+    #[allow(clippy::similar_names)]
+    pub fn create(
+        ro_mem: &[(u32, u8)],
+        rw_mem: &[(u32, u8)],
+        ro_code: &Code,
+        args: &RuntimeArguments,
+    ) -> Program {
+        let mozak_ro_memory = MozakMemory::from(args);
+        let mem_iters = chain!(ro_mem.iter(), rw_mem.iter()).map(|(addr, _)| addr);
+        let code_iter = ro_code.iter().map(|(addr, _)| addr);
+        chain!(mem_iters, code_iter).for_each(|addr| {
+            assert!(
+                !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr),
+                "address: {addr} belongs to mozak-ro-memory - it is forbidden"
+            );
+        });
+        Program {
+            ro_memory: Data(ro_mem.iter().copied().collect()),
+            rw_memory: Data(rw_mem.iter().copied().collect()),
+            ro_code: ro_code.clone(),
+            mozak_ro_memory: Some(mozak_ro_memory),
+            ..Default::default()
+        }
+    }
+
+    /// # Panics
+    /// When some of the provided addresses (rw,ro,code) belongs to
+    /// `mozak-ro-memory` AND when arguments for mozak-ro-memory is not empty
+    /// # Errors
+    /// When some of the provided addresses (rw,ro,code) belongs to
+    /// `mozak-ro-memory`
+    /// Note: This function is mostly useful for risc-v native tests, and other
+    /// tests that need the ability to run over full memory space, and don't
+    /// use any mozak-ro-memory capabilities
+    #[must_use]
+    #[allow(clippy::similar_names)]
+    #[cfg(any(feature = "test", test))]
+    pub fn create_vanilla(
+        ro_mem: &[(u32, u8)],
+        rw_mem: &[(u32, u8)],
+        ro_code: &Code,
+        args: &RuntimeArguments,
+    ) -> Program {
+        // Non-strict behavior is to allow successful creation when arguments parameter
+        // is empty
+        if args.is_empty() {
+            return Program {
+                ro_memory: Data(ro_mem.iter().copied().collect()),
+                rw_memory: Data(rw_mem.iter().copied().collect()),
+                ro_code: ro_code.clone(),
+                mozak_ro_memory: None,
+                ..Default::default()
+            };
+        }
+        Program::create(ro_mem, rw_mem, ro_code, args)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::elf::{MozakMemory, MozakMemoryRegion, Program, RuntimeArguments};
+
     #[test]
     fn test_serialize_deserialize() {
         let program = Program::default();
@@ -611,6 +700,7 @@ mod test {
             assert_eq!(data[usize::try_from(*k).unwrap()], *v);
         });
     }
+
     #[test]
     fn test_empty_elf_with_empty_args() {
         let mozak_ro_memory =
@@ -622,11 +712,19 @@ mod test {
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
         assert_eq!(mozak_ro_memory.call_tape.data.len(), 0);
     }
+
     #[test]
     fn test_empty_elf_with_args() {
         let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(vec![0, 1], vec![0, 1, 2], vec![0, 1, 2, 3]),
+            &RuntimeArguments::new(
+                vec![0, 1],
+                vec![0, 1, 2],
+                vec![0, 1, 2, 3],
+                vec![0, 1, 2, 3, 4],
+                vec![0, 1, 2, 3, 4, 5],
+                vec![0, 1, 2, 3, 4, 5, 6],
+            ),
         )
         .unwrap()
         .mozak_ro_memory
@@ -634,6 +732,7 @@ mod test {
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 2);
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 3);
         assert_eq!(mozak_ro_memory.call_tape.data.len(), 4);
+        assert_eq!(mozak_ro_memory.event_tape.data.len(), 5);
     }
 
     #[test]

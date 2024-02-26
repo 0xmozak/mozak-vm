@@ -13,7 +13,8 @@
 - [Trace Generation](technical/trace_generation.md)
 - [Writing Starky Constraints](technical/writing_starky_constraints.md)
 - [Memory Design and Checking](technical/memory_design_and_checking.md)
-- [Cross Table Lookups](technical/cross_table_lookups.md)
+- [LookUp Arguments](technical/lookups/main.md)
+    - [LogUp](technical/lookups/logup.md)
 
 <!-- # Reference Guide
 
@@ -36,4 +37,4 @@
 <!--    starky -->
 <!--    cross table lookup -->
 <!--    logup -->
-<!--    constrains of different instructions -->
+<!--    constraints of different instructions -->

@@ -18,7 +18,7 @@ fn test_fibonacci() {
 fn test_fibonacci_mozak_elf() {
     let args = RuntimeArguments::default();
     let program = Program::mozak_load_program(mozak_examples::FIBONACCI_ELF, &args).unwrap();
-    let state = State::<GoldilocksField>::new_mozak_api(program.clone(), args);
+    let state = State::<GoldilocksField>::new(program.clone(), args);
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
@@ -31,10 +31,11 @@ fn test_fibonacci_mozak_elf_new_api_empty_args() {
     let args = RuntimeArguments::default();
     let program =
         Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF_NEW_API, &args).unwrap();
-    let state = State::<GoldilocksField>::new_mozak_api(program.clone(), args);
+    let state = State::<GoldilocksField>::new(program.clone(), args);
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
+
 #[test]
 fn test_fibonacci_mozak_elf_new_api() {
     let fibonacci = |n: u32| -> u32 {
@@ -51,13 +52,15 @@ fn test_fibonacci_mozak_elf_new_api() {
     let out = fibonacci(n);
     let args = RuntimeArguments::new(
         vec![],
+        vec![],
         n.to_le_bytes().to_vec(),
         out.to_le_bytes().to_vec(),
+        vec![],
         vec![],
     );
     let program =
         Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF_NEW_API, &args).unwrap();
-    let state = State::<GoldilocksField>::new_mozak_api(program.clone(), args);
+    let state = State::<GoldilocksField>::new(program.clone(), args);
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
