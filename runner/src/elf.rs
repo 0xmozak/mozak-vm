@@ -198,7 +198,7 @@ impl MozakMemory {
             self.call_tape.starting_address - self.io_tape_private.starting_address;
         self.call_tape.capacity =
             self.event_tape.starting_address - self.call_tape.starting_address;
-        self.event_tape.capacity = 0x50000000 - self.event_tape.starting_address;
+        self.event_tape.capacity = 0x5000_0000 - self.event_tape.starting_address;
     }
 }
 
@@ -587,8 +587,8 @@ impl Program {
         // Context Variables address
         mozak_ro_memory
             .self_prog_id
-            .fill(&args.self_prog_id.as_slice());
-        mozak_ro_memory.cast_list.fill(&args.cast_list.as_slice());
+            .fill(args.self_prog_id.as_slice());
+        mozak_ro_memory.cast_list.fill(args.cast_list.as_slice());
         // IO public
         mozak_ro_memory
             .io_tape_public
