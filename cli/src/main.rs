@@ -156,7 +156,11 @@ pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
 fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
     let data_len = data.len();
     let mut len_prefix_bytes = Vec::with_capacity(data_len + 4);
-    len_prefix_bytes.extend_from_slice(&(u32::try_from(data.len())).to_le_bytes());
+    len_prefix_bytes.extend_from_slice(
+        &(u32::try_from(data.len()))
+            .expect("length of data's max size shouldn't be more than u32")
+            .to_le_bytes(),
+    );
     len_prefix_bytes.extend(data);
     debug!(
         "Length-Prefixed {:<15} of byte len: {:>5}, on-mem bytes: {:>5}",
