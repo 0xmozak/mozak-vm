@@ -107,7 +107,7 @@ impl<F: RichField> State<F> {
 
     #[must_use]
     pub fn ecall(self) -> (Aux<F>, Self) {
-        log::debug!(
+        log::trace!(
             "ecall '{}' at clk: {}",
             ecall::log(self.get_register_value(REG_A0)),
             self.clk
