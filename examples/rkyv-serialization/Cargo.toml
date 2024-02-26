@@ -6,8 +6,8 @@ version = "0.1.0"
 
 [dependencies]
 guest = { path = "../../guest", default-features = false }
-rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
 mozak-sdk = { path = "../../sdk" }
+rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
 
 [features]
 std = ["guest/std"]
