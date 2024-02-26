@@ -38,7 +38,6 @@ pub fn generate_fullword_memory_trace<F: RichField>(
             .map(|s| {
                 let op = s.instruction.op;
                 let base_addr = s.aux.mem.unwrap_or_default().addr;
-
                 let addrs = (0..4)
                     .map(|i| F::from_canonical_u32(base_addr.wrapping_add(i)))
                     .collect_vec()
