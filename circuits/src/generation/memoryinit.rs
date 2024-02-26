@@ -17,7 +17,7 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
     memory_inits.sort_by_key(|init| init.element.address.to_canonical_u64());
 
     let trace = pad_trace_with_default(memory_inits);
-    // log::trace!("MemoryInit trace {:?}", trace);
+    log::trace!("MemoryInit trace {:?}", trace);
     trace
 }
 
@@ -28,8 +28,7 @@ pub fn generate_mozak_memory_init_trace<F: RichField>(program: &Program) -> Vec<
     memory_inits.sort_by_key(|init| init.element.address.to_canonical_u64());
 
     let trace = pad_trace_with_default(memory_inits);
-    // log::debug!("MozakMemoryInit trace {:?}", trace);
-    // log::trace!("MozakMemoryInit trace {:?}", trace);
+    log::trace!("MozakMemoryInit trace {:?}", trace);
     trace
 }
 
@@ -86,6 +85,6 @@ pub fn generate_elf_memory_init_trace<F: RichField>(program: &Program) -> Vec<Me
     memory_inits.sort_by_key(|init| init.element.address.to_canonical_u64());
 
     let trace = pad_trace_with_default(memory_inits);
-    // log::trace!("ElfMemoryInit trace {:?}", trace);
+    log::trace!("ElfMemoryInit trace {:?}", trace);
     trace
 }

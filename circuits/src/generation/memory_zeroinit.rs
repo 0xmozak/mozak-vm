@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use mozak_runner::elf::Program;
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -15,7 +14,6 @@ use crate::utils::pad_trace_with_default;
 pub fn generate_memory_zero_init_trace<F: RichField>(
     mem_init_rows: &[MemoryInit<F>],
     step_rows: &[Row<F>],
-    program: &Program,
 ) -> Vec<MemoryZeroInit<F>> {
     let mut zeroinit_set: HashSet<F> = HashSet::new();
     let meminit_map: HashSet<F> = mem_init_rows
