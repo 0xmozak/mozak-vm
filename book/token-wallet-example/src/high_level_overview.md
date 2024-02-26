@@ -25,7 +25,7 @@ let usdc_token_object = StateObject{
 }
 ```
 
-At a high level, the programs are responsible for the following:
+At a high level, It would look like the program did the following:
 
 - `usdc_token_program` :
 - - request `alice_wallet` to "make a call"  to function that approves the transfer of `usdc_token_object` to `bob_wallet`.
