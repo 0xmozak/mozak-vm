@@ -31,11 +31,11 @@ pub struct CPCMessage {
 ```
 This structure would be appended to `CallTape`, essentially recording the dialogue between the programs as defined by the script.
 
-During the zkvm execution, `call_send` essentially reads off from the correct `CPCMessage` from the  `CallTape` and extracts the `ret` value. This corresponds to initiating the dialogue, and acknowledging that it has received the response.
+During the zkvm execution, `call_send` essentially reads off from the correct `CPCMessage` from the `CallTape` and extracts the `ret` value. This corresponds to initiating the dialogue, and acknowledging that it has received the response.
 
 ### Usage in requesting wallet for approval
 
-Consider a scenario where a `usdc_token` program needs permission from an `alice_wallet` program to transfer USDC tokens to bob_wallet. Here's how `call_send` comes into play:
+Consider a scenario where a `usdc_token` program needs permission from a `alice_wallet` program to transfer USDC tokens to bob_wallet. Here's how `call_send` comes into play:
 
 ```rust
 
