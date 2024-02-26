@@ -286,6 +286,8 @@ where
             &stark.fri_instance(
                 zeta,
                 g,
+                0,
+                vec![],
                 config,
                 Some(&LookupConfig {
                     degree_bits,

@@ -322,6 +322,8 @@ fn verify_stark_proof_with_challenges_circuit<
         builder,
         challenges.stark_zeta,
         F::primitive_root_of_unity(degree_bits),
+        0,
+        0,
         inner_config,
         Some(&LookupConfig {
             degree_bits,

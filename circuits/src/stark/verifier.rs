@@ -173,6 +173,8 @@ where
         &stark.fri_instance(
             challenges.stark_zeta,
             F::primitive_root_of_unity(degree_bits),
+            0,
+            vec![],
             config,
             Some(&LookupConfig {
                 degree_bits,
