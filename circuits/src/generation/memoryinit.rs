@@ -48,15 +48,13 @@ pub fn mozak_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> 
                 mozak_ro_memory.event_tape.data.iter(),
             }
         })
-        .map(|(&addr, &value)| {
-            return MemoryInit {
-                filter: F::ONE,
-                is_writable: F::ZERO,
-                element: MemElement {
-                    address: F::from_canonical_u32(addr),
-                    value: F::from_canonical_u8(value),
-                },
-            };
+        .map(|(&addr, &value)| MemoryInit {
+            filter: F::ONE,
+            is_writable: F::ZERO,
+            element: MemElement {
+                address: F::from_canonical_u32(addr),
+                value: F::from_canonical_u8(value),
+            },
         })
         .collect_vec()
 }
