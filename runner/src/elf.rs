@@ -120,6 +120,25 @@ impl MozakMemory {
         )
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.context_variables.data.is_empty()
+            && self.io_tape_public.data.is_empty()
+            && self.io_tape_private.data.is_empty()
+            && self.transcript.data.is_empty()
+    }
+
+    pub fn fill_runtime_arguments(&mut self, args: &RuntimeArguments) {
+        // Context Variables address
+        self.context_variables
+            .fill(args.context_variables.as_slice());
+        // IO public
+        self.io_tape_public.fill(args.io_tape_public.as_slice());
+        // IO private
+        self.io_tape_private.fill(args.io_tape_private.as_slice());
+        // Transcript
+        self.transcript.fill(args.transcript.as_slice());
+    }
+
     #[must_use]
     pub fn is_address_belongs_to_mozak_ro_memory(&self, address: u32) -> bool {
         let mem_addresses = [
@@ -404,7 +423,7 @@ impl Program {
     /// # Panics
     /// Same as `Program::internal_load_elf`
     #[must_use]
-    pub fn mozak_load_elf(
+    fn internal_mozak_load_elf(
         input: &[u8],
         (elf, entry_point, segments): (ElfBytes<LittleEndian>, u32, SegmentTable<LittleEndian>),
     ) -> Program {
@@ -571,27 +590,34 @@ impl Program {
     /// When `Program::load_elf` or index as address is not cast-able to be u32
     /// cast-able
     pub fn mozak_load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
-        let mut program =
-            Program::mozak_load_elf(elf_bytes, Program::parse_and_validate_elf(elf_bytes)?);
-        let mozak_ro_memory = program
+        let mut program = Program::internal_mozak_load_elf(
+            elf_bytes,
+            Program::parse_and_validate_elf(elf_bytes)?,
+        );
+        program
             .mozak_ro_memory
             .as_mut()
-            .expect("MozakMemory should exist for mozak-elf case");
-        // Context Variables address
-        mozak_ro_memory
-            .context_variables
-            .fill(args.context_variables.as_slice());
-        // IO public
-        mozak_ro_memory
-            .io_tape_public
-            .fill(args.io_tape_public.as_slice());
-        // IO private
-        mozak_ro_memory
-            .io_tape_private
-            .fill(args.io_tape_private.as_slice());
-        mozak_ro_memory.transcript.fill(args.transcript.as_slice());
-
+            .expect("MozakMemory should exist for mozak-elf case")
+            .fill_runtime_arguments(args);
         Ok(program)
+    }
+
+    /// Initialize a RISC Program from an appropriate ELF file
+    ///
+    /// # Errors
+    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
+    /// invalid.
+    ///
+    /// # Panics
+    // This function is actually mostly covered by tests, but it's too annoying to work out how to
+    // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
+    // exercise the error handling?
+    #[allow(clippy::similar_names)]
+    pub fn mozak_load_elf(input: &[u8]) -> Result<Program> {
+        Ok(Program::internal_mozak_load_elf(
+            input,
+            Program::parse_and_validate_elf(input)?,
+        ))
     }
 
     /// # Panics

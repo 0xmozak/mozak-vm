@@ -10,7 +10,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
-use crate::elf::{Code, Data, Program, RuntimeArguments};
+use crate::elf::{Code, Data, MozakMemory, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
@@ -245,7 +245,7 @@ impl<F: RichField> State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            mozak_ro_memory,
+            mut mozak_ro_memory,
             ..
         }: Program,
         args: RuntimeArguments,
@@ -258,16 +258,24 @@ impl<F: RichField> State<F> {
             pc,
             rw_memory,
             ro_memory,
-            mozak_ro_memory: mozak_ro_memory.map_or_else(HashMap::default, |mrm| {
-                chain!(
-                    mrm.context_variables.data.iter(),
-                    mrm.io_tape_private.data.iter(),
-                    mrm.io_tape_public.data.iter(),
-                    mrm.transcript.data.iter(),
-                )
-                .map(|(addr, value)| (*addr, *value))
-                .collect()
-            }),
+            mozak_ro_memory: mozak_ro_memory.as_mut().map_or_else(
+                HashMap::default,
+                |mrm: &mut MozakMemory| {
+                    // Program is mozak-ELF and runtime arguments are not empty, this is the case
+                    // where we need to fill it our self
+                    if mrm.is_empty() && !args.is_empty() {
+                        mrm.fill_runtime_arguments(&args);
+                    }
+                    chain!(
+                        mrm.context_variables.data.iter(),
+                        mrm.io_tape_private.data.iter(),
+                        mrm.io_tape_public.data.iter(),
+                        mrm.transcript.data.iter(),
+                    )
+                    .map(|(addr, value)| (*addr, *value))
+                    .collect()
+                },
+            ),
             ..Default::default()
         }
     }
