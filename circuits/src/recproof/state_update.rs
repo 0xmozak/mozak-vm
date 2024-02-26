@@ -232,6 +232,7 @@ where
         old_hash: HashOut<F>,
         new_hash: HashOut<F>,
         summary_hash: HashOut<F>,
+        address: impl Into<AddressPresent>,
     ) -> Result<ProofWithPublicInputs<F, C, D>>
     where
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
@@ -241,9 +242,30 @@ where
         self.summarized.set_inputs(&mut inputs, summary_hash);
         self.old.set_inputs(&mut inputs, old_hash);
         self.new.set_inputs(&mut inputs, new_hash);
-        // `address.set_inputs` is unnecessary
+        match address.into() {
+            AddressPresent::Present(a) => self.address.set_inputs(&mut inputs, Some(a)),
+            AddressPresent::Absent => self.address.set_inputs(&mut inputs, None),
+            AddressPresent::Implicit => {}
+        }
         self.circuit.prove(inputs)
     }
+}
+
+pub enum AddressPresent {
+    Present(u64),
+    Absent,
+    Implicit,
+}
+
+impl From<()> for AddressPresent {
+    fn from(_value: ()) -> Self { Self::Implicit }
+}
+
+impl From<Option<u64>> for AddressPresent {
+    fn from(value: Option<u64>) -> Self { value.map_or(Self::Absent, Self::Present) }
+}
+impl From<u64> for AddressPresent {
+    fn from(value: u64) -> Self { Self::Present(value) }
 }
 
 #[cfg(test)]
@@ -391,6 +413,7 @@ mod test {
             hash_0_and_0,
             hash_0_and_0,
             zero_hash,
+            (),
         )?;
         branch_circuit_h0.circuit.verify(branch_00_and_00_proof)?;
 
@@ -400,6 +423,7 @@ mod test {
             hash_0_and_0,
             hash_0_and_1,
             slot_3_r0w1,
+            (),
         )?;
         branch_circuit_h0
             .circuit
@@ -411,6 +435,7 @@ mod test {
             hash_0_and_0,
             hash_1_and_0,
             slot_4_r0w1,
+            (),
         )?;
         branch_circuit_h0
             .circuit
@@ -422,6 +447,7 @@ mod test {
             hash_0_and_0,
             hash_1_and_1,
             slot_2_and_3,
+            (),
         )?;
         branch_circuit_h0.circuit.verify(branch_01_and_01_proof)?;
 
@@ -432,6 +458,7 @@ mod test {
             hash_00_and_00,
             hash_01_and_10,
             slot_3_and_4,
+            (),
         )?;
         branch_circuit_h1.circuit.verify(proof)?;
 

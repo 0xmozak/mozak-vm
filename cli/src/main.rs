@@ -137,7 +137,7 @@ fn load_program(mut elf: Input) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    Program::load_elf(&elf_bytes)
+    Program::vanilla_load_elf(&elf_bytes)
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
