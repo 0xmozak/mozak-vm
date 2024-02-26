@@ -21,6 +21,7 @@ pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
     let out = fibonacci(n);
     let state = State::<GoldilocksField>::new(program.clone(), RuntimeArguments {
         self_prog_id: vec![],
+        cast_list: vec![],
         io_tape_private: n.to_le_bytes().to_vec(),
         io_tape_public: out.to_le_bytes().to_vec(),
         call_tape: vec![],
@@ -33,6 +34,7 @@ pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
 pub fn fibonacci_input_mozak_elf(n: u32) -> Result<(), anyhow::Error> {
     let out = fibonacci(n);
     let args = RuntimeArguments::new(
+        vec![],
         vec![],
         n.to_le_bytes().to_vec(),
         out.to_le_bytes().to_vec(),

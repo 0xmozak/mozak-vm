@@ -124,6 +124,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
 
         Self {
             self_prog_id: self_prog_id.to_le_bytes().to_vec(),
+            cast_list: vec![], // will be populated later when `event_tape` is parsed
             io_tape_private,
             io_tape_public,
             call_tape,
@@ -158,7 +159,7 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
     len_prefix_bytes.extend_from_slice(&(data.len() as u32).to_le_bytes());
     len_prefix_bytes.extend(data);
     debug!(
-        "LengthPrefixEncoded {} of len: {}, net_len: {}",
+        "Length-Prefixed {:<15} of byte len: {:>5}, on-mem bytes: {:>5}",
         dgb_string,
         data_len,
         len_prefix_bytes.len()
@@ -180,8 +181,11 @@ pub fn tapes_to_runtime_arguments(
 ) -> mozak_runner::elf::RuntimeArguments {
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.into();
+    let mut cast_list: Vec<ProgramIdentifier> =
+        Vec::with_capacity(sys_tapes.event_tape.writer.len());
     let mut event_tape_single: Option<&Vec<Event>> = None;
     for single_tape in &sys_tapes.event_tape.writer {
+        cast_list.push(single_tape.id);
         if single_tape.id == self_prog_id {
             event_tape_single = Some(&single_tape.contents);
         }
@@ -190,11 +194,17 @@ pub fn tapes_to_runtime_arguments(
         event_tape_single.is_some(),
         "event tape not found in bundle"
     );
-    debug!("SELF PROG ID: {self_prog_id:#?}");
-    // debug!("SYSTAPE READOUT: {sys_tapes:#?}");
+    cast_list.sort();
+
+    debug!("Self Prog ID: {self_prog_id:#?}");
+    debug!("Cast List (canonical repr): {cast_list:#?}");
 
     mozak_runner::elf::RuntimeArguments {
         self_prog_id: self_prog_id.to_le_bytes().to_vec(),
+        cast_list: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(&cast_list).unwrap().into(),
+            "CAST_LIST",
+        ),
         io_tape_public: length_prefixed_bytes(
             rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape)
                 .unwrap()

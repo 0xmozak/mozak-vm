@@ -51,6 +51,8 @@ impl MozakMemoryRegion {
 pub struct MozakMemory {
     // self_prog_id
     pub self_prog_id: MozakMemoryRegion,
+    // cast_list
+    pub cast_list: MozakMemoryRegion,
     // io private
     pub io_tape_private: MozakMemoryRegion,
     // io public
@@ -78,6 +80,11 @@ impl Default for MozakMemory {
                 capacity: 12_u32,
                 ..Default::default()
             },
+            cast_list: MozakMemoryRegion {
+                starting_address: 0x2000_0010_u32,
+                capacity: 0x0001_0000_u32,
+                ..Default::default()
+            },
             io_tape_public: MozakMemoryRegion {
                 starting_address: 0x2100_0000_u32,
                 capacity: 0x0F00_0000_u32,
@@ -102,7 +109,7 @@ impl Default for MozakMemory {
     }
 }
 
-/// Deprecated
+/// Deprecated??
 impl From<(&[u8], &[u8])> for MozakMemory {
     fn from((private, public): (&[u8], &[u8])) -> Self {
         let mut mozak_memory = MozakMemory::create();
@@ -116,6 +123,7 @@ impl MozakMemory {
     fn create() -> MozakMemory {
         MozakMemory {
             self_prog_id: MozakMemoryRegion::default(),
+            cast_list: MozakMemoryRegion::default(),
             io_tape_private: MozakMemoryRegion::default(),
             io_tape_public: MozakMemoryRegion::default(),
             call_tape: MozakMemoryRegion::default(),
@@ -136,6 +144,7 @@ impl MozakMemory {
     pub fn is_address_belongs_to_mozak_ro_memory(&self, address: u32) -> bool {
         let mem_addresses = [
             self.self_prog_id.memory_range(),
+            self.cast_list.memory_range(),
             self.io_tape_public.memory_range(),
             self.io_tape_private.memory_range(),
             self.call_tape.memory_range(),
@@ -169,25 +178,17 @@ impl MozakMemory {
         };
 
         self.self_prog_id.starting_address = get("_mozak_self_prog_id");
-
+        self.cast_list.starting_address = get("_mozak_cast_list");
         self.io_tape_public.starting_address = get("_mozak_public_io_tape");
-        // log::debug!(
-        //     "_mozak_public_io_tape: 0x{:0x}",
-        //     self.io_tape_public.starting_address
-        // );
-
         self.io_tape_private.starting_address = get("_mozak_private_io_tape");
-        // log::debug!(
-        //     "_mozak_private_io_tape: 0x{:0x}",
-        //     self.io_tape_private.starting_address
-        // );
-
         self.call_tape.starting_address = get("_mozak_call_tape");
         self.event_tape.starting_address = get("_mozak_event_tape");
         // log::debug!("_mozak_call_tape: 0x{:0x}", self.call_tape.starting_address);
 
         // compute capacity, assume single memory region (refer to linker-script)
         self.self_prog_id.capacity = 12_u32;
+        self.cast_list.capacity = 0x0001_0000_u32;
+
         self.io_tape_public.capacity =
             self.io_tape_private.starting_address - self.io_tape_public.starting_address;
         // refer to linker-script to understand this magic number ...
@@ -208,6 +209,7 @@ impl MozakMemory {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RuntimeArguments {
     pub self_prog_id: Vec<u8>,
+    pub cast_list: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
     pub call_tape: Vec<u8>,
@@ -219,6 +221,7 @@ impl RuntimeArguments {
     #[must_use]
     pub fn new(
         self_prog_id: Vec<u8>,
+        cast_list: Vec<u8>,
         io_tape_private: Vec<u8>,
         io_tape_public: Vec<u8>,
         call_tape: Vec<u8>,
@@ -226,6 +229,7 @@ impl RuntimeArguments {
     ) -> Self {
         RuntimeArguments {
             self_prog_id,
+            cast_list,
             io_tape_private,
             io_tape_public,
             call_tape,
@@ -560,6 +564,7 @@ impl Program {
         mozak_ro_memory
             .self_prog_id
             .fill(&args.self_prog_id.as_slice());
+        mozak_ro_memory.cast_list.fill(&args.cast_list.as_slice());
         // IO public
         mozak_ro_memory
             .io_tape_public

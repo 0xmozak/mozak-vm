@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::ptr::addr_of;
 
 use once_cell::unsync::Lazy;
@@ -29,6 +30,7 @@ pub struct SystemTapes {
 #[cfg(target_os = "zkvm")]
 extern "C" {
     static _mozak_self_prog_id: usize;
+    static _mozak_cast_list: usize;
     static _mozak_public_io_tape: usize;
     static _mozak_private_io_tape: usize;
     static _mozak_call_tape: usize;
@@ -52,18 +54,6 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     {
         use std::ptr::slice_from_raw_parts;
 
-        // These values should be derived from linker script and reserved memory
-        // somewhere
-        // const PROG_IDENT: u32 = 0x20000000;
-        // const PUBL_START: u32 = 0x21000000;
-        // const PUBL_MAXLN: u32 = 0x0F000000;
-        // const PRIV_START: u32 = 0x30000000;
-        // const PRIV_MAXLN: u32 = 0x10000000;
-        // const CALL_START: u32 = 0x40000000;
-        // const CALL_MAXLN: u32 = 0x08000000;
-        // const EVNT_START: u32 = 0x48000000;
-        // const EVNT_MAXLN: u32 = 0x08000000;
-
         /// Zero-copy deserialization on a memory region starting at `addr`
         /// Expected layout to be `[<data_region len (N) in 4
         /// bytes>|<data_region N bytes>]`
@@ -79,6 +69,14 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
             unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } };
         assert!(self_prog_id != ProgramIdentifier::default()); // Reserved for null caller
 
+        let castlist_zcd = get_zcd_repr::<Vec<ProgramIdentifier>>(unsafe {
+            addr_of!(_mozak_cast_list) as *const u8
+        });
+        let castlist_deserialized: Vec<ProgramIdentifier> =
+            castlist_zcd.deserialize(&mut rkyv::Infallible).unwrap();
+        let cast_list = castlist_deserialized.into_iter().map(|x| (x, 0)).collect();
+        // assert!(castlist_zcd.len() == 2);
+
         let calltape_zcd =
             get_zcd_repr::<Vec<CPCMessage>>(unsafe { addr_of!(_mozak_call_tape) as *const u8 });
 
@@ -87,6 +85,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
 
         SystemTapes {
             call_tape: CallTape {
+                cast_list,
                 self_prog_id,
                 reader: Some(calltape_zcd),
                 index: 0,
@@ -126,6 +125,8 @@ impl RawTape {
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct CallTape {
     #[cfg(target_os = "zkvm")]
+    cast_list: Vec<(ProgramIdentifier, u32)>,
+    #[cfg(target_os = "zkvm")]
     self_prog_id: ProgramIdentifier,
     #[cfg(target_os = "zkvm")]
     reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
@@ -139,6 +140,8 @@ impl CallTape {
     pub fn new() -> Self {
         Self {
             #[cfg(target_os = "zkvm")]
+            cast_list: Vec::new(),
+            #[cfg(target_os = "zkvm")]
             self_prog_id: ProgramIdentifier::default(),
             #[cfg(target_os = "zkvm")]
             reader: None,
@@ -150,17 +153,56 @@ impl CallTape {
     }
 
     #[cfg(target_os = "zkvm")]
-    pub(crate) fn set_self_prog_id(&mut self, id: ProgramIdentifier) { self.self_prog_id = id; }
+    fn is_casted_actor(&mut self, actor: &ProgramIdentifier, update: bool) -> bool {
+        for (id, count) in &mut self.cast_list {
+            if id != actor {
+                continue;
+            }
+            if update {
+                *count += 1;
+            }
+            return true;
+        }
+        false
+    }
+
+    #[cfg(target_os = "zkvm")]
+    fn ensure_all_cast_seen(&self) -> bool {
+        let mut all_non_zero = true;
+        for (_, count) in &self.cast_list {
+            if *count == 0 {
+                all_non_zero = false;
+                break;
+            }
+        }
+        all_non_zero
+    }
 
     pub fn from_mailbox(&mut self) -> Option<(CPCMessage, usize)> {
         #[cfg(target_os = "zkvm")]
         {
             while self.index < self.reader.unwrap().len() {
                 let zcd_cpcmsg = &self.reader.unwrap()[self.index];
+                let caller: ProgramIdentifier = zcd_cpcmsg
+                    .caller_prog
+                    .deserialize(&mut rkyv::Infallible)
+                    .unwrap();
+
+                assert!(caller != self.self_prog_id);
+
                 let callee: ProgramIdentifier = zcd_cpcmsg
                     .callee_prog
                     .deserialize(&mut rkyv::Infallible)
                     .unwrap();
+
+                if self.index == 0 {
+                    assert!(caller == ProgramIdentifier::default())
+                } else {
+                    assert!(caller != ProgramIdentifier::default());
+                    assert!(self.is_casted_actor(&caller, false));
+                }
+
+                assert!(self.is_casted_actor(&callee, true));
 
                 // if we are the callee, return this message
                 if self.self_prog_id == callee {
@@ -171,6 +213,7 @@ impl CallTape {
                 }
                 self.index += 1;
             }
+            self.ensure_all_cast_seen();
             None
         }
 
@@ -202,6 +245,7 @@ impl CallTape {
 
             assert!(cpcmsg.caller_prog == self.self_prog_id);
             assert!(cpcmsg.callee_prog == callee_prog);
+            assert!(self.is_casted_actor(&cpcmsg.callee_prog, true));
             assert!(cpcmsg.args.0 == rkyv::to_bytes::<_, 256>(&call_args).unwrap().to_vec());
 
             self.index += 1;

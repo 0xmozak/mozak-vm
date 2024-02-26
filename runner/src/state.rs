@@ -222,6 +222,7 @@ impl<F: RichField> State<F> {
                 .0
                 .into_iter()
                 .chain(ro_memory.self_prog_id.data.0)
+                .chain(ro_memory.cast_list.data.0)
                 .chain(ro_memory.io_tape_private.data.0)
                 .chain(ro_memory.call_tape.data.0)
                 .chain(ro_memory.event_tape.data.0)

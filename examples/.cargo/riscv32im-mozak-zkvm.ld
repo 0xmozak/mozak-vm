@@ -69,6 +69,7 @@ SECTIONS {
     /* mozak_globals, NOTE: needs to sync with memory regions defined above */
     .mozak_globals : {
         _mozak_self_prog_id               = 0x20000000;
+        _mozak_cast_list                  = 0x20000010;
         _mozak_public_io_tape             = 0x21000000;
         _mozak_private_io_tape            = 0x30000000;
         _mozak_call_tape                  = 0x40000000;
