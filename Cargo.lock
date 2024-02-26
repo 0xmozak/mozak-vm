@@ -1088,7 +1088,6 @@ dependencies = [
  "log",
  "mimalloc",
  "mozak-examples",
- "mozak-sdk",
  "mozak-system",
  "plonky2",
  "proptest",
