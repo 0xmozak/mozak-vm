@@ -29,8 +29,8 @@ clio = { version = "0.3", features = ["http-ureq", "clap-parse"] }
 env_logger = "0.10"
 itertools = "0.12"
 log = "0.4"
-plonky2 = "0.2.0"
-starky = "0.2.0"
+plonky2 = "0"
+starky = "0"
 tempfile = "3"
 
 [dev-dependencies]

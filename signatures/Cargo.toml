@@ -17,7 +17,7 @@ hex = "0.4.3"
 itertools = "0.12.0"
 log = "0.4"
 num = "0.4.1"
-plonky2 = "0.2.0"
+plonky2 = "0"
 plonky2_crypto = { path = "../../plonky2-crypto" }
 serde = "1.0.196"
 sha2 = "0.10.8"
