@@ -1,58 +1,67 @@
-# High level overview
+## High-Level Overview of a Transaction
 
-Consider the following scenario.
 
-Alice owns a USDC token in her  wallet. She has to transfer the token to Bob, who has his own wallet.
+**Token Wallet Example:**
 
-A USDC token is represented as `StateObject` with the constraint owner being the USDC token program represented through `ProgramIdentifier`. The USDC token, along with the amount, also stores the details of its owner (in this case, Alice) and her wallet program. The USDC program would require approval from Alice's wallet program in order to transfer the economic ownership to Bob and his wallet program.
+Imagine Alice owns USDC tokens in her wallet. She wants to transfer them to Bob's wallet. This transfer is done by the USDC token program, which can only modify USDC tokens after receiving approval from the owner's wallet program (Alice's in this case).
+
+**Program-Level Breakdown:**
+
+A USDC token is represented by a `StateObject` with a unique owner (`USDC token program`) and details like Alice's ownership and wallet program. The USDC program requires approval from Alice's wallet program to transfer ownership to Bob and his wallet program.
 
 ```rust
 let alice_wallet: ProgramIdentifier;
 let bob_wallet: ProgramIdentifier;
 
-let usdc_token_object_data = USDCTokenData{
-	usdc_token_owner: ALICE_PUBLIC_KEY;
-	wallet_program: alice_wallet;
-	amount: 100;
-}
+let usdc_token_data = USDCTokenData {
+    usdc_token_owner: ALICE_PUBLIC_KEY,
+    wallet_program: alice_wallet,
+    amount: 100,
+};
 
 let usdc_token_program: ProgramIdentifier;
 
-let usdc_token_object = StateObject{
-	address: address_of_object_in_state_tree,
-	constraint_owner: usdc_token_program
-	data: usdc_token_object_data.to_bytes(),
-}
+let usdc_token_object = StateObject {
+    address: address_of_object_in_state_tree,
+    constraint_owner: usdc_token_program,
+    data: usdc_token_data.to_bytes(),
+};
 ```
 
-At a high level, It would look like the program did the following:
+At a high level, the program performs the following:
 
-- `usdc_token_program` :
-- - request `alice_wallet` to "make a call"  to function that approves the transfer of `usdc_token_object` to `bob_wallet`.
-- - gets "output of call", that is, approval of the transfer
-  - "propose a change" of `usdc_token_object`'s owner and wallet to that of Bob
-- `alice_wallet`
-- - receives, from `usdc_token_program`  "request to call"  the function to approve transfer of `usdc_token_object `to `bob_wallet`
-  - the function execution shows ownership of `usdc_token_object` by proving knowledge of private key corresponding to public key of `usdc_token_object`, which is supplied by Alice to the program through private tape
-  - sends "output of call", that is the approval of transfer back to `usdc_token_program`
+1. `usdc_token_program` verifies Alice owns `usdc_token_object`.
+2. It requests `alice_wallet` to "call" a function approving the transfer of `usdc_token_object` to `bob_wallet`.
+3. `alice_wallet` "receives the request" and calls its approval function.
+4. The approval function proves Alice possesses the pre-image hash of the public key (essentially, her private key) for `usdc_token_object`. This proof is provided as private input to the wallet program.
+5. `usdc_token_program` receives the approval.
+6. It then "proposes a change" to update `usdc_token_object`'s owner and wallet to Bob's.
 
-But what exactly would happen when we say "make a call", get or send "output of call" and "propose a change" occur?
-In practice, these won't occur in the usual sense. "Make a call" or send "output of call" don't correspond to a program calling another program or sending a response to other program. "Propose a change" does not refer to sending it to some entity who is listening in.
+Each program generates a zero-knowledge proof of its execution within zkVM. However, this isn't enough! The proof needs to capture the communication and interaction with the global state between programs.
 
-What would actually happen is that these programs would demonstrate that they have actually followed a script together, complied with each other's requests, and sent and received the intended responses. Each of the programs continues the execution as if it had "made the call" with correct arguments, computed the correct "output of call", and sent the intended response and "proposed" the intended state change.
-This entire script is stored in two parts. `CallTape` is the part where the "make a call" and "output of call" events are stored. `EventTape` is the part where all the proposed changes to final state are stored.
+**Cross-Program Communication (CPC):**
 
-We briefly describe how these tapes are created. The idea is that the play is performed, and then the script is created. Each program has two types of execution, native and zkvm. In the native execution all the "make a call", sending and receiving of "output of call" and "proposal to state change" are emulated in the intended manner, and the  `CallTape `and `EventTape `is generated. In the zkvm execution,  the actual functions mentioned in the `CallTape ` are executed by corresponding program, and their output is shown to be the same as the ones mentioned in the `CallTape`.'
+Programs don't actually "call" or "receive responses" in the traditional sense. Instead, they demonstrate following a predetermined script defining their interactions. This script, called `CallTape`, ensures both programs adhere to the agreed-upon communication protocol. Our proof system verifies the script's execution.
 
-In this scenario, the `CallTape` would attest to following events
+For example, when the token program requests approval from Alice's wallet program, `CallTape` would record the following event:
 
-- `usdc_token_program` called `alice_wallet` to execute the `approve_transfer` function with arguments `(usdc_token_object, bob_wallet)`
-- `alice_wallet` program approved the transfer, and returned the boolean value `true`
-- `usdc_token_program` read the response `true`.
+- `usdc_token_program` called `alice_wallet` to execute `approve_transfer` with arguments `(usdc_token_object, bob_wallet)`.
+- `alice_wallet` approved the transfer, returning `true`.
 
-The `EventTape` would attest to the following events
+**Provable State Interaction:**
 
-- `usdc_token_program` read `usdc_token_object` from the global state (before seeking approval from wallet program)
-- `usdc_token_program` proposed an update to `usdc_token_object` while updating owner's public key, and wallet to that of Bob (after getting approval from the wallet program)
+Similar to `CallTape`, a `EventTape` stores all reads and writes a program performs on the global state. The program's proof also verifies the events on `EventTape` that it claims to have emitted.
 
-A zkvm execution of both programs produces a proof of their execution. The proof, along with attestation to `CallTape`, confirms that the programs followed the script mentioned in `CallTape`, that is complied with each other's requests and computed the correct function with correct output.
+For instance, when the `usdc_token_program` wants to transfer ownership of `usdc_token_object` to Bob, `EventTape` would record:
+
+- `usdc_token_program` proposed an update to `usdc_token_object`'s `owner` field to `BOB_PUBLIC_KEY` and `wallet` field to `bob_wallet`.
+
+**Script Generation:**
+
+The script is essentially created by performing a "dry run" of all programs, mimicking their regular execution as Rust programs. This is called **Native Execution**. During this execution, the script is generated, and all cross-program calls and global state interactions are recorded in `CallTape` and `EventTape`, respectively.
+
+**Following the Script:**
+
+We have another execution environment called **ZKVM Execution** for generating proofs. After preparing the tapes, programs are run individually on zkVM. When a program needs to communicate with another, it reads from `CallTape` and provably accesses the agreed-upon response. It then continues its execution based on the response.
+
+**TODO:** Transaction Bundle
