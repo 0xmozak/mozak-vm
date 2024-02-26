@@ -16,9 +16,9 @@ pub trait CallArgument = Sized + RkyvSerializable;
 pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
 
 #[derive(Default, Clone)]
-#[cfg_attr(not(target_os = "zkvm"), derive(Archive, Serialize, Deserialize))]
-#[cfg_attr(not(target_os = "zkvm"), archive_attr(derive(Debug)))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Archive, Serialize, Deserialize))]
+#[cfg_attr(not(target_os = "mozakvm"), archive_attr(derive(Debug)))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct SystemTapes {
     pub private_tape: RawTape,
     pub public_tape: RawTape,
@@ -26,7 +26,7 @@ pub struct SystemTapes {
     pub event_tape: EventTape,
 }
 
-#[cfg(target_os = "zkvm")]
+#[cfg(target_os = "mozakvm")]
 extern "C" {
     static _mozak_self_prog_id: usize;
     static _mozak_cast_list: usize;
@@ -49,7 +49,7 @@ impl SystemTapes {
 }
 
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     {
         use std::ptr::slice_from_raw_parts;
 
@@ -98,7 +98,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
         }
     }
 
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     {
         // let calls = vec![CPCMessage::default(), CPCMessage::default()];
         SystemTapes::default()
@@ -108,7 +108,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct RawTape {
     start: u32,
     len: u32,
@@ -119,39 +119,39 @@ impl RawTape {
 }
 
 #[derive(Default, Clone)]
-#[cfg_attr(not(target_os = "zkvm"), derive(Archive, Deserialize, Serialize))]
-#[cfg_attr(not(target_os = "zkvm"), archive_attr(derive(Debug)))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Archive, Deserialize, Serialize))]
+#[cfg_attr(not(target_os = "mozakvm"), archive_attr(derive(Debug)))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct CallTape {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     cast_list: Vec<(ProgramIdentifier, u32)>,
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     self_prog_id: ProgramIdentifier,
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     pub writer: Vec<CPCMessage>,
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     index: usize,
 }
 
 impl CallTape {
     pub fn new() -> Self {
         Self {
-            #[cfg(target_os = "zkvm")]
+            #[cfg(target_os = "mozakvm")]
             cast_list: Vec::new(),
-            #[cfg(target_os = "zkvm")]
+            #[cfg(target_os = "mozakvm")]
             self_prog_id: ProgramIdentifier::default(),
-            #[cfg(target_os = "zkvm")]
+            #[cfg(target_os = "mozakvm")]
             reader: None,
-            #[cfg(not(target_os = "zkvm"))]
+            #[cfg(not(target_os = "mozakvm"))]
             writer: Vec::new(),
-            #[cfg(target_os = "zkvm")]
+            #[cfg(target_os = "mozakvm")]
             index: 0,
         }
     }
 
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     fn is_casted_actor(&mut self, actor: &ProgramIdentifier, update: bool) -> bool {
         for (id, count) in &mut self.cast_list {
             if id != actor {
@@ -165,7 +165,7 @@ impl CallTape {
         false
     }
 
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     fn ensure_all_cast_seen(&self) -> bool {
         let mut all_non_zero = true;
         for (_, count) in &self.cast_list {
@@ -178,7 +178,7 @@ impl CallTape {
     }
 
     pub fn from_mailbox(&mut self) -> Option<(CPCMessage, usize)> {
-        #[cfg(target_os = "zkvm")]
+        #[cfg(target_os = "mozakvm")]
         {
             while self.index < self.reader.unwrap().len() {
                 let zcd_cpcmsg = &self.reader.unwrap()[self.index];
@@ -216,7 +216,7 @@ impl CallTape {
             None
         }
 
-        #[cfg(not(target_os = "zkvm"))]
+        #[cfg(not(target_os = "mozakvm"))]
         {
             // TODO(bing): implement native from_mailbox()
             return None;
@@ -229,13 +229,13 @@ impl CallTape {
         callee_prog: ProgramIdentifier,
         call_args: A,
         dispatch_native: impl Fn(A) -> R,
-        _dispatch_zkvm: impl Fn() -> R,
+        _dispatch_mozakvm: impl Fn() -> R,
     ) -> R
     where
         A: CallArgument,
         R: CallReturn,
         <R as Archive>::Archived: Deserialize<R, rkyv::Infallible>, {
-        #[cfg(target_os = "zkvm")]
+        #[cfg(target_os = "mozakvm")]
         {
             assert!(self.index < self.reader.unwrap().len());
 
@@ -256,7 +256,7 @@ impl CallTape {
             )
             .unwrap()
         }
-        #[cfg(not(target_os = "zkvm"))]
+        #[cfg(not(target_os = "mozakvm"))]
         {
             let msg = CPCMessage {
                 caller_prog,
@@ -283,24 +283,24 @@ impl CallTape {
 }
 
 #[derive(Default, Clone)]
-#[cfg_attr(not(target_os = "zkvm"), derive(Archive, Deserialize, Serialize))]
-#[cfg_attr(not(target_os = "zkvm"), archive_attr(derive(Debug)))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Archive, Deserialize, Serialize))]
+#[cfg_attr(not(target_os = "mozakvm"), archive_attr(derive(Debug)))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct EventTape {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     self_prog_id: ProgramIdentifier,
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     reader: Option<&'static <Vec<Event> as Archive>::Archived>,
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     pub writer: Vec<EventTapeSingle>,
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     index: usize,
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct EventTapeSingle {
     pub id: ProgramIdentifier,
     pub contents: Vec<Event>,
@@ -309,19 +309,19 @@ pub struct EventTapeSingle {
 impl EventTape {
     pub fn new() -> Self {
         Self {
-            #[cfg(target_os = "zkvm")]
+            #[cfg(target_os = "mozakvm")]
             self_prog_id: ProgramIdentifier::default(),
-            #[cfg(target_os = "zkvm")]
+            #[cfg(target_os = "mozakvm")]
             reader: None,
-            #[cfg(not(target_os = "zkvm"))]
+            #[cfg(not(target_os = "mozakvm"))]
             writer: vec![],
-            #[cfg(target_os = "zkvm")]
+            #[cfg(target_os = "mozakvm")]
             index: 0,
         }
     }
 
     pub fn emit_event(&mut self, id: ProgramIdentifier, event: Event) {
-        #[cfg(target_os = "zkvm")]
+        #[cfg(target_os = "mozakvm")]
         {
             assert!(self.index < self.reader.unwrap().len());
 
@@ -342,7 +342,7 @@ impl EventTape {
 
             self.index += 1;
         }
-        #[cfg(not(target_os = "zkvm"))]
+        #[cfg(not(target_os = "mozakvm"))]
         {
             println!("[EVENT] Add: {:#?}", event);
 
@@ -361,7 +361,7 @@ impl EventTape {
     }
 }
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 pub fn dump_tapes(file_template: String) {
     fn write_to_file(file_path: &String, content: &[u8]) {
         use std::io::Write;
@@ -412,7 +412,7 @@ pub fn call_send<A, R>(
     callee_prog: ProgramIdentifier,
     call_args: A,
     dispatch_native: impl Fn(A) -> R,
-    dispatch_zkvm: impl Fn() -> R,
+    dispatch_mozakvm: impl Fn() -> R,
 ) -> R
 where
     A: CallArgument,
@@ -424,7 +424,7 @@ where
             callee_prog,
             call_args,
             dispatch_native,
-            dispatch_zkvm,
+            dispatch_mozakvm,
         )
     }
 }

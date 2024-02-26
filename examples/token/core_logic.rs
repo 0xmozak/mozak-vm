@@ -10,7 +10,7 @@ use wallet::TokenObject;
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
     // Mint,
     // Burn,
@@ -28,7 +28,7 @@ pub enum MethodArgs {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodReturns {
     Transfer,
 }

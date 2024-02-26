@@ -15,12 +15,12 @@ once_cell = { version = "1.19.0", default-features = false, features = ["race"] 
 rkyv = { version = "0.7.1", default-features = false, features = ["size_32", "alloc"] }
 # lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
 
-[target.'cfg(not(target_os="zkvm"))'.dependencies.lazy_static]
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.lazy_static]
 version = "1.4.0"
 
-[target.'cfg(not(target_os="zkvm"))'.dependencies.hex]
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"
 
-[target.'cfg(not(target_os="zkvm"))'.dependencies.serde]
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.serde]
 features = ["derive"]
 version = "1.0"

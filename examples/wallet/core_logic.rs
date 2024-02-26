@@ -10,7 +10,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct PublicKey([u8; 32]);
 
 impl From<[u8; 32]> for PublicKey {
@@ -30,7 +30,7 @@ impl From<[u8; 32]> for PrivateKey {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct Amount(u64);
 
 impl From<u64> for Amount {
@@ -40,7 +40,7 @@ impl From<u64> for Amount {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct TokenObject {
     pub wallet_prog_id: ProgramIdentifier,
     pub pub_key: PublicKey,
@@ -50,7 +50,7 @@ pub struct TokenObject {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct BlackBox {
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
@@ -74,7 +74,7 @@ impl BlackBox {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
     ApproveSignature(PublicKey, BlackBox),
 }

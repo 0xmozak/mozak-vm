@@ -3,19 +3,19 @@ use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone, PartialOrd, Ord)]
-#[cfg_attr(not(target_os = "zkvm"), derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(serde::Serialize, serde::Deserialize))]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct Poseidon2HashType([u8; 4]);
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::ops::Deref for Poseidon2HashType {
     type Target = [u8; 4];
 
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::fmt::Debug for Poseidon2HashType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -56,14 +56,14 @@ pub const STATE_TREE_DEPTH: usize = 8;
 #[archive_attr(derive(Debug))]
 pub struct Address([u8; STATE_TREE_DEPTH]);
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::ops::Deref for Address {
     type Target = [u8; STATE_TREE_DEPTH];
 
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::fmt::Debug for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -91,7 +91,7 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
 /// hashes: `program_rom_hash` & `memory_init_hash` and a program
 /// entry point `entry_point`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone, PartialOrd, Ord)]
-#[cfg_attr(not(target_os = "zkvm"), derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(serde::Serialize, serde::Deserialize))]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct ProgramIdentifier {
@@ -136,7 +136,7 @@ impl ProgramIdentifier {
     }
 }
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::fmt::Debug for ProgramIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -161,7 +161,7 @@ impl std::fmt::Debug for ProgramIdentifier {
     }
 }
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl From<String> for ProgramIdentifier {
     fn from(value: String) -> ProgramIdentifier {
         fn even_str(s: String) -> String {
@@ -195,7 +195,7 @@ impl From<String> for ProgramIdentifier {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct StateObject {
     /// [IMMUTABLE] Logical address of StateObject in the tree
     pub address: Address,
@@ -218,7 +218,7 @@ pub struct StateObject {
 #[archive_attr(derive(Debug))]
 pub struct RawMessage(pub Vec<u8>);
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::fmt::Debug for RawMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -233,7 +233,7 @@ impl std::fmt::Debug for RawMessage {
     }
 }
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::ops::Deref for RawMessage {
     type Target = Vec<u8>;
 
@@ -252,7 +252,7 @@ impl From<AlignedVec> for RawMessage {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct CPCMessage {
     /// caller of cross-program-call message. Tuple of ProgramID
     /// and methodID
@@ -273,7 +273,7 @@ pub struct CPCMessage {
 #[archive_attr(derive(Debug))]
 pub struct Signature(Vec<u8>);
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::fmt::Debug for Signature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -288,7 +288,7 @@ impl std::fmt::Debug for Signature {
     }
 }
 
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 impl std::ops::Deref for Signature {
     type Target = Vec<u8>;
 
@@ -302,7 +302,7 @@ impl From<Vec<u8>> for Signature {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum ContextVariable {
     BlockHeight(u64),
     SelfProgramIdentifier(ProgramIdentifier),
@@ -311,7 +311,7 @@ pub enum ContextVariable {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum Event {
     ReadContextVariable(ContextVariable),
     ReadStateObject(StateObject),

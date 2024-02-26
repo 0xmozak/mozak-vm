@@ -17,7 +17,7 @@ cargo run --release --features="native" --bin wallet-native --target aarch64-app
 Test the ELF in mozak-vm using:
 ```
 MOZAK_STARK_DEBUG=true ./target/debug/mozak-cli prove-and-verify \
-    examples/target/riscv32im-mozak-zkvm-elf/release/wallet \
+    examples/target/riscv32im-mozak-mozakvm-elf/release/wallet \
     examples/wallet/private_input.tape \
     examples/wallet/public_input.tape
 ```
@@ -25,5 +25,5 @@ MOZAK_STARK_DEBUG=true ./target/debug/mozak-cli prove-and-verify \
 Prove and verify:
 
 ```
-../target/debug/mozak-cli prove-and-verify -vvv target/riscv32im-mozak-zkvm-elf/release/walletbin --system-tape wallet_tfr.tape_bin --self-prog-id MZK-155a7957-1f2314bd-0
+../target/debug/mozak-cli prove-and-verify -vvv target/riscv32im-mozak-mozakvm-elf/release/walletbin --system-tape wallet_tfr.tape_bin --self-prog-id MZK-155a7957-1f2314bd-0
 ```

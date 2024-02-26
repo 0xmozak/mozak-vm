@@ -11,14 +11,7 @@ guest = { path = "../../guest", features = ["std"] }
 mozak-sdk = { path = "../../sdk" }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
 
-[target.'cfg(not(target_os="zkvm"))'.dependencies.log]
-version = "0.4"
-
-[target.'cfg(not(target_os="zkvm"))'.dependencies.simple_logger]
-features = ["colors", "timestamps", "nightly"]
-version = "4.3.0"
-
-[target.'cfg(not(target_os="zkvm"))'.dependencies.hex]
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"
 
 [[bin]]

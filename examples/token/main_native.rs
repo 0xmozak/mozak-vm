@@ -2,7 +2,7 @@ mod core_logic;
 
 use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
 use mozak_sdk::sys::call_send;
-#[cfg(not(target_os = "zkvm"))]
+#[cfg(not(target_os = "mozakvm"))]
 use mozak_sdk::sys::dump_tapes;
 use token::{dispatch, MethodArgs, MethodReturns};
 use wallet::TokenObject;
