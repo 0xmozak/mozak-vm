@@ -156,13 +156,15 @@ fn main() -> Result<()> {
         }
         Command::Run(RunArgs { elf, args }) => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let state =
+                State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.into());
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
         }
         Command::ProveAndVerify(RunArgs { elf, args }) => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let state =
+                State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.into());
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
@@ -173,7 +175,8 @@ fn main() -> Result<()> {
             recursive_proof,
         }) => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let state =
+                State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.into());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
