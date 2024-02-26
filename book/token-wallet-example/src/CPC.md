@@ -1,5 +1,5 @@
 ## Cross-Program Communication with `call_send` and `call_receive`
-The SDK offers two powerful functions, `call_send` and `call_receive`, that help us to emulate communication between token and wallet program.
+The SDK offers two functions, `call_send` and `call_receive`, that help us to emulate communication between token and wallet program.
 
 ### Understanding `call_send`
 `call_send` allows a program (the caller) to invoke a function from another program (the callee). 
