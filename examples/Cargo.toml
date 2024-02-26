@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  # "amm",
   "token",
   "wallet",
   "bss-tester",
