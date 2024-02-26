@@ -12,7 +12,6 @@ pub fn min_max() -> Vec<u8> {
 }
 
 pub fn main() {
-    assert!(false);
     let result = min_max();
     guest::env::write(&result);
 }
