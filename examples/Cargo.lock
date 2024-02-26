@@ -656,7 +656,6 @@ name = "rkyv-serialization-mozak-guest"
 version = "0.1.0"
 dependencies = [
  "guest",
- "mozak-sdk",
  "rkyv",
 ]
 
