@@ -5,7 +5,6 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use mozak_sdk::coretypes::CPCMessage;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
