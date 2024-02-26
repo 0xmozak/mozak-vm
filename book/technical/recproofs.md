@@ -4,8 +4,8 @@ Mozak uses [recproofs] to efficiently produce proofs of the states, which are co
 
 Recproofs enable
 
-1. Nice batching property. \\( O(nlogn) \\) time to compute the proof in parallel.
-2. Updatable in \\( O(nlogn) \\) time if one of the leaves changes.
+1. Nice batching property. \\( O(logn) \\) time to compute the proof in parallel.
+2. Updatable in \\( O(logn) \\) time if one of the leaves changes.
 
 Whereas a naive vector commitment requires \\( O(n) \\) time to update the proofs.
 
