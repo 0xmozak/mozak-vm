@@ -12,14 +12,6 @@ pub trait Extractor {
     fn get_buf(&mut self, buf: &mut [u8], count: usize);
 }
 
-pub trait Readable {
-    type Item;
-
-    /// Panicable read from a "device" (anyone who implements `Extractor`)
-    /// Returns the type asked for or panics.
-    fn read_from(device: dyn Extractor) -> Self::Item;
-}
-
 /// `MozakPublicInput` is the "public" (visible to both the zk prover and the
 /// verifier) input tape. It intends to be as close to `std`'s implementation
 /// as possible to provide similar interface for end user.
