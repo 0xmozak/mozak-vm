@@ -237,6 +237,9 @@ impl<F: RichField> State<F> {
     /// place after `is_some` check
     // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
     // will be removed, I will rename this function to `new`
+    // TODO(Roman): This `clippy` allow relates to the `args` - I will fix it later, when refactor
+    // this API
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(
         Program {
             rw_memory: Data(rw_memory),
@@ -248,7 +251,7 @@ impl<F: RichField> State<F> {
         args: RuntimeArguments,
     ) -> Self {
         assert!(
-            !(!args.is_empty() && mozak_ro_memory.is_none()),
+            args.is_empty() || mozak_ro_memory.is_some(),
             "This API supports non-empty args only for mozak-ELFs, for vanilla-ELF with non-empty-args, State::legacy_ecall_api_new should be used"
         );
         Self {
