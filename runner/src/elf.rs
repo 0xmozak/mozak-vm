@@ -236,9 +236,12 @@ impl RuntimeArguments {
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.io_tape_private.is_empty()
+        self.self_prog_id.is_empty()
+            && self.cast_list.is_empty()
+            && self.io_tape_private.is_empty()
             && self.io_tape_public.is_empty()
             && self.call_tape.is_empty()
+            && self.event_tape.is_empty()
     }
 }
 

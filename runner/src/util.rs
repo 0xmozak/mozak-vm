@@ -28,14 +28,6 @@ pub fn execute_code_with_ro_memory(
     regs: &[(u8, u32)],
     runtime_args: RuntimeArguments,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    let RuntimeArguments {
-        self_prog_id,
-        cast_list,
-        io_tape_private,
-        io_tape_public,
-        call_tape,
-        event_tape,
-    } = runtime_args;
     let _ = env_logger::try_init();
     let ro_code = Code(
         izip!(
@@ -68,14 +60,20 @@ pub fn execute_code_with_ro_memory(
         ..Default::default()
     };
 
-    let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
-        self_prog_id,
-        cast_list,
-        io_tape_private,
-        io_tape_public,
-        call_tape,
-        event_tape,
-    });
+    // let RuntimeArguments {
+    //     self_prog_id,
+    //     cast_list,
+    //     io_tape_private,
+    //     io_tape_public,
+    //     call_tape,
+    //     event_tape,
+    // } = runtime_args;
+
+    let state0 = if runtime_args.is_empty() {
+        State::new(program.clone(), runtime_args)
+    } else {
+        State::legacy_ecall_api_new(program.clone(), runtime_args)
+    };
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
