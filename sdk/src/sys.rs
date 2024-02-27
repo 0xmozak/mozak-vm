@@ -66,7 +66,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
 
         let self_prog_id =
             unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } };
-        // assert!(self_prog_id != ProgramIdentifier::default()); // Reserved for null
+        assert!(self_prog_id != ProgramIdentifier::default()); // Reserved for null
         // caller
 
         let castlist_zcd = get_zcd_repr::<Vec<ProgramIdentifier>>(unsafe {
@@ -250,9 +250,8 @@ impl CallTape {
 
             assert!(cpcmsg.caller_prog == self.self_prog_id);
             assert!(cpcmsg.callee_prog == callee_prog);
-            // assert!(self.is_casted_actor(&cpcmsg.callee_prog, true));
-            //            assert!(cpcmsg.args.0 == rkyv::to_bytes::<_,
-            // 256>(&call_args).unwrap().to_vec());
+            assert!(self.is_casted_actor(&cpcmsg.callee_prog, true));
+            assert!(cpcmsg.args.0 == rkyv::to_bytes::<_,256>(&call_args).unwrap().to_vec());
 
             self.index += 1;
 

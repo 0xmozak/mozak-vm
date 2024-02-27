@@ -2,7 +2,7 @@
 extern crate alloc;
 use guest::hash::poseidon2_hash;
 // use alloc::vec::Vec;
-use mozak_sdk::coretypes::ProgramIdentifier;
+use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
 use mozak_sdk::sys::event_emit;
 use rkyv::{Archive, Deserialize, Serialize};
 
@@ -76,7 +76,7 @@ impl BlackBox {
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
-    ApproveSignature(PublicKey, BlackBox),
+    ApproveSignature(ProgramIdentifier, PublicKey, BlackBox),
 }
 
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
@@ -93,8 +93,8 @@ impl Default for MethodReturns {
 
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
-        MethodArgs::ApproveSignature(pub_key, black_box) =>
-            MethodReturns::ApproveSignature(approve_signature(pub_key, black_box)),
+        MethodArgs::ApproveSignature(id, pub_key, black_box) =>
+            MethodReturns::ApproveSignature(approve_signature(id, pub_key, black_box)),
     }
 }
 
@@ -115,7 +115,7 @@ const PRIV_KEY: PrivateKey = PrivateKey([
 // TODO(bing): Read public key from call tape.
 // hash and compare against public key.
 /// Return true if signature is approved.
-pub fn approve_signature<T>(pub_key: PublicKey, _black_box: T) -> () {
+pub fn approve_signature<T>(self_prog_id: ProgramIdentifier, pub_key: PublicKey, _black_box: T) -> () {
     // TODO(bing): Read private key from private tape
     let digest = poseidon2_hash(&PRIV_KEY.0);
     // assert_eq!(pub_key.0, *digest);
@@ -129,8 +129,10 @@ pub fn approve_signature<T>(pub_key: PublicKey, _black_box: T) -> () {
     // mozak_sdk::coretypes::ContextVariable::SelfProgramIdentifier(self_prog_id),
     //        ),
     //    );
-    //    event_emit(
-    //        self_prog_id,
-    //        mozak_sdk::coretypes::Event::ReadStateObject(object.clone()),
-    //    );
+
+    /// Only there for building cast list
+       event_emit(
+           self_prog_id,
+           mozak_sdk::coretypes::Event::ReadStateObject(StateObject::default()),
+       );
 }

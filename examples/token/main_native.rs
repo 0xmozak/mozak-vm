@@ -22,6 +22,9 @@ fn main() {
         entry_point: 0,
     };
 
+    println!("{:?}", &token_program);
+    println!("{:?}", &remitter_wallet);
+
     let remittee_wallet = ProgramIdentifier {
         program_rom_hash: [0, 2, 121, 187].into(),
         memory_init_hash: [180, 19, 19, 56].into(),

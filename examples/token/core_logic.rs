@@ -69,6 +69,7 @@ pub fn transfer(
             self_prog_id,
             remitter_wallet,
             wallet::MethodArgs::ApproveSignature(
+                remitter_wallet,
                 token_object.pub_key.clone(),
                 wallet::BlackBox::new(remitter_wallet, remittee_wallet, token_object),
             ),
