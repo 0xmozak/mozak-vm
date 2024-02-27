@@ -2,7 +2,9 @@ use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone, PartialOrd, Ord, Hash)]
+#[derive(
+    Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone, PartialOrd, Ord, Hash,
+)]
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
@@ -93,7 +95,9 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
 /// Each program in the mozak ecosystem is identifyable by two
 /// hashes: `program_rom_hash` & `memory_init_hash` and a program
 /// entry point `entry_point`
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone, PartialOrd, Ord, Hash)]
+#[derive(
+    Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone, PartialOrd, Ord, Hash,
+)]
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
@@ -252,7 +256,8 @@ impl std::fmt::Debug for StateObject {
             "({:?}, {:?}): Data: 0x{}",
             &self.address,
             &self.constraint_owner,
-            &self.data
+            &self
+                .data
                 .iter()
                 .map(|x| hex::encode([*x]))
                 .collect::<Vec<String>>()

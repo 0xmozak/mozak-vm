@@ -50,6 +50,8 @@ impl SystemTapes {
 
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "mozakvm")]
+    #[allow(clippy::cast_ptr_alignment)]
+    #[allow(clippy::ptr_as_ptr)]
     {
         use std::ptr::slice_from_raw_parts;
 
@@ -251,6 +253,7 @@ impl CallTape {
             assert!(cpcmsg.caller_prog == self.self_prog_id);
             assert!(cpcmsg.callee_prog == callee_prog);
             assert!(self.is_casted_actor(&cpcmsg.callee_prog, true));
+            
             assert!(cpcmsg.args.0 == rkyv::to_bytes::<_,256>(&call_args).unwrap().to_vec());
 
             self.index += 1;
