@@ -1794,7 +1794,7 @@ name = "starky"
 version = "0.2.0"
 source = "git+https://github.com/0xmozak/plonky2.git#7a3b7d487aa23ca43d43b513b61cf0387b414015"
 dependencies = [
- "ahash",
+ "ahash 0.8.9",
  "anyhow",
  "hashbrown 0.14.3",
  "itertools 0.12.1",
