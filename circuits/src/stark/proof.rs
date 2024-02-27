@@ -22,11 +22,7 @@ use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProduc
 #[allow(clippy::module_name_repetitions)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     pub fn degree_bits(&self, config: &StarkConfig) -> TableKindArray<usize> {
-        all_kind!(|kind| {
-            self.proofs_with_metadata[kind]
-                .proof
-                .recover_degree_bits(config)
-        })
+        all_kind!(|kind| { self.proofs[kind].recover_degree_bits(config) })
     }
 }
 
@@ -317,26 +313,11 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
     }
 }
 
-/// A `StarkProof` along with some metadata about the initial Fiat-Shamir state,
-/// which is used when creating a recursive wrapper proof around a STARK proof.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(bound = "")]
-pub struct StarkProofWithMetadata<F, C, const D: usize>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
-    // TODO: Support serialization of `init_challenger_state`.
-    #[serde(skip)]
-    pub(crate) init_challenger_state: <C::Hasher as Hasher<F>>::Permutation,
-    // TODO: set it back to pub(crate) when cpu trace len is a public input
-    pub proof: StarkProof<F, C, D>,
-}
-
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub proofs_with_metadata: TableKindArray<StarkProofWithMetadata<F, C, D>>,
+    pub proofs: TableKindArray<StarkProof<F, C, D>>,
     // TODO: Support serialization of `ctl_challenges`.
     #[serde(skip)]
     pub(crate) ctl_challenges: GrandProductChallengeSet<F>,
@@ -356,8 +337,8 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     pub(crate) fn get_challenges(&self, config: &StarkConfig) -> AllProofChallenges<F, D> {
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
-        for proof_with_metadata in &self.proofs_with_metadata {
-            challenger.observe_cap(&proof_with_metadata.proof.trace_cap);
+        for proof in &self.proofs {
+            challenger.observe_cap(&proof.trace_cap);
         }
 
         // TODO: Observe public values.
@@ -367,9 +348,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
                 challenger.compact();
-                self.proofs_with_metadata[kind]
-                    .proof
-                    .get_challenges(&mut challenger, config)
+                self.proofs[kind].get_challenges(&mut challenger, config)
             }),
             ctl_challenges,
         }
@@ -379,7 +358,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     /// `g^-1`. The order corresponds to the order declared in
     /// [`TableKind`](crate::cross_table_lookup::TableKind).
     pub(crate) fn all_ctl_zs_last(self) -> TableKindArray<Vec<F>> {
-        self.proofs_with_metadata
-            .map(|p| p.proof.openings.ctl_zs_last)
+        self.proofs.map(|p| p.openings.ctl_zs_last)
     }
 }

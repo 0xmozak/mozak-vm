@@ -31,7 +31,7 @@ use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductCh
 use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
     AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
-    StarkProofWithMetadata, StarkProofWithPublicInputsTarget,
+    StarkProofWithPublicInputsTarget,
 };
 
 /// Plonky2's recursion threshold is 2^12 gates.
@@ -58,7 +58,6 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     pub stark_proof_with_pis_target: StarkProofWithPublicInputsTarget<D>,
     pub ctl_challenges_target: GrandProductChallengeSet<Target>,
-    pub init_challenger_state_target: <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation,
     pub zero_target: Target,
 }
 
@@ -71,13 +70,13 @@ where
     pub fn set_targets(
         &self,
         witness: &mut PartialWitness<F>,
-        proof_with_metadata: &StarkProofWithMetadata<F, C, D>,
+        proof: &StarkProof<F, C, D>,
         ctl_challenges: &GrandProductChallengeSet<F>,
     ) {
         set_stark_proof_with_pis_target(
             witness,
             &self.stark_proof_with_pis_target.proof,
-            &proof_with_metadata.proof,
+            &proof,
             self.zero_target,
         );
 
@@ -90,11 +89,6 @@ where
             witness.set_target(challenge_target.beta, challenge.beta);
             witness.set_target(challenge_target.gamma, challenge.gamma);
         }
-
-        witness.set_target_arr(
-            self.init_challenger_state_target.as_ref(),
-            proof_with_metadata.init_challenger_state.as_ref(),
-        );
     }
 }
 
@@ -110,7 +104,7 @@ where
         all_kind!(|kind| {
             self.targets[kind].set_targets(
                 &mut inputs,
-                &all_proof.proofs_with_metadata[kind],
+                &all_proof.proofs[kind],
                 &all_proof.ctl_challenges,
             );
         });
@@ -209,10 +203,6 @@ where
         &ctl_challenges_target,
     );
 
-    let init_challenger_state_target =
-        <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation::new(std::iter::from_fn(|| {
-            Some(builder.add_virtual_target())
-        }));
     let mut challenger =
         RecursiveChallenger::<F, C::Hasher, D>::from_state(init_challenger_state_target);
     let challenges = stark_proof_with_pis_target.proof.get_challenges::<F, C>(
@@ -233,7 +223,6 @@ where
     StarkVerifierTargets {
         stark_proof_with_pis_target,
         ctl_challenges_target,
-        init_challenger_state_target,
         zero_target,
     }
 }
