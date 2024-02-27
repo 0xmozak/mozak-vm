@@ -28,7 +28,7 @@ use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use mozak_sdk::coretypes::{Event, ProgramIdentifier};
-use mozak_sdk::sys::{EventTape, SystemTapes};
+use mozak_sdk::sys::SystemTapes;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -202,38 +202,37 @@ pub fn tapes_to_runtime_arguments(
     debug!("Self Prog ID: {self_prog_id:#?}");
     debug!("Cast List (canonical repr): {cast_list:#?}");
 
-    mozak_runner::elf::RuntimeArguments::default()
-    // {
-    //     self_prog_id: self_prog_id.to_le_bytes().to_vec(),
-    //     cast_list: length_prefixed_bytes(
-    //         rkyv::to_bytes::<_, 256>(&cast_list).unwrap().into(),
-    //         "CAST_LIST",
-    //     ),
-    //     io_tape_public: length_prefixed_bytes(
-    //         rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape)
-    //             .unwrap()
-    //             .into(),
-    //         "IO_TAPE_PUBLIC",
-    //     ),
-    //     io_tape_private: length_prefixed_bytes(
-    //         rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape)
-    //             .unwrap()
-    //             .into(),
-    //         "IO_TAPE_PRIVATE",
-    //     ),
-    //     call_tape: length_prefixed_bytes(
-    //         rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape.writer)
-    //             .unwrap()
-    //             .into(),
-    //         "CALL_TAPE",
-    //     ),
-    //     event_tape: length_prefixed_bytes(
-    //         rkyv::to_bytes::<_, 256>(event_tape_single.unwrap())
-    //             .unwrap()
-    //             .into(),
-    //         "EVENT_TAPE",
-    //     ),
-    // }
+    mozak_runner::elf::RuntimeArguments {
+        self_prog_id: self_prog_id.to_le_bytes().to_vec(),
+        cast_list: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(&cast_list).unwrap().into(),
+            "CAST_LIST",
+        ),
+        io_tape_public: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape)
+                .unwrap()
+                .into(),
+            "IO_TAPE_PUBLIC",
+        ),
+        io_tape_private: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape)
+                .unwrap()
+                .into(),
+            "IO_TAPE_PRIVATE",
+        ),
+        call_tape: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape.writer)
+                .unwrap()
+                .into(),
+            "CALL_TAPE",
+        ),
+        event_tape: length_prefixed_bytes(
+            rkyv::to_bytes::<_, 256>(event_tape_single.unwrap())
+                .unwrap()
+                .into(),
+            "EVENT_TAPE",
+        ),
+    }
 }
 
 #[derive(Clone, Debug, Subcommand)]
