@@ -226,6 +226,8 @@ where
 
 #[cfg(test)]
 mod test {
+    use std::panic::catch_unwind;
+
     use anyhow::Result;
     use itertools::Itertools;
     use plonky2::field::types::Field;
@@ -327,5 +329,101 @@ mod test {
         branch.circuit.verify(branch_proof_2)?;
 
         Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_hash() {
+        let (leaf, branch, program_hash_1, zero_val, event_42_read_1) = catch_unwind(|| {
+            let circuit_config = CircuitConfig::standard_recursion_config();
+            let leaf = LeafCircuit::<F, C, D>::new(&circuit_config);
+            let branch = BranchCircuit::<F, C, D>::new(&circuit_config, &leaf);
+            let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+            let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
+
+            let zero_val = [F::ZERO; 4];
+
+            let event_42_read_1 = hash_event(program_hash_2, 1, 42, zero_val);
+            (leaf, branch, program_hash_1, zero_val, event_42_read_1)
+        })
+        .expect("shouldn't fail");
+
+        // Fail to prove with mismatched hashes
+        leaf.prove(
+            program_hash_1,
+            1,
+            42,
+            zero_val,
+            Some(event_42_read_1),
+            &branch,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_program_match() {
+        let (program_hash_1, branch, branch_1_hash, read_proof_1, read_proof_2) =
+            catch_unwind(|| {
+                let circuit_config = CircuitConfig::standard_recursion_config();
+                let leaf = LeafCircuit::<F, C, D>::new(&circuit_config);
+                let branch = BranchCircuit::<F, C, D>::new(&circuit_config, &leaf);
+                let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+                let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
+
+                let zero_val = [F::ZERO; 4];
+
+                // Events must have the same
+                let event_42_read_1 = hash_event(program_hash_1, 1, 42, zero_val);
+                let event_42_read_2 = hash_event(program_hash_2, 1, 42, zero_val);
+
+                // Read zero
+                let read_proof_1 = leaf
+                    .prove(
+                        program_hash_1,
+                        1,
+                        42,
+                        zero_val,
+                        Some(event_42_read_1),
+                        &branch,
+                    )
+                    .unwrap();
+                leaf.circuit.verify(read_proof_1.clone()).unwrap();
+
+                let read_proof_2 = leaf
+                    .prove(
+                        program_hash_2,
+                        1,
+                        42,
+                        zero_val,
+                        Some(event_42_read_2),
+                        &branch,
+                    )
+                    .unwrap();
+                leaf.circuit.verify(read_proof_2.clone()).unwrap();
+
+                // Combine reads
+                let branch_1_hash = hash_branch(&event_42_read_1, &event_42_read_2);
+                (
+                    program_hash_1,
+                    branch,
+                    branch_1_hash,
+                    read_proof_1,
+                    read_proof_2,
+                )
+            })
+            .expect("shouldn't fail");
+
+        // Fail to prove with mismatched program hashes between branches
+        branch
+            .prove(
+                Some(branch_1_hash),
+                Some(program_hash_1),
+                true,
+                true,
+                &read_proof_1,
+                &read_proof_2,
+            )
+            .unwrap();
     }
 }
