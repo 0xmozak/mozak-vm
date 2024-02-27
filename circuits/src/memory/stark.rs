@@ -349,11 +349,12 @@ mod tests {
         Stark::prove_and_verify(&program, &record)
     }
 
-    /// if all addresses are equal in memorytable, then
+    /// If all addresses are equal in memorytable, then
     /// making all `is_init` as zero should fail.
     /// Note this is required since this time, `diff_addr_inv` logic
     /// can't help detect `is_init` for first row.
     #[test]
+    #[should_panic]
     fn no_init_fail() {
         let instructions = [Instruction {
             op: Op::SB,
