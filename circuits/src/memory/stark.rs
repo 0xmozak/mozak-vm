@@ -441,6 +441,7 @@ mod tests {
             memory_trace,
             &[],
             &mut TimingTree::default(),
+            false,
         )
         .unwrap();
         // so memory stark proof should fail too.

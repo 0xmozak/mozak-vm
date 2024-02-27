@@ -288,6 +288,7 @@ mod tests {
                 trace_poly_values,
                 public_inputs.borrow(),
                 &mut timing,
+                false,
             )
         );
         let proof = proof.unwrap();

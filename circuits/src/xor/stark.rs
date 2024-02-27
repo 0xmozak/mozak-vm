@@ -171,7 +171,7 @@ mod tests {
         let proof = timed!(
             timing,
             "xor proof",
-            prove_table::<F, C, S, D>(stark, &config, trace_poly_values, &[], &mut timing,)
+            prove_table::<F, C, S, D>(stark, &config, trace_poly_values, &[], &mut timing, false)
         );
         let proof = proof.unwrap();
         let verification_res = timed!(
