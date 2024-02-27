@@ -19,7 +19,7 @@ fn test_prove_and_verify_recursive_proof_command() {
     let elf_file: &str = "../examples/target/riscv32im-mozak-mozakvm-elf/release/fibonacci";
 
     // Create mock IO tape files
-    fs::write(&system_tape, b"").expect("Failed to create system tape file");
+    fs::write(system_tape, b"").expect("Failed to create system tape file");
 
     // Execute the `prove` command
     let output = Command::new("cargo")
