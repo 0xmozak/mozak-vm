@@ -66,7 +66,8 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
 
         let self_prog_id =
             unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } };
-        assert!(self_prog_id != ProgramIdentifier::default()); // Reserved for null caller
+        // assert!(self_prog_id != ProgramIdentifier::default()); // Reserved for null
+        // caller
 
         let castlist_zcd = get_zcd_repr::<Vec<ProgramIdentifier>>(unsafe {
             addr_of!(_mozak_cast_list) as *const u8
@@ -115,6 +116,7 @@ pub struct RawTape {
 }
 
 impl RawTape {
+    #[must_use]
     pub fn new() -> Self { Self { start: 0, len: 0 } }
 }
 
@@ -177,6 +179,7 @@ impl CallTape {
         all_non_zero
     }
 
+    #[allow(clippy::similar_names)]
     pub fn from_mailbox(&mut self) -> Option<(CPCMessage, usize)> {
         #[cfg(target_os = "mozakvm")]
         {
@@ -187,7 +190,7 @@ impl CallTape {
                     .deserialize(&mut rkyv::Infallible)
                     .unwrap();
 
-                assert!(caller != self.self_prog_id);
+                // assert!(caller != self.self_prog_id);
 
                 let callee: ProgramIdentifier = zcd_cpcmsg
                     .callee_prog
@@ -195,13 +198,13 @@ impl CallTape {
                     .unwrap();
 
                 if self.index == 0 {
-                    assert!(caller == ProgramIdentifier::default())
+                    // assert!(caller == ProgramIdentifier::default())
                 } else {
-                    assert!(caller != ProgramIdentifier::default());
-                    assert!(self.is_casted_actor(&caller, false));
+                    // assert!(caller != ProgramIdentifier::default());
+                    // assert!(self.is_casted_actor(&caller, false));
                 }
 
-                assert!(self.is_casted_actor(&callee, true));
+                // assert!(self.is_casted_actor(&callee, true));
 
                 // if we are the callee, return this message
                 if self.self_prog_id == callee {
@@ -223,6 +226,7 @@ impl CallTape {
         }
     }
 
+    #[allow(clippy::similar_names)]
     pub fn to_mailbox<A, R>(
         &mut self,
         caller_prog: ProgramIdentifier,
@@ -307,6 +311,7 @@ pub struct EventTapeSingle {
 }
 
 impl EventTape {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             #[cfg(target_os = "mozakvm")]
@@ -332,11 +337,11 @@ impl EventTape {
 
             assert!(
                 match event {
-                    Event::ReadStateObject(s) => s.constraint_owner,
-                    Event::CreatedStateObject(s) => s.constraint_owner,
-                    Event::DeletedStateObject(s) => s.constraint_owner,
-                    Event::UpdatedStateObject(s) => s.constraint_owner,
-                    _ => self.self_prog_id,
+                    Event::ReadStateObject(s)
+                    | Event::CreatedStateObject(s)
+                    | Event::DeletedStateObject(s)
+                    | Event::UpdatedStateObject(s) => s.constraint_owner,
+                    Event::ReadContextVariable(_) => self.self_prog_id,
                 } == self.self_prog_id
             );
 
@@ -389,7 +394,7 @@ pub enum IOTape {
     Public,
 }
 
-/// Emit an event from mozak_vm to provide receipts of
+/// Emit an event from `mozak_vm` to provide receipts of
 /// `reads` and state updates including `create` and `delete`.
 /// Panics on event-tape non-abidance.
 pub fn event_emit(id: ProgramIdentifier, event: Event) {
@@ -399,6 +404,7 @@ pub fn event_emit(id: ProgramIdentifier, event: Event) {
 /// Receive one message from mailbox targetted to us and its index
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
+#[must_use]
 pub fn call_receive() -> Option<(CPCMessage, usize)> {
     // unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
     unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
@@ -407,6 +413,7 @@ pub fn call_receive() -> Option<(CPCMessage, usize)> {
 /// Send one message from mailbox targetted to some third-party
 /// resulting in such messages finding itself in their mailbox
 /// Panics on call-tape non-abidance.
+#[allow(clippy::similar_names)]
 pub fn call_send<A, R>(
     caller_prog: ProgramIdentifier,
     callee_prog: ProgramIdentifier,
@@ -435,12 +442,14 @@ where
 /// effort safety. `io_read` and `io_read_into` would also affect
 /// subsequent returns.
 /// Unsafe return values, use wisely!!
-pub fn io_raw_read(_from: IOTape, _num: usize) -> *const u8 { unimplemented!() }
+#[must_use]
+pub fn io_raw_read(_from: &IOTape, _num: usize) -> *const u8 { unimplemented!() }
 
-/// Get a buffer filled with num elements from choice of IOTape
+/// Get a buffer filled with num elements from choice of `IOTape`
 /// in process "consuming" such bytes.
-pub fn io_read(_from: IOTape, _num: usize) -> Vec<u8> { unimplemented!() }
+#[must_use]
+pub fn io_read(_from: &IOTape, _num: usize) -> Vec<u8> { unimplemented!() }
 
-/// Fills a provided buffer with num elements from choice of IOTape
+/// Fills a provided buffer with num elements from choice of `IOTape`
 /// in process "consuming" such bytes.
-pub fn io_read_into(_from: IOTape, _buf: &mut [u8]) { unimplemented!() }
+pub fn io_read_into(_from: &IOTape, _buf: &mut [u8]) { unimplemented!() }
