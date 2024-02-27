@@ -279,6 +279,9 @@ where
 
     let initial_merkle_trees = vec![trace_commitment, &ctl_zs_commitment, &quotient_commitment];
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
@@ -286,6 +289,8 @@ where
             &stark.fri_instance(
                 zeta,
                 g,
+                0,
+                vec![],
                 config,
                 Some(&LookupConfig {
                     degree_bits,
