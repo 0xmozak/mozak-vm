@@ -264,7 +264,7 @@ mod tests {
     #[ignore]
     #[should_panic]
     // TODO(Roman): fix this test, looks like we should constrain the `is_init` 
-    /// Test that we fail constraint if there is no init per memory address
+    /// Test that we have a constraint to catch, if there is no init for any memory address.
     fn no_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
@@ -291,7 +291,7 @@ mod tests {
     #[rustfmt::skip]
     #[test]
     #[should_panic]
-    /// Test that we fail constraint if there are multiple init per memory address
+    /// Test that we have a constraint to catch if there are multiple inits per memory address.
     fn double_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
