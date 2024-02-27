@@ -70,7 +70,7 @@ pub struct State<F: RichField> {
 #[derive(Debug, Clone, Default)]
 pub struct StateMemory {
     pub data: HashMap<u32, u8>,
-    pub is_writable: HashSet<u32>,
+    pub is_read_only: HashSet<u32>,
 }
 impl From<(&HashMap<u32, u8>, &HashMap<u32, u8>, &HashMap<u32, u8>)> for StateMemory {
     #[allow(clippy::similar_names)]
@@ -81,7 +81,9 @@ impl From<(&HashMap<u32, u8>, &HashMap<u32, u8>, &HashMap<u32, u8>)> for StateMe
             data: chain!(rw_mem.iter(), ro_mem.iter(), mozak_ro_mem.iter())
                 .map(|(addr, value)| (*addr, *value))
                 .collect(),
-            is_writable: rw_mem.keys().copied().collect(),
+            is_read_only: chain!(ro_mem.keys(), mozak_ro_mem.keys())
+                .copied()
+                .collect(),
         }
     }
 }
@@ -151,10 +153,12 @@ impl<F: RichField> From<Program> for State<F> {
             mozak_ro_memory: _,
         }: Program,
     ) -> Self {
+        let memory = (&rw_memory.clone(), &ro_memory.clone(), &HashMap::default()).into();
         Self {
             pc,
             rw_memory,
             ro_memory,
+            memory,
             ..Default::default()
         }
     }
@@ -240,10 +244,12 @@ impl<F: RichField> State<F> {
             ..
         }: RuntimeArguments,
     ) -> Self {
+        let memory = (&rw_memory.clone(), &ro_memory.clone(), &HashMap::default()).into();
         Self {
             pc,
             rw_memory,
             ro_memory,
+            memory,
             // TODO(bing): Handle the case where iotapes are
             // in .mozak_global sections in the RISC-V binary.
             // Now, the CLI simply does unwrap_or_default() to either
@@ -440,15 +446,15 @@ impl<F: RichField> State<F> {
     /// This function returns an error, if you try to store to an invalid
     /// address.
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
-        return if self.memory.is_writable.contains(&addr) {
-            self.memory.data.insert(addr, value);
-            Ok(self)
-        } else {
+        return if self.memory.is_read_only.contains(&addr) {
             Err(anyhow!(
                 "cannot write to ro_memory: address - {:#0x}, value - {:#0x}",
                 addr,
                 value,
             ))
+        } else {
+            self.memory.data.insert(addr, value);
+            Ok(self)
         };
         match self.ro_memory.entry(addr) {
             im::hashmap::Entry::Occupied(entry) => Err(anyhow!(
