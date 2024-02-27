@@ -226,7 +226,7 @@ impl From<String> for ProgramIdentifier {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
+// #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct StateObject {
     /// [IMMUTABLE] Logical address of StateObject in the tree
     pub address: Address,
@@ -242,6 +242,23 @@ pub struct StateObject {
     /// [MUTABLE] Serialized data object understandable and affectable
     /// by `constraint_owner`
     pub data: Vec<u8>,
+}
+
+#[cfg(not(target_os = "mozakvm"))]
+impl std::fmt::Debug for StateObject {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "({:?}, {:?}): Data: 0x{}",
+            &self.address,
+            &self.constraint_owner,
+            &self.data
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join("")
+        )
+    }
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
