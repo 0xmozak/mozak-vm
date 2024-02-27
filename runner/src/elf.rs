@@ -734,10 +734,12 @@ mod test {
         .unwrap()
         .mozak_ro_memory
         .unwrap();
-        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 2);
-        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 3);
-        assert_eq!(mozak_ro_memory.call_tape.data.len(), 4);
-        assert_eq!(mozak_ro_memory.event_tape.data.len(), 5);
+        assert_eq!(mozak_ro_memory.self_prog_id.data.len(), 2);
+        assert_eq!(mozak_ro_memory.cast_list.data.len(), 3);
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 4);
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 5);
+        assert_eq!(mozak_ro_memory.call_tape.data.len(), 6);
+        assert_eq!(mozak_ro_memory.event_tape.data.len(), 7);
     }
 
     #[test]

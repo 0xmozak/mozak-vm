@@ -168,6 +168,31 @@ impl std::fmt::Debug for ProgramIdentifier {
 }
 
 #[cfg(not(target_os = "mozakvm"))]
+impl std::fmt::Display for ProgramIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "MZK-{}-{}-{}",
+            &self
+                .program_rom_hash
+                .to_le_bytes()
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join(""),
+            &self
+                .memory_init_hash
+                .to_le_bytes()
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join(""),
+            &self.entry_point,
+        )
+    }
+}
+
+#[cfg(not(target_os = "mozakvm"))]
 impl From<String> for ProgramIdentifier {
     fn from(value: String) -> ProgramIdentifier {
         fn even_str(s: String) -> String {

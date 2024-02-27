@@ -19,7 +19,7 @@ fn fibonacci(n: u32) -> u32 {
 pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
     let program = Program::vanilla_load_elf(mozak_examples::FIBONACCI_INPUT_ELF).unwrap();
     let out = fibonacci(n);
-    let state = State::<GoldilocksField>::new(program.clone(), RuntimeArguments {
+    let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), RuntimeArguments {
         self_prog_id: vec![],
         cast_list: vec![],
         io_tape_private: n.to_le_bytes().to_vec(),

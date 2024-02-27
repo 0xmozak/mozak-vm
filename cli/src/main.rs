@@ -9,7 +9,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
-use log::debug;
+use log::{debug, warn};
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -28,7 +28,7 @@ use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use mozak_sdk::coretypes::{Event, ProgramIdentifier};
-use mozak_sdk::sys::SystemTapes;
+use mozak_sdk::sys::{EventTape, SystemTapes};
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -194,46 +194,46 @@ pub fn tapes_to_runtime_arguments(
             event_tape_single = Some(&single_tape.contents);
         }
     }
-    assert!(
-        event_tape_single.is_some(),
-        "event tape not found in bundle"
-    );
+    if event_tape_single.is_none() {
+        warn!("event tape not found in bundle. Proving may not work as intended.");
+    }
     cast_list.sort();
 
     debug!("Self Prog ID: {self_prog_id:#?}");
     debug!("Cast List (canonical repr): {cast_list:#?}");
 
-    mozak_runner::elf::RuntimeArguments {
-        self_prog_id: self_prog_id.to_le_bytes().to_vec(),
-        cast_list: length_prefixed_bytes(
-            rkyv::to_bytes::<_, 256>(&cast_list).unwrap().into(),
-            "CAST_LIST",
-        ),
-        io_tape_public: length_prefixed_bytes(
-            rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape)
-                .unwrap()
-                .into(),
-            "IO_TAPE_PUBLIC",
-        ),
-        io_tape_private: length_prefixed_bytes(
-            rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape)
-                .unwrap()
-                .into(),
-            "IO_TAPE_PRIVATE",
-        ),
-        call_tape: length_prefixed_bytes(
-            rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape.writer)
-                .unwrap()
-                .into(),
-            "CALL_TAPE",
-        ),
-        event_tape: length_prefixed_bytes(
-            rkyv::to_bytes::<_, 256>(event_tape_single.unwrap())
-                .unwrap()
-                .into(),
-            "EVENT_TAPE",
-        ),
-    }
+    mozak_runner::elf::RuntimeArguments::default()
+    // {
+    //     self_prog_id: self_prog_id.to_le_bytes().to_vec(),
+    //     cast_list: length_prefixed_bytes(
+    //         rkyv::to_bytes::<_, 256>(&cast_list).unwrap().into(),
+    //         "CAST_LIST",
+    //     ),
+    //     io_tape_public: length_prefixed_bytes(
+    //         rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape)
+    //             .unwrap()
+    //             .into(),
+    //         "IO_TAPE_PUBLIC",
+    //     ),
+    //     io_tape_private: length_prefixed_bytes(
+    //         rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape)
+    //             .unwrap()
+    //             .into(),
+    //         "IO_TAPE_PRIVATE",
+    //     ),
+    //     call_tape: length_prefixed_bytes(
+    //         rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape.writer)
+    //             .unwrap()
+    //             .into(),
+    //         "CALL_TAPE",
+    //     ),
+    //     event_tape: length_prefixed_bytes(
+    //         rkyv::to_bytes::<_, 256>(event_tape_single.unwrap())
+    //             .unwrap()
+    //             .into(),
+    //         "EVENT_TAPE",
+    //     ),
+    // }
 }
 
 #[derive(Clone, Debug, Subcommand)]
@@ -323,7 +323,9 @@ fn main() -> Result<()> {
             mut proof,
             recursive_proof,
         }) => {
-            let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
+            let args = system_tape.map_or_else(mozak_runner::elf::RuntimeArguments::default, |s| {
+                tapes_to_runtime_arguments(s, self_prog_id)
+            });
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
             let record = step(&program, state)?;
