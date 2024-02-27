@@ -46,8 +46,6 @@ fn main() {
     // Serializing is as easy as a single function call
     let bytes = rkyv::to_bytes::<_, 256>(&token_object).unwrap();
 
-    println!("Token object bytes: {:?}", bytes);
-
     let state_object = StateObject {
         address: [4, 0, 0, 0, 0, 0, 0, 0].into(),
         constraint_owner: token_program,
