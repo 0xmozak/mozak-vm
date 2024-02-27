@@ -124,6 +124,7 @@ impl ProveAndVerify for CpuStark<F, D> {
             trace_poly_values,
             public_inputs.borrow(),
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)
@@ -167,6 +168,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)
@@ -188,6 +190,7 @@ impl ProveAndVerify for XorStark<F, D> {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)
@@ -223,6 +226,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)
@@ -243,6 +247,7 @@ impl ProveAndVerify for HalfWordMemoryStark<F, D> {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)
@@ -263,6 +268,7 @@ impl ProveAndVerify for FullWordMemoryStark<F, D> {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)
@@ -283,6 +289,7 @@ impl ProveAndVerify for InputOutputMemoryStark<F, D> {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)
@@ -304,6 +311,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)
@@ -324,6 +332,7 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)
@@ -344,6 +353,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
 
         verify_stark_proof(stark, proof, &config)

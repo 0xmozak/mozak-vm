@@ -131,6 +131,7 @@ mod tests {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         )?;
         verify_stark_proof(stark, proof, &config)
     }

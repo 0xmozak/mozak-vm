@@ -284,6 +284,7 @@ mod tests {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         ).unwrap();
         assert!(verify_stark_proof(stark, proof, &config).is_ok(), "failing constraint: init is required per memory address");
     }
@@ -311,6 +312,7 @@ mod tests {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
+            false,
         ).unwrap();
         assert!(verify_stark_proof(stark, proof, &config).is_ok(), "failing constraint: only single init is allowed per memory address");
     }
