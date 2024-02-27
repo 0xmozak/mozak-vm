@@ -355,7 +355,7 @@ mod tests {
     /// can't help detect `is_init` for first row.
     #[test]
     // This will panic, if debug assertions are enabled in plonky2.
-    #[should_panic]
+    #[should_panic = "Constraint failed in"]
     fn no_init_fail() {
         let instructions = [Instruction {
             op: Op::SB,

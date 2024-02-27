@@ -262,7 +262,7 @@ mod tests {
     #[rustfmt::skip]
     #[test]
     #[ignore]
-    #[should_panic]
+    #[should_panic = "Constraint failed in"]
     // TODO(Roman): fix this test, looks like we should constrain the `is_init` 
     /// Test that we have a constraint to catch, if there is no init for any memory address.
     fn no_init() {
@@ -290,7 +290,7 @@ mod tests {
 
     #[rustfmt::skip]
     #[test]
-    #[should_panic]
+    #[should_panic = "Constraint failed in"]
     /// Test that we have a constraint to catch if there are multiple inits per memory address.
     fn double_init() {
         let _ = env_logger::try_init();
