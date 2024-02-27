@@ -60,15 +60,6 @@ pub fn execute_code_with_ro_memory(
         ..Default::default()
     };
 
-    // let RuntimeArguments {
-    //     self_prog_id,
-    //     cast_list,
-    //     io_tape_private,
-    //     io_tape_public,
-    //     call_tape,
-    //     event_tape,
-    // } = runtime_args;
-
     let state0 = if runtime_args.is_empty() {
         State::new(program.clone(), runtime_args)
     } else {
