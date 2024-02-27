@@ -98,41 +98,10 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
     }
 }
 
-/// Hardcoded Pubkey
-/// TODO(bing): delete
-#[allow(dead_code)]
-const PUB_KEY: PublicKey = PublicKey([
-    21, 33, 31, 0, 7, 251, 189, 98, 22, 3, 1, 10, 71, 2, 90, 0, 1, 55, 55, 11, 62, 189, 181, 21, 0,
-    31, 100, 7, 100, 189, 2, 100,
-]);
-
-const PRIV_KEY: PrivateKey = PrivateKey([
-    21, 33, 31, 0, 7, 251, 189, 98, 22, 3, 1, 10, 71, 2, 90, 0, 1, 55, 55, 11, 62, 189, 181, 21, 0,
-    31, 100, 7, 100, 189, 2, 100,
-]);
-
 // TODO(bing): Read private key from private tape.
 // TODO(bing): Read public key from call tape.
 // hash and compare against public key.
 /// Return true if signature is approved.
 pub fn approve_signature<T>(self_prog_id: ProgramIdentifier, pub_key: PublicKey, _black_box: T) -> () {
-    // TODO(bing): Read private key from private tape
-    let digest = poseidon2_hash(&PRIV_KEY.0);
-    // assert_eq!(pub_key.0, *digest);
-
-    // TODO(bing): Do we need to emit events here, even for the simplest
-    // possible wallet that just approves signatures?
-    //    event_emit(
-    //        self_prog_id,
-    //        mozak_sdk::coretypes::Event::ReadContextVariable(
-    //
-    // mozak_sdk::coretypes::ContextVariable::SelfProgramIdentifier(self_prog_id),
-    //        ),
-    //    );
-
-    /// Only there for building cast list
-       event_emit(
-           self_prog_id,
-           mozak_sdk::coretypes::Event::ReadStateObject(StateObject::default()),
-       );
+    // Null for now
 }

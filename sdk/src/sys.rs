@@ -409,7 +409,6 @@ pub fn event_emit(id: ProgramIdentifier, event: Event) {
 /// return the same message. Panics on call-tape non-abidance.
 #[must_use]
 pub fn call_receive() -> Option<(CPCMessage, usize)> {
-    // unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
     unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
 }
 

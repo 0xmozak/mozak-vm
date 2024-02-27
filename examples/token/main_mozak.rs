@@ -5,7 +5,6 @@
 mod core_logic;
 
 use core_logic::{dispatch, MethodArgs, MethodReturns};
-use mozak_sdk::coretypes::ProgramIdentifier;
 use mozak_sdk::sys::call_receive;
 use rkyv::Deserialize;
 

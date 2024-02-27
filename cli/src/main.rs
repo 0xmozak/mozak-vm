@@ -2,6 +2,7 @@
 #![deny(clippy::cargo)]
 // TODO: remove this when shadow_rs updates enough.
 #![allow(clippy::needless_raw_string_hashes)]
+use std::collections::HashSet;
 use std::io::{Read, Write};
 use std::time::Duration;
 
@@ -9,7 +10,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
-use log::{debug, warn};
+use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -185,19 +186,25 @@ pub fn tapes_to_runtime_arguments(
 ) -> mozak_runner::elf::RuntimeArguments {
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.into();
-    let mut cast_list: Vec<ProgramIdentifier> =
-        Vec::with_capacity(sys_tapes.event_tape.writer.len());
-    let mut event_tape_single: Option<&Vec<Event>> = None;
+
+    let cast_list = {
+        let mut cast_set = HashSet::new();
+        for msg in &sys_tapes.call_tape.writer {
+            cast_set.insert(msg.caller_prog);
+            cast_set.insert(msg.callee_prog);
+        }
+        let mut cast_list: Vec<ProgramIdentifier> = cast_set.into_iter().collect::<Vec<_>>();
+        cast_list.sort();
+        cast_list
+    };
+
+    let mut event_tape_single: Vec<Event> = Vec::new();
     for single_tape in &sys_tapes.event_tape.writer {
-        cast_list.push(single_tape.id);
         if single_tape.id == self_prog_id {
-            event_tape_single = Some(&single_tape.contents);
+            event_tape_single = single_tape.contents.clone();
+            break;
         }
     }
-    if event_tape_single.is_none() {
-        warn!("event tape not found in bundle. Proving may not work as intended.");
-    }
-    cast_list.sort();
 
     debug!("Self Prog ID: {self_prog_id:#?}");
     debug!("Cast List (canonical repr): {cast_list:#?}");
@@ -227,9 +234,7 @@ pub fn tapes_to_runtime_arguments(
             "CALL_TAPE",
         ),
         event_tape: length_prefixed_bytes(
-            rkyv::to_bytes::<_, 256>(event_tape_single.unwrap())
-                .unwrap()
-                .into(),
+            rkyv::to_bytes::<_, 256>(&event_tape_single).unwrap().into(),
             "EVENT_TAPE",
         ),
     }
