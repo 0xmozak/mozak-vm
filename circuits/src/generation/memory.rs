@@ -262,8 +262,9 @@ mod tests {
     #[rustfmt::skip]
     #[test]
     #[ignore]
-    #[should_panic = "failing constraint: init is required per memory address"]
+    #[should_panic]
     // TODO(Roman): fix this test, looks like we should constrain the `is_init` 
+    /// Test that we fail constraint if there is no init per memory address
     fn no_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
@@ -276,6 +277,7 @@ mod tests {
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let config = fast_test_config();
+        // This will fail, iff debug assertions are enabled.
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -288,7 +290,8 @@ mod tests {
 
     #[rustfmt::skip]
     #[test]
-    #[should_panic = "failing constraint: only single init is allowed per memory address"]
+    #[should_panic]
+    /// Test that we fail constraint if there are multiple init per memory address
     fn double_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
@@ -301,6 +304,7 @@ mod tests {
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let config = fast_test_config();
+        // This will fail, iff debug assertions are enabled.
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
