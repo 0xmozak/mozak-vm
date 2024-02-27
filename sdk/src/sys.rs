@@ -75,7 +75,6 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
         let castlist_deserialized: Vec<ProgramIdentifier> =
             castlist_zcd.deserialize(&mut rkyv::Infallible).unwrap();
         let cast_list = castlist_deserialized.into_iter().map(|x| (x, 0)).collect();
-        // assert!(castlist_zcd.len() == 2);
 
         let calltape_zcd =
             get_zcd_repr::<Vec<CPCMessage>>(unsafe { addr_of!(_mozak_call_tape) as *const u8 });
@@ -190,7 +189,7 @@ impl CallTape {
                     .deserialize(&mut rkyv::Infallible)
                     .unwrap();
 
-                // assert!(caller != self.self_prog_id);
+                assert!(caller != self.self_prog_id);
 
                 let callee: ProgramIdentifier = zcd_cpcmsg
                     .callee_prog
@@ -198,13 +197,13 @@ impl CallTape {
                     .unwrap();
 
                 if self.index == 0 {
-                    // assert!(caller == ProgramIdentifier::default())
+                    assert!(caller == ProgramIdentifier::default())
                 } else {
-                    // assert!(caller != ProgramIdentifier::default());
-                    // assert!(self.is_casted_actor(&caller, false));
+                    assert!(caller != ProgramIdentifier::default());
+                    assert!(self.is_casted_actor(&caller, false));
                 }
 
-                // assert!(self.is_casted_actor(&callee, true));
+                assert!(self.is_casted_actor(&callee, true));
 
                 // if we are the callee, return this message
                 if self.self_prog_id == callee {
