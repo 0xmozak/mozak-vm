@@ -265,7 +265,7 @@ fn load_program(mut elf: Input) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    Program::load_elf(&elf_bytes)
+    Program::vanilla_load_elf(&elf_bytes)
 }
 
 fn load_program_with_args(
@@ -300,7 +300,7 @@ fn main() -> Result<()> {
         }) => {
             let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
             let program = load_program_with_args(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone(), args);
+            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
             let _state = step(&program, state)?.last_state;
         }
         Command::ProveAndVerify(RunArgs {
@@ -311,7 +311,7 @@ fn main() -> Result<()> {
             let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
 
             let program = load_program_with_args(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone(), args);
+            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
 
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -325,7 +325,7 @@ fn main() -> Result<()> {
         }) => {
             let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
             let program = load_program_with_args(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone(), args);
+            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()

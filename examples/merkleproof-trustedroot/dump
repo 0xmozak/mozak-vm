@@ -1,0 +1,50 @@
+merkleproof-trustedroot-mozak-guest v0.1.0 (/Users/bing/code/mozak/mozak-vm/examples/merkleproof-trustedroot)
+├── guest v0.1.0 (/Users/bing/code/mozak/mozak-vm/guest)
+│   └── mozak-system v0.1.0 (/Users/bing/code/mozak/mozak-vm/system)
+├── mozak-sdk v0.1.0 (/Users/bing/code/mozak/mozak-vm/sdk)
+│   ├── hex v0.4.3
+│   ├── lazy_static v1.4.0
+│   ├── mozak-system v0.1.0 (/Users/bing/code/mozak/mozak-vm/system)
+│   ├── once_cell v1.19.0
+│   ├── rkyv v0.7.42
+│   │   ├── hashbrown v0.12.3
+│   │   │   └── ahash v0.7.7
+│   │   │       └── once_cell v1.19.0
+│   │   │       [build-dependencies]
+│   │   │       └── version_check v0.9.4
+│   │   ├── ptr_meta v0.1.4
+│   │   │   └── ptr_meta_derive v0.1.4 (proc-macro)
+│   │   │       ├── proc-macro2 v1.0.70
+│   │   │       │   └── unicode-ident v1.0.12
+│   │   │       ├── quote v1.0.33
+│   │   │       │   └── proc-macro2 v1.0.70 (*)
+│   │   │       └── syn v1.0.109
+│   │   │           ├── proc-macro2 v1.0.70 (*)
+│   │   │           ├── quote v1.0.33 (*)
+│   │   │           └── unicode-ident v1.0.12
+│   │   ├── rkyv_derive v0.7.42 (proc-macro)
+│   │   │   ├── proc-macro2 v1.0.70 (*)
+│   │   │   ├── quote v1.0.33 (*)
+│   │   │   └── syn v1.0.109 (*)
+│   │   └── seahash v4.1.0
+│   └── serde v1.0.193
+│       └── serde_derive v1.0.193 (proc-macro)
+│           ├── proc-macro2 v1.0.70 (*)
+│           ├── quote v1.0.33 (*)
+│           └── syn v2.0.40
+│               ├── proc-macro2 v1.0.70 (*)
+│               ├── quote v1.0.33 (*)
+│               └── unicode-ident v1.0.12
+├── rkyv v0.7.42 (*)
+└── rs_merkle v1.4.1
+    └── sha2 v0.10.8
+        ├── cfg-if v1.0.0
+        └── digest v0.10.7
+            ├── block-buffer v0.10.4
+            │   └── generic-array v0.14.7
+            │       └── typenum v1.17.0
+            │       [build-dependencies]
+            │       └── version_check v0.9.4
+            └── crypto-common v0.1.6
+                ├── generic-array v0.14.7 (*)
+                └── typenum v1.17.0

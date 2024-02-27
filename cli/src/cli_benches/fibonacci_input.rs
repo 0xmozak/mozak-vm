@@ -17,7 +17,7 @@ fn fibonacci(n: u32) -> u32 {
 }
 
 pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
-    let program = Program::load_elf(mozak_examples::FIBONACCI_INPUT_ELF).unwrap();
+    let program = Program::vanilla_load_elf(mozak_examples::FIBONACCI_INPUT_ELF).unwrap();
     let out = fibonacci(n);
     let state = State::<GoldilocksField>::new(program.clone(), RuntimeArguments {
         self_prog_id: vec![],

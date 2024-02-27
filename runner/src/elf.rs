@@ -393,7 +393,7 @@ impl Program {
     /// Same as `Program::internal_load_elf`
     /// TODO(Roman): Refactor this API to be aligned with `mozak_load_elf` -
     /// just return Program
-    pub fn load_elf(input: &[u8]) -> Result<Program> {
+    pub fn vanilla_load_elf(input: &[u8]) -> Result<Program> {
         let (_, entry_point, segments) = Program::parse_and_validate_elf(input)?;
         Ok(Program::internal_load_elf(
             input,
@@ -565,7 +565,9 @@ impl Program {
     /// # Panics
     /// When `Program::load_elf` or index as address is not cast-able to u32
     /// cast-able
-    pub fn load_program(elf_bytes: &[u8]) -> Result<Program> { Program::load_elf(elf_bytes) }
+    pub fn vanilla_load_program(elf_bytes: &[u8]) -> Result<Program> {
+        Program::vanilla_load_elf(elf_bytes)
+    }
 
     /// Loads a "mozak program" from static ELF and populates the reserved
     /// memory with runtime arguments

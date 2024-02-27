@@ -864,11 +864,9 @@ version = "0.1.0"
 dependencies = [
  "guest",
  "hex",
- "log",
  "mozak-sdk",
  "mozak-system",
  "rkyv",
- "simple_logger",
  "wallet-mozak-guest",
 ]
 
@@ -918,10 +916,8 @@ version = "0.1.0"
 dependencies = [
  "guest",
  "hex",
- "log",
  "mozak-sdk",
  "rkyv",
- "simple_logger",
 ]
 
 [[package]]
