@@ -431,13 +431,7 @@ impl<F: RichField> State<F> {
     /// So no u32 address is out of bounds.
     #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 {
-        return self.memory.data.get(&addr).copied().unwrap_or_default();
-        self.ro_memory
-            .get(&addr)
-            .or_else(|| self.mozak_ro_memory.get(&addr))
-            .or_else(|| self.rw_memory.get(&addr))
-            .copied()
-            .unwrap_or_default()
+        self.memory.data.get(&addr).copied().unwrap_or_default()
     }
 
     /// Store a byte to memory
@@ -446,7 +440,7 @@ impl<F: RichField> State<F> {
     /// This function returns an error, if you try to store to an invalid
     /// address.
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
-        return if self.memory.is_read_only.contains(&addr) {
+        if self.memory.is_read_only.contains(&addr) {
             Err(anyhow!(
                 "cannot write to ro_memory: address - {:#0x}, value - {:#0x}",
                 addr,
@@ -455,18 +449,6 @@ impl<F: RichField> State<F> {
         } else {
             self.memory.data.insert(addr, value);
             Ok(self)
-        };
-        match self.ro_memory.entry(addr) {
-            im::hashmap::Entry::Occupied(entry) => Err(anyhow!(
-                "cannot write to ro_memory: address,value and entry {:#0x}, {:#0x}, {:?}",
-                addr,
-                value,
-                (entry.key(), entry.get())
-            )),
-            im::hashmap::Entry::Vacant(_) => {
-                self.rw_memory.insert(addr, value);
-                Ok(self)
-            }
         }
     }
 
