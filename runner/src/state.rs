@@ -57,9 +57,6 @@ pub struct State<F: RichField> {
     pub halted: bool,
     pub registers: [u32; 32],
     pub pc: u32,
-    pub rw_memory: HashMap<u32, u8>,
-    pub ro_memory: HashMap<u32, u8>,
-    pub mozak_ro_memory: HashMap<u32, u8>,
     pub memory: StateMemory,
     pub io_tape: IoTape,
     pub transcript: IoTapeData,
@@ -128,9 +125,6 @@ impl<F: RichField> Default for State<F> {
             halted: Default::default(),
             registers: Default::default(),
             pc: Default::default(),
-            rw_memory: HashMap::default(),
-            ro_memory: HashMap::default(),
-            mozak_ro_memory: HashMap::default(),
             memory: StateMemory::default(),
             io_tape: IoTape::from((vec![], vec![])),
             transcript: IoTapeData {
@@ -150,15 +144,17 @@ impl<F: RichField> From<Program> for State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            mozak_ro_memory: _,
+            mozak_ro_memory,
         }: Program,
     ) -> Self {
-        let memory = (&rw_memory.clone(), &ro_memory.clone(), &HashMap::default()).into();
         Self {
             pc,
-            rw_memory,
-            ro_memory,
-            memory,
+            memory: (
+                &rw_memory,
+                &ro_memory,
+                &mozak_ro_memory.map_or_else(HashMap::default, |m| (&m).into()),
+            )
+                .into(),
             ..Default::default()
         }
     }
@@ -247,8 +243,6 @@ impl<F: RichField> State<F> {
         let memory = (&rw_memory.clone(), &ro_memory.clone(), &HashMap::default()).into();
         Self {
             pc,
-            rw_memory,
-            ro_memory,
             memory,
             // TODO(bing): Handle the case where iotapes are
             // in .mozak_global sections in the RISC-V binary.
@@ -278,31 +272,14 @@ impl<F: RichField> State<F> {
             ..
         }: Program,
     ) -> Self {
-        let m = (
-            &rw_memory.clone(),
-            &ro_memory.clone(),
-            &mozak_ro_memory
-                .clone()
-                .map_or_else(HashMap::default, |m| (&m).into()),
-        )
-            .into();
         Self {
             pc,
-            rw_memory,
-            ro_memory,
-            mozak_ro_memory: mozak_ro_memory
-                .clone()
-                .map_or_else(HashMap::default, |mrm| {
-                    chain!(
-                        mrm.context_variables.data.iter(),
-                        mrm.io_tape_private.data.iter(),
-                        mrm.io_tape_public.data.iter(),
-                        mrm.transcript.data.iter(),
-                    )
-                    .map(|(addr, value)| (*addr, *value))
-                    .collect()
-                }),
-            memory: m,
+            memory: (
+                &rw_memory,
+                &ro_memory,
+                &mozak_ro_memory.map_or_else(HashMap::default, |m| (&m).into()),
+            )
+                .into(),
             ..Default::default()
         }
     }
