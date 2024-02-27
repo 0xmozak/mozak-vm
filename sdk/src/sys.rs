@@ -137,6 +137,7 @@ pub struct CallTape {
 }
 
 impl CallTape {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             #[cfg(target_os = "mozakvm")]
@@ -197,7 +198,7 @@ impl CallTape {
                     .unwrap();
 
                 if self.index == 0 {
-                    assert!(caller == ProgramIdentifier::default())
+                    assert!(caller == ProgramIdentifier::default());
                 } else {
                     assert!(caller != ProgramIdentifier::default());
                     assert!(self.is_casted_actor(&caller, false));
@@ -226,6 +227,8 @@ impl CallTape {
     }
 
     #[allow(clippy::similar_names)]
+    #[allow(unused_variables)]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn to_mailbox<A, R>(
         &mut self,
         caller_prog: ProgramIdentifier,
@@ -324,6 +327,7 @@ impl EventTape {
         }
     }
 
+    #[allow(unused_variables)]
     pub fn emit_event(&mut self, id: ProgramIdentifier, event: Event) {
         #[cfg(target_os = "mozakvm")]
         {

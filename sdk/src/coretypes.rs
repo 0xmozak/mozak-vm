@@ -126,7 +126,7 @@ impl ProgramIdentifier {
         T: Iterator<Item = &'a StateObject> + Sized, {
         objects.for_each(|x| {
             assert!(
-                !(x.constraint_owner != *self),
+                x.constraint_owner == *self,
                 "constraint owner does not match program identifier"
             );
         });
