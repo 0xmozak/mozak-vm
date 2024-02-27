@@ -17,15 +17,6 @@ impl From<[u8; 32]> for PublicKey {
     fn from(value: [u8; 32]) -> Self { PublicKey(value) }
 }
 
-/// A generic private key used by the wallet.
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
-pub struct PrivateKey([u8; 32]);
-
-impl From<[u8; 32]> for PrivateKey {
-    fn from(value: [u8; 32]) -> Self { PrivateKey(value) }
-}
 /// Amount of tokens to transfer.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
@@ -102,6 +93,10 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
 // TODO(bing): Read public key from call tape.
 // hash and compare against public key.
 /// Return true if signature is approved.
-pub fn approve_signature<T>(self_prog_id: ProgramIdentifier, pub_key: PublicKey, _black_box: T) -> () {
+pub fn approve_signature<T>(
+    self_prog_id: ProgramIdentifier,
+    pub_key: PublicKey,
+    _black_box: T,
+) -> () {
     // Null for now
 }
