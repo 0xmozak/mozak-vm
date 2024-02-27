@@ -8,7 +8,7 @@ use crate::test_utils::ProveAndVerify;
 
 #[test]
 fn test_fibonacci() {
-    let program = Program::load_elf(mozak_examples::FIBONACCI_ELF).unwrap();
+    let program = Program::vanilla_load_elf(mozak_examples::FIBONACCI_ELF).unwrap();
     let state = State::<GoldilocksField>::new(program.clone(), RuntimeArguments::default());
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
