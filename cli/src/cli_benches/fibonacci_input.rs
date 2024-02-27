@@ -18,6 +18,17 @@ fn fibonacci(n: u32) -> u32 {
 pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
     let program = Program::vanilla_load_elf(mozak_examples::FIBONACCI_INPUT_ELF).unwrap();
     let out = fibonacci(n);
+    // Note(Roman): first thing to notice that FIBO_INPUT_ELF is actually mozak-ELF,
+    // but it is OK to use `vanilla` loader. Vanilla loader will still work,
+    // because mozak-ELF is still the valid ELF. Second things related to the
+    // fact that `State::new` API indeed accepts `args` but internally it
+    // assumes to take case of external arguments thru mozak-ro-memory, and
+    // since vanilla loader was used, there is not mozak-ro-memory inside
+    // Program. Third thing is related to how rust-fibo ELF reads and writes
+    // io-tapes - it will just get zeros inside its internal buffers, so
+    // fibo-code will see input = 0, so output will be also 0, which is OK. In
+    // the next PRs we will remove old-io-tapes, and so also will remove this
+    // legacy_ecall_api ...
     let state = State::legacy_ecall_api_new(program.clone(), RuntimeArguments {
         self_prog_id: vec![],
         cast_list: vec![],
