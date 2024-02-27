@@ -4,6 +4,7 @@ use std::rc::Rc;
 use anyhow::{anyhow, Result};
 use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
+use im::HashSet;
 use itertools::chain;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
@@ -59,9 +60,30 @@ pub struct State<F: RichField> {
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
     pub mozak_ro_memory: HashMap<u32, u8>,
+    pub memory: StateMemory,
     pub io_tape: IoTape,
     pub transcript: IoTapeData,
     _phantom: PhantomData<F>,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, Clone, Default)]
+pub struct StateMemory {
+    pub data: HashMap<u32, u8>,
+    pub is_writable: HashSet<u32>,
+}
+impl From<(&HashMap<u32, u8>, &HashMap<u32, u8>, &HashMap<u32, u8>)> for StateMemory {
+    #[allow(clippy::similar_names)]
+    fn from(
+        (rw_mem, ro_mem, mozak_ro_mem): (&HashMap<u32, u8>, &HashMap<u32, u8>, &HashMap<u32, u8>),
+    ) -> Self {
+        StateMemory {
+            data: chain!(rw_mem.iter(), ro_mem.iter(), mozak_ro_mem.iter())
+                .map(|(addr, value)| (*addr, *value))
+                .collect(),
+            is_writable: rw_mem.keys().copied().collect(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
@@ -107,6 +129,7 @@ impl<F: RichField> Default for State<F> {
             rw_memory: HashMap::default(),
             ro_memory: HashMap::default(),
             mozak_ro_memory: HashMap::default(),
+            memory: StateMemory::default(),
             io_tape: IoTape::from((vec![], vec![])),
             transcript: IoTapeData {
                 data: [].into(),
@@ -249,20 +272,31 @@ impl<F: RichField> State<F> {
             ..
         }: Program,
     ) -> Self {
+        let m = (
+            &rw_memory.clone(),
+            &ro_memory.clone(),
+            &mozak_ro_memory
+                .clone()
+                .map_or_else(HashMap::default, |m| (&m).into()),
+        )
+            .into();
         Self {
             pc,
             rw_memory,
             ro_memory,
-            mozak_ro_memory: mozak_ro_memory.map_or_else(HashMap::default, |mrm| {
-                chain!(
-                    mrm.context_variables.data.iter(),
-                    mrm.io_tape_private.data.iter(),
-                    mrm.io_tape_public.data.iter(),
-                    mrm.transcript.data.iter(),
-                )
-                .map(|(addr, value)| (*addr, *value))
-                .collect()
-            }),
+            mozak_ro_memory: mozak_ro_memory
+                .clone()
+                .map_or_else(HashMap::default, |mrm| {
+                    chain!(
+                        mrm.context_variables.data.iter(),
+                        mrm.io_tape_private.data.iter(),
+                        mrm.io_tape_public.data.iter(),
+                        mrm.transcript.data.iter(),
+                    )
+                    .map(|(addr, value)| (*addr, *value))
+                    .collect()
+                }),
+            memory: m,
             ..Default::default()
         }
     }
@@ -391,6 +425,7 @@ impl<F: RichField> State<F> {
     /// So no u32 address is out of bounds.
     #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 {
+        return self.memory.data.get(&addr).copied().unwrap_or_default();
         self.ro_memory
             .get(&addr)
             .or_else(|| self.mozak_ro_memory.get(&addr))
@@ -405,6 +440,16 @@ impl<F: RichField> State<F> {
     /// This function returns an error, if you try to store to an invalid
     /// address.
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
+        return if self.memory.is_writable.contains(&addr) {
+            self.memory.data.insert(addr, value);
+            Ok(self)
+        } else {
+            Err(anyhow!(
+                "cannot write to ro_memory: address - {:#0x}, value - {:#0x}",
+                addr,
+                value,
+            ))
+        };
         match self.ro_memory.entry(addr) {
             im::hashmap::Entry::Occupied(entry) => Err(anyhow!(
                 "cannot write to ro_memory: address,value and entry {:#0x}, {:#0x}, {:?}",
