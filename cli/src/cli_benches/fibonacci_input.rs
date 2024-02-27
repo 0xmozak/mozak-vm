@@ -47,8 +47,9 @@ pub fn fibonacci_input_mozak_elf(n: u32) -> Result<(), anyhow::Error> {
         out.to_le_bytes().to_vec(),
         vec![],
     );
-    let program = Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF, &args).unwrap();
-    let state = State::<GoldilocksField>::new(program.clone(), args);
+    let mut program =
+        Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF, &args).unwrap();
+    let state = State::<GoldilocksField>::new(&mut program, args);
     let record = step(&program, state).unwrap();
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }

@@ -245,9 +245,9 @@ impl<F: RichField> State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            mut mozak_ro_memory,
+            mozak_ro_memory,
             ..
-        }: Program,
+        }: &mut Program,
         args: RuntimeArguments,
     ) -> Self {
         assert!(
@@ -255,14 +255,14 @@ impl<F: RichField> State<F> {
             "This API supports non-empty args only for mozak-ELFs, for vanilla-ELF with non-empty-args, State::legacy_ecall_api_new should be used"
         );
         Self {
-            pc,
-            rw_memory,
-            ro_memory,
+            pc: *pc,
+            rw_memory: rw_memory.clone(),
+            ro_memory: ro_memory.clone(),
             mozak_ro_memory: mozak_ro_memory.as_mut().map_or_else(
                 HashMap::default,
                 |mrm: &mut MozakMemory| {
                     // Program is mozak-ELF and runtime arguments are not empty, this is the case
-                    // where we need to fill it our self
+                    // where we need to fill it
                     if mrm.is_empty() && !args.is_empty() {
                         mrm.fill_runtime_arguments(&args);
                     }

@@ -8,8 +8,8 @@ use crate::test_utils::ProveAndVerify;
 
 #[test]
 fn test_fibonacci() {
-    let program = Program::vanilla_load_elf(mozak_examples::FIBONACCI_ELF).unwrap();
-    let state = State::<GoldilocksField>::new(program.clone(), RuntimeArguments::default());
+    let mut program = Program::vanilla_load_elf(mozak_examples::FIBONACCI_ELF).unwrap();
+    let state = State::<GoldilocksField>::new(&mut program, RuntimeArguments::default());
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
@@ -17,8 +17,8 @@ fn test_fibonacci() {
 #[test]
 fn test_fibonacci_mozak_elf() {
     let args = RuntimeArguments::default();
-    let program = Program::mozak_load_program(mozak_examples::FIBONACCI_ELF, &args).unwrap();
-    let state = State::<GoldilocksField>::new(program.clone(), args);
+    let mut program = Program::mozak_load_program(mozak_examples::FIBONACCI_ELF, &args).unwrap();
+    let state = State::<GoldilocksField>::new(&mut program, args);
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
@@ -29,9 +29,9 @@ fn test_fibonacci_mozak_elf() {
 // NOTE: this test should panic since ELF is expecting to have non-empty input
 fn test_fibonacci_mozak_elf_new_api_empty_args() {
     let args = RuntimeArguments::default();
-    let program =
+    let mut program =
         Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF_NEW_API, &args).unwrap();
-    let state = State::<GoldilocksField>::new(program.clone(), args);
+    let state = State::<GoldilocksField>::new(&mut program, args);
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
@@ -55,9 +55,9 @@ fn test_fibonacci_mozak_elf_new_api() {
         out.to_le_bytes().to_vec(),
         vec![],
     );
-    let program =
+    let mut program =
         Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF_NEW_API, &args).unwrap();
-    let state = State::<GoldilocksField>::new(program.clone(), args);
+    let state = State::<GoldilocksField>::new(&mut program, args);
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
