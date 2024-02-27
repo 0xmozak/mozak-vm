@@ -354,6 +354,7 @@ mod tests {
     /// Note this is required since this time, `diff_addr_inv` logic
     /// can't help detect `is_init` for first row.
     #[test]
+    // This will panic, if debug assertions are enabled in plonky2.
     #[should_panic]
     fn no_init_fail() {
         let instructions = [Instruction {
