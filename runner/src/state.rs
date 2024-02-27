@@ -248,12 +248,7 @@ impl<F: RichField> State<F> {
             mozak_ro_memory,
             ..
         }: Program,
-        args: RuntimeArguments,
     ) -> Self {
-        assert!(
-            args.is_empty() || mozak_ro_memory.is_some(),
-            "This API supports non-empty args only for mozak-ELFs, for vanilla-ELF with non-empty-args, State::legacy_ecall_api_new should be used"
-        );
         Self {
             pc,
             rw_memory,
