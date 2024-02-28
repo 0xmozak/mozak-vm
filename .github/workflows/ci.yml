@@ -40,23 +40,6 @@ jobs:
       - name: Run all the tests from the archive
         run: MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
 
-  run-examples:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install CI deps
-        uses: ./.github/actions/ci-deps
-        with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and run examples
-        run: |
-          cd examples && nice cargo build --release
-          cd .. && nice ./run_examples.sh
-
   cargo-clippy:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
@@ -76,7 +59,7 @@ jobs:
         working-directory: sdk
         run: cargo clippy --all-features -- -D warnings
 
-  cargo-build-examples:
+  mozak-overseer:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -88,9 +71,9 @@ jobs:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build all examples
+      - name: Run mozak overseer (to test examples etc.)
         run: |
-          cd examples-builder && cargo build --all-features
+          cargo build; RUST_LOG=trace ./target/debug/mozak-overseer
 
   cargo-fmt:
     needs: check-runner
