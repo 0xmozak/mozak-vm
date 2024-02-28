@@ -1,3 +1,6 @@
+#![deny(clippy::pedantic)]
+#![deny(clippy::cargo)]
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -14,6 +17,8 @@ pub struct WorkspaceMember {
 
 /// Given `workspace_path`, extracts all the "members" found in
 /// `workspace_path/Cargo.toml`
+#[allow(clippy::missing_panics_doc)]
+#[must_use]
 pub fn extract_workspace_members(workspace_path: &Path) -> Vec<WorkspaceMember> {
     let cargo_toml_path = workspace_path.join("Cargo.toml");
     let file_bytes = fs::read_to_string(cargo_toml_path).expect("Cargo.toml read failure");
@@ -28,7 +33,7 @@ pub fn extract_workspace_members(workspace_path: &Path) -> Vec<WorkspaceMember> 
                 name: String::from(name),
                 path: workspace_path.join(name),
             },
-            _ => panic!("Cannot parse member as string: {:?}", member),
+            _ => panic!("Cannot parse member as string: {member:?}"),
         })
         .collect()
 }
@@ -42,14 +47,14 @@ pub fn extract_workspace_members(workspace_path: &Path) -> Vec<WorkspaceMember> 
 /// is shared between `[overseer/A/...]` and `[overseer/B/...]` for different
 /// `A` and `B`. This function panics if contigous sequence is not found, e.g.
 /// `[overseer/0/2]` mandates some `[overseer/0/0]` and `[overseer/0/1]`.
+#[allow(clippy::missing_panics_doc)]
 pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
-    trace!("Analysing README {:?}", readme_path);
-
-    let file_bytes = fs::read_to_string(readme_path).expect("README.md read failure");
     static ALL_OVERSEER_CODE_BLOCK_REGEX: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r"```([\s\S]*?\[overseer/\d-\d\][\s\S]*?)```").expect("Invalid regex pattern")
     });
 
+    trace!("Analysing README {:?}", readme_path);
+    let file_bytes = fs::read_to_string(readme_path).expect("README.md read failure");
     let mut commands: Vec<Vec<String>> = vec![vec![]; 10];
 
     ALL_OVERSEER_CODE_BLOCK_REGEX
