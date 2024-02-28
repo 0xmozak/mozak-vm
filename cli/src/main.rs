@@ -157,13 +157,13 @@ fn main() -> Result<()> {
             debug!("{program:?}");
         }
         Command::Run(RunArgs { elf, args }) => {
-            let program = load_program(elf, args.clone())?;
+            let program = load_program(elf, args)?;
             let state = State::<GoldilocksField>::new(program.clone());
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
         }
         Command::ProveAndVerify(RunArgs { elf, args }) => {
-            let program = load_program(elf, args.clone())?;
+            let program = load_program(elf, args)?;
             let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -174,7 +174,7 @@ fn main() -> Result<()> {
             mut proof,
             recursive_proof,
         }) => {
-            let program = load_program(elf, args.clone())?;
+            let program = load_program(elf, args)?;
             let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
             let stark = if cli.debug {
