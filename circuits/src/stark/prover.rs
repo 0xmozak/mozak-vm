@@ -146,7 +146,6 @@ where
     }
     Ok(AllProof {
         proofs,
-        ctl_challenges,
         program_rom_trace_cap,
         elf_memory_init_trace_cap,
         mozak_memory_init_trace_cap,
@@ -184,8 +183,6 @@ where
         fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
         "FRI total reduction arity is too large.",
     );
-
-    let init_challenger_state = challenger.compact();
 
     let z_polys = ctl_data.z_polys();
     // TODO(Matthias): make the code work with empty z_polys, too.
