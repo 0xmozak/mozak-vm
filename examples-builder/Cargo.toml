@@ -1,0 +1,25 @@
+[package]
+categories = ["cryptography"]
+description = "Mozak Examples"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "mozak-examples"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[features]
+empty = []
+fibonacci = []
+fibonacci-input = []
+fibonacci-input-new-api = []
+memory-access = []
+merkleproof-trustedroot = []
+min-max = []
+panic = []
+poseidon2 = []
+rkyv-serialization = []
+sha2 = []
+static-mem-access = []
+stdin = []

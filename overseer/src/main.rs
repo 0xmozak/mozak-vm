@@ -3,7 +3,7 @@
 use std::{collections::HashMap, fs};
 use std::path::{Path, PathBuf};
 
-use log::debug;
+use log::{debug, info};
 use mozak_overseer::{
     clone_directory, extract_overseer_commandset, extract_workspace_members, run_shell_script, setup_clean_dir
 };
@@ -76,7 +76,7 @@ fn run_overseer(dir: &Path) {
     // Setup needs to ensure cleanliness
     // Commented since locally you may want to have a look into
     // `.overseer` post run.
-    
+
     // setup_clean_dir(&overseer_dir);
 
     info!("All mozak overseer tests passed successfully!");
