@@ -73,7 +73,7 @@ pub struct RunArgs {
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: String,
+    self_prog_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -83,7 +83,7 @@ pub struct ProveArgs {
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: String,
+    self_prog_id: Option<String>,
     recursive_proof: Option<Output>,
 }
 
@@ -182,10 +182,10 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
 /// fails.
 pub fn tapes_to_runtime_arguments(
     tape_bin: Input,
-    self_prog_id: String,
+    self_prog_id: Option<String>,
 ) -> mozak_runner::elf::RuntimeArguments {
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
-    let self_prog_id: ProgramIdentifier = self_prog_id.into();
+    let self_prog_id: ProgramIdentifier = self_prog_id.unwrap_or_default().into();
 
     let cast_list = {
         let mut cast_set = HashSet::new();
@@ -302,7 +302,9 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
+            let args = system_tape.map_or_else(mozak_runner::elf::RuntimeArguments::default, |s| {
+                tapes_to_runtime_arguments(s, self_prog_id)
+            });
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
             let _state = step(&program, state)?.last_state;
@@ -312,7 +314,9 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = tapes_to_runtime_arguments(system_tape.unwrap(), self_prog_id);
+            let args = system_tape.map_or_else(mozak_runner::elf::RuntimeArguments::default, |s| {
+                tapes_to_runtime_arguments(s, self_prog_id)
+            });
 
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
