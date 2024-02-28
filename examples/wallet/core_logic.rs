@@ -38,6 +38,12 @@ pub struct TokenObject {
     pub amount: Amount,
 }
 
+/// A generic 'black box' object that can contain any
+/// data that a guest program writer wants.
+///
+/// The purpose of this 'black box' is to ensure the uniqueness of the
+/// merkle caps generated, which allows us (in this particular use case) to
+/// differentiate between transactions.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
