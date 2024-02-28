@@ -577,19 +577,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_logger"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c012a26a7f605efc424dd53697843a72be7dc86ad2d01f7814337794a12231d"
-dependencies = [
- "anstream",
- "anstyle",
- "env_filter",
- "humantime",
- "log",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -967,7 +954,7 @@ dependencies = [
  "arrayvec",
  "bitfield",
  "criterion",
- "env_logger 0.10.2",
+ "env_logger",
  "flexbuffers",
  "hex",
  "im",
@@ -1007,7 +994,7 @@ dependencies = [
  "clap-verbosity-flag",
  "clap_derive",
  "clio",
- "env_logger 0.10.2",
+ "env_logger",
  "itertools 0.12.1",
  "log",
  "mozak-circuits",
@@ -1037,7 +1024,7 @@ dependencies = [
 name = "mozak-overseer"
 version = "0.1.0"
 dependencies = [
- "env_logger 0.11.2",
+ "env_logger",
  "log",
  "once_cell",
  "regex",
@@ -1058,7 +1045,7 @@ dependencies = [
  "criterion",
  "derive_more",
  "elf",
- "env_logger 0.10.2",
+ "env_logger",
  "im",
  "itertools 0.12.1",
  "log",
@@ -1706,7 +1693,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "criterion",
- "env_logger 0.10.2",
+ "env_logger",
  "hex",
  "itertools 0.12.1",
  "log",
