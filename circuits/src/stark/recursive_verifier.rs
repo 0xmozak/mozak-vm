@@ -36,7 +36,7 @@ use crate::stark::proof::{
 
 /// Plonky2's recursion threshold is 2^12 gates.
 pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
-pub const VM_PUBLIC_INPUT_SIZE: usize = 129;
+pub const VM_PUBLIC_INPUT_SIZE: usize = 193;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
