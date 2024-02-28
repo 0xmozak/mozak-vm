@@ -6,7 +6,7 @@ be documented [here](../../docs/linker-script.md).
 
 To build for Mozak-VM:
 
-```
+```sh
 # inside examples directory
 # [overseer/0-0]
 cargo +nightly build --release --bin empty

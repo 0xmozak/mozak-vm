@@ -1,9 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use log::{debug, trace};
+use log::{trace};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use run_script::ScriptOptions;
 use toml::Value;
 
 #[derive(Default, Debug)]
@@ -62,7 +63,8 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
                 .unwrap()
                 .as_str()
                 .trim_start_matches("sh")
-                .trim_start_matches("bash");
+                .trim_start_matches("bash")
+                .trim();
 
             // `step` is the string value `0-0` in a code block of following form:
             // ```sh
@@ -78,7 +80,7 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
             );
 
             if major > 0 {
-                assert!(commands[major-1].len() > 0);
+                assert!(commands[major - 1].len() > 0);
             }
             if minor > 0 {
                 assert!(commands[major].len() == minor);
@@ -92,11 +94,57 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
     if commands.len() > 0 {
         let mut debug_commands = String::new();
         for (major_idx, major_vec) in commands.iter().enumerate() {
-            for  (minor_idx, command) in major_vec.iter().enumerate() {
-                debug_commands += format!("Step {}-{}: {}\n", major_idx, minor_idx, command.replace("\n", "\n    ")).as_str();
+            for (minor_idx, command) in major_vec.iter().enumerate() {
+                debug_commands += format!(
+                    "Step {}-{}: {}\n",
+                    major_idx,
+                    minor_idx,
+                    command.replace("\n", "\n    ")
+                )
+                .as_str();
             }
         }
-        debug!("Analysis of {:?}: \n{}", readme_path, debug_commands);
-    }    
+        trace!("Analysis of {:?}: \n{}", readme_path, debug_commands);
+    }
     commands
+}
+
+pub fn clone_directory(src_path: &Path, dest_path: &Path) -> Result<(), std::io::Error> {
+    // Create the destination directory if it doesn't exist
+    setup_clean_dir(&dest_path);
+
+    // Iterate over the entries in the source directory
+    for entry in fs::read_dir(src_path)? {
+        let entry = entry?;
+        let entry_path = entry.path();
+        let dest_file_path = dest_path.join(entry.file_name());
+
+        // Copy the file or directory to the destination
+        if entry_path.is_dir() {
+            // Recursively copy subdirectories
+            clone_directory(&entry_path, &dest_file_path)?;
+        } else {
+            // Copy the file
+            fs::copy(&entry_path, &dest_file_path)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Removes any existing content at `path` and creates a clean directory.
+/// May panic
+#[allow(unused_must_use)]
+pub fn setup_clean_dir(path: &Path) {
+    fs::remove_dir_all(&path);
+    fs::create_dir_all(&path).unwrap();
+}
+
+/// Runs a shell script with given `options` and yields a bool whether
+/// execution ran correctly
+pub fn run_shell_script(script: &Path, options: &ScriptOptions) -> bool {
+    let script = fs::read_to_string(script).expect("script read failure");
+    let child = run_script::spawn(script.as_str(), &vec![], options).unwrap();
+    let spawn_output = child.wait_with_output().unwrap();
+    spawn_output.status.success()
 }

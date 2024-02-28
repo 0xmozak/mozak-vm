@@ -32,3 +32,6 @@ riscv-testdata/testdata/*.i
 
 *.tape_bin
 *.tape_debug
+
+# Overseer
+.overseer
