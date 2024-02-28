@@ -151,19 +151,17 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, RuntimeArguments {
-                ..Default::default()
-            })?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             debug!("{program:?}");
         }
         Command::Run(RunArgs { elf, args }) => {
-            let program = load_program(elf, args.clone())?;
+            let program = load_program(elf, args)?;
             let state = State::<GoldilocksField>::new(program.clone());
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
         }
         Command::ProveAndVerify(RunArgs { elf, args }) => {
-            let program = load_program(elf, args.clone())?;
+            let program = load_program(elf, args)?;
             let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -174,7 +172,7 @@ fn main() -> Result<()> {
             mut proof,
             recursive_proof,
         }) => {
-            let program = load_program(elf, args.clone())?;
+            let program = load_program(elf, args)?;
             let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
             let stark = if cli.debug {
@@ -268,9 +266,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf, RuntimeArguments {
-                ..Default::default()
-            })?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -287,9 +283,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf, RuntimeArguments {
-                ..Default::default()
-            })?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
