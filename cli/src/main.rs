@@ -151,9 +151,7 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, RuntimeArguments {
-                ..Default::default()
-            })?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             debug!("{program:?}");
         }
         Command::Run(RunArgs { elf, args }) => {
