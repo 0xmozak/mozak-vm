@@ -46,9 +46,10 @@ pub fn extract_workspace_members(workspace_path: &Path) -> Vec<WorkspaceMember> 
 /// `[overseer/X/0]`, `[overseer/X/1]`, ..., `[overseer/X/n]` are supposed to
 /// be executed in sequence with affected state shared between them. No state
 /// is shared between `[overseer/A/...]` and `[overseer/B/...]` for different
-/// `A` and `B`. This function panics if contigous sequence is not found, e.g.
+/// `A` and `B`.
+/// # Panics
+/// This function panics if contigous sequence is not found, e.g.
 /// `[overseer/0/2]` mandates some `[overseer/0/0]` and `[overseer/0/1]`.
-#[allow(clippy::missing_panics_doc)]
 pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
     static ALL_OVERSEER_CODE_BLOCK_REGEX: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r"```([\s\S]*?\[overseer/\d-\d\][\s\S]*?)```").expect("Invalid regex pattern")
