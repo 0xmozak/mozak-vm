@@ -30,6 +30,7 @@ macro_rules! ecrate {
 }
 
 const CRATES: &[Crate] = &[
+    ecrate!("bss-tester", "BSS_ELF", false),
     ecrate!("fibonacci", "FIBONACCI_ELF", false),
     ecrate!("fibonacci-input", "FIBONACCI_INPUT_ELF", true),
     ecrate!(
