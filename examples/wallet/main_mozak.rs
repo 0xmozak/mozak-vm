@@ -3,25 +3,18 @@
 
 mod core_logic;
 
-use mozak_sdk::io::{get_tapes, Extractor};
+use core_logic::{dispatch, MethodArgs, MethodReturns};
+use mozak_sdk::sys::call_receive;
+use rkyv::Deserialize;
 
 pub fn main() {
-    let (mut public_tape, mut _private_tape) = get_tapes();
+    if let Some((msg, _idx)) = call_receive() {
+        let archived_args = unsafe { rkyv::archived_root::<MethodArgs>(&msg.args.0[..]) };
+        let args: MethodArgs = archived_args.deserialize(&mut rkyv::Infallible).unwrap();
+        let archived_ret = unsafe { rkyv::archived_root::<MethodReturns>(&msg.ret.0[..]) };
+        let ret: MethodReturns = archived_ret.deserialize(&mut rkyv::Infallible).unwrap();
 
-    #[allow(clippy::single_match)]
-    match public_tape.get_u8() {
-        0 => {
-            // Single function execution
-            // match public_tape.get_u8() {
-            //     unimplemented!();
-            // }
-        }
-        _ => {
-            // Multi-function execution based on recepient
-            // for calls in global_transcript_calls(program_id) {
-            //     // Do those calls
-            // }
-        }
+        assert!(dispatch(args) == ret);
     }
 }
 
