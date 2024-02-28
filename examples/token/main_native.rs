@@ -37,16 +37,12 @@ fn main() {
     ]
     .into();
 
-    // In bytes: [21, 33, 31, 0, 7, 251, 189, 98, 22, 3, 1, 10, 71, 2, 90, 0, 1, 55,
-    // 55, 11, 62, 189, 181, 21, 0, 31, 100, 7, 100, 189, 2, 100, 100, 0, 0, 0,
-    // 0, 0, 0, 0, 21, 90, 121, 87, 31, 35, 20, 189, 0, 0, 0, 0, 0, 0, 0, 0]
     let token_object = TokenObject {
         wallet_prog_id: remitter_wallet,
         pub_key,
         amount: 100.into(),
     };
 
-    // Serializing is as easy as a single function call
     let bytes = rkyv::to_bytes::<_, 256>(&token_object).unwrap();
 
     let state_object = StateObject {
