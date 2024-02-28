@@ -25,5 +25,5 @@ MOZAK_STARK_DEBUG=true ./target/debug/mozak-cli prove-and-verify \
 Prove and verify:
 
 ```
-../target/debug/mozak-cli prove-and-verify -vvv target/riscv32im-mozak-mozakvm-elf/release/walletbin --system-tape wallet_tfr.tape_bin --self-prog-id MZK-155a7957-1f2314bd-0
+../target/debug/mozak-cli prove-and-verify -vvv target/riscv32im-mozak-mozakvm-elf/release/walletbin --system-tape wallet_approve.tape_bin --self-prog-id MZK-155a7957-1f2314bd-0
 ```

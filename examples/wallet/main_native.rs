@@ -55,6 +55,6 @@ fn main() {
     );
     core_logic::approve_signature(remittee_wallet, pub_key, black_box);
 
-    dump_tapes("wallet_tfr".to_string());
+    dump_tapes("wallet_approve".to_string());
     println!("------>   Generated tapes!");
 }
