@@ -289,18 +289,21 @@ mod tests {
     }
 
     #[rustfmt::skip]
-    #[test]
-    #[should_panic = "Constraint failed in"]
-    /// Test that we have a constraint to catch if there are multiple inits per memory address.
+    fn double_init_trace() -> Vec<Memory<GoldilocksField>> {
+        prep_table(vec![
+            //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
+            [       0,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(100)],
+            [       1,     100,   1,     0,      0,       1,        2,       0,     inv::<F>(0)],
+        ])
+    }
+
+    /// Test that we have a constraint to catch if there are multiple inits per
+    /// memory address.
     fn double_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
 
-        let trace: Vec<Memory<GoldilocksField>> = prep_table(vec![
-                //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
-                [       0,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(100)],
-                [       1,     100,   1,     0,      0,       1,        2,       0,     inv::<F>(0)],
-        ]);
+        let trace: Vec<Memory<GoldilocksField>> = double_init_trace();
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let config = fast_test_config();
@@ -311,9 +314,23 @@ mod tests {
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
-        ).unwrap();
-        assert!(verify_stark_proof(stark, proof, &config).is_ok(), "failing constraint: only single init is allowed per memory address");
+        )
+        .unwrap();
+        assert!(
+            verify_stark_proof(stark, proof, &config).is_ok(),
+            "failing constraint: only single init is allowed per memory address"
+        );
     }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic = "Constraint failed in"]
+    fn double_init_debug() { double_init(); }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    #[should_panic = "failing constraint: only single init is allowed per memory address"]
+    fn double_init_release() { double_init(); }
 
     // This test simulates the scenario of a set of instructions
     // which perform store byte (SB) and load byte unsigned (LBU) operations
