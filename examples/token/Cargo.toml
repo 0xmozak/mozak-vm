@@ -1,0 +1,27 @@
+[package]
+edition = "2021"
+name = "token-mozak-guest"
+version = "0.1.0"
+
+[features]
+native = []
+
+[dependencies]
+guest = { path = "../../guest", features = ["std"] }
+mozak-sdk = { path = "../../sdk" }
+rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
+wallet-mozak-guest = { path = "../wallet" }
+
+# TODO: later
+# [[bin]]
+# name = "tokenbin"
+# path = "main_mozak.rs"
+
+[[bin]]
+name = "token-native"
+path = "main_native.rs"
+required-features = ["native"]
+
+[lib]
+name = "token"
+path = "core_logic.rs"
