@@ -27,7 +27,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(bound = "")]
 pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     /// Merkle cap of LDEs of trace values.
@@ -102,7 +102,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StarkProofTarget<const D: usize> {
     pub trace_cap: MerkleCapTarget,
     pub ctl_zs_cap: MerkleCapTarget,
@@ -172,7 +172,7 @@ impl<const D: usize> StarkProofTarget<D> {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StarkProofWithPublicInputsTarget<const D: usize> {
     pub proof: StarkProofTarget<D>,
     pub public_inputs: Vec<Target>,
@@ -195,7 +195,7 @@ pub struct StarkProofChallengesTarget<const D: usize> {
 }
 
 /// Purported values of each polynomial at the challenge point.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(bound = "")]
 pub struct StarkOpeningSet<F: RichField + Extendable<D>, const D: usize> {
     /// Openings of trace polynomials at `zeta`.
@@ -276,7 +276,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
     }
 }
 
-#[derive(Eq, Clone, PartialEq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StarkOpeningSetTarget<const D: usize> {
     pub local_values: Vec<ExtensionTarget<D>>,
     pub next_values: Vec<ExtensionTarget<D>>,
@@ -314,7 +314,7 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub proofs: TableKindArray<StarkProof<F, C, D>>,
