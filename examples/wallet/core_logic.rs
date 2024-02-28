@@ -28,13 +28,18 @@ impl From<u64> for Amount {
     fn from(value: u64) -> Self { Amount(value) }
 }
 
+/// A token object is represented in the `data` section of a `StateObject`, and
+/// contains information about the token that is being used in a program.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct TokenObject {
+    /// The wallet that is the economic owner of this `TokenObject`.
     pub wallet_prog_id: ProgramIdentifier,
+    /// The public key that is the economic owner of this `TokenObject`.
     pub pub_key: PublicKey,
+    /// The amount of tokens to be used.
     pub amount: Amount,
 }
 
