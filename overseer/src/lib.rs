@@ -2,9 +2,10 @@
 #![deny(clippy::cargo)]
 
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use toml::Value;
@@ -54,7 +55,14 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
     });
 
     trace!("Analysing README {:?}", readme_path);
-    let file_bytes = fs::read_to_string(readme_path).expect("README.md read failure");
+    let file_bytes = match fs::read_to_string(readme_path) {
+        Ok(file_bytes) => file_bytes,
+        Err(e) if ErrorKind::NotFound == e.kind() => {
+            warn!("Readme {readme_path:?} not found, assuming empty: {e:?}");
+            String::default()
+        }
+        Err(e) => panic!("Error reading {readme_path:?}: {e:?}"),
+    };
     let mut commands: Vec<Vec<String>> = vec![vec![]; 10];
 
     ALL_OVERSEER_CODE_BLOCK_REGEX
@@ -105,7 +113,7 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
                 .as_str();
             }
         }
-        debug!("Analysis of {:?}: \n{}", readme_path, debug_commands);
+        debug!("Analysis of {readme_path:?}: \n{debug_commands}");
     }
     commands
 }
