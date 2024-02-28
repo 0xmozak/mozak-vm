@@ -75,7 +75,7 @@ fn main() {
         },
     );
 
-    dump_tapes("wallet_tfr".to_string());
+    dump_tapes("token_tfr".to_string());
 
     println!("------>   Generated tapes!");
 }
