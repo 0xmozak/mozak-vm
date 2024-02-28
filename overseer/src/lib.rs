@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use log::{trace};
+use log::trace;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use run_script::ScriptOptions;
