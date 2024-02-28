@@ -141,11 +141,11 @@ pub mod challenge {
         const D: usize,
     >(
         builder: &mut CircuitBuilder<F, D>,
-        challenger: &mut RecursiveChallenger<F, H, D>,
+        recursive_challenger: &mut RecursiveChallenger<F, H, D>,
         num_challenges: usize,
     ) -> GrandProductChallengeSet<Target> {
         let challenges = (0..num_challenges)
-            .map(|_| get_grand_product_challenge_target(builder, challenger))
+            .map(|_| get_grand_product_challenge_target(builder, recursive_challenger))
             .collect();
         GrandProductChallengeSet { challenges }
     }

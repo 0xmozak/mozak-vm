@@ -71,7 +71,7 @@ where
         set_stark_proof_with_pis_target(
             witness,
             &self.stark_proof_with_pis_target.proof,
-            &proof,
+            proof,
             self.zero_target,
         );
     }
