@@ -28,6 +28,6 @@ the native execution above to produce the system tape prior to running this.
 MOZAK_STARK_DEBUG=true \
     ../target/debug/mozak-cli prove-and-verify -vvv \
     target/riscv32im-mozak-mozakvm-elf/release/tokenbin \
-    --system-tape wallet_tfr.tape_bin \
+    --system-tape token_tfr.tape_bin \
     --self-prog-id MZK-0b7114fb-021f033e-0;
 ```
