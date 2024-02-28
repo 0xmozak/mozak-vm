@@ -25,7 +25,7 @@ for profile in "${PROFILES[@]}"; do
                     ;;
                 # For this, we skip without writing to skipped because we
                 # run the native version along with the mozakvm version.
-                "merkleproof-trustedroot-native" | "token-native" | "wallet-native" | "walletbin")
+                "merkleproof-trustedroot-native" | "token-native" | "wallet-native" | "walletbin" | "tokenbin")
                     echo "(mozak-cli) skipping (${profile}): ${bin}"
                     continue
                     ;;
