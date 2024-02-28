@@ -17,13 +17,13 @@ pub struct WorkspaceMember {
 /// `workspace_path/Cargo.toml`
 pub fn extract_workspace_members(workspace_path: &Path) -> Vec<WorkspaceMember> {
     let cargo_toml_path = workspace_path.join("Cargo.toml");
-    let file_bytes = fs::read_to_string(&cargo_toml_path).expect("Cargo.toml read failure");
+    let file_bytes = fs::read_to_string(cargo_toml_path).expect("Cargo.toml read failure");
     let parsed_toml: Value = file_bytes.parse().expect("Cargo.toml parsing error");
     let workspace_members = parsed_toml["workspace"]["members"]
         .as_array()
         .expect("Member finding error");
     workspace_members
-        .into_iter()
+        .iter()
         .map(|member| {
             if let Some(name) = member.as_str() {
                 return WorkspaceMember {
@@ -48,7 +48,7 @@ pub fn extract_workspace_members(workspace_path: &Path) -> Vec<WorkspaceMember> 
 pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
     trace!("Analysing README {:?}", readme_path);
 
-    let file_bytes = fs::read_to_string(&readme_path).expect("README.md read failure");
+    let file_bytes = fs::read_to_string(readme_path).expect("README.md read failure");
     static ALL_OVERSEER_CODE_BLOCK_REGEX: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r"```([\s\S]*?\[overseer/\d-\d\][\s\S]*?)```").expect("Invalid regex pattern")
     });
@@ -72,7 +72,7 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
             // # [overseer/0-0]
             // cargo +nightly build --release --bin empty
             // ```
-            let step = &string_repr.split("overseer/").skip(1).next().unwrap()[..3];
+            let step = &string_repr.split("overseer/").nth(1).unwrap()[..3];
 
             let (major, minor) = (
                 step[..1].parse::<usize>().unwrap(),
@@ -80,7 +80,7 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
             );
 
             if major > 0 {
-                assert!(commands[major - 1].len() > 0);
+                assert!(!commands[major - 1].is_empty());
             }
             if minor > 0 {
                 assert!(commands[major].len() == minor);
@@ -91,7 +91,7 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
 
     commands.retain(|inner_vec| !inner_vec.is_empty());
 
-    if commands.len() > 0 {
+    if !commands.is_empty() {
         let mut debug_commands = String::new();
         for (major_idx, major_vec) in commands.iter().enumerate() {
             for (minor_idx, command) in major_vec.iter().enumerate() {
@@ -99,7 +99,7 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
                     "Step {}-{}: {}\n",
                     major_idx,
                     minor_idx,
-                    command.replace("\n", "\n    ")
+                    command.replace('\n', "\n    ")
                 )
                 .as_str();
             }
@@ -111,7 +111,7 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
 
 pub fn clone_directory(src_path: &Path, dest_path: &Path) -> Result<(), std::io::Error> {
     // Create the destination directory if it doesn't exist
-    setup_clean_dir(&dest_path);
+    setup_clean_dir(dest_path);
 
     // Iterate over the entries in the source directory
     for entry in fs::read_dir(src_path)? {
@@ -136,8 +136,8 @@ pub fn clone_directory(src_path: &Path, dest_path: &Path) -> Result<(), std::io:
 /// May panic
 #[allow(unused_must_use)]
 pub fn setup_clean_dir(path: &Path) {
-    fs::remove_dir_all(&path);
-    fs::create_dir_all(&path).unwrap();
+    fs::remove_dir_all(path);
+    fs::create_dir_all(path).unwrap();
 }
 
 /// Runs a shell script with given `options` and yields a bool whether
