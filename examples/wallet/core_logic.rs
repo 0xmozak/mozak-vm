@@ -49,9 +49,9 @@ pub struct TokenObject {
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct BlackBox {
-    remitter_wallet: ProgramIdentifier,
-    remittee_wallet: ProgramIdentifier,
-    token_object: TokenObject,
+    pub remitter_wallet: ProgramIdentifier,
+    pub remittee_wallet: ProgramIdentifier,
+    pub token_object: TokenObject,
 }
 
 impl BlackBox {
