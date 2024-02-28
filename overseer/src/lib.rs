@@ -23,14 +23,12 @@ pub fn extract_workspace_members(workspace_path: &Path) -> Vec<WorkspaceMember> 
         .expect("Member finding error");
     workspace_members
         .into_iter()
-        .map(|member| {
-            if let Some(name) = member.as_str() {
-                return WorkspaceMember {
-                    name: String::from(name),
-                    path: workspace_path.join(name),
-                };
-            }
-            panic!("Cannot parse member as string: {:?}", member);
+        .map(|member| match member {
+            Value::String(name) => WorkspaceMember {
+                name: String::from(name),
+                path: workspace_path.join(name),
+            },
+            _ => panic!("Cannot parse member as string: {:?}", member),
         })
         .collect()
 }
