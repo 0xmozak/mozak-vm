@@ -17,7 +17,8 @@ impl From<[u8; 32]> for PublicKey {
     fn from(value: [u8; 32]) -> Self { PublicKey(value) }
 }
 
-/// Amount of tokens to transfer.
+/// Amount of tokens to be used in a program, represented as part of
+/// `TokenObject`.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
