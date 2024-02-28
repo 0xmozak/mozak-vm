@@ -548,6 +548,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
 
 [[package]]
+name = "env_filter"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a009aa4810eb158359dda09d0c87378e4bbb89b5a801f016885a4707ba24f7ea"
+dependencies = [
+ "log",
+ "regex",
+]
+
+[[package]]
 name = "env_logger"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -558,6 +568,19 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c012a26a7f605efc424dd53697843a72be7dc86ad2d01f7814337794a12231d"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "env_filter",
+ "humantime",
+ "log",
 ]
 
 [[package]]
@@ -937,7 +960,7 @@ dependencies = [
  "arrayvec",
  "bitfield",
  "criterion",
- "env_logger",
+ "env_logger 0.10.2",
  "flexbuffers",
  "hex",
  "im",
@@ -977,7 +1000,7 @@ dependencies = [
  "clap-verbosity-flag",
  "clap_derive",
  "clio",
- "env_logger",
+ "env_logger 0.10.2",
  "itertools 0.12.1",
  "log",
  "mozak-circuits",
@@ -1004,6 +1027,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mozak-overseer"
+version = "0.1.0"
+dependencies = [
+ "env_logger 0.11.2",
+ "log",
+ "once_cell",
+ "regex",
+ "toml",
+]
+
+[[package]]
 name = "mozak-rpc"
 version = "0.1.0"
 
@@ -1016,7 +1050,7 @@ dependencies = [
  "criterion",
  "derive_more",
  "elf",
- "env_logger",
+ "env_logger 0.10.2",
  "im",
  "itertools 0.12.1",
  "log",
@@ -1655,7 +1689,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "criterion",
- "env_logger",
+ "env_logger 0.10.2",
  "hex",
  "itertools 0.12.1",
  "log",
@@ -1902,6 +1936,15 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "toml"
+version = "0.5.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "toml_datetime"
