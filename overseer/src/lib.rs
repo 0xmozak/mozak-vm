@@ -76,7 +76,7 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
             );
 
             if major > 0 {
-                assert!(commands[major-1].len() > 0);
+                assert!(commands[major - 1].len() > 0);
             }
             if minor > 0 {
                 assert!(commands[major].len() == minor);
@@ -90,11 +90,17 @@ pub fn extract_overseer_commandset(readme_path: &Path) -> Vec<Vec<String>> {
     if commands.len() > 0 {
         let mut debug_commands = String::new();
         for (major_idx, major_vec) in commands.iter().enumerate() {
-            for  (minor_idx, command) in major_vec.iter().enumerate() {
-                debug_commands += format!("Step {}-{}: {}\n", major_idx, minor_idx, command.replace("\n", "\n    ")).as_str();
+            for (minor_idx, command) in major_vec.iter().enumerate() {
+                debug_commands += format!(
+                    "Step {}-{}: {}\n",
+                    major_idx,
+                    minor_idx,
+                    command.replace("\n", "\n    ")
+                )
+                .as_str();
             }
         }
         debug!("Analysis of {:?}: \n{}", readme_path, debug_commands);
-    }    
+    }
     commands
 }
