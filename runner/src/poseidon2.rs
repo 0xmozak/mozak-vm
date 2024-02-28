@@ -5,7 +5,6 @@ use mozak_system::system::reg_abi::{REG_A1, REG_A2, REG_A3};
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
-use plonky2::plonk::config::GenericHashOut;
 
 use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
 
@@ -61,6 +60,16 @@ pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
     (HashOut::from(outputs), sponge_data)
 }
 
+fn to_bytes<F: RichField>(s: &HashOut<F>) -> Vec<u8> {
+    s.elements
+        .into_iter()
+        .flat_map(|x| {
+            let x = x.to_canonical_u64();
+            x.checked_add(F::ORDER).unwrap_or(x).to_le_bytes()
+        })
+        .collect()
+}
+
 impl<F: RichField> State<F> {
     #[must_use]
     /// # Panics
@@ -77,7 +86,7 @@ impl<F: RichField> State<F> {
             .collect();
         let (hash, sponge_data) =
             hash_n_to_m_no_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
-        let hash = hash.to_bytes();
+        let hash = to_bytes(&hash);
         assert_eq!(32, hash.len());
         (
             Aux {
