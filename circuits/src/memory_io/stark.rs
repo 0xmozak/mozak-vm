@@ -350,7 +350,6 @@ mod tests {
                 io_tape_public: vec![content],
                 call_tape: vec![content],
                 event_tape: vec![content],
-                ..Default::default()
             },
         );
         Stark::prove_and_verify(&program, &record).unwrap();

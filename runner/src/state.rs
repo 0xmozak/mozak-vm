@@ -242,7 +242,14 @@ impl<F: RichField> State<F> {
         }: Program,
         RuntimeArguments { .. }: RuntimeArguments,
     ) -> Self {
-        let memory = StateMemory::new([ro_memory, mozak_ro_memory.map(HashMap::from).unwrap_or_default()].into_iter(), once(rw_memory));
+        let memory = StateMemory::new(
+            [
+                ro_memory,
+                mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
+            ]
+            .into_iter(),
+            once(rw_memory),
+        );
         Self {
             pc,
             memory,
