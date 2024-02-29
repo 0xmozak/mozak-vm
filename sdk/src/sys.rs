@@ -36,18 +36,6 @@ extern "C" {
     static _mozak_event_tape: usize;
 }
 
-#[allow(dead_code)]
-impl SystemTapes {
-    fn new() -> Self {
-        Self {
-            private_tape: RawTape::default(),
-            public_tape: RawTape::default(),
-            call_tape: CallTape::new(),
-            event_tape: EventTape::new(),
-        }
-    }
-}
-
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "mozakvm")]
     #[allow(clippy::cast_ptr_alignment)]
