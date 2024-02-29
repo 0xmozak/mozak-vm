@@ -211,7 +211,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_transcript_zero_size<Stark: ProveAndVerify>(address: u32) {
+    pub fn prove_io_read_call_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
@@ -277,7 +277,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_transcript<Stark: ProveAndVerify>(address: u32, transcript: Vec<u8>) {
+    pub fn prove_io_read_call_tape<Stark: ProveAndVerify>(address: u32, call_tape: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
@@ -293,7 +293,7 @@ mod tests {
                 (REG_A2, 1),       // A2 - size
             ],
             RuntimeArguments {
-                call_tape: transcript,
+                call_tape,
                 ..Default::default()
             },
         );
@@ -445,12 +445,12 @@ mod tests {
             prove_io_read_public::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
-        fn prove_io_read_transcript_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
-            prove_io_read_transcript_zero_size::<MozakStark<F, D>>(address);
+        fn prove_io_read_call_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+            prove_io_read_call_tape_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_transcript_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_io_read_transcript::<MozakStark<F, D>>(address, vec![content]);
+        fn prove_io_read_call_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_io_read_call_tape::<MozakStark<F, D>>(address, vec![content]);
         }
 
 
