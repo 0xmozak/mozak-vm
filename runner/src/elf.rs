@@ -214,7 +214,7 @@ pub struct RuntimeArguments {
     pub context_variables: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
-    pub transcript: Vec<u8>,
+    pub call_tape: Vec<u8>,
 }
 
 impl RuntimeArguments {
@@ -223,7 +223,7 @@ impl RuntimeArguments {
         self.context_variables.is_empty()
             && self.io_tape_private.is_empty()
             && self.io_tape_public.is_empty()
-            && self.transcript.is_empty()
+            && self.call_tape.is_empty()
     }
 }
 
@@ -243,7 +243,7 @@ impl From<&RuntimeArguments> for MozakMemory {
             .io_tape_private
             .fill(args.io_tape_private.as_slice());
         // Transcript
-        mozak_ro_memory.transcript.fill(args.transcript.as_slice());
+        mozak_ro_memory.transcript.fill(args.call_tape.as_slice());
         // Return result
         mozak_ro_memory
     }
@@ -587,7 +587,7 @@ impl Program {
         mozak_ro_memory
             .io_tape_private
             .fill(args.io_tape_private.as_slice());
-        mozak_ro_memory.transcript.fill(args.transcript.as_slice());
+        mozak_ro_memory.transcript.fill(args.call_tape.as_slice());
 
         Ok(program)
     }
@@ -710,7 +710,7 @@ mod test {
                 context_variables: vec![0],
                 io_tape_private: vec![0, 1],
                 io_tape_public: vec![0, 1, 2],
-                transcript: vec![0, 1, 2, 3],
+                call_tape: vec![0, 1, 2, 3],
             })
             .unwrap()
             .mozak_ro_memory
