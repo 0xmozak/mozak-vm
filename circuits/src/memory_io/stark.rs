@@ -293,7 +293,7 @@ mod tests {
                 (REG_A2, 1),       // A2 - size
             ],
             RuntimeArguments {
-                transcript,
+                call_tape: transcript,
                 ..Default::default()
             },
         );
@@ -346,7 +346,7 @@ mod tests {
             RuntimeArguments {
                 io_tape_private: vec![content],
                 io_tape_public: vec![content],
-                transcript: vec![content],
+                call_tape: vec![content],
                 ..Default::default()
             },
         );

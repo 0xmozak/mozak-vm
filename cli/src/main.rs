@@ -105,7 +105,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
             context_variables: vec![],
             io_tape_private,
             io_tape_public,
-            transcript,
+            call_tape: transcript,
         }
     }
 }
