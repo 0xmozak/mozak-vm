@@ -75,11 +75,12 @@ impl From<(H, H, H)> for StateMemory {
     #[allow(clippy::similar_names)]
     fn from((rw_mem, ro_mem, mozak_ro_mem): (H, H, H)) -> Self {
         StateMemory {
-            data: chain!(rw_mem.iter(), ro_mem.iter(), mozak_ro_mem.iter())
-                .map(|(addr, value)| (*addr, *value))
-                .collect(),
             is_read_only: chain!(ro_mem.keys(), mozak_ro_mem.keys())
                 .copied()
+                .collect(),
+            data: [rw_mem, ro_mem, mozak_ro_mem]
+                .into_iter()
+                .flat_map(HashMap::into_iter)
                 .collect(),
         }
     }
