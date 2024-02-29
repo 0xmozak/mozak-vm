@@ -42,8 +42,8 @@ impl<F: RichField> State<F> {
                 num_bytes_requested as usize,
             ),
             IoOpcode::StoreTranscript => read_bytes(
-                &self.transcript.data,
-                &mut self.transcript.read_index,
+                &self.call_tape.data,
+                &mut self.call_tape.read_index,
                 num_bytes_requested as usize,
             ),
             IoOpcode::None => panic!(),

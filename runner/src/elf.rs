@@ -59,6 +59,20 @@ pub struct MozakMemory {
     pub transcript: MozakMemoryRegion,
 }
 
+impl From<MozakMemory> for HashMap<u32, u8> {
+    fn from(mem: MozakMemory) -> Self {
+        [
+            mem.context_variables,
+            mem.io_tape_private,
+            mem.io_tape_public,
+            mem.transcript,
+        ]
+        .into_iter()
+        .flat_map(|MozakMemoryRegion { data: Data(d), .. }| d.into_iter())
+        .collect()
+    }
+}
+
 impl Default for MozakMemory {
     fn default() -> Self {
         // These magic numbers taken from mozak-linker-script
@@ -200,32 +214,16 @@ pub struct RuntimeArguments {
     pub context_variables: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
-    pub transcript: Vec<u8>,
+    pub call_tape: Vec<u8>,
 }
 
 impl RuntimeArguments {
-    /// # Panics
-    #[must_use]
-    pub fn new(
-        context_variables: Vec<u8>,
-        io_tape_private: Vec<u8>,
-        io_tape_public: Vec<u8>,
-        transcript: Vec<u8>,
-    ) -> Self {
-        RuntimeArguments {
-            context_variables,
-            io_tape_private,
-            io_tape_public,
-            transcript,
-        }
-    }
-
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.context_variables.is_empty()
             && self.io_tape_private.is_empty()
             && self.io_tape_public.is_empty()
-            && self.transcript.is_empty()
+            && self.call_tape.is_empty()
     }
 }
 
@@ -245,7 +243,7 @@ impl From<&RuntimeArguments> for MozakMemory {
             .io_tape_private
             .fill(args.io_tape_private.as_slice());
         // Transcript
-        mozak_ro_memory.transcript.fill(args.transcript.as_slice());
+        mozak_ro_memory.transcript.fill(args.call_tape.as_slice());
         // Return result
         mozak_ro_memory
     }
@@ -589,7 +587,7 @@ impl Program {
         mozak_ro_memory
             .io_tape_private
             .fill(args.io_tape_private.as_slice());
-        mozak_ro_memory.transcript.fill(args.transcript.as_slice());
+        mozak_ro_memory.transcript.fill(args.call_tape.as_slice());
 
         Ok(program)
     }
@@ -707,13 +705,16 @@ mod test {
 
     #[test]
     fn test_empty_elf_with_args() {
-        let mozak_ro_memory = Program::mozak_load_program(
-            mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(vec![0], vec![0, 1], vec![0, 1, 2], vec![0, 1, 2, 3]),
-        )
-        .unwrap()
-        .mozak_ro_memory
-        .unwrap();
+        let mozak_ro_memory =
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
+                context_variables: vec![0],
+                io_tape_private: vec![0, 1],
+                io_tape_public: vec![0, 1, 2],
+                call_tape: vec![0, 1, 2, 3],
+            })
+            .unwrap()
+            .mozak_ro_memory
+            .unwrap();
         assert_eq!(mozak_ro_memory.context_variables.data.len(), 1);
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 2);
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 3);
