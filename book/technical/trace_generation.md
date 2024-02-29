@@ -22,5 +22,5 @@ This is the final step before constraining and proving the execution. Traces are
 [load_elf]: https://github.com/0xmozak/mozak-vm/blob/main/runner/src/elf.rs#L136-L194
 [step]: https://github.com/0xmozak/mozak-vm/blob/main/runner/src/vm.rs#L377-L405
 [generate_traces]: https://github.com/0xmozak/mozak-vm/blob/main/circuits/src/generation/mod.rs#L73-L136
-[json]: https://github.com/0xmozak/mozak-vm/blob/main/examples/.cargo/riscv32im-mozak-zkvm-elf.json
+[json]: https://github.com/0xmozak/mozak-vm/blob/main/examples/.cargo/riscv32im-mozak-mozakvm-elf.json
 [here]: https://docs.rust-embedded.org/embedonomicon/custom-target.html#fill-the-target-file
