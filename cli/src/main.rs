@@ -2,7 +2,7 @@
 #![deny(clippy::cargo)]
 // TODO: remove this when shadow_rs updates enough.
 #![allow(clippy::needless_raw_string_hashes)]
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::time::Duration;
 
@@ -10,6 +10,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
+use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
@@ -169,16 +170,14 @@ pub fn tapes_to_runtime_arguments(
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.unwrap_or_default().into();
 
-    let cast_list = {
-        let mut cast_set = HashSet::new();
-        for msg in &sys_tapes.call_tape.writer {
-            cast_set.insert(msg.caller_prog);
-            cast_set.insert(msg.callee_prog);
-        }
-        let mut cast_list: Vec<ProgramIdentifier> = cast_set.into_iter().collect::<Vec<_>>();
-        cast_list.sort();
-        cast_list
-    };
+    let cast_list = sys_tapes
+        .call_tape
+        .writer
+        .iter()
+        .flat_map(|msg| [msg.caller_prog, msg.callee_prog])
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect_vec();
 
     let mut event_tape_single: Vec<Event> = Vec::new();
     for single_tape in &sys_tapes.event_tape.writer {
