@@ -14,14 +14,6 @@ To run on your system, use the following command (kindly change [target triple](
 cargo run --release --features="native" --bin wallet-native --target aarch64-apple-darwin
 ```
 
-Test the ELF in mozak-vm using:
-```
-MOZAK_STARK_DEBUG=true ./target/debug/mozak-cli prove-and-verify \
-    examples/target/riscv32im-mozak-mozakvm-elf/release/wallet \
-    examples/wallet/private_input.tape \
-    examples/wallet/public_input.tape
-```
-
 Prove and verify:
 
 ```
