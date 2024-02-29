@@ -59,15 +59,14 @@ pub struct MozakMemory {
     pub transcript: MozakMemoryRegion,
 }
 
-impl From<&MozakMemory> for HashMap<u32, u8> {
-    fn from(mozak_memory: &MozakMemory) -> Self {
+impl From<MozakMemory> for HashMap<u32, u8> {
+    fn from(mozak_memory: MozakMemory) -> Self {
         chain!(
-            mozak_memory.context_variables.data.iter(),
-            mozak_memory.io_tape_private.data.iter(),
-            mozak_memory.io_tape_public.data.iter(),
-            mozak_memory.transcript.data.iter(),
+            mozak_memory.context_variables.data.0.into_iter(),
+            mozak_memory.io_tape_private.data.0.into_iter(),
+            mozak_memory.io_tape_public.data.0.into_iter(),
+            mozak_memory.transcript.data.0.into_iter(),
         )
-        .map(|(addr, value)| (*addr, *value))
         .collect()
     }
 }

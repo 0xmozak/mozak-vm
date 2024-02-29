@@ -152,7 +152,7 @@ impl<F: RichField> From<Program> for State<F> {
             memory: (
                 &rw_memory,
                 &ro_memory,
-                &mozak_ro_memory.map_or_else(HashMap::default, |m| (&m).into()),
+                &mozak_ro_memory.map_or_else(HashMap::default, |m| m.into()),
             )
                 .into(),
             ..Default::default()
@@ -277,7 +277,7 @@ impl<F: RichField> State<F> {
             memory: (
                 &rw_memory,
                 &ro_memory,
-                &mozak_ro_memory.map_or_else(HashMap::default, |m| (&m).into()),
+                &mozak_ro_memory.map_or_else(HashMap::default, |m| (m).into()),
             )
                 .into(),
             ..Default::default()
