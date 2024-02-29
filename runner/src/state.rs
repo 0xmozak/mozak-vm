@@ -73,9 +73,7 @@ pub struct StateMemory {
 type H = HashMap<u32, u8>;
 impl From<(H, H, H)> for StateMemory {
     #[allow(clippy::similar_names)]
-    fn from(
-        (rw_mem, ro_mem, mozak_ro_mem): (HashMap<u32, u8>, HashMap<u32, u8>, HashMap<u32, u8>),
-    ) -> Self {
+    fn from((rw_mem, ro_mem, mozak_ro_mem): (H, H, H)) -> Self {
         StateMemory {
             data: chain!(rw_mem.iter(), ro_mem.iter(), mozak_ro_mem.iter())
                 .map(|(addr, value)| (*addr, *value))
@@ -154,7 +152,7 @@ impl<F: RichField> From<Program> for State<F> {
             memory: (
                 rw_memory,
                 ro_memory,
-                mozak_ro_memory.map_or_else(HashMap::default, |m| m.into()),
+                mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
             )
                 .into(),
             ..Default::default()
