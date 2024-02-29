@@ -5,6 +5,7 @@ use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 #[derive(
     Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone, PartialOrd, Ord, Hash,
 )]
+#[cfg_attr(target_os = "mozakvm", derive(Debug))]
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
@@ -59,6 +60,7 @@ pub const STATE_TREE_DEPTH: usize = 8;
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
+#[cfg_attr(target_os = "mozakvm", derive(Debug))]
 pub struct Address([u8; STATE_TREE_DEPTH]);
 
 #[cfg(not(target_os = "mozakvm"))]
@@ -102,6 +104,7 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
+#[cfg_attr(target_os = "mozakvm", derive(Debug))]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct ProgramIdentifier {
@@ -229,6 +232,7 @@ impl From<String> for ProgramIdentifier {
 /// state tree constrained for modification only by its `constraint_owner`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
+#[cfg_attr(target_os = "mozakvm", derive(Debug))]
 #[archive_attr(derive(Debug))]
 // #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct StateObject {
@@ -352,19 +356,17 @@ impl From<Vec<u8>> for Signature {
     fn from(value: Vec<u8>) -> Signature { Signature(value) }
 }
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum ContextVariable {
     BlockHeight(u64),
     SelfProgramIdentifier(ProgramIdentifier),
 }
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum Event {
     ReadContextVariable(ContextVariable),
     ReadStateObject(StateObject),
