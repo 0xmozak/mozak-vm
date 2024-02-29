@@ -146,9 +146,7 @@ impl CallTape {
             if id != actor {
                 continue;
             }
-            if update {
-                *count += 1;
-            }
+            *count += 1;
             return true;
         }
         false
