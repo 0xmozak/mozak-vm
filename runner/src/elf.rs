@@ -59,6 +59,20 @@ pub struct MozakMemory {
     pub transcript: MozakMemoryRegion,
 }
 
+impl From<MozakMemory> for HashMap<u32, u8> {
+    fn from(mem: MozakMemory) -> Self {
+        [
+            mem.context_variables,
+            mem.io_tape_private,
+            mem.io_tape_public,
+            mem.transcript,
+        ]
+        .into_iter()
+        .flat_map(|MozakMemoryRegion { data: Data(d), .. }| d.into_iter())
+        .collect()
+    }
+}
+
 impl Default for MozakMemory {
     fn default() -> Self {
         // These magic numbers taken from mozak-linker-script

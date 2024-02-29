@@ -4,6 +4,7 @@ use std::rc::Rc;
 use anyhow::{anyhow, Result};
 use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
+use im::HashSet;
 use itertools::chain;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
@@ -56,12 +57,33 @@ pub struct State<F: RichField> {
     pub halted: bool,
     pub registers: [u32; 32],
     pub pc: u32,
-    pub rw_memory: HashMap<u32, u8>,
-    pub ro_memory: HashMap<u32, u8>,
-    pub mozak_ro_memory: HashMap<u32, u8>,
+    pub memory: StateMemory,
     pub io_tape: IoTape,
     pub transcript: IoTapeData,
     _phantom: PhantomData<F>,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, Clone, Default)]
+pub struct StateMemory {
+    pub data: HashMap<u32, u8>,
+    pub is_read_only: HashSet<u32>,
+}
+
+type H = HashMap<u32, u8>;
+impl From<(H, H, H)> for StateMemory {
+    #[allow(clippy::similar_names)]
+    fn from((rw_mem, ro_mem, mozak_ro_mem): (H, H, H)) -> Self {
+        StateMemory {
+            is_read_only: chain!(ro_mem.keys(), mozak_ro_mem.keys())
+                .copied()
+                .collect(),
+            data: [rw_mem, ro_mem, mozak_ro_mem]
+                .into_iter()
+                .flat_map(HashMap::into_iter)
+                .collect(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
@@ -104,9 +126,7 @@ impl<F: RichField> Default for State<F> {
             halted: Default::default(),
             registers: Default::default(),
             pc: Default::default(),
-            rw_memory: HashMap::default(),
-            ro_memory: HashMap::default(),
-            mozak_ro_memory: HashMap::default(),
+            memory: StateMemory::default(),
             io_tape: IoTape::from((vec![], vec![])),
             transcript: IoTapeData {
                 data: [].into(),
@@ -125,13 +145,17 @@ impl<F: RichField> From<Program> for State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            mozak_ro_memory: _,
+            mozak_ro_memory,
         }: Program,
     ) -> Self {
         Self {
             pc,
-            rw_memory,
-            ro_memory,
+            memory: (
+                rw_memory,
+                ro_memory,
+                mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
+            )
+                .into(),
             ..Default::default()
         }
     }
@@ -217,10 +241,10 @@ impl<F: RichField> State<F> {
             ..
         }: RuntimeArguments,
     ) -> Self {
+        let memory = (rw_memory.clone(), ro_memory.clone(), HashMap::default()).into();
         Self {
             pc,
-            rw_memory,
-            ro_memory,
+            memory,
             // TODO(bing): Handle the case where iotapes are
             // in .mozak_global sections in the RISC-V binary.
             // Now, the CLI simply does unwrap_or_default() to either
@@ -251,18 +275,12 @@ impl<F: RichField> State<F> {
     ) -> Self {
         Self {
             pc,
-            rw_memory,
-            ro_memory,
-            mozak_ro_memory: mozak_ro_memory.map_or_else(HashMap::default, |mrm| {
-                chain!(
-                    mrm.context_variables.data.iter(),
-                    mrm.io_tape_private.data.iter(),
-                    mrm.io_tape_public.data.iter(),
-                    mrm.transcript.data.iter(),
-                )
-                .map(|(addr, value)| (*addr, *value))
-                .collect()
-            }),
+            memory: (
+                rw_memory,
+                ro_memory,
+                mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
+            )
+                .into(),
             ..Default::default()
         }
     }
@@ -391,12 +409,7 @@ impl<F: RichField> State<F> {
     /// So no u32 address is out of bounds.
     #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 {
-        self.ro_memory
-            .get(&addr)
-            .or_else(|| self.mozak_ro_memory.get(&addr))
-            .or_else(|| self.rw_memory.get(&addr))
-            .copied()
-            .unwrap_or_default()
+        self.memory.data.get(&addr).copied().unwrap_or_default()
     }
 
     /// Store a byte to memory
@@ -405,17 +418,15 @@ impl<F: RichField> State<F> {
     /// This function returns an error, if you try to store to an invalid
     /// address.
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
-        match self.ro_memory.entry(addr) {
-            im::hashmap::Entry::Occupied(entry) => Err(anyhow!(
-                "cannot write to ro_memory: address,value and entry {:#0x}, {:#0x}, {:?}",
+        if self.memory.is_read_only.contains(&addr) {
+            Err(anyhow!(
+                "cannot write to ro_memory: address - {:#0x}, value - {:#0x}",
                 addr,
                 value,
-                (entry.key(), entry.get())
-            )),
-            im::hashmap::Entry::Vacant(_) => {
-                self.rw_memory.insert(addr, value);
-                Ok(self)
-            }
+            ))
+        } else {
+            self.memory.data.insert(addr, value);
+            Ok(self)
         }
     }
 
