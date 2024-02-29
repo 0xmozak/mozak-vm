@@ -307,7 +307,7 @@ fn main() -> Result<()> {
             });
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
-            let _state = step(&program, state)?.last_state;
+            step(&program, state)?
         }
         Command::ProveAndVerify(RunArgs {
             elf,
