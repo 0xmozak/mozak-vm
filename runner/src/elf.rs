@@ -63,6 +63,22 @@ pub struct MozakMemory {
     pub event_tape: MozakMemoryRegion,
 }
 
+impl From<MozakMemory> for HashMap<u32, u8> {
+    fn from(mem: MozakMemory) -> Self {
+        [
+            mem.self_prog_id,
+            mem.cast_list,
+            mem.io_tape_private,
+            mem.io_tape_public,
+            mem.call_tape,
+            mem.event_tape,
+        ]
+        .into_iter()
+        .flat_map(|MozakMemoryRegion { data: Data(d), .. }| d.into_iter())
+        .collect()
+    }
+}
+
 impl Default for MozakMemory {
     fn default() -> Self {
         // These magic numbers taken from mozak-linker-script

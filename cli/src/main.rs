@@ -87,41 +87,23 @@ pub struct ProveArgs {
     recursive_proof: Option<Output>,
 }
 
+fn read_tape(mut tape: Input) -> Vec<u8> {
+    let mut tape_bytes = Vec::new();
+    let bytes_read = tape.read_to_end(&mut tape_bytes).expect("Read should pass");
+    debug!("Read {bytes_read} of tape data.");
+    tape_bytes
+}
+
 impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
     fn from(value: RuntimeArguments) -> Self {
-        let mut self_prog_id = ProgramIdentifier::default();
-        let mut io_tape_private = vec![];
-        let mut io_tape_public = vec![];
-        let mut call_tape = vec![];
-        let mut event_tape = vec![];
-
-        if let Some(t) = value.self_prog_id {
-            self_prog_id = t.to_string().into();
-        }
-
-        if let Some(mut t) = value.io_tape_private {
-            let bytes_read = t
-                .read_to_end(&mut io_tape_private)
-                .expect("Read should pass");
-            debug!("Read {bytes_read} of io_tape data.");
-        };
-
-        if let Some(mut t) = value.io_tape_public {
-            let bytes_read = t
-                .read_to_end(&mut io_tape_public)
-                .expect("Read should pass");
-            debug!("Read {bytes_read} of io_tape data.");
-        };
-
-        if let Some(mut t) = value.call_tape {
-            let bytes_read = t.read_to_end(&mut call_tape).expect("Read should pass");
-            debug!("Read {bytes_read} of call_tape data.");
-        };
-
-        if let Some(mut t) = value.event_tape {
-            let bytes_read = t.read_to_end(&mut event_tape).expect("Read should pass");
-            debug!("Read {bytes_read} of event_tape data.");
-        };
+        let self_prog_id: ProgramIdentifier = value
+            .self_prog_id
+            .map(|t| t.to_string().into())
+            .unwrap_or_default();
+        let io_tape_private = value.io_tape_private.map(read_tape).unwrap_or_default();
+        let io_tape_public = value.io_tape_public.map(read_tape).unwrap_or_default();
+        let call_tape = value.call_tape.map(read_tape).unwrap_or_default();
+        let event_tape = value.event_tape.map(read_tape).unwrap_or_default();
 
         Self {
             self_prog_id: self_prog_id.to_le_bytes().to_vec(),
@@ -307,7 +289,7 @@ fn main() -> Result<()> {
             });
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
-            step(&program, state)?
+            step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs {
             elf,
