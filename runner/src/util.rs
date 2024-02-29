@@ -3,7 +3,7 @@ use itertools::{chain, izip};
 use mozak_system::system::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 
-use crate::elf::{Code, Data, Program, RuntimeArguments};
+use crate::elf::{Code, Program, RuntimeArguments};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
