@@ -41,7 +41,7 @@ jobs:
         run: nice cargo nextest archive --cargo-profile="${{ matrix.profile }}" --locked --features="enable_poseidon_starks" --all-targets --archive-file mozak-vm-tests.tar.zst
 
       - name: Run all the tests from the archive
-        run: MOZAK_STARK_DEBUG=true nice cargo nextest run --cargo-profile="${{ matrix.profile }}" --no-fail-fast --archive-file mozak-vm-tests.tar.zst
+        run: MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
 
   run-examples:
     needs: check-runner
