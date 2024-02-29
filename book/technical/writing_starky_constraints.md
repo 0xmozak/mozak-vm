@@ -83,7 +83,7 @@ In Starky, operations happen in a the Goldilocks Field which has \\( p = 2^{64} 
 {{#include ../../circuits/src/bitshift/stark.rs:86:122}}
 ```
 
-It is clear that the constraints here are same as whats written in `fn eval_packed_generic` but with a different syntax.
+It is clear that the constraints here are same as whats written in `fn eval_packed_generic` but with plonkish arithemtization, used in recursive circuit.
 
 Finally, we have
 
