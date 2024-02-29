@@ -3,8 +3,8 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
-use log::log_enabled;
 use log::Level::Debug;
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -52,6 +52,7 @@ pub fn prove<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
