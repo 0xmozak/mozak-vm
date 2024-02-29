@@ -59,7 +59,7 @@ pub struct State<F: RichField> {
     pub pc: u32,
     pub memory: StateMemory,
     pub io_tape: IoTape,
-    pub transcript: IoTapeData,
+    pub call_tape: IoTapeData,
     _phantom: PhantomData<F>,
 }
 
@@ -128,7 +128,7 @@ impl<F: RichField> Default for State<F> {
             pc: Default::default(),
             memory: StateMemory::default(),
             io_tape: IoTape::from((vec![], vec![])),
-            transcript: IoTapeData {
+            call_tape: IoTapeData {
                 data: [].into(),
                 read_index: 0,
             },
