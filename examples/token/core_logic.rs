@@ -25,17 +25,14 @@ pub enum MethodArgs {
     // Split,
 }
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Default, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodReturns {
+    // TODO: Remove later
+    #[default]
     Transfer,
-}
-
-// TODO: Remove later
-impl Default for MethodReturns {
-    fn default() -> Self { Self::Transfer }
 }
 
 #[allow(dead_code)]
