@@ -109,14 +109,7 @@ pub fn execute_code_with_ro_memory(
         .collect(),
     );
 
-    let program = Program {
-        ro_memory: Data(ro_mem.iter().copied().collect()),
-        rw_memory: Data(rw_mem.iter().copied().collect()),
-        ro_code,
-        ..Default::default()
-    };
-
-    let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
+    let program = Program::create_with_args(ro_mem, rw_mem, &ro_code, &RuntimeArguments {
         self_prog_id,
         cast_list,
         io_tape_private,
@@ -124,6 +117,7 @@ pub fn execute_code_with_ro_memory(
         call_tape,
         event_tape,
     });
+    let state0 = State::new(program.clone());
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)

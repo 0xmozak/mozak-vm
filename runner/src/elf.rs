@@ -248,17 +248,19 @@ impl RuntimeArguments {
 impl From<&RuntimeArguments> for MozakMemory {
     fn from(args: &RuntimeArguments) -> Self {
         let mut mozak_ro_memory = MozakMemory::default();
-        // IO public
+        mozak_ro_memory
+            .self_prog_id
+            .fill(args.self_prog_id.as_slice());
+        mozak_ro_memory.cast_list.fill(args.cast_list.as_slice());
         mozak_ro_memory
             .io_tape_public
             .fill(args.io_tape_public.as_slice());
-        // IO private
         mozak_ro_memory
             .io_tape_private
             .fill(args.io_tape_private.as_slice());
-        // Transcript
         mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
-        // Return result
+        mozak_ro_memory.event_tape.fill(args.event_tape.as_slice());
+
         mozak_ro_memory
     }
 }
@@ -616,7 +618,7 @@ impl Program {
     /// `mozak-ro-memory`
     #[must_use]
     #[allow(clippy::similar_names)]
-    pub fn create(
+    pub fn create_with_args(
         ro_mem: &[(u32, u8)],
         rw_mem: &[(u32, u8)],
         ro_code: &Code,
@@ -652,7 +654,7 @@ impl Program {
     #[must_use]
     #[allow(clippy::similar_names)]
     #[cfg(any(feature = "test", test))]
-    pub fn create_vanilla(
+    pub fn create(
         ro_mem: &[(u32, u8)],
         rw_mem: &[(u32, u8)],
         ro_code: &Code,
@@ -669,7 +671,7 @@ impl Program {
                 ..Default::default()
             };
         }
-        Program::create(ro_mem, rw_mem, ro_code, args)
+        Program::create_with_args(ro_mem, rw_mem, ro_code, args)
     }
 }
 

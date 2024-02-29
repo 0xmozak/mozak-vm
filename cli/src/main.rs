@@ -51,7 +51,7 @@ struct Cli {
     debug: bool,
 }
 
-#[derive(Clone, Debug, Args)]
+#[derive(Clone, Debug, Args, Default)]
 pub struct RuntimeArguments {
     #[arg(long)]
     self_prog_id: Option<Input>,
@@ -265,11 +265,11 @@ enum Command {
     Bench(BenchArgs),
 }
 
-fn load_program(mut elf: Input) -> Result<Program> {
+fn load_program(mut elf: Input, args: RuntimeArguments) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    Program::vanilla_load_elf(&elf_bytes)
+    Program::mozak_load_program(&elf_bytes, &args.into())
 }
 
 fn load_program_with_args(
@@ -294,7 +294,7 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             debug!("{program:?}");
         }
         Command::Run(RunArgs {
@@ -428,7 +428,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -445,7 +445,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
