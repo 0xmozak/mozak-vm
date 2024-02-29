@@ -357,6 +357,9 @@ mod tests {
     ///
     /// This will panic, if debug assertions are enabled in plonky2. So we need
     /// to have two different versions of `should_panic`; see below.
+    #[test]
+    // This will panic, if debug assertions are enabled in plonky2.
+    #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
     fn no_init_fail() {
         let instructions = [Instruction {
             op: Op::SB,
@@ -449,16 +452,6 @@ mod tests {
         // so memory stark proof should fail too.
         assert!(verify_stark_proof(stark, proof, &config).is_err());
     }
-
-    #[test]
-    #[cfg(debug_assertions)]
-    // This will panic, if debug assertions are enabled in plonky2.
-    #[should_panic = "Constraint failed in"]
-    fn no_init_fail_debug() { no_init_fail(); }
-
-    #[test]
-    #[cfg(not(debug_assertions))]
-    fn no_init_fail_debug() { no_init_fail(); }
 
     #[test]
     fn prove_memory_mozak_example() { memory::<MozakStark<F, D>>(150, 0).unwrap(); }
