@@ -164,49 +164,90 @@ impl CallTape {
     }
 
     #[allow(clippy::similar_names)]
-    pub fn from_mailbox(&mut self) -> Option<(CPCMessage, usize)> {
+    pub fn from_mailbox(&mut self) -> Option<impl Iterator<Item = CPCMessage>> {
         #[cfg(target_os = "mozakvm")]
         {
-            while self.index < self.reader.unwrap().len() {
-                let zcd_cpcmsg = &self.reader.unwrap()[self.index];
-                let caller: ProgramIdentifier = zcd_cpcmsg
-                    .caller_prog
-                    .deserialize(&mut rkyv::Infallible)
-                    .unwrap();
+            while let Some(messages) = self.reader {
+                let messages_iter = messages
+                    .iter()
+                    .filter()
+                    .filter_map(f)
+                    .map(|m| {
+                        let zcd_cpcmsg = m;
+                        let caller: ProgramIdentifier = zcd_cpcmsg
+                            .caller_prog
+                            .deserialize(&mut rkyv::Infallible)
+                            .unwrap();
 
-                assert_ne!(caller, self.self_prog_id);
+                        assert_ne!(caller, self.self_prog_id);
 
-                let callee: ProgramIdentifier = zcd_cpcmsg
-                    .callee_prog
-                    .deserialize(&mut rkyv::Infallible)
-                    .unwrap();
+                        let callee: ProgramIdentifier = zcd_cpcmsg
+                            .callee_prog
+                            .deserialize(&mut rkyv::Infallible)
+                            .unwrap();
 
-                if self.index == 0 {
-                    assert_eq!(caller, ProgramIdentifier::default());
-                } else {
-                    assert_ne!(caller, ProgramIdentifier::default());
-                    assert!(self.is_casted_actor(&caller, false));
-                }
+                        if self.index == 0 {
+                            assert_eq!(caller, ProgramIdentifier::default());
+                        } else {
+                            assert_ne!(caller, ProgramIdentifier::default());
+                            assert!(self.is_casted_actor(&caller, false));
+                        }
 
-                assert!(self.is_casted_actor(&callee, true));
+                        assert!(self.is_casted_actor(&callee, true));
 
-                // if we are the callee, return this message
-                if self.self_prog_id == callee {
-                    let full_deserialized: CPCMessage =
-                        zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
-                    self.index += 1;
-                    return Some((full_deserialized, self.index - 1));
-                }
-                self.index += 1;
+                        // if we are the callee, return this message
+                        if self.self_prog_id == callee {
+                            let full_deserialized: CPCMessage =
+                                zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
+                            self.index += 1;
+                            full_deserialized
+                        }
+                    })
+                    .into_iter();
+
+                self.ensure_all_cast_seen();
+                Some(messages_iter)
             }
-            self.ensure_all_cast_seen();
+
             None
+            // while self.index < self.reader.unwrap().len() {
+            //     let zcd_cpcmsg = &self.reader.unwrap()[self.index];
+            //     let caller: ProgramIdentifier = zcd_cpcmsg
+            //         .caller_prog
+            //         .deserialize(&mut rkyv::Infallible)
+            //         .unwrap();
+
+            //     assert_ne!(caller, self.self_prog_id);
+
+            //     let callee: ProgramIdentifier = zcd_cpcmsg
+            //         .callee_prog
+            //         .deserialize(&mut rkyv::Infallible)
+            //         .unwrap();
+
+            //     if self.index == 0 {
+            //         assert_eq!(caller, ProgramIdentifier::default());
+            //     } else {
+            //         assert_ne!(caller, ProgramIdentifier::default());
+            //         assert!(self.is_casted_actor(&caller, false));
+            //     }
+
+            //     assert!(self.is_casted_actor(&callee, true));
+
+            //     // if we are the callee, return this message
+            //     if self.self_prog_id == callee {
+            //         let full_deserialized: CPCMessage =
+            //             zcd_cpcmsg.deserialize(&mut
+            // rkyv::Infallible).unwrap();         self.index += 1;
+            //         return Some((full_deserialized, self.index - 1));
+            //     }
+            //     self.index += 1;
+            // }
         }
 
         #[cfg(not(target_os = "mozakvm"))]
         {
             // TODO(bing): implement native from_mailbox()
-            return None;
+            Some(vec![CPCMessage::default()].into_iter())
         }
     }
 
@@ -397,7 +438,7 @@ pub fn event_emit(id: ProgramIdentifier, event: Event) {
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
 #[must_use]
-pub fn call_receive() -> Option<(CPCMessage, usize)> {
+pub fn call_receive() -> Option<impl Iterator<Item = CPCMessage>> {
     unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
 }
 
