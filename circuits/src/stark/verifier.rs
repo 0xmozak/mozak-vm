@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
+use log::debug;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
@@ -28,6 +29,8 @@ pub fn verify_proof<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    debug!("Starting Verify");
+
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
