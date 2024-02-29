@@ -1,9 +1,5 @@
-#![feature(restricted_std)]
 extern crate alloc;
-use guest::hash::poseidon2_hash;
-// use alloc::vec::Vec;
-use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
-use mozak_sdk::sys::event_emit;
+use mozak_sdk::coretypes::ProgramIdentifier;
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// A generic public key used by the wallet.
@@ -105,8 +101,8 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
 // hash and compare against public key.
 /// Return true if signature is approved.
 pub fn approve_signature<T>(
-    self_prog_id: ProgramIdentifier,
-    pub_key: PublicKey,
+    _self_prog_id: ProgramIdentifier,
+    _pub_key: PublicKey,
     _black_box: T,
 ) -> () {
     // Null for now
