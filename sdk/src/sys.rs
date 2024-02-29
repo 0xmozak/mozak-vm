@@ -115,11 +115,6 @@ pub struct RawTape {
     len: u32,
 }
 
-impl RawTape {
-    #[must_use]
-    pub fn new() -> Self { Self { start: 0, len: 0 } }
-}
-
 #[derive(Default, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Archive, Deserialize, Serialize))]
 #[cfg_attr(not(target_os = "mozakvm"), archive_attr(derive(Debug)))]
