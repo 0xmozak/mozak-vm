@@ -8,7 +8,7 @@ use mozak_sdk::sys::call_receive;
 use rkyv::Deserialize;
 
 pub fn main() {
-    if let Some((msg, _idx)) = call_receive() {
+    while let Some((msg, _idx)) = call_receive() {
         let archived_args = unsafe { rkyv::archived_root::<MethodArgs>(&msg.args.0[..]) };
         let args: MethodArgs = archived_args.deserialize(&mut rkyv::Infallible).unwrap();
         let archived_ret = unsafe { rkyv::archived_root::<MethodReturns>(&msg.ret.0[..]) };
