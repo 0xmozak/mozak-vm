@@ -79,7 +79,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
     fn from(value: RuntimeArguments) -> Self {
         let mut io_tape_private = vec![];
         let mut io_tape_public = vec![];
-        let mut transcript = vec![];
+        let mut call_tape = vec![];
 
         if let Some(mut t) = value.io_tape_private {
             let bytes_read = t
@@ -96,7 +96,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
         };
 
         if let Some(mut t) = value.transcript {
-            let bytes_read = t.read_to_end(&mut transcript).expect("Read should pass");
+            let bytes_read = t.read_to_end(&mut call_tape).expect("Read should pass");
             debug!("Read {bytes_read} of transcript data.");
         };
 
@@ -105,7 +105,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
             context_variables: vec![],
             io_tape_private,
             io_tape_public,
-            call_tape: transcript,
+            call_tape,
         }
     }
 }
