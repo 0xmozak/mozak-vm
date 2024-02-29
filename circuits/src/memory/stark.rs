@@ -458,8 +458,6 @@ mod tests {
 
     #[test]
     #[cfg(not(debug_assertions))]
-    // This will panic, if debug assertions are enabled in plonky2.
-    // #[should_panic = "Constraint failed in"]
     fn no_init_fail_debug() { no_init_fail(); }
 
     #[test]
