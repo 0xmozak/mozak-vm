@@ -214,26 +214,6 @@ pub struct RuntimeArguments {
 }
 
 impl RuntimeArguments {
-    /// # Panics
-    #[must_use]
-    pub fn new(
-        self_prog_id: Vec<u8>,
-        cast_list: Vec<u8>,
-        io_tape_private: Vec<u8>,
-        io_tape_public: Vec<u8>,
-        call_tape: Vec<u8>,
-        event_tape: Vec<u8>,
-    ) -> Self {
-        RuntimeArguments {
-            self_prog_id,
-            cast_list,
-            io_tape_private,
-            io_tape_public,
-            call_tape,
-            event_tape,
-        }
-    }
-
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.self_prog_id.is_empty()
@@ -722,26 +702,24 @@ mod test {
 
     #[test]
     fn test_empty_elf_with_args() {
-        let mozak_ro_memory = Program::mozak_load_program(
-            mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(
-                vec![0, 1],
-                vec![0, 1, 2],
-                vec![0, 1, 2, 3],
-                vec![0, 1, 2, 3, 4],
-                vec![0, 1, 2, 3, 4, 5],
-                vec![0, 1, 2, 3, 4, 5, 6],
-            ),
-        )
-        .unwrap()
-        .mozak_ro_memory
-        .unwrap();
-        assert_eq!(mozak_ro_memory.self_prog_id.data.len(), 2);
-        assert_eq!(mozak_ro_memory.cast_list.data.len(), 3);
-        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 4);
-        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 5);
-        assert_eq!(mozak_ro_memory.call_tape.data.len(), 6);
-        assert_eq!(mozak_ro_memory.event_tape.data.len(), 7);
+        let mozak_ro_memory =
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
+                self_prog_id: vec![0],
+                cast_list: vec![0, 1],
+                io_tape_private: vec![0, 1, 2],
+                io_tape_public: vec![0, 1, 2, 3],
+                call_tape: vec![0, 1, 2, 3, 4],
+                event_tape: vec![0, 1, 2, 3, 4, 5],
+            })
+            .unwrap()
+            .mozak_ro_memory
+            .unwrap();
+        assert_eq!(mozak_ro_memory.self_prog_id.data.len(), 1);
+        assert_eq!(mozak_ro_memory.cast_list.data.len(), 2);
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 3);
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 4);
+        assert_eq!(mozak_ro_memory.call_tape.data.len(), 5);
+        assert_eq!(mozak_ro_memory.event_tape.data.len(), 6);
     }
 
     #[test]

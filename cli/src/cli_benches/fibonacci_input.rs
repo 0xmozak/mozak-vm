@@ -30,12 +30,9 @@ pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
     // the next PRs we will remove old-io-tapes, and so also will remove this
     // legacy_ecall_api ...
     let state = State::legacy_ecall_api_new(program.clone(), RuntimeArguments {
-        self_prog_id: vec![],
-        cast_list: vec![],
         io_tape_private: n.to_le_bytes().to_vec(),
         io_tape_public: out.to_le_bytes().to_vec(),
-        call_tape: vec![],
-        event_tape: vec![],
+        ..Default::default()
     });
     let record = step(&program, state).unwrap();
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
@@ -43,14 +40,11 @@ pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
 
 pub fn fibonacci_input_mozak_elf(n: u32) -> Result<(), anyhow::Error> {
     let out = fibonacci(n);
-    let args = RuntimeArguments::new(
-        vec![],
-        vec![],
-        n.to_le_bytes().to_vec(),
-        out.to_le_bytes().to_vec(),
-        vec![],
-        vec![],
-    );
+    let args = RuntimeArguments {
+        io_tape_private: n.to_le_bytes().to_vec(),
+        io_tape_public: out.to_le_bytes().to_vec(),
+        ..Default::default()
+    };
     let program = Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF, &args).unwrap();
     let state = State::legacy_ecall_api_new(program.clone(), args);
     let record = step(&program, state).unwrap();

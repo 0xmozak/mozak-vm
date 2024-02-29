@@ -10,7 +10,7 @@ use proptest::strategy::{Just, Strategy};
 
 #[cfg(any(feature = "test", test))]
 use crate::elf::MozakMemory;
-use crate::elf::{Code, Data, Program, RuntimeArguments};
+use crate::elf::{Code, Program, RuntimeArguments};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
