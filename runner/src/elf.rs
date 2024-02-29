@@ -218,22 +218,6 @@ pub struct RuntimeArguments {
 }
 
 impl RuntimeArguments {
-    /// # Panics
-    #[must_use]
-    pub fn new(
-        context_variables: Vec<u8>,
-        io_tape_private: Vec<u8>,
-        io_tape_public: Vec<u8>,
-        transcript: Vec<u8>,
-    ) -> Self {
-        RuntimeArguments {
-            context_variables,
-            io_tape_private,
-            io_tape_public,
-            transcript,
-        }
-    }
-
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.context_variables.is_empty()
@@ -721,13 +705,16 @@ mod test {
 
     #[test]
     fn test_empty_elf_with_args() {
-        let mozak_ro_memory = Program::mozak_load_program(
-            mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(vec![0], vec![0, 1], vec![0, 1, 2], vec![0, 1, 2, 3]),
-        )
-        .unwrap()
-        .mozak_ro_memory
-        .unwrap();
+        let mozak_ro_memory =
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
+                context_variables: vec![0],
+                io_tape_private: vec![0, 1],
+                io_tape_public: vec![0, 1, 2],
+                transcript: vec![0, 1, 2, 3],
+            })
+            .unwrap()
+            .mozak_ro_memory
+            .unwrap();
         assert_eq!(mozak_ro_memory.context_variables.data.len(), 1);
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 2);
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 3);
