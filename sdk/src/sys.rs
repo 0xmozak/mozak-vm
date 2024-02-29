@@ -56,7 +56,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
 
         let self_prog_id =
             unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } };
-        assert!(self_prog_id != ProgramIdentifier::default()); // Reserved for null caller
+        assert_ne!(self_prog_id, ProgramIdentifier::default()); // Reserved for null caller
 
         let castlist_zcd = get_zcd_repr::<Vec<ProgramIdentifier>>(unsafe {
             addr_of!(_mozak_cast_list) as *const u8
@@ -174,7 +174,7 @@ impl CallTape {
                     .deserialize(&mut rkyv::Infallible)
                     .unwrap();
 
-                assert!(caller != self.self_prog_id);
+                assert_ne!(caller, self.self_prog_id);
 
                 let callee: ProgramIdentifier = zcd_cpcmsg
                     .callee_prog
@@ -182,9 +182,9 @@ impl CallTape {
                     .unwrap();
 
                 if self.index == 0 {
-                    assert!(caller == ProgramIdentifier::default());
+                    assert_eq!(caller, ProgramIdentifier::default());
                 } else {
-                    assert!(caller != ProgramIdentifier::default());
+                    assert_ne!(caller, ProgramIdentifier::default());
                     assert!(self.is_casted_actor(&caller, false));
                 }
 
@@ -232,11 +232,14 @@ impl CallTape {
             let zcd_cpcmsg = &self.reader.unwrap()[self.index];
             let cpcmsg: CPCMessage = zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
 
-            assert!(cpcmsg.caller_prog == self.self_prog_id);
-            assert!(cpcmsg.callee_prog == callee_prog);
+            assert_eq!(cpcmsg.caller_prog, self.self_prog_id);
+            assert_eq!(cpcmsg.callee_prog, callee_prog);
             assert!(self.is_casted_actor(&cpcmsg.callee_prog, true));
 
-            assert!(cpcmsg.args.0 == rkyv::to_bytes::<_, 256>(&call_args).unwrap().to_vec());
+            assert_eq!(
+                cpcmsg.args.0,
+                rkyv::to_bytes::<_, 256>(&call_args).unwrap().to_vec()
+            );
 
             self.index += 1;
 
@@ -321,16 +324,17 @@ impl EventTape {
             let zcd_event = &self.reader.unwrap()[self.index];
             let event_deserialized: Event = zcd_event.deserialize(&mut rkyv::Infallible).unwrap();
 
-            assert!(event == event_deserialized);
+            assert_eq!(event, event_deserialized);
 
-            assert!(
+            assert_eq!(
                 match event {
                     Event::ReadStateObject(s)
                     | Event::CreatedStateObject(s)
                     | Event::DeletedStateObject(s)
                     | Event::UpdatedStateObject(s) => s.constraint_owner,
                     Event::ReadContextVariable(_) => self.self_prog_id,
-                } == self.self_prog_id
+                },
+                self.self_prog_id
             );
 
             self.index += 1;
