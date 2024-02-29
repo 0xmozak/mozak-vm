@@ -155,7 +155,7 @@ impl CallTape {
     #[cfg(target_os = "mozakvm")]
     /// Check if a given actor takes part in this `CallTape`'s cast list.
     fn is_casted_actor(&self, actor: &ProgramIdentifier) -> bool {
-        self.cast_list.iter().any(|a| a.0 == actor)
+        self.cast_list.iter().any(|(a, _)| a == actor)
     }
 
     #[cfg(target_os = "mozakvm")]
