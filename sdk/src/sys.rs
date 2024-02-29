@@ -40,8 +40,8 @@ extern "C" {
 impl SystemTapes {
     fn new() -> Self {
         Self {
-            private_tape: RawTape::new(),
-            public_tape: RawTape::new(),
+            private_tape: RawTape::default(),
+            public_tape: RawTape::default(),
             call_tape: CallTape::new(),
             event_tape: EventTape::new(),
         }
