@@ -3,8 +3,8 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
-use log::log_enabled;
 use log::Level::Debug;
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -52,6 +52,7 @@ pub fn prove<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
@@ -140,7 +141,8 @@ where
     );
 
     let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
-    let memory_init_trace_cap = trace_caps[TableKind::MemoryInit].clone();
+    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
+    let mozak_memory_init_trace_cap = trace_caps[TableKind::MozakMemoryInit].clone();
     if log_enabled!(Debug) {
         timing.print();
     }
@@ -148,7 +150,8 @@ where
         proofs_with_metadata,
         ctl_challenges,
         program_rom_trace_cap,
-        memory_init_trace_cap,
+        elf_memory_init_trace_cap,
+        mozak_memory_init_trace_cap,
         public_inputs,
     })
 }
@@ -277,6 +280,9 @@ where
 
     let initial_merkle_trees = vec![trace_commitment, &ctl_zs_commitment, &quotient_commitment];
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
@@ -284,6 +290,8 @@ where
             &stark.fri_instance(
                 zeta,
                 g,
+                0,
+                vec![],
                 config,
                 Some(&LookupConfig {
                     degree_bits,
@@ -355,7 +363,7 @@ where
 mod tests {
 
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -366,7 +374,7 @@ mod tests {
 
     #[test]
     fn prove_halt() {
-        let (program, record) = simple_test_code([], &[], &[]);
+        let (program, record) = execute_code([], &[], &[]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -380,14 +388,14 @@ mod tests {
                 ..Args::default()
             },
         };
-        let (program, record) = simple_test_code([lui], &[], &[]);
+        let (program, record) = execute_code([lui], &[], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
     fn prove_lui_2() {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::ADD,
                 args: Args {
@@ -405,7 +413,7 @@ mod tests {
 
     #[test]
     fn prove_beq() {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::BEQ,
                 args: Args {

@@ -4,7 +4,7 @@ use anyhow::Result;
 use itertools::izip;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
-use mozak_runner::test_utils::simple_test_code;
+use mozak_runner::util::execute_code;
 use mozak_runner::vm::ExecutionRecord;
 use mozak_system::system::ecall;
 use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
@@ -42,7 +42,7 @@ use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::stark::InputOuputMemoryStark;
+use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
@@ -138,6 +138,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
+        let register_trace = generate_register_trace::<F>(record);
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
@@ -155,8 +156,11 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
-        let trace_poly_values =
-            trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
+        let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
+            &cpu_trace,
+            &memory_trace,
+            &register_trace,
+        ));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -265,9 +269,9 @@ impl ProveAndVerify for FullWordMemoryStark<F, D> {
     }
 }
 
-impl ProveAndVerify for InputOuputMemoryStark<F, D> {
+impl ProveAndVerify for InputOutputMemoryStark<F, D> {
     fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
-        type S = InputOuputMemoryStark<F, D>;
+        type S = InputOutputMemoryStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
@@ -459,7 +463,7 @@ pub fn create_poseidon2_test(
         ]);
     }
 
-    simple_test_code(instructions, memory.as_slice(), &[])
+    execute_code(instructions, memory.as_slice(), &[])
 }
 
 pub fn hash_str(v: &str) -> HashOut<F> {

@@ -19,19 +19,25 @@ macro_rules! ecrate {
         Crate {
             crate_path: concat!("../examples/", $name),
             elf_path: concat!(
-                "../examples/target/riscv32im-mozak-zkvm-elf/release/",
+                "../examples/target/riscv32im-mozak-mozakvm-elf/release/",
                 $file
             ),
             glob_name: $glob,
             enabled: cfg!(feature = $name),
-            uses_std: $uses_std == true,
+            uses_std: $uses_std,
         }
     };
 }
 
 const CRATES: &[Crate] = &[
+    ecrate!("bss-tester", "BSS_ELF", false),
     ecrate!("fibonacci", "FIBONACCI_ELF", false),
     ecrate!("fibonacci-input", "FIBONACCI_INPUT_ELF", true),
+    ecrate!(
+        "fibonacci-input-new-api",
+        "FIBONACCI_INPUT_ELF_NEW_API",
+        true
+    ),
     ecrate!("memory-access", "MEMORY_ACCESS_ELF", false),
     ecrate!("min-max", "MIN_MAX_ELF", false),
     ecrate!("panic", "PANIC_ELF", false),
@@ -70,7 +76,7 @@ fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str,
         }
         writeln!(
             dest,
-            r#"pub const {glob_name}: &[u8] = include_bytes!("{CARGO_MANIFEST_DIR}/{elf_path}");"#
+            r#"pub const {glob_name}: &[u8] = include_bytes!(r"{CARGO_MANIFEST_DIR}/{elf_path}");"#
         )
     }
     .expect("failed to write vars.rs");

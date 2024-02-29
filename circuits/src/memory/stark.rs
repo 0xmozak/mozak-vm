@@ -44,8 +44,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        // TODO(Matthias): see whether we need to add a constraint to forbid two is_init
-        // in a row (with the same address).
+        // TODO(Matthias): add a constraint to forbid two is_init in a row (with the
+        // same address).  See `circuits/src/generation/memoryinit.rs` in
+        // `a75c8fbc2701a4a6b791b2ff71857795860c5591`
         let lv: &Memory<P> = vars.get_local_values().into();
         let nv: &Memory<P> = vars.get_next_values().into();
 
@@ -100,6 +101,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let zero_init_clk = P::ONES - lv.clk;
         let elf_init_clk = lv.clk;
 
+        // first row init is always one or its a dummy row
+        yield_constr.constraint_first_row((P::ONES - lv.is_init) * lv.is_executed());
+
         // All init ops happen prior to exec and the `clk` would be `0` or `1`.
         yield_constr.constraint(lv.is_init * zero_init_clk * elf_init_clk);
         // All zero inits should have value `0`.
@@ -134,6 +138,32 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // `is_executed`.
         yield_constr
             .constraint_transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
+
+        // We can have init == 1 row only when address is changing. More specifically,
+        // is_init has to be the first row in an address block.
+        // a) checking diff-addr-inv was computed correctly
+        // If next.address - current.address == 0
+        // --> next.diff_addr_inv = 0
+        // Else current.address - next.address != 0
+        //  --> next.diff_addr_inv != 0 but (lv.addr - nv.addr) * nv.diff_addr_inv == 1
+        //  --> so, expression: (P::ONES - (lv.addr - nv.addr) * nv.diff_addr_inv) == 0
+        // NOTE: we don't really have to constrain diff-addr-inv to be zero when address
+        // does not change at all, so, this constrain can be removed, and the
+        // `diff_addr * nv.diff_addr_inv - nv.is_init` constrain will be enough to
+        // ensure that diff-addr-inv for the case of address change was indeed computed
+        // correctly. We still prefer to leave this code, because maybe diff-addr-inv
+        // can be usefull for feature scenarios, BUT if we will want to take advantage
+        // on last 0.001% of perf, it can be removed (if other parts of the code will
+        // not use it somewhere)
+        // TODO(Roman): how we insure sorted addresses - via RangeCheck:
+        // MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed())
+        // Please add test that fails with not-sorted memory trace
+        let diff_addr = nv.addr - lv.addr;
+        yield_constr.constraint_transition(diff_addr * (P::ONES - diff_addr * nv.diff_addr_inv));
+
+        // b) checking that nv.is_init == 1 only when nv.diff_addr_inv != 0
+        // Note: nv.diff_addr_inv != 0 IFF: lv.addr != nv.addr
+        yield_constr.constraint_transition(diff_addr * nv.diff_addr_inv - nv.is_init);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -156,6 +186,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
         let one = builder.one_extension();
+        let one_minus_is_init = builder.sub_extension(one, lv.is_init);
+        let one_minus_is_init_times_executed =
+            builder.mul_extension(one_minus_is_init, lv_is_executed);
+        yield_constr.constraint_first_row(builder, one_minus_is_init_times_executed);
+
         let one_sub_clk = builder.sub_extension(one, lv.clk);
         let is_init_mul_one_sub_clk = builder.mul_extension(lv.is_init, one_sub_clk);
 
@@ -198,6 +233,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             builder.sub_extension(lv_is_executed, nv_is_executed);
         let constr = builder.mul_extension(nv_is_executed, lv_is_executed_sub_nv_is_executed);
         yield_constr.constraint_transition(builder, constr);
+
+        let diff_addr = builder.sub_extension(nv.addr, lv.addr);
+        let diff_addr_mul_diff_addr_inv = builder.mul_extension(diff_addr, nv.diff_addr_inv);
+        let one_sub_diff_addr_mul_diff_addr_inv =
+            builder.sub_extension(one, diff_addr_mul_diff_addr_inv);
+        let diff_addr_one_sub_diff_addr_mul_diff_addr_inv =
+            builder.mul_extension(diff_addr, one_sub_diff_addr_mul_diff_addr_inv);
+        yield_constr.constraint_transition(builder, diff_addr_one_sub_diff_addr_mul_diff_addr_inv);
+
+        let diff_addr_mul_diff_addr_inv_sub_nv_is_init =
+            builder.sub_extension(diff_addr_mul_diff_addr_inv, nv.is_init);
+        yield_constr.constraint_transition(builder, diff_addr_mul_diff_addr_inv_sub_nv_is_init);
     }
 }
 
@@ -205,14 +252,38 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::util::execute_code;
+    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
+    use plonky2::util::timing::TimingTree;
+    use starky::prover::prove;
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
+    use starky::verifier::verify_stark_proof;
 
+    use crate::cross_table_lookup::ctl_utils::check_single_ctl;
+    use crate::cross_table_lookup::CrossTableLookup;
+    use crate::generation::fullword_memory::generate_fullword_memory_trace;
+    use crate::generation::halfword_memory::generate_halfword_memory_trace;
+    use crate::generation::io_memory::{
+        generate_io_memory_private_trace, generate_io_memory_public_trace,
+    };
+    use crate::generation::memory::generate_memory_trace;
+    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
+    use crate::generation::memoryinit::{
+        generate_elf_memory_init_trace, generate_memory_init_trace,
+        generate_mozak_memory_init_trace,
+    };
+    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
+    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::stark::mozak_stark::MozakStark;
-    use crate::test_utils::ProveAndVerify;
+    use crate::stark::mozak_stark::{
+        ElfMemoryInitTable, MemoryTable, MemoryZeroInitTable, MozakMemoryInitTable, MozakStark,
+        TableKindSetBuilder,
+    };
+    use crate::stark::utils::trace_rows_to_poly_values;
+    use crate::test_utils::{fast_test_config, ProveAndVerify};
+    use crate::{memory, memory_zeroinit, memoryinit};
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -274,9 +345,120 @@ mod tests {
                 },
             },
         ];
-        let (program, record) = simple_test_code(instructions, &[], &[(1, iterations)]);
+        let (program, record) = execute_code(instructions, &[], &[(1, iterations)]);
         Stark::prove_and_verify(&program, &record)
     }
+
+    /// If all addresses are equal in memorytable, then setting all `is_init` to
+    /// zero should fail.
+    ///
+    /// Note this is required since this time, `diff_addr_inv` logic  can't help
+    /// detect `is_init` for first row.
+    ///
+    /// This will panic, if debug assertions are enabled in plonky2. So we need
+    /// to have two different versions of `should_panic`; see below.
+    fn no_init_fail() {
+        let instructions = [Instruction {
+            op: Op::SB,
+            args: Args {
+                rs1: 1,
+                rs2: 1,
+                imm: 0,
+                ..Args::default()
+            },
+        }];
+        let (program, record) = execute_code(instructions, &[(0, 0)], &[(1, 0)]);
+        let memory_init_rows = generate_elf_memory_init_trace(&program);
+        let mozak_memory_init_rows = generate_mozak_memory_init_trace(&program);
+        let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
+        let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
+        let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
+        let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+        let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+        #[allow(unused)]
+        let poseidon2_output_bytes_rows =
+            generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
+        let mut memory_rows = generate_memory_trace(
+            &record.executed,
+            &generate_memory_init_trace(&program),
+            &halfword_memory_rows,
+            &fullword_memory_rows,
+            &io_memory_private_rows,
+            &io_memory_public_rows,
+            &poseiden2_sponge_rows,
+            &poseidon2_output_bytes_rows,
+        );
+        // malicious prover sets first memory row's is_init to zero
+        memory_rows[0].is_init = F::ZERO;
+        // fakes a load instead of init
+        memory_rows[0].is_load = F::ONE;
+        // now all addresses are same, and all inits are zero
+        assert!(memory_rows
+            .iter()
+            .all(|row| row.is_init == F::ZERO && row.addr == F::ZERO));
+
+        let memory_zeroinit_rows =
+            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
+
+        // ctl for is_init values
+        let ctl = CrossTableLookup::new(
+            vec![
+                ElfMemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
+                MozakMemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
+                MemoryZeroInitTable::new(
+                    memory_zeroinit::columns::data_for_memory(),
+                    memory_zeroinit::columns::filter_for_memory(),
+                ),
+            ],
+            MemoryTable::new(
+                memory::columns::data_for_memoryinit(),
+                memory::columns::filter_for_memoryinit(),
+            ),
+        );
+
+        let memory_trace = trace_rows_to_poly_values(memory_rows);
+        let trace = TableKindSetBuilder {
+            memory_stark: memory_trace.clone(),
+            elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+            memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
+            mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
+            ..Default::default()
+        }
+        .build();
+
+        let config = fast_test_config();
+
+        let stark = S::default();
+
+        // ctl for malicious prover indeed fails, showing inconsistency in is_init
+        assert!(check_single_ctl::<F>(&trace, &ctl).is_err());
+        let proof = prove::<F, C, S, D>(
+            stark,
+            &config,
+            memory_trace,
+            &[],
+            &mut TimingTree::default(),
+        )
+        .unwrap();
+        // so memory stark proof should fail too.
+        assert!(verify_stark_proof(stark, proof, &config).is_err());
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    // This will panic, if debug assertions are enabled in plonky2.
+    #[should_panic = "Constraint failed in"]
+    fn no_init_fail_debug() { no_init_fail(); }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn no_init_fail_debug() { no_init_fail(); }
 
     #[test]
     fn prove_memory_mozak_example() { memory::<MozakStark<F, D>>(150, 0).unwrap(); }

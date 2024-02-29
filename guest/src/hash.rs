@@ -1,7 +1,14 @@
 pub const DIGEST_BYTES: usize = 32;
 pub const RATE: usize = 8;
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct Digest([u8; DIGEST_BYTES]);
+
+impl core::ops::Deref for Digest {
+    type Target = [u8; DIGEST_BYTES];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
 
 impl Digest {
     pub const fn new(data: [u8; DIGEST_BYTES]) -> Self { Self(data) }
@@ -10,7 +17,7 @@ impl Digest {
 }
 
 pub fn poseidon2_hash(input: &[u8]) -> Digest {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "mozakvm")]
     {
         use mozak_system::system::syscall_poseidon2;
         // VM expects input length to be multiple of RATE
@@ -19,7 +26,7 @@ pub fn poseidon2_hash(input: &[u8]) -> Digest {
         syscall_poseidon2(input.as_ptr(), input.len(), output.as_mut_ptr());
         Digest::new(output)
     }
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(not(target_os = "mozakvm"))]
     {
         use plonky2::field::goldilocks_field::GoldilocksField;
         use plonky2::field::types::Field;

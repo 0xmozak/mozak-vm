@@ -325,7 +325,6 @@ pub struct StarkProofWithMetadata<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    #[allow(dead_code)]
     // TODO: Support serialization of `init_challenger_state`.
     #[serde(skip)]
     pub(crate) init_challenger_state: <C::Hasher as Hasher<F>>::Permutation,
@@ -338,12 +337,12 @@ where
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub proofs_with_metadata: TableKindArray<StarkProofWithMetadata<F, C, D>>,
-    #[allow(dead_code)]
     // TODO: Support serialization of `ctl_challenges`.
     #[serde(skip)]
     pub(crate) ctl_challenges: GrandProductChallengeSet<F>,
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
-    pub memory_init_trace_cap: MerkleCap<F, C::Hasher>,
+    pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
+    pub mozak_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
 }
 

@@ -47,7 +47,7 @@ pub mod challenge {
 
     impl<F: Field> GrandProductChallenge<F> {
         /// Calculate the mapping for the list of values as:
-        ///     `term_0*beta^n + term_1*beta^(n-1) + ... + term_n-1 + gamma`
+        ///     `term_0*beta^{n-1} + term_1*beta^{n-2} + ... + term_n-1 + gamma`
         /// where `n` is the length of the list.
         ///
         /// ### Reasoning

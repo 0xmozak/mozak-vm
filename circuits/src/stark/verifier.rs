@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
+use log::debug;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
@@ -28,6 +29,8 @@ pub fn verify_proof<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    debug!("Starting Verify");
+
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
@@ -42,11 +45,19 @@ where
     );
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::MemoryInit]
+        all_proof.proofs_with_metadata[TableKind::ElfMemoryInit]
             .proof
             .trace_cap
-            == all_proof.memory_init_trace_cap,
-        "Mismatch between MemoryInit trace caps"
+            == all_proof.elf_memory_init_trace_cap,
+        "Mismatch between ElfMemoryInit trace caps"
+    );
+
+    ensure!(
+        all_proof.proofs_with_metadata[TableKind::MozakMemoryInit]
+            .proof
+            .trace_cap
+            == all_proof.mozak_memory_init_trace_cap,
+        "Mismatch between MozakMemoryInit trace caps"
     );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
@@ -161,10 +172,15 @@ where
         proof.quotient_polys_cap.clone(),
     ];
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
     verify_fri_proof::<F, C, D>(
         &stark.fri_instance(
             challenges.stark_zeta,
             F::primitive_root_of_unity(degree_bits),
+            0,
+            vec![],
             config,
             Some(&LookupConfig {
                 degree_bits,

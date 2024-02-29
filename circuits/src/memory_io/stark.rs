@@ -17,18 +17,18 @@ use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct InputOuputMemoryStark<F, const D: usize> {
+pub struct InputOutputMemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> HasNamedColumns for InputOuputMemoryStark<F, D> {
+impl<F, const D: usize> HasNamedColumns for InputOutputMemoryStark<F, D> {
     type Columns = InputOutputMemory<F>;
 }
 
 const COLUMNS: usize = NUM_IO_MEM_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMemoryStark<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMemoryStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
         where
@@ -156,8 +156,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+    use mozak_runner::elf::RuntimeArguments;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code_with_io_tape, u32_extra, u8_extra};
+    use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
+    use mozak_runner::util::execute_code_with_runtime_args;
     use mozak_system::system::ecall;
     use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
@@ -165,12 +167,12 @@ mod tests {
     use proptest::proptest;
     use starky::stark_testing::test_stark_circuit_constraints;
 
-    use crate::memory_io::stark::InputOuputMemoryStark;
+    use crate::memory_io::stark::InputOutputMemoryStark;
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{ProveAndVerify, D, F};
 
-    pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
-        let (program, record) = simple_test_code_with_io_tape(
+    pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(address: u32) {
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -178,20 +180,19 @@ mod tests {
                     args: Args::default(),
                 },
             ],
-            &[(imm.wrapping_add(offset), 0)],
+            &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
-                (REG_A1, imm.wrapping_add(offset)), // A1 - address
-                (REG_A2, 0),                        // A2 - size
+                (REG_A1, address), // A1 - address
+                (REG_A2, 0),       // A2 - size
             ],
-            &[],
-            &[],
+            RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
-        let (program, record) = simple_test_code_with_io_tape(
+    pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(address: u32) {
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -199,20 +200,19 @@ mod tests {
                     args: Args::default(),
                 },
             ],
-            &[(imm.wrapping_add(offset), 0)],
+            &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PUBLIC),
-                (REG_A1, imm.wrapping_add(offset)), // A1 - address
-                (REG_A2, 0),                        // A2 - size
+                (REG_A1, address), // A1 - address
+                (REG_A2, 0),       // A2 - size
             ],
-            &[],
-            &[],
+            RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_private<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+    pub fn prove_io_read_call_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -220,20 +220,42 @@ mod tests {
                     args: Args::default(),
                 },
             ],
-            &[(imm.wrapping_add(offset), 0)],
+            &[(address, 0)],
+            &[
+                (REG_A0, ecall::IO_READ_TRANSCRIPT),
+                (REG_A1, address), // A1 - address
+                (REG_A2, 0),       // A2 - size
+            ],
+            RuntimeArguments::default(),
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_io_read_private<Stark: ProveAndVerify>(address: u32, io_tape_private: Vec<u8>) {
+        let (program, record) = execute_code_with_runtime_args(
+            [
+                // set sys-call IO_READ in x10(or a0)
+                Instruction {
+                    op: Op::ECALL,
+                    args: Args::default(),
+                },
+            ],
+            &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
-                (REG_A1, imm.wrapping_add(offset)), // A1 - address
-                (REG_A2, 1),                        // A2 - size
+                (REG_A1, address), // A1 - address
+                (REG_A2, 1),       // A2 - size
             ],
-            &[content],
-            &[],
+            RuntimeArguments {
+                io_tape_private,
+                ..Default::default()
+            },
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_public<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+    pub fn prove_io_read_public<Stark: ProveAndVerify>(address: u32, io_tape_public: Vec<u8>) {
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -241,20 +263,45 @@ mod tests {
                     args: Args::default(),
                 },
             ],
-            &[(imm.wrapping_add(offset), 0)],
+            &[(address, 0)],
             &[
-                (REG_A0, ecall::IO_READ_PUBLIC),
-                (REG_A1, imm.wrapping_add(offset)), // A1 - address
-                (REG_A2, 1),                        // A2 - size
+                (REG_A0, ecall::IO_READ_TRANSCRIPT),
+                (REG_A1, address), // A1 - address
+                (REG_A2, 1),       // A2 - size
             ],
-            &[],
-            &[content],
+            RuntimeArguments {
+                io_tape_public,
+                ..Default::default()
+            },
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+    pub fn prove_io_read_call_tape<Stark: ProveAndVerify>(address: u32, call_tape: Vec<u8>) {
+        let (program, record) = execute_code_with_runtime_args(
+            [
+                // set sys-call IO_READ in x10(or a0)
+                Instruction {
+                    op: Op::ECALL,
+                    args: Args::default(),
+                },
+            ],
+            &[(address, 0)],
+            &[
+                (REG_A0, ecall::IO_READ_TRANSCRIPT),
+                (REG_A1, address), // A1 - address
+                (REG_A2, 1),       // A2 - size
+            ],
+            RuntimeArguments {
+                call_tape,
+                ..Default::default()
+            },
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_io_read<Stark: ProveAndVerify>(address: u32, content: u8) {
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -265,7 +312,7 @@ mod tests {
                     op: Op::ADD,
                     args: Args {
                         rd: REG_A1,
-                        imm: imm.wrapping_add(offset),
+                        imm: address,
                         ..Args::default()
                     },
                 },
@@ -290,26 +337,30 @@ mod tests {
                     args: Args::default(),
                 },
             ],
-            &[(imm.wrapping_add(offset), 0)],
+            &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
-                (REG_A1, imm.wrapping_add(offset)), // A1 - address
-                (REG_A2, 1),                        // A2 - size
+                (REG_A1, address), // A1 - address
+                (REG_A2, 1),       // A2 - size
             ],
-            &[content],
-            &[content],
+            RuntimeArguments {
+                io_tape_private: vec![content],
+                io_tape_public: vec![content],
+                call_tape: vec![content],
+                ..Default::default()
+            },
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_explicit<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+    pub fn prove_io_read_explicit<Stark: ProveAndVerify>(address: u32, content: u8) {
+        let (program, record) = execute_code_with_runtime_args(
             [
                 Instruction {
                     op: Op::ADD,
                     args: Args {
                         rd: REG_A1,
-                        imm: imm.wrapping_add(offset),
+                        imm: address,
                         ..Args::default()
                     },
                 },
@@ -361,14 +412,16 @@ mod tests {
                 },
             ],
             &[
-                (imm.wrapping_add(offset), 0),
-                (imm.wrapping_add(offset).wrapping_add(1), 0),
-                (imm.wrapping_add(offset).wrapping_add(2), 0),
-                (imm.wrapping_add(offset).wrapping_add(3), 0),
+                (address, 0),
+                (address.wrapping_add(1), 0),
+                (address.wrapping_add(2), 0),
+                (address.wrapping_add(3), 0),
             ],
             &[],
-            &[content, content, content, content],
-            &[],
+            RuntimeArguments {
+                io_tape_private: vec![content, content, content, content],
+                ..Default::default()
+            },
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -376,35 +429,45 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
-        fn prove_io_read_private_zero_size_mozak(offset in u32_extra(), imm in u32_extra()) {
-            prove_io_read_private_zero_size::<MozakStark<F, D>>(offset, imm);
+        fn prove_io_read_private_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+            prove_io_read_private_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_private_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_io_read_private::<MozakStark<F, D>>(offset, imm, content);
+        fn prove_io_read_private_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_io_read_private::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
-        fn prove_io_read_public_zero_size_mozak(offset in u32_extra(), imm in u32_extra()) {
-            prove_io_read_public_zero_size::<MozakStark<F, D>>(offset, imm);
+        fn prove_io_read_public_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+            prove_io_read_public_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_public_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_io_read_public::<MozakStark<F, D>>(offset, imm, content);
+        fn prove_io_read_public_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_io_read_public::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
-        fn prove_io_read_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_io_read::<MozakStark<F, D>>(offset, imm, content);
+        fn prove_io_read_call_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+            prove_io_read_call_tape_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_mozak_explicit(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_io_read_explicit::<MozakStark<F, D>>(offset, imm, content);
+        fn prove_io_read_call_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_io_read_call_tape::<MozakStark<F, D>>(address, vec![content]);
+        }
+
+
+        #[test]
+        fn prove_io_read_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_io_read::<MozakStark<F, D>>(address, content);
+        }
+        #[test]
+        fn prove_io_read_mozak_explicit(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_io_read_explicit::<MozakStark<F, D>>(address, content);
         }
     }
 
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
         type C = Poseidon2GoldilocksConfig;
-        type S = InputOuputMemoryStark<F, D>;
+        type S = InputOutputMemoryStark<F, D>;
 
         let stark = S::default();
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;

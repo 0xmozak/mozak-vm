@@ -6,7 +6,7 @@ use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
 
-const FIBO_ELF_EXAMPLE_PATH: &str = "examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci";
+const FIBO_ELF_EXAMPLE_PATH: &str = "examples/target/riscv32im-mozak-mozakvm-elf/release/fibonacci";
 
 fn fibonacci_benchmark(c: &mut Criterion) {
     let elf_path = std::env::current_dir()
@@ -25,7 +25,7 @@ fn fibonacci_benchmark(c: &mut Criterion) {
     group.measurement_time(Duration::new(10, 0));
     group.bench_function("fibonacci", |b| {
         b.iter(|| {
-            let program = Program::load_elf(&elf).unwrap();
+            let program = Program::vanilla_load_elf(&elf).unwrap();
             let state = State::<GoldilocksField>::from(&program);
             let _state = step(&program, state).unwrap();
         })
