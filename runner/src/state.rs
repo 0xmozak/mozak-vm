@@ -1,3 +1,4 @@
+use std::iter::once;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -5,7 +6,6 @@ use anyhow::{anyhow, Result};
 use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
-use itertools::chain;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
@@ -70,18 +70,20 @@ pub struct StateMemory {
     pub is_read_only: HashSet<u32>,
 }
 
-type H = HashMap<u32, u8>;
-impl From<(H, H, H)> for StateMemory {
+impl StateMemory {
     #[allow(clippy::similar_names)]
-    fn from((rw_mem, ro_mem, mozak_ro_mem): (H, H, H)) -> Self {
+    fn new<I, J>(ro: I, rw: J) -> Self
+    where
+        I: Iterator<Item = HashMap<u32, u8>>,
+        J: Iterator<Item = HashMap<u32, u8>>, {
+        let ro: HashMap<u32, u8> = ro.flat_map(HashMap::into_iter).collect();
+        let mut rw: HashMap<u32, u8> = rw.flat_map(HashMap::into_iter).collect();
         StateMemory {
-            is_read_only: chain!(ro_mem.keys(), mozak_ro_mem.keys())
-                .copied()
-                .collect(),
-            data: [rw_mem, ro_mem, mozak_ro_mem]
-                .into_iter()
-                .flat_map(HashMap::into_iter)
-                .collect(),
+            is_read_only: ro.keys().copied().collect(),
+            data: {
+                rw.extend(ro);
+                rw
+            },
         }
     }
 }
@@ -150,12 +152,14 @@ impl<F: RichField> From<Program> for State<F> {
     ) -> Self {
         Self {
             pc,
-            memory: (
-                rw_memory,
-                ro_memory,
-                mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
-            )
-                .into(),
+            memory: StateMemory::new(
+                [
+                    ro_memory,
+                    mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
+                ]
+                .into_iter(),
+                [rw_memory].into_iter(),
+            ),
             ..Default::default()
         }
     }
@@ -241,7 +245,7 @@ impl<F: RichField> State<F> {
             ..
         }: RuntimeArguments,
     ) -> Self {
-        let memory = (rw_memory.clone(), ro_memory.clone(), HashMap::default()).into();
+        let memory = StateMemory::new(once(ro_memory), once(rw_memory));
         Self {
             pc,
             memory,
@@ -275,12 +279,14 @@ impl<F: RichField> State<F> {
     ) -> Self {
         Self {
             pc,
-            memory: (
-                rw_memory,
-                ro_memory,
-                mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
-            )
-                .into(),
+            memory: StateMemory::new(
+                [
+                    ro_memory,
+                    mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
+                ]
+                .into_iter(),
+                once(rw_memory),
+            ),
             ..Default::default()
         }
     }
