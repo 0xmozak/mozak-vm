@@ -8,23 +8,22 @@ use mozak_runner::util::execute_code;
 use mozak_runner::vm::ExecutionRecord;
 use mozak_system::system::ecall;
 use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
+use plonky2::field::fft::fft_root_table;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
+use plonky2::fri::oracle::{CudaInnerContext, CudaInvContext};
 use plonky2::fri::FriConfig;
-use plonky2::fri::oracle::CudaInvContext;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
-use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
+use plonky2::util::{log2_ceil, log2_strict};
+use rustacuda::memory::DeviceBuffer;
+use rustacuda::prelude::*;
 use starky::config::StarkConfig;
 use starky::prover::prove as prove_table;
 use starky::stark::Stark;
 use starky::verifier::verify_stark_proof;
-use plonky2::util::log2_strict;
-use plonky2::field::fft::fft_root_table;
-use plonky2::fri::oracle::CudaInnerContext;
-
 
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
@@ -57,8 +56,6 @@ use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::stark::verifier::verify_proof;
 use crate::utils::from_u32;
 use crate::xor::stark::XorStark;
-use rustacuda::prelude::*;
-use rustacuda::memory::DeviceBuffer;
 
 pub type S = MozakStark<F, D>;
 pub const D: usize = 2;
@@ -376,49 +373,51 @@ impl ProveAndVerify for MozakStark<F, D> {
 
 #[cfg(feature = "cuda")]
 pub fn cuda_ctx() -> CudaInvContext<F, D> {
+    let ctx;
+    rustacuda::init(CudaFlags::empty()).unwrap();
+    let device_index = 0;
+    let device = rustacuda::prelude::Device::get_device(device_index).unwrap();
+    let _ctx = Context::create_and_push(ContextFlags::MAP_HOST | ContextFlags::SCHED_AUTO, device)
+        .unwrap();
+    let stream = Stream::new(StreamFlags::NON_BLOCKING, None).unwrap();
+    let stream2 = Stream::new(StreamFlags::NON_BLOCKING, None).unwrap();
 
-        let ctx;
-        rustacuda::init(CudaFlags::empty()).unwrap();
-        let device_index = 0;
-        let device = rustacuda::prelude::Device::get_device(device_index).unwrap();
-        let _ctx = Context::create_and_push(ContextFlags::MAP_HOST | ContextFlags::SCHED_AUTO, device).unwrap();
-        let stream  = Stream::new(StreamFlags::NON_BLOCKING, None).unwrap();
-        let stream2 = Stream::new(StreamFlags::NON_BLOCKING, None).unwrap();
+    let values_num_per_poly = 1 << 20;
+    let _blinding = false;
+    const _SALT_SIZE: usize = 4;
+    // rate bits = log2ceil(constraint_degree) where constraint degree = 3
+    let rate_bits = 2;
+    let _cap_height = 4;
 
-        let values_num_per_poly  = 1<<20;
-        let _blinding = false;
-        const _SALT_SIZE: usize = 4;
-        let rate_bits = 3;
-        let _cap_height = 4;
+    let lg_n = log2_strict(values_num_per_poly);
+    let fft_root_table_deg = fft_root_table(1 << lg_n).concat();
+    let fft_root_table_max = fft_root_table(1 << (lg_n + rate_bits)).concat();
 
-        let lg_n = log2_strict(values_num_per_poly);
-        let fft_root_table_deg    = fft_root_table(1 << lg_n).concat();
-        let fft_root_table_max    = fft_root_table(1<<(lg_n + rate_bits)).concat();
+    let root_table_device = {
+        let root_table_device = DeviceBuffer::from_slice(&fft_root_table_deg).unwrap();
+        root_table_device
+    };
+    let root_table_device2 = {
+        let root_table_device = DeviceBuffer::from_slice(&fft_root_table_max).unwrap();
+        root_table_device
+    };
+    let shift_powers = F::coset_shift()
+        .powers()
+        .take(1 << (lg_n))
+        .collect::<Vec<F>>();
+    let shift_powers_device = {
+        let shift_powers_device = DeviceBuffer::from_slice(&shift_powers).unwrap();
+        shift_powers_device
+    };
 
-
-
-        let root_table_device = {
-                let root_table_device = DeviceBuffer::from_slice(&fft_root_table_deg).unwrap();
-                root_table_device
-	    };
-        let root_table_device2 = {
-            let root_table_device = DeviceBuffer::from_slice(&fft_root_table_max).unwrap();
-            root_table_device
-        };
-        let shift_powers = F::coset_shift().powers().take(1<<(lg_n)).collect::<Vec<F>>();
-        let shift_powers_device = {
-            let shift_powers_device = DeviceBuffer::from_slice(&shift_powers).unwrap();
-            shift_powers_device
-        };
-
-        ctx = plonky2::fri::oracle::CudaInvContext{
-            inner: CudaInnerContext{stream, stream2,},
-            root_table_device,
-            root_table_device2,
-            shift_powers_device,
-            ctx: _ctx,
-        };
-        return ctx;
+    ctx = plonky2::fri::oracle::CudaInvContext {
+        inner: CudaInnerContext { stream, stream2 },
+        root_table_device,
+        root_table_device2,
+        shift_powers_device,
+        ctx: _ctx,
+    };
+    return ctx;
 }
 pub fn prove_and_verify_mozak_stark(
     program: &Program,
@@ -429,36 +428,35 @@ pub fn prove_and_verify_mozak_stark(
     let public_inputs = PublicInputs {
         entry_point: from_u32(program.entry_point),
     };
-    
+
     #[cfg(feature = "cuda")]
     {
         let mut ctx = cuda_ctx();
-    let all_proof = prove::<F, C, D>(
-        program,
-        record,
-        &stark,
-        config,
-        public_inputs,
-        &mut TimingTree::default(),
-        &mut Some(&mut ctx),
-    )?;
-    verify_proof(&stark, all_proof, config)
-    // Ok(())
-
+        let all_proof = prove::<F, C, D>(
+            program,
+            record,
+            &stark,
+            config,
+            public_inputs,
+            &mut TimingTree::default(),
+            &mut Some(&mut ctx),
+        )?;
+        verify_proof(&stark, all_proof, config)
+        // Ok(())
     }
 
     #[cfg(not(feature = "cuda"))]
     {
-    let all_proof = prove::<F, C, D>(
-        program,
-        record,
-        &stark,
-        config,
-        public_inputs,
-        &mut TimingTree::default(),
-        &mut None,
-    )?;
-    verify_proof(&stark, all_proof, config)
+        let all_proof = prove::<F, C, D>(
+            program,
+            record,
+            &stark,
+            config,
+            public_inputs,
+            &mut TimingTree::default(),
+            &mut None,
+        )?;
+        verify_proof(&stark, all_proof, config)
     }
 }
 
