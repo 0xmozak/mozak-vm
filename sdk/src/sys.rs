@@ -106,7 +106,7 @@ pub struct RawTape {
 #[derive(Default, Clone)]
 #[cfg(target_os = "mozakvm")]
 pub struct CallTape {
-    cast_list: Vec<ProgramIdentifier>,
+    cast_list: Vec<(ProgramIdentifier, u32)>,
     self_prog_id: ProgramIdentifier,
     reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
     index: usize,
@@ -121,15 +121,29 @@ pub struct CallTape {
 
 impl CallTape {
     #[cfg(target_os = "mozakvm")]
-    /// Check if a given actor takes part in this `CallTape`'s cast list.
-    fn is_casted_actor(&self, actor: &ProgramIdentifier) -> bool {
-        self.cast_list.contains(actor) || actor == ProgramIdentifier::default()
+    /// Mutably borrow this `CallTape` to check if a given actor takes part in
+    /// this `CallTape`'s cast list, and update the actor's entry within the
+    /// cast list if true.
+    fn observe_casted_actor(&mut self, actor: &ProgramIdentifier) -> bool {
+        for (id, count) in &mut self.cast_list {
+            if id != actor {
+                continue;
+            }
+            *count += 1;
+            return true;
+        }
+        false
     }
 
     #[cfg(target_os = "mozakvm")]
-    /// Check for `self_prog_id` that all its counterparties are seen in this
-    /// `CallTape`'s cast list.
-    fn ensure_counterparties_casted(&self) -> bool { unimplemented!() }
+    /// Check if a given actor takes part in this `CallTape`'s cast list.
+    fn is_casted_actor(&self, actor: &ProgramIdentifier) -> bool {
+        self.cast_list.iter().any(|(a, _)| a == actor)
+    }
+
+    #[cfg(target_os = "mozakvm")]
+    /// Ensure that all actors in this `CallTape`'s cast list has been seen.
+    fn ensure_all_cast_seen(&self) -> bool { self.cast_list.iter().all(|(_, count)| *count > 0) }
 
     #[allow(clippy::similar_names)]
     pub fn from_mailbox(&mut self) -> Option<(CPCMessage, usize)> {
@@ -167,6 +181,7 @@ impl CallTape {
                 }
                 self.index += 1;
             }
+            self.ensure_all_cast_seen();
             None
         }
 
