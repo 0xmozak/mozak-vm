@@ -56,7 +56,7 @@ pub struct RuntimeArguments {
     #[arg(long)]
     io_tape_public: Option<Input>,
     #[arg(long)]
-    transcript: Option<Input>,
+    call_tape: Option<Input>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -95,9 +95,9 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
             debug!("Read {bytes_read} of io_tape data.");
         };
 
-        if let Some(mut t) = value.transcript {
+        if let Some(mut t) = value.call_tape {
             let bytes_read = t.read_to_end(&mut call_tape).expect("Read should pass");
-            debug!("Read {bytes_read} of transcript data.");
+            debug!("Read {bytes_read} of call data.");
         };
 
         Self {
