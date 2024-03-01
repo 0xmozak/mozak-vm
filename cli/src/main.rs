@@ -179,13 +179,12 @@ pub fn tapes_to_runtime_arguments(
         .into_iter()
         .collect_vec();
 
-    let mut event_tape_single: Vec<Event> = Vec::new();
-    for single_tape in &sys_tapes.event_tape.writer {
-        if single_tape.id == self_prog_id {
-            event_tape_single = single_tape.contents.clone();
-            break;
-        }
-    }
+    let event_tape_single: Vec<Event> = sys_tapes
+        .event_tape
+        .writer
+        .into_iter()
+        .find_map(|t| (t.id == self_prog_id).then_some(t.contents))
+        .unwrap_or_default();
 
     debug!("Self Prog ID: {self_prog_id:#?}");
     debug!("Cast List (canonical repr): {cast_list:#?}");
