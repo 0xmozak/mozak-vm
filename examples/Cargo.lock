@@ -350,7 +350,7 @@ dependencies = [
  "guest",
  "hex",
  "log",
- "mozak_sdk",
+ "mozak-sdk",
  "rkyv",
  "rs_merkle",
  "simple_logger",
@@ -364,16 +364,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "mozak-system"
-version = "0.1.0"
-
-[[package]]
-name = "mozak_sdk"
+name = "mozak-sdk"
 version = "0.1.0"
 dependencies = [
  "mozak-system",
  "rkyv",
 ]
+
+[[package]]
+name = "mozak-system"
+version = "0.1.0"
 
 [[package]]
 name = "num"
