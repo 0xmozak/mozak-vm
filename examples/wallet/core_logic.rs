@@ -1,3 +1,5 @@
+#![feature(restricted_std)]
+#![allow(unused_attributes)]
 extern crate alloc;
 use mozak_sdk::coretypes::ProgramIdentifier;
 use rkyv::{Archive, Deserialize, Serialize};

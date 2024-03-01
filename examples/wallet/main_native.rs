@@ -1,4 +1,5 @@
 #![feature(restricted_std)]
+#![allow(unused_attributes)]
 
 mod core_logic;
 

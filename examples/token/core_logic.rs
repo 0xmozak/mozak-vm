@@ -1,3 +1,4 @@
+#![feature(restricted_std)]
 extern crate alloc;
 
 use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};

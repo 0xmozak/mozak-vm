@@ -1,3 +1,5 @@
+#![feature(restricted_std)]
+#![allow(unused_attributes)]
 mod core_logic;
 
 use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
