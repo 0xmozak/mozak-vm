@@ -29,6 +29,7 @@ runs:
     - name: Install CI deps
       shell: bash
       run: |
+        echo "Nix was already installed, using existing install"
         # Remove previously installed nix profiles
         nix profile remove '.*'
         # Install the current one
