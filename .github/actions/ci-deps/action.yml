@@ -30,6 +30,7 @@ runs:
       shell: bash
       run: |
         echo "Nix was already installed, using existing install"
+        echo "/nix/var/nix/profiles/default/bin" >> $GITHUB_PATH
         # Remove previously installed nix profiles
         nix profile remove '.*'
         # Install the current one
