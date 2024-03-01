@@ -262,8 +262,9 @@ mod tests {
     #[rustfmt::skip]
     #[test]
     #[ignore]
-    #[should_panic = "failing constraint: init is required per memory address"]
+    #[should_panic = "Constraint failed in"]
     // TODO(Roman): fix this test, looks like we should constrain the `is_init` 
+    /// Test that we have a constraint to catch, if there is no init for any memory address.
     fn no_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
@@ -276,6 +277,7 @@ mod tests {
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let config = fast_test_config();
+        // This will fail, iff debug assertions are enabled.
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -287,28 +289,43 @@ mod tests {
     }
 
     #[rustfmt::skip]
+    fn double_init_trace() -> Vec<Memory<GoldilocksField>> {
+        prep_table(vec![
+            //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
+            [       0,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(100)],
+            [       1,     100,   1,     0,      0,       1,        2,       0,     inv::<F>(0)],
+        ])
+    }
+
+    /// Test that we have a constraint to catch if there are multiple inits per
+    /// memory address.
     #[test]
-    #[should_panic = "failing constraint: only single init is allowed per memory address"]
+    #[cfg_attr(
+        not(debug_assertions),
+        should_panic = "failing constraint: only single init is allowed per memory address"
+    )]
+    #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
     fn double_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
 
-        let trace: Vec<Memory<GoldilocksField>> = prep_table(vec![
-                //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
-                [       0,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(100)],
-                [       1,     100,   1,     0,      0,       1,        2,       0,     inv::<F>(0)],
-        ]);
+        let trace: Vec<Memory<GoldilocksField>> = double_init_trace();
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let config = fast_test_config();
+        // This will fail, iff debug assertions are enabled.
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
-        ).unwrap();
-        assert!(verify_stark_proof(stark, proof, &config).is_ok(), "failing constraint: only single init is allowed per memory address");
+        )
+        .unwrap();
+        assert!(
+            verify_stark_proof(stark, proof, &config).is_ok(),
+            "failing constraint: only single init is allowed per memory address"
+        );
     }
 
     // This test simulates the scenario of a set of instructions

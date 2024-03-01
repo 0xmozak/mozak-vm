@@ -349,11 +349,17 @@ mod tests {
         Stark::prove_and_verify(&program, &record)
     }
 
-    /// if all addresses are equal in memorytable, then
-    /// making all `is_init` as zero should fail.
-    /// Note this is required since this time, `diff_addr_inv` logic
-    /// can't help detect `is_init` for first row.
+    /// If all addresses are equal in memorytable, then setting all `is_init` to
+    /// zero should fail.
+    ///
+    /// Note this is required since this time, `diff_addr_inv` logic  can't help
+    /// detect `is_init` for first row.
+    ///
+    /// This will panic, if debug assertions are enabled in plonky2. So we need
+    /// to have two different versions of `should_panic`; see below.
     #[test]
+    // This will panic, if debug assertions are enabled in plonky2.
+    #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
     fn no_init_fail() {
         let instructions = [Instruction {
             op: Op::SB,
@@ -385,7 +391,7 @@ mod tests {
             &poseiden2_sponge_rows,
             &poseidon2_output_bytes_rows,
         );
-        // malicious prover makes first memory row's is_init as zero
+        // malicious prover sets first memory row's is_init to zero
         memory_rows[0].is_init = F::ZERO;
         // fakes a load instead of init
         memory_rows[0].is_load = F::ONE;

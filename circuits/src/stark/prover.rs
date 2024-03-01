@@ -3,8 +3,8 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
-use log::log_enabled;
 use log::Level::Debug;
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -52,6 +52,7 @@ pub fn prove<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
@@ -279,6 +280,9 @@ where
 
     let initial_merkle_trees = vec![trace_commitment, &ctl_zs_commitment, &quotient_commitment];
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
@@ -286,6 +290,8 @@ where
             &stark.fri_instance(
                 zeta,
                 g,
+                0,
+                vec![],
                 config,
                 Some(&LookupConfig {
                     degree_bits,
