@@ -121,21 +121,6 @@ pub struct CallTape {
 
 impl CallTape {
     #[cfg(target_os = "mozakvm")]
-    #[must_use]
-    pub fn new() -> Self {
-        Self {
-            cast_list: Vec::new(),
-            self_prog_id: ProgramIdentifier::default(),
-            reader: None,
-            index: 0,
-        }
-    }
-
-    #[cfg(not(target_os = "mozakvm"))]
-    #[must_use]
-    pub fn new() -> Self { Self { writer: Vec::new() } }
-
-    #[cfg(target_os = "mozakvm")]
     /// Mutably borrow this `CallTape` to check if a given actor takes part in
     /// this `CallTape`'s cast list, and update the actor's entry within the
     /// cast list if true.
