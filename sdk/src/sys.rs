@@ -158,7 +158,7 @@ impl CallTape {
 
     #[cfg(target_os = "mozakvm")]
     /// Ensure that all actors in this `CallTape`'s cast list has been seen.
-    fn ensure_all_cast_seen(&self) -> bool { self.cast_list.iter().all(|(_, count)| count > 0) }
+    fn ensure_all_cast_seen(&self) -> bool { self.cast_list.iter().all(|(_, count)| *count > 0) }
 
     #[allow(clippy::similar_names)]
     pub fn from_mailbox(&mut self) -> Option<(CPCMessage, usize)> {
