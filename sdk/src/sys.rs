@@ -138,30 +138,29 @@ impl CallTape {
     }
 
     #[cfg(target_os = "mozakvm")]
-    fn is_casted_actor(&mut self, actor: &ProgramIdentifier, update: bool) -> bool {
+    /// Mutably borrow this `CallTape` to check if a given actor takes part in
+    /// this `CallTape`'s cast list, and update the actor's entry within the
+    /// cast list if true.
+    fn observe_casted_actor(&mut self, actor: &ProgramIdentifier) -> bool {
         for (id, count) in &mut self.cast_list {
             if id != actor {
                 continue;
             }
-            if update {
-                *count += 1;
-            }
+            *count += 1;
             return true;
         }
         false
     }
 
     #[cfg(target_os = "mozakvm")]
-    fn ensure_all_cast_seen(&self) -> bool {
-        let mut all_non_zero = true;
-        for (_, count) in &self.cast_list {
-            if *count == 0 {
-                all_non_zero = false;
-                break;
-            }
-        }
-        all_non_zero
+    /// Check if a given actor takes part in this `CallTape`'s cast list.
+    fn is_casted_actor(&self, actor: &ProgramIdentifier) -> bool {
+        self.cast_list.iter().any(|(a, _)| a == actor)
     }
+
+    #[cfg(target_os = "mozakvm")]
+    /// Ensure that all actors in this `CallTape`'s cast list has been seen.
+    fn ensure_all_cast_seen(&self) -> bool { self.cast_list.iter().all(|(_, count)| count > 0) }
 
     #[allow(clippy::similar_names)]
     pub fn from_mailbox(&mut self) -> Option<(CPCMessage, usize)> {
@@ -185,10 +184,10 @@ impl CallTape {
                     assert_eq!(caller, ProgramIdentifier::default());
                 } else {
                     assert_ne!(caller, ProgramIdentifier::default());
-                    assert!(self.is_casted_actor(&caller, false));
+                    assert!(self.is_casted_actor(&caller));
                 }
 
-                assert!(self.is_casted_actor(&callee, true));
+                assert!(self.observe_casted_actor(&callee));
 
                 // if we are the callee, return this message
                 if self.self_prog_id == callee {
@@ -234,7 +233,7 @@ impl CallTape {
 
             assert_eq!(cpcmsg.caller_prog, self.self_prog_id);
             assert_eq!(cpcmsg.callee_prog, callee_prog);
-            assert!(self.is_casted_actor(&cpcmsg.callee_prog, true));
+            assert!(self.observe_casted_actor(&cpcmsg.callee_prog));
 
             assert_eq!(
                 cpcmsg.args.0,
