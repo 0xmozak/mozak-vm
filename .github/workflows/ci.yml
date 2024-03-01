@@ -23,6 +23,9 @@ jobs:
     secrets: inherit
 
   cargo-test:
+    strategy:
+      matrix:
+        profile: [test, release]
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -35,7 +38,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compile and archive all the tests
-        run: nice cargo nextest archive --locked --features="enable_poseidon_starks" --all-targets --archive-file mozak-vm-tests.tar.zst
+        run: nice cargo nextest archive --cargo-profile="${{ matrix.profile }}" --locked --features="enable_poseidon_starks" --all-targets --archive-file mozak-vm-tests.tar.zst
 
       - name: Run all the tests from the archive
         run: MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst

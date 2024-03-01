@@ -17,13 +17,22 @@ fn fibonacci(n: u32) -> u32 {
 }
 
 pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
-    let program = Program::load_elf(mozak_examples::FIBONACCI_INPUT_ELF).unwrap();
+    let program = Program::vanilla_load_elf(mozak_examples::FIBONACCI_INPUT_ELF).unwrap();
     let out = fibonacci(n);
-    let state = State::<GoldilocksField>::new(program.clone(), RuntimeArguments {
-        context_variables: vec![],
+    // Note: first thing to notice that FIBO_INPUT_ELF is actually mozak-ELF, but it
+    // is OK to use `vanilla` loader. Vanilla loader will still work, because
+    // mozak-ELF is still the valid ELF. Second things related to the fact that
+    // `State::new` API indeed accepts `args` but internally it assumes to take case
+    // of external arguments thru mozak-ro-memory, and since vanilla loader was
+    // used, there is not mozak-ro-memory inside Program. Third thing is related to
+    // how rust-fibo ELF reads and writes io-tapes - it will just get zeros inside
+    // its internal buffers, so fibo-code will see input = 0, so output will be also
+    // 0, which is OK. In the next PRs we will remove old-io-tapes, and so also will
+    // remove this legacy_ecall_api ...
+    let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), RuntimeArguments {
         io_tape_private: n.to_le_bytes().to_vec(),
         io_tape_public: out.to_le_bytes().to_vec(),
-        transcript: vec![],
+        ..Default::default()
     });
     let record = step(&program, state).unwrap();
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
@@ -31,14 +40,13 @@ pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
 
 pub fn fibonacci_input_mozak_elf(n: u32) -> Result<(), anyhow::Error> {
     let out = fibonacci(n);
-    let args = RuntimeArguments::new(
-        vec![],
-        n.to_le_bytes().to_vec(),
-        out.to_le_bytes().to_vec(),
-        vec![],
-    );
+    let args = RuntimeArguments {
+        io_tape_private: n.to_le_bytes().to_vec(),
+        io_tape_public: out.to_le_bytes().to_vec(),
+        ..Default::default()
+    };
     let program = Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF, &args).unwrap();
-    let state = State::<GoldilocksField>::new_mozak_api(program.clone(), args);
+    let state = State::<GoldilocksField>::new(program.clone());
     let record = step(&program, state).unwrap();
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }

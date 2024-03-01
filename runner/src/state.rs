@@ -1,9 +1,11 @@
+use std::iter::once;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
 use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
+use im::HashSet;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
@@ -55,11 +57,35 @@ pub struct State<F: RichField> {
     pub halted: bool,
     pub registers: [u32; 32],
     pub pc: u32,
-    pub rw_memory: HashMap<u32, u8>,
-    pub ro_memory: HashMap<u32, u8>,
+    pub memory: StateMemory,
     pub io_tape: IoTape,
-    pub transcript: IoTapeData,
+    pub call_tape: IoTapeData,
     _phantom: PhantomData<F>,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, Clone, Default)]
+pub struct StateMemory {
+    pub data: HashMap<u32, u8>,
+    pub is_read_only: HashSet<u32>,
+}
+
+impl StateMemory {
+    #[allow(clippy::similar_names)]
+    fn new<I, J>(ro: I, rw: J) -> Self
+    where
+        I: Iterator<Item = HashMap<u32, u8>>,
+        J: Iterator<Item = HashMap<u32, u8>>, {
+        let ro: HashMap<u32, u8> = ro.flat_map(HashMap::into_iter).collect();
+        let mut rw: HashMap<u32, u8> = rw.flat_map(HashMap::into_iter).collect();
+        StateMemory {
+            is_read_only: ro.keys().copied().collect(),
+            data: {
+                rw.extend(ro);
+                rw
+            },
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
@@ -102,10 +128,9 @@ impl<F: RichField> Default for State<F> {
             halted: Default::default(),
             registers: Default::default(),
             pc: Default::default(),
-            rw_memory: HashMap::default(),
-            ro_memory: HashMap::default(),
+            memory: StateMemory::default(),
             io_tape: IoTape::from((vec![], vec![])),
-            transcript: IoTapeData {
+            call_tape: IoTapeData {
                 data: [].into(),
                 read_index: 0,
             },
@@ -122,13 +147,19 @@ impl<F: RichField> From<Program> for State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            mozak_ro_memory: _,
+            mozak_ro_memory,
         }: Program,
     ) -> Self {
         Self {
             pc,
-            rw_memory,
-            ro_memory,
+            memory: StateMemory::new(
+                [
+                    ro_memory,
+                    mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
+                ]
+                .into_iter(),
+                [rw_memory].into_iter(),
+            ),
             ..Default::default()
         }
     }
@@ -201,7 +232,7 @@ impl<F: RichField> State<F> {
     // `new_mozak_elf` will be added specifically for new io-tapes mechanism
     // NOTE: currently, both mozak-elf and vanilla elf will use this API since there
     // is still no stark-backend that supports new-io-tapes
-    pub fn new(
+    pub fn legacy_ecall_api_new(
         Program {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
@@ -214,10 +245,10 @@ impl<F: RichField> State<F> {
             ..
         }: RuntimeArguments,
     ) -> Self {
+        let memory = StateMemory::new(once(ro_memory), once(rw_memory));
         Self {
             pc,
-            rw_memory,
-            ro_memory,
+            memory,
             // TODO(bing): Handle the case where iotapes are
             // in .mozak_global sections in the RISC-V binary.
             // Now, the CLI simply does unwrap_or_default() to either
@@ -229,21 +260,33 @@ impl<F: RichField> State<F> {
 
     #[must_use]
     #[allow(clippy::similar_names)]
+    /// # Panics
+    /// should not panic since access to the `mozak_ro_memory.unwrap()` takes
+    /// place after `is_some` check
     // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
     // will be removed, I will rename this function to `new`
-    pub fn new_mozak_api(
+    // TODO(Roman): This `clippy` allow relates to the `args` - I will fix it later, when refactor
+    // this API
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn new(
         Program {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
+            mozak_ro_memory,
             ..
         }: Program,
-        RuntimeArguments { .. }: RuntimeArguments,
     ) -> Self {
         Self {
             pc,
-            rw_memory,
-            ro_memory,
+            memory: StateMemory::new(
+                [
+                    ro_memory,
+                    mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
+                ]
+                .into_iter(),
+                once(rw_memory),
+            ),
             ..Default::default()
         }
     }
@@ -372,11 +415,7 @@ impl<F: RichField> State<F> {
     /// So no u32 address is out of bounds.
     #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 {
-        self.ro_memory
-            .get(&addr)
-            .or_else(|| self.rw_memory.get(&addr))
-            .copied()
-            .unwrap_or_default()
+        self.memory.data.get(&addr).copied().unwrap_or_default()
     }
 
     /// Store a byte to memory
@@ -385,17 +424,15 @@ impl<F: RichField> State<F> {
     /// This function returns an error, if you try to store to an invalid
     /// address.
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
-        match self.ro_memory.entry(addr) {
-            im::hashmap::Entry::Occupied(entry) => Err(anyhow!(
-                "cannot write to ro_memory: address,value and entry {:#0x}, {:#0x}, {:?}",
+        if self.memory.is_read_only.contains(&addr) {
+            Err(anyhow!(
+                "cannot write to ro_memory: address - {:#0x}, value - {:#0x}",
                 addr,
                 value,
-                (entry.key(), entry.get())
-            )),
-            im::hashmap::Entry::Vacant(_) => {
-                self.rw_memory.insert(addr, value);
-                Ok(self)
-            }
+            ))
+        } else {
+            self.memory.data.insert(addr, value);
+            Ok(self)
         }
     }
 

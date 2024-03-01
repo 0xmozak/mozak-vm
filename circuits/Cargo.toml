@@ -20,16 +20,16 @@ log = "0.4"
 mozak-circuits-derive = { path = "./derive" }
 mozak-runner = { path = "../runner" }
 mozak-system = { path = "../system" }
-plonky2 = { version = "0.1", default-features = false }
-rayon = "1.8"
+plonky2 = { version = "0", default-features = false }
+rayon = "1.9"
 serde = { version = "1.0", features = ["derive"] }
-starky = { version = "0.1", default-features = false }
+starky = { version = "0", default-features = false, features = ["std"] }
 thiserror = "1.0"
 tt-call = "1.0"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-env_logger = { version = "0.10" }
+env_logger = { version = "0.11" }
 hex = "0.4"
 im = "15.1"
 mozak-examples = { path = "../examples-builder", features = ["fibonacci", "fibonacci-input-new-api"] }

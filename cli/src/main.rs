@@ -47,7 +47,7 @@ struct Cli {
     debug: bool,
 }
 
-#[derive(Clone, Debug, Args)]
+#[derive(Clone, Debug, Args, Default)]
 pub struct RuntimeArguments {
     /// Private input.
     #[arg(long)]
@@ -79,7 +79,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
     fn from(value: RuntimeArguments) -> Self {
         let mut io_tape_private = vec![];
         let mut io_tape_public = vec![];
-        let mut transcript = vec![];
+        let mut call_tape = vec![];
 
         if let Some(mut t) = value.io_tape_private {
             let bytes_read = t
@@ -96,7 +96,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
         };
 
         if let Some(mut t) = value.transcript {
-            let bytes_read = t.read_to_end(&mut transcript).expect("Read should pass");
+            let bytes_read = t.read_to_end(&mut call_tape).expect("Read should pass");
             debug!("Read {bytes_read} of transcript data.");
         };
 
@@ -105,7 +105,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
             context_variables: vec![],
             io_tape_private,
             io_tape_public,
-            transcript,
+            call_tape,
         }
     }
 }
@@ -133,11 +133,11 @@ enum Command {
     Bench(BenchArgs),
 }
 
-fn load_program(mut elf: Input) -> Result<Program> {
+fn load_program(mut elf: Input, args: RuntimeArguments) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    Program::load_elf(&elf_bytes)
+    Program::mozak_load_program(&elf_bytes, &args.into())
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -151,18 +151,18 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             debug!("{program:?}");
         }
         Command::Run(RunArgs { elf, args }) => {
-            let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let program = load_program(elf, args)?;
+            let state = State::<GoldilocksField>::new(program.clone());
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
         }
         Command::ProveAndVerify(RunArgs { elf, args }) => {
-            let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let program = load_program(elf, args)?;
+            let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
@@ -172,8 +172,8 @@ fn main() -> Result<()> {
             mut proof,
             recursive_proof,
         }) => {
-            let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let program = load_program(elf, args)?;
+            let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -266,7 +266,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -283,7 +283,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, RuntimeArguments::default())?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
