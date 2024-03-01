@@ -27,7 +27,10 @@ runs:
       uses: DeterminateSystems/magic-nix-cache-action@v3
 
     - name: Install CI deps
+      shell: bash
       run: |
+        echo $PATH
+        echo $GITHUB_ENV
         # Remove previously installed nix profiles
         nix profile remove '.*'
         # Install the current one
