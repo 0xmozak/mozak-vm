@@ -61,9 +61,8 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
         let castlist_zcd = get_zcd_repr::<Vec<ProgramIdentifier>>(unsafe {
             addr_of!(_mozak_cast_list) as *const u8
         });
-        let castlist_deserialized: Vec<ProgramIdentifier> =
+        let cast_list: Vec<ProgramIdentifier> =
             castlist_zcd.deserialize(&mut rkyv::Infallible).unwrap();
-        let cast_list = castlist_deserialized.into_iter().map(|x| (x, 0)).collect();
 
         let calltape_zcd =
             get_zcd_repr::<Vec<CPCMessage>>(unsafe { addr_of!(_mozak_call_tape) as *const u8 });
@@ -106,7 +105,7 @@ pub struct RawTape {
 #[derive(Default, Clone)]
 #[cfg(target_os = "mozakvm")]
 pub struct CallTape {
-    cast_list: Vec<(ProgramIdentifier, u32)>,
+    cast_list: Vec<ProgramIdentifier>,
     self_prog_id: ProgramIdentifier,
     reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
     index: usize,
@@ -121,29 +120,10 @@ pub struct CallTape {
 
 impl CallTape {
     #[cfg(target_os = "mozakvm")]
-    /// Mutably borrow this `CallTape` to check if a given actor takes part in
-    /// this `CallTape`'s cast list, and update the actor's entry within the
-    /// cast list if true.
-    fn observe_casted_actor(&mut self, actor: &ProgramIdentifier) -> bool {
-        for (id, count) in &mut self.cast_list {
-            if id != actor {
-                continue;
-            }
-            *count += 1;
-            return true;
-        }
-        false
-    }
-
-    #[cfg(target_os = "mozakvm")]
     /// Check if a given actor takes part in this `CallTape`'s cast list.
     fn is_casted_actor(&self, actor: &ProgramIdentifier) -> bool {
-        self.cast_list.iter().any(|(a, _)| a == actor)
+        &ProgramIdentifier::default() == actor || self.cast_list.contains(actor)
     }
-
-    #[cfg(target_os = "mozakvm")]
-    /// Ensure that all actors in this `CallTape`'s cast list has been seen.
-    fn ensure_all_cast_seen(&self) -> bool { self.cast_list.iter().all(|(_, count)| *count > 0) }
 
     #[allow(clippy::similar_names)]
     pub fn from_mailbox(&mut self) -> Option<(CPCMessage, usize)> {
@@ -163,14 +143,7 @@ impl CallTape {
                     .deserialize(&mut rkyv::Infallible)
                     .unwrap();
 
-                if self.index == 0 {
-                    assert_eq!(caller, ProgramIdentifier::default());
-                } else {
-                    assert_ne!(caller, ProgramIdentifier::default());
-                    assert!(self.is_casted_actor(&caller));
-                }
-
-                assert!(self.observe_casted_actor(&callee));
+                assert!(self.is_casted_actor(&caller));
 
                 // if we are the callee, return this message
                 if self.self_prog_id == callee {
@@ -181,7 +154,6 @@ impl CallTape {
                 }
                 self.index += 1;
             }
-            self.ensure_all_cast_seen();
             None
         }
 
@@ -216,7 +188,7 @@ impl CallTape {
 
             assert_eq!(cpcmsg.caller_prog, self.self_prog_id);
             assert_eq!(cpcmsg.callee_prog, callee_prog);
-            assert!(self.observe_casted_actor(&cpcmsg.callee_prog));
+            assert!(self.is_casted_actor(&callee_prog));
 
             assert_eq!(
                 cpcmsg.args.0,
