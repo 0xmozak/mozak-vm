@@ -10,13 +10,13 @@ Scalable means the proving system has quasilinear time prover \\(\mathcal{P}\\) 
 Transparent means the random challenges of the verifier in these systems are public-coin.
 
 ### Construction
-In STARK, execution of a program is transformed to Algebraic Intermediate Representation (AIR). 
+In STARK, execution of a program is transformed to Algebraic Intermediate Representation (AIR).
 
 <p align="center">
 <img src="../assets/air.svg" style="width:300px; height:200px">
 </p>
 
-The a row of boxes can be thought as a row of registers and each row below a given row is the new state of the program after applying a transition function $F$.
+The a row of boxes can be thought as a row of registers or the state. The initial value of the "registers" is constrainted by an initialization constaint. Each row below a given row is the new state of the program after applying a transition function \\( F \\), where \\( F \\) describes how the states are updated. This is sometimes called the transition constraint.
 
 The trace is then encoded with Reed-Solomon Code, so that the claim of the execution of the program is transformed into a claim about the low degree of polynomials.
 
