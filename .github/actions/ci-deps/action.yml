@@ -22,13 +22,11 @@ runs:
         github-token: ${{ inputs.GITHUB_TOKEN }}
         # Do not use systemd on self-hosted runners
         init: ${{ inputs.runner-label == 'self-hosted' && 'none' || 'systemd'}}
-        planner: 'linux'
 
     - name: Set up Nix cache
       uses: DeterminateSystems/magic-nix-cache-action@v3
 
     - name: Install CI deps
-      shell: bash
       run: |
         # Remove previously installed nix profiles
         nix profile remove '.*'
