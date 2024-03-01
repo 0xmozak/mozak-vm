@@ -27,7 +27,7 @@ the native execution above to produce the system tape prior to running this.
 # from project root
 MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
-    target/riscv32im-mozak-mozakvm-elf/release/walletbin \
-    --system-tape wallet_approve.tape_bin \
+    examples/target/riscv32im-mozak-mozakvm-elf/release/walletbin \
+    --system-tape examples/wallet_approve.tape_bin \
     --self-prog-id MZK-155a7957-1f2314bd-0;
 ```

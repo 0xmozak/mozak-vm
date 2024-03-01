@@ -27,7 +27,7 @@ the native execution above to produce the system tape prior to running this.
 # from project root
 MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
-    target/riscv32im-mozak-mozakvm-elf/release/tokenbin \
-    --system-tape token_tfr.tape_bin \
+    examples/target/riscv32im-mozak-mozakvm-elf/release/tokenbin \
+    --system-tape examples/token_tfr.tape_bin \
     --self-prog-id MZK-0b7114fb-021f033e-0;
 ```
