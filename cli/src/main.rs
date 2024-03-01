@@ -190,21 +190,22 @@ pub fn tapes_to_runtime_arguments(
     debug!("Self Prog ID: {self_prog_id:#?}");
     debug!("Cast List (canonical repr): {cast_list:#?}");
 
-    fn serialise<T>(tape: T, dgb_string: &str) -> Vec<u8>
-    where
-        T: rkyv::Archive + rkyv::Serialize<AllocSerializer<256>>,
     {
-        let tape_bytes = rkyv::to_bytes::<_, 256>(&tape).unwrap().into();
-        length_prefixed_bytes(tape_bytes, dgb_string)
-    }
+        fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
+        where
+            T: rkyv::Archive + rkyv::Serialize<AllocSerializer<256>>, {
+            let tape_bytes = rkyv::to_bytes::<_, 256>(tape).unwrap().into();
+            length_prefixed_bytes(tape_bytes, dgb_string)
+        }
 
-    mozak_runner::elf::RuntimeArguments {
-        self_prog_id: self_prog_id.to_le_bytes().to_vec(),
-        cast_list: serialise(cast_list, "CAST_LIST"),
-        io_tape_public: serialise(sys_tapes.public_tape, "IO_TAPE_PUBLIC"),
-        io_tape_private: serialise(sys_tapes.private_tape, "IO_TAPE_PRIVATE"),
-        call_tape: serialise(sys_tapes.call_tape.writer, "CALL_TAPE"),
-        event_tape: serialise(event_tape_single, "EVENT_TAPE"),
+        mozak_runner::elf::RuntimeArguments {
+            self_prog_id: self_prog_id.to_le_bytes().to_vec(),
+            cast_list: serialise(&cast_list, "CAST_LIST"),
+            io_tape_public: serialise(&sys_tapes.public_tape, "IO_TAPE_PUBLIC"),
+            io_tape_private: serialise(&sys_tapes.private_tape, "IO_TAPE_PRIVATE"),
+            call_tape: serialise(&sys_tapes.call_tape.writer, "CALL_TAPE"),
+            event_tape: serialise(&event_tape_single, "EVENT_TAPE"),
+        }
     }
 }
 
