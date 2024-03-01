@@ -17,14 +17,14 @@ First, build the mozakvm binary:
 
 ```sh
 # inside examples directory
-cargo +nightly build --release --bin tokenbin
+cargo build --release --bin tokenbin
 ```
-
 
 Test the ELF in mozak-vm using the below command. Note that you must run
 the native execution above to produce the system tape prior to running this.
 
-```
+```sh
+# from project root
 MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
     target/riscv32im-mozak-mozakvm-elf/release/tokenbin \

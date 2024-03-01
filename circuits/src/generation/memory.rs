@@ -299,6 +299,12 @@ mod tests {
 
     /// Test that we have a constraint to catch if there are multiple inits per
     /// memory address.
+    #[test]
+    #[cfg_attr(
+        not(debug_assertions),
+        should_panic = "failing constraint: only single init is allowed per memory address"
+    )]
+    #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
     fn double_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
@@ -321,16 +327,6 @@ mod tests {
             "failing constraint: only single init is allowed per memory address"
         );
     }
-
-    #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic = "Constraint failed in"]
-    fn double_init_debug() { double_init(); }
-
-    #[test]
-    #[cfg(not(debug_assertions))]
-    #[should_panic = "failing constraint: only single init is allowed per memory address"]
-    fn double_init_release() { double_init(); }
 
     // This test simulates the scenario of a set of instructions
     // which perform store byte (SB) and load byte unsigned (LBU) operations

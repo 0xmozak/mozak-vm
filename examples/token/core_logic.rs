@@ -1,7 +1,5 @@
-#![feature(restricted_std)]
 extern crate alloc;
 
-// use alloc::vec::Vec;
 use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::sys::{call_send, event_emit};
 use rkyv::{Archive, Deserialize, Serialize};
@@ -55,7 +53,7 @@ fn state_object_data_to_token_object(value: StateObject) -> TokenObject {
 pub fn transfer(
     self_prog_id: ProgramIdentifier, // ContextVariables Table
     state_object: StateObject,       //
-    remitter_signature: Signature,
+    _remitter_signature: Signature,
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
