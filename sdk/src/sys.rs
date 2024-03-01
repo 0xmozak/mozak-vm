@@ -188,6 +188,7 @@ impl CallTape {
 
             assert_eq!(cpcmsg.caller_prog, self.self_prog_id);
             assert_eq!(cpcmsg.callee_prog, callee_prog);
+            assert!(self.is_casted_actor(&callee_prog));
 
             assert_eq!(
                 cpcmsg.args.0,
