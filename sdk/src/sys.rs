@@ -104,38 +104,36 @@ pub struct RawTape {
 }
 
 #[derive(Default, Clone)]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Archive, Deserialize, Serialize))]
-#[cfg_attr(not(target_os = "mozakvm"), archive_attr(derive(Debug)))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
+#[cfg(target_os = "mozakvm")]
 pub struct CallTape {
-    #[cfg(target_os = "mozakvm")]
     cast_list: Vec<(ProgramIdentifier, u32)>,
-    #[cfg(target_os = "mozakvm")]
     self_prog_id: ProgramIdentifier,
-    #[cfg(target_os = "mozakvm")]
     reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
-    #[cfg(not(target_os = "mozakvm"))]
-    pub writer: Vec<CPCMessage>,
-    #[cfg(target_os = "mozakvm")]
     index: usize,
 }
 
+#[cfg(not(target_os = "mozakvm"))]
+#[derive(Default, Debug, Clone, Archive, Deserialize, Serialize)]
+#[archive_attr(derive(Debug))]
+pub struct CallTape {
+    pub writer: Vec<CPCMessage>,
+}
+
 impl CallTape {
+    #[cfg(target_os = "mozakvm")]
     #[must_use]
     pub fn new() -> Self {
         Self {
-            #[cfg(target_os = "mozakvm")]
             cast_list: Vec::new(),
-            #[cfg(target_os = "mozakvm")]
             self_prog_id: ProgramIdentifier::default(),
-            #[cfg(target_os = "mozakvm")]
             reader: None,
-            #[cfg(not(target_os = "mozakvm"))]
-            writer: Vec::new(),
-            #[cfg(target_os = "mozakvm")]
             index: 0,
         }
     }
+
+    #[cfg(not(target_os = "mozakvm"))]
+    #[must_use]
+    pub fn new() -> Self { Self { writer: Vec::new() } }
 
     #[cfg(target_os = "mozakvm")]
     /// Mutably borrow this `CallTape` to check if a given actor takes part in
