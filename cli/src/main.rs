@@ -271,9 +271,9 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = system_tape.map_or_else(mozak_runner::elf::RuntimeArguments::default, |s| {
-                tapes_to_runtime_arguments(s, self_prog_id)
-            });
+            let args = system_tape
+                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .unwrap_or_default();
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
             step(&program, state)?;
@@ -283,9 +283,9 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = system_tape.map_or_else(mozak_runner::elf::RuntimeArguments::default, |s| {
-                tapes_to_runtime_arguments(s, self_prog_id)
-            });
+            let args = system_tape
+                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .unwrap_or_default();
 
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
@@ -300,9 +300,9 @@ fn main() -> Result<()> {
             mut proof,
             recursive_proof,
         }) => {
-            let args = system_tape.map_or_else(mozak_runner::elf::RuntimeArguments::default, |s| {
-                tapes_to_runtime_arguments(s, self_prog_id)
-            });
+            let args = system_tape
+                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .unwrap_or_default();
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
             let record = step(&program, state)?;
