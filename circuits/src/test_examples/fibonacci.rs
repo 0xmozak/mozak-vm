@@ -35,7 +35,6 @@ fn test_fibonacci_mozak_elf_new_api_empty_args() {
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
-
 #[test]
 fn test_fibonacci_mozak_elf_new_api() {
     let fibonacci = |n: u32| -> u32 {
