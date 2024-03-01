@@ -29,9 +29,7 @@ runs:
     - name: Install CI deps
       shell: bash
       run: |
-        # Remove previously installed nix profiles
-        nix profile remove '.*'
-        # Install the current one
+        # Install CI deps
         nix profile install .#ci-deps
         # Set up CI environment
         nix run .#ci-env >> $GITHUB_ENV
