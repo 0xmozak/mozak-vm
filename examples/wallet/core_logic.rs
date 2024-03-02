@@ -101,7 +101,6 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
 
 // TODO(bing): Read private key from private tape and public key from call tape.
 // hash and compare against public key.
-/// Return true if signature is approved.
 pub fn approve_signature<T>(
     _self_prog_id: ProgramIdentifier,
     _pub_key: PublicKey,
