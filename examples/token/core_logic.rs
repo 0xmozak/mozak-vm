@@ -16,7 +16,6 @@ pub enum MethodArgs {
     Transfer(
         ProgramIdentifier,
         StateObject,
-        Signature,
         ProgramIdentifier,
         ProgramIdentifier,
     ),
@@ -37,8 +36,8 @@ pub enum MethodReturns {
 #[allow(dead_code)]
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
-        MethodArgs::Transfer(id, object, signature, remitter, remittee) => {
-            transfer(id, object, signature, remitter, remittee);
+        MethodArgs::Transfer(id, object, remitter, remittee) => {
+            transfer(id, object, remitter, remittee);
             MethodReturns::Transfer
         }
     }
@@ -54,7 +53,6 @@ fn state_object_data_to_token_object(value: StateObject) -> TokenObject {
 pub fn transfer(
     self_prog_id: ProgramIdentifier, // ContextVariables Table
     state_object: StateObject,       //
-    _remitter_signature: Signature,
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {

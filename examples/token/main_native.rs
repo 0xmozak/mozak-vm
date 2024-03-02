@@ -54,15 +54,12 @@ fn main() {
         data: bytes.to_vec(),
     };
 
-    let remitter_signature = vec![70u8, 20, 56, 33].into();
-
     call_send(
         ProgramIdentifier::default(),
         token_program,
         MethodArgs::Transfer(
             token_program,
             state_object,
-            remitter_signature,
             remitter_wallet,
             remittee_wallet,
         ),
