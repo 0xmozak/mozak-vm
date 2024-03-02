@@ -18,7 +18,7 @@ use thiserror::Error;
 pub use crate::linear_combination::Column;
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::proof::{StarkProofTarget, StarkProofWithMetadata};
+use crate::stark::proof::{StarkProof, StarkProofTarget};
 
 #[derive(Error, Debug)]
 pub enum LookupError {
@@ -230,13 +230,13 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     CtlCheckVars<'a, F, F::Extension, F::Extension, D>
 {
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
-        proofs: &TableKindArray<StarkProofWithMetadata<F, C, D>>,
+        proofs: &TableKindArray<StarkProof<F, C, D>>,
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
     ) -> TableKindArray<Vec<Self>> {
         let mut ctl_zs = proofs
             .each_ref()
-            .map(|p| izip!(&p.proof.openings.ctl_zs, &p.proof.openings.ctl_zs_next));
+            .map(|p| izip!(&p.openings.ctl_zs, &p.openings.ctl_zs_next));
 
         let mut ctl_vars_per_table = all_kind!(|_kind| vec![]);
         let ctl_chain = cross_table_lookups.iter().flat_map(
