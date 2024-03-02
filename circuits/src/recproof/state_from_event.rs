@@ -1,0 +1,1324 @@
+use std::iter::zip;
+
+use enumflags2::{bitflags, BitFlags};
+use itertools::{chain, Itertools};
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::{BoolTarget, Target};
+use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::proof::ProofWithPublicInputsTarget;
+
+// Limit transfers to 2^40 credits to avoid overflow issues
+const MAX_LEAF_TRANSFER: usize = 40;
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum EventType {
+    Write = 0,
+    Ensure = 1,
+    Read = 2,
+    GiveOwner = 3,
+    TakeOwner = 4,
+    CreditDelta = 5,
+}
+
+impl EventType {
+    fn constant<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> Target
+    where
+        F: RichField + Extendable<D>, {
+        builder.constant(F::from_canonical_u64(self as u64))
+    }
+}
+
+#[bitflags]
+#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Flags {
+    WriteFlag = 1 << 0,
+    EnsureFlag = 1 << 1,
+    ReadFlag = 1 << 2,
+    GiveOwnerFlag = 1 << 3,
+    TakeOwnerFlag = 1 << 4,
+}
+
+impl Flags {
+    fn count() -> usize { BitFlags::<Self>::ALL.len() }
+
+    fn index(self) -> usize { (self as u8).trailing_zeros() as usize }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct PublicIndices {
+    /// The index of the block number being accumulated under
+    pub block_number: usize,
+
+    /// The index of the event/object address
+    pub address: usize,
+
+    /// The index of the (partial) object flags
+    pub object_flags: usize,
+
+    /// The indices of each of the elements of the previous constraint owner
+    pub old_owner: [usize; 4],
+
+    /// The indices of each of the elements of the new constraint owner
+    pub new_owner: [usize; 4],
+
+    /// The indices of each of the elements of the previous data
+    pub old_data: [usize; 4],
+
+    /// The indices of each of the elements of the new data
+    pub new_data: [usize; 4],
+
+    /// The index of the credit delta
+    pub credit_delta: usize,
+}
+
+impl PublicIndices {
+    /// Extract `block_number` from an array of public inputs.
+    pub fn get_block_number<T: Copy>(&self, public_inputs: &[T]) -> T {
+        public_inputs[self.block_number]
+    }
+
+    /// Insert `block_number` into an array of public inputs.
+    pub fn set_block_number<T>(&self, public_inputs: &mut [T], v: T) {
+        public_inputs[self.block_number] = v;
+    }
+
+    /// Extract `address` from an array of public inputs.
+    pub fn get_address<T: Copy>(&self, public_inputs: &[T]) -> T { public_inputs[self.address] }
+
+    /// Insert `address` into an array of public inputs.
+    pub fn set_address<T>(&self, public_inputs: &mut [T], v: T) { public_inputs[self.address] = v; }
+
+    /// Extract `object_flags` from an array of public inputs.
+    pub fn get_object_flags<T: Copy>(&self, public_inputs: &[T]) -> T {
+        public_inputs[self.object_flags]
+    }
+
+    /// Insert `object_flags` into an array of public inputs.
+    pub fn set_object_flags<T>(&self, public_inputs: &mut [T], v: T) {
+        public_inputs[self.object_flags] = v;
+    }
+
+    /// Extract `old_owner` from an array of public inputs.
+    pub fn get_old_owner<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
+        self.old_owner.map(|i| public_inputs[i])
+    }
+
+    /// Insert `old_owner` into an array of public inputs.
+    pub fn set_old_owner<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
+        for (i, v) in v.into_iter().enumerate() {
+            public_inputs[self.old_owner[i]] = v;
+        }
+    }
+
+    /// Extract `new_owner` from an array of public inputs.
+    pub fn get_new_owner<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
+        self.new_owner.map(|i| public_inputs[i])
+    }
+
+    /// Insert `new_owner` into an array of public inputs.
+    pub fn set_new_owner<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
+        for (i, v) in v.into_iter().enumerate() {
+            public_inputs[self.new_owner[i]] = v;
+        }
+    }
+
+    /// Extract `old_data` from an array of public inputs.
+    pub fn get_old_data<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
+        self.old_data.map(|i| public_inputs[i])
+    }
+
+    /// Insert `old_data` into an array of public inputs.
+    pub fn set_old_data<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
+        for (i, v) in v.into_iter().enumerate() {
+            public_inputs[self.old_data[i]] = v;
+        }
+    }
+
+    /// Extract `new_data` from an array of public inputs.
+    pub fn get_new_data<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
+        self.new_data.map(|i| public_inputs[i])
+    }
+
+    /// Insert `new_data` into an array of public inputs.
+    pub fn set_new_data<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
+        for (i, v) in v.into_iter().enumerate() {
+            public_inputs[self.new_data[i]] = v;
+        }
+    }
+
+    /// Extract `credit_delta` from an array of public inputs.
+    pub fn get_credit_delta<T: Copy>(&self, public_inputs: &[T]) -> T {
+        public_inputs[self.credit_delta]
+    }
+
+    /// Insert `credit_delta` into an array of public inputs.
+    pub fn set_credit_delta<T>(&self, public_inputs: &mut [T], v: T) {
+        public_inputs[self.credit_delta] = v;
+    }
+}
+
+pub struct LeafInputs {
+    /// The block number being accumulated under
+    pub block_number: Target,
+
+    /// The event/object address
+    pub address: Target,
+
+    /// The (partial) object flags
+    pub object_flags: Target,
+
+    /// The previous constraint owner
+    pub old_owner: [Target; 4],
+
+    /// The new constraint owner
+    pub new_owner: [Target; 4],
+
+    /// The previous data
+    pub old_data: [Target; 4],
+
+    /// The new data
+    pub new_data: [Target; 4],
+
+    /// The credit delta
+    pub credit_delta: Target,
+}
+
+pub struct LeafTargets {
+    /// The block number being accumulated under
+    pub block_number: Target,
+
+    /// The event/object address
+    pub address: Target,
+
+    /// The (partial) object flags
+    pub object_flags: Target,
+
+    /// The previous constraint owner
+    pub old_owner: [Target; 4],
+
+    /// The new constraint owner
+    pub new_owner: [Target; 4],
+
+    /// The previous data
+    pub old_data: [Target; 4],
+
+    /// The new data
+    pub new_data: [Target; 4],
+
+    /// The credit change
+    pub credit_delta: Target,
+
+    /// The originator of the event
+    pub event_owner: [Target; 4],
+
+    /// The event type
+    pub event_ty: Target,
+
+    /// The event value
+    pub event_value: [Target; 4],
+}
+
+struct SplitFlags {
+    new_data: Target,
+    owner: Target,
+
+    write: BoolTarget,
+    ensure: BoolTarget,
+    read: BoolTarget,
+    give_owner: BoolTarget,
+    take_owner: BoolTarget,
+}
+
+impl SplitFlags {
+    fn split<F, const D: usize>(builder: &mut CircuitBuilder<F, D>, flags: Target) -> Self
+    where
+        F: RichField + Extendable<D>, {
+        let new_data_flag_count = (Flags::WriteFlag | Flags::EnsureFlag).len();
+        let other_flag_count = Flags::count() - new_data_flag_count;
+        let owner_flag_count = (Flags::GiveOwnerFlag | Flags::TakeOwnerFlag).len();
+
+        // Split off the flags corresponding to changes to new_data
+        let (new_data, flags) = builder.split_low_high(flags, new_data_flag_count, Flags::count());
+        // Split  the flag corresponding to read from the owner flags
+        let (read, owner) = builder.split_low_high(flags, 1, other_flag_count);
+        let read = BoolTarget::new_unsafe(read);
+
+        let new_data_flags = builder.split_le(new_data, new_data_flag_count);
+        let owner_flags = builder.split_le(owner, owner_flag_count);
+
+        let flags = chain!(new_data_flags, [read], owner_flags).collect_vec();
+
+        Self {
+            new_data,
+            owner,
+            write: flags[Flags::WriteFlag.index()],
+            ensure: flags[Flags::EnsureFlag.index()],
+            read: flags[Flags::ReadFlag.index()],
+            give_owner: flags[Flags::GiveOwnerFlag.index()],
+            take_owner: flags[Flags::TakeOwnerFlag.index()],
+        }
+    }
+}
+
+impl LeafInputs {
+    #[must_use]
+    pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
+    where
+        F: RichField + Extendable<D>, {
+        let block_number = builder.add_virtual_target();
+        let address = builder.add_virtual_target();
+        let object_flags = builder.add_virtual_target();
+        let old_owner = builder.add_virtual_target_arr();
+        let new_owner = builder.add_virtual_target_arr();
+        let old_data = builder.add_virtual_target_arr();
+        let new_data = builder.add_virtual_target_arr();
+        let credit_delta = builder.add_virtual_target();
+
+        builder.register_public_input(block_number);
+        builder.register_public_input(address);
+        builder.register_public_input(object_flags);
+        builder.register_public_inputs(&old_owner);
+        builder.register_public_inputs(&new_owner);
+        builder.register_public_inputs(&old_data);
+        builder.register_public_inputs(&new_data);
+        builder.register_public_input(credit_delta);
+
+        Self {
+            block_number,
+            address,
+            object_flags,
+            old_owner,
+            new_owner,
+            old_data,
+            new_data,
+            credit_delta,
+        }
+    }
+
+    #[must_use]
+    pub fn build<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> LeafTargets
+    where
+        F: RichField + Extendable<D>, {
+        let Self {
+            block_number,
+            address,
+            object_flags,
+            old_owner,
+            new_owner,
+            old_data,
+            new_data,
+            credit_delta,
+        } = self;
+
+        let zero = builder.zero();
+        let one = builder.one();
+        let write_const = EventType::Write.constant(builder);
+        let read_const = EventType::Read.constant(builder);
+        let ensure_const = EventType::Ensure.constant(builder);
+        let give_owner_const = EventType::GiveOwner.constant(builder);
+        let take_owner_const = EventType::TakeOwner.constant(builder);
+        let credit_delta_const = EventType::CreditDelta.constant(builder);
+
+        let event_owner = builder.add_virtual_target_arr();
+        let event_ty = builder.add_virtual_target();
+        let event_value = builder.add_virtual_target_arr();
+
+        let (write_flag, ensure_flag, read_flag, give_owner_flag, take_owner_flag) = {
+            let object_flags = builder.split_le(object_flags, Flags::count());
+
+            (
+                object_flags[Flags::WriteFlag.index()],
+                object_flags[Flags::EnsureFlag.index()],
+                object_flags[Flags::ReadFlag.index()],
+                object_flags[Flags::GiveOwnerFlag.index()],
+                object_flags[Flags::TakeOwnerFlag.index()],
+            )
+        };
+
+        let is_write = builder.is_equal(event_ty, write_const);
+        let is_read = builder.is_equal(event_ty, read_const);
+        let is_ensure = builder.is_equal(event_ty, ensure_const);
+        let is_give_owner = builder.is_equal(event_ty, give_owner_const);
+        let is_take_owner = builder.is_equal(event_ty, take_owner_const);
+        let is_credit_delta = builder.is_equal(event_ty, credit_delta_const);
+
+        // new data comes from the event value for writes and ensures
+        // These are all mutually exclusive, so we can just add them
+        let new_data_from_value = builder.add(is_write.target, is_ensure.target);
+        let new_data_from_value = BoolTarget::new_unsafe(new_data_from_value);
+
+        // old owner comes from the event owner for writes, give owners, and credit
+        // deltas These are all mutually exclusive, so we can just add them
+        let old_owner_from_event = builder.add(is_write.target, is_give_owner.target);
+        let old_owner_from_event = builder.add(old_owner_from_event, is_credit_delta.target);
+        let old_owner_from_event = BoolTarget::new_unsafe(old_owner_from_event);
+
+        // Handle flags
+        builder.connect(is_write.target, write_flag.target);
+        builder.connect(is_read.target, read_flag.target);
+        builder.connect(is_ensure.target, ensure_flag.target);
+        builder.connect(is_give_owner.target, give_owner_flag.target);
+        builder.connect(is_take_owner.target, take_owner_flag.target);
+
+        // Handle old owner from event owner (write or give)
+        for (old_owner, event_owner) in zip(old_owner, event_owner) {
+            let old_owner_calc = builder.select(old_owner_from_event, event_owner, old_owner);
+            builder.connect(old_owner_calc, old_owner);
+        }
+
+        // Handle old owner from event value (take)
+        for (old_owner, event_value) in zip(old_owner, event_value) {
+            let old_owner_cal = builder.select(is_take_owner, event_value, old_owner);
+            builder.connect(old_owner_cal, old_owner);
+        }
+
+        // Handle new owner from event owner (take)
+        for (new_owner, event_owner) in zip(new_owner, event_owner) {
+            let new_owner_calc = builder.select(is_take_owner, event_owner, new_owner);
+            builder.connect(new_owner_calc, new_owner);
+        }
+
+        // Handle new owner from event value (give)
+        for (new_owner, event_value) in zip(new_owner, event_value) {
+            let new_owner_calc = builder.select(is_give_owner, event_value, new_owner);
+            builder.connect(new_owner_calc, new_owner);
+        }
+
+        // Handle old data from event value (read)
+        for (old_data, event_value) in zip(old_data, event_value) {
+            let read_old_data = builder.select(is_read, event_value, old_data);
+            builder.connect(read_old_data, old_data);
+        }
+
+        // Handle new data from event value (write or ensure)
+        for (new_data, event_value) in zip(new_data, event_value) {
+            let new_data_calc = builder.select(new_data_from_value, event_value, new_data);
+            builder.connect(new_data_calc, new_data);
+        }
+
+        // Handle credit delta
+        let credit_delta_val = builder.select(is_credit_delta, event_value[0], zero);
+        builder.range_check(credit_delta_val, MAX_LEAF_TRANSFER);
+        let credit_delta_sign = builder.select(is_credit_delta, event_value[3], zero);
+        let credit_delta_sign = builder.mul_const_add(-F::TWO, credit_delta_sign, one);
+        let credit_delta_calc = builder.mul(credit_delta_val, credit_delta_sign);
+        builder.connect(credit_delta_calc, credit_delta);
+
+        LeafTargets {
+            block_number,
+            address,
+            object_flags,
+            old_owner,
+            new_owner,
+            old_data,
+            new_data,
+            credit_delta,
+
+            event_owner,
+            event_ty,
+            event_value,
+        }
+    }
+}
+/// The leaf subcircuit metadata. This subcircuit does validates the
+pub struct LeafSubCircuit {
+    pub targets: LeafTargets,
+    pub indices: PublicIndices,
+}
+
+impl LeafTargets {
+    #[must_use]
+    pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
+        // Find the indicies
+        let indices = PublicIndices {
+            block_number: public_inputs
+                .iter()
+                .position(|&pi| pi == self.block_number)
+                .expect("target not found"),
+            address: public_inputs
+                .iter()
+                .position(|&pi| pi == self.address)
+                .expect("target not found"),
+            object_flags: public_inputs
+                .iter()
+                .position(|&pi| pi == self.object_flags)
+                .expect("target not found"),
+            old_owner: self.old_owner.map(|target| {
+                public_inputs
+                    .iter()
+                    .position(|&pi| pi == target)
+                    .expect("target not found")
+            }),
+            new_owner: self.new_owner.map(|target| {
+                public_inputs
+                    .iter()
+                    .position(|&pi| pi == target)
+                    .expect("target not found")
+            }),
+            old_data: self.old_data.map(|target| {
+                public_inputs
+                    .iter()
+                    .position(|&pi| pi == target)
+                    .expect("target not found")
+            }),
+            new_data: self.new_data.map(|target| {
+                public_inputs
+                    .iter()
+                    .position(|&pi| pi == target)
+                    .expect("target not found")
+            }),
+            credit_delta: public_inputs
+                .iter()
+                .position(|&pi| pi == self.credit_delta)
+                .expect("target not found"),
+        };
+        LeafSubCircuit {
+            targets: self,
+            indices,
+        }
+    }
+}
+
+impl LeafSubCircuit {
+    /// Get ready to generate a proof
+    pub fn set_inputs<F: RichField>(
+        &self,
+        inputs: &mut PartialWitness<F>,
+        block_number: u64,
+        address: u64,
+        event_owner: [F; 4],
+        event_ty: EventType,
+        event_value: [F; 4],
+    ) {
+        let zero = [F::ZERO; 4];
+
+        let (object_flags, credit_delta) = match event_ty {
+            EventType::Write => (Flags::WriteFlag.into(), 0),
+            EventType::Read => (Flags::ReadFlag.into(), 0),
+            EventType::Ensure => (Flags::EnsureFlag.into(), 0),
+            EventType::GiveOwner => (Flags::GiveOwnerFlag.into(), 0),
+            EventType::TakeOwner => (Flags::TakeOwnerFlag.into(), 0),
+            EventType::CreditDelta => {
+                #[allow(clippy::cast_possible_wrap)]
+                let value = event_value[0].to_canonical_u64() as i64;
+                let value = match event_value[3] {
+                    sign if sign.is_zero() => value,
+                    sign if sign.is_one() => -value,
+                    _ => unreachable!(),
+                };
+                (BitFlags::EMPTY, value)
+            }
+        };
+
+        let (old_owner, new_owner) = match event_ty {
+            EventType::Write | EventType::CreditDelta => (event_owner, zero),
+            EventType::Read | EventType::Ensure => (zero, zero),
+            EventType::GiveOwner => (event_owner, event_value),
+            EventType::TakeOwner => (event_value, event_owner),
+        };
+
+        let (old_data, new_data) = match event_ty {
+            EventType::Write | EventType::Ensure => (zero, event_value),
+            EventType::Read => (event_value, zero),
+            EventType::GiveOwner | EventType::TakeOwner | EventType::CreditDelta => (zero, zero),
+        };
+
+        self.set_inputs_unsafe(
+            inputs,
+            block_number,
+            address,
+            object_flags,
+            old_owner,
+            new_owner,
+            old_data,
+            new_data,
+            credit_delta,
+            event_owner,
+            event_ty,
+            event_value,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn set_inputs_unsafe<F: RichField>(
+        &self,
+        inputs: &mut PartialWitness<F>,
+        block_number: u64,
+        address: u64,
+        object_flags: BitFlags<Flags>,
+        old_owner: [F; 4],
+        new_owner: [F; 4],
+        old_data: [F; 4],
+        new_data: [F; 4],
+        credit_delta: i64,
+        event_owner: [F; 4],
+        event_ty: EventType,
+        event_value: [F; 4],
+    ) {
+        inputs.set_target(
+            self.targets.block_number,
+            F::from_canonical_u64(block_number),
+        );
+        inputs.set_target(self.targets.address, F::from_canonical_u64(address));
+        inputs.set_target(
+            self.targets.object_flags,
+            F::from_canonical_u8(object_flags.bits()),
+        );
+        inputs.set_target_arr(&self.targets.old_owner, &old_owner);
+        inputs.set_target_arr(&self.targets.new_owner, &new_owner);
+        inputs.set_target_arr(&self.targets.old_data, &old_data);
+        inputs.set_target_arr(&self.targets.new_data, &new_data);
+        inputs.set_target(
+            self.targets.credit_delta,
+            F::from_noncanonical_i64(credit_delta),
+        );
+        inputs.set_target_arr(&self.targets.event_owner, &event_owner);
+        inputs.set_target(
+            self.targets.event_ty,
+            F::from_canonical_u64(event_ty as u64),
+        );
+        inputs.set_target_arr(&self.targets.event_value, &event_value);
+    }
+}
+
+pub struct BranchInputs {
+    /// The block number being accumulated under
+    pub block_number: Target,
+
+    /// The events/object address
+    pub address: Target,
+
+    /// The (partial) object flags
+    pub object_flags: Target,
+
+    /// The previous constraint owner
+    pub old_owner: [Target; 4],
+
+    /// The new constraint owner
+    pub new_owner: [Target; 4],
+
+    /// The previous data
+    pub old_data: [Target; 4],
+
+    /// The new data
+    pub new_data: [Target; 4],
+
+    /// The credit delta
+    pub credit_delta: Target,
+}
+
+pub struct BranchTargets {
+    /// The left direction
+    pub left: BranchDirectionTargets,
+
+    /// The right direction
+    pub right: BranchDirectionTargets,
+
+    /// The block number being accumulated under
+    pub block_number: Target,
+
+    /// The events/object address
+    pub address: Target,
+
+    /// The (partial) object flags
+    pub object_flags: Target,
+
+    /// The previous constraint owner
+    pub old_owner: [Target; 4],
+
+    /// The new constraint owner
+    pub new_owner: [Target; 4],
+
+    /// The previous data
+    pub old_data: [Target; 4],
+
+    /// The new data
+    pub new_data: [Target; 4],
+
+    /// The credit delta
+    pub credit_delta: Target,
+}
+
+pub struct BranchDirectionTargets {
+    /// The block number being accumulated under
+    pub block_number: Target,
+
+    /// The events/object address
+    pub address: Target,
+
+    /// The (partial) object flags
+    pub object_flags: Target,
+
+    /// The previous constraint owner
+    pub old_owner: [Target; 4],
+
+    /// The new constraint owner
+    pub new_owner: [Target; 4],
+
+    /// The previous data
+    pub old_data: [Target; 4],
+
+    /// The new data
+    pub new_data: [Target; 4],
+
+    /// The credit delta
+    pub credit_delta: Target,
+}
+
+impl BranchInputs {
+    pub fn default<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Self {
+        let block_number = builder.add_virtual_target();
+        let address = builder.add_virtual_target();
+        let object_flags = builder.add_virtual_target();
+        let old_owner = builder.add_virtual_target_arr();
+        let new_owner = builder.add_virtual_target_arr();
+        let old_data = builder.add_virtual_target_arr();
+        let new_data = builder.add_virtual_target_arr();
+        let credit_delta = builder.add_virtual_target();
+
+        builder.register_public_input(block_number);
+        builder.register_public_input(address);
+        builder.register_public_input(object_flags);
+        builder.register_public_inputs(&old_owner);
+        builder.register_public_inputs(&new_owner);
+        builder.register_public_inputs(&old_data);
+        builder.register_public_inputs(&new_data);
+        builder.register_public_input(credit_delta);
+
+        Self {
+            block_number,
+            address,
+            object_flags,
+            old_owner,
+            new_owner,
+            old_data,
+            new_data,
+            credit_delta,
+        }
+    }
+
+    fn direction_from_node<const D: usize>(
+        proof: &ProofWithPublicInputsTarget<D>,
+        indices: &PublicIndices,
+    ) -> BranchDirectionTargets {
+        let block_number = indices.get_block_number(&proof.public_inputs);
+        let address = indices.get_address(&proof.public_inputs);
+        let object_flags = indices.get_object_flags(&proof.public_inputs);
+        let old_owner = indices.get_old_owner(&proof.public_inputs);
+        let new_owner = indices.get_new_owner(&proof.public_inputs);
+        let old_data = indices.get_old_data(&proof.public_inputs);
+        let new_data = indices.get_new_data(&proof.public_inputs);
+        let credit_delta = indices.get_credit_delta(&proof.public_inputs);
+
+        BranchDirectionTargets {
+            block_number,
+            address,
+            object_flags,
+            old_owner,
+            new_owner,
+            old_data,
+            new_data,
+            credit_delta,
+        }
+    }
+
+    fn build_helper<F: RichField + Extendable<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
+        left: BranchDirectionTargets,
+        right: BranchDirectionTargets,
+    ) -> BranchTargets {
+        let Self {
+            block_number,
+            address,
+            object_flags,
+            old_owner,
+            new_owner,
+            old_data,
+            new_data,
+            credit_delta,
+        } = self;
+
+        builder.connect(block_number, left.block_number);
+        builder.connect(block_number, right.block_number);
+
+        builder.connect(address, left.address);
+        builder.connect(address, right.address);
+
+        // Split up the flags
+        let parent_flags = SplitFlags::split(builder, object_flags);
+        let left_flags = SplitFlags::split(builder, left.object_flags);
+        let right_flags = SplitFlags::split(builder, right.object_flags);
+
+        // These flags can only be set once, so we can just add
+        let write_flag_calc = builder.add(left_flags.write.target, right_flags.write.target);
+        let give_owner_flag_calc =
+            builder.add(left_flags.give_owner.target, right_flags.give_owner.target);
+        let take_owner_flag_calc =
+            builder.add(left_flags.take_owner.target, right_flags.take_owner.target);
+        builder.connect(write_flag_calc, parent_flags.write.target);
+        builder.connect(give_owner_flag_calc, parent_flags.give_owner.target);
+        builder.connect(take_owner_flag_calc, parent_flags.take_owner.target);
+
+        // These flags can be set multiple times, so we must use `or`
+        let ensure_flag_calc = builder.or(left_flags.ensure, right_flags.ensure);
+        let read_flag_calc = builder.or(left_flags.read, right_flags.read);
+        builder.connect(ensure_flag_calc.target, parent_flags.ensure.target);
+        builder.connect(read_flag_calc.target, parent_flags.read.target);
+
+        // Presence check for matching object fields
+        let left_has_new_data = builder.is_nonzero(left_flags.new_data);
+        let right_has_new_data = builder.is_nonzero(right_flags.new_data);
+        let left_has_owner = builder.is_nonzero(left_flags.owner);
+        let right_has_owner = builder.is_nonzero(right_flags.owner);
+
+        // Check all the object fields
+        for (old_owner, (left_old_owner, right_old_owner)) in
+            zip(old_owner, zip(left.old_owner, right.old_owner))
+        {
+            let left_old_owner = builder.select(left_has_owner, left_old_owner, old_owner);
+            let right_old_owner = builder.select(right_has_owner, right_old_owner, old_owner);
+            builder.connect(old_owner, left_old_owner);
+            builder.connect(old_owner, right_old_owner);
+        }
+
+        for (new_owner, (left_new_owner, right_new_owner)) in
+            zip(new_owner, zip(left.new_owner, right.new_owner))
+        {
+            let left_new_owner = builder.select(left_has_owner, left_new_owner, new_owner);
+            let right_new_owner = builder.select(right_has_owner, right_new_owner, new_owner);
+            builder.connect(new_owner, left_new_owner);
+            builder.connect(new_owner, right_new_owner);
+        }
+
+        for (old_data, (left_old_data, right_old_data)) in
+            zip(old_data, zip(left.old_data, right.old_data))
+        {
+            let left_old_data = builder.select(left_flags.read, left_old_data, old_data);
+            let right_old_data = builder.select(right_flags.read, right_old_data, old_data);
+            builder.connect(old_data, left_old_data);
+            builder.connect(old_data, right_old_data);
+        }
+
+        for (new_data, (left_new_data, right_new_data)) in
+            zip(new_data, zip(left.new_data, right.new_data))
+        {
+            let left_new_data = builder.select(left_has_new_data, left_new_data, new_data);
+            let right_new_data = builder.select(right_has_new_data, right_new_data, new_data);
+            builder.connect(new_data, left_new_data);
+            builder.connect(new_data, right_new_data);
+        }
+
+        let credit_delta_calc = builder.add(left.credit_delta, right.credit_delta);
+        builder.connect(credit_delta_calc, credit_delta);
+
+        BranchTargets {
+            left,
+            right,
+            block_number,
+            address,
+            object_flags,
+            old_owner,
+            new_owner,
+            old_data,
+            new_data,
+            credit_delta,
+        }
+    }
+
+    #[must_use]
+    pub fn from_leaf<F: RichField + Extendable<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
+        leaf: &LeafSubCircuit,
+        left_proof: &ProofWithPublicInputsTarget<D>,
+        right_proof: &ProofWithPublicInputsTarget<D>,
+    ) -> BranchTargets {
+        let left = Self::direction_from_node(left_proof, &leaf.indices);
+        let right = Self::direction_from_node(right_proof, &leaf.indices);
+        self.build_helper(builder, left, right)
+    }
+
+    pub fn from_branch<F: RichField + Extendable<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
+        branch: &BranchSubCircuit,
+        left_proof: &ProofWithPublicInputsTarget<D>,
+        right_proof: &ProofWithPublicInputsTarget<D>,
+    ) -> BranchTargets {
+        let left = Self::direction_from_node(left_proof, &branch.indices);
+        let right = Self::direction_from_node(right_proof, &branch.indices);
+        self.build_helper(builder, left, right)
+    }
+}
+
+pub struct BranchSubCircuit {
+    pub targets: BranchTargets,
+    pub indices: PublicIndices,
+    /// The distance from the leaves (`0` being the lowest branch)
+    /// Used for debugging
+    pub dbg_height: usize,
+}
+
+impl BranchTargets {
+    fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices {
+        PublicIndices {
+            block_number: public_inputs
+                .iter()
+                .position(|&pi| pi == self.block_number)
+                .expect("target not found"),
+            address: public_inputs
+                .iter()
+                .position(|&pi| pi == self.address)
+                .expect("target not found"),
+            object_flags: public_inputs
+                .iter()
+                .position(|&pi| pi == self.object_flags)
+                .expect("target not found"),
+            old_owner: self.old_owner.map(|target| {
+                public_inputs
+                    .iter()
+                    .position(|&pi| pi == target)
+                    .expect("target not found")
+            }),
+            new_owner: self.new_owner.map(|target| {
+                public_inputs
+                    .iter()
+                    .position(|&pi| pi == target)
+                    .expect("target not found")
+            }),
+            old_data: self.old_data.map(|target| {
+                public_inputs
+                    .iter()
+                    .position(|&pi| pi == target)
+                    .expect("target not found")
+            }),
+            new_data: self.new_data.map(|target| {
+                public_inputs
+                    .iter()
+                    .position(|&pi| pi == target)
+                    .expect("target not found")
+            }),
+            credit_delta: public_inputs
+                .iter()
+                .position(|&pi| pi == self.credit_delta)
+                .expect("target not found"),
+        }
+    }
+
+    #[must_use]
+    pub fn from_leaf(self, public_inputs: &[Target]) -> BranchSubCircuit {
+        BranchSubCircuit {
+            indices: self.get_indices(public_inputs),
+            targets: self,
+            dbg_height: 0,
+        }
+    }
+
+    #[must_use]
+    pub fn from_branch(
+        self,
+        branch: &BranchSubCircuit,
+        public_inputs: &[Target],
+    ) -> BranchSubCircuit {
+        BranchSubCircuit {
+            indices: self.get_indices(public_inputs),
+            targets: self,
+            dbg_height: branch.dbg_height + 1,
+        }
+    }
+}
+
+impl BranchSubCircuit {
+    #[allow(clippy::too_many_arguments)]
+    pub fn set_inputs<F: RichField>(
+        &self,
+        inputs: &mut PartialWitness<F>,
+        block_number: u64,
+        address: u64,
+        object_flags: BitFlags<Flags>,
+        old_owner: [F; 4],
+        new_owner: [F; 4],
+        old_data: [F; 4],
+        new_data: [F; 4],
+        credit_delta: i64,
+    ) {
+        inputs.set_target(
+            self.targets.block_number,
+            F::from_canonical_u64(block_number),
+        );
+        inputs.set_target(self.targets.address, F::from_canonical_u64(address));
+        inputs.set_target(
+            self.targets.object_flags,
+            F::from_canonical_u8(object_flags.bits()),
+        );
+        inputs.set_target_arr(&self.targets.old_owner, &old_owner);
+        inputs.set_target_arr(&self.targets.new_owner, &new_owner);
+        inputs.set_target_arr(&self.targets.old_data, &old_data);
+        inputs.set_target_arr(&self.targets.new_data, &new_data);
+        inputs.set_target(
+            self.targets.credit_delta,
+            F::from_noncanonical_i64(credit_delta),
+        );
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use anyhow::Result;
+    use plonky2::field::types::Field;
+    use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+    use plonky2::plonk::proof::ProofWithPublicInputs;
+
+    use super::*;
+    use crate::recproof::unbounded;
+    use crate::test_utils::{C, D, F};
+
+    pub struct DummyLeafCircuit {
+        pub state_from_events: LeafSubCircuit,
+        pub unbounded: unbounded::LeafSubCircuit,
+        pub circuit: CircuitData<F, C, D>,
+    }
+
+    impl DummyLeafCircuit {
+        #[must_use]
+        pub fn new(circuit_config: &CircuitConfig) -> Self {
+            let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+
+            let state_from_events_inputs = LeafInputs::default(&mut builder);
+            let state_from_events_targets = state_from_events_inputs.build(&mut builder);
+            let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
+            let state_from_events =
+                state_from_events_targets.build(&circuit.prover_only.public_inputs);
+
+            Self {
+                state_from_events,
+                unbounded,
+                circuit,
+            }
+        }
+
+        pub fn prove(
+            &self,
+            branch: &DummyBranchCircuit,
+            block_number: u64,
+            address: u64,
+            event_owner: [F; 4],
+            event_ty: EventType,
+            event_value: [F; 4],
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+            let mut inputs = PartialWitness::new();
+            self.state_from_events.set_inputs(
+                &mut inputs,
+                block_number,
+                address,
+                event_owner,
+                event_ty,
+                event_value,
+            );
+            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+            self.circuit.prove(inputs)
+        }
+
+        #[allow(dead_code)]
+        #[allow(clippy::too_many_arguments)]
+        fn prove_unsafe(
+            &self,
+            branch: &DummyBranchCircuit,
+            block_number: u64,
+            address: u64,
+            object_flags: BitFlags<Flags>,
+            old_owner: [F; 4],
+            new_owner: [F; 4],
+            old_data: [F; 4],
+            new_data: [F; 4],
+            credit_delta: i64,
+            event_owner: [F; 4],
+            event_ty: EventType,
+            event_value: [F; 4],
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+            let mut inputs = PartialWitness::new();
+            self.state_from_events.set_inputs_unsafe(
+                &mut inputs,
+                block_number,
+                address,
+                object_flags,
+                old_owner,
+                new_owner,
+                old_data,
+                new_data,
+                credit_delta,
+                event_owner,
+                event_ty,
+                event_value,
+            );
+            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+            self.circuit.prove(inputs)
+        }
+    }
+
+    pub struct DummyBranchCircuit {
+        pub state_from_events: BranchSubCircuit,
+        pub unbounded: unbounded::BranchSubCircuit,
+        pub circuit: CircuitData<F, C, D>,
+        pub targets: DummyBranchTargets,
+    }
+
+    pub struct DummyBranchTargets {
+        pub left_is_leaf: BoolTarget,
+        pub right_is_leaf: BoolTarget,
+        pub left_proof: ProofWithPublicInputsTarget<D>,
+        pub right_proof: ProofWithPublicInputsTarget<D>,
+    }
+
+    impl DummyBranchCircuit {
+        #[must_use]
+        pub fn new(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
+            let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+            let common = &leaf.circuit.common;
+            let left_proof = builder.add_virtual_proof_with_pis(common);
+            let right_proof = builder.add_virtual_proof_with_pis(common);
+            let left_is_leaf = builder.add_virtual_bool_target_safe();
+            let right_is_leaf = builder.add_virtual_bool_target_safe();
+
+            let state_from_events_inputs = BranchInputs::default(&mut builder);
+
+            let state_from_events_targets = state_from_events_inputs.from_leaf(
+                &mut builder,
+                &leaf.state_from_events,
+                &left_proof,
+                &right_proof,
+            );
+            let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
+                builder,
+                &leaf.circuit,
+                left_is_leaf,
+                right_is_leaf,
+                &left_proof,
+                &right_proof,
+            );
+
+            let targets = DummyBranchTargets {
+                left_is_leaf,
+                right_is_leaf,
+                left_proof,
+                right_proof,
+            };
+            let state_from_events =
+                state_from_events_targets.from_leaf(&circuit.prover_only.public_inputs);
+
+            Self {
+                state_from_events,
+                unbounded,
+                circuit,
+                targets,
+            }
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        pub fn prove(
+            &self,
+            block_number: u64,
+            address: u64,
+            object_flags: BitFlags<Flags>,
+            old_owner: [F; 4],
+            new_owner: [F; 4],
+            old_data: [F; 4],
+            new_data: [F; 4],
+            credit_delta: i64,
+            left_is_leaf: bool,
+            left_proof: &ProofWithPublicInputs<F, C, D>,
+            right_is_leaf: bool,
+            right_proof: &ProofWithPublicInputs<F, C, D>,
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+            let mut inputs = PartialWitness::new();
+            self.state_from_events.set_inputs(
+                &mut inputs,
+                block_number,
+                address,
+                object_flags,
+                old_owner,
+                new_owner,
+                old_data,
+                new_data,
+                credit_delta,
+            );
+            inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
+            inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
+            inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
+            inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
+            self.circuit.prove(inputs)
+        }
+    }
+
+    #[test]
+    fn verify_leaf() -> Result<()> {
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let leaf = DummyLeafCircuit::new(&circuit_config);
+        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
+
+        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+        let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
+
+        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
+        let non_zero_val_2 = [42, 0, 0, 0].map(F::from_canonical_u64);
+        let non_zero_val_3 = [42, 0, 0, 1].map(F::from_canonical_u64);
+
+        let proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_1,
+            EventType::Write,
+            non_zero_val_1,
+        )?;
+        leaf.circuit.verify(proof)?;
+
+        let proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_1,
+            EventType::Read,
+            non_zero_val_1,
+        )?;
+        leaf.circuit.verify(proof)?;
+
+        let proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_1,
+            EventType::Ensure,
+            non_zero_val_1,
+        )?;
+        leaf.circuit.verify(proof)?;
+
+        let proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_1,
+            EventType::GiveOwner,
+            program_hash_2,
+        )?;
+        leaf.circuit.verify(proof)?;
+
+        let proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_2,
+            EventType::TakeOwner,
+            program_hash_1,
+        )?;
+        leaf.circuit.verify(proof)?;
+
+        let proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_1,
+            EventType::CreditDelta,
+            non_zero_val_2,
+        )?;
+        leaf.circuit.verify(proof)?;
+
+        let proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_1,
+            EventType::CreditDelta,
+            non_zero_val_3,
+        )?;
+        leaf.circuit.verify(proof)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn verify_branch() -> Result<()> {
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let leaf = DummyLeafCircuit::new(&circuit_config);
+        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
+
+        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+        // let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
+
+        let zero_val = [F::ZERO; 4];
+        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
+        let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
+        // let non_zero_val_3 = [42, 0, 0, 0].map(F::from_canonical_u64);
+        // let non_zero_val_4 = [23, 0, 0, 1].map(F::from_canonical_u64);
+
+        let read_proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_1,
+            EventType::Read,
+            non_zero_val_1,
+        )?;
+        leaf.circuit.verify(read_proof.clone())?;
+
+        let write_proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_1,
+            EventType::Write,
+            non_zero_val_2,
+        )?;
+        leaf.circuit.verify(write_proof.clone())?;
+
+        let ensure_proof = leaf.prove(
+            &branch,
+            10,
+            200,
+            program_hash_1,
+            EventType::Ensure,
+            non_zero_val_2,
+        )?;
+        leaf.circuit.verify(ensure_proof.clone())?;
+
+        let branch_proof_1 = branch.prove(
+            10,
+            200,
+            Flags::ReadFlag | Flags::WriteFlag,
+            zero_val,
+            zero_val,
+            non_zero_val_1,
+            non_zero_val_2,
+            0,
+            true,
+            &read_proof,
+            true,
+            &write_proof,
+        )?;
+        branch.circuit.verify(branch_proof_1)?;
+
+        let branch_proof_1 = branch.prove(
+            10,
+            200,
+            Flags::ReadFlag | Flags::WriteFlag,
+            zero_val,
+            zero_val,
+            non_zero_val_1,
+            non_zero_val_2,
+            0,
+            true,
+            &write_proof,
+            true,
+            &read_proof,
+        )?;
+        branch.circuit.verify(branch_proof_1)?;
+
+        Ok(())
+    }
+}
