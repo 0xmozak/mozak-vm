@@ -295,8 +295,7 @@ impl std::fmt::Debug for RawMessage {
     }
 }
 
-#[cfg(not(target_os = "mozakvm"))]
-impl std::ops::Deref for RawMessage {
+impl core::ops::Deref for RawMessage {
     type Target = Vec<u8>;
 
     fn deref(&self) -> &Self::Target { &self.0 }
