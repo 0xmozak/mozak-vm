@@ -4,7 +4,9 @@ use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{ArgsReturn, CPCMessage, Event, ProgramIdentifier, RawMessage};
+#[cfg(not(target_os = "mozakvm"))]
+use crate::coretypes::{ArgsReturn, RawMessage};
+use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
