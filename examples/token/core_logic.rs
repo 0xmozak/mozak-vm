@@ -51,8 +51,8 @@ fn state_object_data_to_token_object(value: StateObject) -> TokenObject {
 
 #[allow(dead_code)]
 pub fn transfer(
-    self_prog_id: ProgramIdentifier, // ContextVariables Table
-    state_object: StateObject,       //
+    self_prog_id: ProgramIdentifier,
+    state_object: StateObject,
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
