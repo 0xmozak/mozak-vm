@@ -1,7 +1,7 @@
 #![feature(restricted_std)]
 extern crate alloc;
 
-use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};
+use mozak_sdk::coretypes::{Event, ProgramIdentifier, StateObject};
 use mozak_sdk::sys::{call_send, event_emit};
 use rkyv::{Archive, Deserialize, Serialize};
 use wallet::TokenObject;
