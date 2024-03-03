@@ -4,7 +4,7 @@ use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
+use crate::coretypes::{ArgsReturn, CPCMessage, Event, ProgramIdentifier, RawMessage};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -191,13 +191,13 @@ impl CallTape {
             assert!(self.is_casted_actor(&callee_prog));
 
             assert_eq!(
-                cpcmsg.args.0,
+                cpcmsg.args_ret.args.0,
                 rkyv::to_bytes::<_, 256>(&call_args).unwrap().to_vec()
             );
 
             self.index += 1;
 
-            let zcd_ret = unsafe { rkyv::archived_root::<R>(&cpcmsg.ret.0[..]) };
+            let zcd_ret = unsafe { rkyv::archived_root::<R>(&cpcmsg.args_ret.ret.0[..]) };
             <<R as Archive>::Archived as Deserialize<R, rkyv::Infallible>>::deserialize(
                 zcd_ret,
                 &mut rkyv::Infallible,
@@ -206,19 +206,24 @@ impl CallTape {
         }
         #[cfg(not(target_os = "mozakvm"))]
         {
+            let args: RawMessage = rkyv::to_bytes::<_, 256>(&call_args).unwrap().into();
+
             let msg = CPCMessage {
                 caller_prog,
                 callee_prog,
-                args: rkyv::to_bytes::<_, 256>(&call_args).unwrap().into(),
-                ..CPCMessage::default()
+                args_ret: ArgsReturn {
+                    args,
+                    ret: RawMessage::default(),
+                },
             };
 
             self.writer.push(msg);
             let inserted_idx = self.writer.len() - 1;
 
             let retval = dispatch_native(call_args);
-
-            self.writer[inserted_idx].ret = rkyv::to_bytes::<_, 256>(&retval).unwrap().into();
+            let ret: RawMessage = rkyv::to_bytes::<_, 256>(&retval).unwrap().into();
+            self.writer[inserted_idx].args_ret.ret =
+                rkyv::to_bytes::<_, 256>(&retval).unwrap().into();
 
             println!(
                 "[CALL ] ResolvedAdd: {:#?}",
