@@ -273,6 +273,11 @@ impl std::fmt::Debug for StateObject {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
+#[cfg_attr(target_os = "mozakvm", derive(Debug))]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct RawMessage(pub Vec<u8>);
 
 #[cfg(not(target_os = "mozakvm"))]
@@ -305,6 +310,19 @@ impl From<AlignedVec> for RawMessage {
     fn from(value: AlignedVec) -> RawMessage { RawMessage(value.into_vec()) }
 }
 
+/// The arguments and expected return value in a cross-program call message.
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+pub struct ArgsReturn {
+    pub args: RawMessage,
+    pub ret: RawMessage,
+}
+
 /// Canonical "address" type of object in "mozak vm".
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
@@ -320,9 +338,9 @@ pub struct CPCMessage {
     /// and methodID
     pub callee_prog: ProgramIdentifier,
 
-    /// raw message over cpc
-    pub args: RawMessage,
-    pub ret: RawMessage,
+    /// The arguments and expected return value (each represented as a
+    /// `RawMessage`) in this `CPCMessage`.
+    pub args_ret: ArgsReturn,
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
