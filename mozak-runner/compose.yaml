@@ -30,7 +30,7 @@ services:
     build: .
     volumes:
       - "nix-store:/nix"
-    entrypoint: ["/root/.nix-profile/bin/nix", "daemon", "--debug"]
+    entrypoint: ["/root/.nix-profile/bin/nix", "daemon"]
     # Check if we can build a small nix package from a know version of nixpkgs
     healthcheck:
       test: nix build --no-link github:NixOS/nixpkgs/nixos-23.11-small#hello || exit 1
