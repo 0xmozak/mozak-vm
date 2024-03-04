@@ -1,6 +1,20 @@
 FROM myoung34/github-runner:latest
-RUN curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install linux \
-  --extra-conf "sandbox = false" \
-  --init none \
-  --no-confirm
+
+# Download nix installer
+RUN curl --proto '=https' \
+--tlsv1.2 \
+--silent \
+--show-error \
+--fail \
+--location https://install.determinate.systems/nix \
+# Pipe the installation script to shell
+| sh -s -- \
+install linux \
+# Disable sanbox
+--extra-conf "sandbox = false" \
+# Do nothing as we will be manually starting the nix daemon
+--init none \
+--no-confirm
+
+# There shouldn't be any conflicts
 ENV PATH="${PATH}:/nix/var/nix/profiles/default/bin"
