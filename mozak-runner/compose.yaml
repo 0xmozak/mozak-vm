@@ -7,6 +7,10 @@ services:
     build: .
     deploy:
       replicas: $MOZAK_RUNNER_REPLICAS
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '8gb'
     # Ensure nix daemon is working before starting build agents
     depends_on:
       nix:
