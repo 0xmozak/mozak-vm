@@ -2,10 +2,12 @@
 
 ## Setup
 
-Copy `.env.in` to `.env` and edit it.
+Copy `tempalte.env` to `.env` and edit it.  Make sure to provide your
+GitHub PAT token as outlined by [Enroll Sekf-Hosted CI Runner Notion
+Page](https://www.notion.so/0xmozak/Enroll-Self-Hosted-CI-Runner-af6ddd3897594970b6ec4106ebde228f?pvs=4).
 
 ```shell
-$ cp .env.in .env
+$ cp tempalte.env .env
 ```
 
 Verify your configuration using `docker compose config`.  It should
