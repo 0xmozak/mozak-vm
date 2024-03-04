@@ -203,7 +203,7 @@ impl std::fmt::Display for ProgramIdentifier {
 impl From<String> for ProgramIdentifier {
     fn from(value: String) -> ProgramIdentifier {
         // We assume all string presented here are of the following form:
-        // MZK-0b7114fb-021f033e-0
+        // MZK-0b7114fb-021f033e-00
         // where:
         //      `MZK` is a common prefix
         //      `0b7..` is the program rom hash
