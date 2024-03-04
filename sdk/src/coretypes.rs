@@ -154,7 +154,7 @@ impl std::fmt::Debug for ProgramIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "MZK-{}-{}-{}",
+            "MZK-{}-{}-{:0>2}",
             &self
                 .program_rom_hash
                 .to_le_bytes()
@@ -179,7 +179,7 @@ impl std::fmt::Display for ProgramIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "MZK-{}-{}-{}",
+            "MZK-{}-{}-{:0>2}",
             &self
                 .program_rom_hash
                 .to_le_bytes()
@@ -202,28 +202,33 @@ impl std::fmt::Display for ProgramIdentifier {
 #[cfg(not(target_os = "mozakvm"))]
 impl From<String> for ProgramIdentifier {
     fn from(value: String) -> ProgramIdentifier {
-        fn even_str(s: String) -> String {
-            if s.len() % 2 == 1 {
-                return s + "0";
-            }
-            s
+        // We assume all string presented here are of the following form:
+        // MZK-0b7114fb-021f033e-00
+        // where:
+        //      `MZK` is a common prefix
+        //      `0b7..` is the program rom hash
+        //      `021..` is the memory init hash
+        //      `00` is a u32 for program's entry point
+
+        fn u32_from_str(str: &str) -> u32 {
+            assert!(str.len() <= 4);
+            let mut u32_vec_repr = hex::decode(str).unwrap();
+            u32_vec_repr.resize(4, 0);
+            u32::from_le_bytes(
+                <&[u8] as TryInto<[u8; 4]>>::try_into(&u32_vec_repr[0..4])
+                    .expect("Vec<u8> must have exactly 4 elements")
+                    .into(),
+            )
         }
+
         let components: Vec<&str> = value.split("-").collect();
         assert_eq!(components.len(), 4);
         assert_eq!(components[0], "MZK");
-        let mut entry_point_vec_repr: Vec<u8> =
-            hex::decode(even_str(components[3].to_string())).unwrap();
-        assert!(entry_point_vec_repr.len() <= 4);
-        entry_point_vec_repr.resize(4, 0);
 
         ProgramIdentifier {
             program_rom_hash: hex::decode(components[1]).unwrap().into(),
             memory_init_hash: hex::decode(components[2]).unwrap().into(),
-            entry_point: u32::from_le_bytes(
-                <&[u8] as TryInto<[u8; 4]>>::try_into(&entry_point_vec_repr[0..4])
-                    .expect("Vec<u8> must have exactly 4 elements")
-                    .into(),
-            ),
+            entry_point: u32_from_str(components[3]),
         }
     }
 }

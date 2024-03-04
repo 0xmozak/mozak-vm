@@ -29,5 +29,5 @@ MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
     examples/target/riscv32im-mozak-mozakvm-elf/release/walletbin \
     --system-tape examples/wallet_approve.tape_bin \
-    --self-prog-id MZK-155a7957-1f2314bd-0;
+    --self-prog-id MZK-155a7957-1f2314bd-00;
 ```
