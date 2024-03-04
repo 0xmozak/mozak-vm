@@ -205,3 +205,27 @@ $ docker compose down --volumes
  ✔ Network mozak_default     Removed
 ```
 
+## Nix Store Maintenance
+
+By default `nix` will keep all of its build cache in the `nix-store`
+volume.  In order to garbage collect unused paths from `nix-store`
+execute `nix store gc` in the `mozak-nix-1` container:
+
+```shell
+$ docker exec --tty mozak-nix-1 nix store gc
+78 store paths deleted, 834.85 MiB freed
+```
+
+Please note that garbage collecting paths from `nix-store` might make
+other paths collectable, so sometimes one needs to run `nix store gc`
+multiple times, until it reports that it is not deleting any paths
+anymore.
+
+```shell
+docker exec --tty mozak-nix-1 nix store gc
+0 store paths deleted, 0.00 MiB freed
+```
+
+Also, please do note that on some systems Docker Volumes need to be
+manually compacted, so it might be easier to tear down the runner and
+the volume as described above.
