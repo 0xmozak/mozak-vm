@@ -16,5 +16,4 @@ install linux \
 --init none \
 --no-confirm
 
-# There shouldn't be any conflicts
-ENV PATH="${PATH}:/nix/var/nix/profiles/default/bin"
+ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
