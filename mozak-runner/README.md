@@ -1,13 +1,20 @@
 # Self-Hosted GitHub Runner for Mozak
 
-Self-hosted GitHub Runners with
+[Compose file](https://docs.docker.com/compose/compose-file/) for
+running self-hosted GitHub Runners with
 - `nix` preinstalled,
 - shared `nix` daemon, and
-- shared `nix` store in a separate Docker volume.
+- shared `nix` store in a separate Docker volume
 
-Using
+using
+- [docker compose](https://docs.docker.com/compose/),
 - [myoung34/github-runner](https://github.com/myoung34/docker-github-actions-runner?tab=readme-ov-file), and
 - [DeterminateSystems/nix-installer](https://github.com/DeterminateSystems/nix-installer).
+
+Starting from 2020, `docker compose` ships with all installations of
+Docker Desktop.  In case it is missing on your system, manual
+installation instructions are available on [Docker
+Documentation](https://docs.docker.com/compose/migrate/#how-do-i-switch-to-compose-v2).
 
 ## Setup
 
