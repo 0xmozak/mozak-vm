@@ -1,20 +1,85 @@
 # Self-Hosted GitHub Runner for Mozak
 
+Self-hosted GitHub Runners with
+- `nix` preinstalled,
+- shared `nix` daemon, and
+- shared `nix` store in a separate Docker volume.
+
+Using
+- [myoung34/github-runner](https://github.com/myoung34/docker-github-actions-runner?tab=readme-ov-file), and
+- [DeterminateSystems/nix-installer](https://github.com/DeterminateSystems/nix-installer).
+
 ## Setup
 
-Copy `tempalte.env` to `.env` and edit it.  Make sure to provide your
+Copy `template.env` to `.env` and edit it.  Make sure to provide your
 GitHub PAT token as outlined by [Enroll Sekf-Hosted CI Runner Notion
 Page](https://www.notion.so/0xmozak/Enroll-Self-Hosted-CI-Runner-af6ddd3897594970b6ec4106ebde228f?pvs=4).
 
+Since we will be putting our PAT into `.env`, we need to restrict it's
+permissions.  Please ensure that it has either
+
+- `600` (readable and writeable by the owner), or even better
+- `400` (readable by the owner) after editing it.
+
 ```shell
 $ cp tempalte.env .env
+$ chmod 600 .env
+```
+
+After editing `.env` file, please restrict it's permissions to `400`.
+
+```shell
+$ chmod 400 .env
 ```
 
 Verify your configuration using `docker compose config`.  It should
-print out your configuration.
+print out your configuration.  Please verify that your configuration
+from `.env` has been properly loaded by inspecting:
+
+- `replicas`,
+- `ACCESS_TOKEN`,
+- `RUNNER_NAME_PREFIX`,
+- volume's `source:` to contain your `MOZAK_RUNNER_CACHE`.
 
 ```shell
-$ docker compose config
+$ docker compose config \
+  grep -E 'replicas|ACCESS_TOKEN|RUNNER_NAME_PREFIX|source'
+
+      source: nix-store
+      replicas: 3
+      ACCESS_TOKEN: github_pat_<rest-of-your-token>
+      RUNNER_NAME_PREFIX: <your runner prefix>
+        source: /var/run/docker.sock
+        source: <path specified in MOZAK_RUNNER_CACHE>
+        source: nix-store
+```
+
+## Building Containers
+
+You can build containers using `docker compose build`.
+
+```shell
+$ docker compose build
+[+] Building 0.1s (9/9) FINISHED                                                                              docker:orbstack
+ => [nix internal] load build definition from Dockerfile                                                                 0.0s
+ => => transferring dockerfile: 488B                                                                                     0.0s
+ => [runner internal] load metadata for docker.io/myoung34/github-runner:latest                                          0.0s
+ => [nix internal] load .dockerignore                                                                                    0.0s
+ => => transferring context: 42B                                                                                         0.0s
+ => [runner 1/2] FROM docker.io/myoung34/github-runner:latest                                                            0.0s
+ => CACHED [runner 2/2] RUN curl --proto '=https' --tlsv1.2 --silent --show-error --fail --location https://install.det  0.0s
+ => [nix] exporting to image                                                                                             0.0s
+ => => exporting layers                                                                                                  0.0s
+ => => writing image sha256:20c8bfe3f84458a1af3aa2c035224e88445aa1b6e2c60006252346f31eef24ff                             0.0s
+ => => naming to docker.io/library/mozak-nix                                                                             0.0s
+ => [runner internal] load build definition from Dockerfile                                                              0.0s
+ => => transferring dockerfile: 488B                                                                                     0.0s
+ => [runner internal] load .dockerignore                                                                                 0.0s
+ => => transferring context: 42B                                                                                         0.0s
+ => [runner] exporting to image                                                                                          0.0s
+ => => exporting layers                                                                                                  0.0s
+ => => writing image sha256:ca8b18a9d6d49c2865b48f21eed0067570ad1d58c634f58175a3cf2ce5a3938a                             0.0s
+ => => naming to docker.io/library/mozak-runner                                                                          0.0s
 ```
 
 ## Start
