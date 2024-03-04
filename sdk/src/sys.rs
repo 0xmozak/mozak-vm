@@ -176,8 +176,9 @@ impl CallTape {
         _dispatch_mozakvm: impl Fn() -> R,
     ) -> R
     where
-        A: CallArgument,
+        A: CallArgument + PartialEq,
         R: CallReturn,
+        <A as Archive>::Archived: Deserialize<A, rkyv::Infallible>,
         <R as Archive>::Archived: Deserialize<R, rkyv::Infallible>, {
         #[cfg(target_os = "mozakvm")]
         {
@@ -190,10 +191,14 @@ impl CallTape {
             assert_eq!(cpcmsg.callee_prog, callee_prog);
             assert!(self.is_casted_actor(&callee_prog));
 
-            assert_eq!(
-                cpcmsg.args.0,
-                rkyv::to_bytes::<_, 256>(&call_args).unwrap().to_vec()
-            );
+            let zcd_args = unsafe { rkyv::archived_root::<A>(&cpcmsg.args.0[..]) };
+            let deserialized_args = <<A as Archive>::Archived as Deserialize<
+                A,
+                rkyv::Infallible,
+            >>::deserialize(zcd_args, &mut rkyv::Infallible)
+            .unwrap();
+
+            assert!(deserialized_args == call_args);
 
             self.index += 1;
 
@@ -367,8 +372,9 @@ pub fn call_send<A, R>(
     dispatch_mozakvm: impl Fn() -> R,
 ) -> R
 where
-    A: CallArgument,
+    A: CallArgument + PartialEq,
     R: CallReturn,
+    <A as Archive>::Archived: Deserialize<A, rkyv::Infallible>,
     <R as Archive>::Archived: Deserialize<R, rkyv::Infallible>, {
     unsafe {
         SYSTEM_TAPES.call_tape.to_mailbox(
