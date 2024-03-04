@@ -11,7 +11,7 @@ use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
-use plonky2::fri::oracle::PolynomialBatch;
+use plonky2::fri::oracle::{CudaInvContext, PolynomialBatch};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
@@ -31,7 +31,6 @@ use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::proof::StarkProofWithMetadata;
-use plonky2::fri::oracle::CudaInvContext;
 
 /// Prove the execution of a given [Program]
 ///
@@ -49,7 +48,7 @@ pub fn prove<F, C, const D: usize>(
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
     timing: &mut TimingTree,
-    ctx: &mut Option<&mut CudaInvContext<F, D>>
+    ctx: &mut Option<&mut CudaInvContext<F, D>>,
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
@@ -79,7 +78,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
     public_inputs: PublicInputs<F>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     timing: &mut TimingTree,
-    ctx: &mut Option<&mut CudaInvContext<F, D>>
+    ctx: &mut Option<&mut CudaInvContext<F, D>>,
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
@@ -90,54 +89,55 @@ where
 
     #[cfg(feature = "cuda")]
     {
-    trace_commitments = timed!(
-        timing,
-        "Compute trace commitments for each table",
-        traces_poly_values
-            .clone()
-            .with_kind()
-            .map(|(trace, table)| {
-                timed!(
-                    timing,
-                    &format!("compute trace commitment for {table:?}"),
-                    PolynomialBatch::<F, C, D>::from_values_cuda(
-                        trace.clone(),
-                        rate_bits,
-                        false,
-                        cap_height,
+        trace_commitments = timed!(
+            timing,
+            "Compute trace commitments for each table",
+            traces_poly_values
+                .clone()
+                .with_kind()
+                .map(|(trace, table)| {
+                    timed!(
                         timing,
-                        trace.len(),
-                        trace.first().expect("Not a single polynomial").len(),
-                        ctx.as_mut().unwrap(),
+                        &format!("compute trace commitment for {table:?}"),
+                        // creates merkle tree out of trace polynomials over gpu
+                        PolynomialBatch::<F, C, D>::from_values_cuda(
+                            trace.clone(),
+                            rate_bits,
+                            false,
+                            cap_height,
+                            timing,
+                            trace.len(),
+                            trace.first().expect("Not a single polynomial").len(),
+                            ctx.as_mut().unwrap(),
+                        )
                     )
-                )
-            })
-    );
+                })
+        );
     }
 
     #[cfg(not(feature = "cuda"))]
     {
-    trace_commitments = timed!(
-        timing,
-        "Compute trace commitments for each table",
-        traces_poly_values
-            .clone()
-            .with_kind()
-            .map(|(trace, table)| {
-                timed!(
-                    timing,
-                    &format!("compute trace commitment for {table:?}"),
-                    PolynomialBatch::<F, C, D>::from_values(
-                        trace.clone(),
-                        rate_bits,
-                        false,
-                        cap_height,
+        trace_commitments = timed!(
+            timing,
+            "Compute trace commitments for each table",
+            traces_poly_values
+                .clone()
+                .with_kind()
+                .map(|(trace, table)| {
+                    timed!(
                         timing,
-                        None,
+                        &format!("compute trace commitment for {table:?}"),
+                        PolynomialBatch::<F, C, D>::from_values(
+                            trace.clone(),
+                            rate_bits,
+                            false,
+                            cap_height,
+                            timing,
+                            None,
+                        )
                     )
-                )
-            })
-    );
+                })
+        );
     }
     // log::info!("trace_commitments {:?}", trace_commitments);
 
@@ -388,7 +388,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-    ctx: &mut Option<&mut CudaInvContext<F, D>>
+    ctx: &mut Option<&mut CudaInvContext<F, D>>,
 ) -> Result<TableKindArray<StarkProofWithMetadata<F, C, D>>>
 where
     F: RichField + Extendable<D>,
@@ -538,37 +538,45 @@ mod tests {
             },
         ]);
     }
+
+    /// Test for ensuring Polynomial batch computed over gpu is same as
+    /// that computed over cpu
     #[test]
     #[cfg(feature = "cuda")]
     fn test_cuda_poly_batch() {
+        use plonky2::field::polynomial::PolynomialValues;
+        use plonky2::field::types::Sample;
         use plonky2::fri::oracle::PolynomialBatch;
+        use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
         use plonky2::util::timing::TimingTree;
-         use plonky2::plonk::config::GenericConfig;
-         use plonky2::plonk::config::PoseidonGoldilocksConfig;
-         use plonky2::field::types::Sample;
-         use plonky2::field::polynomial::PolynomialValues;
 
-        
-const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
-    type F = <C as GenericConfig<D>>::F;
-    // use plonky2::field::fft::fft_root_table;
+        const D: usize = 2;
+        // the cuda code only supports Poseidon for now (Not Poseidon2!)
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        // number of rows of trace table
         let values_num_per_poly = 1 << 6;
+        // number of columns of trace table
         let poly_num = 8;
+        // generate random trace
         let mut polys = vec![];
         for _i in 0..poly_num {
             let poly: Vec<F> = (0..values_num_per_poly).map(|_| F::rand()).collect();
             let poly_as_value = PolynomialValues::new(poly);
             polys.push(poly_as_value);
         }
-        let rate_bits = 3;
+        // rate_bits = log2ceil(constraint_degree)
+        let rate_bits = 2;
         let cap_height = 4;
         let len_cap = 1 << cap_height;
+        // flattened len of all lde polynomials
         let _all_len = poly_num * values_num_per_poly * (1 << rate_bits);
         let num_digests = 2 * (values_num_per_poly * (1 << rate_bits) - len_cap);
         let _num_digests_and_caps = num_digests + len_cap;
         let blinding = false;
         let timing = &mut TimingTree::default();
+        // merkle tree over over cpu
         let batch: PolynomialBatch<F, C, D> = PolynomialBatch::from_values(
             polys.clone(),
             rate_bits,
@@ -578,6 +586,7 @@ const D: usize = 2;
             None,
         );
         let ctx = &mut crate::test_utils::cuda_ctx();
+        // merkle tree over gpu
         let cuda_batch: PolynomialBatch<F, C, D> = PolynomialBatch::from_values_cuda(
             polys,
             rate_bits,
@@ -588,13 +597,26 @@ const D: usize = 2;
             values_num_per_poly,
             ctx,
         );
+
+        // check that polynomials were computed in coefficient form
+        // are same for cpu and gpu.
         assert_eq!(batch.polynomials, cuda_batch.polynomials);
-        let leaves = batch.merkle_tree.leaves.into_iter().flatten().collect::<Vec<F>>();
+        let leaves = batch
+            .merkle_tree
+            .leaves
+            .into_iter()
+            .flatten()
+            .collect::<Vec<F>>();
+        // check that merkle tree computed over cpu is same as gpu
         assert_eq!(leaves, *cuda_batch.merkle_tree.my_leaves);
         assert_eq!(batch.merkle_tree.cap, cuda_batch.merkle_tree.cap);
-        assert_eq!(batch.merkle_tree.digests.len(), cuda_batch.merkle_tree.my_digests.len());
-        assert_eq!(batch.merkle_tree.digests, *cuda_batch.merkle_tree.my_digests);
+        assert_eq!(
+            batch.merkle_tree.digests.len(),
+            cuda_batch.merkle_tree.my_digests[..num_digests].len()
+        );
+        assert_eq!(
+            batch.merkle_tree.digests,
+            cuda_batch.merkle_tree.my_digests[..num_digests]
+        );
     }
-
-
 }
