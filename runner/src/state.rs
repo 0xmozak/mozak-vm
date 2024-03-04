@@ -236,16 +236,20 @@ impl<F: RichField> State<F> {
         Program {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
+            mozak_ro_memory,
             entry_point: pc,
             ..
         }: Program,
-        RuntimeArguments {
-            io_tape_private,
-            io_tape_public,
-            ..
-        }: RuntimeArguments,
+        RuntimeArguments { .. }: RuntimeArguments,
     ) -> Self {
-        let memory = StateMemory::new(once(ro_memory), once(rw_memory));
+        let memory = StateMemory::new(
+            [
+                ro_memory,
+                mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
+            ]
+            .into_iter(),
+            once(rw_memory),
+        );
         Self {
             pc,
             memory,
@@ -253,7 +257,7 @@ impl<F: RichField> State<F> {
             // in .mozak_global sections in the RISC-V binary.
             // Now, the CLI simply does unwrap_or_default() to either
             // use an iotape from file or default to an empty input.
-            io_tape: (io_tape_private, io_tape_public).into(),
+            io_tape: IoTape::from((vec![], vec![])),
             ..Default::default()
         }
     }
@@ -310,6 +314,7 @@ impl<F: RichField> State<F> {
     #[must_use]
     pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> (u32, u32)) -> (Aux<F>, Self) {
         let addr: u32 = self.get_register_value(data.rs2).wrapping_add(data.imm);
+
         let mem = [
             self.load_u8(addr),
             self.load_u8(addr.wrapping_add(1)),
@@ -317,6 +322,7 @@ impl<F: RichField> State<F> {
             self.load_u8(addr.wrapping_add(3)),
         ];
         let (raw_value, dst_val) = op(&mem);
+
         (
             Aux {
                 dst_val,

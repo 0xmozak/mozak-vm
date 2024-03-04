@@ -54,10 +54,11 @@ pub fn execute_code_with_ro_memory(
         )
         .collect(),
     );
+
     #[cfg(any(feature = "test", test))]
-    let program = Program::create_vanilla(ro_mem, rw_mem, &ro_code, &runtime_args);
-    #[cfg(not(any(feature = "test", test)))]
     let program = Program::create(ro_mem, rw_mem, &ro_code, &runtime_args);
+    #[cfg(not(any(feature = "test", test)))]
+    let program = Program::create_with_args(ro_mem, rw_mem, &ro_code, &runtime_args);
     let state0 = State::new(program.clone());
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
