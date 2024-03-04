@@ -1,4 +1,4 @@
-version: "3"
+version: "3.4"
 name: mozak
 services:
   runner:
@@ -33,7 +33,7 @@ services:
     entrypoint: ["/root/.nix-profile/bin/nix", "daemon"]
     # Check if we can build a small nix package from a know version of nixpkgs
     healthcheck:
-      test: nix build --no-link github:NixOS/nixpkgs/nixos-23.11-small#hello || exit 1
+      test: nix build --out-link /healthcheck-hello github:NixOS/nixpkgs/nixos-23.11-small#hello || exit 1
       interval: 30s
       timeout: 30s
       retries: 3
