@@ -76,11 +76,6 @@ pub fn transfer(
         wallet::MethodReturns::ApproveSignature(()),
         "wallet approval not found"
     );
-    event_emit(
-        self_prog_id,
-        Event::UpdatedStateObject(StateObject {
-            data: vec![200],
-            ..state_object
-        }),
-    );
+
+    event_emit(self_prog_id, Event::UpdatedStateObject(state_object));
 }
