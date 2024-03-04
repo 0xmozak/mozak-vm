@@ -344,10 +344,12 @@ mod tests {
                 (REG_A2, 1),       // A2 - size
             ],
             RuntimeArguments {
+                self_prog_id: vec![content],
+                cast_list: vec![content],
                 io_tape_private: vec![content],
                 io_tape_public: vec![content],
                 call_tape: vec![content],
-                ..Default::default()
+                event_tape: vec![content],
             },
         );
         Stark::prove_and_verify(&program, &record).unwrap();
