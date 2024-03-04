@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  "token",
+  "wallet",
   "bss-tester",
   "fibonacci",
   "min-max",

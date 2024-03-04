@@ -1,7 +1,14 @@
 pub const DIGEST_BYTES: usize = 32;
 pub const RATE: usize = 8;
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct Digest([u8; DIGEST_BYTES]);
+
+impl core::ops::Deref for Digest {
+    type Target = [u8; DIGEST_BYTES];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
 
 impl Digest {
     pub const fn new(data: [u8; DIGEST_BYTES]) -> Self { Self(data) }

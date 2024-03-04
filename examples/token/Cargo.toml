@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "merkleproof-trustedroot-mozak-guest"
+name = "token-mozak-guest"
 version = "0.1.0"
 
 [features]
@@ -9,24 +9,22 @@ native = []
 [dependencies]
 guest = { path = "../../guest", features = ["std"] }
 mozak-sdk = { path = "../../sdk" }
+mozak-system = { path = "../../system", features = ["mozak-ro-memory"] }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
-rs_merkle = { version = "1.4", default-features = false }
-
-[target.'cfg(not(target_os="mozakvm"))'.dependencies.log]
-version = "0.4"
-
-[target.'cfg(not(target_os="mozakvm"))'.dependencies.simple_logger]
-features = ["colors", "timestamps", "nightly"]
-version = "4.3.0"
+wallet-mozak-guest = { path = "../wallet" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"
 
 [[bin]]
-name = "merkleproof-trustedroot"
+name = "tokenbin"
 path = "main_mozak.rs"
 
 [[bin]]
-name = "merkleproof-trustedroot-native"
+name = "token-native"
 path = "main_native.rs"
 required-features = ["native"]
+
+[lib]
+name = "token"
+path = "core_logic.rs"
