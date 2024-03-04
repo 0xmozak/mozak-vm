@@ -154,7 +154,7 @@ impl std::fmt::Debug for ProgramIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "MZK-{}-{}-{}",
+            "MZK-{}-{}-{:0>2}",
             &self
                 .program_rom_hash
                 .to_le_bytes()
@@ -179,7 +179,7 @@ impl std::fmt::Display for ProgramIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "MZK-{}-{}-{}",
+            "MZK-{}-{}-{:0>2}",
             &self
                 .program_rom_hash
                 .to_le_bytes()
@@ -208,7 +208,7 @@ impl From<String> for ProgramIdentifier {
         //      `MZK` is a common prefix
         //      `0b7..` is the program rom hash
         //      `021..` is the memory init hash
-        //      `0` is a u32 for program's entry point
+        //      `00` is a u32 for program's entry point
 
         fn u32_from_str(str: &str) -> u32 {
             assert!(str.len() <= 4);
