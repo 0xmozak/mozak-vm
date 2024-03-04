@@ -4,14 +4,14 @@
 
 Copy `.env.in` to `.env` and edit it.
 
-``` shell
+```shell
 $ cp .env.in .env
 ```
 
 Verify your configuration using `docker compose config`.  It should
 print out your configuration.
 
-``` shell
+```shell
 $ docker compose config
 ```
 
@@ -22,7 +22,7 @@ Start the build agents using the `--wait` flag, it will wait for the
 Please note that on the first run it might take around a minute to
 pass the health check, depending on your network connection.
 
-``` shell
+```shell
 $ docker compose up --wait
 [+] Running 6/6
  ✔ Network mozak_default     Created
@@ -37,7 +37,7 @@ $ docker compose up --wait
 
 You can check the status of build agents using `docker compose top`:
 
-``` shell
+```shell
 $ docker compose top
 mozak-nix-1
 PID     USER   TIME   COMMAND
@@ -66,7 +66,7 @@ PID     USER   TIME   COMMAND
 
 You can check the status by using `docker ps --all --filter "name=mozak"`
 
-``` shell
+```shell
 $ docker ps --all --filter "name=mozak"
 CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS                          PORTS     NAMES
 0c323ceffd32   mozak-runner   "/entrypoint.sh ./bi…"   2 minutes ago   Exited (1) About a minute ago             mozak-runner-1
@@ -80,7 +80,7 @@ c9d2032b5167   mozak-runner   "/entrypoint.sh ./bi…"   2 minutes ago   Exited 
 You can stop the build agents using `docker compose stop`.  It will
 not remove them.
 
-``` shell
+```shell
 $ docker compose stop
 [+] Stopping 4/4
  ✔ Container mozak-runner-3  Stopped
@@ -91,7 +91,7 @@ $ docker compose stop
 
 You can restart the build agents using `docker compose start`
 
-``` shell
+```shell
 docker compose start
 [+] Running 4/3
  ✔ Container mozak-nix-1     Healthy
@@ -107,7 +107,7 @@ daemon to pass the health check.
 
 You can teardown all the containers using `docker compose down`.
 
-``` shell
+```shell
 $ docker compose down
 [+] Running 5/0
  ✔ Container mozak-runner-3  Removed
@@ -120,7 +120,7 @@ $ docker compose down
 Please note that it will _not_ remove the `nix-store` volume.  If you
 want to remove the `nix-store` volume, please pass `--volumes` flag
 
-``` shell
+```shell
 $ docker compose down --volumes
 [+] Running 6/6
  ✔ Container mozak-runner-3  Removed
