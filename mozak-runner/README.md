@@ -17,11 +17,13 @@ $ docker compose config
 
 ## Start
 
-You can start the build agents using `docker compose up`.  If you want
-to start it in the background pass `-d`:
+Start the build agents using the `--wait` flag, it will wait for the
+`nix` daemon to pass health checks and detach from the console.
+Please note that on the first run it might take around a minute to
+pass the health check, depending on your network connection.
 
 ``` shell
-$ docker compose up -d
+$ docker compose up --wait
 [+] Running 6/6
  ✔ Network mozak_default     Created
  ✔ Volume "mozak_nix-store"  Created
@@ -31,17 +33,41 @@ $ docker compose up -d
  ✔ Container mozak-runner-2  Started
 ```
 
+## Checking Status
 
-If you start it in the foreground, be wary that build agents are
-waiting for `nix` to become `healthy`, which may take up to a minute
-on the first run.  Every subsequent run should be quite fast.
+You can check the status of build agents using `docker compose top`:
+
+``` shell
+$ docker compose top
+mozak-nix-1
+PID     USER   TIME   COMMAND
+22964   root   0:00   /root/.nix-profile/bin/nix daemon
+
+mozak-runner-1
+PID     USER   TIME   COMMAND
+23201   root   0:00   {entrypoint.sh} /usr/bin/dumb-init /bin/bash /entrypoint.sh ./bin/Runner.Listener run --startuptype service
+23233   root   0:00   /bin/bash /entrypoint.sh ./bin/Runner.Listener run --startuptype service
+23455   root   0:00   ./bin/Runner.Listener run --startuptype service
+
+mozak-runner-2
+PID     USER   TIME   COMMAND
+23066   root   0:00   {entrypoint.sh} /usr/bin/dumb-init /bin/bash /entrypoint.sh ./bin/Runner.Listener run --startuptype service
+23096   root   0:00   /bin/bash /entrypoint.sh ./bin/Runner.Listener run --startuptype service
+23442   root   0:00   ./bin/Runner.Listener run --startuptype service
+
+mozak-runner-3
+PID     USER   TIME   COMMAND
+23133   root   0:00   {entrypoint.sh} /usr/bin/dumb-init /bin/bash /entrypoint.sh ./bin/Runner.Listener run --startuptype service
+23165   root   0:00   /bin/bash /entrypoint.sh ./bin/Runner.Listener run --startuptype service
+23467   root   0:00   ./bin/Runner.Listener run --startuptype service
+```
 
 ## Check health
 
-You can check the status by using `docker ps -a`
+You can check the status by using `docker ps --all --filter "name=mozak"`
 
 ``` shell
-$ docker ps -a
+$ docker ps --all --filter "name=mozak"
 CONTAINER ID   IMAGE          COMMAND                  CREATED         STATUS                          PORTS     NAMES
 0c323ceffd32   mozak-runner   "/entrypoint.sh ./bi…"   2 minutes ago   Exited (1) About a minute ago             mozak-runner-1
 8d582c9be309   mozak-runner   "/entrypoint.sh ./bi…"   2 minutes ago   Exited (1) About a minute ago             mozak-runner-2
@@ -49,7 +75,7 @@ c9d2032b5167   mozak-runner   "/entrypoint.sh ./bi…"   2 minutes ago   Exited 
 6024270109db   mozak-nix      "/root/.nix-profile/…"   2 minutes ago   Up 2 minutes (healthy)                    mozak-nix-1
 ```
 
-## Stop
+## Stopping and Starting Builders
 
 You can stop the build agents using `docker compose stop`.  It will
 not remove them.
@@ -62,6 +88,20 @@ $ docker compose stop
  ✔ Container mozak-runner-1  Stopped
  ✔ Container mozak-nix-1     Stopped
 ```
+
+You can restart the build agents using `docker compose start`
+
+``` shell
+docker compose start
+[+] Running 4/3
+ ✔ Container mozak-nix-1     Healthy
+ ✔ Container mozak-runner-2  Started
+ ✔ Container mozak-runner-3  Started
+ ✔ Container mozak-runner-1  Started
+```
+
+Please note that when starting build agents will wait for the nix
+daemon to pass the health check.
 
 ## Teardown
 
@@ -78,10 +118,10 @@ $ docker compose down
 ```
 
 Please note that it will _not_ remove the `nix-store` volume.  If you
-want to remove the `nix-store` volume, please pass `-v` flag
+want to remove the `nix-store` volume, please pass `--volumes` flag
 
 ``` shell
-$ docker compose down -v
+$ docker compose down --volumes
 [+] Running 6/6
  ✔ Container mozak-runner-3  Removed
  ✔ Container mozak-runner-2  Removed
