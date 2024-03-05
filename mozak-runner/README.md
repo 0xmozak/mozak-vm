@@ -23,20 +23,18 @@ GitHub PAT token as outlined by [Enroll Self-Hosted CI Runner Notion
 Page](https://www.notion.so/0xmozak/Enroll-Self-Hosted-CI-Runner-af6ddd3897594970b6ec4106ebde228f?pvs=4).
 
 Since we will be putting our PAT into `.env`, we need to restrict its
-permissions.  Please ensure that it has either
+permissions.  Please ensure that it is accessibly only by the user:
 
-- `600` (readable and writeable by the owner), or even better
-- `400` (readable by the owner) after editing it.
 
 ```shell
 $ cp template.env .env
-$ chmod 600 .env
+$ chmod go= .env
 ```
 
-After editing `.env` file, please restrict its permissions to `400`.
+After editing `.env` file, please make it read-only.
 
 ```shell
-$ chmod 400 .env
+$ chmod a-w .env
 ```
 
 Verify your configuration using `docker compose config`.  It should
