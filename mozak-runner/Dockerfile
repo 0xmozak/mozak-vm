@@ -10,7 +10,7 @@ RUN curl --proto '=https' \
   | sh -s -- \
   install linux \
   --extra-conf "sandbox = false" \
-  # Do nothing as we will be manually starting the nix daemon
+  # Do nothing as we will manually start the nix daemon
   --init none \
   --no-confirm
 
