@@ -7,10 +7,8 @@ RUN curl --proto '=https' \
   --show-error \
   --fail \
   --location https://install.determinate.systems/nix \
-  # Pipe the installation script to shell
   | sh -s -- \
   install linux \
-  # Disable sandbox
   --extra-conf "sandbox = false" \
   # Do nothing as we will be manually starting the nix daemon
   --init none \
