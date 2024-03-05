@@ -36,16 +36,17 @@ where
         ctl_challenges,
     } = all_proof.get_challenges(config);
 
+    // TODO(bing): These following checks are to be replaced with proper checks when
+    // the sequencer is written. For now, these are just placeholder checks to
+    // simulate what the above could look like.
     ensure!(
         all_proof.proofs[TableKind::Program].trace_cap == all_proof.program_rom_trace_cap,
         "Mismatch between Program ROM trace caps"
     );
-
     ensure!(
         all_proof.proofs[TableKind::ElfMemoryInit].trace_cap == all_proof.elf_memory_init_trace_cap,
         "Mismatch between ElfMemoryInit trace caps"
     );
-
     ensure!(
         all_proof.proofs[TableKind::MozakMemoryInit].trace_cap
             == all_proof.mozak_memory_init_trace_cap,
