@@ -21,6 +21,7 @@ mozak-circuits = { path = "../circuits", features = ["test", "enable_poseidon_st
 mozak-examples = { path = "../examples-builder", features = ["fibonacci-input"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 mozak-sdk = { path = "../sdk" }
+mozak-node = { path = "../node" }
 # TODO(Matthias): implement shell completion for CLI via clap_complete
 # clap_complete = "4.3"
 anyhow = "1.0"

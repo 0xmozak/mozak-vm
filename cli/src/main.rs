@@ -8,6 +8,9 @@ use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
 use log::debug;
+use mozak_circuits::generation::io_memory::{
+    generate_io_memory_private_trace, generate_io_transcript_trace,
+};
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -23,9 +26,11 @@ use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
+use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
+use mozak_sdk::coretypes::{Event, ProgramIdentifier};
 use mozak_sdk::sys::SystemTapes;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
@@ -82,6 +87,16 @@ enum Command {
     Verify { proof: Input },
     /// Verify the given recursive proof from file.
     VerifyRecursiveProof { proof: Input, verifier_key: Input },
+    /// Builds a transaction bundle.
+    BundleTransaction {
+        elf: Input,
+        #[arg(long)]
+        system_tape: Input,
+        #[arg(long)]
+        self_prog_id: String,
+        #[arg(long)]
+        cast: Vec<String>,
+    },
     /// Compute the Program Rom Hash of the given ELF.
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
@@ -202,6 +217,87 @@ fn main() -> Result<()> {
 
             debug!("proof generated successfully!");
         }
+        Command::BundleTransaction {
+            elf,
+            system_tape,
+            self_prog_id,
+            cast,
+        } => {
+            println!("Bundling transaction...");
+
+            let sys_tapes: SystemTapes = deserialize_system_tape(system_tape.clone()).unwrap();
+            let event_tape: Vec<Event> = sys_tapes
+                .event_tape
+                .writer
+                .into_iter()
+                .find_map(|t| {
+                    (t.id == ProgramIdentifier::from(self_prog_id.clone())).then_some(t.contents)
+                })
+                .unwrap_or_default();
+
+            let args = tapes_to_runtime_arguments(system_tape, Some(self_prog_id.clone()));
+
+            let program = load_program(elf, &args)?;
+            let state =
+                State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.clone());
+            let record = step(&program, state)?;
+            let trace = generate_io_memory_private_trace(&record.executed);
+            let trace_poly_values = trace_rows_to_poly_values(trace);
+            let rate_bits = config.fri_config.rate_bits;
+            let cap_height = config.fri_config.cap_height;
+            let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                trace_poly_values,
+                rate_bits,
+                false, // blinding
+                cap_height,
+                &mut TimingTree::default(),
+                None, // fft_root_table
+            );
+            let private_tape_cap = trace_commitment.merkle_tree.cap;
+            let private_tape_hash = private_tape_cap;
+
+            let trace = generate_io_transcript_trace(&record.executed);
+            let trace_poly_values = trace_rows_to_poly_values(trace);
+            let rate_bits = config.fri_config.rate_bits;
+            let cap_height = config.fri_config.cap_height;
+            let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                trace_poly_values,
+                rate_bits,
+                false, // blinding
+                cap_height,
+                &mut TimingTree::default(),
+                None, // fft_root_table
+            );
+            let call_tape_hash = trace_commitment.merkle_tree.cap;
+
+            let transparent_attestation = TransparentAttestation {
+                public_tape: args.io_tape_public,
+                event_tape,
+            };
+
+            let opaque_attestation: OpaqueAttestation<F, C, D> =
+                OpaqueAttestation { private_tape_hash };
+
+            let attestation = Attestation {
+                id: self_prog_id.into(),
+                opaque: opaque_attestation,
+                transparent: transparent_attestation,
+            };
+            // println!("Attestations:\n{attestation:#?}");
+            let constituent_zs = vec![attestation];
+
+            let transaction = Transaction {
+                call_tape_hash,
+                cast_list: cast
+                    .into_iter()
+                    .map(|c| ProgramIdentifier::from(c))
+                    .collect(),
+                constituent_zs,
+            };
+
+            println!("Transaction bundled: {:?}", transaction);
+        }
+
         Command::Verify { mut proof } => {
             let stark = S::default();
             let mut buffer: Vec<u8> = vec![];

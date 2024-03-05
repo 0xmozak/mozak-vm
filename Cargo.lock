@@ -950,6 +950,7 @@ dependencies = [
  "log",
  "mozak-circuits",
  "mozak-examples",
+ "mozak-node",
  "mozak-runner",
  "mozak-sdk",
  "plonky2",
@@ -970,6 +971,7 @@ version = "0.1.0"
 dependencies = [
  "itertools 0.12.1",
  "mozak-circuits",
+ "mozak-sdk",
  "plonky2",
  "serde",
 ]
