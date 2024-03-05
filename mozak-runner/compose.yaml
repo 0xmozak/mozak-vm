@@ -28,7 +28,7 @@ services:
       RUNNER_WORKDIR: /tmp/github-runner-mozak/workdir
       LABELS: ubuntu-latest
     labels:
-      net.unraid.docker.icon: mozak-icon.jpg
+      net.unraid.docker.icon: "https://pbs.twimg.com/profile_images/1708417671694340096/RO2UoJdM_400x400.jpg"
   nix:
     build: .
     volumes:
@@ -42,7 +42,7 @@ services:
       retries: 3
       start_period: 0s
     labels:
-      net.unraid.docker.icon: mozak-icon.jpg
+      net.unraid.docker.icon: "https://pbs.twimg.com/profile_images/663784290925289472/ET9J1uY-_400x400.png"
 
 volumes:
   nix-store:
