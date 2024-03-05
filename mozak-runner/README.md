@@ -33,7 +33,7 @@ $ cp tempalte.env .env
 $ chmod 600 .env
 ```
 
-After editing `.env` file, please restrict it's permissions to `400`.
+After editing `.env` file, please restrict its permissions to `400`.
 
 ```shell
 $ chmod 400 .env
