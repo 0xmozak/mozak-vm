@@ -43,7 +43,7 @@ services:
       retries: 3
       start_period: 0s
     labels:
-      net.unraid.docker.icon: "https://pbs.twimg.com/profile_images/663784290925289472/ET9J1uY-_400x400.png"
+      net.unraid.docker.icon: mozak-icon.jpg
 
 volumes:
   nix-store:
