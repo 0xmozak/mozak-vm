@@ -19,7 +19,7 @@ Documentation](https://docs.docker.com/compose/migrate/#how-do-i-switch-to-compo
 ## Setup
 
 Copy `template.env` to `.env` and edit it.  Make sure to provide your
-GitHub PAT token as outlined by [Enroll Sekf-Hosted CI Runner Notion
+GitHub PAT token as outlined by [Enroll Self-Hosted CI Runner Notion
 Page](https://www.notion.so/0xmozak/Enroll-Self-Hosted-CI-Runner-af6ddd3897594970b6ec4106ebde228f?pvs=4).
 
 Since we will be putting our PAT into `.env`, we need to restrict its
