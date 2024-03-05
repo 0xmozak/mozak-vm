@@ -7,13 +7,13 @@ use anyhow::Result;
 use clio::Input;
 use itertools::Itertools;
 use log::debug;
-use mozak_runner::elf::Program;
+use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::coretypes::{Event, ProgramIdentifier};
 use mozak_sdk::sys::SystemTapes;
 use rkyv::ser::serializers::AllocSerializer;
 use rkyv::Deserialize;
 
-pub fn load_program(mut elf: Input, args: &mozak_runner::elf::RuntimeArguments) -> Result<Program> {
+pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
@@ -69,7 +69,7 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
 pub fn tapes_to_runtime_arguments(
     tape_bin: Input,
     self_prog_id: Option<String>,
-) -> mozak_runner::elf::RuntimeArguments {
+) -> RuntimeArguments {
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.unwrap_or_default().into();
 
@@ -100,7 +100,7 @@ pub fn tapes_to_runtime_arguments(
             length_prefixed_bytes(tape_bytes, dgb_string)
         }
 
-        mozak_runner::elf::RuntimeArguments {
+        RuntimeArguments {
             self_prog_id: self_prog_id.to_le_bytes().to_vec(),
             cast_list: serialise(&cast_list, "CAST_LIST"),
             io_tape_public: serialise(&sys_tapes.public_tape, "IO_TAPE_PUBLIC"),
