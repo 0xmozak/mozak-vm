@@ -1231,7 +1231,7 @@ mod test {
         Ok(())
     }
 
-    fn leaf_test_helper<Fn>(event_ty: EventType, f: Fn)
+    fn leaf_test_helper<Fn>(owner: [u64; 4], event_ty: EventType, value: [u64; 4], f: Fn)
     where
         Fn: FnOnce(&mut LeafValueInputs<F>, [F; 4], [F; 4]) + UnwindSafe, {
         let (leaf, branch, event) = catch_unwind(|| {
@@ -1239,12 +1239,12 @@ mod test {
             let leaf = DummyLeafCircuit::new(&circuit_config);
             let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
 
-            let event_owner = [4, 8, 15, 16].map(F::from_canonical_u64);
-            let event_value = [3, 1, 4, 15].map(F::from_canonical_u64);
+            let owner = owner.map(F::from_canonical_u64);
+            let value = value.map(F::from_canonical_u64);
 
-            let mut event = LeafValueInputs::from_event(200, event_owner, event_ty, event_value);
+            let mut event = LeafValueInputs::from_event(200, owner, event_ty, value);
 
-            f(&mut event, event_owner, event_value);
+            f(&mut event, owner, value);
 
             (leaf, branch, event)
         })
@@ -1256,65 +1256,135 @@ mod test {
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_write_leaf_1() {
-        leaf_test_helper(EventType::Write, |event, _, _| {
-            event.object_flags = Flags::EnsureFlag.into();
-        });
+        leaf_test_helper(
+            [4, 8, 15, 16],
+            EventType::Write,
+            [3, 1, 4, 15],
+            |event, _, _| {
+                event.object_flags = Flags::EnsureFlag.into();
+            },
+        );
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_write_leaf_2() {
-        leaf_test_helper(EventType::Write, |event, _, _| {
-            event.object_flags = Flags::GiveOwnerFlag.into();
-        });
+        leaf_test_helper(
+            [4, 8, 15, 16],
+            EventType::Write,
+            [3, 1, 4, 15],
+            |event, _, _| {
+                event.object_flags = Flags::GiveOwnerFlag.into();
+            },
+        );
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_write_leaf_3() {
-        leaf_test_helper(EventType::Write, |event, _, _| {
-            event.object_flags = Flags::EnsureFlag | Flags::WriteFlag;
-        });
+        leaf_test_helper(
+            [4, 8, 15, 16],
+            EventType::Write,
+            [3, 1, 4, 15],
+            |event, _, _| {
+                event.object_flags = Flags::EnsureFlag | Flags::WriteFlag;
+            },
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_write_leaf_4() {
+        leaf_test_helper(
+            [4, 8, 15, 16],
+            EventType::Write,
+            [3, 1, 4, 15],
+            |event, _, _| {
+                event.credit_delta = 5;
+            },
+        );
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_ensure_leaf_1() {
-        leaf_test_helper(EventType::Ensure, |event, _, _| {
-            event.object_flags = Flags::WriteFlag.into();
-        });
+        leaf_test_helper(
+            [4, 8, 15, 16],
+            EventType::Ensure,
+            [3, 1, 4, 15],
+            |event, _, _| {
+                event.object_flags = Flags::WriteFlag.into();
+            },
+        );
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_give_leaf_1() {
-        leaf_test_helper(EventType::GiveOwner, |event, owner, _| {
-            event.new_owner = owner;
-        });
+        leaf_test_helper(
+            [4, 8, 15, 16],
+            EventType::GiveOwner,
+            [3, 1, 4, 15],
+            |event, owner, _| {
+                event.new_owner = owner;
+            },
+        );
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_give_leaf_2() {
-        leaf_test_helper(EventType::GiveOwner, |event, _, value| {
-            event.old_owner = value;
-        });
+        leaf_test_helper(
+            [4, 8, 15, 16],
+            EventType::GiveOwner,
+            [3, 1, 4, 15],
+            |event, _, value| {
+                event.old_owner = value;
+            },
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_credit_leaf_1() {
+        leaf_test_helper(
+            [4, 8, 15, 16],
+            EventType::CreditDelta,
+            [13, 0, 0, 0],
+            |event, _, _| {
+                event.credit_delta *= -1;
+            },
+        );
+    }
+
+    struct NoFn;
+
+    trait MaybeBfn: Sized + UnwindSafe {
+        const PRESENT: bool;
+        fn apply(self, _event: &mut BranchValueInputs<F>) { unimplemented!() }
+    }
+
+    impl MaybeBfn for NoFn {
+        const PRESENT: bool = false;
+    }
+    impl<Fn: FnOnce(&mut BranchValueInputs<F>) + UnwindSafe> MaybeBfn for Fn {
+        const PRESENT: bool = true;
+
+        fn apply(self, event: &mut BranchValueInputs<F>) { self(event) }
     }
 
     fn branch_test_helper<Lfn, Bfn1, Bfn2>(
-        tys: [EventType; 3],
         owners: [[u64; 4]; 3],
+        tys: [EventType; 3],
         values: [[u64; 4]; 3],
         lf: Lfn,
-        bf0: Bfn1,
-        bf1: Option<Bfn2>,
+        bf1: Bfn1,
+        bf2: Bfn2,
     ) where
         Lfn: FnOnce(&mut LeafValueInputs<F>, &mut LeafValueInputs<F>, &mut LeafValueInputs<F>)
             + UnwindSafe,
         Bfn1: FnOnce(&mut BranchValueInputs<F>) + UnwindSafe,
-        Bfn2: FnOnce(&mut BranchValueInputs<F>) + UnwindSafe, {
-        let has_bf1 = bf1.is_some();
-
+        Bfn2: MaybeBfn, {
         let (branch, left, right, branch_event) = catch_unwind(|| {
             let circuit_config = CircuitConfig::standard_recursion_config();
             let leaf = DummyLeafCircuit::new(&circuit_config);
@@ -1329,10 +1399,10 @@ mod test {
             lf(&mut event0, &mut event1, &mut event2);
 
             let mut branch_event_1 = BranchValueInputs::from_branches(event0, event1);
-            bf0(&mut branch_event_1);
+            bf1(&mut branch_event_1);
             let mut branch_event_2 = BranchValueInputs::from_branches(branch_event_1, event2);
-            if let Some(bf1) = bf1 {
-                bf1(&mut branch_event_2);
+            if Bfn2::PRESENT {
+                bf2.apply(&mut branch_event_2);
             };
 
             let leaf_proof_array =
@@ -1343,7 +1413,7 @@ mod test {
 
             let [leaf_proof0, leaf_proof1, leaf_proof2] = leaf_proof_array;
 
-            let (left, right, branch_event) = if has_bf1 {
+            let (left, right, branch_event) = if Bfn2::PRESENT {
                 let branch_proof_1 = branch
                     .prove(branch_event_1, true, &leaf_proof0, true, &leaf_proof1)
                     .unwrap();
@@ -1364,16 +1434,63 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
-    fn bad_branch_mismatch_address() {
+    fn bad_branch_mismatch_address_1() {
         branch_test_helper(
-            [EventType::Write, EventType::Read, EventType::Ensure],
             [[4, 8, 15, 16], [2, 3, 4, 2], [2, 3, 4, 2]],
+            [EventType::Write, EventType::Read, EventType::Ensure],
+            [[3, 1, 4, 15], [1, 6, 180, 33], [3, 1, 4, 15]],
+            |_, _, event| {
+                event.address += 10;
+            },
+            |_| {},
+            |_: &mut _| {},
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_mismatch_address_2() {
+        branch_test_helper(
+            [[4, 8, 15, 16], [2, 3, 4, 2], [2, 3, 4, 2]],
+            [EventType::Write, EventType::Read, EventType::Ensure],
             [[3, 1, 4, 15], [1, 6, 180, 33], [3, 1, 4, 15]],
             |_, _, _| {},
             |_| {},
-            Some(|event: &mut BranchValueInputs<F>| {
+            |event: &mut BranchValueInputs<F>| {
                 event.address += 10;
-            }),
+            },
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_double_write() {
+        branch_test_helper(
+            [[4, 8, 15, 16], [4, 8, 15, 16], [2, 3, 4, 2]],
+            [EventType::Write, EventType::Write, EventType::Ensure],
+            [[3, 1, 4, 15], [1, 6, 180, 33], [3, 1, 4, 15]],
+            |_, _, _| {},
+            |_| {},
+            NoFn,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_double_credit_sum() {
+        branch_test_helper(
+            [[4, 8, 15, 16], [4, 8, 15, 16], [2, 3, 4, 2]],
+            [
+                EventType::CreditDelta,
+                EventType::CreditDelta,
+                EventType::Ensure,
+            ],
+            [[13, 0, 0, 0], [8, 0, 0, 1], [3, 1, 4, 15]],
+            |_, _, _| {},
+            |_| {},
+            |event: &mut BranchValueInputs<F>| {
+                event.credit_delta += 10;
+            },
         );
     }
 
@@ -1384,13 +1501,10 @@ mod test {
         let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
 
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
-        // let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
 
         let zero_val = [F::ZERO; 4];
         let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
         let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
-        // let non_zero_val_3 = [42, 0, 0, 0].map(F::from_canonical_u64);
-        // let non_zero_val_4 = [23, 0, 0, 1].map(F::from_canonical_u64);
 
         let read_proof = leaf.prove(
             &branch,
