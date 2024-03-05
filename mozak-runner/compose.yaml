@@ -2,8 +2,6 @@ version: "3.4"
 name: mozak
 services:
   runner:
-    # image: myoung34/github-runner:latest
-    # image: nginx:latest
     build: .
     deploy:
       replicas: ${MOZAK_RUNNER_REPLICAS:-3}
