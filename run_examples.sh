@@ -14,8 +14,6 @@ for profile in "${PROFILES[@]}"; do
         BINS=$(taplo get -f examples/"${member}"/Cargo.toml 'bin.*.name')
         for bin in ${BINS}; do
             echo "(mozak-cli) running example (${profile}): ${bin}"
-            private_iotape=""
-            public_iotape=""
             case ${bin} in
                 # TODO(bing): fix to work with this script
                 "panic")
@@ -28,10 +26,6 @@ for profile in "${PROFILES[@]}"; do
                 "merkleproof-trustedroot-native" | "token-native" | "wallet-native" | "walletbin" | "tokenbin")
                     echo "(mozak-cli) skipping (${profile}): ${bin}"
                     continue
-                    ;;
-                "fibonacci-input")
-                    private_iotape="--io-tape-private examples/${member}/iotape_private"
-                    public_iotape="--io-tape-public examples/${member}/iotape_public"
                     ;;
                 "merkleproof-trustedroot")
                     echo "(mozak-cli) skipping (${profile}): ${bin}"
