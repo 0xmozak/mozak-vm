@@ -18,7 +18,7 @@ services:
         condition: service_healthy
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "${MOZAK_RUNNER_CACHE:-/tmp/github-runner-mozak}:/opt/hostedtoolcache"
+      - "${MOZAK_RUNNER_CACHE:-/tmp/github-runner-mozak/cache}:/opt/hostedtoolcache"
       - "nix-store:/nix"
       
     environment:
@@ -27,7 +27,7 @@ services:
       RUNNER_GROUP: default
       RUNNER_SCOPE: org
       ORG_NAME: 0xmozak
-      RUNNER_WORKDIR: /tmp/github-runner-mozak
+      RUNNER_WORKDIR: /tmp/github-runner-mozak/workdir
       LABELS: ubuntu-latest
     labels:
       net.unraid.docker.icon: mozak-icon.jpg
