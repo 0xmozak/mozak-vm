@@ -31,21 +31,15 @@ struct Test {
 #[archive_attr(derive(Debug))]
 struct TupleTest(Test, Vec<Test>);
 
-type T = (Test, Vec<Test>);
+type T = (u8, Vec<u32>);
 
 fn main() {
     {
-        let value = Test {
-            int: 42,
-            string: "hello world".to_string(),
-            option: Some(vec![1, 2, 3, 4]),
-        };
-
-        let t: T = (value.clone(), vec![value.clone(), value.clone()]);
+        let t: T = (42, vec![1, 2, 3, 4]);
         let bytes = rkyv::to_bytes::<_, 256>(&t).unwrap();
 
         // You can use the safe API for fast zero-copy deserialization
-        let archived: &(ArchivedTest, ArchivedVec<ArchivedTest>) =
+        let archived: &(_, ArchivedVec<_>) =
             rkyv::check_archived_root::<T>(&bytes[..]).unwrap();
         assert_eq!(&archived.0, &t.0);
         assert_eq!(&archived.1, &t.1);
