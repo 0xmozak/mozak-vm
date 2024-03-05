@@ -29,7 +29,7 @@ permissions.  Please ensure that it has either
 - `400` (readable by the owner) after editing it.
 
 ```shell
-$ cp tempalte.env .env
+$ cp template.env .env
 $ chmod 600 .env
 ```
 
