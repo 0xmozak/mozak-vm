@@ -30,7 +30,7 @@ struct Test {
 #[archive_attr(derive(Debug))]
 struct TupleTest(Test, Vec<Test>);
 
-// type T = (Test, Vec<Test>);
+type T = (Test, Vec<Test>);
 
 fn main() {
     let value = Test {
@@ -41,8 +41,9 @@ fn main() {
 
     // // Serializing is as easy as a single function call
     // let bytes = rkyv::to_bytes::<_, 256>(&value).unwrap();
+    // let (a, b) = (value.clone());
 
-    let t = TupleTest(value.clone(), vec![value.clone(), value.clone()]);
+    let t: T = (value.clone(), vec![value.clone(), value.clone()]);
     let bytes = rkyv::to_bytes::<_, 256>(&t).unwrap();    
 
     // // Or you can customize your serialization for better performance
@@ -54,16 +55,18 @@ fn main() {
     // let bytes = serializer.into_serializer().into_inner();
 
     // You can use the safe API for fast zero-copy deserialization
-    let archived = rkyv::check_archived_root::<TupleTest>(&bytes[..]).unwrap();
+    let archived = rkyv::check_archived_root::<T>(&bytes[..]).unwrap();
     // let (a, b) = t;
-    assert_eq!(archived, &t);
+    // assert_eq!(archived, (&t.0, &t.1));
+    assert_eq!(&archived.0, &t.0);
+    assert_eq!(&archived.1, &t.1);
 
     // // Or you can use the unsafe API for maximum performance
     // let archived = unsafe { rkyv::archived_root::<Test>(&bytes[..]) };
     // assert_eq!(archived, &value);
 
     // And you can always deserialize back to the original type
-    let deserialized: TupleTest = archived.deserialize(&mut rkyv::Infallible).unwrap();
+    let deserialized: T = archived.deserialize(&mut rkyv::Infallible).unwrap();
     dbg!(&deserialized);
     assert_eq!(deserialized, t);
 }
