@@ -1,3 +1,4 @@
+use rkyv::vec::ArchivedVec;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Clone, Deserialize, Serialize, Debug, PartialEq)]
@@ -44,7 +45,7 @@ fn main() {
     // let (a, b) = (value.clone());
 
     let t: T = (value.clone(), vec![value.clone(), value.clone()]);
-    let bytes = rkyv::to_bytes::<_, 256>(&t).unwrap();    
+    let bytes = rkyv::to_bytes::<_, 256>(&t).unwrap();
 
     // // Or you can customize your serialization for better performance
     // // and compatibility with #![no_std] environments
@@ -55,7 +56,8 @@ fn main() {
     // let bytes = serializer.into_serializer().into_inner();
 
     // You can use the safe API for fast zero-copy deserialization
-    let archived = rkyv::check_archived_root::<T>(&bytes[..]).unwrap();
+    let archived: &(ArchivedTest, ArchivedVec<ArchivedTest>) =
+        rkyv::check_archived_root::<T>(&bytes[..]).unwrap();
     // let (a, b) = t;
     // assert_eq!(archived, (&t.0, &t.1));
     assert_eq!(&archived.0, &t.0);
