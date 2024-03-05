@@ -6,11 +6,12 @@ services:
     # image: nginx:latest
     build: .
     deploy:
-      replicas: $MOZAK_RUNNER_REPLICAS
+      replicas: ${MOZAK_RUNNER_REPLICAS:-3}
       resources:
+        # Default to no limits.
         limits:
-          cpus: '2.0'
-          memory: '8gb'
+          cpus: ${MOZAK_RUNNER_CPU_LIMIT:-}
+          memory: ${MOZAK_RUNNER_MEMORY_LIMIT:-0}
     # Ensure nix daemon is working before starting build agents
     depends_on:
       nix:
@@ -29,7 +30,7 @@ services:
       RUNNER_WORKDIR: /tmp/github-runner-mozak
       LABELS: ubuntu-latest
     labels:
-      net.unraid.docker.icon: "https://pbs.twimg.com/profile_images/1708417671694340096/RO2UoJdM_400x400.jpg"
+      net.unraid.docker.icon: mozak-icon.jpg
   nix:
     build: .
     volumes:
