@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use rkyv::vec::ArchivedVec;
 use rkyv::{Archive, Deserialize, Serialize};
 
@@ -33,14 +34,33 @@ struct TupleTest(Test, Vec<Test>);
 
 type T = (u8, Vec<u32>);
 
+#[derive(Archive, Clone, Deserialize, Serialize, Debug, PartialEq)]
+#[archive(
+    // This will generate a PartialEq impl between our unarchived and archived
+    // types:
+    compare(PartialEq),
+    // bytecheck can be used to validate your data if you want. To use the safe
+    // API, you have to derive CheckBytes for the archived type:
+    check_bytes,
+)]
+// Derives can be passed through to the generated type:
+#[archive_attr(derive(Debug))]
+pub struct CPCMessage<T: Archive>
+where
+    T::Archived: Debug,
+{
+    pub sender: String,
+    pub receiver: String,
+    pub message: T,
+}
+
 fn main() {
     {
         let t: T = (42, vec![1, 2, 3, 4]);
         let bytes = rkyv::to_bytes::<_, 256>(&t).unwrap();
 
         // You can use the safe API for fast zero-copy deserialization
-        let archived: &(_, ArchivedVec<_>) =
-            rkyv::check_archived_root::<T>(&bytes[..]).unwrap();
+        let archived: &(_, ArchivedVec<_>) = rkyv::check_archived_root::<T>(&bytes[..]).unwrap();
         assert_eq!(&archived.0, &t.0);
         assert_eq!(&archived.1, &t.1);
 
