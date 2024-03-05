@@ -1,0 +1,11 @@
+[package]
+name = "rkyv-examples"
+version = "0.1.0"
+edition = "2021"
+resolver = "2"
+
+[dependencies]
+bytecheck = "0.7.0"
+# rancor = "0.1.0-pre8"
+rkyv = { version = "0.7.44", features = ["bytecheck", "validation"] }
+rkyv_derive = "0.7.44"
