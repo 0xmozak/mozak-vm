@@ -22,7 +22,7 @@ Copy `template.env` to `.env` and edit it.  Make sure to provide your
 GitHub PAT token as outlined by [Enroll Sekf-Hosted CI Runner Notion
 Page](https://www.notion.so/0xmozak/Enroll-Self-Hosted-CI-Runner-af6ddd3897594970b6ec4106ebde228f?pvs=4).
 
-Since we will be putting our PAT into `.env`, we need to restrict it's
+Since we will be putting our PAT into `.env`, we need to restrict its
 permissions.  Please ensure that it has either
 
 - `600` (readable and writeable by the owner), or even better
