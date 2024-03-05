@@ -288,14 +288,11 @@ fn main() -> Result<()> {
 
             let transaction = Transaction {
                 call_tape_hash,
-                cast_list: cast
-                    .into_iter()
-                    .map(|c| ProgramIdentifier::from(c))
-                    .collect(),
+                cast_list: cast.into_iter().map(ProgramIdentifier::from).collect(),
                 constituent_zs,
             };
 
-            println!("Transaction bundled: {:?}", transaction);
+            println!("Transaction bundled: {transaction:?}");
         }
 
         Command::Verify { mut proof } => {

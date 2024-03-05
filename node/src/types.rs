@@ -30,7 +30,7 @@ pub struct TransparentAttestation {
     pub event_tape: Vec<Event>,
 }
 
-/// An attestion to the correct execution of a MozakVM program, denoted by its
+/// An attestion to the correct execution of a `MozakVM` program, denoted by its
 /// [`ProgramIdentifier`](mozak_sdk::coretypes::ProgramIdentifier).
 #[derive(Debug)]
 pub struct Attestation<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
