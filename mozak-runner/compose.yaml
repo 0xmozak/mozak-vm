@@ -2,7 +2,7 @@ version: "3.4"
 name: mozak
 services:
   runner:
-    build: .
+    image: 0xmozak/github-runner:latest
     deploy:
       replicas: ${MOZAK_RUNNER_REPLICAS:-3}
       resources:
@@ -30,7 +30,7 @@ services:
     labels:
       net.unraid.docker.icon: "https://pbs.twimg.com/profile_images/1708417671694340096/RO2UoJdM_400x400.jpg"
   nix:
-    build: .
+    image: 0xmozak/github-runner:latest
     volumes:
       - "nix-store:/nix"
     entrypoint: ["/root/.nix-profile/bin/nix", "daemon"]
