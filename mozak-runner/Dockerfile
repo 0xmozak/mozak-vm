@@ -10,8 +10,13 @@ RUN curl --proto '=https' \
   | sh -s -- \
   install linux \
   --extra-conf "sandbox = false" \
+  # TODO: Build it on amd64
+  # --extra-conf "filter-syscalls = false" \
   # Do nothing as we will manually start the nix daemon
   --init none \
   --no-confirm
 
 ENV PATH="/nix/var/nix/profiles/default/bin:${PATH}"
+
+LABEL maintainer="maintainer@mozak.com"
+
