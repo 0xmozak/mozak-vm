@@ -1,6 +1,7 @@
 use core::fmt::Debug;
-use rkyv::vec::ArchivedVec;
 use rkyv::{Archive, Deserialize, Serialize};
+
+mod generics_example;
 
 #[derive(Archive, Clone, Deserialize, Serialize, Debug, PartialEq)]
 #[archive(
@@ -87,6 +88,7 @@ where
     <Vec<T> as Archive>::Archived: Debug;
 
 fn main() {
+    generics_example::main();
     {
         type T2_ = T2<u8, u32>;
         let t: T2_ = T2(42, vec![1, 2, 3, 4]);
