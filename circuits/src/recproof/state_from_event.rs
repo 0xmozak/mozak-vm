@@ -638,6 +638,19 @@ pub struct BranchDirectionTargets {
     pub credit_delta: Target,
 }
 
+fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    parent: [Target; N],
+    use_child: BoolTarget,
+    child: [Target; N],
+) {
+    // Loop over the limbs
+    for (parent, child) in zip(parent, child) {
+        let child = builder.select(use_child, child, parent);
+        builder.connect(parent, child);
+    }
+}
+
 impl BranchInputs {
     pub fn default<F: RichField + Extendable<D>, const D: usize>(
         builder: &mut CircuitBuilder<F, D>,
@@ -740,42 +753,18 @@ impl BranchInputs {
         let left_has_old_owner = builder.or(left_flags.write, left_has_owner);
         let right_has_old_owner = builder.or(right_flags.write, right_has_owner);
 
-        // Check all the object fields
-        for (old_owner, (left_old_owner, right_old_owner)) in
-            zip(old_owner, zip(left.old_owner, right.old_owner))
-        {
-            let left_old_owner = builder.select(left_has_old_owner, left_old_owner, old_owner);
-            let right_old_owner = builder.select(right_has_old_owner, right_old_owner, old_owner);
-            builder.connect(old_owner, left_old_owner);
-            builder.connect(old_owner, right_old_owner);
-        }
+        // Enforce restrictions on all the object fields
+        maybe_connect(builder, old_owner, left_has_old_owner, left.old_owner);
+        maybe_connect(builder, old_owner, right_has_old_owner, right.old_owner);
 
-        for (new_owner, (left_new_owner, right_new_owner)) in
-            zip(new_owner, zip(left.new_owner, right.new_owner))
-        {
-            let left_new_owner = builder.select(left_has_owner, left_new_owner, new_owner);
-            let right_new_owner = builder.select(right_has_owner, right_new_owner, new_owner);
-            builder.connect(new_owner, left_new_owner);
-            builder.connect(new_owner, right_new_owner);
-        }
+        maybe_connect(builder, new_owner, left_has_owner, left.new_owner);
+        maybe_connect(builder, new_owner, right_has_owner, right.new_owner);
 
-        for (old_data, (left_old_data, right_old_data)) in
-            zip(old_data, zip(left.old_data, right.old_data))
-        {
-            let left_old_data = builder.select(left_flags.read, left_old_data, old_data);
-            let right_old_data = builder.select(right_flags.read, right_old_data, old_data);
-            builder.connect(old_data, left_old_data);
-            builder.connect(old_data, right_old_data);
-        }
+        maybe_connect(builder, old_data, left_flags.read, left.old_data);
+        maybe_connect(builder, old_data, right_flags.read, right.old_data);
 
-        for (new_data, (left_new_data, right_new_data)) in
-            zip(new_data, zip(left.new_data, right.new_data))
-        {
-            let left_new_data = builder.select(left_has_new_data, left_new_data, new_data);
-            let right_new_data = builder.select(right_has_new_data, right_new_data, new_data);
-            builder.connect(new_data, left_new_data);
-            builder.connect(new_data, right_new_data);
-        }
+        maybe_connect(builder, new_data, left_has_new_data, left.new_data);
+        maybe_connect(builder, new_data, right_has_new_data, right.new_data);
 
         let credit_delta_calc = builder.add(left.credit_delta, right.credit_delta);
         builder.connect(credit_delta_calc, credit_delta);
