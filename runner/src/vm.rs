@@ -218,6 +218,7 @@ impl<F: RichField> State<F> {
                 new_pc: state.get_pc(),
                 op1,
                 op2,
+                op2_raw: rs2_raw,
                 ..aux
             },
             inst,
