@@ -6,10 +6,9 @@ use mozak_sdk::sys::{call_send, event_emit};
 use rkyv::{Archive, Deserialize, Serialize};
 use wallet::TokenObject;
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
     // Mint,
     // Burn,
@@ -23,7 +22,7 @@ pub enum MethodArgs {
     // Split,
 }
 
-#[derive(Archive, Default, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Default, Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]

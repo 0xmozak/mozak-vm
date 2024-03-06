@@ -1,4 +1,5 @@
 use std::ptr::addr_of;
+use core::fmt::Debug;
 
 use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
@@ -12,8 +13,8 @@ pub type RkyvShared = rkyv::ser::serializers::SharedSerializeMap;
 
 pub trait RkyvSerializable =
     rkyv::Serialize<CompositeSerializer<RkyvSerializer, RkyvScratch, RkyvShared>>;
-pub trait CallArgument = Sized + RkyvSerializable;
-pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
+pub trait CallArgument = Clone + Debug + Sized + RkyvSerializable;
+pub trait CallReturn = ?Sized + Archive + Clone + Debug + Default + RkyvSerializable;
 
 #[derive(Default, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Archive, Serialize, Deserialize))]
@@ -171,7 +172,7 @@ impl CallTape {
         &mut self,
         caller_prog: ProgramIdentifier,
         callee_prog: ProgramIdentifier,
-        call_args: A,
+        args: A,
         dispatch_native: impl Fn(A) -> R,
         _dispatch_mozakvm: impl Fn() -> R,
     ) -> R
@@ -198,7 +199,7 @@ impl CallTape {
             >>::deserialize(zcd_args, &mut rkyv::Infallible)
             .unwrap();
 
-            assert!(deserialized_args == call_args);
+            assert_eq!(deserialized_args, args);
 
             self.index += 1;
 
@@ -211,26 +212,22 @@ impl CallTape {
         }
         #[cfg(not(target_os = "mozakvm"))]
         {
+            let ret = dispatch_native(args.clone());
             let msg = CPCMessage {
                 caller_prog,
                 callee_prog,
-                args: rkyv::to_bytes::<_, 256>(&call_args).unwrap().into(),
-                ..CPCMessage::default()
+                args: rkyv::to_bytes::<_, 256>(&args).unwrap().into(),
+                ret: rkyv::to_bytes::<_, 256>(&ret).unwrap().into(),
             };
 
             self.writer.push(msg);
-            let inserted_idx = self.writer.len() - 1;
-
-            let retval = dispatch_native(call_args);
-
-            self.writer[inserted_idx].ret = rkyv::to_bytes::<_, 256>(&retval).unwrap().into();
 
             println!(
                 "[CALL ] ResolvedAdd: {:#?}",
-                self.writer[inserted_idx].clone()
+                &self.writer.last().unwrap(),
             );
 
-            retval
+            ret
         }
     }
 }

@@ -5,10 +5,9 @@ use mozak_sdk::coretypes::ProgramIdentifier;
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// A generic public key used by the wallet.
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct PublicKey([u8; 32]);
 
 impl From<[u8; 32]> for PublicKey {
@@ -17,10 +16,9 @@ impl From<[u8; 32]> for PublicKey {
 
 /// Amount of tokens to be used in a program, represented as part of
 /// `TokenObject`.
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct Amount(u64);
 
 impl From<u64> for Amount {
@@ -29,10 +27,9 @@ impl From<u64> for Amount {
 
 /// A token object is represented in the `data` section of a `StateObject`, and
 /// contains information about the token that is being used in a program.
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct TokenObject {
     /// The wallet that is the economic owner of this `TokenObject`.
     pub wallet_prog_id: ProgramIdentifier,
@@ -48,10 +45,9 @@ pub struct TokenObject {
 /// The purpose of this 'black box' is to ensure the uniqueness of the
 /// merkle caps generated, which allows us (in this particular use case) to
 /// differentiate between transactions.
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct BlackBox {
     pub remitter_wallet: ProgramIdentifier,
     pub remittee_wallet: ProgramIdentifier,
@@ -72,10 +68,9 @@ impl BlackBox {
     }
 }
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone, Debug)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
     ApproveSignature(ProgramIdentifier, PublicKey, BlackBox),
 }
