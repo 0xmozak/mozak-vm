@@ -32,7 +32,7 @@ pub fn poseidon2_hash(input: &[u8]) -> Digest {
         use plonky2::field::types::Field;
         use plonky2::hash::poseidon2::Poseidon2Hash;
         use plonky2::plonk::config::{GenericHashOut, Hasher};
-        let data_fields: Vec<GoldilocksField> = input
+        let data_fields: rust_alloc::vec::Vec<GoldilocksField> = input
             .iter()
             .map(|x| GoldilocksField::from_canonical_u8(*x))
             .collect();
