@@ -7,6 +7,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
+use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_transcript_trace,
@@ -288,7 +289,11 @@ fn main() -> Result<()> {
 
             let transaction = Transaction {
                 call_tape_hash,
-                cast_list: cast.into_iter().map(ProgramIdentifier::from).collect(),
+                cast_list: cast
+                    .into_iter()
+                    .unique()
+                    .map(ProgramIdentifier::from)
+                    .collect(),
                 constituent_zs,
             };
 
