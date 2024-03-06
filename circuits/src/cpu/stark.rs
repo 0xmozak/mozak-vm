@@ -297,7 +297,7 @@ fn rd_assigned_correctly_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 /// First operand should be assigned with the value of the designated register.
-fn populate_opX_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
+fn populate_opx_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(
         lv.op1_value
             // Note: we could skip 0, because r0 is always 0.
@@ -446,7 +446,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         r0_always_0(lv, yield_constr);
         only_rd_changes(lv, nv, yield_constr);
         rd_assigned_correctly(lv, nv, yield_constr);
-        populate_opX_value(lv, yield_constr);
+        populate_opx_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 
         add::constraints(lv, yield_constr);
