@@ -26,7 +26,7 @@ mozak-sdk = { path = "../sdk" }
 anyhow = "1.0"
 clap-verbosity-flag = "2.2"
 clap_derive = "4.5"
-clio = { version = "0.3", features = ["http-ureq", "clap-parse"] }
+clio = { version = "0.3", features = ["clap-parse"] }
 env_logger = "0.11"
 itertools = "0.12"
 log = "0.4"

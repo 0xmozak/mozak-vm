@@ -1,8 +1,5 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// TODO: remove this when shadow_rs updates enough.
-#![allow(clippy::needless_raw_string_hashes)]
-use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::time::Duration;
 
@@ -10,7 +7,6 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
-use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
@@ -26,10 +22,10 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_runner::elf::Program;
+use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
+use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
-use mozak_sdk::coretypes::{Event, ProgramIdentifier};
 use mozak_sdk::sys::SystemTapes;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
@@ -37,8 +33,6 @@ use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
-use rkyv::ser::serializers::AllocSerializer;
-use rkyv::Deserialize;
 use starky::config::StarkConfig;
 
 #[derive(Parser, Debug, Clone)]
@@ -51,22 +45,6 @@ struct Cli {
     /// Debug API, default is OFF, currently only `prove` command is supported
     #[arg(short, long)]
     debug: bool,
-}
-
-#[derive(Clone, Debug, Args, Default)]
-pub struct RuntimeArguments {
-    #[arg(long)]
-    self_prog_id: Option<Input>,
-    /// Private input.
-    #[arg(long)]
-    io_tape_private: Option<Input>,
-    /// Public input.
-    #[arg(long)]
-    io_tape_public: Option<Input>,
-    #[arg(long)]
-    call_tape: Option<Input>,
-    #[arg(long)]
-    event_tape: Option<Input>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -87,126 +65,6 @@ pub struct ProveArgs {
     #[arg(long)]
     self_prog_id: Option<String>,
     recursive_proof: Option<Output>,
-}
-
-fn read_tape(mut tape: Input) -> Vec<u8> {
-    let mut tape_bytes = Vec::new();
-    let bytes_read = tape.read_to_end(&mut tape_bytes).expect("Read should pass");
-    debug!("Read {bytes_read} of tape data.");
-    tape_bytes
-}
-
-impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
-    fn from(value: RuntimeArguments) -> Self {
-        let self_prog_id: ProgramIdentifier = value
-            .self_prog_id
-            .map(|t| t.to_string().into())
-            .unwrap_or_default();
-        let io_tape_private = value.io_tape_private.map(read_tape).unwrap_or_default();
-        let io_tape_public = value.io_tape_public.map(read_tape).unwrap_or_default();
-        let call_tape = value.call_tape.map(read_tape).unwrap_or_default();
-        let event_tape = value.event_tape.map(read_tape).unwrap_or_default();
-
-        Self {
-            self_prog_id: self_prog_id.to_le_bytes().to_vec(),
-            cast_list: vec![], // will be populated later when `event_tape` is parsed
-            io_tape_private,
-            io_tape_public,
-            call_tape,
-            event_tape,
-        }
-    }
-}
-
-/// Deserializes an rkyv-serialized system tape binary file into `SystemTapes`.
-///
-/// # Errors
-///
-/// Errors if reading from the binary file fails.
-///
-/// # Panics
-///
-/// Panics if deserialization fails.
-pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
-    let mut sys_tapes_bytes = Vec::new();
-    let bytes_read = bin.read_to_end(&mut sys_tapes_bytes)?;
-    debug!("Read {bytes_read} of system tape data.");
-    let sys_tapes_archived = unsafe { rkyv::archived_root::<SystemTapes>(&sys_tapes_bytes[..]) };
-    let deserialized: SystemTapes = sys_tapes_archived
-        .deserialize(&mut rkyv::Infallible)
-        .unwrap();
-    Ok(deserialized)
-}
-
-fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
-    let data_len = data.len();
-    let mut len_prefix_bytes = Vec::with_capacity(data_len + 4);
-    len_prefix_bytes.extend_from_slice(
-        &(u32::try_from(data.len()))
-            .expect("length of data's max size shouldn't be more than u32")
-            .to_le_bytes(),
-    );
-    len_prefix_bytes.extend(data);
-    debug!(
-        "Length-Prefixed {:<15} of byte len: {:>5}, on-mem bytes: {:>5}",
-        dgb_string,
-        data_len,
-        len_prefix_bytes.len()
-    );
-    len_prefix_bytes
-}
-
-/// Deserializes an rkyv-serialized system tape binary file into
-/// [`SystemTapes`](mozak_sdk::sys::SystemTapes).
-///
-/// # Panics
-///
-/// Panics if conversion from rkyv-serialized system tape to
-/// [`RuntimeArguments`](mozak_runner::elf::RuntimeArguments)
-/// fails.
-pub fn tapes_to_runtime_arguments(
-    tape_bin: Input,
-    self_prog_id: Option<String>,
-) -> mozak_runner::elf::RuntimeArguments {
-    let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
-    let self_prog_id: ProgramIdentifier = self_prog_id.unwrap_or_default().into();
-
-    let cast_list = sys_tapes
-        .call_tape
-        .writer
-        .iter()
-        .flat_map(|msg| [msg.caller_prog, msg.callee_prog])
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect_vec();
-
-    let event_tape_single: Vec<Event> = sys_tapes
-        .event_tape
-        .writer
-        .into_iter()
-        .find_map(|t| (t.id == self_prog_id).then_some(t.contents))
-        .unwrap_or_default();
-
-    debug!("Self Prog ID: {self_prog_id:#?}");
-    debug!("Cast List (canonical repr): {cast_list:#?}");
-
-    {
-        fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
-        where
-            T: rkyv::Archive + rkyv::Serialize<AllocSerializer<256>>, {
-            let tape_bytes = rkyv::to_bytes::<_, 256>(tape).unwrap().into();
-            length_prefixed_bytes(tape_bytes, dgb_string)
-        }
-
-        mozak_runner::elf::RuntimeArguments {
-            self_prog_id: self_prog_id.to_le_bytes().to_vec(),
-            cast_list: serialise(&cast_list, "CAST_LIST"),
-            io_tape_public: serialise(&sys_tapes.public_tape, "IO_TAPE_PUBLIC"),
-            io_tape_private: serialise(&sys_tapes.private_tape, "IO_TAPE_PRIVATE"),
-            call_tape: serialise(&sys_tapes.call_tape.writer, "CALL_TAPE"),
-            event_tape: serialise(&event_tape_single, "EVENT_TAPE"),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Subcommand)]
@@ -234,24 +92,6 @@ enum Command {
     Bench(BenchArgs),
 }
 
-fn load_program(mut elf: Input, args: RuntimeArguments) -> Result<Program> {
-    let mut elf_bytes = Vec::new();
-    let bytes_read = elf.read_to_end(&mut elf_bytes)?;
-    debug!("Read {bytes_read} of ELF data.");
-    Program::mozak_load_program(&elf_bytes, &args.into())
-}
-
-fn load_program_with_args(
-    mut elf: Input,
-    args: &mozak_runner::elf::RuntimeArguments,
-) -> Result<Program> {
-    let mut elf_bytes = Vec::new();
-    let bytes_read = elf.read_to_end(&mut elf_bytes)?;
-    debug!("Read {bytes_read} of ELF data.");
-
-    Program::mozak_load_program(&elf_bytes, args)
-}
-
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
 /// iotape.txt`
 #[allow(clippy::too_many_lines)]
@@ -263,7 +103,7 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, RuntimeArguments::default())?;
+            let program = load_program(elf, &RuntimeArguments::default())?;
             debug!("{program:?}");
         }
         Command::Run(RunArgs {
@@ -274,7 +114,7 @@ fn main() -> Result<()> {
             let args = system_tape
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
-            let program = load_program_with_args(elf, &args).unwrap();
+            let program = load_program(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
             step(&program, state)?;
         }
@@ -287,7 +127,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
 
-            let program = load_program_with_args(elf, &args).unwrap();
+            let program = load_program(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
 
             let record = step(&program, state)?;
@@ -303,7 +143,7 @@ fn main() -> Result<()> {
             let args = system_tape
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
-            let program = load_program_with_args(elf, &args).unwrap();
+            let program = load_program(elf, &args).unwrap();
             let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
             let record = step(&program, state)?;
             let stark = if cli.debug {
@@ -397,7 +237,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf, RuntimeArguments::default())?;
+            let program = load_program(elf, &RuntimeArguments::default())?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -414,7 +254,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf, RuntimeArguments::default())?;
+            let program = load_program(elf, &RuntimeArguments::default())?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -435,20 +275,20 @@ fn main() -> Result<()> {
             println!("{sys_tapes:?}");
         }
         Command::Bench(bench) => {
+            /// Times a function and returns the `Duration`.
+            ///
+            /// # Errors
+            ///
+            /// This errors if the given function returns an `Err`.
+            pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
+                let start_time = std::time::Instant::now();
+                func()?;
+                Ok(start_time.elapsed())
+            }
+
             let time_taken = timeit(&|| bench.run())?.as_secs_f64();
             println!("{time_taken}");
         }
     }
     Ok(())
-}
-
-/// Times a function and returns the `Duration`.
-///
-/// # Errors
-///
-/// This errors if the given function returns an `Err`.
-pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
-    let start_time = std::time::Instant::now();
-    func()?;
-    Ok(start_time.elapsed())
 }
