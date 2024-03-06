@@ -14,6 +14,9 @@ pub struct Ops<T> {
     pub is_permute: T,
 }
 
+// We can get the addresses from the register table?
+// We even have the clk!
+
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2Sponge<T> {

@@ -5,6 +5,8 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
+// OK, try memory IO ecall via register stark.
+
 /// Operations (one-hot encoded)
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -55,6 +57,12 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     let mem = col_map().map(Column::from);
     vec![mem.clk, mem.addr, mem.size, mem.ops.is_io_store]
 }
+
+// #[must_use]
+// pub fn data_for_register<F: Field>() -> Vec<Column<F>> {
+//     let mem = col_map().map(Column::from);
+//     vec![mem.clk, Column::constant(F::ZERO), mem.addr]
+// }
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
