@@ -17,6 +17,9 @@ fn pad_trace<F: RichField>(
 pub fn generate_poseidon2_output_bytes_trace<F: RichField>(
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
 ) -> Vec<Poseidon2OutputBytes<F>> {
+    // it iterates here on all sponge_rows, but it actually takes only the last row,
+    // with flag = true. For all other rows the `empty` vector will be returned by
+    // `From` function (`into` call)
     let trace: Vec<Poseidon2OutputBytes<F>> = poseidon2_sponge_rows
         .iter()
         .flat_map(Into::<Vec<Poseidon2OutputBytes<F>>>::into)
