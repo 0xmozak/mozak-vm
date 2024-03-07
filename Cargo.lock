@@ -1009,6 +1009,7 @@ dependencies = [
  "lazy_static",
  "mozak-system",
  "once_cell",
+ "plonky2",
  "rkyv",
  "serde",
 ]

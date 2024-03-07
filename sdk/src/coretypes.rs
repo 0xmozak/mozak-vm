@@ -257,6 +257,43 @@ pub struct StateObject {
     pub data: Vec<u8>,
 }
 
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[archive(compare(PartialEq))]
+#[cfg_attr(target_os = "mozakvm", derive(Debug))]
+#[archive_attr(derive(Debug))]
+// #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
+pub struct CanonicalStateObjectOperation {
+    // TODO: change u32 to goldilocks F
+    /// Logical address of StateObject in the tree
+    pub address: u32,
+
+    /// [IMMUTABLE] Constraint-Owner is the only program which can
+    /// mutate the `metadata` and `data` fields of this object
+    pub constraint_owner: [u32; 4],
+
+    pub event_emitter: [u32; 4],
+
+    pub event_type: CanonicalEventType,
+
+    pub event_value: [u32; 4],
+}
+
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[cfg_attr(target_os = "mozakvm", derive(Debug))]
+#[archive_attr(derive(Debug))]
+#[repr(u8)]
+pub enum CanonicalEventType {
+    Read = 0,
+    Write,
+    Ensure,
+    Create,
+    Delete,
+}
+
+impl Default for CanonicalEventType {
+    fn default() -> Self { Self::Read }
+}
 #[cfg(not(target_os = "mozakvm"))]
 impl std::fmt::Debug for StateObject {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -360,21 +397,32 @@ impl From<Vec<u8>> for Signature {
     fn from(value: Vec<u8>) -> Signature { Signature(value) }
 }
 
-#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
-pub enum ContextVariable {
-    BlockHeight(u64),
-    SelfProgramIdentifier(ProgramIdentifier),
-}
+// #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+// #[archive(compare(PartialEq))]
+// #[archive_attr(derive(Debug))]
+// pub enum ContextVariable {
+//     BlockHeight(u64),
+//     SelfProgramIdentifier(ProgramIdentifier),
+// }
 
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub enum Event {
-    ReadContextVariable(ContextVariable),
-    ReadStateObject(StateObject),
-    UpdatedStateObject(StateObject),
-    CreatedStateObject(StateObject),
-    DeletedStateObject(StateObject),
+    Read(StateObject),
+    Write(StateObject),
+    Ensure(StateObject),
+    Create(StateObject),
+    Delete(StateObject),
+}
+
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+pub enum CanonicalEvent {
+    Read(CanonicalStateObjectOperation),
+    Write(CanonicalStateObjectOperation),
+    Ensure(CanonicalStateObjectOperation),
+    Create(CanonicalStateObjectOperation),
+    Delete(CanonicalStateObjectOperation),
 }

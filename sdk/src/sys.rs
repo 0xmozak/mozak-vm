@@ -4,7 +4,7 @@ use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
+use crate::coretypes::{CPCMessage, CanonicalEvent, Event, ProgramIdentifier};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -257,6 +257,15 @@ pub struct EventTape {
 pub struct EventTapeSingle {
     pub id: ProgramIdentifier,
     pub contents: Vec<Event>,
+    pub canonical_repr: Option<CanonicalEventTapeSingle>,
+}
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
+pub struct CanonicalEventTapeSingle {
+    pub contents: Vec<CanonicalEvent>,
 }
 
 impl EventTape {
@@ -312,6 +321,7 @@ impl EventTape {
             self.writer.push(EventTapeSingle {
                 id,
                 contents: vec![event],
+                canonical_repr: None,
             });
         }
     }
