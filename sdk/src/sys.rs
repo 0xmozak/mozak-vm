@@ -269,7 +269,23 @@ pub struct CanonicalEventTapeSingle {
 }
 
 impl From<EventTapeSingle> for CanonicalEventTapeSingle {
-    fn from(_value: EventTapeSingle) -> Self { Self::default() }
+    fn from(value: EventTapeSingle) -> Self {
+        #[cfg(target_os = "mozakvm")]
+        {
+            unimplemented!()
+        }
+
+        #[cfg(not(target_os = "mozakvm"))]
+        {
+            Self {
+                contents: value
+                    .contents
+                    .iter()
+                    .map(|event| CanonicalEvent::from(event.clone()))
+                    .collect(),
+            }
+        }
+    }
 }
 
 impl EventTape {
@@ -300,11 +316,8 @@ impl EventTape {
 
             assert_eq!(
                 match event {
-                    Event::ReadStateObject(s)
-                    | Event::CreatedStateObject(s)
-                    | Event::DeletedStateObject(s)
-                    | Event::UpdatedStateObject(s) => s.constraint_owner,
-                    Event::ReadContextVariable(_) => self.self_prog_id,
+                    Event::Create(s) | Event::Delete(s) | Event::Write(s) => s.constraint_owner,
+                    _ => self.self_prog_id,
                 },
                 self.self_prog_id
             );

@@ -25,5 +25,5 @@ version = "0.4"
 features = ["derive"]
 version = "1.0"
 
-#[target.'cfg(not(target_os="mozakvm"))'.dependencies.plonky2]
-#version = "0"
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.plonky2]
+version = "0"
