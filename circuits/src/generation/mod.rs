@@ -90,10 +90,16 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
     let io_transcript_rows = generate_io_transcript_trace(&record.executed);
+    // This step does the unrolling, unrolling-length is the length of the
+    // sponge-vector. Sponge vector length is roughly equal to the input-data-length
+    // divided by chunk-size (8)
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
     #[allow(unused)]
+    // This step generates the output only - it takes last sponge elements (with get-flag = true)
     let poseidon2_output_bytes_rows = generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
     #[allow(unused)]
+    // This is the computation step, all the heavy logic happens here. In other words, the poseidon
+    // hash
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
     let memory_rows = generate_memory_trace(
         &record.executed,

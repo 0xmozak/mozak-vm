@@ -10,13 +10,18 @@ use plonky2::plonk::config::GenericHashOut;
 use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
 
 // Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
-/// This function is sponge function which uses poseidon2 permutation function.
+/// This function is sponge function that uses poseidon2 permutation function.
 /// Input must be multiple of 8 bytes. It absorbs all input and the squeezes
 /// `NUM_HASH_OUT_ELTS` Field elements to generate `HashOut`.
+/// Why do we use only 4 field elements from our Poseidon2 output, but we are
+/// computing 8?  (I.e. ‘rate’ is set to 8.) Technically, we could set the rate
+/// to 4 (with permuting 8 -> 8). However, we (Vivek) opted for a rate of 8 is
+/// because: first, it's more efficient; with each permutation, a rate of 8/12
+/// (rate/width) achieves higher throughput than 4/8. Second, this approach
+/// adheres to the sponge logic defined in Plonky2  
+/// # Panics
 ///
-///  # Panics
-///
-/// Panics if `PlonkyPermutation` is implemented on `STATE_SIZE` different than
+/// Panics if `PlonkyPermutation` is implemented on `STATE_SIZE` different from
 /// 12.
 pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
@@ -56,7 +61,7 @@ pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
         // put `chunk` elements inside `perm` starting from index 0 - it means always
         // put at the beginning of the `perm`
         perm.set_from_slice(chunk, 0);
-        // run the function that execute the permutation and append new `sponge_data`
+        // run the function that executes the permutation and append a new `sponge_data`
         // element
         permute_and_record_data(&mut perm, &mut sponge_data);
     }
@@ -80,8 +85,8 @@ impl<F: RichField> State<F> {
     /// # Panics
     ///
     /// Panics if hash output of `hash_n_to_m_no_pad` has length different
-    /// then expected value.
-    /// Note: `ecall_poseidon2` work with 3 parameters:
+    /// from expected value.
+    /// Note: `ecall_poseidon2` works with 3 parameters:
     /// 1) Input-Data - The data we want to hash - represented as `input_ptr`
     /// 2) Input-Data-Length - represented as `input_len`
     /// 3) Output-Hash - the expected hash value - represented as `output_ptr`
@@ -100,13 +105,17 @@ impl<F: RichField> State<F> {
             .map(|i| F::from_canonical_u8(self.load_u8(input_ptr + i)))
             .collect();
         // This is the most important step, since here the actual `poseidon2` hash
-        // computation takes place. This function return `computed` hash-value and the
-        // intermediate `sponge_data`
+        // computation's taken place. This function returns `computed` hash-value and
+        // the intermediate `sponge_data`
         let (hash, sponge_data) =
             hash_n_to_m_no_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
         // In this step, HashOut<F> translated to bytes. Nothing special here, since
-        // internally it is just to_canonical64 and to 8 bytes. So it is just bytes
-        // representation
+        // internally it is just to_canonical64 and to 8 bytes. So it is just byte
+        // representation. The problem is that the same preimage can give us 2 different
+        // hashes, because we can add F::ORDER as in this example:
+        // let x = x.to_canonical_u64();
+        // x.checked_add(F::ORDER).unwrap_or(x).to_le_bytes()
+        // poseidon constraints don't ensure this
         let hash = hash.to_bytes();
         assert_eq!(32, hash.len());
         // In this step, 2 things happen:
