@@ -92,7 +92,7 @@ impl<F: RichField> State<F> {
     /// 3) Output-Hash - the expected hash value - represented as `output_ptr`
     /// Output-Hash size is constant and expected to be 32 bytes - 4 FE - 256b
     pub fn ecall_poseidon2(self) -> (Aux<F>, Self) {
-        // In this step we're taking 3 `ecall_poseidon2` arguments
+        // In this step, we're taking 3 `ecall_poseidon2` arguments
         let input_ptr = self.get_register_value(REG_A1);
         // lengths are in bytes
         let input_len = self.get_register_value(REG_A2);
