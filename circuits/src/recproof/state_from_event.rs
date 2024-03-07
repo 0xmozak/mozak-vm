@@ -1,5 +1,3 @@
-use std::iter::zip;
-
 use enumflags2::{bitflags, BitFlags};
 use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
@@ -8,6 +6,8 @@ use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
+
+use super::maybe_connect;
 
 // Limit transfers to 2^40 credits to avoid overflow issues
 const MAX_LEAF_TRANSFER: usize = 40;
@@ -147,7 +147,7 @@ impl PublicIndices {
     }
 }
 
-pub struct LeafInputs {
+pub struct SubCircuitInputs {
     /// The event/object address
     pub address: Target,
 
@@ -171,26 +171,8 @@ pub struct LeafInputs {
 }
 
 pub struct LeafTargets {
-    /// The event/object address
-    pub address: Target,
-
-    /// The (partial) object flags
-    pub object_flags: Target,
-
-    /// The previous constraint owner
-    pub old_owner: [Target; 4],
-
-    /// The new constraint owner
-    pub new_owner: [Target; 4],
-
-    /// The previous data
-    pub old_data: [Target; 4],
-
-    /// The new data
-    pub new_data: [Target; 4],
-
-    /// The credit change
-    pub credit_delta: Target,
+    /// The public inputs
+    pub inputs: SubCircuitInputs,
 
     /// The originator of the event
     pub event_owner: [Target; 4],
@@ -244,7 +226,7 @@ impl SplitFlags {
     }
 }
 
-impl LeafInputs {
+impl SubCircuitInputs {
     #[must_use]
     pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
     where
@@ -277,19 +259,9 @@ impl LeafInputs {
     }
 
     #[must_use]
-    pub fn build<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> LeafTargets
+    pub fn build_leaf<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> LeafTargets
     where
         F: RichField + Extendable<D>, {
-        let Self {
-            address,
-            object_flags,
-            old_owner,
-            new_owner,
-            old_data,
-            new_data,
-            credit_delta,
-        } = self;
-
         let zero = builder.zero();
         let one = builder.one();
         let write_const = EventType::Write.constant(builder);
@@ -304,7 +276,7 @@ impl LeafInputs {
         let event_value = builder.add_virtual_target_arr();
 
         let (write_flag, ensure_flag, read_flag, give_owner_flag, take_owner_flag) = {
-            let object_flags = builder.split_le(object_flags, Flags::count());
+            let object_flags = builder.split_le(self.object_flags, Flags::count());
 
             (
                 object_flags[Flags::WriteFlag.index()],
@@ -341,40 +313,22 @@ impl LeafInputs {
         builder.connect(is_take_owner.target, take_owner_flag.target);
 
         // Handle old owner from event owner (write or give)
-        for (old_owner, event_owner) in zip(old_owner, event_owner) {
-            let old_owner_calc = builder.select(old_owner_from_event, event_owner, old_owner);
-            builder.connect(old_owner_calc, old_owner);
-        }
+        maybe_connect(builder, self.old_owner, old_owner_from_event, event_owner);
 
         // Handle old owner from event value (take)
-        for (old_owner, event_value) in zip(old_owner, event_value) {
-            let old_owner_cal = builder.select(is_take_owner, event_value, old_owner);
-            builder.connect(old_owner_cal, old_owner);
-        }
+        maybe_connect(builder, self.old_owner, is_take_owner, event_value);
 
         // Handle new owner from event owner (take)
-        for (new_owner, event_owner) in zip(new_owner, event_owner) {
-            let new_owner_calc = builder.select(is_take_owner, event_owner, new_owner);
-            builder.connect(new_owner_calc, new_owner);
-        }
+        maybe_connect(builder, self.new_owner, is_take_owner, event_owner);
 
         // Handle new owner from event value (give)
-        for (new_owner, event_value) in zip(new_owner, event_value) {
-            let new_owner_calc = builder.select(is_give_owner, event_value, new_owner);
-            builder.connect(new_owner_calc, new_owner);
-        }
+        maybe_connect(builder, self.new_owner, is_give_owner, event_value);
 
         // Handle old data from event value (read)
-        for (old_data, event_value) in zip(old_data, event_value) {
-            let read_old_data = builder.select(is_read, event_value, old_data);
-            builder.connect(read_old_data, old_data);
-        }
+        maybe_connect(builder, self.old_data, is_read, event_value);
 
         // Handle new data from event value (write or ensure)
-        for (new_data, event_value) in zip(new_data, event_value) {
-            let new_data_calc = builder.select(new_data_from_value, event_value, new_data);
-            builder.connect(new_data_calc, new_data);
-        }
+        maybe_connect(builder, self.new_data, new_data_from_value, event_value);
 
         // Handle credit delta
         let credit_delta_val = builder.select(is_credit_delta, event_value[0], zero);
@@ -382,16 +336,10 @@ impl LeafInputs {
         let credit_delta_sign = builder.select(is_credit_delta, event_value[3], zero);
         let credit_delta_sign = builder.mul_const_add(-F::TWO, credit_delta_sign, one);
         let credit_delta_calc = builder.mul(credit_delta_val, credit_delta_sign);
-        builder.connect(credit_delta_calc, credit_delta);
+        builder.connect(credit_delta_calc, self.credit_delta);
 
         LeafTargets {
-            address,
-            object_flags,
-            old_owner,
-            new_owner,
-            old_data,
-            new_data,
-            credit_delta,
+            inputs: self,
 
             event_owner,
             event_ty,
@@ -399,7 +347,9 @@ impl LeafInputs {
         }
     }
 }
-/// The leaf subcircuit metadata. This subcircuit does validates the
+
+/// The leaf subcircuit metadata. This subcircuit validates a (public) partial
+/// object corresponds to a given (private) event.
 pub struct LeafSubCircuit {
     pub targets: LeafTargets,
     pub indices: PublicIndices,
@@ -412,31 +362,31 @@ impl LeafTargets {
         let indices = PublicIndices {
             address: public_inputs
                 .iter()
-                .position(|&pi| pi == self.address)
+                .position(|&pi| pi == self.inputs.address)
                 .expect("target not found"),
             object_flags: public_inputs
                 .iter()
-                .position(|&pi| pi == self.object_flags)
+                .position(|&pi| pi == self.inputs.object_flags)
                 .expect("target not found"),
-            old_owner: self.old_owner.map(|target| {
+            old_owner: self.inputs.old_owner.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            new_owner: self.new_owner.map(|target| {
+            new_owner: self.inputs.new_owner.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            old_data: self.old_data.map(|target| {
+            old_data: self.inputs.old_data.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            new_data: self.new_data.map(|target| {
+            new_data: self.inputs.new_data.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
@@ -444,7 +394,7 @@ impl LeafTargets {
             }),
             credit_delta: public_inputs
                 .iter()
-                .position(|&pi| pi == self.credit_delta)
+                .position(|&pi| pi == self.inputs.credit_delta)
                 .expect("target not found"),
         };
         LeafSubCircuit {
@@ -455,7 +405,7 @@ impl LeafTargets {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct LeafValueInputs<F> {
+pub struct LeafWitnessValue<F> {
     pub address: u64,
     pub object_flags: BitFlags<Flags>,
     pub old_owner: [F; 4],
@@ -468,7 +418,7 @@ pub struct LeafValueInputs<F> {
     pub event_value: [F; 4],
 }
 
-impl<F: RichField> LeafValueInputs<F> {
+impl<F: RichField> LeafWitnessValue<F> {
     pub fn from_event(
         address: u64,
         event_owner: [F; 4],
@@ -525,36 +475,39 @@ impl<F: RichField> LeafValueInputs<F> {
 
 impl LeafSubCircuit {
     /// Get ready to generate a proof
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
-        inputs: &mut PartialWitness<F>,
+        witness: &mut PartialWitness<F>,
         address: u64,
         event_owner: [F; 4],
         event_ty: EventType,
         event_value: [F; 4],
     ) {
         self.set_inputs_unsafe(
-            inputs,
-            LeafValueInputs::from_event(address, event_owner, event_ty, event_value),
+            witness,
+            LeafWitnessValue::from_event(address, event_owner, event_ty, event_value),
         );
     }
 
     pub fn set_inputs_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
-        v: LeafValueInputs<F>,
+        v: LeafWitnessValue<F>,
     ) {
-        inputs.set_target(self.targets.address, F::from_canonical_u64(v.address));
         inputs.set_target(
-            self.targets.object_flags,
+            self.targets.inputs.address,
+            F::from_canonical_u64(v.address),
+        );
+        inputs.set_target(
+            self.targets.inputs.object_flags,
             F::from_canonical_u8(v.object_flags.bits()),
         );
-        inputs.set_target_arr(&self.targets.old_owner, &v.old_owner);
-        inputs.set_target_arr(&self.targets.new_owner, &v.new_owner);
-        inputs.set_target_arr(&self.targets.old_data, &v.old_data);
-        inputs.set_target_arr(&self.targets.new_data, &v.new_data);
+        inputs.set_target_arr(&self.targets.inputs.old_owner, &v.old_owner);
+        inputs.set_target_arr(&self.targets.inputs.new_owner, &v.new_owner);
+        inputs.set_target_arr(&self.targets.inputs.old_data, &v.old_data);
+        inputs.set_target_arr(&self.targets.inputs.new_data, &v.new_data);
         inputs.set_target(
-            self.targets.credit_delta,
+            self.targets.inputs.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
         );
         inputs.set_target_arr(&self.targets.event_owner, &v.event_owner);
@@ -563,129 +516,22 @@ impl LeafSubCircuit {
     }
 }
 
-pub struct BranchInputs {
-    /// The events/object address
-    pub address: Target,
-
-    /// The (partial) object flags
-    pub object_flags: Target,
-
-    /// The previous constraint owner
-    pub old_owner: [Target; 4],
-
-    /// The new constraint owner
-    pub new_owner: [Target; 4],
-
-    /// The previous data
-    pub old_data: [Target; 4],
-
-    /// The new data
-    pub new_data: [Target; 4],
-
-    /// The credit delta
-    pub credit_delta: Target,
-}
-
 pub struct BranchTargets {
     /// The left direction
-    pub left: BranchDirectionTargets,
+    pub left: SubCircuitInputs,
 
     /// The right direction
-    pub right: BranchDirectionTargets,
+    pub right: SubCircuitInputs,
 
-    /// The events/object address
-    pub address: Target,
-
-    /// The (partial) object flags
-    pub object_flags: Target,
-
-    /// The previous constraint owner
-    pub old_owner: [Target; 4],
-
-    /// The new constraint owner
-    pub new_owner: [Target; 4],
-
-    /// The previous data
-    pub old_data: [Target; 4],
-
-    /// The new data
-    pub new_data: [Target; 4],
-
-    /// The credit delta
-    pub credit_delta: Target,
+    /// This public inputs
+    pub parent: SubCircuitInputs,
 }
 
-pub struct BranchDirectionTargets {
-    /// The events/object address
-    pub address: Target,
-
-    /// The (partial) object flags
-    pub object_flags: Target,
-
-    /// The previous constraint owner
-    pub old_owner: [Target; 4],
-
-    /// The new constraint owner
-    pub new_owner: [Target; 4],
-
-    /// The previous data
-    pub old_data: [Target; 4],
-
-    /// The new data
-    pub new_data: [Target; 4],
-
-    /// The credit delta
-    pub credit_delta: Target,
-}
-
-fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    parent: [Target; N],
-    use_child: BoolTarget,
-    child: [Target; N],
-) {
-    // Loop over the limbs
-    for (parent, child) in zip(parent, child) {
-        let child = builder.select(use_child, child, parent);
-        builder.connect(parent, child);
-    }
-}
-
-impl BranchInputs {
-    pub fn default<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
-        let address = builder.add_virtual_target();
-        let object_flags = builder.add_virtual_target();
-        let old_owner = builder.add_virtual_target_arr();
-        let new_owner = builder.add_virtual_target_arr();
-        let old_data = builder.add_virtual_target_arr();
-        let new_data = builder.add_virtual_target_arr();
-        let credit_delta = builder.add_virtual_target();
-
-        builder.register_public_input(address);
-        builder.register_public_input(object_flags);
-        builder.register_public_inputs(&old_owner);
-        builder.register_public_inputs(&new_owner);
-        builder.register_public_inputs(&old_data);
-        builder.register_public_inputs(&new_data);
-        builder.register_public_input(credit_delta);
-
-        Self {
-            address,
-            object_flags,
-            old_owner,
-            new_owner,
-            old_data,
-            new_data,
-            credit_delta,
-        }
-    }
-
+impl SubCircuitInputs {
     fn direction_from_node<const D: usize>(
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
-    ) -> BranchDirectionTargets {
+    ) -> SubCircuitInputs {
         let address = indices.get_address(&proof.public_inputs);
         let object_flags = indices.get_object_flags(&proof.public_inputs);
         let old_owner = indices.get_old_owner(&proof.public_inputs);
@@ -694,7 +540,7 @@ impl BranchInputs {
         let new_data = indices.get_new_data(&proof.public_inputs);
         let credit_delta = indices.get_credit_delta(&proof.public_inputs);
 
-        BranchDirectionTargets {
+        SubCircuitInputs {
             address,
             object_flags,
             old_owner,
@@ -708,24 +554,14 @@ impl BranchInputs {
     fn build_helper<F: RichField + Extendable<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
-        left: BranchDirectionTargets,
-        right: BranchDirectionTargets,
+        left: SubCircuitInputs,
+        right: SubCircuitInputs,
     ) -> BranchTargets {
-        let Self {
-            address,
-            object_flags,
-            old_owner,
-            new_owner,
-            old_data,
-            new_data,
-            credit_delta,
-        } = self;
-
-        builder.connect(address, left.address);
-        builder.connect(address, right.address);
+        builder.connect(self.address, left.address);
+        builder.connect(self.address, right.address);
 
         // Split up the flags
-        let parent_flags = SplitFlags::split(builder, object_flags);
+        let parent_flags = SplitFlags::split(builder, self.object_flags);
         let left_flags = SplitFlags::split(builder, left.object_flags);
         let right_flags = SplitFlags::split(builder, right.object_flags);
 
@@ -754,31 +590,30 @@ impl BranchInputs {
         let right_has_old_owner = builder.or(right_flags.write, right_has_owner);
 
         // Enforce restrictions on all the object fields
-        maybe_connect(builder, old_owner, left_has_old_owner, left.old_owner);
-        maybe_connect(builder, old_owner, right_has_old_owner, right.old_owner);
+        maybe_connect(builder, self.old_owner, left_has_old_owner, left.old_owner);
+        maybe_connect(
+            builder,
+            self.old_owner,
+            right_has_old_owner,
+            right.old_owner,
+        );
 
-        maybe_connect(builder, new_owner, left_has_owner, left.new_owner);
-        maybe_connect(builder, new_owner, right_has_owner, right.new_owner);
+        maybe_connect(builder, self.new_owner, left_has_owner, left.new_owner);
+        maybe_connect(builder, self.new_owner, right_has_owner, right.new_owner);
 
-        maybe_connect(builder, old_data, left_flags.read, left.old_data);
-        maybe_connect(builder, old_data, right_flags.read, right.old_data);
+        maybe_connect(builder, self.old_data, left_flags.read, left.old_data);
+        maybe_connect(builder, self.old_data, right_flags.read, right.old_data);
 
-        maybe_connect(builder, new_data, left_has_new_data, left.new_data);
-        maybe_connect(builder, new_data, right_has_new_data, right.new_data);
+        maybe_connect(builder, self.new_data, left_has_new_data, left.new_data);
+        maybe_connect(builder, self.new_data, right_has_new_data, right.new_data);
 
         let credit_delta_calc = builder.add(left.credit_delta, right.credit_delta);
-        builder.connect(credit_delta_calc, credit_delta);
+        builder.connect(credit_delta_calc, self.credit_delta);
 
         BranchTargets {
             left,
             right,
-            address,
-            object_flags,
-            old_owner,
-            new_owner,
-            old_data,
-            new_data,
-            credit_delta,
+            parent: self,
         }
     }
 
@@ -808,6 +643,8 @@ impl BranchInputs {
     }
 }
 
+/// The branch subcircuit metadata. This subcircuit validates the merge of two
+/// (private) partial object does not conflict.
 pub struct BranchSubCircuit {
     pub targets: BranchTargets,
     pub indices: PublicIndices,
@@ -821,31 +658,31 @@ impl BranchTargets {
         PublicIndices {
             address: public_inputs
                 .iter()
-                .position(|&pi| pi == self.address)
+                .position(|&pi| pi == self.parent.address)
                 .expect("target not found"),
             object_flags: public_inputs
                 .iter()
-                .position(|&pi| pi == self.object_flags)
+                .position(|&pi| pi == self.parent.object_flags)
                 .expect("target not found"),
-            old_owner: self.old_owner.map(|target| {
+            old_owner: self.parent.old_owner.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            new_owner: self.new_owner.map(|target| {
+            new_owner: self.parent.new_owner.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            old_data: self.old_data.map(|target| {
+            old_data: self.parent.old_data.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            new_data: self.new_data.map(|target| {
+            new_data: self.parent.new_data.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
@@ -853,7 +690,7 @@ impl BranchTargets {
             }),
             credit_delta: public_inputs
                 .iter()
-                .position(|&pi| pi == self.credit_delta)
+                .position(|&pi| pi == self.parent.credit_delta)
                 .expect("target not found"),
         }
     }
@@ -881,11 +718,9 @@ impl BranchTargets {
     }
 }
 
-pub struct Dummy<F>(BranchValueInputs<F>);
-
-impl<F> From<LeafValueInputs<F>> for Dummy<F> {
-    fn from(value: LeafValueInputs<F>) -> Self {
-        let v = BranchValueInputs {
+impl<F> From<LeafWitnessValue<F>> for BranchWitnessValue<F> {
+    fn from(value: LeafWitnessValue<F>) -> Self {
+        Self {
             address: value.address,
             object_flags: value.object_flags,
             old_owner: value.old_owner,
@@ -893,14 +728,12 @@ impl<F> From<LeafValueInputs<F>> for Dummy<F> {
             old_data: value.old_data,
             new_data: value.new_data,
             credit_delta: value.credit_delta,
-        };
-        debug_assert!(v.address != 0);
-        Self(v)
+        }
     }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct BranchValueInputs<F> {
+pub struct BranchWitnessValue<F> {
     pub address: u64,
     pub object_flags: BitFlags<Flags>,
     pub old_owner: [F; 4],
@@ -910,86 +743,85 @@ pub struct BranchValueInputs<F> {
     pub credit_delta: i64,
 }
 
-impl<F> From<BranchValueInputs<F>> for Dummy<F> {
-    fn from(value: BranchValueInputs<F>) -> Self { Self(value) }
-}
-
-impl<F: RichField> BranchValueInputs<F> {
-    pub fn from_branches(left: impl Into<Dummy<F>>, right: impl Into<Dummy<F>>) -> Self {
+impl<F: RichField> BranchWitnessValue<F> {
+    pub fn from_branches(left: impl Into<Self>, right: impl Into<Self>) -> Self {
         let zero = [F::ZERO; 4];
-        let Dummy(left2) = left.into();
-        let Dummy(right2) = right.into();
+        let left: Self = left.into();
+        let right: Self = right.into();
         Self {
-            address: left2.address,
-            object_flags: left2.object_flags | right2.object_flags,
-            old_owner: if left2
+            address: left.address,
+            object_flags: left.object_flags | right.object_flags,
+            old_owner: if left
                 .object_flags
                 .intersects(Flags::WriteFlag | Flags::GiveOwnerFlag | Flags::TakeOwnerFlag)
             {
-                left2.old_owner
-            } else if right2
+                left.old_owner
+            } else if right
                 .object_flags
                 .intersects(Flags::GiveOwnerFlag | Flags::TakeOwnerFlag | Flags::TakeOwnerFlag)
             {
-                right2.old_owner
+                right.old_owner
             } else {
                 zero
             },
-            new_owner: if left2
+            new_owner: if left
                 .object_flags
                 .intersects(Flags::GiveOwnerFlag | Flags::TakeOwnerFlag)
             {
-                left2.new_owner
-            } else if right2
+                left.new_owner
+            } else if right
                 .object_flags
                 .intersects(Flags::GiveOwnerFlag | Flags::TakeOwnerFlag)
             {
-                right2.new_owner
+                right.new_owner
             } else {
                 zero
             },
-            old_data: if left2.object_flags.intersects(Flags::ReadFlag) {
-                left2.old_data
-            } else if right2.object_flags.intersects(Flags::ReadFlag) {
-                right2.old_data
+            old_data: if left.object_flags.intersects(Flags::ReadFlag) {
+                left.old_data
+            } else if right.object_flags.intersects(Flags::ReadFlag) {
+                right.old_data
             } else {
                 zero
             },
-            new_data: if left2
+            new_data: if left
                 .object_flags
                 .intersects(Flags::WriteFlag | Flags::EnsureFlag)
             {
-                left2.new_data
-            } else if right2
+                left.new_data
+            } else if right
                 .object_flags
                 .intersects(Flags::WriteFlag | Flags::EnsureFlag)
             {
-                right2.new_data
+                right.new_data
             } else {
                 zero
             },
-            credit_delta: left2.credit_delta + right2.credit_delta,
+            credit_delta: left.credit_delta + right.credit_delta,
         }
     }
 }
 
 impl BranchSubCircuit {
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
-        inputs: &mut PartialWitness<F>,
-        v: BranchValueInputs<F>,
+        witness: &mut PartialWitness<F>,
+        v: BranchWitnessValue<F>,
     ) {
-        inputs.set_target(self.targets.address, F::from_canonical_u64(v.address));
-        inputs.set_target(
-            self.targets.object_flags,
+        witness.set_target(
+            self.targets.parent.address,
+            F::from_canonical_u64(v.address),
+        );
+        witness.set_target(
+            self.targets.parent.object_flags,
             F::from_canonical_u8(v.object_flags.bits()),
         );
-        inputs.set_target_arr(&self.targets.old_owner, &v.old_owner);
-        inputs.set_target_arr(&self.targets.new_owner, &v.new_owner);
-        inputs.set_target_arr(&self.targets.old_data, &v.old_data);
-        inputs.set_target_arr(&self.targets.new_data, &v.new_data);
-        inputs.set_target(
-            self.targets.credit_delta,
+        witness.set_target_arr(&self.targets.parent.old_owner, &v.old_owner);
+        witness.set_target_arr(&self.targets.parent.new_owner, &v.new_owner);
+        witness.set_target_arr(&self.targets.parent.old_data, &v.old_data);
+        witness.set_target_arr(&self.targets.parent.new_data, &v.new_data);
+        witness.set_target(
+            self.targets.parent.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
         );
     }
@@ -1019,8 +851,8 @@ mod test {
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-            let state_from_events_inputs = LeafInputs::default(&mut builder);
-            let state_from_events_targets = state_from_events_inputs.build(&mut builder);
+            let state_from_events_inputs = SubCircuitInputs::default(&mut builder);
+            let state_from_events_targets = state_from_events_inputs.build_leaf(&mut builder);
             let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
             let state_from_events =
                 state_from_events_targets.build(&circuit.prover_only.public_inputs);
@@ -1041,7 +873,7 @@ mod test {
             event_value: [F; 4],
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.state_from_events.set_inputs(
+            self.state_from_events.set_witness(
                 &mut inputs,
                 address,
                 event_owner,
@@ -1056,7 +888,7 @@ mod test {
         fn prove_unsafe(
             &self,
             branch: &DummyBranchCircuit,
-            v: LeafValueInputs<F>,
+            v: LeafWitnessValue<F>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.state_from_events.set_inputs_unsafe(&mut inputs, v);
@@ -1089,7 +921,7 @@ mod test {
             let left_is_leaf = builder.add_virtual_bool_target_safe();
             let right_is_leaf = builder.add_virtual_bool_target_safe();
 
-            let state_from_events_inputs = BranchInputs::default(&mut builder);
+            let state_from_events_inputs = SubCircuitInputs::default(&mut builder);
 
             let state_from_events_targets = state_from_events_inputs.from_leaf(
                 &mut builder,
@@ -1125,14 +957,14 @@ mod test {
 
         pub fn prove(
             &self,
-            v: BranchValueInputs<F>,
+            v: BranchWitnessValue<F>,
             left_is_leaf: bool,
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_is_leaf: bool,
             right_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.state_from_events.set_inputs(&mut inputs, v);
+            self.state_from_events.set_witness(&mut inputs, v);
             inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
             inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
@@ -1222,7 +1054,7 @@ mod test {
 
     fn leaf_test_helper<Fn>(owner: [u64; 4], event_ty: EventType, value: [u64; 4], f: Fn)
     where
-        Fn: FnOnce(&mut LeafValueInputs<F>, [F; 4], [F; 4]) + UnwindSafe, {
+        Fn: FnOnce(&mut LeafWitnessValue<F>, [F; 4], [F; 4]) + UnwindSafe, {
         let (leaf, branch, event) = catch_unwind(|| {
             let circuit_config = CircuitConfig::standard_recursion_config();
             let leaf = DummyLeafCircuit::new(&circuit_config);
@@ -1231,7 +1063,7 @@ mod test {
             let owner = owner.map(F::from_canonical_u64);
             let value = value.map(F::from_canonical_u64);
 
-            let mut event = LeafValueInputs::from_event(200, owner, event_ty, value);
+            let mut event = LeafWitnessValue::from_event(200, owner, event_ty, value);
 
             f(&mut event, owner, value);
 
@@ -1350,16 +1182,16 @@ mod test {
 
     trait MaybeBfn: Sized + UnwindSafe {
         const PRESENT: bool;
-        fn apply(self, _event: &mut BranchValueInputs<F>) { unimplemented!() }
+        fn apply(self, _event: &mut BranchWitnessValue<F>) { unimplemented!() }
     }
 
     impl MaybeBfn for NoFn {
         const PRESENT: bool = false;
     }
-    impl<Fn: FnOnce(&mut BranchValueInputs<F>) + UnwindSafe> MaybeBfn for Fn {
+    impl<Fn: FnOnce(&mut BranchWitnessValue<F>) + UnwindSafe> MaybeBfn for Fn {
         const PRESENT: bool = true;
 
-        fn apply(self, event: &mut BranchValueInputs<F>) { self(event) }
+        fn apply(self, event: &mut BranchWitnessValue<F>) { self(event) }
     }
 
     fn branch_test_helper<Lfn, Bfn1, Bfn2>(
@@ -1370,9 +1202,9 @@ mod test {
         bf1: Bfn1,
         bf2: Bfn2,
     ) where
-        Lfn: FnOnce(&mut LeafValueInputs<F>, &mut LeafValueInputs<F>, &mut LeafValueInputs<F>)
+        Lfn: FnOnce(&mut LeafWitnessValue<F>, &mut LeafWitnessValue<F>, &mut LeafWitnessValue<F>)
             + UnwindSafe,
-        Bfn1: FnOnce(&mut BranchValueInputs<F>) + UnwindSafe,
+        Bfn1: FnOnce(&mut BranchWitnessValue<F>) + UnwindSafe,
         Bfn2: MaybeBfn, {
         let (branch, left, right, branch_event) = catch_unwind(|| {
             let circuit_config = CircuitConfig::standard_recursion_config();
@@ -1382,14 +1214,14 @@ mod test {
             let owners = owners.map(|owner| owner.map(F::from_canonical_u64));
             let values = values.map(|owner| owner.map(F::from_canonical_u64));
 
-            let mut event0 = LeafValueInputs::from_event(200, owners[0], tys[0], values[0]);
-            let mut event1 = LeafValueInputs::from_event(200, owners[1], tys[1], values[1]);
-            let mut event2 = LeafValueInputs::from_event(200, owners[2], tys[2], values[2]);
+            let mut event0 = LeafWitnessValue::from_event(200, owners[0], tys[0], values[0]);
+            let mut event1 = LeafWitnessValue::from_event(200, owners[1], tys[1], values[1]);
+            let mut event2 = LeafWitnessValue::from_event(200, owners[2], tys[2], values[2]);
             lf(&mut event0, &mut event1, &mut event2);
 
-            let mut branch_event_1 = BranchValueInputs::from_branches(event0, event1);
+            let mut branch_event_1 = BranchWitnessValue::from_branches(event0, event1);
             bf1(&mut branch_event_1);
-            let mut branch_event_2 = BranchValueInputs::from_branches(branch_event_1, event2);
+            let mut branch_event_2 = BranchWitnessValue::from_branches(branch_event_1, event2);
             if Bfn2::PRESENT {
                 bf2.apply(&mut branch_event_2);
             };
@@ -1445,7 +1277,7 @@ mod test {
             [[3, 1, 4, 15], [1, 6, 180, 33], [3, 1, 4, 15]],
             |_, _, _| {},
             |_| {},
-            |event: &mut BranchValueInputs<F>| {
+            |event: &mut BranchWitnessValue<F>| {
                 event.address += 10;
             },
         );
@@ -1477,7 +1309,7 @@ mod test {
             [[13, 0, 0, 0], [8, 0, 0, 1], [3, 1, 4, 15]],
             |_, _, _| {},
             |_| {},
-            |event: &mut BranchValueInputs<F>| {
+            |event: &mut BranchWitnessValue<F>| {
                 event.credit_delta += 10;
             },
         );
@@ -1523,7 +1355,7 @@ mod test {
         leaf.circuit.verify(ensure_proof.clone())?;
 
         let branch_proof_1 = branch.prove(
-            BranchValueInputs {
+            BranchWitnessValue {
                 address: 200,
                 object_flags: Flags::ReadFlag | Flags::WriteFlag,
                 old_owner: program_hash_1,
@@ -1540,7 +1372,7 @@ mod test {
         branch.circuit.verify(branch_proof_1.clone())?;
 
         let branch_proof_2 = branch.prove(
-            BranchValueInputs {
+            BranchWitnessValue {
                 address: 200,
                 object_flags: Flags::ReadFlag | Flags::WriteFlag | Flags::EnsureFlag,
                 old_owner: program_hash_1,
