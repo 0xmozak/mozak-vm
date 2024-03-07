@@ -1558,4 +1558,53 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn two_reads_change_owner() -> Result<()> {
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let leaf = DummyLeafCircuit::new(&circuit_config);
+        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
+
+        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+
+        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
+        let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
+
+        let first_read_proof = leaf.prove(
+            &branch,
+            200,
+            program_hash_1,
+            EventType::Read,
+            non_zero_val_1,
+        )?;
+        leaf.circuit.verify(first_read_proof.clone())?;
+
+        let second_read_proof = leaf.prove(
+            &branch,
+            200,
+            program_hash_1,
+            EventType::Read,
+            non_zero_val_1,
+        )?;
+        leaf.circuit.verify(second_read_proof.clone())?;
+
+        let branch_proof = branch.prove(
+            BranchValueInputs {
+                address: 200,
+                object_flags: Flags::ReadFlag | Flags::ReadFlag,
+                old_owner: program_hash_1,
+                new_owner: program_hash_1,
+                old_data: non_zero_val_1,
+                new_data: non_zero_val_2, // successfully changed data
+                credit_delta: 0,
+            },
+            true,
+            &first_read_proof,
+            true,
+            &second_read_proof,
+        )?;
+        branch.circuit.verify(branch_proof.clone())?;
+
+        Ok(())
+    }
 }
