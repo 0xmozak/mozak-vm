@@ -268,6 +268,10 @@ pub struct CanonicalEventTapeSingle {
     pub contents: Vec<CanonicalEvent>,
 }
 
+impl From<EventTapeSingle> for CanonicalEventTapeSingle {
+    fn from(_value: EventTapeSingle) -> Self { Self::default() }
+}
+
 impl EventTape {
     #[must_use]
     pub fn new() -> Self {
@@ -336,7 +340,10 @@ pub fn dump_tapes(file_template: String) {
         file.write_all(content).unwrap();
     }
 
-    let tape_clone = unsafe { SYSTEM_TAPES.clone() }; // .clone() removes `Lazy{}`
+    let mut tape_clone = unsafe { SYSTEM_TAPES.clone() }; // .clone() removes `Lazy{}`
+    tape_clone.event_tape.writer.iter_mut().for_each(|event| {
+        event.canonical_repr = Some(CanonicalEventTapeSingle::from(event.clone()))
+    });
 
     let dbg_filename = file_template.clone() + ".tape_debug";
     let dbg_bytes = &format!("{:#?}", tape_clone).into_bytes();
