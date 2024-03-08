@@ -231,7 +231,7 @@ mod tests {
     #[test]
     #[should_panic = "Constraint failed in"]
     fn non_canonical_hash(value in 0..u32::MAX) {
-        fn dummy_trace(value: u32) -> Vec<Poseidon2OutputBytes<F>> {
+        fn malicious_trace(value: u32) -> Vec<Poseidon2OutputBytes<F>> {
             let output = [F::from_canonical_u32(value); 12];
             let sponge = Poseidon2Sponge::<F> {
                 output,
