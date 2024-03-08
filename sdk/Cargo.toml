@@ -13,6 +13,9 @@ version = "0.1.0"
 mozak-system = { path = "../system", features = ["mozak-ro-memory"] }
 once_cell = { version = "1.19.0", default-features = false, features = ["race"] }
 rkyv = { version = "0.7.1", default-features = false, features = ["size_32", "alloc"] }
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+toml = "0.8"
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.lazy_static]
 version = "1.4.0"

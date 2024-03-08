@@ -32,7 +32,7 @@ use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use mozak_sdk::coretypes::{Event, ProgramIdentifier};
-use mozak_sdk::sys::SystemTapes;
+use mozak_sdk::sys::{ProofBundle, SystemTapes};
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -90,13 +90,10 @@ enum Command {
     VerifyRecursiveProof { proof: Input, verifier_key: Input },
     /// Builds a transaction bundle.
     BundleTransaction {
-        elf: Input,
         #[arg(long)]
-        system_tape: Input,
-        #[arg(long)]
-        self_prog_id: String,
-        #[arg(long)]
-        cast: Vec<String>,
+        bundle_plans: Vec<Input>,
+        #[arg(long, required = true)]
+        cast_list: Vec<String>,
     },
     /// Compute the Program Rom Hash of the given ELF.
     ProgramRomHash { elf: Input },
@@ -219,84 +216,98 @@ fn main() -> Result<()> {
             debug!("proof generated successfully!");
         }
         Command::BundleTransaction {
-            elf,
-            system_tape,
-            self_prog_id,
-            cast,
+            mut bundle_plans,
+            cast_list,
         } => {
             println!("Bundling transaction...");
+            for bundle_plan in bundle_plans {
+                let mut bundle_plan_bytes = Vec::new();
+                let _ = bundle_plan.read_to_end(&mut bundle_plan_bytes)?;
 
-            let sys_tapes: SystemTapes = deserialize_system_tape(system_tape.clone()).unwrap();
-            let event_tape: Vec<Event> = sys_tapes
-                .event_tape
-                .writer
-                .into_iter()
-                .find_map(|t| {
-                    (t.id == ProgramIdentifier::from(self_prog_id.clone())).then_some(t.contents)
-                })
-                .unwrap_or_default();
+                let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes).unwrap();
 
-            let args = tapes_to_runtime_arguments(system_tape, Some(self_prog_id.clone()));
+                let sys_tapes: SystemTapes =
+                    deserialize_system_tape(Input::try_from(&plan.system_tape_filepath).unwrap())
+                        .unwrap();
 
-            let program = load_program(elf, &args)?;
-            let state =
-                State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.clone());
-            let record = step(&program, state)?;
-            let trace = generate_io_memory_private_trace(&record.executed);
-            let trace_poly_values = trace_rows_to_poly_values(trace);
-            let rate_bits = config.fri_config.rate_bits;
-            let cap_height = config.fri_config.cap_height;
-            let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                trace_poly_values,
-                rate_bits,
-                false, // blinding
-                cap_height,
-                &mut TimingTree::default(),
-                None, // fft_root_table
-            );
-            let private_tape_cap = trace_commitment.merkle_tree.cap;
-            let private_tape_hash = private_tape_cap;
-
-            let trace = generate_io_transcript_trace(&record.executed);
-            let trace_poly_values = trace_rows_to_poly_values(trace);
-            let rate_bits = config.fri_config.rate_bits;
-            let cap_height = config.fri_config.cap_height;
-            let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                trace_poly_values,
-                rate_bits,
-                false, // blinding
-                cap_height,
-                &mut TimingTree::default(),
-                None, // fft_root_table
-            );
-            let call_tape_hash = trace_commitment.merkle_tree.cap;
-
-            let transparent_attestation = TransparentAttestation {
-                public_tape: args.io_tape_public,
-                event_tape,
-            };
-
-            let opaque_attestation: OpaqueAttestation<F, C, D> =
-                OpaqueAttestation { private_tape_hash };
-
-            let attestation = Attestation {
-                id: self_prog_id.into(),
-                opaque: opaque_attestation,
-                transparent: transparent_attestation,
-            };
-            // println!("Attestations:\n{attestation:#?}");
-            let constituent_zs = vec![attestation];
-
-            let transaction = Transaction {
-                call_tape_hash,
-                cast_list: cast
+                let event_tape: Vec<Event> = sys_tapes
+                    .event_tape
+                    .writer
                     .into_iter()
-                    .unique()
-                    .map(ProgramIdentifier::from)
-                    .collect(),
-                constituent_zs,
-            };
+                    .find_map(|t| {
+                        (t.id == ProgramIdentifier::from(plan.self_prog_id.clone()))
+                            .then_some(t.contents)
+                    })
+                    .unwrap_or_default();
 
+                let args = tapes_to_runtime_arguments(
+                    Input::try_from(&plan.system_tape_filepath).unwrap(),
+                    Some(plan.self_prog_id.to_string()),
+                );
+
+                let release_dirpath = std::env::current_dir()
+                    .unwrap()
+                    .join("examples/target/riscv32im-mozak-mozakvm-elf/release/");
+                let elf_path = release_dirpath.join(plan.elf_filename);
+                let program = load_program(Input::try_from(&elf_path).unwrap(), &args)?;
+                let state =
+                    State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.clone());
+                let record = step(&program, state)?;
+                let trace = generate_io_memory_private_trace(&record.executed);
+                let trace_poly_values = trace_rows_to_poly_values(trace);
+                let rate_bits = config.fri_config.rate_bits;
+                let cap_height = config.fri_config.cap_height;
+                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                    trace_poly_values,
+                    rate_bits,
+                    false, // blinding
+                    cap_height,
+                    &mut TimingTree::default(),
+                    None, // fft_root_table
+                );
+                let private_tape_cap = trace_commitment.merkle_tree.cap;
+                let private_tape_hash = private_tape_cap;
+
+                let trace = generate_io_transcript_trace(&record.executed);
+                let trace_poly_values = trace_rows_to_poly_values(trace);
+                let rate_bits = config.fri_config.rate_bits;
+                let cap_height = config.fri_config.cap_height;
+                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                    trace_poly_values,
+                    rate_bits,
+                    false, // blinding
+                    cap_height,
+                    &mut TimingTree::default(),
+                    None, // fft_root_table
+                );
+                let call_tape_hash = trace_commitment.merkle_tree.cap;
+
+                let transparent_attestation = TransparentAttestation {
+                    public_tape: args.io_tape_public,
+                    event_tape,
+                };
+
+                let opaque_attestation: OpaqueAttestation<F, C, D> =
+                    OpaqueAttestation { private_tape_hash };
+
+                let attestation = Attestation {
+                    id: plan.self_prog_id.into(),
+                    opaque: opaque_attestation,
+                    transparent: transparent_attestation,
+                };
+                // println!("Attestations:\n{attestation:#?}");
+                let constituent_zs = vec![attestation];
+
+                let transaction = Transaction {
+                    call_tape_hash,
+                    cast_list: cast_list
+                        .into_iter()
+                        .unique()
+                        .map(ProgramIdentifier::from)
+                        .collect(),
+                    constituent_zs,
+                };
+            }
             println!("Transaction bundled: {transaction:?}");
         }
 

@@ -1,3 +1,5 @@
+use std::fs;
+use std::path::PathBuf;
 use std::ptr::addr_of;
 
 use once_cell::unsync::Lazy;
@@ -317,8 +319,18 @@ impl EventTape {
     }
 }
 
-#[cfg(not(target_os = "mozakvm"))]
-pub fn dump_tapes(file_template: String) {
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GuestProgramTomlCfg {
+    bin: Vec<Bin>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+struct Bin {
+    name: String,
+    path: String,
+}
+
+pub fn dump_proving_files(file_template: String, self_prog_id: ProgramIdentifier) {
     fn write_to_file(file_path: &String, content: &[u8]) {
         use std::io::Write;
         let path = std::path::Path::new(file_path.as_str());
@@ -333,10 +345,42 @@ pub fn dump_tapes(file_template: String) {
     println!("[TPDMP] Debug  dump: {:?}", dbg_filename);
     write_to_file(&dbg_filename, dbg_bytes);
 
-    let bin_filename = file_template + ".tape_bin";
+    let bin_filename = file_template.clone() + ".tape_bin";
     let bin_bytes = unsafe { rkyv::to_bytes::<_, 256>(&*(addr_of!(tape_clone))).unwrap() };
     println!("[TPDMP] Binary dump: {:?}", bin_filename);
     write_to_file(&bin_filename, bin_bytes.as_slice());
+
+    let toml_str = fs::read_to_string("Cargo.toml").unwrap();
+    let curr_dir = std::env::current_dir().unwrap();
+    let toml: GuestProgramTomlCfg = toml::from_str(&toml_str).unwrap();
+
+    let bin_filepath_absolute = curr_dir.join(bin_filename);
+
+    let mozak_bin = toml
+        .bin
+        .into_iter()
+        .find(|b| b.path.contains("_mozak"))
+        .expect("Guest program does not have a mozakvm bin with path *_mozak.rs declared");
+
+    let elf_filename = mozak_bin.name;
+    let bundle = ProofBundle {
+        self_prog_id: self_prog_id.to_string(),
+        elf_filename,
+        system_tape_filepath: bin_filepath_absolute,
+    };
+    println!("[BNDLDMP] Bundle dump: {:?}", bundle);
+
+    let bundle_filename = file_template + "_bundle.json";
+    let bundle_json = serde_json::to_string_pretty(&bundle).unwrap();
+    write_to_file(&bundle_filename, bundle_json.as_bytes());
+}
+
+/// A bundle that declares the elf and system tape to be proven together.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ProofBundle {
+    pub self_prog_id: String,
+    pub elf_filename: String,
+    pub system_tape_filepath: PathBuf,
 }
 
 /// ---- SDK accessible methods ---

@@ -4,7 +4,7 @@
 mod core_logic;
 
 use mozak_sdk::coretypes::ProgramIdentifier;
-use mozak_sdk::sys::{call_send, dump_tapes};
+use mozak_sdk::sys::{call_send, dump_proving_files};
 
 use crate::core_logic::{dispatch, BlackBox, MethodArgs, MethodReturns, PublicKey, TokenObject};
 
@@ -56,6 +56,8 @@ fn main() {
     );
     core_logic::approve_signature(remittee_wallet, pub_key, black_box);
 
-    dump_tapes("wallet_approve".to_string());
+    let name = "wallet_approve".to_string();
+    dump_proving_files(name.clone(), wallet_program);
+
     println!("------>   Generated tapes!");
 }

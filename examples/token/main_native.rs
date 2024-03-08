@@ -3,9 +3,7 @@
 mod core_logic;
 
 use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
-use mozak_sdk::sys::call_send;
-#[cfg(not(target_os = "mozakvm"))]
-use mozak_sdk::sys::dump_tapes;
+use mozak_sdk::sys::{call_send, dump_proving_files};
 use token::{dispatch, MethodArgs, MethodReturns};
 use wallet::TokenObject;
 
@@ -67,7 +65,8 @@ fn main() {
         },
     );
 
-    dump_tapes("token_tfr".to_string());
+    let name = "token_tfr".to_string();
+    dump_proving_files(name.clone(), token_program);
 
     println!("------>   Generated tapes!");
 }
