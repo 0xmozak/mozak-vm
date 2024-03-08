@@ -180,7 +180,16 @@ pub struct LeafTargets {
     /// The event type
     pub event_ty: Target,
 
-    /// The event value
+    /// The event value. Has different meanings for each event.
+    ///
+    /// For `Write` and `Ensure`, this is the `new_data` value.
+    /// For `Read` this is the `old_data` value.
+    /// For `GiveOwner` this is the `new_owner` value.
+    /// For `TakeOwner` this is the `old_owner` value.
+    /// For `CreditDelta` this is the operation (addition or subtraction) and
+    /// the amount of credits to add/subtract. The format is `[d, _, _, s]`
+    /// where `d` is the delta, and `s == 0` means add and `s == -1` means
+    /// subtract.
     pub event_value: [Target; 4],
 }
 
@@ -295,7 +304,8 @@ impl SubCircuitInputs {
         let is_credit_delta = builder.is_equal(event_ty, credit_delta_const);
 
         // new data comes from the event value for writes and ensures
-        // These are all mutually exclusive, so we can just add them
+        // These are all mutually exclusive (since `event_ty` can't simultaneously equal
+        // multiple values), so we can just add them
         let new_data_from_value = builder.add(is_write.target, is_ensure.target);
         let new_data_from_value = BoolTarget::new_unsafe(new_data_from_value);
 
@@ -743,60 +753,45 @@ pub struct BranchWitnessValue<F> {
     pub credit_delta: i64,
 }
 
+fn branch_helper<F: RichField>(
+    l: &BranchWitnessValue<F>,
+    r: &BranchWitnessValue<F>,
+    f: impl Fn(&BranchWitnessValue<F>) -> [F; 4],
+    flags: impl Into<BitFlags<Flags>>,
+) -> [F; 4] {
+    let flags = flags.into();
+    match (
+        l.object_flags.intersects(flags),
+        r.object_flags.intersects(flags),
+    ) {
+        (false, false) => [F::ZERO; 4],
+        (true, false) => f(l),
+        (false, true) => f(r),
+        (true, true) => {
+            let l = f(l);
+            debug_assert_eq!(l, f(r));
+            l
+        }
+    }
+}
+
 impl<F: RichField> BranchWitnessValue<F> {
     pub fn from_branches(left: impl Into<Self>, right: impl Into<Self>) -> Self {
-        let zero = [F::ZERO; 4];
         let left: Self = left.into();
         let right: Self = right.into();
+
+        let old_owner = Flags::WriteFlag | Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
+        let new_owner = Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
+        let new_data = Flags::ReadFlag;
+        let old_data = Flags::WriteFlag | Flags::EnsureFlag;
+
         Self {
             address: left.address,
             object_flags: left.object_flags | right.object_flags,
-            old_owner: if left
-                .object_flags
-                .intersects(Flags::WriteFlag | Flags::GiveOwnerFlag | Flags::TakeOwnerFlag)
-            {
-                left.old_owner
-            } else if right
-                .object_flags
-                .intersects(Flags::GiveOwnerFlag | Flags::TakeOwnerFlag | Flags::TakeOwnerFlag)
-            {
-                right.old_owner
-            } else {
-                zero
-            },
-            new_owner: if left
-                .object_flags
-                .intersects(Flags::GiveOwnerFlag | Flags::TakeOwnerFlag)
-            {
-                left.new_owner
-            } else if right
-                .object_flags
-                .intersects(Flags::GiveOwnerFlag | Flags::TakeOwnerFlag)
-            {
-                right.new_owner
-            } else {
-                zero
-            },
-            old_data: if left.object_flags.intersects(Flags::ReadFlag) {
-                left.old_data
-            } else if right.object_flags.intersects(Flags::ReadFlag) {
-                right.old_data
-            } else {
-                zero
-            },
-            new_data: if left
-                .object_flags
-                .intersects(Flags::WriteFlag | Flags::EnsureFlag)
-            {
-                left.new_data
-            } else if right
-                .object_flags
-                .intersects(Flags::WriteFlag | Flags::EnsureFlag)
-            {
-                right.new_data
-            } else {
-                zero
-            },
+            old_owner: branch_helper(&left, &right, |c| c.old_owner, old_owner),
+            new_owner: branch_helper(&left, &right, |c| c.new_owner, new_owner),
+            old_data: branch_helper(&left, &right, |c| c.old_data, old_data),
+            new_data: branch_helper(&left, &right, |c| c.new_data, new_data),
             credit_delta: left.credit_delta + right.credit_delta,
         }
     }
