@@ -14,6 +14,8 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
+use super::{find_bool, find_target};
+
 #[derive(Copy, Clone)]
 pub struct PublicIndices {
     pub node_present: usize,
@@ -96,14 +98,8 @@ impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
-            node_present: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_present.target)
-                .expect("target not found"),
-            node_address: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_address)
-                .expect("target not found"),
+            node_present: find_bool(public_inputs, self.node_present),
+            node_address: find_target(public_inputs, self.node_address),
         };
         LeafSubCircuit {
             targets: self,
@@ -274,14 +270,8 @@ pub struct BranchSubCircuit {
 impl BranchTargets {
     fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices {
         PublicIndices {
-            node_present: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_present.target)
-                .expect("target not found"),
-            node_address: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_address)
-                .expect("target not found"),
+            node_present: find_bool(public_inputs, self.node_present),
+            node_address: find_target(public_inputs, self.node_address),
         }
     }
 

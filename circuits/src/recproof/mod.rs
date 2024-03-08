@@ -211,3 +211,28 @@ fn at_least_one_true<F, const D: usize>(
     // If all booleans were 0, self-division will be unsatisfiable
     builder.div(total, total);
 }
+
+/// Finds the index of a target `t` in an array. Useful for getting and
+/// labelling the indicies for public inputs.
+fn find_target(targets: &[Target], t: Target) -> usize {
+    targets
+        .iter()
+        .position(|&pi| pi == t)
+        .expect("target not found")
+}
+
+/// Finds the index of a boolean target `t` in an array. Useful for getting and
+/// labelling the indicies for public inputs.
+fn find_bool(targets: &[Target], t: BoolTarget) -> usize { find_target(targets, t.target) }
+
+/// Finds the indices of targets `ts` in an array. Useful for getting and
+/// labelling the indicies for public inputs.
+fn find_targets<const N: usize>(targets: &[Target], ts: [Target; N]) -> [usize; N] {
+    ts.map(|t| find_target(targets, t))
+}
+
+/// Finds the indices of the target elements of `ts` in an array. Useful for
+/// getting and labelling the indicies for public inputs.
+fn find_hash(targets: &[Target], ts: HashOutTarget) -> [usize; NUM_HASH_OUT_ELTS] {
+    find_targets(targets, ts.elements)
+}
