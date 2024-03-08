@@ -4,6 +4,7 @@ use super::MIN_TRACE_LENGTH;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 
+#[must_use]
 pub fn pad_trace<F: RichField>(
     mut trace: Vec<Poseidon2OutputBytes<F>>,
 ) -> Vec<Poseidon2OutputBytes<F>> {

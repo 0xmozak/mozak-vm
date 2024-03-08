@@ -89,10 +89,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
             yield_constr.constraint(builder, x_sub_of);
         }
 
-        let u32_max = builder.constant(F::from_canonical_u32(u32::MAX).into());
-        let u32_max_ext = builder.convert_to_ext(u32_max);
-        let one = builder.constant(F::ONE.into());
-        let one_ext = builder.convert_to_ext(one);
+        let u32_max = builder.constant_extension(F::from_canonical_u32(u32::MAX).into());
+        let one = builder.constant_extension(F::ONE.into());
 
         (0..4).for_each(|i| {
             let low_limb = reduce_with_powers_ext_circuit(
@@ -106,9 +104,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
                 two_to_eight,
             );
             let gap_inv = lv.gap_invs[i];
-            let u32_max_sub_high_limb = builder.sub_extension(u32_max_ext, high_limb);
+            let u32_max_sub_high_limb = builder.sub_extension(u32_max, high_limb);
             let u32_max_sub_high_limb_times_gap_inv_minus_one =
-                builder.mul_sub_extension(u32_max_sub_high_limb, gap_inv, one_ext);
+                builder.mul_sub_extension(u32_max_sub_high_limb, gap_inv, one);
             let zero =
                 builder.mul_extension(u32_max_sub_high_limb_times_gap_inv_minus_one, low_limb);
             yield_constr.constraint(builder, zero);
