@@ -130,13 +130,17 @@ mod tests {
     use proptest::prelude::ProptestConfig;
     use proptest::{prop_assert_eq, proptest};
     use starky::config::StarkConfig;
-    use starky::prover::prove;
+    use starky::prover::{prove, prove as prove_table};
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
     use starky::verifier::verify_stark_proof;
 
     use super::Poseidon2OutputBytesStark;
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
+    use crate::generation::poseidon2_output_bytes::{
+        generate_poseidon2_output_bytes_trace, pad_trace,
+    };
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
+    use crate::poseidon2_sponge::columns::Poseidon2Sponge;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
 
@@ -221,4 +225,50 @@ mod tests {
 
         Ok(())
     }
+
+    proptest! {
+    /// Poseidon2OutputBytes stark with output bytes corresponding to
+    /// non canonical form of hash (with a limb >= goldilocks prime)
+    /// should fail
+    #[test]
+    #[should_panic = "Constraint failed in"]
+    fn non_canonical_hash(value in 0..u32::MAX) {
+        fn dummy_trace(value: u32) -> Vec<Poseidon2OutputBytes<F>> {
+            let output = [F::from_canonical_u32(value); 12];
+            let sponge = Poseidon2Sponge::<F> {
+                output,
+                gen_output: F::ONE,
+                ..Default::default()
+            };
+            let mut malicious_trace: Vec<Poseidon2OutputBytes<F>> = (&sponge).into();
+            // add goldilocks prime to first limb
+            let u8_max = F::from_canonical_u8(u8::MAX);
+            (4..8).for_each(|i| malicious_trace[0].output_bytes[i] += u8_max);
+            malicious_trace[0].output_bytes[0] += F::ONE;
+
+            // test that field elements still correspond to malicious bytes
+            let two_to_eight = F::from_canonical_u16(256);
+            let output_fields = [0, 1, 2, 3].map(|i| {
+                reduce_with_powers(
+                    &malicious_trace[0].output_bytes[8 * i..8 * i + 8],
+                    two_to_eight,
+                )
+            });
+            assert_eq!(output_fields, malicious_trace[0].output_fields);
+            pad_trace(malicious_trace)
+        }
+
+        let trace = dummy_trace(value);
+        let config = StarkConfig::standard_fast_config();
+        let stark = S::default();
+        let trace_poly_values = trace_rows_to_poly_values(trace);
+
+        let _proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            &[],
+            &mut TimingTree::default(),
+        );
+    }}
 }
