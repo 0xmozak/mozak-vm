@@ -102,6 +102,21 @@ pub fn data_for_register_init<F: Field>() -> Vec<Column<F>> { Column::singles([c
 #[must_use]
 pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(col_map().ops.is_init) }
 
+#[must_use]
+pub fn cpu_looked<F: Field>() -> Table<F> {
+    let reg = col_map().map(Column::from);
+    let ops = col_map().map(Column::from).ops;
+    RegisterTable::new(
+        vec![
+            Column::ascending_sum(col_map().ops),
+            reg.augmented_clk,
+            reg.addr,
+            reg.value,
+        ],
+        ops.is_read + ops.is_write,
+    )
+}
+
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {

@@ -513,3 +513,52 @@ pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
     let cpu = col_map().cpu.map(Column::from);
     cpu.is_poseidon2
 }
+
+#[must_use]
+pub fn register_looking<F: Field>() -> Vec<Table<F>> {
+    let cpu = col_map().cpu.map(Column::from);
+    let cpu_ = col_map().cpu;
+
+    let is_read = || Column::constant(F::ONE);
+    let is_write = || Column::constant(F::TWO);
+
+    // Augmented clock at register access. This is calculated as:
+    // augmented_clk = clk * 2 for register reads, and
+    // augmented_clk = clk * 2 + 1 for register writes,
+    // to ensure that we do not write to the register before we read.
+
+    let read_clk = || cpu.clk.clone() * F::TWO;
+    let write_clk = || cpu.clk.clone() * F::TWO + F::ONE;
+
+    let ascending_sum = Column::ascending_sum;
+
+    vec![
+        CpuTable::new(
+            vec![
+                is_read(),
+                read_clk(),
+                ascending_sum(cpu_.inst.rs1_select),
+                cpu.op1_value,
+            ],
+            cpu.is_running.clone(),
+        ),
+        CpuTable::new(
+            vec![
+                is_read(),
+                read_clk(),
+                ascending_sum(cpu_.inst.rs2_select),
+                cpu.op2_value_raw,
+            ],
+            cpu.is_running.clone(),
+        ),
+        CpuTable::new(
+            vec![
+                is_write(),
+                write_clk(),
+                ascending_sum(cpu_.inst.rd_select),
+                cpu.dst_value,
+            ],
+            cpu.is_running,
+        ),
+    ]
+}
