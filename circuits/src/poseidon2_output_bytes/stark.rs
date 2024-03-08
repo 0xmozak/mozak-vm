@@ -44,18 +44,28 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
+        let two_to_eight = P::Scalar::from_canonical_u16(256);
         let lv: &Poseidon2OutputBytes<_> = vars.get_local_values().into();
         is_binary(yield_constr, lv.is_executed);
         for i in 0..FIELDS_COUNT {
             let start_index = i * 8;
             let end_index = i * 8 + 8;
             yield_constr.constraint(
-                reduce_with_powers(
-                    &lv.output_bytes[start_index..end_index],
-                    P::Scalar::from_canonical_u16(256),
-                ) - lv.output_fields[i],
+                reduce_with_powers(&lv.output_bytes[start_index..end_index], two_to_eight)
+                    - lv.output_fields[i],
             );
         }
+
+        let u32_max: P = P::Scalar::from_canonical_u32(u32::MAX).into();
+        let one = P::ONES;
+
+        (0..4).for_each(|i| {
+            let low_limb = reduce_with_powers(&lv.output_bytes[8 * i..8 * i + 4], two_to_eight);
+            let high_limb =
+                reduce_with_powers(&lv.output_bytes[8 * i + 4..8 * i + 8], two_to_eight);
+            let gap_inv = lv.gap_invs[i];
+            yield_constr.constraint((one - (u32_max - high_limb) * gap_inv) * low_limb);
+        });
     }
 
     fn eval_ext_circuit(
@@ -78,6 +88,29 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
             let x_sub_of = builder.sub_extension(x, lv.output_fields[i]);
             yield_constr.constraint(builder, x_sub_of);
         }
+
+        let u32_max = builder.constant_extension(F::from_canonical_u32(u32::MAX).into());
+        let one = builder.constant_extension(F::ONE.into());
+
+        (0..4).for_each(|i| {
+            let low_limb = reduce_with_powers_ext_circuit(
+                builder,
+                &lv.output_bytes[8 * i..8 * i + 4],
+                two_to_eight,
+            );
+            let high_limb = reduce_with_powers_ext_circuit(
+                builder,
+                &lv.output_bytes[8 * i + 4..8 * i + 8],
+                two_to_eight,
+            );
+            let gap_inv = lv.gap_invs[i];
+            let u32_max_sub_high_limb = builder.sub_extension(u32_max, high_limb);
+            let u32_max_sub_high_limb_times_gap_inv_minus_one =
+                builder.mul_sub_extension(u32_max_sub_high_limb, gap_inv, one);
+            let zero =
+                builder.mul_extension(u32_max_sub_high_limb_times_gap_inv_minus_one, low_limb);
+            yield_constr.constraint(builder, zero);
+        });
     }
 
     fn constraint_degree(&self) -> usize { 3 }
