@@ -344,6 +344,8 @@ impl SubCircuitInputs {
         let credit_delta_val = builder.select(is_credit_delta, event_value[0], zero);
         builder.range_check(credit_delta_val, MAX_LEAF_TRANSFER);
         let credit_delta_sign = builder.select(is_credit_delta, event_value[3], zero);
+        // The sign can only be zero or one
+        builder.assert_bool(BoolTarget::new_unsafe(credit_delta_sign));
         let credit_delta_sign = builder.mul_const_add(-F::TWO, credit_delta_sign, one);
         let credit_delta_calc = builder.mul(credit_delta_val, credit_delta_sign);
         builder.connect(credit_delta_calc, self.credit_delta);
@@ -1169,6 +1171,19 @@ mod test {
             [13, 0, 0, 0],
             |event, _, _| {
                 event.credit_delta *= -1;
+            },
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_credit_leaf_sign() {
+        leaf_test_helper(
+            [4, 8, 15, 16],
+            EventType::CreditDelta,
+            [13, 0, 0, 1],
+            |event, _, _| {
+                event.event_value[3] = F::from_canonical_u64(12);
             },
         );
     }
