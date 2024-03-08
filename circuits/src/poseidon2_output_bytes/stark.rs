@@ -64,7 +64,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
             let high_limb =
                 reduce_with_powers(&lv.output_bytes[8 * i + 4..8 * i + 8], two_to_eight);
             let gap_inv = lv.gap_invs[i];
-            yield_constr.constraint((one - (u32_max - high_limb) * gap_inv) * low_limb);
+            yield_constr.constraint(((u32_max - high_limb) * gap_inv - one) * low_limb);
         });
     }
 
@@ -75,8 +75,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let lv: &Poseidon2OutputBytes<ExtensionTarget<D>> = vars.get_local_values().into();
-        is_binary_ext_circuit(builder, lv.is_executed, yield_constr);
         let two_to_eight = builder.constant(F::from_canonical_u16(256));
+        is_binary_ext_circuit(builder, lv.is_executed, yield_constr);
         for i in 0..FIELDS_COUNT {
             let start_index = i * 8;
             let end_index = i * 8 + 8;
@@ -89,8 +89,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
             yield_constr.constraint(builder, x_sub_of);
         }
 
-        let u32_max = builder.constant_extension(F::from_canonical_u32(u32::MAX).into());
-        let one = builder.constant_extension(F::ONE.into());
+        let u32_max = builder.constant(F::from_canonical_u32(u32::MAX).into());
+        let u32_max_ext = builder.convert_to_ext(u32_max);
+        let one = builder.constant(F::ONE.into());
+        let one_ext = builder.convert_to_ext(one);
 
         (0..4).for_each(|i| {
             let low_limb = reduce_with_powers_ext_circuit(
@@ -104,9 +106,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
                 two_to_eight,
             );
             let gap_inv = lv.gap_invs[i];
-            let u32_max_sub_high_limb = builder.sub_extension(u32_max, high_limb);
+            let u32_max_sub_high_limb = builder.sub_extension(u32_max_ext, high_limb);
             let u32_max_sub_high_limb_times_gap_inv_minus_one =
-                builder.mul_sub_extension(u32_max_sub_high_limb, gap_inv, one);
+                builder.mul_sub_extension(u32_max_sub_high_limb, gap_inv, one_ext);
             let zero =
                 builder.mul_extension(u32_max_sub_high_limb_times_gap_inv_minus_one, low_limb);
             yield_constr.constraint(builder, zero);
