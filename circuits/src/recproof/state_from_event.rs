@@ -782,8 +782,8 @@ impl<F: RichField> BranchWitnessValue<F> {
 
         let old_owner = Flags::WriteFlag | Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
         let new_owner = Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
-        let new_data = Flags::ReadFlag;
-        let old_data = Flags::WriteFlag | Flags::EnsureFlag;
+        let old_data = Flags::ReadFlag;
+        let new_data = Flags::WriteFlag | Flags::EnsureFlag;
 
         Self {
             address: left.address,
@@ -1284,7 +1284,7 @@ mod test {
         branch_test_helper(
             [[4, 8, 15, 16], [4, 8, 15, 16], [2, 3, 4, 2]],
             [EventType::Write, EventType::Write, EventType::Ensure],
-            [[3, 1, 4, 15], [1, 6, 180, 33], [3, 1, 4, 15]],
+            [[3, 1, 4, 15], [3, 1, 4, 15], [3, 1, 4, 15]],
             |_, _, _| {},
             |_| {},
             NoFn,
