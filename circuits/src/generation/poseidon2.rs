@@ -167,7 +167,7 @@ pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Posei
             .flatten()
             .collect::<Vec<Poseidon2State<F>>>(),
     );
-    log::trace!("Poseison2 trace {:?}", trace);
+    // log::trace!("Poseison2 trace {:?}", trace);
     trace
 }
 

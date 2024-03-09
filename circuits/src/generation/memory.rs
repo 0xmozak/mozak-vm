@@ -225,7 +225,7 @@ pub fn generate_memory_trace<F: RichField>(
     // next power of two. The additional elements are filled with the last row
     // of the trace.
     let trace = pad_mem_trace(merged_trace);
-    log::trace!("trace {:?}", trace);
+    // log::trace!("trace {:?}", trace);
     trace
 }
 

@@ -102,14 +102,15 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
     // (last, first==0), but we need (last, first=0), (0, 1), .. (last-1, last).
     diff_augmented_clk.rotate_right(1);
 
-    pad_trace(
-        izip!(trace, diff_augmented_clk)
-            .map(|(reg, diff_augmented_clk)| Register {
-                diff_augmented_clk,
-                ..reg
-            })
-            .collect_vec(),
-    )
+    let trace = izip!(trace, diff_augmented_clk)
+        .map(|(reg, diff_augmented_clk)| Register {
+            diff_augmented_clk,
+            ..reg
+        })
+        .collect_vec();
+    log::trace!("trace {:?}", trace);
+
+    pad_trace(trace)
 }
 
 #[cfg(test)]

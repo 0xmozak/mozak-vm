@@ -69,7 +69,7 @@ pub fn generate_poseidon2_sponge_trace<F: RichField>(
             .flatten()
             .collect::<Vec<Poseidon2Sponge<F>>>(),
     );
-    log::trace!("Poseidon2 Sponge trace {:#?}", trace);
+    // log::trace!("Poseidon2 Sponge trace {:#?}", trace);
     trace
 }
 

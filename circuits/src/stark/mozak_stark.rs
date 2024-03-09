@@ -39,7 +39,7 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
-    13 + cfg!(feature = "enable_register_starks") as usize
+    13 + cfg!(feature = "enable_register_starks") as usize * 2
         + cfg!(feature = "enable_poseidon_starks") as usize * 3
 };
 
@@ -365,6 +365,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 FullWordMemoryCpuTable::lookups(),
                 #[cfg(feature = "enable_register_starks")]
                 RegisterRegInitTable::lookups(),
+                #[cfg(feature = "enable_register_starks")]
+                CpuRegister::lookups(),
                 IoMemoryPrivateCpuTable::lookups(),
                 IoMemoryPublicCpuTable::lookups(),
                 IoTranscriptCpuTable::lookups(),
@@ -682,6 +684,21 @@ impl<F: Field> Lookups<F> for FullWordMemoryCpuTable<F> {
                 memory_fullword::columns::data_for_cpu(),
                 memory_fullword::columns::filter(),
             ),
+        )
+    }
+}
+
+#[cfg(feature = "enable_register_starks")]
+
+// TODO: rename this, when we add register operations in tables other than CPU.
+pub struct CpuRegister<F: Field>(CrossTableLookup<F>);
+
+#[cfg(feature = "enable_register_starks")]
+impl<F: Field> Lookups<F> for CpuRegister<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            crate::cpu::columns::register_looking(),
+            crate::register::columns::cpu_looked(),
         )
     }
 }

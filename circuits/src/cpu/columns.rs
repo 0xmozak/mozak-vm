@@ -514,6 +514,8 @@ pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
     cpu.is_poseidon2
 }
 
+// TODO: ignore reg0
+// rs1_select
 #[must_use]
 pub fn register_looking<F: Field>() -> Vec<Table<F>> {
     let cpu = col_map().cpu.map(Column::from);
@@ -527,8 +529,11 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
     // augmented_clk = clk * 2 + 1 for register writes,
     // to ensure that we do not write to the register before we read.
 
-    let read_clk = || cpu.clk.clone() * F::TWO;
-    let write_clk = || cpu.clk.clone() * F::TWO + F::ONE;
+    // TODO: perhaps use the same offset for both reads?
+    let three = F::from_canonical_u8(3);
+    let read_clk1 = || cpu.clk.clone() * three;
+    let read_clk2 = || cpu.clk.clone() * three + F::ONE;
+    let write_clk = || cpu.clk.clone() * three + F::TWO;
 
     let ascending_sum = Column::ascending_sum;
 
@@ -536,20 +541,24 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
         CpuTable::new(
             vec![
                 is_read(),
-                read_clk(),
+                read_clk1(),
                 ascending_sum(cpu_.inst.rs1_select),
                 cpu.op1_value,
             ],
-            cpu.is_running.clone(),
+            // skip REG_A0
+            Column::many(&cpu_.inst.rs1_select[1..]),
+            // cpu.is_running.clone(),
         ),
         CpuTable::new(
             vec![
                 is_read(),
-                read_clk(),
+                read_clk2(),
                 ascending_sum(cpu_.inst.rs2_select),
                 cpu.op2_value_raw,
             ],
-            cpu.is_running.clone(),
+            // skip REG_A0
+            Column::many(&cpu_.inst.rs2_select[1..]),
+            // cpu.is_running.clone(),
         ),
         CpuTable::new(
             vec![
@@ -558,7 +567,9 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
                 ascending_sum(cpu_.inst.rd_select),
                 cpu.dst_value,
             ],
-            cpu.is_running,
+            // skip REG_A0
+            Column::many(&cpu_.inst.rd_select[1..]),
+            // cpu.is_running,
         ),
     ]
 }
