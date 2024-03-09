@@ -545,7 +545,7 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
                 ascending_sum(cpu_.inst.rs1_select),
                 cpu.op1_value,
             ],
-            // skip REG_A0
+            // skip register 0
             Column::many(&cpu_.inst.rs1_select[1..]),
             // cpu.is_running.clone(),
         ),
@@ -556,7 +556,7 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
                 ascending_sum(cpu_.inst.rs2_select),
                 cpu.op2_value_raw,
             ],
-            // skip REG_A0
+            // skip register 0
             Column::many(&cpu_.inst.rs2_select[1..]),
             // cpu.is_running.clone(),
         ),
@@ -567,7 +567,7 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
                 ascending_sum(cpu_.inst.rd_select),
                 cpu.dst_value,
             ],
-            // skip REG_A0
+            // skip register 0
             Column::many(&cpu_.inst.rd_select[1..]),
             // cpu.is_running,
         ),
