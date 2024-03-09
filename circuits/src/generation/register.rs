@@ -104,6 +104,7 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
             // TODO: give both reads the same offset, so we have potentially fewer rows at higher
             // multiplicity.
             // Oh, perhaps just build the augmented clk out of normal clk * 2 plus ops?
+            // DONE!  But we still need to merge repeated rows into a higher multiplicity one.  Maybe.
             build_single_register_trace_row(|Args { rs1, .. }| *rs1, read()),
             build_single_register_trace_row(|Args { rs2, .. }| *rs2, read()),
             build_single_register_trace_row(|Args { rd, .. }| *rd, write())
