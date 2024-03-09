@@ -517,8 +517,6 @@ pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
     cpu.is_poseidon2
 }
 
-// TODO: ignore reg0
-// rs1_select
 #[must_use]
 pub fn register_looking<F: Field>() -> Vec<Table<F>> {
     let cpu = col_map().cpu.map(Column::from);
