@@ -535,7 +535,7 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
     // TODO: perhaps use the same offset for both reads?
     let three = F::from_canonical_u8(3);
     let read_clk1 = || cpu.clk.clone() * three;
-    let read_clk2 = || cpu.clk.clone() * three + F::ONE;
+    let read_clk2 = || cpu.clk.clone() * three;
     let write_clk = || cpu.clk.clone() * three + F::TWO;
 
     let ascending_sum = Column::ascending_sum;

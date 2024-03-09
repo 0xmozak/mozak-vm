@@ -109,8 +109,10 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
         chain!(
             init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
             build_ecall_io_register_trace_row(),
+            // TODO: give both reads the same offset, so we have potentially fewer rows at higher
+            // multiplicity.
             build_single_register_trace_row(|Args { rs1, .. }| *rs1, read(), 0),
-            build_single_register_trace_row(|Args { rs2, .. }| *rs2, read(), 1),
+            build_single_register_trace_row(|Args { rs2, .. }| *rs2, read(), 0),
             build_single_register_trace_row(|Args { rd, .. }| *rd, write(), 2)
         )
         .collect_vec(),
