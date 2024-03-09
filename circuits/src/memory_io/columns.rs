@@ -9,8 +9,6 @@ use crate::stark::mozak_stark::{
     IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, Table,
 };
 
-// OK, try memory IO ecall via register stark.
-
 /// Operations (one-hot encoded)
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -62,12 +60,6 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     vec![mem.clk, mem.addr, mem.size, mem.ops.is_io_store]
 }
 
-// #[must_use]
-// pub fn data_for_register<F: Field>() -> Vec<Column<F>> {
-//     let mem = col_map().map(Column::from);
-//     vec![mem.clk, Column::constant(F::ZERO), mem.addr]
-// }
-
 /// Column for a binary filter to indicate a lookup
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().map(Column::from).is_io() }
@@ -102,6 +94,9 @@ pub fn filter_for_memory<F: Field>() -> Column<F> { col_map().map(Column::from).
 // filter = is_memory_store
 /// TODO: at the moment weonly do addr; look up the rest, too.  Adjust trace
 /// generation.
+/// TODO: write a mechanism that generates register-read-traces automatically
+/// from the CTL data.  Similar to what we did for generating range-check traces
+/// automatically.
 #[must_use]
 pub fn register_looking<F: Field>() -> Vec<Table<F>> {
     let mem = col_map().map(Column::from);
