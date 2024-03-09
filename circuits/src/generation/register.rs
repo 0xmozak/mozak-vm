@@ -224,28 +224,28 @@ mod tests {
                 // Note that we filter out operations that act on r0.
                 //
                 // Columns:
-                // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
+                // addr value           clk  diff_augmented_clk  is_init is_read is_write
                 [    1,    0,             0,                 0,        1,      0,       0], // init
                 [    2,    0,             0,                 0,        1,      0,       0], // init
                 [    3,    0,             0,                 0,        1,      0,       0], // init
                 [    4,    0,             0,                 0,        1,      0,       0], // init
-                [    4,  300,             8,                 8,        0,      0,       1], // 1st inst
-                [    4,  300,             9,                 1,        0,      1,       0], // 2nd inst
-                [    4,  500,            14,                 5,        0,      0,       1], // 3rd inst
-                [    5,    0,             0,           neg(14),        1,      0,       0], // init
-                [    5,  400,            11,                11,        0,      0,       1], // 2nd inst
-                [    5,  400,            12,                 1,        0,      1,       0], // 3rd inst
-                [    6,  100,             0,           neg(12),        1,      0,       0], // init
-                [    6,  100,             6,                 6,        0,      1,       0], // 1st inst
-                [    6,  100,            10,                 4,        0,      1,       0], // 2nd inst
-                [    7,  200,             0,           neg(10),        1,      0,       0], // init
-                [    7,  200,             7,                 7,        0,      1,       0], // 1st inst
-                [    8,    0,             0,            neg(7),        1,      0,       0], // init
+                [    4,  300,             2,                 5,        0,      0,       1], // 1st inst
+                [    4,  300,             3,                 1,        0,      1,       0], // 2nd inst
+                [    4,  500,             4,                 3,        0,      0,       1], // 3rd inst
+                [    5,    0,             0,            neg(9),        1,      0,       0], // init
+                [    5,  400,             3,                 7,        0,      0,       1], // 2nd inst
+                [    5,  400,             4,                 1,        0,      1,       0], // 3rd inst
+                [    6,  100,             0,            neg(8),        1,      0,       0], // init
+                [    6,  100,             2,                 4,        0,      1,       0], // 1st inst
+                [    6,  100,             3,                 2,        0,      1,       0], // 2nd inst
+                [    7,  200,             0,            neg(6),        1,      0,       0], // init
+                [    7,  200,             2,                 4,        0,      1,       0], // 1st inst
+                [    8,    0,             0,            neg(4),        1,      0,       0], // init
                 [    9,    0,             0,                 0,        1,      0,       0], // init
                 [    10,   0,             0,                 0,        1,      0,       0], // init
                 // This is one part of the instructions added in the setup fn `execute_code()`
-                [    10,   0,            17,                17,        0,      0,       1],
-                [    11,   0,             0,           neg(17),        1,      0,       0], // init
+                [    10,   0,             5,                11,        0,      0,       1],
+                [    11,   0,             0,           neg(11),        1,      0,       0], // init
             ],
         );
 
@@ -257,8 +257,12 @@ mod tests {
                 [     i,   0,             0,                 0,        1,      0,       0]
             ).collect(),
         );
+        trace.iter().enumerate().for_each(|(i, row)| {
+            log::error!("{:?}", (i, row.addr, row.clk, row.augmented_clk_(), row.diff_augmented_clk));
+        });
         expected_trace.append(&mut final_init_rows);
 
+        // log::error!("trace: {:?}", &trace);
         // Check the final trace.
         (0..expected_trace.len()).for_each(|i| {
             assert_eq!(

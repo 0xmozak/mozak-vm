@@ -527,16 +527,7 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
     let is_read = || Column::constant(F::ONE);
     let is_write = || Column::constant(F::TWO);
 
-    // Augmented clock at register access. This is calculated as:
-    // augmented_clk = clk * 2 for register reads, and
-    // augmented_clk = clk * 2 + 1 for register writes,
-    // to ensure that we do not write to the register before we read.
-
-    // TODO: perhaps use the same offset for both reads?
-    let three = F::from_canonical_u8(3);
-    let read_clk1 = || cpu.clk.clone() * three;
-    let read_clk2 = || cpu.clk.clone() * three;
-    let write_clk = || cpu.clk.clone() * three + F::TWO;
+    let clk = || cpu.clk.clone();
 
     let ascending_sum = Column::ascending_sum;
 
@@ -544,35 +535,32 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
         CpuTable::new(
             vec![
                 is_read(),
-                read_clk1(),
+                clk(),
                 ascending_sum(cpu_.inst.rs1_select),
                 cpu.op1_value,
             ],
             // skip register 0
             Column::many(&cpu_.inst.rs1_select[1..]),
-            // cpu.is_running.clone(),
         ),
         CpuTable::new(
             vec![
                 is_read(),
-                read_clk2(),
+                clk(),
                 ascending_sum(cpu_.inst.rs2_select),
                 cpu.op2_value_raw,
             ],
             // skip register 0
             Column::many(&cpu_.inst.rs2_select[1..]),
-            // cpu.is_running.clone(),
         ),
         CpuTable::new(
             vec![
                 is_write(),
-                write_clk(),
+                clk(),
                 ascending_sum(cpu_.inst.rd_select),
                 cpu.dst_value,
             ],
             // skip register 0
             Column::many(&cpu_.inst.rd_select[1..]),
-            // cpu.is_running,
         ),
     ]
 }

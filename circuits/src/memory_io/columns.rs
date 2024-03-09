@@ -105,13 +105,13 @@ pub fn filter_for_memory<F: Field>() -> Column<F> { col_map().map(Column::from).
 #[must_use]
 pub fn register_looking<F: Field>() -> Vec<Table<F>> {
     let mem = col_map().map(Column::from);
-    let is_read = || Column::constant(F::ONE);
-    let three = F::from_canonical_u8(3);
-    let clk = || &mem.clk * three;
 
     let data = vec![
-        is_read(),
-        clk(),
+        // Op is read
+        // TODO: replace with a named constant.
+        // Perhaps make CTL use structs with named fields instead of being an unnamed tuple?
+        Column::constant(F::ONE),
+        mem.clk,
         Column::constant(F::from_canonical_u8(REG_A1)),
         mem.addr,
     ];
