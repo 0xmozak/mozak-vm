@@ -1,3 +1,5 @@
+use std::iter::zip;
+
 use iter_fixed::IntoIteratorFixed;
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
@@ -9,6 +11,7 @@ use plonky2::plonk::circuit_data::VerifierCircuitTarget;
 
 pub mod make_tree;
 pub mod merge;
+pub mod state_from_event;
 pub mod state_update;
 pub mod summarized;
 pub mod unbounded;
@@ -235,4 +238,18 @@ fn find_targets<const N: usize>(targets: &[Target], ts: [Target; N]) -> [usize; 
 /// getting and labelling the indicies for public inputs.
 fn find_hash(targets: &[Target], ts: HashOutTarget) -> [usize; NUM_HASH_OUT_ELTS] {
     find_targets(targets, ts.elements)
+}
+
+/// Connects `x` to `v` if `maybe_v` is true
+fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    x: [Target; N],
+    maybe_v: BoolTarget,
+    v: [Target; N],
+) {
+    // Loop over the limbs
+    for (parent, child) in zip(x, v) {
+        let child = builder.select(maybe_v, child, parent);
+        builder.connect(parent, child);
+    }
 }
