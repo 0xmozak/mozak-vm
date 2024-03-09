@@ -22,7 +22,7 @@ pub fn generate_poseidon2_output_bytes_trace<F: RichField>(
         .flat_map(Into::<Vec<Poseidon2OutputBytes<F>>>::into)
         .collect();
     let trace = pad_trace(trace);
-    // log::trace!("trace {:?}", trace);
+    log::trace!("trace {:?}", trace);
     trace
 }
 
