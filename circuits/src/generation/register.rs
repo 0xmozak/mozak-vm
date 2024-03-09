@@ -2,6 +2,7 @@ use itertools::{chain, izip, Itertools};
 use mozak_runner::instruction::Args;
 use mozak_runner::state::State;
 use mozak_runner::vm::ExecutionRecord;
+use mozak_system::system::reg_abi::REG_A1;
 use plonky2::hash::hash_types::RichField;
 
 use crate::generation::MIN_TRACE_LENGTH;
@@ -81,9 +82,33 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
                     }
                 })
         };
+    let build_ecall_io_register_trace_row = || -> _ {
+        executed
+            .iter()
+            // Can eventually use
+            // IoEntry
+            // but we can also filter by opcode == ecall, and REG_A0 == right one
+            // .filter(move |row| row.aux.io.is_some())
+            .filter_map(move |row| {
+                let io = row.aux.io.as_ref()?;
+                // row.aux.io
+                let reg = REG_A1;
+
+                // Ignore r0 because r0 should always be 0.
+                // TODO: assert r0 = 0 constraint in CPU trace.
+                Some(Register {
+                    addr: F::from_canonical_u8(reg),
+                    value: F::from_canonical_u32(io.addr),
+                    augmented_clk: F::from_canonical_u64(row.state.clk * 3),
+                    ops: read(),
+                    ..Default::default()
+                })
+            })
+    };
     let trace = sort_into_address_blocks(
         chain!(
             init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
+            build_ecall_io_register_trace_row(),
             build_single_register_trace_row(|Args { rs1, .. }| *rs1, read(), 0),
             build_single_register_trace_row(|Args { rs2, .. }| *rs2, read(), 1),
             build_single_register_trace_row(|Args { rd, .. }| *rd, write(), 2)

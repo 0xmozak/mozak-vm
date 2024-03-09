@@ -428,6 +428,12 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
+    #[test]
+    fn prove_io_read_private_zero_size_mozak_example() {
+        let address = 1024;
+        prove_io_read_private_zero_size::<MozakStark<F, D>>(address);
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
