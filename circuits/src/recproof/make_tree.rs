@@ -11,6 +11,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::{hash_is_nonzero, hash_is_zero, hash_or_forward, hashes_equal};
+use crate::recproof::find_hash;
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
@@ -49,7 +50,7 @@ impl PublicIndices {
     }
 }
 
-pub struct LeafInputs {
+pub struct SubCircuitInputs {
     /// The leaf value or ZERO if absent
     pub hash: HashOutTarget,
 
@@ -58,14 +59,11 @@ pub struct LeafInputs {
 }
 
 pub struct LeafTargets {
-    /// The leaf value or ZERO if absent
-    pub hash: HashOutTarget,
-
-    /// The value to be propagated throughout the produced tree
-    pub leaf_value: HashOutTarget,
+    /// The public inputs
+    pub inputs: SubCircuitInputs,
 }
 
-impl LeafInputs {
+impl SubCircuitInputs {
     pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
     where
         F: RichField + Extendable<D>, {
@@ -77,18 +75,17 @@ impl LeafInputs {
     }
 
     #[must_use]
-    pub fn build<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> LeafTargets
+    pub fn build_leaf<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> LeafTargets
     where
         F: RichField + Extendable<D>, {
         let one = builder.one();
-        let Self { hash, leaf_value } = self;
 
-        let eq = hashes_equal(builder, hash, leaf_value);
-        let zero = hash_is_zero(builder, hash);
+        let eq = hashes_equal(builder, self.hash, self.leaf_value);
+        let zero = hash_is_zero(builder, self.hash);
         let xor = builder.add(eq.target, zero.target);
         builder.connect(xor, one);
 
-        LeafTargets { hash, leaf_value }
+        LeafTargets { inputs: self }
     }
 }
 
@@ -104,18 +101,8 @@ impl LeafTargets {
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         // Find the indicies
         let indices = PublicIndices {
-            hash: self.hash.elements.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            leaf_value: self.leaf_value.elements.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
+            hash: find_hash(public_inputs, self.inputs.hash),
+            leaf_value: find_hash(public_inputs, self.inputs.leaf_value),
         };
         LeafSubCircuit {
             targets: self,
@@ -146,25 +133,14 @@ impl LeafSubCircuit {
         hash: HashOut<F>,
         leaf_value: HashOut<F>,
     ) {
-        inputs.set_hash_target(self.targets.hash, hash);
-        inputs.set_hash_target(self.targets.leaf_value, leaf_value);
+        inputs.set_hash_target(self.targets.inputs.hash, hash);
+        inputs.set_hash_target(self.targets.inputs.leaf_value, leaf_value);
     }
 }
 
-pub struct BranchInputs {
-    /// The leaf value or ZERO if absent
-    pub hash: HashOutTarget,
-
-    /// The value to be propagated throughout the produced tree
-    pub leaf_value: HashOutTarget,
-}
-
 pub struct BranchTargets {
-    /// The leaf value or ZERO if absent
-    pub hash: HashOutTarget,
-
-    /// The value to be propagated throughout the produced tree
-    pub leaf_value: HashOutTarget,
+    /// The public inputs
+    pub inputs: SubCircuitInputs,
 
     /// Indicates if the left branch is a leaf or not
     pub left_is_leaf: BoolTarget,
@@ -173,19 +149,9 @@ pub struct BranchTargets {
     pub right_is_leaf: BoolTarget,
 }
 
-impl BranchInputs {
-    pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
-    where
-        F: RichField + Extendable<D>, {
-        let hash = builder.add_virtual_hash();
-        let leaf_value = builder.add_virtual_hash();
-        builder.register_public_inputs(&hash.elements);
-        builder.register_public_inputs(&leaf_value.elements);
-        Self { hash, leaf_value }
-    }
-
+impl SubCircuitInputs {
     #[must_use]
-    pub fn build<F, const D: usize>(
+    pub fn build_branch<F, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
         leaf: &LeafSubCircuit,
@@ -194,8 +160,6 @@ impl BranchInputs {
     ) -> BranchTargets
     where
         F: RichField + Extendable<D>, {
-        let Self { hash, leaf_value } = self;
-
         let l_hash = leaf.indices.get_hash(&left_proof.public_inputs);
         let r_hash = leaf.indices.get_hash(&right_proof.public_inputs);
 
@@ -205,36 +169,35 @@ impl BranchInputs {
 
         // Select the hash based on presence
         let summary_hash = hash_or_forward(builder, left_non_zero, l_hash, right_non_zero, r_hash);
-        builder.connect_hashes(hash, summary_hash);
+        builder.connect_hashes(self.hash, summary_hash);
 
         // Make sure the leaf values are the same
         let l_leaf = leaf.indices.get_leaf_value(&left_proof.public_inputs);
         let r_leaf = leaf.indices.get_leaf_value(&right_proof.public_inputs);
         let l_leaf = HashOutTarget::from(l_leaf);
         let r_leaf = HashOutTarget::from(r_leaf);
-        builder.connect_hashes(leaf_value, l_leaf);
-        builder.connect_hashes(leaf_value, r_leaf);
+        builder.connect_hashes(self.leaf_value, l_leaf);
+        builder.connect_hashes(self.leaf_value, r_leaf);
 
         // Determine the type of the proof by looking at its public input
         // This works because only the root is allowed to be a incomplete (one-sided)
         // branch
         let l_hash = HashOutTarget::from(l_hash);
-        let left_eq = hashes_equal(builder, l_hash, leaf_value);
+        let left_eq = hashes_equal(builder, l_hash, self.leaf_value);
         let left_zero = hash_is_zero(builder, l_hash);
         let left_is_leaf = builder.add(left_eq.target, left_zero.target);
         let left_is_leaf = BoolTarget::new_unsafe(left_is_leaf);
         builder.assert_bool(left_is_leaf);
 
         let r_hash = HashOutTarget::from(r_hash);
-        let right_eq = hashes_equal(builder, r_hash, leaf_value);
+        let right_eq = hashes_equal(builder, r_hash, self.leaf_value);
         let right_zero = hash_is_zero(builder, r_hash);
         let right_is_leaf = builder.add(right_eq.target, right_zero.target);
         let right_is_leaf = BoolTarget::new_unsafe(right_is_leaf);
         builder.assert_bool(right_is_leaf);
 
         BranchTargets {
-            hash,
-            leaf_value,
+            inputs: self,
             left_is_leaf,
             right_is_leaf,
         }
@@ -249,19 +212,10 @@ pub struct BranchSubCircuit {
 impl BranchTargets {
     #[must_use]
     pub fn build(self, leaf: &LeafSubCircuit, public_inputs: &[Target]) -> BranchSubCircuit {
+        // Find the indicies
         let indices = PublicIndices {
-            hash: self.hash.elements.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            leaf_value: self.leaf_value.elements.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
+            hash: find_hash(public_inputs, self.inputs.hash),
+            leaf_value: find_hash(public_inputs, self.inputs.leaf_value),
         };
         debug_assert_eq!(leaf.indices, indices);
 
@@ -279,8 +233,8 @@ impl BranchSubCircuit {
         hash: HashOut<F>,
         leaf_value: HashOut<F>,
     ) {
-        inputs.set_hash_target(self.targets.hash, hash);
-        inputs.set_hash_target(self.targets.leaf_value, leaf_value);
+        inputs.set_hash_target(self.targets.inputs.hash, hash);
+        inputs.set_hash_target(self.targets.inputs.leaf_value, leaf_value);
     }
 }
 #[cfg(test)]
@@ -306,9 +260,9 @@ mod test {
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-            let make_tree_inputs = LeafInputs::default(&mut builder);
+            let make_tree_inputs = SubCircuitInputs::default(&mut builder);
 
-            let make_tree_targets = make_tree_inputs.build(&mut builder);
+            let make_tree_targets = make_tree_inputs.build_leaf(&mut builder);
             let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
 
             let make_tree = make_tree_targets.build(&circuit.prover_only.public_inputs);
@@ -366,10 +320,14 @@ mod test {
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
 
-            let make_tree_inputs = BranchInputs::default(&mut builder);
+            let make_tree_inputs = SubCircuitInputs::default(&mut builder);
 
-            let make_tree_targets =
-                make_tree_inputs.build(&mut builder, &leaf.make_tree, &left_proof, &right_proof);
+            let make_tree_targets = make_tree_inputs.build_branch(
+                &mut builder,
+                &leaf.make_tree,
+                &left_proof,
+                &right_proof,
+            );
             let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
                 builder,
                 &leaf.circuit,
