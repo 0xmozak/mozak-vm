@@ -80,7 +80,6 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
                     }),
                     clk: F::from_canonical_u64(row.state.clk),
                     ops,
-                    ..Default::default()
                 }
             })
     };
@@ -93,7 +92,6 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
                 value: F::from_canonical_u32(io.addr),
                 clk: F::from_canonical_u64(row.state.clk),
                 ops: read(),
-                ..Default::default()
             })
         })
     };
