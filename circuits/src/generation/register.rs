@@ -82,22 +82,14 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
                     }
                 })
         };
+    // TODO: see about deduplicating code with `build_single_register_trace_row`.
     let build_ecall_io_register_trace_row = || -> _ {
         executed
             .iter()
-            // Can eventually use
-            // IoEntry
-            // but we can also filter by opcode == ecall, and REG_A0 == right one
-            // .filter(move |row| row.aux.io.is_some())
             .filter_map(move |row| {
                 let io = row.aux.io.as_ref()?;
-                // row.aux.io
-                let reg = REG_A1;
-
-                // Ignore r0 because r0 should always be 0.
-                // TODO: assert r0 = 0 constraint in CPU trace.
                 Some(Register {
-                    addr: F::from_canonical_u8(reg),
+                    addr: F::from_canonical_u8(REG_A1),
                     value: F::from_canonical_u32(io.addr),
                     augmented_clk: F::from_canonical_u64(row.state.clk * 3),
                     ops: read(),
@@ -111,6 +103,7 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
             build_ecall_io_register_trace_row(),
             // TODO: give both reads the same offset, so we have potentially fewer rows at higher
             // multiplicity.
+            // Oh, perhaps just build the augmented clk out of normal clk * 2 plus ops?
             build_single_register_trace_row(|Args { rs1, .. }| *rs1, read(), 0),
             build_single_register_trace_row(|Args { rs2, .. }| *rs2, read(), 0),
             build_single_register_trace_row(|Args { rd, .. }| *rd, write(), 2)
