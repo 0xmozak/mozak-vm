@@ -265,6 +265,7 @@ mod tests {
             ],
             &[(address, 0)],
             &[
+                // TODO: this looks like a bug, it should be IO_READ_PUBLIC?
                 (REG_A0, ecall::IO_READ_TRANSCRIPT),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
@@ -432,6 +433,14 @@ mod tests {
     fn prove_io_read_private_zero_size_mozak_example() {
         let address = 1024;
         prove_io_read_private_zero_size::<MozakStark<F, D>>(address);
+    }
+
+    #[test]
+    fn prove_io_read_public_mozak_example() {
+        // address = 1401303144, content = 255
+        let address = 1024;
+        let content = 42;
+        prove_io_read_public::<MozakStark<F, D>>(address, vec![content]);
     }
 
     proptest! {

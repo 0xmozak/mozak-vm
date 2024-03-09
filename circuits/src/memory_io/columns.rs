@@ -5,7 +5,9 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::stark::mozak_stark::{IoMemoryPrivateTable, IoMemoryPublicTable, Table};
+use crate::stark::mozak_stark::{
+    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, Table,
+};
 
 // OK, try memory IO ecall via register stark.
 
@@ -106,24 +108,16 @@ pub fn register_looking<F: Field>() -> Vec<Table<F>> {
     let is_read = || Column::constant(F::ONE);
     let three = F::from_canonical_u8(3);
     let clk = || &mem.clk * three;
+
+    let data = vec![
+        is_read(),
+        clk(),
+        Column::constant(F::from_canonical_u8(REG_A1)),
+        mem.addr,
+    ];
     vec![
-        IoMemoryPrivateTable::new(
-            vec![
-                is_read(),
-                clk(),
-                Column::constant(F::from_canonical_u8(REG_A1)),
-                mem.addr.clone(),
-            ],
-            mem.ops.is_io_store.clone(),
-        ),
-        IoMemoryPublicTable::new(
-            vec![
-                is_read(),
-                clk(),
-                Column::constant(F::from_canonical_u8(REG_A1)),
-                mem.addr,
-            ],
-            mem.ops.is_io_store,
-        ),
+        IoMemoryPrivateTable::new(data.clone(), mem.ops.is_io_store.clone()),
+        IoMemoryPublicTable::new(data.clone(), mem.ops.is_io_store.clone()),
+        IoTranscriptTable::new(data, mem.ops.is_io_store),
     ]
 }
