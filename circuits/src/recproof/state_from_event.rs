@@ -7,7 +7,7 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::maybe_connect;
+use super::{find_target, find_targets, maybe_connect};
 
 // Limit transfers to 2^40 credits to avoid overflow issues
 const MAX_LEAF_TRANSFER: usize = 40;
@@ -372,42 +372,13 @@ impl LeafTargets {
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         // Find the indicies
         let indices = PublicIndices {
-            address: public_inputs
-                .iter()
-                .position(|&pi| pi == self.inputs.address)
-                .expect("target not found"),
-            object_flags: public_inputs
-                .iter()
-                .position(|&pi| pi == self.inputs.object_flags)
-                .expect("target not found"),
-            old_owner: self.inputs.old_owner.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            new_owner: self.inputs.new_owner.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            old_data: self.inputs.old_data.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            new_data: self.inputs.new_data.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            credit_delta: public_inputs
-                .iter()
-                .position(|&pi| pi == self.inputs.credit_delta)
-                .expect("target not found"),
+            address: find_target(public_inputs, self.inputs.address),
+            object_flags: find_target(public_inputs, self.inputs.object_flags),
+            old_owner: find_targets(public_inputs, self.inputs.old_owner),
+            new_owner: find_targets(public_inputs, self.inputs.new_owner),
+            old_data: find_targets(public_inputs, self.inputs.old_data),
+            new_data: find_targets(public_inputs, self.inputs.new_data),
+            credit_delta: find_target(public_inputs, self.inputs.credit_delta),
         };
         LeafSubCircuit {
             targets: self,
@@ -529,14 +500,14 @@ impl LeafSubCircuit {
 }
 
 pub struct BranchTargets {
+    /// This public inputs
+    pub inputs: SubCircuitInputs,
+
     /// The left direction
     pub left: SubCircuitInputs,
 
     /// The right direction
     pub right: SubCircuitInputs,
-
-    /// This public inputs
-    pub parent: SubCircuitInputs,
 }
 
 impl SubCircuitInputs {
@@ -623,9 +594,9 @@ impl SubCircuitInputs {
         builder.connect(credit_delta_calc, self.credit_delta);
 
         BranchTargets {
+            inputs: self,
             left,
             right,
-            parent: self,
         }
     }
 
@@ -668,42 +639,13 @@ pub struct BranchSubCircuit {
 impl BranchTargets {
     fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices {
         PublicIndices {
-            address: public_inputs
-                .iter()
-                .position(|&pi| pi == self.parent.address)
-                .expect("target not found"),
-            object_flags: public_inputs
-                .iter()
-                .position(|&pi| pi == self.parent.object_flags)
-                .expect("target not found"),
-            old_owner: self.parent.old_owner.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            new_owner: self.parent.new_owner.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            old_data: self.parent.old_data.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            new_data: self.parent.new_data.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-            credit_delta: public_inputs
-                .iter()
-                .position(|&pi| pi == self.parent.credit_delta)
-                .expect("target not found"),
+            address: find_target(public_inputs, self.inputs.address),
+            object_flags: find_target(public_inputs, self.inputs.object_flags),
+            old_owner: find_targets(public_inputs, self.inputs.old_owner),
+            new_owner: find_targets(public_inputs, self.inputs.new_owner),
+            old_data: find_targets(public_inputs, self.inputs.old_data),
+            new_data: find_targets(public_inputs, self.inputs.new_data),
+            credit_delta: find_target(public_inputs, self.inputs.credit_delta),
         }
     }
 
@@ -806,19 +748,19 @@ impl BranchSubCircuit {
         v: BranchWitnessValue<F>,
     ) {
         witness.set_target(
-            self.targets.parent.address,
+            self.targets.inputs.address,
             F::from_canonical_u64(v.address),
         );
         witness.set_target(
-            self.targets.parent.object_flags,
+            self.targets.inputs.object_flags,
             F::from_canonical_u8(v.object_flags.bits()),
         );
-        witness.set_target_arr(&self.targets.parent.old_owner, &v.old_owner);
-        witness.set_target_arr(&self.targets.parent.new_owner, &v.new_owner);
-        witness.set_target_arr(&self.targets.parent.old_data, &v.old_data);
-        witness.set_target_arr(&self.targets.parent.new_data, &v.new_data);
+        witness.set_target_arr(&self.targets.inputs.old_owner, &v.old_owner);
+        witness.set_target_arr(&self.targets.inputs.new_owner, &v.new_owner);
+        witness.set_target_arr(&self.targets.inputs.old_data, &v.old_data);
+        witness.set_target_arr(&self.targets.inputs.new_data, &v.new_data);
         witness.set_target(
-            self.targets.parent.credit_delta,
+            self.targets.inputs.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
         );
     }
