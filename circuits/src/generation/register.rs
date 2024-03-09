@@ -1,4 +1,4 @@
-use itertools::{chain, izip, Itertools};
+use itertools::{chain, Itertools};
 use mozak_runner::instruction::Args;
 use mozak_runner::state::State;
 use mozak_runner::vm::ExecutionRecord;
@@ -110,24 +110,6 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
         )
         .collect_vec(),
     );
-
-    // Populate the `diff_augmented_clk` column, after addresses are sorted.
-    // TODO: Consider rewriting this to avoid allocating a temp vector.
-    let mut diff_augmented_clk = trace
-        .iter()
-        .circular_tuple_windows()
-        .map(|(lv, nv)| nv.augmented_clk_() - lv.augmented_clk_())
-        .collect_vec();
-    // `.circular_tuple_windows` gives us tuples with indices (0, 1), (1, 2) ..
-    // (last, first==0), but we need (last, first=0), (0, 1), .. (last-1, last).
-    diff_augmented_clk.rotate_right(1);
-
-    let trace = izip!(trace, diff_augmented_clk)
-        .map(|(reg, diff_augmented_clk)| Register {
-            diff_augmented_clk,
-            ..reg
-        })
-        .collect_vec();
     log::trace!("trace {:?}", trace);
 
     pad_trace(trace)
@@ -140,7 +122,7 @@ mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::{Field, PrimeField64};
+    use plonky2::field::types::Field;
 
     use super::*;
     use crate::test_utils::prep_table;
@@ -205,8 +187,6 @@ mod tests {
         });
     }
 
-    fn neg(val: u64) -> u64 { (F::ZERO - F::from_canonical_u64(val)).to_canonical_u64() }
-
     #[test]
     #[rustfmt::skip]
     fn generate_reg_trace() {
@@ -225,27 +205,27 @@ mod tests {
                 //
                 // Columns:
                 // addr value           clk  diff_augmented_clk  is_init is_read is_write
-                [    1,    0,             0,                 0,        1,      0,       0], // init
-                [    2,    0,             0,                 0,        1,      0,       0], // init
-                [    3,    0,             0,                 0,        1,      0,       0], // init
-                [    4,    0,             0,                 0,        1,      0,       0], // init
-                [    4,  300,             2,                 5,        0,      0,       1], // 1st inst
-                [    4,  300,             3,                 1,        0,      1,       0], // 2nd inst
-                [    4,  500,             4,                 3,        0,      0,       1], // 3rd inst
-                [    5,    0,             0,            neg(9),        1,      0,       0], // init
-                [    5,  400,             3,                 7,        0,      0,       1], // 2nd inst
-                [    5,  400,             4,                 1,        0,      1,       0], // 3rd inst
-                [    6,  100,             0,            neg(8),        1,      0,       0], // init
-                [    6,  100,             2,                 4,        0,      1,       0], // 1st inst
-                [    6,  100,             3,                 2,        0,      1,       0], // 2nd inst
-                [    7,  200,             0,            neg(6),        1,      0,       0], // init
-                [    7,  200,             2,                 4,        0,      1,       0], // 1st inst
-                [    8,    0,             0,            neg(4),        1,      0,       0], // init
-                [    9,    0,             0,                 0,        1,      0,       0], // init
-                [    10,   0,             0,                 0,        1,      0,       0], // init
+                [    1,    0,             0,                           1,      0,       0], // init
+                [    2,    0,             0,                           1,      0,       0], // init
+                [    3,    0,             0,                           1,      0,       0], // init
+                [    4,    0,             0,                           1,      0,       0], // init
+                [    4,  300,             2,                           0,      0,       1], // 1st inst
+                [    4,  300,             3,                           0,      1,       0], // 2nd inst
+                [    4,  500,             4,                           0,      0,       1], // 3rd inst
+                [    5,    0,             0,                           1,      0,       0], // init
+                [    5,  400,             3,                           0,      0,       1], // 2nd inst
+                [    5,  400,             4,                           0,      1,       0], // 3rd inst
+                [    6,  100,             0,                           1,      0,       0], // init
+                [    6,  100,             2,                           0,      1,       0], // 1st inst
+                [    6,  100,             3,                           0,      1,       0], // 2nd inst
+                [    7,  200,             0,                           1,      0,       0], // init
+                [    7,  200,             2,                           0,      1,       0], // 1st inst
+                [    8,    0,             0,                           1,      0,       0], // init
+                [    9,    0,             0,                           1,      0,       0], // init
+                [    10,   0,             0,                           1,      0,       0], // init
                 // This is one part of the instructions added in the setup fn `execute_code()`
-                [    10,   0,             5,                11,        0,      0,       1],
-                [    11,   0,             0,           neg(11),        1,      0,       0], // init
+                [    10,   0,             5,                           0,      0,       1],
+                [    11,   0,             0,                           1,      0,       0], // init
             ],
         );
 
@@ -254,11 +234,11 @@ mod tests {
         let mut final_init_rows = prep_table(
             (12..32).map(|i|
                 // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
-                [     i,   0,             0,                 0,        1,      0,       0]
+                [     i,   0,             0,                           1,      0,       0]
             ).collect(),
         );
         trace.iter().enumerate().for_each(|(i, row)| {
-            log::error!("{:?}", (i, row.addr, row.clk, row.augmented_clk_(), row.diff_augmented_clk));
+            log::error!("{:?}", (i, row.addr, row.clk, row.augmented_clk_()));
         });
         expected_trace.append(&mut final_init_rows);
 
