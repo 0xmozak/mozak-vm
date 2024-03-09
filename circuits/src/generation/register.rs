@@ -15,7 +15,10 @@ pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Ve
     trace.sort_by_key(|row| {
         (
             row.addr.to_noncanonical_u64(),
-            row.augmented_clk.to_noncanonical_u64(),
+            row.clk.to_noncanonical_u64(),
+            1 - row.ops.is_init.to_noncanonical_u64(),
+            1 - row.ops.is_read.to_noncanonical_u64(),
+            1 - row.ops.is_write.to_noncanonical_u64(),
         )
     });
     trace
@@ -59,43 +62,40 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
         last_state,
     } = record;
 
-    let build_single_register_trace_row =
-        |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
-            executed
-                .iter()
-                .filter(move |row| reg(&row.instruction.args) != 0)
-                .map(move |row| {
-                    let reg = reg(&row.instruction.args);
-
-                    // Ignore r0 because r0 should always be 0.
-                    // TODO: assert r0 = 0 constraint in CPU trace.
-                    Register {
-                        addr: F::from_canonical_u8(reg),
-                        value: F::from_canonical_u32(if ops.is_write.is_one() {
-                            row.aux.dst_val
-                        } else {
-                            row.state.get_register_value(reg)
-                        }),
-                        augmented_clk: F::from_canonical_u64(row.state.clk * 3 + clk_offset),
-                        ops,
-                        ..Default::default()
-                    }
-                })
-        };
-    // TODO: see about deduplicating code with `build_single_register_trace_row`.
-    let build_ecall_io_register_trace_row = || -> _ {
+    let build_single_register_trace_row = |reg: fn(&Args) -> u8, ops: Ops<F>| -> _ {
         executed
             .iter()
-            .filter_map(move |row| {
-                let io = row.aux.io.as_ref()?;
-                Some(Register {
-                    addr: F::from_canonical_u8(REG_A1),
-                    value: F::from_canonical_u32(io.addr),
-                    augmented_clk: F::from_canonical_u64(row.state.clk * 3),
-                    ops: read(),
+            .filter(move |row| reg(&row.instruction.args) != 0)
+            .map(move |row| {
+                let reg = reg(&row.instruction.args);
+
+                // Ignore r0 because r0 should always be 0.
+                // TODO: assert r0 = 0 constraint in CPU trace.
+                Register {
+                    addr: F::from_canonical_u8(reg),
+                    value: F::from_canonical_u32(if ops.is_write.is_one() {
+                        row.aux.dst_val
+                    } else {
+                        row.state.get_register_value(reg)
+                    }),
+                    clk: F::from_canonical_u64(row.state.clk),
+                    ops,
                     ..Default::default()
-                })
+                }
             })
+    };
+    // TODO: see about deduplicating code with `build_single_register_trace_row`.
+    let build_ecall_io_register_trace_row = || -> _ {
+        executed.iter().filter_map(move |row| {
+            let io = row.aux.io.as_ref()?;
+            Some(Register {
+                addr: F::from_canonical_u8(REG_A1),
+                value: F::from_canonical_u32(io.addr),
+                clk: F::from_canonical_u64(row.state.clk),
+                ops: read(),
+                ..Default::default()
+            })
+        })
     };
     let trace = sort_into_address_blocks(
         chain!(
@@ -104,9 +104,9 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
             // TODO: give both reads the same offset, so we have potentially fewer rows at higher
             // multiplicity.
             // Oh, perhaps just build the augmented clk out of normal clk * 2 plus ops?
-            build_single_register_trace_row(|Args { rs1, .. }| *rs1, read(), 0),
-            build_single_register_trace_row(|Args { rs2, .. }| *rs2, read(), 0),
-            build_single_register_trace_row(|Args { rd, .. }| *rd, write(), 2)
+            build_single_register_trace_row(|Args { rs1, .. }| *rs1, read()),
+            build_single_register_trace_row(|Args { rs2, .. }| *rs2, read()),
+            build_single_register_trace_row(|Args { rd, .. }| *rd, write())
         )
         .collect_vec(),
     );
@@ -116,7 +116,7 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
     let mut diff_augmented_clk = trace
         .iter()
         .circular_tuple_windows()
-        .map(|(lv, nv)| nv.augmented_clk - lv.augmented_clk)
+        .map(|(lv, nv)| nv.augmented_clk_() - lv.augmented_clk_())
         .collect_vec();
     // `.circular_tuple_windows` gives us tuples with indices (0, 1), (1, 2) ..
     // (last, first==0), but we need (last, first=0), (0, 1), .. (last-1, last).

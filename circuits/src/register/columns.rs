@@ -72,7 +72,7 @@ pub struct Register<T> {
     /// augmented_clk = clk * 2 for register reads, and
     /// augmented_clk = clk * 2 + 1 for register writes,
     /// to ensure that we do not write to the register before we read.
-    pub augmented_clk: T,
+    pub clk: T,
 
     // TODO: Could possibly be removed, once we are able to do CTL for
     // a linear combination of lv and nv.
@@ -92,8 +92,12 @@ pub struct Register<T> {
 /// We create a virtual column known as `is_used`, which flags a row as
 /// being 'used' if any one of the ops columns are turned on.
 /// This is to differentiate between real rows and padding rows.
-impl<T: Add<Output = T>> Register<T> {
+impl<T: Add<Output = T> + Clone> Register<T> {
     pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
+
+    // See, if we want to add a Mul constraint, we need to add a Mul trait bound?
+    // Or whether we want to keep manual addition and clone?
+    pub fn augmented_clk_(self) -> T { self.clk.clone() + self.clk + self.ops.is_write }
 }
 
 #[must_use]
@@ -109,7 +113,7 @@ pub fn cpu_looked<F: Field>() -> Table<F> {
     RegisterTable::new(
         vec![
             Column::ascending_sum(col_map().ops),
-            reg.augmented_clk,
+            reg.clk,
             reg.addr,
             reg.value,
         ],
