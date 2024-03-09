@@ -169,6 +169,9 @@ pub struct CpuState<T> {
     pub mem_addr: T,
     pub io_addr: T,
     pub io_size: T,
+    // We don't need all of these 'is_<some-ecall>' columns.  Because our CPU table (by itself)
+    // doesn't need to be deterministic. We can assert these things in the CTL-ed
+    // ecall-specific tables.
     pub is_io_store_private: T,
     pub is_io_store_public: T,
     pub is_io_transcript: T,

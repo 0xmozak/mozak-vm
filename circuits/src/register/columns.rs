@@ -104,7 +104,7 @@ pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(col_map(
 
 #[must_use]
 pub fn cpu_looked<F: Field>() -> Table<F> {
-    let reg = col_map().map(Column::from);
+    let reg: Register<Column<F>> = col_map().map(Column::from);
     let ops = col_map().map(Column::from).ops;
     RegisterTable::new(
         vec![

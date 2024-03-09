@@ -697,7 +697,11 @@ pub struct CpuRegister<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for CpuRegister<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            crate::cpu::columns::register_looking(),
+            chain![
+                crate::cpu::columns::register_looking(),
+                crate::memory_io::columns::register_looking()
+            ]
+            .collect(),
             crate::register::columns::cpu_looked(),
         )
     }
