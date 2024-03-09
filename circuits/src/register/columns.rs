@@ -95,6 +95,8 @@ pub struct Register<T> {
 impl<T: Add<Output = T> + Clone> Register<T> {
     pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
 
+    pub fn is_rw(self) -> T { self.ops.is_read + self.ops.is_write }
+
     // See, if we want to add a Mul constraint, we need to add a Mul trait bound?
     // Or whether we want to keep manual addition and clone?
     pub fn augmented_clk_(self) -> T { self.clk.clone() + self.clk + self.ops.is_write }
@@ -124,9 +126,10 @@ pub fn cpu_looked<F: Field>() -> Table<F> {
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-    let ops = col_map().map(Column::from).ops;
+    let lv = col_map().map(Column::single);
+    let nv = col_map().map(Column::single_next);
     vec![RegisterTable::new(
-        Column::singles([col_map().diff_augmented_clk]),
-        ops.is_read + ops.is_write,
+        vec![nv.clone().augmented_clk_() - lv.augmented_clk_()],
+        nv.is_rw(),
     )]
 }
