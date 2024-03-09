@@ -366,7 +366,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 #[cfg(feature = "enable_register_starks")]
                 RegisterRegInitTable::lookups(),
                 #[cfg(feature = "enable_register_starks")]
-                CpuRegister::lookups(),
+                RegisterLookups::lookups(),
                 IoMemoryPrivateCpuTable::lookups(),
                 IoMemoryPublicCpuTable::lookups(),
                 IoTranscriptCpuTable::lookups(),
@@ -689,12 +689,10 @@ impl<F: Field> Lookups<F> for FullWordMemoryCpuTable<F> {
 }
 
 #[cfg(feature = "enable_register_starks")]
-
-// TODO: rename this, when we add register operations in tables other than CPU.
-pub struct CpuRegister<F: Field>(CrossTableLookup<F>);
+pub struct RegisterLookups<F: Field>(CrossTableLookup<F>);
 
 #[cfg(feature = "enable_register_starks")]
-impl<F: Field> Lookups<F> for CpuRegister<F> {
+impl<F: Field> Lookups<F> for RegisterLookups<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             chain![
