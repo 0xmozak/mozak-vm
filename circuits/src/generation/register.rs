@@ -15,10 +15,7 @@ pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Ve
     trace.sort_by_key(|row| {
         (
             row.addr.to_noncanonical_u64(),
-            row.clk.to_noncanonical_u64(),
-            1 - row.ops.is_init.to_noncanonical_u64(),
-            1 - row.ops.is_read.to_noncanonical_u64(),
-            1 - row.ops.is_write.to_noncanonical_u64(),
+            row.augmented_clk_().to_noncanonical_u64(),
         )
     });
     trace
