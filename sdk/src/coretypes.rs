@@ -25,13 +25,6 @@ impl core::ops::Deref for Poseidon2HashType {
 }
 
 #[cfg(not(target_os = "mozakvm"))]
-impl std::ops::Deref for Poseidon2HashType {
-    type Target = [u8; DIGEST_BYTES];
-
-    fn deref(&self) -> &Self::Target { &self.0 }
-}
-
-#[cfg(not(target_os = "mozakvm"))]
 impl std::fmt::Debug for Poseidon2HashType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
