@@ -118,7 +118,6 @@ impl<F: RichField> State<F> {
             ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
             ecall::IO_READ_TRANSCRIPT => self.ecall_io_read(IoOpcode::StoreTranscript),
             ecall::PANIC => self.ecall_panic(),
-            // OK, re-do poseidon2 ecall in constraints.
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             ecall::VM_TRACE_LOG => self.ecall_trace_log(),
             _ => (Aux::default(), self.bump_pc()),
