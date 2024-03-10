@@ -463,30 +463,14 @@ pub mod ctl_utils {
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            let x = check_multiplicities(row, looking_locations, looked_locations);
-            if x.is_err() {
-                log::error!(
-                    "Error in CTL check: {:?}\n{:?}",
-                    &looking_multiset,
-                    &looked_multiset
-                );
-            }
-            x?;
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
         for (row, looked_locations) in &looked_multiset.0 {
             let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            let x = check_multiplicities(row, looking_locations, looked_locations);
-            if x.is_err() {
-                log::error!(
-                    "Error in CTL check: {:?}\n{:?}",
-                    &looking_multiset,
-                    &looked_multiset
-                );
-            }
-            x?;
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         Ok(())
