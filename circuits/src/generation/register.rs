@@ -1,12 +1,17 @@
+use std::ops::Index;
+
 use itertools::{chain, Itertools};
-use mozak_runner::instruction::Args;
+// use mozak_runner::instruction::Args;
 use mozak_runner::state::State;
 use mozak_runner::vm::ExecutionRecord;
-use mozak_system::system::reg_abi::REG_A1;
+// use mozak_system::system::reg_abi::REG_A1;
 use plonky2::hash::hash_types::RichField;
 
+use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
-use crate::register::columns::{dummy, init, read, write, Ops, Register};
+use crate::memory_io::columns::InputOutputMemory;
+use crate::register::columns::{dummy, init, read, write, Register};
+use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
 /// internally by `augmented_clk`
@@ -43,74 +48,164 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
     trace
 }
 
-/// Generates the trace for registers.
+// TODO: unify this with the `fn extract` in `generation/rangecheck.rs`.
+pub fn extract_raw<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<Vec<F>>
+where
+    V: Index<usize, Output = F> + 'a, {
+    trace
+        .iter()
+        .circular_tuple_windows()
+        .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_one())
+        .map(|(prev_row, row)| {
+            looking_table
+                .columns
+                .iter()
+                .map(|column| column.eval(prev_row, row))
+                .collect_vec()
+        })
+        .collect()
+}
+
+/// ops: is_init is_read is_write
+/// addr, value, clk, ops
 ///
-/// There are 3 steps:
-/// 1) populate the trace with a similar layout as the
-/// [`RegisterInit` table](crate::registerinit::columns),
-/// 2) go through the program and extract all ops that act on registers,
-/// filling up this table,
-/// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
-///    2.
-#[must_use]
-pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<Register<F>> {
-    let ExecutionRecord {
-        executed,
-        last_state,
-    } = record;
-
-    let build_single_register_trace_row = |reg: fn(&Args) -> u8, ops: Ops<F>| -> _ {
-        executed
-            .iter()
-            .filter(move |row| reg(&row.instruction.args) != 0)
-            .map(move |row| {
-                let reg = reg(&row.instruction.args);
-
-                // Ignore r0 because r0 should always be 0.
-                // TODO: assert r0 = 0 constraint in CPU trace.
+/// At the moment, we need cpu and memory traces.
+pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<Register<F>>
+where
+    V: Index<usize, Output = F> + 'a, {
+    let values: Vec<_> = extract_raw(trace, looking_table);
+    values
+        .into_iter()
+        .map(|value| {
+            if let [ops, clk, addr, value] = value[..] {
+                // TODO: move to Ops::from
+                let ops = match ops.to_noncanonical_u64() {
+                    0 => init(),
+                    1 => read(),
+                    2 => write(),
+                    _ => panic!("Invalid ops value: {ops}"),
+                };
                 Register {
-                    addr: F::from_canonical_u8(reg),
-                    value: F::from_canonical_u32(if ops.is_write.is_one() {
-                        row.aux.dst_val
-                    } else {
-                        row.state.get_register_value(reg)
-                    }),
-                    clk: F::from_canonical_u64(row.state.clk),
+                    addr,
+                    value,
+                    clk,
                     ops,
                 }
-            })
-    };
-    // TODO: see about deduplicating code with `build_single_register_trace_row`.
-    let build_ecall_io_register_trace_row = || -> _ {
-        executed.iter().filter_map(move |row| {
-            let io = row.aux.io.as_ref()?;
-            Some(Register {
-                addr: F::from_canonical_u8(REG_A1),
-                value: F::from_canonical_u32(io.addr),
-                clk: F::from_canonical_u64(row.state.clk),
-                ops: read(),
-            })
+            } else {
+                panic!("Can only range check single values, not tuples.")
+            }
         })
-    };
+        .collect()
+}
+
+#[cfg(feature = "enable_register_starks")]
+/// Generates a trace table for registers, used in building a `RegisterStark`
+/// proof.
+#[must_use]
+pub fn auto_generate_register_trace<F: RichField>(
+    record: &ExecutionRecord<F>,
+    cpu_trace: &[CpuState<F>],
+    mem_private: &[InputOutputMemory<F>],
+    mem_public: &[InputOutputMemory<F>],
+    mem_transcript: &[InputOutputMemory<F>],
+) -> Vec<Register<F>> {
+    // let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
+
+    let operations: Vec<Register<F>> = RegisterLookups::lookups()
+        .looking_tables
+        .into_iter()
+        .flat_map(|looking_table| match looking_table.kind {
+            TableKind::Cpu => extract(cpu_trace, &looking_table),
+            TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
+            TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
+            TableKind::IoTranscript => extract(mem_transcript, &looking_table),
+            other => unimplemented!("Can't extract register ops from {other:#?} tables"),
+        })
+        .collect();
+    let ExecutionRecord { last_state, .. } = record;
     let trace = sort_into_address_blocks(
         chain!(
             init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
-            build_ecall_io_register_trace_row(),
-            // TODO: give both reads the same offset, so we have potentially fewer rows at higher
-            // multiplicity.
-            // Oh, perhaps just build the augmented clk out of normal clk * 2 plus ops?
-            // DONE!  But we still need to merge repeated rows into a higher multiplicity one.
-            // Maybe.
-            build_single_register_trace_row(|Args { rs1, .. }| *rs1, read()),
-            build_single_register_trace_row(|Args { rs2, .. }| *rs2, read()),
-            build_single_register_trace_row(|Args { rd, .. }| *rd, write())
+            operations,
         )
         .collect_vec(),
     );
     log::trace!("trace {:?}", trace);
 
     pad_trace(trace)
+    // sort
+    // optional: collect multiplicities
+    // pad_trace_with_default(trace)
 }
+
+// /// Generates the trace for registers.
+// ///
+// /// There are 3 steps:
+// /// 1) populate the trace with a similar layout as the
+// /// [`RegisterInit` table](crate::registerinit::columns),
+// /// 2) go through the program and extract all ops that act on registers,
+// /// filling up this table,
+// /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power
+// of ///    2.
+// #[must_use]
+// pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) ->
+// Vec<Register<F>> {     let ExecutionRecord {
+//         executed,
+//         last_state,
+//     } = record;
+
+//     let build_single_register_trace_row = |reg: fn(&Args) -> u8, ops: Ops<F>|
+// -> _ {         executed
+//             .iter()
+//             .filter(move |row| reg(&row.instruction.args) != 0)
+//             .map(move |row| {
+//                 let reg = reg(&row.instruction.args);
+
+//                 // Ignore r0 because r0 should always be 0.
+//                 // TODO: assert r0 = 0 constraint in CPU trace.
+//                 Register {
+//                     addr: F::from_canonical_u8(reg),
+//                     value: F::from_canonical_u32(if ops.is_write.is_one() {
+//                         row.aux.dst_val
+//                     } else {
+//                         row.state.get_register_value(reg)
+//                     }),
+//                     clk: F::from_canonical_u64(row.state.clk),
+//                     ops,
+//                 }
+//             })
+//     };
+//     // TODO: see about deduplicating code with
+// `build_single_register_trace_row`.     let build_ecall_io_register_trace_row
+// = || -> _ {         executed.iter().filter_map(move |row| {
+//             let io = row.aux.io.as_ref()?;
+//             Some(Register {
+//                 addr: F::from_canonical_u8(REG_A1),
+//                 value: F::from_canonical_u32(io.addr),
+//                 clk: F::from_canonical_u64(row.state.clk),
+//                 ops: read(),
+//             })
+//         })
+//     };
+//     let trace = sort_into_address_blocks(
+//         chain!(
+//             init_register_trace(record.executed.first().map_or(last_state,
+// |row| &row.state)),             build_ecall_io_register_trace_row(),
+//             // TODO: give both reads the same offset, so we have potentially
+// fewer rows at higher             // multiplicity.
+//             // Oh, perhaps just build the augmented clk out of normal clk * 2
+// plus ops?             // DONE!  But we still need to merge repeated rows into
+// a higher multiplicity one.             // Maybe.
+//             build_single_register_trace_row(|Args { rs1, .. }| *rs1, read()),
+//             build_single_register_trace_row(|Args { rs2, .. }| *rs2, read()),
+//             build_single_register_trace_row(|Args { rd, .. }| *rd, write())
+//         )
+//         .collect_vec(),
+//     );
+//     log::trace!("trace {:?}", trace);
+
+//     pad_trace(trace)
+// }
 
 #[cfg(test)]
 mod tests {
@@ -122,6 +217,11 @@ mod tests {
     use plonky2::field::types::Field;
 
     use super::*;
+    use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::io_memory::{
+        generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_io_transcript_trace,
+    };
     use crate::test_utils::prep_table;
 
     type F = GoldilocksField;
@@ -189,10 +289,17 @@ mod tests {
     fn generate_reg_trace() {
         let (_program, record) = setup();
 
-        // TODO: generate this from cpu rows?
-        // For now, use program and record directly to avoid changing the CPU columns
-        // yet.
-        let trace = generate_register_trace::<F>(&record);
+        let cpu_rows = generate_cpu_trace::<F>(&record);
+        let io_memory_private = generate_io_memory_private_trace(&record.executed);
+        let io_memory_public = generate_io_memory_public_trace(&record.executed);
+        let io_transcript = generate_io_transcript_trace(&record.executed);
+        let trace = auto_generate_register_trace(
+            &record,
+            &cpu_rows,
+            &io_memory_private,
+            &io_memory_public,
+            &io_transcript,
+        );
 
         // This is the actual trace of the instructions.
         let mut expected_trace = prep_table(
