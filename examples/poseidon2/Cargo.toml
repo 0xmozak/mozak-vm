@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 guest = { path = "../../guest", default-features = false }
+mozak-sdk = { path = "../../sdk" }
 hex-literal = "0.2"
 
 [[bin]]

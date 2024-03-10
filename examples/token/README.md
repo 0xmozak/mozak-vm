@@ -29,5 +29,6 @@ MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
     examples/target/riscv32im-mozak-mozakvm-elf/release/tokenbin \
     --system-tape examples/token_tfr.tape_bin \
-    --self-prog-id MZK-0b7114fb-021f033e-00;
+    --self-prog-id \
+    MZK-588cfa3c37055b859d539e70883d5d3001fb1bd99d197bf2ecc37d5abf5cc744;
 ```

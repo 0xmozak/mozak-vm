@@ -35,14 +35,20 @@ impl MozakMemoryRegion {
     fn fill(&mut self, data: &[u8]) {
         assert!(
             data.len() <= self.capacity.try_into().unwrap(),
-            "fill data must fit into capacity"
+            "data of length {:?} does not fit into address ({:x?}) with capacity {:?}",
+            data.len(),
+            self.starting_address,
+            self.capacity,
         );
         for (index, &item) in izip!(self.starting_address.., data) {
             self.data.insert(index, item);
         }
         assert!(
             self.data.len() <= self.capacity.try_into().unwrap(),
-            "data does not fit into capacity"
+            "data of length {:?} does not fit into address ({:x?}) with capacity {:?}",
+            self.data.len(),
+            self.starting_address,
+            self.capacity,
         );
     }
 }
@@ -90,11 +96,11 @@ impl Default for MozakMemory {
         MozakMemory {
             self_prog_id: MozakMemoryRegion {
                 starting_address: 0x2000_0000_u32,
-                capacity: 12_u32,
+                capacity: 256_u32,
                 ..Default::default()
             },
             cast_list: MozakMemoryRegion {
-                starting_address: 0x2000_0010_u32,
+                starting_address: 0x2000_0100_u32,
                 capacity: 0x0001_0000_u32,
                 ..Default::default()
             },
@@ -199,7 +205,7 @@ impl MozakMemory {
         // log::debug!("_mozak_call_tape: 0x{:0x}", self.call_tape.starting_address);
 
         // compute capacity, assume single memory region (refer to linker-script)
-        self.self_prog_id.capacity = 12_u32;
+        self.self_prog_id.capacity = 256_u32;
         self.cast_list.capacity = 0x0001_0000_u32;
 
         self.io_tape_public.capacity =
