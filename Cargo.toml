@@ -19,7 +19,7 @@ exclude = ["sdk"]
 members = ["cli", "examples-builder", "runner", "circuits", "node-cli", "node", "rpc", "state", "signatures", "wasm-demo"]
 resolver = "2"
 
-[profile.test]
+[profile.dev]
 # We are running our tests with optimizations turned on to make them faster.
 # Plase turn optimizations off, when you want accurate stack traces for debugging.
 lto = "thin"
