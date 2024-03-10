@@ -201,28 +201,28 @@ mod tests {
                 // Note that we filter out operations that act on r0.
                 //
                 // Columns:
-                // addr value           clk  diff_augmented_clk  is_init is_read is_write
-                [    1,    0,             0,                           1,      0,       0], // init
-                [    2,    0,             0,                           1,      0,       0], // init
-                [    3,    0,             0,                           1,      0,       0], // init
-                [    4,    0,             0,                           1,      0,       0], // init
-                [    4,  300,             2,                           0,      0,       1], // 1st inst
-                [    4,  300,             3,                           0,      1,       0], // 2nd inst
-                [    4,  500,             4,                           0,      0,       1], // 3rd inst
-                [    5,    0,             0,                           1,      0,       0], // init
-                [    5,  400,             3,                           0,      0,       1], // 2nd inst
-                [    5,  400,             4,                           0,      1,       0], // 3rd inst
-                [    6,  100,             0,                           1,      0,       0], // init
-                [    6,  100,             2,                           0,      1,       0], // 1st inst
-                [    6,  100,             3,                           0,      1,       0], // 2nd inst
-                [    7,  200,             0,                           1,      0,       0], // init
-                [    7,  200,             2,                           0,      1,       0], // 1st inst
-                [    8,    0,             0,                           1,      0,       0], // init
-                [    9,    0,             0,                           1,      0,       0], // init
-                [    10,   0,             0,                           1,      0,       0], // init
+                // addr value clk  is_init is_read is_write
+                [    1,    0,   0,       1,      0,       0], // init
+                [    2,    0,   0,       1,      0,       0], // init
+                [    3,    0,   0,       1,      0,       0], // init
+                [    4,    0,   0,       1,      0,       0], // init
+                [    4,  300,   2,       0,      0,       1], // 1st inst
+                [    4,  300,   3,       0,      1,       0], // 2nd inst
+                [    4,  500,   4,       0,      0,       1], // 3rd inst
+                [    5,    0,   0,       1,      0,       0], // init
+                [    5,  400,   3,       0,      0,       1], // 2nd inst
+                [    5,  400,   4,       0,      1,       0], // 3rd inst
+                [    6,  100,   0,       1,      0,       0], // init
+                [    6,  100,   2,       0,      1,       0], // 1st inst
+                [    6,  100,   3,       0,      1,       0], // 2nd inst
+                [    7,  200,   0,       1,      0,       0], // init
+                [    7,  200,   2,       0,      1,       0], // 1st inst
+                [    8,    0,   0,       1,      0,       0], // init
+                [    9,    0,   0,       1,      0,       0], // init
+                [    10,   0,   0,       1,      0,       0], // init
                 // This is one part of the instructions added in the setup fn `execute_code()`
-                [    10,   0,             5,                           0,      0,       1],
-                [    11,   0,             0,                           1,      0,       0], // init
+                [    10,   0,   5,       0,      0,       1],
+                [    11,   0,   0,       1,      0,       0], // init
             ],
         );
 
@@ -230,8 +230,8 @@ mod tests {
         // registers.
         let mut final_init_rows = prep_table(
             (12..32).map(|i|
-                // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
-                [     i,   0,             0,                           1,      0,       0]
+                // addr value clk  is_init is_read is_write
+                [     i,   0,   0,       1,      0,       0]
             ).collect(),
         );
         trace.iter().enumerate().for_each(|(i, row)| {
