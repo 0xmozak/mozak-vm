@@ -102,7 +102,7 @@ where
 /// Generates a trace table for registers, used in building a `RegisterStark`
 /// proof.
 #[must_use]
-pub fn auto_generate_register_trace<F: RichField>(
+pub fn generate_register_trace<F: RichField>(
     record: &ExecutionRecord<F>,
     cpu_trace: &[CpuState<F>],
     mem_private: &[InputOutputMemory<F>],
@@ -293,7 +293,7 @@ mod tests {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
-        let trace = auto_generate_register_trace(
+        let trace = generate_register_trace(
             &record,
             &cpu_rows,
             &io_memory_private,

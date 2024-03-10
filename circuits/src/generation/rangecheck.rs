@@ -105,7 +105,7 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
-    use crate::generation::register::auto_generate_register_trace;
+    use crate::generation::register::generate_register_trace;
     use crate::generation::MIN_TRACE_LENGTH;
 
     #[test]
@@ -145,7 +145,7 @@ mod tests {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
-        let register_rows = auto_generate_register_trace(
+        let register_rows = generate_register_trace(
             &record,
             &cpu_rows,
             &io_memory_private_rows,

@@ -36,7 +36,7 @@ use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_t
 use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
-use crate::generation::register::auto_generate_register_trace;
+use crate::generation::register::generate_register_trace;
 use crate::generation::registerinit::generate_register_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
@@ -156,7 +156,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
-        let register_trace = auto_generate_register_trace(
+        let register_trace = generate_register_trace(
             &record,
             &cpu_trace,
             &io_memory_private,
@@ -347,7 +347,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
-        let trace = auto_generate_register_trace(
+        let trace = generate_register_trace(
             &record,
             &cpu_trace,
             &io_memory_private,

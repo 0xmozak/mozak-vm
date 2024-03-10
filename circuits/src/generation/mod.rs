@@ -47,7 +47,7 @@ use self::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_u8::generate_rangecheck_u8_trace;
-use self::register::auto_generate_register_trace;
+use self::register::generate_register_trace;
 use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
@@ -107,7 +107,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
-    let register_rows = auto_generate_register_trace(
+    let register_rows = generate_register_trace(
         &record,
         &cpu_rows,
         &io_memory_private_rows,
