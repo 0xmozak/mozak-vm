@@ -2,6 +2,7 @@ use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
+use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
@@ -116,6 +117,8 @@ where
 }
 
 pub struct BranchTargets<const D: usize> {
+    // TODO: is it better to have both a left and a right 'no_leaf_child'?
+    pub no_leaf_child: BoolTarget,
     pub left_proof: ProofWithPublicInputsTarget<D>,
     pub right_proof: ProofWithPublicInputsTarget<D>,
 }
@@ -130,7 +133,6 @@ where
     pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &LeafCircuit<F, C, D>) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
         let common = &leaf.circuit.common;
-        let verifier = builder.constant_verifier_data(&leaf.circuit.verifier_only);
         let left_proof = builder.add_virtual_proof_with_pis(common);
         let right_proof = builder.add_virtual_proof_with_pis(common);
         let summarized_inputs = summarized::SubCircuitInputs::default(&mut builder);
@@ -142,18 +144,22 @@ where
         };
         builder.register_public_input(address_inputs.node_address);
 
-        builder.verify_proof::<C>(&left_proof, &verifier, common);
-        builder.verify_proof::<C>(&right_proof, &verifier, common);
         let summarized_targets =
             summarized_inputs.from_leaf(&mut builder, &leaf.summarized, &left_proof, &right_proof);
         let old_targets = old_inputs.from_leaf(&mut builder, &leaf.old, &left_proof, &right_proof);
         let new_targets = new_inputs.from_leaf(&mut builder, &leaf.new, &left_proof, &right_proof);
         let address_targets =
             address_inputs.from_leaf(&mut builder, &leaf.address, &left_proof, &right_proof);
+        let no_leaf_child = builder.add_virtual_bool_target_safe();
         let targets = BranchTargets {
+            no_leaf_child,
             left_proof,
             right_proof,
         };
+
+        let leaf_circuit_verifier_targets = builder.constant_verifier_data(&leaf.circuit.verifier_only);
+        builder.conditionally_verify_cyclic_proof(no_leaf_child, &left_proof, &left_proof, &leaf_circuit_verifier_targets, common).expect("Failed to build cyclic recursion circuit");
+        builder.conditionally_verify_cyclic_proof(no_leaf_child, &right_proof, &right_proof, &leaf_circuit_verifier_targets, common).expect("Failed to build cyclic recursion circuit");
 
         let circuit = builder.build();
         let summarized = summarized_targets.from_leaf(&circuit.prover_only.public_inputs);
