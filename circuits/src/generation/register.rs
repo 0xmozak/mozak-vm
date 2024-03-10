@@ -118,8 +118,7 @@ pub fn generate_register_trace<F: RichField>(
     mem_public: &[InputOutputMemory<F>],
     mem_transcript: &[InputOutputMemory<F>],
 ) -> Vec<Register<F>> {
-    // let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
-
+    // TODO: handle multiplicities?
     let operations: Vec<Register<F>> = RegisterLookups::lookups()
         .looking_tables
         .into_iter()
