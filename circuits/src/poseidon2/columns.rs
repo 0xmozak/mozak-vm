@@ -10,9 +10,6 @@ pub const STATE_SIZE: usize = 12;
 pub(crate) const ROUNDS_F: usize = 8;
 pub(crate) const ROUNDS_P: usize = 22;
 
-// Is this where we need to put in the ctl from the register table?
-// nope, it's in poseidon2_sponge.  This one is just the permutation?
-
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2State<F> {
