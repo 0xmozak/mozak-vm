@@ -18,6 +18,12 @@ pub const DIGEST_BYTES: usize = 32;
 #[archive_attr(derive(Debug))]
 pub struct Poseidon2HashType(pub [u8; DIGEST_BYTES]);
 
+impl core::ops::Deref for Poseidon2HashType {
+    type Target = [u8; DIGEST_BYTES];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
 #[cfg(not(target_os = "mozakvm"))]
 impl std::ops::Deref for Poseidon2HashType {
     type Target = [u8; DIGEST_BYTES];
