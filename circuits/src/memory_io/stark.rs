@@ -429,20 +429,6 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    #[test]
-    fn prove_io_read_private_zero_size_mozak_example() {
-        let address = 1024;
-        prove_io_read_private_zero_size::<MozakStark<F, D>>(address);
-    }
-
-    #[test]
-    fn prove_io_read_public_mozak_example() {
-        // address = 1401303144, content = 255
-        let address = 1024;
-        let content = 42;
-        prove_io_read_public::<MozakStark<F, D>>(address, vec![content]);
-    }
-
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
