@@ -98,10 +98,19 @@ where
         .collect()
 }
 
-#[cfg(feature = "enable_register_starks")]
+// #[cfg(feature = "enable_register_starks")]
 /// Generates a trace table for registers, used in building a `RegisterStark`
 /// proof.
 #[must_use]
+/// Generates the trace for registers.
+///
+/// There are 3 steps:
+/// 1) populate the trace with a similar layout as the
+/// [`RegisterInit` table](crate::registerinit::columns),
+/// 2) go through the program and extract all ops that act on registers,
+/// filling up this table,
+/// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
+///    2.
 pub fn generate_register_trace<F: RichField>(
     record: &ExecutionRecord<F>,
     cpu_trace: &[CpuState<F>],
@@ -133,79 +142,7 @@ pub fn generate_register_trace<F: RichField>(
     log::trace!("trace {:?}", trace);
 
     pad_trace(trace)
-    // sort
-    // optional: collect multiplicities
-    // pad_trace_with_default(trace)
 }
-
-// /// Generates the trace for registers.
-// ///
-// /// There are 3 steps:
-// /// 1) populate the trace with a similar layout as the
-// /// [`RegisterInit` table](crate::registerinit::columns),
-// /// 2) go through the program and extract all ops that act on registers,
-// /// filling up this table,
-// /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power
-// of ///    2.
-// #[must_use]
-// pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) ->
-// Vec<Register<F>> {     let ExecutionRecord {
-//         executed,
-//         last_state,
-//     } = record;
-
-//     let build_single_register_trace_row = |reg: fn(&Args) -> u8, ops: Ops<F>|
-// -> _ {         executed
-//             .iter()
-//             .filter(move |row| reg(&row.instruction.args) != 0)
-//             .map(move |row| {
-//                 let reg = reg(&row.instruction.args);
-
-//                 // Ignore r0 because r0 should always be 0.
-//                 // TODO: assert r0 = 0 constraint in CPU trace.
-//                 Register {
-//                     addr: F::from_canonical_u8(reg),
-//                     value: F::from_canonical_u32(if ops.is_write.is_one() {
-//                         row.aux.dst_val
-//                     } else {
-//                         row.state.get_register_value(reg)
-//                     }),
-//                     clk: F::from_canonical_u64(row.state.clk),
-//                     ops,
-//                 }
-//             })
-//     };
-//     // TODO: see about deduplicating code with
-// `build_single_register_trace_row`.     let build_ecall_io_register_trace_row
-// = || -> _ {         executed.iter().filter_map(move |row| {
-//             let io = row.aux.io.as_ref()?;
-//             Some(Register {
-//                 addr: F::from_canonical_u8(REG_A1),
-//                 value: F::from_canonical_u32(io.addr),
-//                 clk: F::from_canonical_u64(row.state.clk),
-//                 ops: read(),
-//             })
-//         })
-//     };
-//     let trace = sort_into_address_blocks(
-//         chain!(
-//             init_register_trace(record.executed.first().map_or(last_state,
-// |row| &row.state)),             build_ecall_io_register_trace_row(),
-//             // TODO: give both reads the same offset, so we have potentially
-// fewer rows at higher             // multiplicity.
-//             // Oh, perhaps just build the augmented clk out of normal clk * 2
-// plus ops?             // DONE!  But we still need to merge repeated rows into
-// a higher multiplicity one.             // Maybe.
-//             build_single_register_trace_row(|Args { rs1, .. }| *rs1, read()),
-//             build_single_register_trace_row(|Args { rs2, .. }| *rs2, read()),
-//             build_single_register_trace_row(|Args { rd, .. }| *rd, write())
-//         )
-//         .collect_vec(),
-//     );
-//     log::trace!("trace {:?}", trace);
-
-//     pad_trace(trace)
-// }
 
 #[cfg(test)]
 mod tests {
