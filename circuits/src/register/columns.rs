@@ -99,7 +99,7 @@ pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(col_map(
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn cpu_looked<F: Field>() -> Table<F> {
+pub fn register_looked<F: Field>() -> Table<F> {
     let reg: Register<Column<F>> = col_map().map(Column::from);
     let ops = col_map().map(Column::from).ops;
     RegisterTable::new(

@@ -700,7 +700,7 @@ impl<F: Field> Lookups<F> for RegisterLookups<F> {
                 crate::memory_io::columns::register_looking()
             ]
             .collect(),
-            crate::register::columns::cpu_looked(),
+            crate::register::columns::register_looked(),
         )
     }
 }
