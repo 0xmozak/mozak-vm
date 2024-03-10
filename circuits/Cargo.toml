@@ -42,8 +42,7 @@ enable_poseidon_starks = []
 enable_register_starks = []
 test = []
 timing = ["plonky2/timing", "starky/timing"]
-# Only to make dev easier:
-default = ["enable_register_starks"]
+default = ["enable_register_starks", "enable_poseidon_starks"]
 
 [[test]]
 name = "riscv_tests"

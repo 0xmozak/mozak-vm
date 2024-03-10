@@ -97,6 +97,7 @@ pub fn data_for_register_init<F: Field>() -> Vec<Column<F>> { Column::singles([c
 #[must_use]
 pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(col_map().ops.is_init) }
 
+#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn cpu_looked<F: Field>() -> Table<F> {
     let reg: Register<Column<F>> = col_map().map(Column::from);
