@@ -234,12 +234,8 @@ mod tests {
                 [     i,   0,   0,       1,      0,       0]
             ).collect(),
         );
-        trace.iter().enumerate().for_each(|(i, row)| {
-            log::error!("{:?}", (i, row.addr, row.clk, row.augmented_clk()));
-        });
         expected_trace.append(&mut final_init_rows);
 
-        // log::error!("trace: {:?}", &trace);
         // Check the final trace.
         (0..expected_trace.len()).for_each(|i| {
             assert_eq!(
