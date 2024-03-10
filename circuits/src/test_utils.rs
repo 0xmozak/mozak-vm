@@ -4,6 +4,7 @@ use anyhow::Result;
 use itertools::izip;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
+use mozak_runner::poseidon2::MozakPoseidon2;
 use mozak_runner::util::execute_code;
 use mozak_runner::vm::ExecutionRecord;
 use mozak_system::system::ecall;
@@ -416,9 +417,7 @@ pub fn create_poseidon2_test(
     let mut memory: Vec<(u32, u8)> = vec![];
 
     for test_datum in test_data {
-        let mut data_bytes = test_datum.data.as_bytes().to_vec();
-        // VM expects input len to be multiple of RATE bits
-        data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
+        let data_bytes = MozakPoseidon2::<GoldilocksField>::padding(test_datum.data.as_bytes());
         let data_len = data_bytes.len();
         let input_memory: Vec<(u32, u8)> =
             izip!((test_datum.input_start_addr..), data_bytes).collect();

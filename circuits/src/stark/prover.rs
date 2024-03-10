@@ -355,9 +355,9 @@ where
 mod tests {
 
     use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::poseidon2::MozakPoseidon2;
     use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::Field;
     use plonky2::hash::poseidon2::Poseidon2Hash;
     use plonky2::plonk::config::{GenericHashOut, Hasher};
 
@@ -433,14 +433,13 @@ mod tests {
                         .load_u8(test_datum.output_start_addr + u32::from(i))
                 })
                 .collect();
-            let mut data_bytes = test_datum.data.as_bytes().to_vec();
-            // VM expects input len to be multiple of RATE bits
-            data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
-            let data_fields: Vec<GoldilocksField> = data_bytes
-                .iter()
-                .map(|x| GoldilocksField::from_canonical_u8(*x))
-                .collect();
-            assert_eq!(output, Poseidon2Hash::hash_no_pad(&data_fields).to_bytes());
+            let data_fields: Vec<GoldilocksField> =
+                MozakPoseidon2::convert_input_to_fe_with_padding(test_datum.data.as_bytes());
+            assert_eq!(
+                output,
+                Poseidon2Hash::hash_no_pad(&data_fields).to_bytes(),
+                "Expected vm-computed output, does not equal to plonky2 version"
+            );
         }
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
