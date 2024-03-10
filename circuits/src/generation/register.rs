@@ -66,10 +66,10 @@ where
         .collect()
 }
 
-/// ops: is_init is_read is_write
-/// addr, value, clk, ops
-///
-/// At the moment, we need cpu and memory traces.
+// ops: is_init is_read is_write
+// addr, value, clk, ops
+//
+// At the moment, we need cpu and memory traces.
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<Register<F>>
 where
     V: Index<usize, Output = F> + 'a, {

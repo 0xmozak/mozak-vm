@@ -108,7 +108,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
     let register_rows = generate_register_trace(
-        &record,
+        record,
         &cpu_rows,
         &io_memory_private_rows,
         &io_memory_public_rows,
