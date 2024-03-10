@@ -90,7 +90,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
 
         // Constraint 6: `augmented_clk` is 0 for all `is_init` rows.
-        yield_constr.constraint(lv.ops.is_init * lv.augmented_clk_());
+        yield_constr.constraint(lv.ops.is_init * lv.augmented_clk());
     }
 
     fn eval_ext_circuit(

@@ -88,7 +88,7 @@ impl<T: Add<Output = T> + Clone> Register<T> {
 
     // See, if we want to add a Mul constraint, we need to add a Mul trait bound?
     // Or whether we want to keep manual addition and clone?
-    pub fn augmented_clk_(self) -> T { self.clk.clone() + self.clk + self.ops.is_write }
+    pub fn augmented_clk(self) -> T { self.clk.clone() + self.clk + self.ops.is_write }
 }
 
 #[must_use]
@@ -119,7 +119,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let lv = col_map().map(Column::single);
     let nv = col_map().map(Column::single_next);
     vec![RegisterTable::new(
-        vec![nv.clone().augmented_clk_() - lv.augmented_clk_()],
+        vec![nv.clone().augmented_clk() - lv.augmented_clk()],
         nv.is_rw(),
     )]
 }

@@ -15,7 +15,7 @@ pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Ve
     trace.sort_by_key(|row| {
         (
             row.addr.to_noncanonical_u64(),
-            row.augmented_clk_().to_noncanonical_u64(),
+            row.augmented_clk().to_noncanonical_u64(),
         )
     });
     trace
@@ -235,7 +235,7 @@ mod tests {
             ).collect(),
         );
         trace.iter().enumerate().for_each(|(i, row)| {
-            log::error!("{:?}", (i, row.addr, row.clk, row.augmented_clk_()));
+            log::error!("{:?}", (i, row.addr, row.clk, row.augmented_clk()));
         });
         expected_trace.append(&mut final_init_rows);
 
