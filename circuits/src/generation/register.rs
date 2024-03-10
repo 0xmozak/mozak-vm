@@ -164,8 +164,8 @@ mod tests {
                         _ => 0,
                     };
                     // Columns (repeated for registers 0-31):
-                    // addr  value augmented_clk  diff_augmented_clk  is_init is_read is_write
-                    [     i, value,            0,                           1,      0,      0]
+                    // addr  value clk  is_init is_read is_write
+                    [     i, value,  0,       1,      0,      0]
                 })
                 .collect_vec(),
         )
