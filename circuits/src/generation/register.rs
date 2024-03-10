@@ -1,10 +1,8 @@
 use std::ops::Index;
 
 use itertools::{chain, Itertools};
-// use mozak_runner::instruction::Args;
 use mozak_runner::state::State;
 use mozak_runner::vm::ExecutionRecord;
-// use mozak_system::system::reg_abi::REG_A1;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;

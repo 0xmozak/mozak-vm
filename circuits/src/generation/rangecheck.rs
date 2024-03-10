@@ -126,7 +126,6 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
-        // let register_rows = generate_register_trace::<F>(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
