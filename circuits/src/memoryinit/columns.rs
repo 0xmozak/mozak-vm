@@ -26,30 +26,16 @@ pub struct MemoryInit<T> {
     pub is_writable: T,
 }
 
-columns_view_impl!(MemoryInitCTL);
-#[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct MemoryInitCTL<T> {
-    pub is_writable: T,
-    pub address: T,
-    pub clk: T,
-    pub value: T,
-}
-
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
-    data_for_memory_().into_iter().collect()
-}
-
-#[must_use]
-pub fn data_for_memory_<F: Field>() -> MemoryInitCTL<Column<F>> {
-    MemoryInitCTL {
-        is_writable: Column::single(col_map().is_writable),
-        address: Column::single(col_map().element.address),
-        clk: Column::constant(F::ONE),
-        value: Column::single(col_map().element.value),
-    }
+    vec![
+        Column::single(col_map().is_writable),
+        Column::single(col_map().element.address),
+        // clk:
+        Column::constant(F::ONE),
+        Column::single(col_map().element.value),
+    ]
 }
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
