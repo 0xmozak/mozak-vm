@@ -8,7 +8,7 @@ use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::register::columns::Register;
-use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
+use crate::stark::mozak_stark::{Lookups, RangecheckTable, TableKind, TableVec};
 use crate::utils::pad_trace_with_default;
 
 /// Converts a u32 into 4 u8 limbs represented in [`RichField`].
@@ -20,7 +20,7 @@ pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
 /// extract the values to be rangechecked.
 /// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
 /// memory traces, hence ignored
-pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
+pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &TableVec<F>) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {
     if let [column] = &looking_table.columns[..] {

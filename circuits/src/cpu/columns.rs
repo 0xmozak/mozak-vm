@@ -10,7 +10,7 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::Column;
 use crate::program::columns::ProgramRom;
-use crate::stark::mozak_stark::{CpuTable, Table};
+use crate::stark::mozak_stark::{CpuTable, TableVec};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -263,7 +263,7 @@ pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize
 /// Currently, we only support expressions over the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_looking<F: Field>() -> Vec<TableVec<F>> {
     let cpu = col_map().cpu.map(Column::from);
     let ops = &cpu.inst.ops;
     let divs = &ops.div + &ops.rem + &ops.srl + &ops.sra;
