@@ -16,7 +16,7 @@ use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-use crate::stark::mozak_stark::{MemoryTable, TableVec};
+use crate::stark::mozak_stark::{MemoryTable, Table};
 
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
@@ -180,7 +180,7 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<TableVec<F>> {
+pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let mem = col_map().map(Column::from);
     vec![
         MemoryTable::new(Column::singles([col_map().addr]), mem.is_executed()),
@@ -190,7 +190,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<TableVec<F>> {
 }
 
 #[must_use]
-pub fn rangecheck_u8_looking<F: Field>() -> Vec<TableVec<F>> {
+pub fn rangecheck_u8_looking<F: Field>() -> Vec<Table<F>> {
     let mem = col_map().map(Column::from);
     vec![MemoryTable::new(
         Column::singles([col_map().value]),

@@ -398,10 +398,10 @@ pub struct TableNamed<F: Field, Row> {
     pub(crate) filter_column: Column<F>,
 }
 
-pub type TableVec<F> = TableNamed<F, Vec<Column<F>>>;
+pub type Table<F> = TableNamed<F, Vec<Column<F>>>;
 
 impl<F: Field, Row: IntoIterator<Item = Column<F>>> TableNamed<F, Row> {
-    pub fn to_vec(self) -> TableVec<F> {
+    pub fn to_vec(self) -> Table<F> {
         TableNamed {
             kind: self.kind,
             columns: self.columns.into_iter().collect(),
@@ -471,9 +471,9 @@ impl<F: Field> Lookups<F> for RangecheckTable<F> {
         #[cfg(feature = "enable_register_starks")]
         let register = register::columns::rangecheck_looking();
         #[cfg(not(feature = "enable_register_starks"))]
-        let register: Vec<TableVec<F>> = vec![];
+        let register: Vec<Table<F>> = vec![];
 
-        let looking: Vec<TableVec<F>> = chain![
+        let looking: Vec<Table<F>> = chain![
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
             register,
@@ -652,7 +652,7 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
 pub struct RangeCheckU8LookupTable<F: Field>(CrossTableLookupVec<F>);
 impl<F: Field> Lookups<F> for RangeCheckU8LookupTable<F> {
     fn lookups() -> CrossTableLookupVec<F> {
-        let looking: Vec<TableVec<F>> = chain![
+        let looking: Vec<Table<F>> = chain![
             rangecheck_looking(),
             memory::columns::rangecheck_u8_looking(),
         ]

@@ -16,7 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{all_kind, TableKind, TableKindArray, TableNamed, TableVec};
+use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableNamed};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
 
@@ -103,7 +103,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
         {
             log::debug!("Processing CTL for {:?}", looked_table.kind);
 
-            let make_z = |table: &TableVec<F>| {
+            let make_z = |table: &Table<F>| {
                 partial_sums(
                     &trace_poly_values[table.kind],
                     &table.columns,
@@ -194,7 +194,7 @@ pub type CrossTableLookupVec<F> = CrossTableLookup<F, Vec<Column<F>>>;
 
 impl<F: Field, Row: IntoIterator<Item = Column<F>>> CrossTableLookup<F, Row> {
     pub fn to_vec(self) -> CrossTableLookupVec<F> {
-        let looked_table: TableVec<F> = self.looked_table.to_vec();
+        let looked_table: Table<F> = self.looked_table.to_vec();
         let looking_tables = self
             .looking_tables
             .into_iter()
@@ -401,7 +401,7 @@ pub mod ctl_utils {
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookupVec, LookupError};
-    use crate::stark::mozak_stark::{MozakStark, TableKind, TableKindArray, TableVec};
+    use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
     #[derive(Debug)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
@@ -420,7 +420,7 @@ pub mod ctl_utils {
         fn process_row(
             &mut self,
             trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
-            table: &TableVec<F>,
+            table: &Table<F>,
         ) {
             let trace = &trace_poly_values[table.kind];
             for i in 0..trace[0].len() {

@@ -2,7 +2,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::stark::mozak_stark::{RangeCheckTable, TableVec};
+use crate::stark::mozak_stark::{RangeCheckTable, Table};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -28,7 +28,7 @@ pub fn data<F: Field>() -> Vec<Column<F>> {
 }
 
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<TableVec<F>> {
+pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     (0..4)
         .map(|limb| {
             RangeCheckTable::new(
