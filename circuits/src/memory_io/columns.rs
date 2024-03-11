@@ -4,6 +4,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::memory::columns::MemoryCtl;
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -63,15 +64,16 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().map(Column::from).is_
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
     let mem = col_map().map(Column::from);
-    vec![
-        mem.clk,
-        mem.ops.is_memory_store,
-        Column::constant(F::ZERO),
-        mem.value,
-        mem.addr,
-    ]
+
+    MemoryCtl {
+        clk: mem.clk,
+        is_store: mem.ops.is_memory_store,
+        is_load: Column::constant(F::ZERO),
+        value: mem.value,
+        addr: mem.addr,
+    }
 }
 
 /// Column for a binary filter to indicate a lookup

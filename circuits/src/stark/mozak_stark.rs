@@ -563,6 +563,7 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                 memory::columns::filter_for_cpu(),
             ),
         )
+        .to_vec()
     }
 }
 

@@ -9,6 +9,7 @@ use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::Column;
+use crate::memory::columns::MemoryCtl;
 use crate::program::columns::ProgramRom;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{CpuTable, TableNamed};
@@ -322,14 +323,15 @@ pub fn filter_for_xor<F: Field>() -> Column<F> {
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(col_map().cpu.clk),
-        Column::single(col_map().cpu.inst.ops.sb),
-        Column::single(col_map().cpu.inst.ops.lb), // For both `LB` and `LBU`
-        Column::single(col_map().cpu.mem_value_raw),
-        Column::single(col_map().cpu.mem_addr),
-    ]
+pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
+    let map = col_map().cpu.map(Column::from);
+    MemoryCtl {
+        clk: map.clk,
+        is_store: map.inst.ops.clone().is_mem_ops(),
+        is_load: map.inst.ops.is_mem_ops(),
+        value: map.mem_value_raw,
+        addr: map.mem_addr,
+    }
 }
 
 /// Column for a binary filter for memory instruction in Memory stark.

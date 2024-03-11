@@ -205,12 +205,30 @@ pub fn rangecheck_u8_looking<F: Field>() -> Vec<Table<F>> {
     )]
 }
 
+columns_view_impl!(MemoryCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct MemoryCtl<T> {
+    pub clk: T,
+    pub is_store: T,
+    pub is_load: T,
+    // TODO(Matthias): flip value and address later.
+    pub value: T,
+    pub addr: T,
+}
+
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
     let map = col_map().map(Column::from);
-    vec![map.clk, map.is_store, map.is_load, map.value, map.addr]
+    MemoryCtl {
+        clk: map.clk,
+        is_store: map.is_store,
+        is_load: map.is_load,
+        value: map.value,
+        addr: map.addr,
+    }
 }
 
 /// Column for a binary filter to indicate a lookup from the CPU table into

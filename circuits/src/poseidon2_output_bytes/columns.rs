@@ -4,6 +4,7 @@ use plonky2::plonk::config::GenericHashOut;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
+use crate::memory::columns::MemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 
 pub const FIELDS_COUNT: usize = 4;
@@ -65,16 +66,16 @@ pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
 }
 
 #[must_use]
-pub fn data_for_output_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
+pub fn data_for_output_memory<F: Field>(limb_index: u8) -> MemoryCtl<Column<F>> {
     assert!(limb_index < 32, "limb_index can be 0..31");
     let data = col_map().map(Column::from);
-    vec![
-        data.clk,
-        Column::constant(F::ONE),                            // is_store
-        Column::constant(F::ZERO),                           // is_load
-        data.output_bytes[limb_index as usize].clone(),      // value
-        data.output_addr + F::from_canonical_u8(limb_index), // address
-    ]
+    MemoryCtl {
+        clk: data.clk,
+        is_store: Column::constant(F::ONE),
+        is_load: Column::constant(F::ZERO),
+        value: data.output_bytes[limb_index as usize].clone(),
+        addr: data.output_addr + F::from_canonical_u8(limb_index),
+    }
 }
 
 #[must_use]
