@@ -365,7 +365,12 @@ pub fn dump_tapes(file_template: String) {
 
     let mut tape_clone = unsafe { SYSTEM_TAPES.clone() }; // .clone() removes `Lazy{}`
     tape_clone.event_tape.writer.iter_mut().for_each(|event| {
-        event.canonical_repr = Some(CanonicalEventTapeSingle::from(event.clone()))
+        let mut canonical_repr = CanonicalEventTapeSingle::from(event.clone());
+        canonical_repr
+            .contents
+            .iter_mut()
+            .for_each(|tape| tape.event_emitter = event.id);
+        event.canonical_repr = Some(canonical_repr);
     });
 
     let dbg_filename = file_template.clone() + ".tape_debug";
