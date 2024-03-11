@@ -183,15 +183,15 @@ fn partial_sums<F: Field>(
 }
 
 #[derive(Clone, Debug)]
-pub struct CrossTableLookup<F: Field, Row> {
-    pub looking_tables: Row,
-    pub looked_table: Table<F>,
+pub struct CrossTableLookup<Table> {
+    pub looking_tables: Vec<Table>,
+    pub looked_table: Table,
 }
 
 #[allow(clippy::module_name_repetitions)]
-pub type CrossTableLookupVec<F> = CrossTableLookup<F, Vec<Table<F>>>;
+pub type CrossTableLookupVec<F> = CrossTableLookup<Table<F>>;
 
-impl<F: Field, Row: IntoIterator<Item = Table<F>> + Clone> CrossTableLookup<F, Row> {
+impl<F: Field, Table: IntoIterator<Item = Table<F>> + Clone> CrossTableLookup<F, Row> {
     /// Instantiates a new cross table lookup between 2 tables.
     ///
     /// # Panics
