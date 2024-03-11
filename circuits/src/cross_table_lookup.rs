@@ -439,6 +439,7 @@ pub mod ctl_utils {
 
     pub fn check_single_ctl<F: Field>(
         trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+        // TODO(Matthias): make this one work with CrossTableLookupNamed
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
         /// Sums and compares the multiplicities of the given looking and looked

@@ -216,7 +216,7 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> {
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table
 #[must_use]
-pub fn data_for_memoryinit_<F: Field>() -> MemoryInitCtl<Column<F>> {
+pub fn data_for_memoryinit<F: Field>() -> MemoryInitCtl<Column<F>> {
     let mem = col_map().map(Column::from);
     MemoryInitCtl {
         is_writable: mem.is_writable,
@@ -224,12 +224,6 @@ pub fn data_for_memoryinit_<F: Field>() -> MemoryInitCtl<Column<F>> {
         clk: mem.clk,
         value: mem.value,
     }
-}
-
-/// Columns containing the data which are looked up in the `MemoryInit` Table
-#[must_use]
-pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
-    data_for_memoryinit_().into_iter().collect()
 }
 
 /// Column for a binary filter to indicate a lookup to the `MemoryInit` Table

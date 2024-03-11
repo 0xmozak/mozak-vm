@@ -423,7 +423,7 @@ mod tests {
                 memory::columns::data_for_memoryinit(),
                 memory::columns::filter_for_memoryinit(),
             ),
-        );
+        ).to_vec();
 
         let memory_trace = trace_rows_to_poly_values(memory_rows);
         let trace = TableKindSetBuilder {

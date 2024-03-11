@@ -16,7 +16,6 @@ use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
-use crate::memoryinit::columns::MemoryInitCtl;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 #[cfg(feature = "enable_poseidon_starks")]
@@ -571,31 +570,30 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
 
 pub struct MemoryInitMemoryTable<F: Field>(CrossTableLookup<F>);
 
-fn lookups_<F: Field>() -> CrossTableLookupNamed<F, MemoryInitCtl<Column<F>>> {
-    CrossTableLookupNamed::new(
-        vec![
-            ElfMemoryInitTable::new(
-                memoryinit::columns::data_for_memory_(),
-                memoryinit::columns::filter_for_memory(),
-            ),
-            MozakMemoryInitTable::new(
-                memoryinit::columns::data_for_memory_(),
-                memoryinit::columns::filter_for_memory(),
-            ),
-            MemoryZeroInitTable::new(
-                memory_zeroinit::columns::data_for_memory_(),
-                memory_zeroinit::columns::filter_for_memory(),
-            ),
-        ],
-        MemoryTable::new(
-            memory::columns::data_for_memoryinit_(),
-            memory::columns::filter_for_memoryinit(),
-        ),
-    )
-}
-
 impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
-    fn lookups() -> CrossTableLookup<F> { lookups_::<F>().to_vec() }
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookupNamed::new(
+            vec![
+                ElfMemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
+                MozakMemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
+                MemoryZeroInitTable::new(
+                    memory_zeroinit::columns::data_for_memory(),
+                    memory_zeroinit::columns::filter_for_memory(),
+                ),
+            ],
+            MemoryTable::new(
+                memory::columns::data_for_memoryinit(),
+                memory::columns::filter_for_memoryinit(),
+            ),
+        )
+        .to_vec()
+    }
 }
 
 pub struct BitshiftCpuTable<F: Field>(CrossTableLookup<F>);

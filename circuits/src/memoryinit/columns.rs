@@ -39,7 +39,7 @@ pub struct MemoryInitCtl<T> {
 
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn data_for_memory_<F: Field>() -> MemoryInitCtl<Column<F>> {
+pub fn data_for_memory<F: Field>() -> MemoryInitCtl<Column<F>> {
     let mem = col_map().map(Column::from);
     MemoryInitCtl {
         is_writable: mem.is_writable,
@@ -48,10 +48,6 @@ pub fn data_for_memory_<F: Field>() -> MemoryInitCtl<Column<F>> {
         value: mem.element.value,
     }
 }
-
-/// Columns containing the data which are looked up from the Memory Table
-#[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { data_for_memory_().into_iter().collect() }
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]
