@@ -11,6 +11,7 @@ use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::Column;
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::InputOutputMemoryCtl;
+use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{CpuTable, TableNamed};
@@ -176,6 +177,8 @@ pub struct CpuState<T> {
     pub is_io_transcript: T,
     pub is_halt: T,
     pub is_poseidon2: T,
+    // TODO: the two need constraints.
+    // (And/or should probably be removed.)
     pub poseidon2_input_addr: T,
     pub poseidon2_input_len: T,
 }
@@ -517,9 +520,13 @@ pub fn data_for_permuted_inst<F: Field>() -> InstructionRow<Column<F>> {
 }
 
 #[must_use]
-pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_poseidon2_sponge<F: Field>() -> Poseidon2SpongeCtl<Column<F>> {
     let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.poseidon2_input_addr, cpu.poseidon2_input_len]
+    Poseidon2SpongeCtl {
+        clk: cpu.clk,
+        input_addr: cpu.poseidon2_input_addr,
+        input_len: cpu.poseidon2_input_len,
+    }
 }
 
 #[must_use]

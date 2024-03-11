@@ -7,6 +7,8 @@ use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
+use crate::poseidon2::columns::Poseidon2StateCtl;
+use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -54,10 +56,23 @@ impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
     }
 }
 
+columns_view_impl!(Poseidon2SpongeCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct Poseidon2SpongeCtl<T> {
+    pub clk: T,
+    pub input_addr: T,
+    pub input_len: T,
+}
+
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> Poseidon2SpongeCtl<Column<F>> {
     let sponge = col_map().map(Column::from);
-    vec![sponge.clk, sponge.input_addr, sponge.input_len]
+    Poseidon2SpongeCtl {
+        clk: sponge.clk,
+        input_addr: sponge.input_addr,
+        input_len: sponge.input_len,
+    }
 }
 
 #[must_use]
@@ -66,27 +81,31 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> {
     sponge.ops.is_init_permute
 }
 
+// HERE
 #[must_use]
-pub fn data_for_poseidon2<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_poseidon2<F: Field>() -> Poseidon2StateCtl<Column<F>> {
     let sponge = col_map().map(Column::from);
-    let mut data = sponge.preimage.to_vec();
-    data.extend(sponge.output.to_vec());
-    data
+    Poseidon2StateCtl {
+        input: sponge.preimage,
+        output: sponge.output,
+    }
+    // let mut data = sponge.preimage.to_vec();
+    // data.extend(sponge.output.to_vec());
+    // data
 }
 
 #[must_use]
 pub fn filter_for_poseidon2<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed() }
 
 #[must_use]
-pub fn data_for_poseidon2_output_bytes<F: Field>() -> Vec<Column<F>> {
-    let sponge = col_map().map(Column::from);
-    let mut data = vec![];
-    data.push(sponge.clk);
-    data.push(sponge.output_addr);
-    let mut outputs = sponge.output.to_vec();
-    outputs.truncate(NUM_HASH_OUT_ELTS);
-    data.extend(outputs);
-    data
+pub fn data_for_poseidon2_output_bytes<F: Field>() -> Poseidon2OutputBytesCtl<Column<F>> {
+    let sponge = col_map();
+    Poseidon2OutputBytesCtl {
+        clk: sponge.clk,
+        output_addr: sponge.output_addr,
+        output_fields: sponge.output[..NUM_HASH_OUT_ELTS].try_into().unwrap(),
+    }
+    .map(Column::from)
 }
 
 #[must_use]

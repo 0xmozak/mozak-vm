@@ -793,6 +793,7 @@ impl<F: Field> Lookups<F> for Poseidon2SpongeCpuTable<F> {
                 crate::cpu::columns::filter_for_poseidon2_sponge(),
             ),
         )
+        .to_vec()
     }
 }
 
@@ -811,6 +812,7 @@ impl<F: Field> Lookups<F> for Poseidon2Poseidon2SpongeTable<F> {
                 crate::poseidon2_sponge::columns::filter_for_poseidon2(),
             ),
         )
+        .to_vec()
     }
 }
 
@@ -829,5 +831,6 @@ impl<F: Field> Lookups<F> for Poseidon2OutputBytesPoseidon2SpongeTable<F> {
                 crate::poseidon2_sponge::columns::filter_for_poseidon2_output_bytes(),
             ),
         )
+        .to_vec()
     }
 }

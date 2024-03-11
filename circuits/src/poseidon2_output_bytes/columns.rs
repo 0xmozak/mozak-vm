@@ -10,6 +10,8 @@ use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 pub const FIELDS_COUNT: usize = 4;
 pub const BYTES_COUNT: usize = 32;
 
+columns_view_impl!(Poseidon2OutputBytes);
+make_col_map!(Poseidon2OutputBytes);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Poseidon2OutputBytes<F> {
@@ -19,9 +21,6 @@ pub struct Poseidon2OutputBytes<F> {
     pub output_fields: [F; FIELDS_COUNT],
     pub output_bytes: [F; BYTES_COUNT],
 }
-
-columns_view_impl!(Poseidon2OutputBytes);
-make_col_map!(Poseidon2OutputBytes);
 
 pub const NUM_POSEIDON2_OUTPUT_BYTES_COLS: usize = Poseidon2OutputBytes::<()>::NUMBER_OF_COLUMNS;
 
@@ -50,14 +49,24 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2OutputBytes<F>> {
     }
 }
 
+columns_view_impl!(Poseidon2OutputBytesCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct Poseidon2OutputBytesCtl<F> {
+    pub clk: F,
+    pub output_addr: F,
+    pub output_fields: [F; FIELDS_COUNT],
+}
+
 #[must_use]
-pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
-    let data = col_map().map(Column::from);
-    let mut data_cols = vec![];
-    data_cols.push(data.clk);
-    data_cols.push(data.output_addr);
-    data_cols.extend(data.output_fields.to_vec());
-    data_cols
+pub fn data_for_poseidon2_sponge<F: Field>() -> Poseidon2OutputBytesCtl<Column<F>> {
+    let data = col_map();
+    Poseidon2OutputBytesCtl {
+        clk: data.clk,
+        output_addr: data.output_addr,
+        output_fields: data.output_fields,
+    }
+    .map(Column::from)
 }
 
 #[must_use]
