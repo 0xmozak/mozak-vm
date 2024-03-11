@@ -2,6 +2,7 @@
 use itertools::{chain, Itertools};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
+#[cfg(not(target_os = "mozakvm"))]
 use crate::sys::poseidon2_hash;
 
 pub const DIGEST_BYTES: usize = 32;
@@ -67,10 +68,6 @@ pub const STATE_TREE_DEPTH: usize = 4;
 #[archive_attr(derive(Debug))]
 #[cfg_attr(target_os = "mozakvm", derive(Debug))]
 pub struct Address([u8; STATE_TREE_DEPTH]);
-
-impl Address {
-    pub fn to_canonical(&self) -> u32 { u32::from_le_bytes(self.0) }
-}
 
 #[cfg(not(target_os = "mozakvm"))]
 impl std::ops::Deref for Address {
@@ -159,10 +156,6 @@ impl ProgramIdentifier {
         le_bytes_array[0..DIGEST_BYTES].copy_from_slice(&self.0.to_le_bytes());
         le_bytes_array
     }
-}
-
-impl ProgramIdentifier {
-    pub fn to_canonical(&self) -> [u8; 32] { *poseidon2_hash(&self.to_le_bytes()) }
 }
 
 #[cfg(not(target_os = "mozakvm"))]
@@ -372,6 +365,7 @@ pub struct CanonicalEvent {
     pub event_emitter: ProgramIdentifier,
 }
 
+#[allow(unused_variables)]
 impl From<Event> for CanonicalEvent {
     fn from(value: Event) -> Self {
         #[cfg(target_os = "mozakvm")]

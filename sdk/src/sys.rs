@@ -4,6 +4,8 @@ use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
+#[cfg(target_os = "mozakvm")]
+use crate::coretypes::DIGEST_BYTES;
 use crate::coretypes::{CPCMessage, CanonicalEvent, Event, Poseidon2HashType, ProgramIdentifier};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
@@ -270,6 +272,7 @@ pub struct CanonicalEventTapeSingle {
 }
 
 impl From<EventTapeSingle> for CanonicalEventTapeSingle {
+    #[allow(unused_variables)]
     fn from(value: EventTapeSingle) -> Self {
         #[cfg(target_os = "mozakvm")]
         {
@@ -307,6 +310,7 @@ impl EventTape {
     }
 
     #[allow(unused_variables)]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn emit_event(&mut self, id: ProgramIdentifier, event: Event) {
         #[cfg(target_os = "mozakvm")]
         {
@@ -455,8 +459,6 @@ pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
         pub const RATE: usize = 8;
         use mozak_system::system::syscall_poseidon2;
         padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
-
-        use crate::coretypes::DIGEST_BYTES;
 
         // VM expects input length to be multiple of RATE
         assert!(padded_input.len() % RATE == 0);
