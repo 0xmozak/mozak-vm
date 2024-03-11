@@ -5,7 +5,9 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 #[cfg(feature = "enable_register_starks")]
-use crate::stark::mozak_stark::{RegisterTable, Table};
+use crate::stark::mozak_stark::RegisterTable;
+#[cfg(feature = "enable_register_starks")]
+use crate::{rangecheck::columns::RangeCheckCtl, stark::mozak_stark::TableNamed};
 
 columns_view_impl!(Ops);
 #[repr(C)]
@@ -104,10 +106,11 @@ pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(col_map(
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<F>>>> {
     let ops = col_map().map(Column::from).ops;
+    let new = RangeCheckCtl::new;
     vec![RegisterTable::new(
-        Column::singles([col_map().diff_augmented_clk]),
+        new(Column::from(col_map().diff_augmented_clk)),
         ops.is_read + ops.is_write,
     )]
 }

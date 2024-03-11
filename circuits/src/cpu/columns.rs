@@ -10,7 +10,8 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::Column;
 use crate::program::columns::ProgramRom;
-use crate::stark::mozak_stark::{CpuTable, Table};
+use crate::rangecheck::columns::RangeCheckCtl;
+use crate::stark::mozak_stark::{CpuTable, TableNamed};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -263,45 +264,44 @@ pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize
 /// Currently, we only support expressions over the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<F>>>> {
     let cpu = col_map().cpu.map(Column::from);
     let ops = &cpu.inst.ops;
     let divs = &ops.div + &ops.rem + &ops.srl + &ops.sra;
     let muls = &ops.mul + &ops.mulh + &ops.sll;
 
+    let new = RangeCheckCtl::new;
     vec![
-        CpuTable::new(vec![cpu.quotient_value.clone()], divs.clone()),
-        CpuTable::new(vec![cpu.remainder_value.clone()], divs.clone()),
-        CpuTable::new(vec![cpu.remainder_slack], divs),
-        CpuTable::new(vec![cpu.dst_value.clone()], &ops.add + &ops.sub + &ops.jalr),
-        CpuTable::new(vec![cpu.inst.pc], ops.jalr.clone()),
-        CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
-        CpuTable::new(vec![cpu.product_high_limb], muls.clone()),
-        CpuTable::new(vec![cpu.product_low_limb], muls),
+        CpuTable::new(new(cpu.quotient_value.clone()), divs.clone()),
+        CpuTable::new(new(cpu.remainder_value.clone()), divs.clone()),
+        CpuTable::new(new(cpu.remainder_slack), divs),
+        CpuTable::new(new(cpu.dst_value.clone()), &ops.add + &ops.sub + &ops.jalr),
+        CpuTable::new(new(cpu.inst.pc), ops.jalr.clone()),
+        CpuTable::new(new(cpu.abs_diff), &ops.bge + &ops.blt),
+        CpuTable::new(new(cpu.product_high_limb), muls.clone()),
+        CpuTable::new(new(cpu.product_low_limb), muls),
         // apply range constraints for the sign bits of each operand
         CpuTable::new(
-            vec![
+            new(
                 cpu.op1_value - cpu.op1_sign_bit * F::from_canonical_u64(1 << 32)
                     + &cpu.inst.is_op1_signed * F::from_canonical_u64(1 << 31),
-            ],
+            ),
             cpu.inst.is_op1_signed,
         ),
         CpuTable::new(
-            vec![
+            new(
                 cpu.op2_value - cpu.op2_sign_bit * F::from_canonical_u64(1 << 32)
                     + &cpu.inst.is_op2_signed * F::from_canonical_u64(1 << 31),
-            ],
+            ),
             cpu.inst.is_op2_signed,
         ),
         CpuTable::new(
-            vec![
-                cpu.dst_value.clone()
-                    - cpu.dst_sign_bit.clone() * F::from_canonical_u32(0xFFFF_FF00),
-            ],
+            new(cpu.dst_value.clone()
+                - cpu.dst_sign_bit.clone() * F::from_canonical_u32(0xFFFF_FF00)),
             cpu.inst.ops.lb.clone(),
         ),
         CpuTable::new(
-            vec![cpu.dst_value - cpu.dst_sign_bit.clone() * F::from_canonical_u32(0xFFFF_0000)],
+            new(cpu.dst_value - cpu.dst_sign_bit.clone() * F::from_canonical_u32(0xFFFF_0000)),
             cpu.inst.ops.lh.clone(),
         ),
     ]

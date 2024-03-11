@@ -2,7 +2,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::stark::mozak_stark::{RangeCheckTable, Table};
+use crate::stark::mozak_stark::{RangeCheckTable, Table, TableNamed};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -21,10 +21,26 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data<F: Field>() -> Vec<Column<F>> {
-    vec![(0..4)
-        .map(|limb| Column::single(col_map().limbs[limb]) * F::from_canonical_u32(1 << (8 * limb)))
-        .sum()]
+pub fn data_filter<F: Field>() -> TableNamed<F, RangeCheckCtl<Column<F>>> {
+    let data = RangeCheckCtl::new(
+        (0..4)
+            .map(|limb| {
+                Column::single(col_map().limbs[limb]) * F::from_canonical_u32(1 << (8 * limb))
+            })
+            .sum(),
+    );
+    RangeCheckTable::new(data, filter())
+}
+
+columns_view_impl!(RangeCheckCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct RangeCheckCtl<T> {
+    pub value: T,
+}
+
+impl<T> RangeCheckCtl<T> {
+    pub fn new(value: T) -> Self { Self { value } }
 }
 
 #[must_use]

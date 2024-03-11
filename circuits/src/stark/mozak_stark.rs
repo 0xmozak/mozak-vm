@@ -470,18 +470,15 @@ impl<F: Field> Lookups<F> for RangecheckTable<F> {
         #[cfg(feature = "enable_register_starks")]
         let register = register::columns::rangecheck_looking();
         #[cfg(not(feature = "enable_register_starks"))]
-        let register: Vec<Table<F>> = vec![];
+        let register: Vec<TableNamed<_, _>> = vec![];
 
-        let looking: Vec<Table<F>> = chain![
+        let looking: Vec<TableNamed<_, _>> = chain![
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
             register,
         ]
         .collect();
-        CrossTableLookupNamed::new(
-            looking,
-            RangeCheckTable::new(rangecheck::columns::data(), rangecheck::columns::filter()),
-        )
+        CrossTableLookupNamed::new(looking, rangecheck::columns::data_filter()).to_vec()
     }
 }
 

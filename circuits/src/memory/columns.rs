@@ -16,7 +16,8 @@ use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-use crate::stark::mozak_stark::{MemoryTable, Table};
+use crate::rangecheck::columns::RangeCheckCtl;
+use crate::stark::mozak_stark::{MemoryTable, Table, TableNamed};
 
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
@@ -179,13 +180,19 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder.add_extension(tmp, values.is_init)
 }
 
+// TODO(Matthias): make the types more readable.
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<F>>>> {
     let mem = col_map().map(Column::from);
+    let new = RangeCheckCtl::new;
+    let is_executed = mem.is_executed();
     vec![
-        MemoryTable::new(Column::singles([col_map().addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles([col_map().diff_clk]), mem.is_executed()),
+        MemoryTable::new(new(mem.addr), is_executed.clone()),
+        MemoryTable::new(
+            new(Column::single_diff(col_map().addr)),
+            is_executed.clone(),
+        ),
+        MemoryTable::new(new(mem.diff_clk), is_executed),
     ]
 }
 
