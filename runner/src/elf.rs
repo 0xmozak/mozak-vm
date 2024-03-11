@@ -96,12 +96,12 @@ impl Default for MozakMemory {
         MozakMemory {
             self_prog_id: MozakMemoryRegion {
                 starting_address: 0x2000_0000_u32,
-                capacity: 256_u32,
+                capacity: 0x20_u32,
                 ..Default::default()
             },
             cast_list: MozakMemoryRegion {
-                starting_address: 0x2000_0100_u32,
-                capacity: 0x0001_0000_u32,
+                starting_address: 0x2000_0020_u32,
+                capacity: 0x00FF_FFE0_u32,
                 ..Default::default()
             },
             io_tape_public: MozakMemoryRegion {
@@ -205,8 +205,8 @@ impl MozakMemory {
         // log::debug!("_mozak_call_tape: 0x{:0x}", self.call_tape.starting_address);
 
         // compute capacity, assume single memory region (refer to linker-script)
-        self.self_prog_id.capacity = 256_u32;
-        self.cast_list.capacity = 0x0001_0000_u32;
+        self.self_prog_id.capacity = 0x20_u32;
+        self.cast_list.capacity = 0x00FF_FFE0_u32;
 
         self.io_tape_public.capacity =
             self.io_tape_private.starting_address - self.io_tape_public.starting_address;
