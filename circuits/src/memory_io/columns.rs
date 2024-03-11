@@ -37,12 +37,6 @@ columns_view_impl!(InputOutputMemory);
 make_col_map!(InputOutputMemory);
 
 impl<T: Clone + Add<Output = T>> InputOutputMemory<T> {
-    // TODO(Matthias): remove
-    pub fn is_io(&self) -> T { self.ops.is_io_store.clone() }
-
-    // TODO(Matthias): remove
-    pub fn is_memory(&self) -> T { self.ops.is_memory_store.clone() }
-
     pub fn is_executed(&self) -> T {
         self.ops.is_io_store.clone() + self.ops.is_memory_store.clone()
     }
@@ -58,8 +52,6 @@ pub struct InputOutputMemoryCtl<T> {
     pub clk: T,
     pub addr: T,
     pub size: T,
-    // TODO(Matthias): I think this one is redundant.
-    pub is_io_store: T,
 }
 
 /// Columns containing the data which are looked from the CPU table into Memory
@@ -71,13 +63,12 @@ pub fn data_for_cpu<F: Field>() -> InputOutputMemoryCtl<Column<F>> {
         clk: mem.clk,
         addr: mem.addr,
         size: mem.size,
-        is_io_store: mem.ops.is_io_store,
     }
 }
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().map(Column::from).is_io() }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().map(Column::from).ops.is_io_store }
 
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
@@ -96,4 +87,6 @@ pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { col_map().map(Column::from).is_memory() }
+pub fn filter_for_memory<F: Field>() -> Column<F> {
+    col_map().map(Column::from).ops.is_memory_store
+}

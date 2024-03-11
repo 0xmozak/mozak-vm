@@ -394,7 +394,6 @@ pub fn data_for_io_memory_private<F: Field>() -> InputOutputMemoryCtl<Column<F>>
         clk: cpu.clk,
         addr: cpu.io_addr,
         size: cpu.io_size,
-        is_io_store: cpu.is_io_store_private,
     }
 }
 
@@ -413,7 +412,6 @@ pub fn data_for_io_memory_public<F: Field>() -> InputOutputMemoryCtl<Column<F>> 
         clk: cpu.clk,
         addr: cpu.io_addr,
         size: cpu.io_size,
-        is_io_store: cpu.is_io_store_public,
     }
 }
 
@@ -432,9 +430,7 @@ pub fn data_for_io_transcript<F: Field>() -> InputOutputMemoryCtl<Column<F>> {
         clk: cpu.clk,
         addr: cpu.io_addr,
         size: cpu.io_size,
-        is_io_store: cpu.is_io_transcript,
     }
-    // vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_transcript]
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
