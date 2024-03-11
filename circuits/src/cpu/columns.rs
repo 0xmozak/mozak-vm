@@ -328,7 +328,7 @@ pub fn filter_for_xor<F: Field>() -> Column<F> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
-    let map = col_map().cpu.map(Column::from);
+    let map = col_map().cpu;
     MemoryCtl {
         clk: map.clk,
         is_store: map.inst.ops.sb,
@@ -336,6 +336,7 @@ pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
         value: map.mem_value_raw,
         addr: map.mem_addr,
     }
+    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in Memory stark.
