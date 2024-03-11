@@ -354,13 +354,6 @@ pub fn data_for_halfword_memory<F: Field>() -> MemoryCtl<Column<F>> {
         value: cpu.mem_value_raw,
         addr: cpu.mem_addr,
     }
-    // vec![
-    //     cpu.clk,
-    //     cpu.mem_addr,
-    //     cpu.mem_value_raw,
-    //     cpu.inst.ops.sh,
-    //     cpu.inst.ops.lh,
-    // ]
 }
 
 /// Column for a binary filter for memory instruction in Memory stark.
