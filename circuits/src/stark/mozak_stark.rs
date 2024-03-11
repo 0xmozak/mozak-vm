@@ -700,6 +700,7 @@ impl<F: Field> Lookups<F> for FullWordMemoryCpuTable<F> {
                 memory_fullword::columns::filter(),
             ),
         )
+        .to_vec()
     }
 }
 

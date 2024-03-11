@@ -366,15 +366,15 @@ pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_fullword_memory<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_fullword_memory<F: Field>() -> MemoryCtl<Column<F>> {
     let cpu = col_map().cpu.map(Column::from);
-    vec![
-        cpu.clk,
-        cpu.mem_addr,
-        cpu.dst_value,
-        cpu.inst.ops.sw,
-        cpu.inst.ops.lw,
-    ]
+    MemoryCtl {
+        clk: cpu.clk,
+        is_store: cpu.inst.ops.sw,
+        is_load: cpu.inst.ops.lw,
+        value: cpu.mem_value_raw,
+        addr: cpu.mem_addr,
+    }
 }
 
 /// Column for a binary filter for memory instruction in Memory stark.

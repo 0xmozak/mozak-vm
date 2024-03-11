@@ -48,15 +48,15 @@ pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
     let mem = col_map().map(Column::from);
-    vec![
-        mem.clk,
-        mem.addrs[0].clone(),
-        Column::reduce_with_powers(&mem.limbs, F::from_canonical_u16(1 << 8)),
-        mem.ops.is_store,
-        mem.ops.is_load,
-    ]
+    MemoryCtl {
+        clk: mem.clk,
+        is_store: mem.ops.is_store,
+        is_load: mem.ops.is_load,
+        value: Column::reduce_with_powers(&mem.limbs, F::from_canonical_u16(1 << 8)),
+        addr: mem.addrs[0].clone(),
+    }
 }
 
 /// Columns containing the data which are looked from the fullword memory table
