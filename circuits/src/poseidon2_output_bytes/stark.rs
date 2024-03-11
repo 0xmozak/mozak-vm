@@ -256,7 +256,7 @@ mod tests {
             pad_trace(malicious_trace)
         }
 
-        let trace = dummy_trace(value);
+        let trace = malicious_trace(value);
         let config = StarkConfig::standard_fast_config();
         let stark = S::default();
         let trace_poly_values = trace_rows_to_poly_values(trace);
