@@ -213,9 +213,6 @@ impl<F: Field, Row> CrossTableLookupNamed<F, Row> {
     /// # Panics
     /// Panics if the two tables do not have equal number of columns.
     pub fn new(looking_tables: Vec<TableNamed<F, Row>>, looked_table: TableNamed<F, Row>) -> Self {
-        // assert!(looking_tables
-        //     .iter()
-        //     .all(|twc| twc.columns.len() == looked_table.columns.len()));
         Self {
             looking_tables,
             looked_table,
