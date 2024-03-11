@@ -195,11 +195,7 @@ pub type CrossTableLookupVec<F> = CrossTableLookup<F, Vec<Column<F>>>;
 impl<F: Field, Row: IntoIterator<Item = Column<F>>> CrossTableLookup<F, Row> {
     pub fn to_vec(self) -> CrossTableLookupVec<F> {
         let looked_table: TableVec<F> = self.looked_table.to_vec();
-        let looking_tables = self
-            .looking_tables
-            .into_iter()
-            .map(Table::to_vec)
-            .collect();
+        let looking_tables = self.looking_tables.into_iter().map(Table::to_vec).collect();
         CrossTableLookup {
             looking_tables,
             looked_table,
