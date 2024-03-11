@@ -229,7 +229,7 @@ mod tests {
     /// non canonical form of hash (with a limb >= goldilocks prime)
     /// should fail
     #[test]
-    #[should_panic = "Constraint failed in"]
+    #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
     fn non_canonical_hash(value in 0..u32::MAX) {
         fn malicious_trace(value: u32) -> Vec<Poseidon2OutputBytes<F>> {
             let output = [F::from_canonical_u32(value); 12];
