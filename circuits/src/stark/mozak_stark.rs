@@ -738,6 +738,7 @@ impl<F: Field> Lookups<F> for IoMemoryPrivateCpuTable<F> {
                 memory_io::columns::filter_for_cpu(),
             ),
         )
+        .to_vec()
     }
 }
 
@@ -755,6 +756,7 @@ impl<F: Field> Lookups<F> for IoMemoryPublicCpuTable<F> {
                 memory_io::columns::filter_for_cpu(),
             ),
         )
+        .to_vec()
     }
 }
 
@@ -772,6 +774,7 @@ impl<F: Field> Lookups<F> for IoTranscriptCpuTable<F> {
                 memory_io::columns::filter_for_cpu(),
             ),
         )
+        .to_vec()
     }
 }
 

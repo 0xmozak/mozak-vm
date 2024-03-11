@@ -37,8 +37,10 @@ columns_view_impl!(InputOutputMemory);
 make_col_map!(InputOutputMemory);
 
 impl<T: Clone + Add<Output = T>> InputOutputMemory<T> {
+    // TODO(Matthias): remove
     pub fn is_io(&self) -> T { self.ops.is_io_store.clone() }
 
+    // TODO(Matthias): remove
     pub fn is_memory(&self) -> T { self.ops.is_memory_store.clone() }
 
     pub fn is_executed(&self) -> T {
@@ -49,12 +51,28 @@ impl<T: Clone + Add<Output = T>> InputOutputMemory<T> {
 /// Total number of columns.
 pub const NUM_IO_MEM_COLS: usize = InputOutputMemory::<()>::NUMBER_OF_COLUMNS;
 
+columns_view_impl!(InputOutputMemoryCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct InputOutputMemoryCtl<T> {
+    pub clk: T,
+    pub addr: T,
+    pub size: T,
+    // TODO(Matthias): I think this one is redundant.
+    pub is_io_store: T,
+}
+
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> InputOutputMemoryCtl<Column<F>> {
     let mem = col_map().map(Column::from);
-    vec![mem.clk, mem.addr, mem.size, mem.ops.is_io_store]
+    InputOutputMemoryCtl {
+        clk: mem.clk,
+        addr: mem.addr,
+        size: mem.size,
+        is_io_store: mem.ops.is_io_store,
+    }
 }
 
 /// Column for a binary filter to indicate a lookup

@@ -10,6 +10,7 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::Column;
 use crate::memory::columns::MemoryCtl;
+use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{CpuTable, TableNamed};
@@ -387,9 +388,14 @@ pub fn filter_for_fullword_memory<F: Field>() -> Column<F> {
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_io_memory_private<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_io_memory_private<F: Field>() -> InputOutputMemoryCtl<Column<F>> {
     let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store_private]
+    InputOutputMemoryCtl {
+        clk: cpu.clk,
+        addr: cpu.io_addr,
+        size: cpu.io_size,
+        is_io_store: cpu.is_io_store_private,
+    }
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
@@ -401,9 +407,14 @@ pub fn filter_for_io_memory_private<F: Field>() -> Column<F> {
 }
 
 #[must_use]
-pub fn data_for_io_memory_public<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_io_memory_public<F: Field>() -> InputOutputMemoryCtl<Column<F>> {
     let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store_public]
+    InputOutputMemoryCtl {
+        clk: cpu.clk,
+        addr: cpu.io_addr,
+        size: cpu.io_size,
+        is_io_store: cpu.is_io_store_public,
+    }
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
@@ -415,9 +426,15 @@ pub fn filter_for_io_memory_public<F: Field>() -> Column<F> {
 }
 
 #[must_use]
-pub fn data_for_io_transcript<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_io_transcript<F: Field>() -> InputOutputMemoryCtl<Column<F>> {
     let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_transcript]
+    InputOutputMemoryCtl {
+        clk: cpu.clk,
+        addr: cpu.io_addr,
+        size: cpu.io_size,
+        is_io_store: cpu.is_io_transcript,
+    }
+    // vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_transcript]
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
