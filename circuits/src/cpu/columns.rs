@@ -333,8 +333,8 @@ pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
         clk: map.clk,
         is_store: map.inst.ops.sb,
         is_load: map.inst.ops.lb, // For both `LB` and `LBU`
-        value: map.mem_value_raw,
         addr: map.mem_addr,
+        value: map.mem_value_raw,
     }
     .map(Column::from)
 }
@@ -355,8 +355,8 @@ pub fn data_for_halfword_memory<F: Field>() -> MemoryCtl<Column<F>> {
         clk: cpu.clk,
         is_store: cpu.inst.ops.sh,
         is_load: cpu.inst.ops.lh,
-        value: cpu.mem_value_raw,
         addr: cpu.mem_addr,
+        value: cpu.mem_value_raw,
     }
     .map(Column::from)
 }
@@ -377,8 +377,8 @@ pub fn data_for_fullword_memory<F: Field>() -> MemoryCtl<Column<F>> {
         clk: cpu.clk,
         is_store: cpu.inst.ops.sw,
         is_load: cpu.inst.ops.lw,
-        value: cpu.mem_value_raw,
         addr: cpu.mem_addr,
+        value: cpu.mem_value_raw,
     }
     .map(Column::from)
 }

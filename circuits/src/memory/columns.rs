@@ -225,8 +225,8 @@ pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
         clk: map.clk,
         is_store: map.is_store,
         is_load: map.is_load,
-        value: map.value,
         addr: map.addr,
+        value: map.value,
     }
 }
 
