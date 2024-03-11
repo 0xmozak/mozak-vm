@@ -443,7 +443,7 @@ pub fn call_receive() -> Option<(CPCMessage, usize)> {
 }
 
 /// Send one message from mailbox targetted to some third-party
-/// reverse_indicesing in such messages finding itself in their mailbox
+/// resulting in such messages finding itself in their mailbox
 /// Panics on call-tape non-abidance.
 #[allow(clippy::similar_names)]
 pub fn call_send<A, R>(
