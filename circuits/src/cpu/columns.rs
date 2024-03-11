@@ -10,7 +10,7 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::Column;
 use crate::memory::columns::MemoryCtl;
-use crate::program::columns::ProgramRom;
+use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{CpuTable, TableNamed};
 use crate::xor::columns::XorView;
@@ -468,13 +468,12 @@ pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_inst<F: Field>() -> InstructionRow<Column<F>> {
     let inst = col_map().cpu.inst;
-    vec![
-        Column::single(inst.pc),
+    InstructionRow {
+        pc: Column::single(inst.pc),
         // Combine columns into a single column.
-        // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
-        //   bits.
+        // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5 bits.
         // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
         // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
         // - imm_value: This field requires 32 bits.
@@ -482,7 +481,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
         // size of the Goldilocks field.
         // Note: The imm_value field, having more than 5 bits, must be positioned as the last
         // column in the list to ensure the correct functioning of 'reduce_with_powers'.
-        Column::reduce_with_powers(
+        inst_data: Column::reduce_with_powers(
             &[
                 Column::ascending_sum(inst.ops),
                 Column::single(inst.is_op1_signed),
@@ -494,13 +493,13 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
             ],
             F::from_canonical_u16(1 << 5),
         ),
-    ]
+    }
 }
 
 /// Columns containing the data of permuted instructions.
 #[must_use]
-pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> {
-    Column::singles(col_map().permuted.inst)
+pub fn data_for_permuted_inst<F: Field>() -> InstructionRow<Column<F>> {
+    col_map().permuted.inst.map(Column::from)
 }
 
 #[must_use]

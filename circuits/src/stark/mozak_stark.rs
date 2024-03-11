@@ -627,6 +627,7 @@ impl<F: Field> Lookups<F> for InnerCpuTable<F> {
                 Column::single(cpu::columns::col_map().cpu.is_running),
             ),
         )
+        .to_vec()
     }
 }
 
@@ -644,6 +645,7 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
                 Column::single(program::columns::col_map().filter),
             ),
         )
+        .to_vec()
     }
 }
 
