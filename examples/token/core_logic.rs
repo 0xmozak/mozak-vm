@@ -1,7 +1,7 @@
 #![feature(restricted_std)]
 extern crate alloc;
 
-use mozak_sdk::coretypes::{Event, ProgramIdentifier, StateObject};
+use mozak_sdk::coretypes::{CanonicalEventType, Event, ProgramIdentifier, StateObject};
 use mozak_sdk::sys::{call_send, event_emit};
 use rkyv::{Archive, Deserialize, Serialize};
 use wallet::TokenObject;
@@ -56,7 +56,11 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    event_emit(self_prog_id, Event::Read(state_object.clone()));
+    let read_event = Event {
+        object: state_object.clone(),
+        operation: CanonicalEventType::Read,
+    };
+    event_emit(self_prog_id, read_event);
     let token_object: TokenObject = state_object_data_to_token_object(state_object.clone());
     assert_eq!(
         call_send(
@@ -77,5 +81,9 @@ pub fn transfer(
         "wallet approval not found"
     );
 
-    event_emit(self_prog_id, Event::Write(state_object));
+    let write_event = Event {
+        object: state_object,
+        operation: CanonicalEventType::Write,
+    };
+    event_emit(self_prog_id, write_event);
 }

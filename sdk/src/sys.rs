@@ -4,7 +4,7 @@ use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{CPCMessage, CanonicalEvent, Event, ProgramIdentifier};
+use crate::coretypes::{CPCMessage, CanonicalEvent, CanonicalEventType, Event, ProgramIdentifier};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -265,6 +265,7 @@ pub struct EventTapeSingle {
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct CanonicalEventTapeSingle {
+    /// sorted according to address, and opcode.
     pub contents: Vec<CanonicalEvent>,
 }
 
@@ -277,12 +278,18 @@ impl From<EventTapeSingle> for CanonicalEventTapeSingle {
 
         #[cfg(not(target_os = "mozakvm"))]
         {
+            let mut event_tape = value
+                .contents
+                .iter()
+                .map(|event| CanonicalEvent::from(event.clone()))
+                .collect::<Vec<CanonicalEvent>>();
+            event_tape.sort_by(|a, b| {
+                a.address
+                    .cmp(&b.address)
+                    .then(a.event_type.cmp(&b.event_type))
+            });
             Self {
-                contents: value
-                    .contents
-                    .iter()
-                    .map(|event| CanonicalEvent::from(event.clone()))
-                    .collect(),
+                contents: event_tape,
             }
         }
     }
@@ -315,8 +322,10 @@ impl EventTape {
             assert_eq!(event, event_deserialized);
 
             assert_eq!(
-                match event {
-                    Event::Create(s) | Event::Delete(s) | Event::Write(s) => s.constraint_owner,
+                match event.operation {
+                    CanonicalEventType::Create
+                    | CanonicalEventType::Delete
+                    | CanonicalEventType::Write => event.object.constraint_owner,
                     _ => self.self_prog_id,
                 },
                 self.self_prog_id

@@ -1,6 +1,5 @@
+use guest::hash::poseidon2_hash;
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
-
-use crate::hash::hash;
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
@@ -64,6 +63,10 @@ pub const STATE_TREE_DEPTH: usize = 4;
 #[archive_attr(derive(Debug))]
 #[cfg_attr(target_os = "mozakvm", derive(Debug))]
 pub struct Address([u8; STATE_TREE_DEPTH]);
+
+impl Address {
+    pub fn to_canonical(&self) -> u32 { u32::from_le_bytes(self.0) }
+}
 
 #[cfg(not(target_os = "mozakvm"))]
 impl std::ops::Deref for Address {
@@ -150,9 +153,9 @@ impl ProgramIdentifier {
         le_bytes_array
     }
 }
-#[cfg(not(target_os = "mozakvm"))]
+
 impl ProgramIdentifier {
-    pub fn to_canonical(&self) -> [u64; 4] { Default::default() }
+    pub fn to_canonical(&self) -> [u8; 32] { *poseidon2_hash(&self.to_le_bytes()) }
 }
 
 #[cfg(not(target_os = "mozakvm"))]
@@ -238,7 +241,6 @@ impl From<String> for ProgramIdentifier {
         }
     }
 }
-
 /// Each storage object is a unit of information in the global
 /// state tree constrained for modification only by its `constraint_owner`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
@@ -263,38 +265,20 @@ pub struct StateObject {
     pub data: Vec<u8>,
 }
 
-impl StateObject {
-    pub fn canonical_address(&self) -> u32 { u32::from_le_bytes(self.address.0) }
-
-    pub fn canonical_constraint_owner(&self) -> [u64; 4] {
-        hash(&self.constraint_owner.to_le_bytes())
-    }
-
-    pub fn canonical_data(&self) -> [u64; 4] { hash(&self.data) }
-}
-
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-pub struct CanonicalStateObjectOperation {
+pub struct CanonicalStateObjectEvent {
     // TODO: change u32 to goldilocks F
     /// Logical address of StateObject in the tree
     pub address: u32,
-
-    pub constraint_owner: [u64; 4],
-
-    pub old_data: [u64; 4],
-
-    pub new_data: [u64; 4],
-
-    pub event_emitter: [u64; 4],
-
     pub event_type: CanonicalEventType,
-
+    pub constraint_owner: [u64; 4],
     pub event_value: [u64; 4],
+    pub event_emitter: [u64; 4],
 }
 
-#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[repr(u8)]
@@ -423,23 +407,21 @@ impl From<Vec<u8>> for Signature {
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-pub enum Event {
-    Read(StateObject),
-    Write(StateObject),
-    Ensure(StateObject),
-    Create(StateObject),
-    Delete(StateObject),
+pub struct Event {
+    pub object: StateObject,
+    pub operation: CanonicalEventType,
 }
-#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Debug, Deserialize, Eq, PartialEq, Serialize, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 /// Event which is ready to be ingested into event accumulator
-pub enum CanonicalEvent {
-    Read(CanonicalStateObjectOperation),
-    Write(CanonicalStateObjectOperation),
-    Ensure(CanonicalStateObjectOperation),
-    Create(CanonicalStateObjectOperation),
-    Delete(CanonicalStateObjectOperation),
+/// Events are always in relation to a state object
+pub struct CanonicalEvent {
+    pub address: u32,
+    pub event_type: CanonicalEventType,
+    pub constraint_owner: [u8; 32],
+    pub event_value: [u8; 32],
+    pub event_emitter: [u8; 32],
 }
 
 impl From<Event> for CanonicalEvent {
@@ -451,52 +433,12 @@ impl From<Event> for CanonicalEvent {
 
         #[cfg(not(target_os = "mozakvm"))]
         {
-            match value {
-                Event::Read(s) => Self::Read(CanonicalStateObjectOperation {
-                    address: s.canonical_address(),
-                    constraint_owner: s.canonical_constraint_owner(),
-                    old_data: s.canonical_data(),
-                    new_data: Default::default(),
-                    event_emitter: Default::default(),
-                    event_type: CanonicalEventType::Read,
-                    event_value: s.canonical_data(),
-                }),
-                Event::Write(s) => Self::Write(CanonicalStateObjectOperation {
-                    address: s.canonical_address(),
-                    constraint_owner: s.canonical_constraint_owner(),
-                    old_data: Default::default(),
-                    new_data: s.canonical_data(),
-                    event_emitter: s.canonical_constraint_owner(),
-                    event_type: CanonicalEventType::Write,
-                    event_value: s.canonical_data(),
-                }),
-                Event::Ensure(s) => Self::Ensure(CanonicalStateObjectOperation {
-                    address: s.canonical_address(),
-                    constraint_owner: s.canonical_constraint_owner(),
-                    old_data: Default::default(),
-                    new_data: s.canonical_data(),
-                    event_emitter: Default::default(),
-                    event_type: CanonicalEventType::Ensure,
-                    event_value: s.canonical_data(),
-                }),
-                Event::Create(s) => Self::Create(CanonicalStateObjectOperation {
-                    address: s.canonical_address(),
-                    constraint_owner: s.canonical_constraint_owner(),
-                    old_data: s.canonical_data(),
-                    new_data: Default::default(),
-                    event_emitter: s.canonical_constraint_owner(),
-                    event_type: CanonicalEventType::Create,
-                    event_value: [s.canonical_address() as u64, 0, 0, 0],
-                }),
-                Event::Delete(s) => Self::Delete(CanonicalStateObjectOperation {
-                    address: s.canonical_address(),
-                    constraint_owner: s.canonical_constraint_owner(),
-                    old_data: s.canonical_data(),
-                    new_data: Default::default(),
-                    event_emitter: s.canonical_constraint_owner(),
-                    event_type: CanonicalEventType::Delete,
-                    event_value: Default::default(),
-                }),
+            Self {
+                address: value.object.address.to_canonical(),
+                event_type: value.operation,
+                constraint_owner: value.object.constraint_owner.to_canonical(),
+                event_value: *poseidon2_hash(&value.object.data),
+                event_emitter: value.object.constraint_owner.to_canonical(), // fix later
             }
         }
     }

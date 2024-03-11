@@ -646,6 +646,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "guest"
+version = "0.1.0"
+dependencies = [
+ "mozak-system",
+ "plonky2",
+]
+
+[[package]]
 name = "half"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1005,11 +1013,11 @@ dependencies = [
 name = "mozak-sdk"
 version = "0.1.0"
 dependencies = [
+ "guest",
  "hex",
  "lazy_static",
  "mozak-system",
  "once_cell",
- "plonky2",
  "rkyv",
  "serde",
 ]

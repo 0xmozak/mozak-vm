@@ -13,6 +13,7 @@ version = "0.1.0"
 mozak-system = { path = "../system", features = ["mozak-ro-memory"] }
 once_cell = { version = "1.19.0", default-features = false, features = ["race"] }
 rkyv = { version = "0.7.1", default-features = false, features = ["size_32", "alloc"] }
+guest = { path = "../guest" ,features = ["std"]}
 
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.lazy_static]
@@ -24,6 +25,3 @@ version = "0.4"
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.serde]
 features = ["derive"]
 version = "1.0"
-
-[target.'cfg(not(target_os="mozakvm"))'.dependencies.plonky2]
-version = "0"
