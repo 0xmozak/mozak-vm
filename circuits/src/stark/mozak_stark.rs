@@ -8,23 +8,31 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
+use crate::bitshift::columns::Bitshift;
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup, CrossTableLookupNamed};
+use crate::memory::columns::MemoryCtl;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
+use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
+use crate::memoryinit::columns::MemoryInitCtl;
 use crate::memoryinit::stark::MemoryInitStark;
+use crate::poseidon2::columns::Poseidon2StateCtl;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes;
+use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge;
+use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
+use crate::program::columns::InstructionRow;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
@@ -32,7 +40,10 @@ use crate::rangecheck_u8::stark::RangeCheckU8Stark;
 #[cfg(feature = "enable_register_starks")]
 use crate::register;
 use crate::register::stark::RegisterStark;
+#[cfg(feature = "enable_register_starks")]
+use crate::registerinit::columns::RegisterInitCtl;
 use crate::registerinit::stark::RegisterInitStark;
+use crate::xor::columns::XorView;
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
@@ -354,27 +365,27 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.
             cross_table_lookups: [
-                RangecheckTable::lookups(),
-                XorCpuTable::lookups(),
-                BitshiftCpuTable::lookups(),
-                InnerCpuTable::lookups(),
-                ProgramCpuTable::lookups(),
-                IntoMemoryTable::lookups(),
-                MemoryInitMemoryTable::lookups(),
-                RangeCheckU8LookupTable::lookups(),
-                HalfWordMemoryCpuTable::lookups(),
-                FullWordMemoryCpuTable::lookups(),
+                RangecheckTable::lookups_untyped(),
+                XorCpuTable::lookups_untyped(),
+                BitshiftCpuTable::lookups_untyped(),
+                InnerCpuTable::lookups_untyped(),
+                ProgramCpuTable::lookups_untyped(),
+                IntoMemoryTable::lookups_untyped(),
+                MemoryInitMemoryTable::lookups_untyped(),
+                RangeCheckU8LookupTable::lookups_untyped(),
+                HalfWordMemoryCpuTable::lookups_untyped(),
+                FullWordMemoryCpuTable::lookups_untyped(),
                 #[cfg(feature = "enable_register_starks")]
-                RegisterRegInitTable::lookups(),
-                IoMemoryPrivateCpuTable::lookups(),
-                IoMemoryPublicCpuTable::lookups(),
-                IoTranscriptCpuTable::lookups(),
+                RegisterRegInitTable::lookups_untyped(),
+                IoMemoryPrivateCpuTable::lookups_untyped(),
+                IoMemoryPublicCpuTable::lookups_untyped(),
+                IoTranscriptCpuTable::lookups_untyped(),
                 #[cfg(feature = "enable_poseidon_starks")]
-                Poseidon2SpongeCpuTable::lookups(),
+                Poseidon2SpongeCpuTable::lookups_untyped(),
                 #[cfg(feature = "enable_poseidon_starks")]
-                Poseidon2Poseidon2SpongeTable::lookups(),
+                Poseidon2Poseidon2SpongeTable::lookups_untyped(),
                 #[cfg(feature = "enable_poseidon_starks")]
-                Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
+                Poseidon2OutputBytesPoseidon2SpongeTable::lookups_untyped(),
             ],
             debug: false,
         }
@@ -461,13 +472,18 @@ table_impl!(Poseidon2Table, TableKind::Poseidon2);
 table_impl!(Poseidon2OutputBytesTable, TableKind::Poseidon2OutputBytes);
 
 pub trait Lookups<F: Field> {
-    fn lookups() -> CrossTableLookup<F>;
+    type Row: IntoIterator<Item = Column<F>>;
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row>;
+    #[must_use]
+    fn lookups_untyped() -> CrossTableLookup<F> { Self::lookups().to_vec() }
 }
 
 pub struct RangecheckTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for RangecheckTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = RangeCheckCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         #[cfg(feature = "enable_register_starks")]
         let register = register::columns::rangecheck_looking();
         #[cfg(not(feature = "enable_register_starks"))]
@@ -479,14 +495,16 @@ impl<F: Field> Lookups<F> for RangecheckTable<F> {
             register,
         ]
         .collect();
-        CrossTableLookupNamed::new(looking, rangecheck::columns::data_filter()).to_vec()
+        CrossTableLookupNamed::new(looking, rangecheck::columns::data_filter())
     }
 }
 
 pub struct XorCpuTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for XorCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = XorView<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_xor(),
@@ -494,15 +512,16 @@ impl<F: Field> Lookups<F> for XorCpuTable<F> {
             )],
             XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
         )
-        .to_vec()
     }
 }
 
 pub struct IntoMemoryTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
+    type Row = MemoryCtl<Column<F>>;
+
     #[allow(clippy::too_many_lines)]
-    fn lookups() -> CrossTableLookup<F> {
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         let mut tables = vec![];
         tables.extend([
             CpuTable::new(
@@ -564,14 +583,15 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                 memory::columns::filter_for_cpu(),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct MemoryInitMemoryTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = MemoryInitCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, MemoryInitCtl<Column<F>>> {
         CrossTableLookupNamed::new(
             vec![
                 ElfMemoryInitTable::new(
@@ -592,14 +612,15 @@ impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
                 memory::columns::filter_for_memoryinit(),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct BitshiftCpuTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for BitshiftCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = Bitshift<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Bitshift<Column<F>>> {
         CrossTableLookupNamed::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_shift_amount(),
@@ -610,14 +631,15 @@ impl<F: Field> Lookups<F> for BitshiftCpuTable<F> {
                 bitshift::columns::filter_for_cpu(),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct InnerCpuTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for InnerCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = InstructionRow<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_inst(),
@@ -628,14 +650,15 @@ impl<F: Field> Lookups<F> for InnerCpuTable<F> {
                 Column::single(cpu::columns::col_map().cpu.is_running),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct ProgramCpuTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = InstructionRow<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
@@ -646,13 +669,14 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
                 Column::single(program::columns::col_map().filter),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct RangeCheckU8LookupTable<F: Field>(PhantomData<F>);
 impl<F: Field> Lookups<F> for RangeCheckU8LookupTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = RangeCheckCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         let looking: Vec<TableNamed<F, RangeCheckCtl<Column<F>>>> = chain![
             rangecheck_looking(),
             memory::columns::rangecheck_u8_looking(),
@@ -665,14 +689,15 @@ impl<F: Field> Lookups<F> for RangeCheckU8LookupTable<F> {
                 crate::rangecheck_u8::columns::filter(),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct HalfWordMemoryCpuTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for HalfWordMemoryCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = MemoryCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, MemoryCtl<Column<F>>> {
         CrossTableLookupNamed::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_halfword_memory(),
@@ -683,14 +708,15 @@ impl<F: Field> Lookups<F> for HalfWordMemoryCpuTable<F> {
                 memory_halfword::columns::filter(),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct FullWordMemoryCpuTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for FullWordMemoryCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = MemoryCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_fullword_memory(),
@@ -701,7 +727,6 @@ impl<F: Field> Lookups<F> for FullWordMemoryCpuTable<F> {
                 memory_fullword::columns::filter(),
             ),
         )
-        .to_vec()
     }
 }
 
@@ -710,7 +735,9 @@ pub struct RegisterRegInitTable<F: Field>(PhantomData<F>);
 
 #[cfg(feature = "enable_register_starks")]
 impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = RegisterInitCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![RegisterTable::new(
                 crate::register::columns::data_for_register_init(),
@@ -721,14 +748,15 @@ impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
                 crate::registerinit::columns::filter_for_register(),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct IoMemoryPrivateCpuTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for IoMemoryPrivateCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = InputOutputMemoryCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_io_memory_private(),
@@ -739,14 +767,15 @@ impl<F: Field> Lookups<F> for IoMemoryPrivateCpuTable<F> {
                 memory_io::columns::filter_for_cpu(),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct IoMemoryPublicCpuTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for IoMemoryPublicCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = InputOutputMemoryCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_io_memory_public(),
@@ -757,14 +786,16 @@ impl<F: Field> Lookups<F> for IoMemoryPublicCpuTable<F> {
                 memory_io::columns::filter_for_cpu(),
             ),
         )
-        .to_vec()
     }
 }
 
 pub struct IoTranscriptCpuTable<F: Field>(PhantomData<F>);
 
 impl<F: Field> Lookups<F> for IoTranscriptCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    // TODO(Matthias): See about unifying these lookups?
+    type Row = InputOutputMemoryCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_io_transcript(),
@@ -775,7 +806,6 @@ impl<F: Field> Lookups<F> for IoTranscriptCpuTable<F> {
                 memory_io::columns::filter_for_cpu(),
             ),
         )
-        .to_vec()
     }
 }
 
@@ -783,7 +813,9 @@ impl<F: Field> Lookups<F> for IoTranscriptCpuTable<F> {
 pub struct Poseidon2SpongeCpuTable<F: Field>(PhantomData<F>);
 #[cfg(feature = "enable_poseidon_starks")]
 impl<F: Field> Lookups<F> for Poseidon2SpongeCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = Poseidon2SpongeCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![Poseidon2SpongeTable::new(
                 crate::poseidon2_sponge::columns::data_for_cpu(),
@@ -794,7 +826,6 @@ impl<F: Field> Lookups<F> for Poseidon2SpongeCpuTable<F> {
                 crate::cpu::columns::filter_for_poseidon2_sponge(),
             ),
         )
-        .to_vec()
     }
 }
 
@@ -802,7 +833,9 @@ impl<F: Field> Lookups<F> for Poseidon2SpongeCpuTable<F> {
 pub struct Poseidon2Poseidon2SpongeTable<F: Field>(PhantomData<F>);
 #[cfg(feature = "enable_poseidon_starks")]
 impl<F: Field> Lookups<F> for Poseidon2Poseidon2SpongeTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = Poseidon2StateCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![Poseidon2Table::new(
                 crate::poseidon2::columns::data_for_sponge(),
@@ -813,7 +846,6 @@ impl<F: Field> Lookups<F> for Poseidon2Poseidon2SpongeTable<F> {
                 crate::poseidon2_sponge::columns::filter_for_poseidon2(),
             ),
         )
-        .to_vec()
     }
 }
 
@@ -821,7 +853,9 @@ impl<F: Field> Lookups<F> for Poseidon2Poseidon2SpongeTable<F> {
 pub struct Poseidon2OutputBytesPoseidon2SpongeTable<F: Field>(PhantomData<F>);
 #[cfg(feature = "enable_poseidon_starks")]
 impl<F: Field> Lookups<F> for Poseidon2OutputBytesPoseidon2SpongeTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+    type Row = Poseidon2OutputBytesCtl<Column<F>>;
+
+    fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
         CrossTableLookupNamed::new(
             vec![Poseidon2OutputBytesTable::new(
                 crate::poseidon2_output_bytes::columns::data_for_poseidon2_sponge(),
@@ -832,6 +866,5 @@ impl<F: Field> Lookups<F> for Poseidon2OutputBytesPoseidon2SpongeTable<F> {
                 crate::poseidon2_sponge::columns::filter_for_poseidon2_output_bytes(),
             ),
         )
-        .to_vec()
     }
 }

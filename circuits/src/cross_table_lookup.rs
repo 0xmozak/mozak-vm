@@ -540,6 +540,8 @@ mod tests {
     struct FooBarTable<F: Field>(CrossTableLookup<F>);
 
     impl<F: Field> Lookups<F> for FooBarTable<F> {
+        type Row = Vec<Column<F>>;
+
         /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
         /// [`CrossTableLookup`] here, but in principle this is meant to
         /// be used generically for tests.
@@ -640,7 +642,7 @@ mod tests {
     #[test]
     fn test_ctl_inconsistent_tables() {
         type F = GoldilocksField;
-        let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
+        let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups_untyped();
 
         let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
             .one(0) // filter column
@@ -672,7 +674,7 @@ mod tests {
     #[test]
     fn test_ctl() -> Result<()> {
         type F = GoldilocksField;
-        let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
+        let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups_untyped();
 
         let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
             .one(0) // filter column

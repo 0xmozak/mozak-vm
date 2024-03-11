@@ -53,7 +53,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
 ) -> Vec<RangeCheckColumnsView<F>> {
     let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
 
-    RangecheckTable::lookups()
+    RangecheckTable::lookups_untyped()
         .looking_tables
         .into_iter()
         .for_each(|looking_table| {

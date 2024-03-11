@@ -38,7 +38,7 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckU8<F>> {
     let mut multiplicities = [0u64; 256];
-    RangeCheckU8LookupTable::lookups()
+    RangeCheckU8LookupTable::lookups_untyped()
         .looking_tables
         .into_iter()
         .flat_map(|looking_table| match looking_table.kind {
