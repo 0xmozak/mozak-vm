@@ -682,6 +682,7 @@ impl<F: Field> Lookups<F> for HalfWordMemoryCpuTable<F> {
                 memory_halfword::columns::filter(),
             ),
         )
+        .to_vec()
     }
 }
 
