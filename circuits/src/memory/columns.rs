@@ -212,9 +212,8 @@ pub struct MemoryCtl<T> {
     pub clk: T,
     pub is_store: T,
     pub is_load: T,
-    // TODO(Matthias): flip value and address later.
-    pub value: T,
     pub addr: T,
+    pub value: T,
 }
 
 /// Columns containing the data which are looked from the CPU table into Memory
