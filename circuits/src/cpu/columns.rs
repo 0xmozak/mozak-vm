@@ -453,8 +453,8 @@ pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
 /// Columns containing the data to be matched against `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
-    Column::singles(col_map().cpu.bitshift)
+pub fn data_for_shift_amount<F: Field>() -> Bitshift<Column<F>> {
+    col_map().map(Column::from).cpu.bitshift
 }
 
 /// Column for a binary filter for shft instruction in `Bitshift` stark.
