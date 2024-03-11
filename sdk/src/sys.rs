@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ptr::addr_of;
 
 use once_cell::unsync::Lazy;
@@ -268,7 +269,8 @@ pub struct EventTapeSingle {
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct CanonicalEventTapeSingle {
     /// sorted according to address, and opcode.
-    pub contents: Vec<CanonicalEvent>,
+    pub sorted_events: Vec<CanonicalEvent>,
+    pub reverse_indices: Vec<u32>,
 }
 
 impl From<EventTapeSingle> for CanonicalEventTapeSingle {
@@ -281,14 +283,44 @@ impl From<EventTapeSingle> for CanonicalEventTapeSingle {
 
         #[cfg(not(target_os = "mozakvm"))]
         {
-            let mut event_tape = value
-                .contents
-                .iter()
-                .map(|event| CanonicalEvent::from(event.clone()))
-                .collect::<Vec<CanonicalEvent>>();
-            event_tape.sort();
+            fn generate_sorted_vec_rev_mapping(
+                tape: Vec<CanonicalEvent>,
+            ) -> (Vec<CanonicalEvent>, Vec<u32>) {
+                let sorted_tape = {
+                    let mut clone = tape.clone();
+                    clone.sort();
+                    clone
+                };
+
+                let mut reverse_index_mapping: HashMap<&CanonicalEvent, u32> = HashMap::new();
+                let mut reverse_indices: Vec<u32> = Vec::with_capacity(tape.len());
+
+                // Populate the index_mapping HashMap
+                for (i, event) in tape.iter().enumerate() {
+                    reverse_index_mapping.insert(event, i.try_into().unwrap());
+                }
+
+                // Use the mapping to create the reverse_indices vector
+                for event in &sorted_tape {
+                    if let Some(&index) = reverse_index_mapping.get(&event) {
+                        reverse_indices.push(index);
+                    }
+                }
+
+                (sorted_tape, reverse_indices)
+            }
+
+            let (sorted_events, reverse_indices) = generate_sorted_vec_rev_mapping(
+                value
+                    .contents
+                    .iter()
+                    .map(|event| CanonicalEvent::from(event.clone()))
+                    .collect::<Vec<CanonicalEvent>>(),
+            );
+
             Self {
-                contents: event_tape,
+                sorted_events,
+                reverse_indices,
             }
         }
     }
@@ -364,14 +396,19 @@ pub fn dump_tapes(file_template: String) {
     }
 
     let mut tape_clone = unsafe { SYSTEM_TAPES.clone() }; // .clone() removes `Lazy{}`
-    tape_clone.event_tape.writer.iter_mut().for_each(|event| {
-        let mut canonical_repr = CanonicalEventTapeSingle::from(event.clone());
-        canonical_repr
-            .contents
-            .iter_mut()
-            .for_each(|tape| tape.event_emitter = event.id);
-        event.canonical_repr = Some(canonical_repr);
-    });
+    tape_clone
+        .event_tape
+        .writer
+        .iter_mut()
+        .for_each(|single_event_tape| {
+            let mut canonical_event_tape =
+                CanonicalEventTapeSingle::from(single_event_tape.clone());
+            canonical_event_tape
+                .sorted_events
+                .iter_mut()
+                .for_each(|canonical_event| canonical_event.event_emitter = single_event_tape.id);
+            single_event_tape.canonical_repr = Some(canonical_event_tape);
+        });
 
     let dbg_filename = file_template.clone() + ".tape_debug";
     let dbg_bytes = &format!("{:#?}", tape_clone).into_bytes();
@@ -406,7 +443,7 @@ pub fn call_receive() -> Option<(CPCMessage, usize)> {
 }
 
 /// Send one message from mailbox targetted to some third-party
-/// resulting in such messages finding itself in their mailbox
+/// reverse_indicesing in such messages finding itself in their mailbox
 /// Panics on call-tape non-abidance.
 #[allow(clippy::similar_names)]
 pub fn call_send<A, R>(
