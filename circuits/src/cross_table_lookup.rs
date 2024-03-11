@@ -63,7 +63,7 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
     for _ in 0..config.num_challenges {
-        for CrossTableLookup {
+        for CrossTableLookupNamed {
             looking_tables,
             looked_table,
         } in cross_table_lookups
@@ -96,7 +96,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
 ) -> TableKindArray<CtlData<F>> {
     let mut ctl_data_per_table = all_kind!(|_kind| CtlData::default());
     for &challenge in &ctl_challenges.challenges {
-        for CrossTableLookup {
+        for CrossTableLookupNamed {
             looking_tables,
             looked_table,
         } in cross_table_lookups
@@ -184,15 +184,15 @@ fn partial_sums<F: Field>(
 
 #[allow(unused)]
 #[derive(Clone, Debug)]
-pub struct CrossTableLookup<F: Field, Row> {
+pub struct CrossTableLookupNamed<F: Field, Row> {
     pub looking_tables: Vec<TableNamed<F, Row>>,
     pub looked_table: TableNamed<F, Row>,
 }
 
 #[allow(clippy::module_name_repetitions)]
-pub type CrossTableLookupVec<F> = CrossTableLookup<F, Vec<Column<F>>>;
+pub type CrossTableLookupVec<F> = CrossTableLookupNamed<F, Vec<Column<F>>>;
 
-impl<F: Field, Row: IntoIterator<Item = Column<F>>> CrossTableLookup<F, Row> {
+impl<F: Field, Row: IntoIterator<Item = Column<F>>> CrossTableLookupNamed<F, Row> {
     pub fn to_vec(self) -> CrossTableLookupVec<F> {
         let looked_table: Table<F> = self.looked_table.to_vec();
         let looking_tables = self
@@ -200,14 +200,14 @@ impl<F: Field, Row: IntoIterator<Item = Column<F>>> CrossTableLookup<F, Row> {
             .into_iter()
             .map(TableNamed::to_vec)
             .collect();
-        CrossTableLookup {
+        CrossTableLookupNamed {
             looking_tables,
             looked_table,
         }
     }
 }
 
-impl<F: Field, Row> CrossTableLookup<F, Row> {
+impl<F: Field, Row> CrossTableLookupNamed<F, Row> {
     /// Instantiates a new cross table lookup between 2 tables.
     ///
     /// # Panics
@@ -258,7 +258,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
 
         let mut ctl_vars_per_table = all_kind!(|_kind| vec![]);
         let ctl_chain = cross_table_lookups.iter().flat_map(
-            |CrossTableLookup {
+            |CrossTableLookupNamed {
                  looking_tables,
                  looked_table,
              }| chain!(looking_tables, [looked_table]),
@@ -332,7 +332,7 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
         let ctl_zs = izip!(&proof.openings.ctl_zs, &proof.openings.ctl_zs_next);
 
         let ctl_chain = cross_table_lookups.iter().flat_map(
-            |CrossTableLookup {
+            |CrossTableLookupNamed {
                  looking_tables,
                  looked_table,
              }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
@@ -543,7 +543,7 @@ mod tests {
         /// [`CrossTableLookup`] here, but in principle this is meant to
         /// be used generically for tests.
         fn lookups() -> CrossTableLookupVec<F> {
-            CrossTableLookup {
+            CrossTableLookupNamed {
                 looking_tables: vec![CpuTable::new(lookup_data(&[1], &[2]), lookup_filter(0))],
                 looked_table: RangeCheckTable::new(lookup_data(&[1], &[]), lookup_filter(0)),
             }

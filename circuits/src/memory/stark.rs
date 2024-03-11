@@ -261,7 +261,7 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::cross_table_lookup::ctl_utils::check_single_ctl;
-    use crate::cross_table_lookup::CrossTableLookup;
+    use crate::cross_table_lookup::CrossTableLookupNamed;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
@@ -404,7 +404,7 @@ mod tests {
             generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
 
         // ctl for is_init values
-        let ctl = CrossTableLookup::new(
+        let ctl = CrossTableLookupNamed::new(
             vec![
                 ElfMemoryInitTable::new(
                     memoryinit::columns::data_for_memory(),
