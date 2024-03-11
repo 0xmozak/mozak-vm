@@ -198,7 +198,7 @@ impl<F: Field, Row: IntoIterator<Item = Column<F>>> CrossTableLookup<F, Row> {
         let looking_tables = self
             .looking_tables
             .into_iter()
-            .map(|t| t.to_vec())
+            .map(Table::to_vec)
             .collect();
         CrossTableLookup {
             looking_tables,
