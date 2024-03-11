@@ -424,15 +424,18 @@ pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
     {
         use plonky2::field::goldilocks_field::GoldilocksField;
         use plonky2::field::types::Field;
+        use plonky2::hash::hashing::PlonkyPermutation;
         use plonky2::hash::poseidon2::Poseidon2Hash;
         use plonky2::plonk::config::{GenericHashOut, Hasher};
         let data_fields: Vec<GoldilocksField> = input
             .iter()
             .map(|x| GoldilocksField::from_canonical_u8(*x))
             .collect();
+
+        const RATE: usize = <Poseidon2Hash as PlonkyPermutation>::RATE;
+        assert!(input.len() % RATE == 0);
+
         Poseidon2HashType(
-            const RATE: usize = <Poseidon2Hash as PlonkyPermutation>::RATE;
-            assert!(input.len() % RATE == 0);
             Poseidon2Hash::hash_no_pad(&data_fields)
                 .to_bytes()
                 .try_into()
