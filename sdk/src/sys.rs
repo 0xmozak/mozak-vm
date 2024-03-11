@@ -431,6 +431,8 @@ pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
             .map(|x| GoldilocksField::from_canonical_u8(*x))
             .collect();
         Poseidon2HashType(
+            const RATE: usize = <Poseidon2Hash as PlonkyPermutation>::RATE;
+            assert!(input.len() % RATE == 0);
             Poseidon2Hash::hash_no_pad(&data_fields)
                 .to_bytes()
                 .try_into()
