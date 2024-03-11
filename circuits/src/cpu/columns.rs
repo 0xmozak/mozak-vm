@@ -428,12 +428,13 @@ pub fn filter_for_io_memory_public<F: Field>() -> Column<F> {
 
 #[must_use]
 pub fn data_for_io_transcript<F: Field>() -> InputOutputMemoryCtl<Column<F>> {
-    let cpu = col_map().cpu.map(Column::from);
+    let cpu = col_map().cpu;
     InputOutputMemoryCtl {
         clk: cpu.clk,
         addr: cpu.io_addr,
         size: cpu.io_size,
     }
+    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
@@ -473,14 +474,14 @@ pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_shift_amount<F: Field>() -> Bitshift<Column<F>> {
-    col_map().map(Column::from).cpu.bitshift
+    col_map().cpu.bitshift.map(Column::from)
 }
 
 /// Column for a binary filter for shft instruction in `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
-    col_map().cpu.map(Column::from).inst.ops.ops_that_shift()
+    col_map().cpu.inst.ops.map(Column::from).ops_that_shift()
 }
 
 /// Columns containing the data of original instructions.
@@ -521,12 +522,13 @@ pub fn data_for_permuted_inst<F: Field>() -> InstructionRow<Column<F>> {
 
 #[must_use]
 pub fn data_for_poseidon2_sponge<F: Field>() -> Poseidon2SpongeCtl<Column<F>> {
-    let cpu = col_map().cpu.map(Column::from);
+    let cpu = col_map().cpu;
     Poseidon2SpongeCtl {
         clk: cpu.clk,
         input_addr: cpu.poseidon2_input_addr,
         input_len: cpu.poseidon2_input_len,
     }
+    .map(Column::from)
 }
 
 #[must_use]
