@@ -376,7 +376,6 @@ dependencies = [
 name = "mozak-sdk"
 version = "0.1.0"
 dependencies = [
- "guest",
  "hex",
  "itertools 0.12.1",
  "lazy_static",

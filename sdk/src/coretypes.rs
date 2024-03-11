@@ -1,5 +1,3 @@
-use std::ops::Add;
-
 #[cfg(not(target_os = "mozakvm"))]
 use itertools::{chain, Itertools};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
@@ -64,7 +62,7 @@ impl From<Vec<u8>> for Poseidon2HashType {
 pub const STATE_TREE_DEPTH: usize = 4;
 
 /// Canonical "address" type of object in "mozak vm".
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, PartialOrd, Ord, Copy, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(target_os = "mozakvm", derive(Debug))]
@@ -193,8 +191,6 @@ impl From<String> for ProgramIdentifier {
         ProgramIdentifier(Poseidon2HashType::from(hex::decode(components[1]).unwrap()))
     }
 }
-/// Each storage object is a unit of information in the global
-/// state tree constrained for modification only by its `constraint_owner`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[cfg_attr(target_os = "mozakvm", derive(Debug))]
@@ -363,7 +359,7 @@ pub struct Event {
     pub object: StateObject,
     pub operation: CanonicalEventType,
 }
-#[derive(Archive, Debug, Deserialize, Eq, PartialEq, Serialize, Clone)]
+#[derive(Archive, Debug, Deserialize, Eq, PartialEq, PartialOrd, Ord, Serialize, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 /// Event which is ready to be ingested into event accumulator

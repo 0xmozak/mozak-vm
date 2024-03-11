@@ -283,11 +283,7 @@ impl From<EventTapeSingle> for CanonicalEventTapeSingle {
                 .iter()
                 .map(|event| CanonicalEvent::from(event.clone()))
                 .collect::<Vec<CanonicalEvent>>();
-            event_tape.sort_by(|a, b| {
-                a.address
-                    .cmp(&b.address)
-                    .then(a.event_type.cmp(&b.event_type))
-            });
+            event_tape.sort();
             Self {
                 contents: event_tape,
             }
