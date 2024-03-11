@@ -1,19 +1,17 @@
 #![cfg_attr(target_os = "mozakvm", no_main)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use core::assert_eq;
-
-use guest::hash::poseidon2_hash;
-use hex_literal::hex;
-
 pub fn main() {
-    let data = "Mozak-VM Rocks!!";
-    let hash = poseidon2_hash(data.as_bytes());
-    assert_eq!(
-        hash.as_bytes()[..],
-        hex!("5c2699dfd609d4566ee6656d2edb8298bacaccde758ec4f3005ff59a83347cd7")[..]
-    );
-    guest::env::write(hash.as_bytes());
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        let data = "Mozak-VM Rocks!!";
+        let hash = mozak_sdk::sys::poseidon2_hash(data.as_bytes());
+        core::assert_eq!(
+            hash[..],
+            hex_literal::hex!("5c2699dfd609d4566ee6656d2edb8298bacaccde758ec4f3005ff59a83347cd7")[..]
+        );
+        guest::env::write(&hash);
+    }
 }
 
 guest::entry!(main);

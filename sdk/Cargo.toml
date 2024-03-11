@@ -20,6 +20,13 @@ version = "1.4.0"
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"
 
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.itertools]
+version = "0.12.1"
+
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.serde]
 features = ["derive"]
 version = "1.0"
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.plonky2]
+default-features = false
+git = "https://github.com/0xmozak/plonky2.git"
