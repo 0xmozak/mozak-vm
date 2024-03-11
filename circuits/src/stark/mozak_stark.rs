@@ -493,6 +493,7 @@ impl<F: Field> Lookups<F> for XorCpuTable<F> {
             )],
             XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
         )
+        .to_vec()
     }
 }
 

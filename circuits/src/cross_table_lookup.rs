@@ -182,7 +182,7 @@ fn partial_sums<F: Field>(
         .into()
 }
 
-#[allow(unused)]
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug)]
 pub struct CrossTableLookupNamed<F: Field, Row> {
     pub looking_tables: Vec<TableNamed<F, Row>>,
