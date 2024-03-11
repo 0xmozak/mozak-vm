@@ -25,7 +25,7 @@ use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
 use crate::poseidon2_sponge;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::stark::ProgramStark;
-use crate::rangecheck::columns::rangecheck_looking;
+use crate::rangecheck::columns::{rangecheck_looking, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
 #[cfg(feature = "enable_register_starks")]
@@ -652,7 +652,7 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
 pub struct RangeCheckU8LookupTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for RangeCheckU8LookupTable<F> {
     fn lookups() -> CrossTableLookup<F> {
-        let looking: Vec<Table<F>> = chain![
+        let looking: Vec<TableNamed<F, RangeCheckCtl<Column<F>>>> = chain![
             rangecheck_looking(),
             memory::columns::rangecheck_u8_looking(),
         ]
@@ -664,6 +664,7 @@ impl<F: Field> Lookups<F> for RangeCheckU8LookupTable<F> {
                 crate::rangecheck_u8::columns::filter(),
             ),
         )
+        .to_vec()
     }
 }
 

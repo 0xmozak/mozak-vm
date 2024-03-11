@@ -17,7 +17,7 @@ use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{MemoryTable, Table, TableNamed};
+use crate::stark::mozak_stark::{MemoryTable, TableNamed};
 
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
@@ -197,10 +197,10 @@ pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<
 }
 
 #[must_use]
-pub fn rangecheck_u8_looking<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_u8_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<F>>>> {
     let mem = col_map().map(Column::from);
     vec![MemoryTable::new(
-        Column::singles([col_map().value]),
+        RangeCheckCtl::new(mem.clone().value),
         mem.is_executed(),
     )]
 }
