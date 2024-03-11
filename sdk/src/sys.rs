@@ -314,6 +314,7 @@ impl EventTape {
     pub fn emit_event(&mut self, id: ProgramIdentifier, event: Event) {
         #[cfg(target_os = "mozakvm")]
         {
+            use crate::coretypes::CanonicalEventType;
             assert!(self.index < self.reader.unwrap().len());
 
             let zcd_event = &self.reader.unwrap()[self.index];

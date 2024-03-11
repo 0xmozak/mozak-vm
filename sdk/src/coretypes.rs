@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 #[cfg(not(target_os = "mozakvm"))]
 use itertools::{chain, Itertools};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
@@ -367,11 +369,11 @@ pub struct Event {
 /// Event which is ready to be ingested into event accumulator
 /// Events are always in relation to a state object
 pub struct CanonicalEvent {
-    pub address: u32,
+    pub address: Address,
     pub event_type: CanonicalEventType,
-    pub constraint_owner: [u8; 32],
-    pub event_value: [u8; 32],
-    pub event_emitter: [u8; 32],
+    pub constraint_owner: ProgramIdentifier,
+    pub event_value: Poseidon2HashType,
+    pub event_emitter: ProgramIdentifier,
 }
 
 impl From<Event> for CanonicalEvent {
@@ -384,11 +386,11 @@ impl From<Event> for CanonicalEvent {
         #[cfg(not(target_os = "mozakvm"))]
         {
             Self {
-                address: value.object.address.to_canonical(),
+                address: value.object.address,
                 event_type: value.operation,
-                constraint_owner: value.object.constraint_owner.to_canonical(),
-                event_value: *poseidon2_hash(&value.object.data),
-                event_emitter: value.object.constraint_owner.to_canonical(), // fix later
+                constraint_owner: value.object.constraint_owner,
+                event_value: poseidon2_hash(&value.object.data),
+                event_emitter: value.object.constraint_owner, // fix later
             }
         }
     }
