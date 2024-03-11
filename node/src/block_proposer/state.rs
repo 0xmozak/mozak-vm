@@ -1,4 +1,3 @@
-use std::mem;
 use std::ops::Add;
 
 use itertools::{chain, Itertools};
@@ -245,13 +244,13 @@ pub struct AuxStateData {
     empty_summary_hash: [F; 4],
 
     empty_leaf_hash: [F; 4],
-    empty_branch_hashes: Vec<[F; 4]>,
+    empty_branch_hash: [F; 4],
 
     leaf_circuit: state_update::LeafCircuit<F, C, D>,
-    branch_circuits: Vec<state_update::BranchCircuit<F, C, D>>,
+    branch_circuit: state_update::BranchCircuit<F, C, D>,
 
     empty_leaf_proof: ProofWithPublicInputs<F, C, D>,
-    empty_branch_proofs: Vec<ProofWithPublicInputs<F, C, D>>,
+    empty_branch_proof: ProofWithPublicInputs<F, C, D>,
 }
 
 impl AuxStateData {
@@ -259,22 +258,11 @@ impl AuxStateData {
         let empty_summary_hash = [F::ZERO; 4];
         let empty_leaf_hash = [F::ZERO; 4];
 
-        let mut curr = empty_leaf_hash;
-        let empty_branch_hashes = (0..=max_tree_depth)
-            .map(|_| {
-                curr = hash_branch(&curr, &curr);
-                curr
-            })
-            .collect_vec();
+        let empty_branch_hash = hash_branch(&empty_leaf_hash, &empty_leaf_hash);
 
         let leaf_circuit = state_update::LeafCircuit::<F, C, D>::new(config);
-        let mut init = state_update::BranchCircuit::<F, C, D>::from_leaf(config, &leaf_circuit);
-        let branch_circuits = (0..=max_tree_depth)
-            .map(|_| {
-                let next = state_update::BranchCircuit::<F, C, D>::from_branch(config, &init);
-                mem::replace(&mut init, next)
-            })
-            .collect_vec();
+        let branch_circuit =
+            state_update::BranchCircuit::<F, C, D>::from_leaf(config, &leaf_circuit);
 
         let empty_leaf_proof = leaf_circuit
             .prove(
@@ -284,27 +272,29 @@ impl AuxStateData {
                 None,
             )
             .unwrap();
-        let mut init = empty_leaf_proof.clone();
-        let empty_branch_proofs = branch_circuits
-            .iter()
-            .zip(&empty_branch_hashes)
-            .map(|(circuit, hash)| {
-                let hash = (*hash).into();
-                init = circuit
-                    .prove(&init, &init, hash, hash, empty_summary_hash.into(), ())
-                    .unwrap();
-                init.clone()
-            })
-            .collect_vec();
+        let empty_branch_proof = branch_circuit
+            .prove(
+                &branch_circuit.circuit.verifier_only,
+                false,
+                &empty_leaf_proof.clone(),
+                &empty_leaf_proof.clone(),
+                empty_leaf_hash.into(),
+                empty_branch_hash.into(),
+                empty_summary_hash.into(),
+                (),
+            )
+            .unwrap();
+        let branch_circuit =
+            state_update::BranchCircuit::<F, C, D>::from_leaf(config, &leaf_circuit);
         Self {
             max_tree_depth,
             empty_summary_hash,
             empty_leaf_hash,
-            empty_branch_hashes,
+            empty_branch_hash,
             leaf_circuit,
-            branch_circuits,
+            branch_circuit,
             empty_leaf_proof,
-            empty_branch_proofs,
+            empty_branch_proof,
         }
     }
 
@@ -458,7 +448,8 @@ impl AuxStateData {
         set_old: bool,
         addr: Option<BranchAddress>,
     ) {
-        let (empty_hash, empty_proof) = self.get_empty_child_helper(branch.height);
+        let empty_hash = &self.empty_branch_hash;
+        let empty_proof = &self.empty_branch_proof;
 
         let ((left_hash, left_proof), (right_hash, right_proof), summary) =
             match (&branch.left, &branch.right) {
@@ -492,8 +483,11 @@ impl AuxStateData {
             branch.old_hash = branch.new_hash;
         }
         branch.summary_hash = summary;
-        branch.proof = self.branch_circuits[branch.height]
+        branch.proof = self
+            .branch_circuit
             .prove(
+                &self.branch_circuit.circuit.verifier_only,
+                branch.height != 0,
                 left_proof,
                 right_proof,
                 branch.old_hash.into(),
@@ -527,17 +521,6 @@ impl AuxStateData {
         }
     }
 
-    fn get_empty_child_helper(&self, height: usize) -> (&[F; 4], &ProofWithPublicInputs<F, C, D>) {
-        if height == 0 {
-            (&self.empty_leaf_hash, &self.empty_leaf_proof)
-        } else {
-            (
-                &self.empty_branch_hashes[height - 1],
-                &self.empty_branch_proofs[height - 1],
-            )
-        }
-    }
-
     fn create_branch_helper(
         &self,
         addr: Address,
@@ -564,11 +547,14 @@ impl AuxStateData {
                         (leaf_new, &leaf.proof),
                     )
                 };
-                let old_hash = self.empty_branch_hashes[0];
+                let old_hash = self.empty_branch_hash;
                 let new_hash = hash_branch(left_leaf, right_leaf);
 
-                let proof = self.branch_circuits[0]
+                let proof = self
+                    .branch_circuit
                     .prove(
+                        &self.branch_circuit.circuit.verifier_only,
+                        false,
                         left_proof,
                         right_proof,
                         old_hash.into(),
@@ -598,10 +584,10 @@ impl AuxStateData {
             Some(path) => {
                 let child = self.create_branch_helper(addr, path, new);
                 let height = child.height + 1;
-                let empty_child_hash = &self.empty_branch_hashes[height - 1];
+                let empty_child_hash = &self.empty_branch_hash;
                 let child_new = &child.new_hash;
                 let child_summary = child.summary_hash;
-                let empty_child_proof = &self.empty_branch_proofs[height - 1];
+                let empty_child_proof = &self.empty_branch_proof;
                 let ((left_child, left_proof), (right_child, right_proof)) = if dir == Dir::Left {
                     (
                         (child_new, &child.proof),
@@ -613,11 +599,14 @@ impl AuxStateData {
                         (child_new, &child.proof),
                     )
                 };
-                let old_hash = self.empty_branch_hashes[height];
+                let old_hash = self.empty_branch_hash;
                 let new_hash = hash_branch(left_child, right_child);
 
-                let proof = self.branch_circuits[height]
+                let proof = self
+                    .branch_circuit
                     .prove(
+                        &self.branch_circuit.circuit.verifier_only,
+                        height != 0,
                         left_proof,
                         right_proof,
                         old_hash.into(),
@@ -931,9 +920,9 @@ impl<'a> State<'a> {
         assert!(tree_depth <= aux.max_tree_depth);
         let root = SparseMerkleBranch {
             height: tree_depth,
-            proof: aux.empty_branch_proofs[tree_depth].clone(),
-            old_hash: aux.empty_branch_hashes[tree_depth],
-            new_hash: aux.empty_branch_hashes[tree_depth],
+            proof: aux.empty_branch_proof.clone(),
+            old_hash: aux.empty_branch_hash,
+            new_hash: aux.empty_branch_hash,
             summary_hash: aux.empty_summary_hash,
             left: None,
             right: None,
