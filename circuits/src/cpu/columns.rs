@@ -327,8 +327,8 @@ pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
     let map = col_map().cpu.map(Column::from);
     MemoryCtl {
         clk: map.clk,
-        is_store: map.inst.ops.clone().is_mem_ops(),
-        is_load: map.inst.ops.is_mem_ops(),
+        is_store: map.inst.ops.sb,
+        is_load: map.inst.ops.lb, // For both `LB` and `LBU`
         value: map.mem_value_raw,
         addr: map.mem_addr,
     }
