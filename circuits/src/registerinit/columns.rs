@@ -35,11 +35,12 @@ pub struct RegisterInitCtl<T> {
 
 #[must_use]
 pub fn data_for_register<F: Field>() -> RegisterInitCtl<Column<F>> {
-    let reg = col_map().map(Column::from);
+    let reg = col_map();
     RegisterInitCtl {
         addr: reg.reg_addr,
         value: reg.value,
     }
+    .map(Column::from)
 }
 
 #[must_use]
