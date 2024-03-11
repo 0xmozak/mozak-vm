@@ -15,6 +15,8 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
+use super::find_hash;
+
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
 #[derive(Copy, Clone)]
@@ -37,17 +39,20 @@ impl PublicIndices {
     }
 }
 
-pub struct LeafInputs {
+pub struct SubCircuitInputs {
     /// The hash of the unpruned state or ZERO if absent
+    /// For leafs this is just an arbitrary values
+    /// For branches this is the hash of `[left.unpruned_hash,
+    /// right.unpruned_hash]`
     pub unpruned_hash: HashOutTarget,
 }
 
 pub struct LeafTargets {
-    /// The hash of the unpruned state or ZERO if absent
-    pub unpruned_hash: HashOutTarget,
+    /// The public inputs
+    pub inputs: SubCircuitInputs,
 }
 
-impl LeafInputs {
+impl SubCircuitInputs {
     pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
     where
         F: RichField + Extendable<D>, {
@@ -57,11 +62,10 @@ impl LeafInputs {
     }
 
     #[must_use]
-    pub fn build<F, const D: usize>(self, _builder: &mut CircuitBuilder<F, D>) -> LeafTargets
+    pub fn build_leaf<F, const D: usize>(self, _builder: &mut CircuitBuilder<F, D>) -> LeafTargets
     where
         F: RichField + Extendable<D>, {
-        let Self { unpruned_hash } = self;
-        LeafTargets { unpruned_hash }
+        LeafTargets { inputs: self }
     }
 }
 
@@ -76,12 +80,7 @@ impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
-            unpruned_hash: self.unpruned_hash.elements.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
+            unpruned_hash: find_hash(public_inputs, self.inputs.unpruned_hash),
         };
         LeafSubCircuit {
             targets: self,
@@ -97,56 +96,37 @@ impl LeafSubCircuit {
         inputs: &mut PartialWitness<F>,
         unpruned_hash: HashOut<F>,
     ) {
-        inputs.set_hash_target(self.targets.unpruned_hash, unpruned_hash);
+        inputs.set_hash_target(self.targets.inputs.unpruned_hash, unpruned_hash);
     }
-}
-pub struct BranchInputs {
-    /// The hash of the unpruned state or ZERO if absent
-    pub unpruned_hash: HashOutTarget,
 }
 
 pub struct BranchTargets {
+    /// The public inputs
+    pub inputs: SubCircuitInputs,
+
     /// The left direction
-    pub left: BranchDirectionTargets,
+    pub left: SubCircuitInputs,
 
     /// The right direction
-    pub right: BranchDirectionTargets,
-
-    /// The hash of `[left.unpruned_hash, right.unpruned_hash]`
-    pub unpruned_hash: HashOutTarget,
+    pub right: SubCircuitInputs,
 }
 
-pub struct BranchDirectionTargets {
-    /// The hash of this direction proved by the associated proof
-    pub unpruned_hash: HashOutTarget,
-}
-
-impl BranchInputs {
-    pub fn default<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
-        let unpruned_hash = builder.add_virtual_hash();
-        builder.register_public_inputs(&unpruned_hash.elements);
-        Self { unpruned_hash }
-    }
-
+impl SubCircuitInputs {
     fn direction_from_node<const D: usize>(
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
-    ) -> BranchDirectionTargets {
+    ) -> SubCircuitInputs {
         let unpruned_hash = HashOutTarget::from(indices.get_unpruned_hash(&proof.public_inputs));
 
-        BranchDirectionTargets { unpruned_hash }
+        SubCircuitInputs { unpruned_hash }
     }
 
     fn build_helper<F: RichField + Extendable<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
-        left: BranchDirectionTargets,
-        right: BranchDirectionTargets,
+        left: SubCircuitInputs,
+        right: SubCircuitInputs,
     ) -> BranchTargets {
-        let Self { unpruned_hash } = self;
-
         // Hash the left and right together
         let unpruned_hash_calc = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
             left.unpruned_hash
@@ -156,12 +136,12 @@ impl BranchInputs {
                 .collect(),
         );
 
-        builder.connect_hashes(unpruned_hash_calc, unpruned_hash);
+        builder.connect_hashes(unpruned_hash_calc, self.unpruned_hash);
 
         BranchTargets {
+            inputs: self,
             left,
             right,
-            unpruned_hash,
         }
     }
 
@@ -206,12 +186,7 @@ pub struct BranchSubCircuit {
 impl BranchTargets {
     fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices {
         PublicIndices {
-            unpruned_hash: self.unpruned_hash.elements.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
+            unpruned_hash: find_hash(public_inputs, self.inputs.unpruned_hash),
         }
     }
 
@@ -245,7 +220,7 @@ impl BranchSubCircuit {
         inputs: &mut PartialWitness<F>,
         unpruned_hash: HashOut<F>,
     ) {
-        inputs.set_hash_target(self.targets.unpruned_hash, unpruned_hash);
+        inputs.set_hash_target(self.targets.inputs.unpruned_hash, unpruned_hash);
     }
 }
 
@@ -269,8 +244,8 @@ mod test {
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-            let unpruned_inputs = LeafInputs::default(&mut builder);
-            let unpruned_targets = unpruned_inputs.build(&mut builder);
+            let unpruned_inputs = SubCircuitInputs::default(&mut builder);
+            let unpruned_targets = unpruned_inputs.build_leaf(&mut builder);
             let circuit = builder.build();
             let unpruned = unpruned_targets.build(&circuit.prover_only.public_inputs);
 
@@ -306,7 +281,7 @@ mod test {
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
 
-            let unpruned_inputs = BranchInputs::default(&mut builder);
+            let unpruned_inputs = SubCircuitInputs::default(&mut builder);
 
             builder.verify_proof::<C>(&left_proof, &verifier, common);
             builder.verify_proof::<C>(&right_proof, &verifier, common);
@@ -335,7 +310,7 @@ mod test {
             let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
-            let unpruned_inputs = BranchInputs::default(&mut builder);
+            let unpruned_inputs = SubCircuitInputs::default(&mut builder);
 
             builder.verify_proof::<C>(&left_proof, &verifier, common);
             builder.verify_proof::<C>(&right_proof, &verifier, common);

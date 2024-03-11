@@ -46,7 +46,7 @@ runs:
     - name: Install taplo-cli
       shell: bash
       run: |
-        cargo install --force --git https://github.com/Daniel-Aaron-Bloom/taplo taplo-cli --no-default-features
+        cargo install --force --git https://github.com/tamasfe/taplo taplo-cli --no-default-features
 
     - id: toolchain-cache-save
       name: Cache Rust toolchain (Local Save)
