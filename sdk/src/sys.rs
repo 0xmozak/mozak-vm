@@ -4,7 +4,7 @@ use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
+use crate::coretypes::{CPCMessage, Event, Poseidon2HashType, ProgramIdentifier};
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -404,3 +404,43 @@ pub fn io_read(_from: &IOTape, _num: usize) -> Vec<u8> { unimplemented!() }
 /// Fills a provided buffer with num elements from choice of `IOTape`
 /// in process "consuming" such bytes.
 pub fn io_read_into(_from: &IOTape, _buf: &mut [u8]) { unimplemented!() }
+
+#[must_use]
+pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
+    #[cfg(target_os = "mozakvm")]
+    {
+        pub const RATE: usize = 8;
+        use mozak_system::system::syscall_poseidon2;
+
+        use crate::coretypes::DIGEST_BYTES;
+
+        // VM expects input length to be multiple of RATE
+        assert!(input.len() % RATE == 0);
+        let mut output = [0; DIGEST_BYTES];
+        syscall_poseidon2(input.as_ptr(), input.len(), output.as_mut_ptr());
+        Poseidon2HashType(output)
+    }
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        use plonky2::field::goldilocks_field::GoldilocksField;
+        use plonky2::field::types::Field;
+        use plonky2::hash::hashing::PlonkyPermutation;
+        use plonky2::hash::poseidon2::{Poseidon2Hash, Poseidon2Permutation};
+        use plonky2::plonk::config::{GenericHashOut, Hasher};
+        let data_fields: Vec<GoldilocksField> = input
+            .iter()
+            .map(|x| GoldilocksField::from_canonical_u8(*x))
+            .collect();
+
+        const RATE: usize =
+            <Poseidon2Permutation<GoldilocksField> as PlonkyPermutation<GoldilocksField>>::RATE;
+        assert!(input.len() % RATE == 0);
+
+        Poseidon2HashType(
+            Poseidon2Hash::hash_no_pad(&data_fields)
+                .to_bytes()
+                .try_into()
+                .expect("Output length does not match to DIGEST_BYTES"),
+        )
+    }
+}

@@ -1027,9 +1027,11 @@ name = "mozak-sdk"
 version = "0.1.0"
 dependencies = [
  "hex",
+ "itertools 0.12.1",
  "lazy_static",
  "mozak-system",
  "once_cell",
+ "plonky2",
  "rkyv",
  "serde",
 ]
