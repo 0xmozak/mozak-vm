@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "mozakvm"))]
 use std::collections::HashMap;
 use std::ptr::addr_of;
 
