@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use core::ops::{Index, IndexMut, Neg};
 
 use itertools::chain;
 use mozak_circuits_derive::StarkSet;
@@ -395,6 +395,18 @@ pub struct Table<F: Field> {
     pub(crate) kind: TableKind,
     pub(crate) columns: Vec<Column<F>>,
     pub(crate) filter_column: Column<F>,
+}
+
+impl<F: Field> Neg for Table<F> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            kind: self.kind,
+            columns: self.columns,
+            filter_column: -self.filter_column,
+        }
+    }
 }
 
 impl<F: Field> Table<F> {

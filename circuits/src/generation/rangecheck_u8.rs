@@ -39,7 +39,7 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
 ) -> Vec<RangeCheckU8<F>> {
     let mut multiplicities = [0u64; 256];
     RangeCheckU8LookupTable::lookups()
-        .looking_tables
+        .0
         .into_iter()
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::RangeCheck => extract_with_mul(rangecheck_trace, &looking_table),

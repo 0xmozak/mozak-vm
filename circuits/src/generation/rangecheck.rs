@@ -54,7 +54,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
 
     RangecheckTable::lookups()
-        .looking_tables
+        .0
         .into_iter()
         .for_each(|looking_table| {
             match looking_table.kind {
