@@ -1,5 +1,6 @@
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
+use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::BoolTarget;
@@ -12,6 +13,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
 use super::{at_least_one_true, hashes_equal, summarized, unpruned, verify_address};
+use crate::stark::recursive_verifier::circuit_data_for_recursion;
 pub struct LeafCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
@@ -29,7 +31,9 @@ where
     C: GenericConfig<D, F = F>,
 {
     #[must_use]
-    pub fn new(circuit_config: &CircuitConfig) -> Self {
+    pub fn new(circuit_config: &CircuitConfig) -> Self
+    where
+        C::Hasher: AlgebraicHasher<F>, {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
         let summarized_inputs = summarized::SubCircuitInputs::default(&mut builder);
@@ -73,6 +77,35 @@ where
             HashOutTarget::from(observation),
             summarized_targets.inputs.summary_hash,
         );
+
+        {
+            // Generate a simple circuit that will be recursively verified in the out
+            // circuit.
+            let common = {
+                let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+                while builder.num_gates() < 1 << 5 {
+                    builder.add_gate(NoopGate, vec![]);
+                }
+                builder.build::<C>().common
+            };
+
+            let proof = builder.add_virtual_proof_with_pis(&common);
+            let verifier_data =
+                builder.add_virtual_verifier_data(common.config.fri_config.cap_height);
+            builder.verify_proof::<C>(&proof, &verifier_data, &common);
+            // TODO: temporarily hack the number of public inputs to match the node circuit
+            for _ in 0..(82 - 14) {
+                builder.add_virtual_public_input();
+            }
+            // We don't want to pad all the way up to 2^target_degree_bits, as the builder
+            // will add a few special gates afterward. So just pad to
+            // 2^(target_degree_bits - 1) + 1. Then the builder will pad to the next
+            // power of two.
+            let min_gates = (1 << (14 - 1)) + 1;
+            while builder.num_gates() < min_gates {
+                builder.add_gate(NoopGate, vec![]);
+            }
+        }
 
         let circuit = builder.build();
 
@@ -119,8 +152,8 @@ where
 }
 
 pub struct BranchTargets<const D: usize> {
-    // TODO: do we need to have both a left and a right 'no_leaf_child'?
-    pub no_leaf_child: BoolTarget,
+    // TODO: do we need to have both a left and a right 'has_node_child'?
+    pub has_node_child: BoolTarget,
     pub verifier_data: VerifierCircuitTarget,
     pub left_proof: ProofWithPublicInputsTarget<D>,
     pub right_proof: ProofWithPublicInputsTarget<D>,
@@ -135,9 +168,6 @@ where
     #[must_use]
     pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &LeafCircuit<F, C, D>) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-        let common = &leaf.circuit.common;
-        let left_proof = builder.add_virtual_proof_with_pis(common);
-        let right_proof = builder.add_virtual_proof_with_pis(common);
         let summarized_inputs = summarized::SubCircuitInputs::default(&mut builder);
         let old_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let new_inputs = unpruned::SubCircuitInputs::default(&mut builder);
@@ -147,18 +177,25 @@ where
         };
         builder.register_public_input(address_inputs.node_address);
 
+        let mut common = circuit_data_for_recursion::<F, C, D>(circuit_config, 14, 1).common;
+        let verifier_data = builder.add_verifier_data_public_inputs();
+        common.num_public_inputs = builder.num_public_inputs();
+        let left_proof = builder.add_virtual_proof_with_pis(&common);
+        let right_proof = builder.add_virtual_proof_with_pis(&common);
+        assert_eq!(leaf.circuit.common, common);
+
         let summarized_targets =
             summarized_inputs.from_leaf(&mut builder, &leaf.summarized, &left_proof, &right_proof);
         let old_targets = old_inputs.from_leaf(&mut builder, &leaf.old, &left_proof, &right_proof);
         let new_targets = new_inputs.from_leaf(&mut builder, &leaf.new, &left_proof, &right_proof);
         let address_targets =
             address_inputs.from_leaf(&mut builder, &leaf.address, &left_proof, &right_proof);
-        let no_leaf_child = builder.add_virtual_bool_target_safe();
+
+        let has_node_child = builder.add_virtual_bool_target_safe();
         let leaf_circuit_verifier_targets =
             builder.constant_verifier_data(&leaf.circuit.verifier_only);
-        let verifier_data = builder.add_verifier_data_public_inputs();
         let targets = BranchTargets {
-            no_leaf_child,
+            has_node_child,
             verifier_data,
             left_proof: left_proof.clone(),
             right_proof: right_proof.clone(),
@@ -166,20 +203,20 @@ where
 
         builder
             .conditionally_verify_cyclic_proof::<C>(
-                no_leaf_child,
+                has_node_child,
                 &left_proof,
                 &left_proof,
                 &leaf_circuit_verifier_targets,
-                common,
+                &common,
             )
             .expect("Failed to build cyclic recursion circuit");
         builder
             .conditionally_verify_cyclic_proof::<C>(
-                no_leaf_child,
+                has_node_child,
                 &right_proof,
                 &right_proof,
                 &leaf_circuit_verifier_targets,
-                common,
+                &common,
             )
             .expect("Failed to build cyclic recursion circuit");
 
@@ -202,7 +239,7 @@ where
     pub fn prove(
         &self,
         verifier_circuit_data: &VerifierOnlyCircuitData<C, D>,
-        no_leaf_child: bool,
+        has_node_child: bool,
         left_proof: &ProofWithPublicInputs<F, C, D>,
         right_proof: &ProofWithPublicInputs<F, C, D>,
         old_hash: HashOut<F>,
@@ -213,7 +250,7 @@ where
     where
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
         let mut inputs = PartialWitness::new();
-        inputs.set_bool_target(self.targets.no_leaf_child, no_leaf_child);
+        inputs.set_bool_target(self.targets.has_node_child, has_node_child);
         inputs.set_verifier_data_target(&self.targets.verifier_data, &verifier_circuit_data);
         inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
         inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
@@ -348,8 +385,9 @@ mod test {
     fn verify_branch() -> Result<()> {
         let circuit_config = CircuitConfig::standard_recursion_config();
         let leaf_circuit = LeafCircuit::<F, C, D>::new(&circuit_config);
+        // Same branch circuits
         let branch_circuit_h0 = BranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
-        let branch_circuit_h1 = BranchCircuit::from_branch(&circuit_config, &branch_circuit_h0);
+        let branch_circuit_h1 = BranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
 
         let zero_hash = HashOut::from([F::ZERO; 4]);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
@@ -384,8 +422,11 @@ mod test {
             leaf_circuit.prove(zero_hash, non_zero_hash_1, slot_4_r0w1, Some(4))?;
         leaf_circuit.circuit.verify(proof_0_to_1_id_4.clone())?;
 
+        let verifier_circuit_data = branch_circuit_h0.circuit.verifier_only.clone();
         // Branch proofs
         let branch_00_and_00_proof = branch_circuit_h0.prove(
+            &verifier_circuit_data,
+            false,
             &zero_proof,
             &zero_proof,
             hash_0_and_0,
@@ -396,6 +437,8 @@ mod test {
         branch_circuit_h0.circuit.verify(branch_00_and_00_proof)?;
 
         let branch_00_and_01_proof = branch_circuit_h0.prove(
+            &verifier_circuit_data,
+            false,
             &zero_proof,
             &proof_0_to_1_id_3,
             hash_0_and_0,
@@ -408,6 +451,8 @@ mod test {
             .verify(branch_00_and_01_proof.clone())?;
 
         let branch_01_and_00_proof = branch_circuit_h0.prove(
+            &verifier_circuit_data,
+            false,
             &proof_0_to_1_id_4,
             &zero_proof,
             hash_0_and_0,
@@ -420,6 +465,8 @@ mod test {
             .verify(branch_01_and_00_proof.clone())?;
 
         let branch_01_and_01_proof = branch_circuit_h0.prove(
+            &verifier_circuit_data,
+            false,
             &proof_0_to_1_id_2,
             &proof_0_to_1_id_3,
             hash_0_and_0,
@@ -431,6 +478,8 @@ mod test {
 
         // Double branch proof
         let proof = branch_circuit_h1.prove(
+            &verifier_circuit_data,
+            true,
             &branch_00_and_01_proof,
             &branch_01_and_00_proof,
             hash_00_and_00,
