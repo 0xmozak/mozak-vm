@@ -392,17 +392,17 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Table<F: Field, Row> {
+pub struct TableNamed<F: Field, Row> {
     pub(crate) kind: TableKind,
     pub(crate) columns: Row,
     pub(crate) filter_column: Column<F>,
 }
 
-pub type TableVec<F> = Table<F, Vec<Column<F>>>;
+pub type TableVec<F> = TableNamed<F, Vec<Column<F>>>;
 
-impl<F: Field, Row: IntoIterator<Item = Column<F>>> Table<F, Row> {
+impl<F: Field, Row: IntoIterator<Item = Column<F>>> TableNamed<F, Row> {
     pub fn to_vec(self) -> TableVec<F> {
-        Table {
+        TableNamed {
             kind: self.kind,
             columns: self.columns.into_iter().collect(),
             filter_column: self.filter_column,
@@ -410,7 +410,7 @@ impl<F: Field, Row: IntoIterator<Item = Column<F>>> Table<F, Row> {
     }
 }
 
-impl<F: Field, Row> Table<F, Row> {
+impl<F: Field, Row> TableNamed<F, Row> {
     pub fn new(kind: TableKind, columns: Row, filter_column: Column<F>) -> Self {
         Self {
             kind,
@@ -423,12 +423,12 @@ impl<F: Field, Row> Table<F, Row> {
 /// Macro to instantiate a new table for cross table lookups.
 macro_rules! table_impl {
     ($t: ident, $tk: expr) => {
-        pub struct $t<F: Field, Row>(Table<F, Row>);
+        pub struct $t<F: Field, Row>(TableNamed<F, Row>);
 
         impl<F: Field, Row> $t<F, Row> {
             #[allow(clippy::new_ret_no_self)]
-            pub fn new(columns: Row, filter_column: Column<F>) -> Table<F, Row> {
-                Table::new($tk, columns, filter_column)
+            pub fn new(columns: Row, filter_column: Column<F>) -> TableNamed<F, Row> {
+                TableNamed::new($tk, columns, filter_column)
             }
         }
     };

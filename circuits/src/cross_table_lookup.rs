@@ -16,7 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableVec};
+use crate::stark::mozak_stark::{all_kind, TableKind, TableKindArray, TableNamed, TableVec};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
 
@@ -185,8 +185,8 @@ fn partial_sums<F: Field>(
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct CrossTableLookup<F: Field, Row> {
-    pub looking_tables: Vec<Table<F, Row>>,
-    pub looked_table: Table<F, Row>,
+    pub looking_tables: Vec<TableNamed<F, Row>>,
+    pub looked_table: TableNamed<F, Row>,
 }
 
 #[allow(clippy::module_name_repetitions)]
@@ -195,7 +195,11 @@ pub type CrossTableLookupVec<F> = CrossTableLookup<F, Vec<Column<F>>>;
 impl<F: Field, Row: IntoIterator<Item = Column<F>>> CrossTableLookup<F, Row> {
     pub fn to_vec(self) -> CrossTableLookupVec<F> {
         let looked_table: TableVec<F> = self.looked_table.to_vec();
-        let looking_tables = self.looking_tables.into_iter().map(Table::to_vec).collect();
+        let looking_tables = self
+            .looking_tables
+            .into_iter()
+            .map(TableNamed::to_vec)
+            .collect();
         CrossTableLookup {
             looking_tables,
             looked_table,
@@ -208,7 +212,7 @@ impl<F: Field, Row> CrossTableLookup<F, Row> {
     ///
     /// # Panics
     /// Panics if the two tables do not have equal number of columns.
-    pub fn new(looking_tables: Vec<Table<F, Row>>, looked_table: Table<F, Row>) -> Self {
+    pub fn new(looking_tables: Vec<TableNamed<F, Row>>, looked_table: TableNamed<F, Row>) -> Self {
         // assert!(looking_tables
         //     .iter()
         //     .all(|twc| twc.columns.len() == looked_table.columns.len()));
