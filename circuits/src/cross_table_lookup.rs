@@ -192,15 +192,30 @@ pub struct CrossTableLookup<F: Field, Row> {
 #[allow(clippy::module_name_repetitions)]
 pub type CrossTableLookupVec<F> = CrossTableLookup<F, Vec<Column<F>>>;
 
-impl<F: Field> CrossTableLookup<F, Vec<Column<F>>> {
+impl<F: Field, Row: IntoIterator<Item = Column<F>>> CrossTableLookup<F, Row> {
+    pub fn to_vec(self) -> CrossTableLookupVec<F> {
+        let looked_table: TableVec<F> = self.looked_table.to_vec();
+        let looking_tables = self
+            .looking_tables
+            .into_iter()
+            .map(|t| t.to_vec())
+            .collect();
+        CrossTableLookup {
+            looking_tables,
+            looked_table,
+        }
+    }
+}
+
+impl<F: Field, Row> CrossTableLookup<F, Row> {
     /// Instantiates a new cross table lookup between 2 tables.
     ///
     /// # Panics
     /// Panics if the two tables do not have equal number of columns.
-    pub fn new(looking_tables: Vec<TableVec<F>>, looked_table: TableVec<F>) -> Self {
-        assert!(looking_tables
-            .iter()
-            .all(|twc| twc.columns.len() == looked_table.columns.len()));
+    pub fn new(looking_tables: Vec<Table<F, Row>>, looked_table: Table<F, Row>) -> Self {
+        // assert!(looking_tables
+        //     .iter()
+        //     .all(|twc| twc.columns.len() == looked_table.columns.len()));
         Self {
             looking_tables,
             looked_table,

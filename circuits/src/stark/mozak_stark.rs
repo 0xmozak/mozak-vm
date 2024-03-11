@@ -16,6 +16,7 @@ use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
+use crate::memoryinit::columns::MemoryInitCtl;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 #[cfg(feature = "enable_poseidon_starks")]
@@ -399,8 +400,18 @@ pub struct Table<F: Field, Row> {
 
 pub type TableVec<F> = Table<F, Vec<Column<F>>>;
 
-impl<F: Field> TableVec<F> {
-    pub fn new(kind: TableKind, columns: Vec<Column<F>>, filter_column: Column<F>) -> Self {
+impl<F: Field, Row: IntoIterator<Item = Column<F>>> Table<F, Row> {
+    pub fn to_vec(self) -> TableVec<F> {
+        Table {
+            kind: self.kind,
+            columns: self.columns.into_iter().collect(),
+            filter_column: self.filter_column,
+        }
+    }
+}
+
+impl<F: Field, Row> Table<F, Row> {
+    pub fn new(kind: TableKind, columns: Row, filter_column: Column<F>) -> Self {
         Self {
             kind,
             columns,
@@ -412,11 +423,11 @@ impl<F: Field> TableVec<F> {
 /// Macro to instantiate a new table for cross table lookups.
 macro_rules! table_impl {
     ($t: ident, $tk: expr) => {
-        pub struct $t<F: Field>(TableVec<F>);
+        pub struct $t<F: Field, Row>(Table<F, Row>);
 
-        impl<F: Field> $t<F> {
+        impl<F: Field, Row> $t<F, Row> {
             #[allow(clippy::new_ret_no_self)]
-            pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> TableVec<F> {
+            pub fn new(columns: Row, filter_column: Column<F>) -> Table<F, Row> {
                 Table::new($tk, columns, filter_column)
             }
         }
@@ -560,29 +571,31 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
 
 pub struct MemoryInitMemoryTable<F: Field>(CrossTableLookupVec<F>);
 
-impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
-    fn lookups() -> CrossTableLookupVec<F> {
-        CrossTableLookup::new(
-            vec![
-                ElfMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MozakMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MemoryZeroInitTable::new(
-                    memory_zeroinit::columns::data_for_memory(),
-                    memory_zeroinit::columns::filter_for_memory(),
-                ),
-            ],
-            MemoryTable::new(
-                memory::columns::data_for_memoryinit(),
-                memory::columns::filter_for_memoryinit(),
+fn lookups_<F: Field>() -> CrossTableLookup<F, MemoryInitCtl<Column<F>>> {
+    CrossTableLookup::new(
+        vec![
+            ElfMemoryInitTable::new(
+                memoryinit::columns::data_for_memory_(),
+                memoryinit::columns::filter_for_memory(),
             ),
-        )
-    }
+            MozakMemoryInitTable::new(
+                memoryinit::columns::data_for_memory_(),
+                memoryinit::columns::filter_for_memory(),
+            ),
+            MemoryZeroInitTable::new(
+                memory_zeroinit::columns::data_for_memory_(),
+                memory_zeroinit::columns::filter_for_memory(),
+            ),
+        ],
+        MemoryTable::new(
+            memory::columns::data_for_memoryinit_(),
+            memory::columns::filter_for_memoryinit(),
+        ),
+    )
+}
+
+impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
+    fn lookups() -> CrossTableLookupVec<F> { lookups_::<F>().to_vec() }
 }
 
 pub struct BitshiftCpuTable<F: Field>(CrossTableLookupVec<F>);

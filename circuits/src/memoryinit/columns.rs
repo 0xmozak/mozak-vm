@@ -26,17 +26,32 @@ pub struct MemoryInit<T> {
     pub is_writable: T,
 }
 
+// TODO(Matthias): Do we need a col_map?
+columns_view_impl!(MemoryInitCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct MemoryInitCtl<T> {
+    pub is_writable: T,
+    pub address: T,
+    pub clk: T,
+    pub value: T,
+}
+
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(col_map().is_writable),
-        Column::single(col_map().element.address),
-        // clk:
-        Column::constant(F::ONE),
-        Column::single(col_map().element.value),
-    ]
+pub fn data_for_memory_<F: Field>() -> MemoryInitCtl<Column<F>> {
+    let mem = col_map().map(Column::from);
+    MemoryInitCtl {
+        is_writable: mem.is_writable,
+        address: mem.element.address,
+        clk: Column::constant(F::ONE),
+        value: mem.element.value,
+    }
 }
+
+/// Columns containing the data which are looked up from the Memory Table
+#[must_use]
+pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { data_for_memory_().into_iter().collect() }
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]

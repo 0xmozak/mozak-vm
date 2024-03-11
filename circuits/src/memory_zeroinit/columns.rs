@@ -2,6 +2,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::memoryinit::columns::MemoryInitCtl;
 
 columns_view_impl!(MemoryZeroInit);
 make_col_map!(MemoryZeroInit);
@@ -14,16 +15,20 @@ pub struct MemoryZeroInit<T> {
 
 pub const NUM_MEMORYINIT_COLS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 
+#[must_use]
+pub fn data_for_memory_<F: Field>() -> MemoryInitCtl<Column<F>> {
+    let mem = col_map().map(Column::from);
+    MemoryInitCtl {
+        is_writable: Column::constant(F::ONE),
+        address: mem.addr,
+        clk: Column::constant(F::ZERO),
+        value: Column::constant(F::ZERO),
+    }
+}
+
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::constant(F::ONE), // is_writable
-        Column::single(col_map().addr),
-        Column::constant(F::ZERO), // clk
-        Column::constant(F::ZERO), // value
-    ]
-}
+pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { data_for_memory_().into_iter().collect() }
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]

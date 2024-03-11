@@ -13,7 +13,7 @@ use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
-use crate::memoryinit::columns::MemoryInit;
+use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::stark::mozak_stark::{MemoryTable, TableVec};
@@ -216,13 +216,20 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> {
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table
 #[must_use]
+pub fn data_for_memoryinit_<F: Field>() -> MemoryInitCtl<Column<F>> {
+    let mem = col_map().map(Column::from);
+    MemoryInitCtl {
+        is_writable: mem.is_writable,
+        address: mem.addr,
+        clk: mem.clk,
+        value: mem.value,
+    }
+}
+
+/// Columns containing the data which are looked up in the `MemoryInit` Table
+#[must_use]
 pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(col_map().is_writable),
-        Column::single(col_map().addr),
-        Column::single(col_map().clk),
-        Column::single(col_map().value),
-    ]
+    data_for_memoryinit_().into_iter().collect()
 }
 
 /// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
