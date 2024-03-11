@@ -223,11 +223,11 @@ pub struct StateObject {
 pub struct CanonicalStateObjectEvent {
     // TODO: change u32 to goldilocks F
     /// Logical address of StateObject in the tree
-    pub address: u32,
+    pub address: Address,
     pub event_type: CanonicalEventType,
-    pub constraint_owner: [u64; 4],
-    pub event_value: [u64; 4],
-    pub event_emitter: [u64; 4],
+    pub constraint_owner: ProgramIdentifier,
+    pub event_value: Poseidon2HashType,
+    pub event_emitter: ProgramIdentifier,
 }
 
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
