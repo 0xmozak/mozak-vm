@@ -44,7 +44,7 @@ fn main() {
     let bytes = rkyv::to_bytes::<_, 256>(&token_object).unwrap();
 
     let state_object = StateObject {
-        address: [4, 0, 0, 0, 0, 0, 0, 0].into(),
+        address: [4, 0, 0, 0].into(),
         constraint_owner: token_program,
         // TODO(bing): encode a change in different economic owner in this `TokenObject`
         data: bytes.to_vec(),
