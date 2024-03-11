@@ -4,6 +4,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
+use crate::registerinit::columns::RegisterInitCtl;
 #[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::RegisterTable;
 #[cfg(feature = "enable_register_starks")]
@@ -99,7 +100,13 @@ impl<T: Add<Output = T>> Register<T> {
 }
 
 #[must_use]
-pub fn data_for_register_init<F: Field>() -> Vec<Column<F>> { Column::singles([col_map().addr]) }
+pub fn data_for_register_init<F: Field>() -> RegisterInitCtl<Column<F>> {
+    let reg = col_map().map(Column::from);
+    RegisterInitCtl {
+        addr: reg.addr,
+        value: reg.value,
+    }
+}
 
 #[must_use]
 pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(col_map().ops.is_init) }

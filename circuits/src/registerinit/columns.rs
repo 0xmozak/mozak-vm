@@ -25,8 +25,22 @@ pub struct RegisterInit<T> {
     pub is_looked_up: T,
 }
 
+columns_view_impl!(RegisterInitCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct RegisterInitCtl<T> {
+    pub addr: T,
+    pub value: T,
+}
+
 #[must_use]
-pub fn data_for_register<F: Field>() -> Vec<Column<F>> { Column::singles([col_map().reg_addr]) }
+pub fn data_for_register<F: Field>() -> RegisterInitCtl<Column<F>> {
+    let reg = col_map().map(Column::from);
+    RegisterInitCtl {
+        addr: reg.reg_addr,
+        value: reg.value,
+    }
+}
 
 #[must_use]
 pub fn filter_for_register<F: Field>() -> Column<F> { Column::from(col_map().is_looked_up) }

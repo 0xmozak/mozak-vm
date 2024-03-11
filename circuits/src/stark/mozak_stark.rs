@@ -720,6 +720,7 @@ impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
                 crate::registerinit::columns::filter_for_register(),
             ),
         )
+        .to_vec()
     }
 }
 
