@@ -1,6 +1,5 @@
 use core::ops::Add;
 
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
@@ -54,19 +53,19 @@ impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
 }
 
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_cpu() -> Vec<Column> {
     let sponge = col_map().map(Column::from);
     vec![sponge.clk, sponge.input_addr, sponge.input_len]
 }
 
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> {
+pub fn filter_for_cpu() -> Column {
     let sponge = col_map().map(Column::from);
     sponge.ops.is_init_permute
 }
 
 #[must_use]
-pub fn data_for_poseidon2<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_poseidon2() -> Vec<Column> {
     let sponge = col_map().map(Column::from);
     let mut data = sponge.preimage.to_vec();
     data.extend(sponge.output.to_vec());
@@ -74,10 +73,10 @@ pub fn data_for_poseidon2<F: Field>() -> Vec<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_poseidon2<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed() }
+pub fn filter_for_poseidon2() -> Column { col_map().map(Column::from).is_executed() }
 
 #[must_use]
-pub fn data_for_poseidon2_output_bytes<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_poseidon2_output_bytes() -> Vec<Column> {
     let sponge = col_map().map(Column::from);
     let mut data = vec![];
     data.push(sponge.clk);
@@ -89,25 +88,23 @@ pub fn data_for_poseidon2_output_bytes<F: Field>() -> Vec<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_poseidon2_output_bytes<F: Field>() -> Column<F> {
-    col_map().map(Column::from).gen_output
-}
+pub fn filter_for_poseidon2_output_bytes() -> Column { col_map().map(Column::from).gen_output }
 
 #[must_use]
-pub fn data_for_input_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
+pub fn data_for_input_memory(limb_index: u8) -> Vec<Column> {
     assert!(limb_index < 8, "limb_index can be 0..7");
     let sponge = col_map().map(Column::from);
     vec![
         sponge.clk,
-        Column::constant(F::ZERO),                            // is_store
-        Column::constant(F::ONE),                             // is_load
-        sponge.preimage[limb_index as usize].clone(),         // value
-        sponge.input_addr + F::from_canonical_u8(limb_index), // address
+        Column::constant(0),                          // is_store
+        Column::constant(1),                          // is_load
+        sponge.preimage[limb_index as usize].clone(), // value
+        sponge.input_addr + i64::from(limb_index),    // address
     ]
 }
 
 #[must_use]
-pub fn filter_for_input_memory<F: Field>() -> Column<F> {
+pub fn filter_for_input_memory() -> Column {
     let row = col_map().map(Column::from);
     row.ops.is_init_permute + row.ops.is_permute
 }
