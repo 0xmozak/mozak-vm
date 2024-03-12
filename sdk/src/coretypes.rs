@@ -2,7 +2,6 @@
 use itertools::{chain, Itertools};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
-#[cfg(not(target_os = "mozakvm"))]
 use crate::sys::poseidon2_hash_with_pad;
 
 pub const DIGEST_BYTES: usize = 32;
@@ -124,8 +123,6 @@ impl ProgramIdentifier {
         memory_init_hash: Poseidon2HashType,
         entry_point: u32,
     ) -> Self {
-        use crate::sys::poseidon2_hash_with_pad;
-
         let input = chain!(
             program_rom_hash.to_le_bytes(),
             memory_init_hash.to_le_bytes(),
