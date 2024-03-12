@@ -498,3 +498,48 @@ pub fn poseidon2_hash_no_pad(input: &[u8]) -> Poseidon2HashType {
         )
     }
 }
+
+pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2HashType {
+    let mut padded_input = input.to_vec();
+    padded_input.push(1);
+    #[cfg(target_os = "mozakvm")]
+    {
+        pub const RATE: usize = 8;
+        use mozak_system::system::syscall_poseidon2;
+
+        padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
+        // VM expects input length to be multiple of RATE
+        assert!(padded_input.len() % RATE == 0);
+        let mut output = [0; DIGEST_BYTES];
+        syscall_poseidon2(
+            padded_input.as_ptr(),
+            padded_input.len(),
+            output.as_mut_ptr(),
+        );
+        Poseidon2HashType(output)
+    }
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        use plonky2::field::goldilocks_field::GoldilocksField;
+        use plonky2::field::types::Field;
+        use plonky2::hash::hashing::PlonkyPermutation;
+        use plonky2::hash::poseidon2::{Poseidon2Hash, Poseidon2Permutation};
+        use plonky2::plonk::config::{GenericHashOut, Hasher};
+        const RATE: usize =
+            <Poseidon2Permutation<GoldilocksField> as PlonkyPermutation<GoldilocksField>>::RATE;
+        padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
+        let data_fields: Vec<GoldilocksField> = padded_input
+            .iter()
+            .map(|x| GoldilocksField::from_canonical_u8(*x))
+            .collect();
+
+        assert!(padded_input.len() % RATE == 0);
+
+        Poseidon2HashType(
+            Poseidon2Hash::hash_no_pad(&data_fields)
+                .to_bytes()
+                .try_into()
+                .expect("Output length does not match to DIGEST_BYTES"),
+        )
+    }
+}
