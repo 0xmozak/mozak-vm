@@ -1,5 +1,3 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 
@@ -39,9 +37,9 @@ pub struct BitshiftView<T> {
 /// Columns containing the data which are looked from the CPU table into
 /// Bitshift stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Bitshift<Column> { col_map().map(Column::from).executed }
+pub fn data_for_cpu() -> Bitshift<Column> { col_map().map(Column::from).executed }
 
 /// Columns containing the filter which indicates whether this row is a dummy
 /// padding.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column { col_map().multiplicity.into() }
+pub fn filter_for_cpu() -> Column { col_map().multiplicity.into() }

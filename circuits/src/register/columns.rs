@@ -100,7 +100,7 @@ impl<T: Add<Output = T>> Register<T> {
 }
 
 #[must_use]
-pub fn data_for_register_init<F: Field>() -> RegisterInitCtl<Column> {
+pub fn data_for_register_init() -> RegisterInitCtl<Column> {
     let reg = col_map();
     RegisterInitCtl {
         addr: reg.addr,
@@ -110,11 +110,11 @@ pub fn data_for_register_init<F: Field>() -> RegisterInitCtl<Column> {
 }
 
 #[must_use]
-pub fn filter_for_register_init<F: Field>() -> Column { Column::from(col_map().ops.is_init) }
+pub fn filter_for_register_init() -> Column { Column::from(col_map().ops.is_init) }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column>>> {
+pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     let ops = col_map().ops.map(Column::from);
     let new = RangeCheckCtl::new;
     vec![RegisterTable::new(

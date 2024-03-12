@@ -1,4 +1,4 @@
-use plonky2::field::types::Field;
+
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
@@ -44,7 +44,7 @@ impl<T> RangeCheckCtl<T> {
 }
 
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
+pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     (0..4)
         .map(|limb| {
             RangeCheckTable::new(
@@ -56,4 +56,4 @@ pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<RangeCheckCtl<Column>>> 
 }
 
 #[must_use]
-pub fn filter<F: Field>() -> Column { Column::single(col_map().multiplicity) }
+pub fn filter() -> Column { Column::single(col_map().multiplicity) }

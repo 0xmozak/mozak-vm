@@ -320,6 +320,7 @@ pub struct CtlCheckVarsTarget<'a, const D: usize> {
 }
 
 impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
+    #[must_use]
     pub fn from_proof(
         table: TableKind,
         proof: &StarkProofTarget<D>,
@@ -363,7 +364,7 @@ pub fn eval_cross_table_lookup_checks_circuit<
             challenges,
             columns,
             filter_column,
-        }: &CtlCheckVarsTarget<F, D> = lookup_vars;
+        }: &CtlCheckVarsTarget<D> = lookup_vars;
 
         let local_values = vars.get_local_values();
         let next_values = vars.get_next_values();
@@ -517,7 +518,7 @@ mod tests {
     /// Specify which column(s) to find data related to lookups.
     /// If the lengths of `lv_col_indices` and `nv_col_indices` are not same,
     /// then we resize smaller one with empty column and then add componentwise
-    fn lookup_data<F: Field>(lv_col_indices: &[usize], nv_col_indices: &[usize]) -> Vec<Column> {
+    fn lookup_data(lv_col_indices: &[usize], nv_col_indices: &[usize]) -> Vec<Column> {
         // use usual lv values of the rows
         let lv_columns = Column::singles(lv_col_indices);
         // use nv values of the rows
@@ -531,7 +532,7 @@ mod tests {
     }
 
     /// Specify the column index of the filter column used in lookups.
-    fn lookup_filter<F: Field>(col_idx: usize) -> Column { Column::single(col_idx) }
+    fn lookup_filter(col_idx: usize) -> Column { Column::single(col_idx) }
 
     /// A generic cross lookup table.
     struct FooBarTable;

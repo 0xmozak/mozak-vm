@@ -1,4 +1,4 @@
-use plonky2::field::types::Field;
+
 use plonky2::hash::poseidon2::{ROUND_F_END, ROUND_P, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -59,7 +59,7 @@ pub struct Poseidon2StateCtl<F> {
 }
 
 // HERE
-pub fn data_for_sponge<F: Field>() -> Poseidon2StateCtl<Column> {
+pub fn data_for_sponge() -> Poseidon2StateCtl<Column> {
     let poseidon2 = col_map();
     // Extend data with outputs which is basically state after last full round.
     Poseidon2StateCtl {
@@ -72,7 +72,7 @@ pub fn data_for_sponge<F: Field>() -> Poseidon2StateCtl<Column> {
     .map(Column::from)
 }
 
-pub fn filter_for_sponge<F: Field>() -> Column {
+pub fn filter_for_sponge() -> Column {
     let poseidon2 = col_map().map(Column::from);
     poseidon2.is_exe
 }

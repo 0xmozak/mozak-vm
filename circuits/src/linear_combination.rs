@@ -3,7 +3,7 @@ use core::ops::{Add, Mul, Neg, Sub};
 use std::borrow::Borrow;
 use std::ops::Index;
 
-use itertools::{chain, Itertools};
+use itertools::{chain, izip, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -242,7 +242,7 @@ impl Column {
 
     // TODO(Matthias): Be careful about overflow here?
     #[must_use]
-    pub fn reduce_with_powers<F: Field>(terms: &[Self], alpha: i64) -> Self {
+    pub fn reduce_with_powers(terms: &[Self], alpha: i64) -> Self {
         terms
             .iter()
             .rev()
@@ -252,10 +252,8 @@ impl Column {
     #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            lv_linear_combination: cs
-                .into_iter()
-                .enumerate()
-                .map(|(i, c)| (*c.borrow(), i64::from(i)))
+            lv_linear_combination: izip!(0.., cs)
+                .map(|(i, c)| (*c.borrow(), i))
                 .collect(),
             ..Default::default()
         }
@@ -268,29 +266,30 @@ impl Column {
         V: Index<usize, Output = P> + ?Sized, {
         self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| lv[c] * FE::from_basefield(f))
+            .map(|&(c, f)| lv[c] * FE::from_noncanonical_i64(f))
             .sum::<P>()
             + self
                 .nv_linear_combination
                 .iter()
-                .map(|&(c, f)| nv[c] * FE::from_basefield(f))
+                .map(|&(c, f)| nv[c] * FE::from_noncanonical_i64(f))
                 .sum::<P>()
-            + FE::from_basefield(self.constant)
+            + FE::from_noncanonical_i64(self.constant)
     }
 
     /// Evaluate on an row of a table given in column-major form.
     #[allow(clippy::cast_possible_wrap)]
+    #[must_use]
     pub fn eval_table<F: Field>(&self, table: &[PolynomialValues<F>], row: usize) -> F {
         self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| table[c].values[row] * f)
+            .map(|&(c, f)| table[c].values[row] * F::from_noncanonical_i64(f))
             .sum::<F>()
             + self
                 .nv_linear_combination
                 .iter()
-                .map(|&(c, f)| table[c].values[(row + 1) % table[c].values.len()] * f)
+                .map(|&(c, f)| table[c].values[(row + 1) % table[c].values.len()] * F::from_noncanonical_i64(f))
                 .sum::<F>()
-            + self.constant
+            + F::from_noncanonical_i64(self.constant)
     }
 
     /// Evaluate on an row of a table
@@ -302,14 +301,14 @@ impl Column {
     ) -> F {
         self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| lv_row[c] * f)
+            .map(|&(c, f)| lv_row[c] * F::from_noncanonical_i64(f))
             .sum::<F>()
             + self
                 .nv_linear_combination
                 .iter()
-                .map(|&(c, f)| nv_row[c] * f)
+                .map(|&(c, f)| nv_row[c] * F::from_noncanonical_i64(f))
                 .sum::<F>()
-            + self.constant
+            + F::from_noncanonical_i64(self.constant)
     }
 
     pub fn eval_circuit<F: Field, const D: usize>(
@@ -331,11 +330,11 @@ impl Column {
         .map(|(v, f)| {
             (
                 v,
-                builder.constant_extension(F::Extension::from_basefield(f)),
+                builder.constant_extension(F::Extension::from_noncanonical_i64(f)),
             )
         })
         .collect_vec();
-        let constant = builder.constant_extension(F::Extension::from_basefield(self.constant));
+        let constant = builder.constant_extension(F::Extension::from_noncanonical_i64(self.constant));
         builder.inner_product_extension(F::ONE, constant, pairs)
     }
 }

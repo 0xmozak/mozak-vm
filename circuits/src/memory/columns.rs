@@ -1,7 +1,6 @@
 use core::ops::Add;
 
 use plonky2::field::extension::Extendable;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
@@ -219,7 +218,7 @@ pub struct MemoryCtl<T> {
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column> {
+pub fn data_for_cpu() -> MemoryCtl<Column> {
     let map = col_map().map(Column::from);
     MemoryCtl {
         clk: map.clk,
@@ -233,14 +232,14 @@ pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column> {
 /// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column {
+pub fn filter_for_cpu() -> Column {
     let mem = col_map().map(Column::from);
     mem.is_store + mem.is_load
 }
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table
 #[must_use]
-pub fn data_for_memoryinit<F: Field>() -> MemoryInitCtl<Column> {
+pub fn data_for_memoryinit() -> MemoryInitCtl<Column> {
     let mem = col_map().map(Column::from);
     MemoryInitCtl {
         is_writable: mem.is_writable,
@@ -252,12 +251,12 @@ pub fn data_for_memoryinit<F: Field>() -> MemoryInitCtl<Column> {
 
 /// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
 #[must_use]
-pub fn filter_for_memoryinit<F: Field>() -> Column { Column::single(col_map().is_init) }
+pub fn filter_for_memoryinit() -> Column { Column::single(col_map().is_init) }
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_halfword_memory<F: Field>() -> Vec<Column> {
+pub fn data_for_halfword_memory() -> Vec<Column> {
     vec![
         Column::single(col_map().clk),
         Column::single(col_map().addr),
@@ -270,7 +269,7 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column> {
 /// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
 #[must_use]
-pub fn filter_for_halfword_memory<F: Field>() -> Column {
+pub fn filter_for_halfword_memory() -> Column {
     let mem = col_map().map(Column::from);
     mem.is_store + mem.is_load
 }

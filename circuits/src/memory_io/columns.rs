@@ -1,6 +1,6 @@
 use core::ops::Add;
 
-use plonky2::field::types::Field;
+
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
@@ -57,7 +57,7 @@ pub struct InputOutputMemoryCtl<T> {
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> InputOutputMemoryCtl<Column> {
+pub fn data_for_cpu() -> InputOutputMemoryCtl<Column> {
     let mem = col_map().map(Column::from);
     InputOutputMemoryCtl {
         clk: mem.clk,
@@ -68,18 +68,18 @@ pub fn data_for_cpu<F: Field>() -> InputOutputMemoryCtl<Column> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column { col_map().map(Column::from).ops.is_io_store }
+pub fn filter_for_cpu() -> Column { col_map().map(Column::from).ops.is_io_store }
 
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory<F: Field>() -> MemoryCtl<Column> {
+pub fn data_for_memory() -> MemoryCtl<Column> {
     let mem = col_map().map(Column::from);
 
     MemoryCtl {
         clk: mem.clk,
         is_store: mem.ops.is_memory_store,
-        is_load: Column::constant(F::ZERO),
+        is_load: Column::constant(0),
         value: mem.value,
         addr: mem.addr,
     }
@@ -87,6 +87,6 @@ pub fn data_for_memory<F: Field>() -> MemoryCtl<Column> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column {
+pub fn filter_for_memory() -> Column {
     col_map().map(Column::from).ops.is_memory_store
 }
