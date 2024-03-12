@@ -1,8 +1,8 @@
-use crate::coretypes::{CPCMessage, ProgramIdentifier, RawMessage};
 use crate::traits::{Call, SelfIdentify};
+use crate::types::{CPCMessage, ProgramIdentifier, RawMessage};
 
-#[derive(Default)]
 /// Represents the `CallTape` under native execution
+#[derive(Default)]
 pub struct CallTapeNative {
     pub identity_stack: Vec<ProgramIdentifier>,
     pub writer: Vec<CPCMessage>,
@@ -20,7 +20,7 @@ impl SelfIdentify for CallTapeNative {
 impl Call for CallTapeNative {
     fn send<A, R>(
         &mut self,
-        recepient_program: crate::coretypes::ProgramIdentifier,
+        recepient_program: crate::types::ProgramIdentifier,
         arguments: A,
         resolver: impl Fn(A) -> R,
     ) -> R
@@ -55,7 +55,7 @@ impl Call for CallTapeNative {
         resolved_value
     }
 
-    fn receive<A, R>(&mut self) -> Option<(crate::coretypes::ProgramIdentifier, A, R)>
+    fn receive<A, R>(&mut self) -> Option<(crate::types::ProgramIdentifier, A, R)>
     where
         A: crate::traits::CallArgument + PartialEq,
         R: crate::traits::CallReturn,
@@ -68,8 +68,8 @@ impl Call for CallTapeNative {
 #[cfg(test)]
 mod tests {
     use crate::call_tape_native::CallTapeNative;
-    use crate::coretypes::ProgramIdentifier;
     use crate::traits::Call;
+    use crate::types::ProgramIdentifier;
 
     fn test_pid_generator(val: u8) -> ProgramIdentifier {
         let mut pid = ProgramIdentifier::default();

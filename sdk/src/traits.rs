@@ -4,7 +4,7 @@ use rkyv::ser::serializers::{
 };
 use rkyv::{AlignedVec, Archive, Deserialize};
 
-use crate::coretypes::ProgramIdentifier;
+use crate::types::ProgramIdentifier;
 
 pub trait RkyvSerializable = rkyv::Serialize<
     CompositeSerializer<

@@ -1,9 +1,10 @@
 use rkyv::{Archive, Deserialize};
 
-use crate::coretypes::{CPCMessage, ProgramIdentifier};
 use crate::traits::{Call, SelfIdentify};
+use crate::types::{CPCMessage, ProgramIdentifier};
 
 /// Represents the `CallTape` under `mozak-vm`
+#[derive(Default)]
 pub struct CallTapeMozakVM {
     cast_list: Vec<ProgramIdentifier>,
     self_prog_id: ProgramIdentifier,
@@ -27,7 +28,7 @@ impl SelfIdentify for CallTapeMozakVM {
 impl Call for CallTapeMozakVM {
     fn send<A, R>(
         &mut self,
-        recepient_program: crate::coretypes::ProgramIdentifier,
+        recepient_program: crate::types::ProgramIdentifier,
         arguments: A,
         _resolver: impl Fn(A) -> R,
     ) -> R
@@ -73,7 +74,7 @@ impl Call for CallTapeMozakVM {
     }
 
     #[allow(clippy::similar_names)]
-    fn receive<A, R>(&mut self) -> Option<(crate::coretypes::ProgramIdentifier, A, R)>
+    fn receive<A, R>(&mut self) -> Option<(crate::types::ProgramIdentifier, A, R)>
     where
         A: crate::traits::CallArgument + PartialEq,
         R: crate::traits::CallReturn,

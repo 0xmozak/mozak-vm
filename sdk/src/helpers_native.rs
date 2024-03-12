@@ -3,6 +3,12 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
+use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::types::Field;
+use plonky2::hash::hashing::PlonkyPermutation;
+use plonky2::hash::poseidon2::{Poseidon2Hash, Poseidon2Permutation};
+use plonky2::plonk::config::{GenericHashOut, Hasher};
+
 /// Sort a given input vector (not in-place), returns
 /// such sorted vector alongwith the mapping of each element
 /// in original vector, called `hint`. Returns in the format
@@ -46,6 +52,27 @@ where
     }
 
     (sorted, hints)
+}
+
+/// Hashes the input slice to `Poseidon2HashType`
+pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
+    let mut padded_input = input.to_vec();
+    padded_input.push(1);
+
+    const RATE: usize = 8;
+
+    padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
+    let data_fields: Vec<GoldilocksField> = padded_input
+        .iter()
+        .map(|x| GoldilocksField::from_canonical_u8(*x))
+        .collect();
+
+    Poseidon2HashType(
+        Poseidon2Hash::hash_no_pad(&data_fields)
+            .to_bytes()
+            .try_into()
+            .expect("Output length does not match to DIGEST_BYTES"),
+    )
 }
 
 #[cfg(test)]
