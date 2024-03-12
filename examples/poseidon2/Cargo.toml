@@ -4,9 +4,9 @@ name = "poseidon2-example-mozak-guest"
 version = "0.1.0"
 
 [dependencies]
-mozak-sdk = { path = "../../sdk" }
-hex-literal = "0.2"
 guest = { path = "../../guest", features = ["std"] }
+hex-literal = "0.2"
+mozak-sdk = { path = "../../sdk" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.mozak-sdk]
 path = "../../sdk"
