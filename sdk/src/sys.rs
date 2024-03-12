@@ -290,7 +290,6 @@ impl From<EventTapeSingle> for CanonicalEventTapeSingle {
                     .iter()
                     .map(|event| CanonicalEvent::from(event.clone()))
                     .collect::<Vec<CanonicalEvent>>()
-                    .as_ref(),
             );
 
             Self {

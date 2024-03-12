@@ -12,14 +12,14 @@ use std::hash::Hash;
 /// ```
 /// let input: Vec<char>            = vec!['f', 'c', 'd', 'b', 'a', 'e'];
 /// let expected_sorted: Vec<char>  = vec!['a', 'b', 'c', 'd', 'e', 'f'];
-/// let expected_hints: Vec<usize>  = vec![  4,   3,   1,   2,   5,   0];
+/// let expected_hints: Vec<usize>  = vec![ 5 ,  2 ,  3 ,  1 ,  0 ,  4 ];
 ///
 /// let (sorted, hints) = sort_with_hints(input);
 ///
 /// assert_eq!(expected_sorted, sorted);
 /// assert_eq!(expected_hints, hints);
 /// ```
-pub fn sort_with_hints<T, K>(input: &[T]) -> (Vec<T>, Vec<K>)
+pub fn sort_with_hints<T, K>(input: Vec<T>) -> (Vec<T>, Vec<K>)
 where
     T: Clone + Hash + Ord,
     K: From<usize> + Copy, {
@@ -30,12 +30,12 @@ where
     };
 
     let mut element_index_map: HashMap<&T, K> = HashMap::with_capacity(input.len());
-    for (i, elem) in input.iter().enumerate() {
+    for (i, elem) in sorted.iter().enumerate() {
         element_index_map.insert(elem, i.into());
     }
 
     let mut hints = Vec::with_capacity(input.len());
-    for elem in &sorted {
+    for elem in &input {
         if let Some(index) = element_index_map.get(elem) {
             hints.push(*index);
         } else {
@@ -55,9 +55,9 @@ mod tests {
     fn test_sort_with_hints() {
         let input: Vec<char>            = vec!['f', 'c', 'd', 'b', 'a', 'e'];
         let expected_sorted: Vec<char>  = vec!['a', 'b', 'c', 'd', 'e', 'f'];
-        let expected_hints: Vec<usize>  = vec![  4,   3,   1,   2,   5,   0];
+        let expected_hints: Vec<usize>  = vec![ 5 ,  2 ,  3 ,  1 ,  0 ,  4 ];
 
-        let (sorted, hints) = sort_with_hints(&input);
+        let (sorted, hints) = sort_with_hints(input);
 
         assert_eq!(expected_sorted, sorted);
         assert_eq!(expected_hints, hints);
