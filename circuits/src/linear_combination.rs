@@ -31,12 +31,12 @@ impl Neg for Column {
             lv_linear_combination: self
                 .lv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, -c))
+                .map(|(idx, c)| (idx, c.checked_neg().unwrap()))
                 .collect(),
             nv_linear_combination: self
                 .nv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, -c))
+                .map(|(idx, c)| (idx, c.checked_neg().unwrap()))
                 .collect(),
             constant: -self.constant,
         }
@@ -56,7 +56,7 @@ impl Add<Self> for Column {
                 .map(|item| {
                     item.reduce(|(idx0, c0), (idx1, c1)| {
                         assert_eq!(idx0, idx1);
-                        (idx0, c0 + c1)
+                        (idx0, c0.checked_add(c1).unwrap())
                     })
                 })
                 .collect()
@@ -93,7 +93,7 @@ impl Add<i64> for Column {
 
     fn add(self, constant: i64) -> Self {
         Self {
-            constant: self.constant + constant,
+            constant: self.constant.checked_add(constant).unwrap(),
             ..self
         }
     }
@@ -120,14 +120,14 @@ impl Mul<i64> for Column {
             lv_linear_combination: self
                 .lv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, factor * c))
+                .map(|(idx, c)| (idx, factor.checked_mul(c).unwrap()))
                 .collect(),
             nv_linear_combination: self
                 .nv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, factor * c))
+                .map(|(idx, c)| (idx, factor.checked_mul(c).unwrap()))
                 .collect(),
-            constant: factor * self.constant,
+            constant: factor.checked_mul(self.constant).unwrap(),
         }
     }
 }
@@ -240,7 +240,6 @@ impl Column {
         }
     }
 
-    // TODO(Matthias): Be careful about overflow here?
     #[must_use]
     pub fn reduce_with_powers(terms: &[Self], alpha: i64) -> Self {
         terms
