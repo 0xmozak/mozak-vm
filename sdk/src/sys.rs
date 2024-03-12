@@ -1,5 +1,6 @@
 #[cfg(not(target_os = "mozakvm"))]
-use std::collections::HashMap;
+use crate::native_helpers::sort_with_hints;
+
 use std::ptr::addr_of;
 
 use once_cell::unsync::Lazy;
@@ -271,7 +272,7 @@ pub struct EventTapeSingle {
 pub struct CanonicalEventTapeSingle {
     /// sorted according to address, and opcode.
     pub sorted_events: Vec<CanonicalEvent>,
-    pub reverse_indices: Vec<u32>,
+    pub hints: Vec<u32>,
 }
 
 impl From<EventTapeSingle> for CanonicalEventTapeSingle {
@@ -284,34 +285,7 @@ impl From<EventTapeSingle> for CanonicalEventTapeSingle {
 
         #[cfg(not(target_os = "mozakvm"))]
         {
-            fn generate_sorted_vec_rev_mapping(
-                tape: Vec<CanonicalEvent>,
-            ) -> (Vec<CanonicalEvent>, Vec<u32>) {
-                let sorted_tape = {
-                    let mut clone = tape.clone();
-                    clone.sort();
-                    clone
-                };
-
-                let mut reverse_index_mapping: HashMap<&CanonicalEvent, u32> = HashMap::new();
-                let mut reverse_indices: Vec<u32> = Vec::with_capacity(tape.len());
-
-                // Populate the index_mapping HashMap
-                for (i, event) in tape.iter().enumerate() {
-                    reverse_index_mapping.insert(event, i.try_into().unwrap());
-                }
-
-                // Use the mapping to create the reverse_indices vector
-                for event in &sorted_tape {
-                    if let Some(&index) = reverse_index_mapping.get(&event) {
-                        reverse_indices.push(index);
-                    }
-                }
-
-                (sorted_tape, reverse_indices)
-            }
-
-            let (sorted_events, reverse_indices) = generate_sorted_vec_rev_mapping(
+            let (sorted_events, hints_usize) = sort_with_hints::<CanonicalEvent, usize>(
                 value
                     .contents
                     .iter()
@@ -321,7 +295,7 @@ impl From<EventTapeSingle> for CanonicalEventTapeSingle {
 
             Self {
                 sorted_events,
-                reverse_indices,
+                hints: hints_usize.iter().map(|x| *x as u32).collect(),
             }
         }
     }
