@@ -4,8 +4,9 @@ name = "poseidon2-example-mozak-guest"
 version = "0.1.0"
 
 [dependencies]
-guest = { path = "../../guest", default-features = false }
+mozak-sdk = { path = "../../sdk" }
 hex-literal = "0.2"
+guest = { path = "../../guest", features = ["std"] }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.mozak-sdk]
 path = "../../sdk"
@@ -13,6 +14,3 @@ path = "../../sdk"
 [[bin]]
 name = "poseidon2-example"
 path = "main.rs"
-
-[features]
-std = ["guest/std"]

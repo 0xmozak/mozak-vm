@@ -3,7 +3,7 @@ use itertools::{chain, Itertools};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
 #[cfg(not(target_os = "mozakvm"))]
-use crate::sys::poseidon2_hash;
+use crate::sys::poseidon2_hash_with_pad;
 
 pub const DIGEST_BYTES: usize = 32;
 
@@ -124,6 +124,8 @@ impl ProgramIdentifier {
         memory_init_hash: Poseidon2HashType,
         entry_point: u32,
     ) -> Self {
+        use crate::sys::poseidon2_hash_with_pad;
+
         let input = chain!(
             program_rom_hash.to_le_bytes(),
             memory_init_hash.to_le_bytes(),
@@ -131,7 +133,7 @@ impl ProgramIdentifier {
         )
         .collect_vec();
 
-        Self(poseidon2_hash(&input))
+        Self(poseidon2_hash_with_pad(&input))
     }
 
     /// Checks if the objects all have the same `constraint_owner` as
@@ -381,7 +383,7 @@ impl From<Event> for CanonicalEvent {
                 address: value.object.address,
                 event_type: value.operation,
                 constraint_owner: value.object.constraint_owner,
-                event_value: poseidon2_hash(&value.object.data),
+                event_value: poseidon2_hash_with_pad(&value.object.data),
                 event_emitter: Default::default(), // unknown here, added later
             }
         }
