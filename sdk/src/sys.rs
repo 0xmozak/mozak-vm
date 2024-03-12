@@ -1,23 +1,27 @@
 use std::ptr::addr_of;
 
 use once_cell::unsync::Lazy;
-use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
-use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::ser::serializers::{
+    AlignedSerializer, AllocScratch, CompositeSerializer, FallbackScratch, HeapScratch,
+    SharedSerializeMap,
+};
+use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
+
+pub trait RkyvSerializable = rkyv::Serialize<
+    CompositeSerializer<
+        AlignedSerializer<AlignedVec>,
+        FallbackScratch<HeapScratch<256>, AllocScratch>,
+        SharedSerializeMap,
+    >,
+>;
+pub trait CallArgument = Sized + RkyvSerializable;
+pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
 
 #[cfg(target_os = "mozakvm")]
 use crate::coretypes::DIGEST_BYTES;
 use crate::coretypes::{CPCMessage, CanonicalEvent, Event, Poseidon2HashType, ProgramIdentifier};
 #[cfg(not(target_os = "mozakvm"))]
 use crate::native_helpers::sort_with_hints;
-
-pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
-pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
-pub type RkyvShared = rkyv::ser::serializers::SharedSerializeMap;
-
-pub trait RkyvSerializable =
-    rkyv::Serialize<CompositeSerializer<RkyvSerializer, RkyvScratch, RkyvShared>>;
-pub trait CallArgument = Sized + RkyvSerializable;
-pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
 
 #[derive(Default, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Archive, Serialize, Deserialize))]
