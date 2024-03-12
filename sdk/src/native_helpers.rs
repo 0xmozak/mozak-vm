@@ -21,29 +21,12 @@ use std::hash::Hash;
 /// ```
 pub fn sort_with_hints<T, K>(input: Vec<T>) -> (Vec<T>, Vec<K>)
 where
-    T: Clone + Hash + Ord,
+    T: Ord,
     K: From<usize> + Copy, {
-    let sorted = {
-        let mut clone = input.to_owned();
-        clone.sort();
-        clone
-    };
-
-    let mut element_index_map: HashMap<&T, K> = HashMap::with_capacity(input.len());
-    for (i, elem) in sorted.iter().enumerate() {
-        element_index_map.insert(elem, i.into());
-    }
-
-    let mut hints = Vec::with_capacity(input.len());
-    for elem in &input {
-        if let Some(index) = element_index_map.get(elem) {
-            hints.push(*index);
-        } else {
-            panic!("cannot find elem in map!");
-        }
-    }
-
-    (sorted, hints)
+    let mut indexed_values: Vec<(T, usize)> = input.into_iter().zip(0..).collect::<Vec<_>>();
+    indexed_values.sort();
+    let (sorted, hints) : (_, Vec<_>) = indexed_values.into_iter().unzip();
+    (sorted, hints.into_iter().map(K::from).collect())
 }
 
 #[cfg(test)]
