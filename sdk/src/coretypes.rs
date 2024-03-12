@@ -63,7 +63,9 @@ impl From<Vec<u8>> for Poseidon2HashType {
 pub const STATE_TREE_DEPTH: usize = 4;
 
 /// Canonical "address" type of object in "mozak vm".
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, PartialOrd, Ord, Copy, Clone)]
+#[derive(
+    Archive, Deserialize, Serialize, PartialEq, Eq, Default, PartialOrd, Ord, Copy, Clone, Hash,
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(target_os = "mozakvm", derive(Debug))]
@@ -219,7 +221,7 @@ pub struct CanonicalStateObjectEvent {
     pub event_emitter: ProgramIdentifier,
 }
 
-#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[repr(u8)]
@@ -352,7 +354,7 @@ pub struct Event {
     pub object: StateObject,
     pub operation: CanonicalEventType,
 }
-#[derive(Archive, Debug, Deserialize, Eq, PartialEq, PartialOrd, Ord, Serialize, Clone)]
+#[derive(Archive, Debug, Deserialize, Eq, PartialEq, PartialOrd, Ord, Serialize, Clone, Hash)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 /// Event which is ready to be ingested into event accumulator
@@ -380,7 +382,7 @@ impl From<Event> for CanonicalEvent {
                 event_type: value.operation,
                 constraint_owner: value.object.constraint_owner,
                 event_value: poseidon2_hash(&value.object.data),
-                event_emitter: value.object.constraint_owner, // fix later
+                event_emitter: Default::default(), // unknown here, added later
             }
         }
     }
