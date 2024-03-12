@@ -486,7 +486,7 @@ impl Lookups for RangecheckTable {
         #[cfg(feature = "enable_register_starks")]
         let register = register::columns::rangecheck_looking();
         #[cfg(not(feature = "enable_register_starks"))]
-        let register: Vec<TableNamed<_, _>> = vec![];
+        let register: Vec<TableNamed<_>> = vec![];
 
         let looking: Vec<TableNamed<_>> = chain![
             memory::columns::rangecheck_looking(),
