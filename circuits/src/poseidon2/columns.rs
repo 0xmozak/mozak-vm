@@ -1,5 +1,3 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
 
@@ -46,7 +44,7 @@ make_col_map!(Poseidon2State);
 
 pub const NUM_POSEIDON2_COLS: usize = Poseidon2State::<()>::NUMBER_OF_COLUMNS;
 
-pub fn data_for_sponge<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_sponge() -> Vec<Column> {
     let poseidon2 = col_map().map(Column::from);
     let mut data = poseidon2.input.to_vec();
     // Extend data with outputs which is basically state after last full round.
@@ -58,7 +56,7 @@ pub fn data_for_sponge<F: Field>() -> Vec<Column<F>> {
     data
 }
 
-pub fn filter_for_sponge<F: Field>() -> Column<F> {
+pub fn filter_for_sponge() -> Column {
     let poseidon2 = col_map().map(Column::from);
     poseidon2.is_exe
 }

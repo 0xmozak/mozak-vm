@@ -1,7 +1,5 @@
 use core::ops::Add;
 
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
@@ -51,24 +49,24 @@ pub const NUM_IO_MEM_COLS: usize = InputOutputMemory::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_cpu() -> Vec<Column> {
     let mem = col_map().map(Column::from);
     vec![mem.clk, mem.addr, mem.size, mem.ops.is_io_store]
 }
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().map(Column::from).is_io() }
+pub fn filter_for_cpu() -> Column { col_map().map(Column::from).is_io() }
 
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_memory() -> Vec<Column> {
     let mem = col_map().map(Column::from);
     vec![
         mem.clk,
         mem.ops.is_memory_store,
-        Column::constant(F::ZERO),
+        Column::constant(0),
         mem.value,
         mem.addr,
     ]
@@ -76,4 +74,4 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { col_map().map(Column::from).is_memory() }
+pub fn filter_for_memory() -> Column { col_map().map(Column::from).is_memory() }
