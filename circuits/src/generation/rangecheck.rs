@@ -20,7 +20,7 @@ pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
 /// extract the values to be rangechecked.
 /// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
 /// memory traces, hence ignored
-pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
+pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {
     if let [column] = &looking_table.columns[..] {

@@ -1,5 +1,3 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
@@ -34,4 +32,4 @@ pub struct ProgramRom<T> {
 pub const NUM_PROGRAM_COLS: usize = ProgramRom::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
-pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(col_map().inst) }
+pub fn data_for_ctl() -> Vec<Column> { Column::singles(col_map().inst) }

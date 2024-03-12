@@ -97,14 +97,14 @@ impl<T: Add<Output = T>> Register<T> {
 }
 
 #[must_use]
-pub fn data_for_register_init<F: Field>() -> Vec<Column<F>> { Column::singles([col_map().addr]) }
+pub fn data_for_register_init() -> Vec<Column> { Column::singles([col_map().addr]) }
 
 #[must_use]
-pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(col_map().ops.is_init) }
+pub fn filter_for_register_init() -> Column { Column::from(col_map().ops.is_init) }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_looking() -> Vec<Table> {
     let ops = col_map().map(Column::from).ops;
     vec![RegisterTable::new(
         Column::singles([col_map().diff_augmented_clk]),
