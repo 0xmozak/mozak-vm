@@ -17,5 +17,8 @@ pub(crate) mod traits;
 pub(crate) mod call_tape_vm;
 
 // ----------- ONLY FOR NATIVE -----------------------
+#[cfg(target_os = "mozakvm")]
+pub(crate) mod call_tape_native;
+
 #[cfg(not(target_os = "mozakvm"))]
 pub(crate) mod native_helpers;

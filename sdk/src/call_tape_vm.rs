@@ -21,7 +21,7 @@ impl CallTapeMozakVM {
 impl SelfIdentify for CallTapeMozakVM {
     fn set_self_identity(&mut self, id: ProgramIdentifier) { self.self_prog_id = id; }
 
-    fn get_self_identity(&self) -> &ProgramIdentifier { &self.self_prog_id }
+    fn get_self_identity(&self) -> ProgramIdentifier { self.self_prog_id }
 }
 
 impl Call for CallTapeMozakVM {
@@ -44,7 +44,7 @@ impl Call for CallTapeMozakVM {
         let cpcmsg: CPCMessage = zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
 
         // Ensure fields are correctly populated for caller and callee
-        assert_eq!(cpcmsg.caller_prog, *self.get_self_identity());
+        assert_eq!(cpcmsg.caller_prog, self.get_self_identity());
         assert_eq!(cpcmsg.callee_prog, recepient_program);
         assert!(self.is_casted_actor(&recepient_program));
 
