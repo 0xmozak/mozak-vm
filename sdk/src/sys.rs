@@ -499,6 +499,7 @@ pub fn poseidon2_hash_no_pad(input: &[u8]) -> Poseidon2HashType {
     }
 }
 
+#[must_use]
 pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2HashType {
     let mut padded_input = input.to_vec();
     padded_input.push(1);
