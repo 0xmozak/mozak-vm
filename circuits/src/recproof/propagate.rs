@@ -81,7 +81,7 @@ impl<const V: usize> LeafTargets<V> {
 
 impl<const V: usize> LeafSubCircuit<V> {
     /// Get ready to generate a proof
-    pub fn set_inputs<F: RichField>(&self, inputs: &mut PartialWitness<F>, values: [F; V]) {
+    pub fn set_witness<F: RichField>(&self, inputs: &mut PartialWitness<F>, values: [F; V]) {
         inputs.set_target_arr(&self.targets.inputs.values, &values);
     }
 }
@@ -195,7 +195,7 @@ impl<const V: usize> BranchTargets<V> {
 
 impl<const V: usize> BranchSubCircuit<V> {
     /// Get ready to generate a proof
-    pub fn set_inputs<F: RichField>(&self, inputs: &mut PartialWitness<F>, values: [F; V]) {
+    pub fn set_witness<F: RichField>(&self, inputs: &mut PartialWitness<F>, values: [F; V]) {
         inputs.set_target_arr(&self.targets.inputs.values, &values);
     }
 }
@@ -230,7 +230,7 @@ mod test {
 
         pub fn prove(&self, value: [F; 3]) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.propagate.set_inputs(&mut inputs, value);
+            self.propagate.set_witness(&mut inputs, value);
             self.circuit.prove(inputs)
         }
     }
@@ -325,7 +325,7 @@ mod test {
             let mut inputs = PartialWitness::new();
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
             inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
-            self.propagate.set_inputs(&mut inputs, value);
+            self.propagate.set_witness(&mut inputs, value);
             self.circuit.prove(inputs)
         }
     }
