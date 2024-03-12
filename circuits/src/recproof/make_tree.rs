@@ -113,7 +113,7 @@ impl LeafTargets {
 
 impl LeafSubCircuit {
     /// Get ready to generate a proof
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         present: bool,
@@ -124,10 +124,10 @@ impl LeafSubCircuit {
         } else {
             HashOut::default()
         };
-        self.set_inputs_unsafe(inputs, hash, leaf_value);
+        self.set_witness_unsafe(inputs, hash, leaf_value);
     }
 
-    pub fn set_inputs_unsafe<F: RichField>(
+    pub fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         hash: HashOut<F>,
@@ -227,7 +227,7 @@ impl BranchTargets {
 }
 
 impl BranchSubCircuit {
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         hash: HashOut<F>,
@@ -281,8 +281,8 @@ mod test {
             branch: &DummyBranchCircuit,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.make_tree.set_inputs(&mut inputs, present, leaf_value);
-            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+            self.make_tree.set_witness(&mut inputs, present, leaf_value);
+            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
 
@@ -294,8 +294,8 @@ mod test {
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.make_tree
-                .set_inputs_unsafe(&mut inputs, hash, leaf_value);
-            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+                .set_witness_unsafe(&mut inputs, hash, leaf_value);
+            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
     }
@@ -360,7 +360,7 @@ mod test {
             right_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.make_tree.set_inputs(&mut inputs, hash, leaf_value);
+            self.make_tree.set_witness(&mut inputs, hash, leaf_value);
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
             inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
             self.circuit.prove(inputs)
