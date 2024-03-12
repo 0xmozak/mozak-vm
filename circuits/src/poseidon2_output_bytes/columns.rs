@@ -59,7 +59,7 @@ pub struct Poseidon2OutputBytesCtl<F> {
 }
 
 #[must_use]
-pub fn data_for_poseidon2_sponge<F: Field>() -> Poseidon2OutputBytesCtl<Column<F>> {
+pub fn data_for_poseidon2_sponge<F: Field>() -> Poseidon2OutputBytesCtl<Column> {
     let data = col_map();
     Poseidon2OutputBytesCtl {
         clk: data.clk,
@@ -70,12 +70,12 @@ pub fn data_for_poseidon2_sponge<F: Field>() -> Poseidon2OutputBytesCtl<Column<F
 }
 
 #[must_use]
-pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
+pub fn filter_for_poseidon2_sponge<F: Field>() -> Column {
     col_map().map(Column::from).is_executed
 }
 
 #[must_use]
-pub fn data_for_output_memory<F: Field>(limb_index: u8) -> MemoryCtl<Column<F>> {
+pub fn data_for_output_memory<F: Field>(limb_index: u8) -> MemoryCtl<Column> {
     assert!(limb_index < 32, "limb_index can be 0..31");
     let data = col_map().map(Column::from);
     MemoryCtl {
@@ -88,4 +88,4 @@ pub fn data_for_output_memory<F: Field>(limb_index: u8) -> MemoryCtl<Column<F>> 
 }
 
 #[must_use]
-pub fn filter_for_output_memory<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed }
+pub fn filter_for_output_memory<F: Field>() -> Column { col_map().map(Column::from).is_executed }

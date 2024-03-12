@@ -34,7 +34,7 @@ pub struct RegisterInitCtl<T> {
 }
 
 #[must_use]
-pub fn data_for_register<F: Field>() -> RegisterInitCtl<Column<F>> {
+pub fn data_for_register<F: Field>() -> RegisterInitCtl<Column> {
     let reg = col_map();
     RegisterInitCtl {
         addr: reg.reg_addr,
@@ -44,4 +44,4 @@ pub fn data_for_register<F: Field>() -> RegisterInitCtl<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_register<F: Field>() -> Column<F> { Column::from(col_map().is_looked_up) }
+pub fn filter_for_register<F: Field>() -> Column { Column::from(col_map().is_looked_up) }

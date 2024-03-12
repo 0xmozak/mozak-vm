@@ -31,9 +31,9 @@ columns_view_impl!(XorView);
 /// Columns containing the data which are looked from the CPU table into Xor
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> XorView<Column<F>> { col_map().execution.map(Column::from) }
+pub fn data_for_cpu<F: Field>() -> XorView<Column> { col_map().execution.map(Column::from) }
 
 /// Column for a binary filter to indicate a lookup from the CPU table into Xor
 /// stark table.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(col_map().is_execution_row) }
+pub fn filter_for_cpu<F: Field>() -> Column { Column::single(col_map().is_execution_row) }

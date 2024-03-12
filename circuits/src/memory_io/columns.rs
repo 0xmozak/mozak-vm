@@ -57,7 +57,7 @@ pub struct InputOutputMemoryCtl<T> {
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> InputOutputMemoryCtl<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> InputOutputMemoryCtl<Column> {
     let mem = col_map().map(Column::from);
     InputOutputMemoryCtl {
         clk: mem.clk,
@@ -68,12 +68,12 @@ pub fn data_for_cpu<F: Field>() -> InputOutputMemoryCtl<Column<F>> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().map(Column::from).ops.is_io_store }
+pub fn filter_for_cpu<F: Field>() -> Column { col_map().map(Column::from).ops.is_io_store }
 
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
+pub fn data_for_memory<F: Field>() -> MemoryCtl<Column> {
     let mem = col_map().map(Column::from);
 
     MemoryCtl {
@@ -87,6 +87,6 @@ pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> {
+pub fn filter_for_memory<F: Field>() -> Column {
     col_map().map(Column::from).ops.is_memory_store
 }

@@ -21,11 +21,11 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data_filter<F: Field>() -> TableNamed<F, RangeCheckCtl<Column<F>>> {
+pub fn data_filter() -> TableNamed<RangeCheckCtl<Column>> {
     let data = RangeCheckCtl::new(
         (0..4)
             .map(|limb| {
-                Column::single(col_map().limbs[limb]) * F::from_canonical_u32(1 << (8 * limb))
+                Column::single(col_map().limbs[limb]) * (1 << (8 * limb))
             })
             .sum(),
     );
@@ -44,7 +44,7 @@ impl<T> RangeCheckCtl<T> {
 }
 
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<F>>>> {
+pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     (0..4)
         .map(|limb| {
             RangeCheckTable::new(
@@ -56,4 +56,4 @@ pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<
 }
 
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { Column::single(col_map().multiplicity) }
+pub fn filter<F: Field>() -> Column { Column::single(col_map().multiplicity) }

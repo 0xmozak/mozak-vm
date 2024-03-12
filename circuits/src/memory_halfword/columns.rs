@@ -49,7 +49,7 @@ pub const NUM_HW_MEM_COLS: usize = HalfWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column> {
     let mem = col_map().map(Column::from);
     MemoryCtl {
         clk: mem.clk,
@@ -63,7 +63,7 @@ pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> MemoryCtl<Column<F>> {
+pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> MemoryCtl<Column> {
     assert!(
         limb_index < 2,
         "limb_index is {limb_index} but it should be in 0..2 range"
@@ -80,4 +80,4 @@ pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> MemoryCtl<Column<F>>
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed() }
+pub fn filter<F: Field>() -> Column { col_map().map(Column::from).is_executed() }

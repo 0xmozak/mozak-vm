@@ -182,7 +182,7 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 // TODO(Matthias): make the types more readable.
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<F>>>> {
+pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     let mem = col_map().map(Column::from);
     let new = RangeCheckCtl::new;
     let is_executed = mem.is_executed();
@@ -197,7 +197,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<
 }
 
 #[must_use]
-pub fn rangecheck_u8_looking<F: Field>() -> Vec<TableNamed<F, RangeCheckCtl<Column<F>>>> {
+pub fn rangecheck_u8_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     let mem = col_map().map(Column::from);
     vec![MemoryTable::new(
         RangeCheckCtl::new(mem.clone().value),
@@ -219,7 +219,7 @@ pub struct MemoryCtl<T> {
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column> {
     let map = col_map().map(Column::from);
     MemoryCtl {
         clk: map.clk,
@@ -233,14 +233,14 @@ pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
 /// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> {
+pub fn filter_for_cpu<F: Field>() -> Column {
     let mem = col_map().map(Column::from);
     mem.is_store + mem.is_load
 }
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table
 #[must_use]
-pub fn data_for_memoryinit<F: Field>() -> MemoryInitCtl<Column<F>> {
+pub fn data_for_memoryinit<F: Field>() -> MemoryInitCtl<Column> {
     let mem = col_map().map(Column::from);
     MemoryInitCtl {
         is_writable: mem.is_writable,
@@ -252,12 +252,12 @@ pub fn data_for_memoryinit<F: Field>() -> MemoryInitCtl<Column<F>> {
 
 /// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
 #[must_use]
-pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(col_map().is_init) }
+pub fn filter_for_memoryinit<F: Field>() -> Column { Column::single(col_map().is_init) }
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_halfword_memory<F: Field>() -> Vec<Column> {
     vec![
         Column::single(col_map().clk),
         Column::single(col_map().addr),
@@ -270,7 +270,7 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
 #[must_use]
-pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
+pub fn filter_for_halfword_memory<F: Field>() -> Column {
     let mem = col_map().map(Column::from);
     mem.is_store + mem.is_load
 }

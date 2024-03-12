@@ -103,7 +103,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
         {
             log::debug!("Processing CTL for {:?}", looked_table.kind);
 
-            let make_z = |table: &Table<F>| {
+            let make_z = |table: &Table| {
                 partial_sums(
                     &trace_poly_values[table.kind],
                     &table.columns,

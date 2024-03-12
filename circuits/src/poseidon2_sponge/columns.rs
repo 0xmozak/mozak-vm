@@ -66,7 +66,7 @@ pub struct Poseidon2SpongeCtl<T> {
 }
 
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Poseidon2SpongeCtl<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> Poseidon2SpongeCtl<Column> {
     let sponge = col_map().map(Column::from);
     Poseidon2SpongeCtl {
         clk: sponge.clk,
@@ -76,14 +76,14 @@ pub fn data_for_cpu<F: Field>() -> Poseidon2SpongeCtl<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> {
+pub fn filter_for_cpu<F: Field>() -> Column {
     let sponge = col_map().map(Column::from);
     sponge.ops.is_init_permute
 }
 
 // HERE
 #[must_use]
-pub fn data_for_poseidon2<F: Field>() -> Poseidon2StateCtl<Column<F>> {
+pub fn data_for_poseidon2<F: Field>() -> Poseidon2StateCtl<Column> {
     let sponge = col_map().map(Column::from);
     Poseidon2StateCtl {
         input: sponge.preimage,
@@ -95,10 +95,10 @@ pub fn data_for_poseidon2<F: Field>() -> Poseidon2StateCtl<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_poseidon2<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed() }
+pub fn filter_for_poseidon2<F: Field>() -> Column { col_map().map(Column::from).is_executed() }
 
 #[must_use]
-pub fn data_for_poseidon2_output_bytes<F: Field>() -> Poseidon2OutputBytesCtl<Column<F>> {
+pub fn data_for_poseidon2_output_bytes<F: Field>() -> Poseidon2OutputBytesCtl<Column> {
     let sponge = col_map();
     Poseidon2OutputBytesCtl {
         clk: sponge.clk,
@@ -109,12 +109,12 @@ pub fn data_for_poseidon2_output_bytes<F: Field>() -> Poseidon2OutputBytesCtl<Co
 }
 
 #[must_use]
-pub fn filter_for_poseidon2_output_bytes<F: Field>() -> Column<F> {
+pub fn filter_for_poseidon2_output_bytes<F: Field>() -> Column {
     col_map().map(Column::from).gen_output
 }
 
 #[must_use]
-pub fn data_for_input_memory<F: Field>(limb_index: u8) -> MemoryCtl<Column<F>> {
+pub fn data_for_input_memory<F: Field>(limb_index: u8) -> MemoryCtl<Column> {
     assert!(limb_index < 8, "limb_index can be 0..7");
     let sponge = col_map().map(Column::from);
     MemoryCtl {
@@ -127,7 +127,7 @@ pub fn data_for_input_memory<F: Field>(limb_index: u8) -> MemoryCtl<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_input_memory<F: Field>() -> Column<F> {
+pub fn filter_for_input_memory<F: Field>() -> Column {
     let row = col_map().map(Column::from);
     row.ops.is_init_permute + row.ops.is_permute
 }

@@ -59,7 +59,7 @@ pub struct Poseidon2StateCtl<F> {
 }
 
 // HERE
-pub fn data_for_sponge<F: Field>() -> Poseidon2StateCtl<Column<F>> {
+pub fn data_for_sponge<F: Field>() -> Poseidon2StateCtl<Column> {
     let poseidon2 = col_map();
     // Extend data with outputs which is basically state after last full round.
     Poseidon2StateCtl {
@@ -72,7 +72,7 @@ pub fn data_for_sponge<F: Field>() -> Poseidon2StateCtl<Column<F>> {
     .map(Column::from)
 }
 
-pub fn filter_for_sponge<F: Field>() -> Column<F> {
+pub fn filter_for_sponge<F: Field>() -> Column {
     let poseidon2 = col_map().map(Column::from);
     poseidon2.is_exe
 }

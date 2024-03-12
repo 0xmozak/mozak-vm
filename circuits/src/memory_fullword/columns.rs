@@ -48,7 +48,7 @@ pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column> {
     let mem = col_map().map(Column::from);
     MemoryCtl {
         clk: mem.clk,
@@ -62,7 +62,7 @@ pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
 /// Columns containing the data which are looked from the fullword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> MemoryCtl<Column<F>> {
+pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> MemoryCtl<Column> {
     assert!(limb_index < 4, "limb-index can be 0..4");
     let mem = col_map().map(Column::from);
     MemoryCtl {
@@ -75,4 +75,4 @@ pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> MemoryCtl<Column<F>>
 }
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed() }
+pub fn filter<F: Field>() -> Column { col_map().map(Column::from).is_executed() }

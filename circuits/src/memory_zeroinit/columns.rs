@@ -17,7 +17,7 @@ pub const NUM_MEMORYINIT_COLS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn data_for_memory<F: Field>() -> MemoryInitCtl<Column<F>> {
+pub fn data_for_memory<F: Field>() -> MemoryInitCtl<Column> {
     let mem = col_map().map(Column::from);
     MemoryInitCtl {
         is_writable: Column::constant(F::ONE),
@@ -29,4 +29,4 @@ pub fn data_for_memory<F: Field>() -> MemoryInitCtl<Column<F>> {
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(col_map().filter) }
+pub fn filter_for_memory<F: Field>() -> Column { Column::single(col_map().filter) }
