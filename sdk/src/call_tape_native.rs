@@ -1,6 +1,7 @@
 use crate::coretypes::{CPCMessage, ProgramIdentifier, RawMessage};
 use crate::traits::{Call, SelfIdentify};
 
+#[derive(Default)]
 /// Represents the `CallTape` under native execution
 pub struct CallTapeNative {
     pub identity_stack: Vec<ProgramIdentifier>,
@@ -10,7 +11,7 @@ pub struct CallTapeNative {
 impl SelfIdentify for CallTapeNative {
     fn set_self_identity(&mut self, _id: ProgramIdentifier) { unimplemented!() }
 
-    fn get_self_identity(&self) -> ProgramIdentifier { 
+    fn get_self_identity(&self) -> ProgramIdentifier {
         // returns the "latest" identity
         self.identity_stack.last().copied().unwrap_or_default()
     }
@@ -48,7 +49,8 @@ impl Call for CallTapeNative {
         self.identity_stack.push(recepient_program);
         let resolved_value = resolver(arguments);
         self.writer[inserted_idx].ret = rkyv::to_bytes::<_, 256>(&resolved_value).unwrap().into();
-        self.identity_stack.truncate(self.identity_stack.len().saturating_sub(1));
+        self.identity_stack
+            .truncate(self.identity_stack.len().saturating_sub(1));
 
         resolved_value
     }
@@ -60,5 +62,34 @@ impl Call for CallTapeNative {
         <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
         <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
         unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::call_tape_native::CallTapeNative;
+    use crate::coretypes::ProgramIdentifier;
+    use crate::traits::Call;
+
+    fn test_pid_generator(val: u8) -> ProgramIdentifier {
+        let mut pid = ProgramIdentifier::default();
+        pid.0 .0[0] = val;
+        pid
+    }
+
+    #[test]
+    fn test_send_native_single_call() {
+        type A = u8;
+        type B = u16;
+
+        let mut calltape = CallTapeNative::default();
+
+        let resolver = |val: A| -> B { (val + 1) as B };
+
+        let response = calltape.send(test_pid_generator(1), 1 as A, resolver);
+        assert_eq!(response, 2);
+        assert_eq!(calltape.writer.len(), 1);
+        assert_eq!(calltape.writer[0].caller_prog, ProgramIdentifier::default());
+        assert_eq!(calltape.writer[0].callee_prog, test_pid_generator(1));
     }
 }

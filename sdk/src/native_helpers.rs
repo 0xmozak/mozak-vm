@@ -19,12 +19,14 @@ use std::hash::Hash;
 /// assert_eq!(expected_sorted, sorted);
 /// assert_eq!(expected_hints, hints);
 /// ```
+#[allow(dead_code)]
+#[allow(clippy::needless_pass_by_value)]
 pub fn sort_with_hints<T, K>(input: Vec<T>) -> (Vec<T>, Vec<K>)
 where
     T: Clone + Hash + Ord,
     K: From<usize> + Copy, {
     let sorted = {
-        let mut clone = input.to_owned();
+        let mut clone = input.clone();
         clone.sort();
         clone
     };
