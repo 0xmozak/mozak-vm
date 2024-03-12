@@ -252,9 +252,7 @@ impl Column {
     #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            lv_linear_combination: izip!(0.., cs)
-                .map(|(i, c)| (*c.borrow(), i))
-                .collect(),
+            lv_linear_combination: izip!(0.., cs).map(|(i, c)| (*c.borrow(), i)).collect(),
             ..Default::default()
         }
     }
@@ -287,7 +285,9 @@ impl Column {
             + self
                 .nv_linear_combination
                 .iter()
-                .map(|&(c, f)| table[c].values[(row + 1) % table[c].values.len()] * F::from_noncanonical_i64(f))
+                .map(|&(c, f)| {
+                    table[c].values[(row + 1) % table[c].values.len()] * F::from_noncanonical_i64(f)
+                })
                 .sum::<F>()
             + F::from_noncanonical_i64(self.constant)
     }
@@ -334,7 +334,8 @@ impl Column {
             )
         })
         .collect_vec();
-        let constant = builder.constant_extension(F::Extension::from_noncanonical_i64(self.constant));
+        let constant =
+            builder.constant_extension(F::Extension::from_noncanonical_i64(self.constant));
         builder.inner_product_extension(F::ONE, constant, pairs)
     }
 }

@@ -1,5 +1,3 @@
-
-
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 

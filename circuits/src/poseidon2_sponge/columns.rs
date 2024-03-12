@@ -1,6 +1,5 @@
 use core::ops::Add;
 
-
 use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
@@ -109,9 +108,7 @@ pub fn data_for_poseidon2_output_bytes() -> Poseidon2OutputBytesCtl<Column> {
 }
 
 #[must_use]
-pub fn filter_for_poseidon2_output_bytes() -> Column {
-    col_map().map(Column::from).gen_output
-}
+pub fn filter_for_poseidon2_output_bytes() -> Column { col_map().map(Column::from).gen_output }
 
 #[must_use]
 pub fn data_for_input_memory(limb_index: u8) -> MemoryCtl<Column> {

@@ -1,5 +1,3 @@
-
-
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::rangecheck::columns::RangeCheckCtl;
@@ -18,9 +16,7 @@ columns_view_impl!(RangeCheckU8);
 make_col_map!(RangeCheckU8);
 
 #[must_use]
-pub fn data() -> RangeCheckCtl<Column> {
-    RangeCheckCtl::new(Column::single(col_map().value))
-}
+pub fn data() -> RangeCheckCtl<Column> { RangeCheckCtl::new(Column::single(col_map().value)) }
 
 /// Column for a binary filter to indicate whether a row in the
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).

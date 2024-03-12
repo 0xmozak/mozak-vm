@@ -287,22 +287,15 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
         CpuTable::new(new(cpu.product_low_limb), muls),
         // apply range constraints for the sign bits of each operand
         CpuTable::new(
-            new(
-                cpu.op1_value - cpu.op1_sign_bit * (1 << 32)
-                    + &cpu.inst.is_op1_signed * (1 << 31),
-            ),
+            new(cpu.op1_value - cpu.op1_sign_bit * (1 << 32) + &cpu.inst.is_op1_signed * (1 << 31)),
             cpu.inst.is_op1_signed,
         ),
         CpuTable::new(
-            new(
-                cpu.op2_value - cpu.op2_sign_bit * (1 << 32)
-                    + &cpu.inst.is_op2_signed * (1 << 31),
-            ),
+            new(cpu.op2_value - cpu.op2_sign_bit * (1 << 32) + &cpu.inst.is_op2_signed * (1 << 31)),
             cpu.inst.is_op2_signed,
         ),
         CpuTable::new(
-            new(cpu.dst_value.clone()
-                - cpu.dst_sign_bit.clone() * 0xFFFF_FF00),
+            new(cpu.dst_value.clone() - cpu.dst_sign_bit.clone() * 0xFFFF_FF00),
             cpu.inst.ops.lb.clone(),
         ),
         CpuTable::new(
@@ -320,9 +313,7 @@ pub fn data_for_xor() -> XorView<Column> { col_map().cpu.xor.map(Column::from) }
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_xor() -> Column {
-    col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor()
-}
+pub fn filter_for_xor() -> Column { col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor() }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -477,9 +468,7 @@ pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
 /// Columns containing the data to be matched against `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_shift_amount() -> Bitshift<Column> {
-    col_map().cpu.bitshift.map(Column::from)
-}
+pub fn data_for_shift_amount() -> Bitshift<Column> { col_map().cpu.bitshift.map(Column::from) }
 
 /// Column for a binary filter for shft instruction in `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

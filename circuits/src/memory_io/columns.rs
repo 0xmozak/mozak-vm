@@ -1,7 +1,5 @@
 use core::ops::Add;
 
-
-
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 use crate::memory::columns::MemoryCtl;
@@ -87,6 +85,4 @@ pub fn data_for_memory() -> MemoryCtl<Column> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_memory() -> Column {
-    col_map().map(Column::from).ops.is_memory_store
-}
+pub fn filter_for_memory() -> Column { col_map().map(Column::from).ops.is_memory_store }

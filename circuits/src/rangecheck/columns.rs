@@ -1,5 +1,3 @@
-
-
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 use crate::stark::mozak_stark::{RangeCheckTable, TableNamed};
@@ -24,9 +22,7 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 pub fn data_filter() -> TableNamed<RangeCheckCtl<Column>> {
     let data = RangeCheckCtl::new(
         (0..4)
-            .map(|limb| {
-                Column::single(col_map().limbs[limb]) * (1 << (8 * limb))
-            })
+            .map(|limb| Column::single(col_map().limbs[limb]) * (1 << (8 * limb)))
             .sum(),
     );
     RangeCheckTable::new(data, filter())
