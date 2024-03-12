@@ -14,16 +14,16 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
-pub struct Column<F: Field> {
+pub struct Column {
     /// Linear combination of the local row
-    lv_linear_combination: Vec<(usize, F)>,
+    lv_linear_combination: Vec<(usize, i64)>,
     /// Linear combination of the next row
-    nv_linear_combination: Vec<(usize, F)>,
+    nv_linear_combination: Vec<(usize, i64)>,
     /// Constant of linear combination
-    constant: F,
+    constant: i64,
 }
 
-impl<F: Field> Neg for Column<F> {
+impl Neg for Column {
     type Output = Self;
 
     fn neg(self) -> Self::Output {

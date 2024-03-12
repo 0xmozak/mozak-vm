@@ -9,7 +9,7 @@ use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, Table, TableKind};
 
 /// extract the values with multiplicity nonzero
-pub fn extract_with_mul<F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<(F, F)>
+pub fn extract_with_mul<F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<(F, F)>
 where
     V: Index<usize, Output = F>, {
     if let [column] = &looking_table.columns[..] {
