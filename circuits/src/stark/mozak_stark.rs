@@ -522,8 +522,7 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
 
     #[allow(clippy::too_many_lines)]
     fn lookups() -> CrossTableLookupNamed<F, Self::Row> {
-        let mut tables = vec![];
-        tables.extend([
+        let mut tables = vec![
             CpuTable::new(
                 cpu::columns::data_for_memory(),
                 cpu::columns::filter_for_byte_memory(),
@@ -560,7 +559,7 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                 memory_io::columns::data_for_memory(),
                 memory_io::columns::filter_for_memory(),
             ),
-        ]);
+        ];
         #[cfg(feature = "enable_poseidon_starks")]
         {
             tables.extend((0..8).map(|index| {

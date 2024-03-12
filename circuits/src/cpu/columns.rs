@@ -328,15 +328,15 @@ pub fn filter_for_xor<F: Field>() -> Column<F> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
-    let map = col_map().cpu;
+    let map = col_map().cpu.map(Column::from);
     MemoryCtl {
         clk: map.clk,
         is_store: map.inst.ops.sb,
         is_load: map.inst.ops.lb, // For both `LB` and `LBU`
         addr: map.mem_addr,
+        size: Column::literal(1),
         value: map.mem_value_raw,
     }
-    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in Memory stark.
@@ -350,15 +350,15 @@ pub fn filter_for_byte_memory<F: Field>() -> Column<F> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_halfword_memory<F: Field>() -> MemoryCtl<Column<F>> {
-    let cpu = col_map().cpu;
+    let cpu = col_map().cpu.map(Column::from);
     MemoryCtl {
         clk: cpu.clk,
         is_store: cpu.inst.ops.sh,
         is_load: cpu.inst.ops.lh,
         addr: cpu.mem_addr,
+        size: Column::literal(2),
         value: cpu.mem_value_raw,
     }
-    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in Memory stark.
@@ -372,15 +372,15 @@ pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_fullword_memory<F: Field>() -> MemoryCtl<Column<F>> {
-    let cpu = col_map().cpu;
+    let cpu = col_map().cpu.map(Column::from);
     MemoryCtl {
         clk: cpu.clk,
         is_store: cpu.inst.ops.sw,
         is_load: cpu.inst.ops.lw,
         addr: cpu.mem_addr,
+        size: Column::literal(4),
         value: cpu.mem_value_raw,
     }
-    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in Memory stark.

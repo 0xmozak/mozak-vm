@@ -45,6 +45,9 @@ impl<T: Clone + Add<Output = T>> FullWordMemory<T> {
 /// Total number of columns.
 pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 
+// TODO: can we stick both of these into the same CTL, but with opposite counts for multiplicities?
+// No, we don't want to, because `data_for_memory_limb` has to be called four times.
+// Well, we could count this one as -1/4.  But that would only save 1 out of 5 lookups, and wouldn't really work anyway.
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
@@ -55,6 +58,7 @@ pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
         is_store: mem.ops.is_store,
         is_load: mem.ops.is_load,
         value: Column::reduce_with_powers(&mem.limbs, F::from_canonical_u16(1 << 8)),
+        size: Column::literal(4),
         addr: mem.addrs[0].clone(),
     }
 }
@@ -69,6 +73,7 @@ pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> MemoryCtl<Column<F>>
         clk: mem.clk,
         is_store: mem.ops.is_store,
         is_load: mem.ops.is_load,
+        size: Column::literal(1),
         value: mem.limbs[limb_index].clone(),
         addr: mem.addrs[limb_index].clone(),
     }

@@ -75,13 +75,15 @@ pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
 }
 
 #[must_use]
+// TODO(Matthias): check where this one is used.
 pub fn data_for_output_memory<F: Field>(limb_index: u8) -> MemoryCtl<Column<F>> {
     assert!(limb_index < 32, "limb_index can be 0..31");
     let data = col_map().map(Column::from);
     MemoryCtl {
         clk: data.clk,
-        is_store: Column::constant(F::ONE),
-        is_load: Column::constant(F::ZERO),
+        is_store: Column::literal(1),
+        is_load: Column::literal(0),
+        size: Column::literal(1),
         value: data.output_bytes[limb_index as usize].clone(),
         addr: data.output_addr + F::from_canonical_u8(limb_index),
     }

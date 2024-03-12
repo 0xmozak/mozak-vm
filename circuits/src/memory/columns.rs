@@ -213,8 +213,21 @@ pub struct MemoryCtl<T> {
     pub is_store: T,
     pub is_load: T,
     pub addr: T,
+    pub size: T,
     pub value: T,
 }
+
+// columns_view_impl!(AllMemoryCtl);
+// #[repr(C)]
+// #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+// pub struct AllMemoryCtl<T> {
+//     pub clk: T,
+//     pub is_store: T,
+//     pub is_load: T,
+//     pub addr: T,
+//     pub value: T,
+//     pub size: T,
+// }
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
@@ -225,6 +238,7 @@ pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
         clk: map.clk,
         is_store: map.is_store,
         is_load: map.is_load,
+        size: Column::literal(1),
         addr: map.addr,
         value: map.value,
     }

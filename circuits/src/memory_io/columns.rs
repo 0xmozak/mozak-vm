@@ -78,8 +78,10 @@ pub fn data_for_memory<F: Field>() -> MemoryCtl<Column<F>> {
 
     MemoryCtl {
         clk: mem.clk,
-        is_store: mem.ops.is_memory_store,
-        is_load: Column::constant(F::ZERO),
+        // This one looks redundant?
+        is_store: Column::literal(1),
+        is_load: Column::literal(0),
+        size: Column::literal(1),
         value: mem.value,
         addr: mem.addr,
     }

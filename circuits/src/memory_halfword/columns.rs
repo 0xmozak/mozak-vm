@@ -55,6 +55,7 @@ pub fn data_for_cpu<F: Field>() -> MemoryCtl<Column<F>> {
         clk: mem.clk,
         is_store: mem.ops.is_store,
         is_load: mem.ops.is_load,
+        size: Column::literal(2),
         value: Column::reduce_with_powers(&mem.limbs, F::from_canonical_u16(1 << 8)),
         addr: mem.addrs[0].clone(),
     }
@@ -73,6 +74,7 @@ pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> MemoryCtl<Column<F>>
         clk: mem.clk,
         is_store: mem.ops.is_store,
         is_load: mem.ops.is_load,
+        size: Column::literal(1),
         value: mem.limbs[limb_index].clone(),
         addr: mem.addrs[limb_index].clone(),
     }

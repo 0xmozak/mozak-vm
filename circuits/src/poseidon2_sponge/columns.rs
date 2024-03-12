@@ -119,8 +119,9 @@ pub fn data_for_input_memory<F: Field>(limb_index: u8) -> MemoryCtl<Column<F>> {
     let sponge = col_map().map(Column::from);
     MemoryCtl {
         clk: sponge.clk,
-        is_store: Column::constant(F::ZERO),
-        is_load: Column::constant(F::ONE),
+        is_store: Column::literal(0),
+        is_load: Column::literal(1),
+        size: Column::literal(1),
         value: sponge.preimage[limb_index as usize].clone(),
         addr: sponge.input_addr + F::from_canonical_u8(limb_index),
     }
