@@ -1,8 +1,5 @@
 // This file contains code snippets used in native execution
 
-use std::collections::HashMap;
-use std::hash::Hash;
-
 /// Sort a given input vector (not in-place), returns
 /// such sorted vector alongwith the mapping of each element
 /// in original vector, called `hint`. Returns in the format
