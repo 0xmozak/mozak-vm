@@ -163,9 +163,7 @@ impl<F: Field> From<usize> for Column<F> {
 
 impl<F: Field> Column<F> {
     #[must_use]
-    pub fn always() -> Self {
-        Column::literal(1)
-    }
+    pub fn always() -> Self { Column::literal(1) }
 
     #[must_use]
     pub fn constant(constant: F) -> Self {
@@ -176,9 +174,7 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
-    pub fn literal(constant: i64) -> Self {
-        Column::constant(F::from_noncanonical_i64(constant))
-    }
+    pub fn literal(constant: i64) -> Self { Column::constant(F::from_noncanonical_i64(constant)) }
 
     #[must_use]
     pub fn not(c: usize) -> Self {
