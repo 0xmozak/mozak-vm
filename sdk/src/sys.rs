@@ -7,6 +7,8 @@ use rkyv::{Archive, Deserialize, Serialize};
 #[cfg(target_os = "mozakvm")]
 use crate::coretypes::DIGEST_BYTES;
 use crate::coretypes::{CPCMessage, CanonicalEvent, Event, Poseidon2HashType, ProgramIdentifier};
+#[cfg(not(target_os = "mozakvm"))]
+use crate::native_helpers::sort_with_hints;
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -268,7 +270,8 @@ pub struct EventTapeSingle {
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct CanonicalEventTapeSingle {
     /// sorted according to address, and opcode.
-    pub contents: Vec<CanonicalEvent>,
+    pub sorted_events: Vec<CanonicalEvent>,
+    pub hints: Vec<u32>,
 }
 
 impl From<EventTapeSingle> for CanonicalEventTapeSingle {
@@ -281,14 +284,17 @@ impl From<EventTapeSingle> for CanonicalEventTapeSingle {
 
         #[cfg(not(target_os = "mozakvm"))]
         {
-            let mut event_tape = value
-                .contents
-                .iter()
-                .map(|event| CanonicalEvent::from(event.clone()))
-                .collect::<Vec<CanonicalEvent>>();
-            event_tape.sort();
+            let (sorted_events, hints_usize) = sort_with_hints::<CanonicalEvent, usize>(
+                value
+                    .contents
+                    .iter()
+                    .map(|event| CanonicalEvent::from(event.clone()))
+                    .collect::<Vec<CanonicalEvent>>(),
+            );
+
             Self {
-                contents: event_tape,
+                sorted_events,
+                hints: hints_usize.iter().map(|x| *x as u32).collect(),
             }
         }
     }
@@ -364,14 +370,19 @@ pub fn dump_tapes(file_template: String) {
     }
 
     let mut tape_clone = unsafe { SYSTEM_TAPES.clone() }; // .clone() removes `Lazy{}`
-    tape_clone.event_tape.writer.iter_mut().for_each(|event| {
-        let mut canonical_repr = CanonicalEventTapeSingle::from(event.clone());
-        canonical_repr
-            .contents
-            .iter_mut()
-            .for_each(|tape| tape.event_emitter = event.id);
-        event.canonical_repr = Some(canonical_repr);
-    });
+    tape_clone
+        .event_tape
+        .writer
+        .iter_mut()
+        .for_each(|single_event_tape| {
+            let mut canonical_event_tape =
+                CanonicalEventTapeSingle::from(single_event_tape.clone());
+            canonical_event_tape
+                .sorted_events
+                .iter_mut()
+                .for_each(|canonical_event| canonical_event.event_emitter = single_event_tape.id);
+            single_event_tape.canonical_repr = Some(canonical_event_tape);
+        });
 
     let dbg_filename = file_template.clone() + ".tape_debug";
     let dbg_bytes = &format!("{:#?}", tape_clone).into_bytes();
