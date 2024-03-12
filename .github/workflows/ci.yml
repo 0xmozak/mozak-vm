@@ -57,7 +57,9 @@ jobs:
 
       - name: Build and run examples
         run: |
-          cd sdk && nice cargo test --lib --target "$(rustc -vV | grep host | awk '{ print $2; }')"
+          cd sdk && ARCH_TRIPLE="$(rustc -vV | grep host | awk '{ print $2; }')"
+          cargo build && cargo build --target $ARCH_TRIPLE
+          cargo test --lib --target $ARCH_TRIPLE
 
   run-examples:
     needs: check-runner

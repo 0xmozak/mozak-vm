@@ -1,6 +1,3 @@
-#[cfg(not(target_os = "mozakvm"))]
-use crate::native_helpers::sort_with_hints;
-
 use std::ptr::addr_of;
 
 use once_cell::unsync::Lazy;
@@ -10,6 +7,8 @@ use rkyv::{Archive, Deserialize, Serialize};
 #[cfg(target_os = "mozakvm")]
 use crate::coretypes::DIGEST_BYTES;
 use crate::coretypes::{CPCMessage, CanonicalEvent, Event, Poseidon2HashType, ProgramIdentifier};
+#[cfg(not(target_os = "mozakvm"))]
+use crate::native_helpers::sort_with_hints;
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -290,7 +289,8 @@ impl From<EventTapeSingle> for CanonicalEventTapeSingle {
                     .contents
                     .iter()
                     .map(|event| CanonicalEvent::from(event.clone()))
-                    .collect::<Vec<CanonicalEvent>>(),
+                    .collect::<Vec<CanonicalEvent>>()
+                    .as_ref(),
             );
 
             Self {
