@@ -3,7 +3,7 @@ use core::ops::{Add, Mul, Neg, Sub};
 use std::borrow::Borrow;
 use std::ops::Index;
 
-use itertools::{chain, izip, Itertools};
+use itertools::{chain, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -251,7 +251,7 @@ impl Column {
     #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            lv_linear_combination: izip!(0.., cs).map(|(i, c)| (*c.borrow(), i)).collect(),
+            lv_linear_combination: cs.into_iter().map(|c| *c.borrow()).zip(0..).collect(),
             ..Default::default()
         }
     }
