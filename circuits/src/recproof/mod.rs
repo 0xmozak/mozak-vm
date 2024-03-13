@@ -1,7 +1,7 @@
 use std::iter::zip;
 
 use iter_fixed::IntoIteratorFixed;
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -9,6 +9,7 @@ use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::VerifierCircuitTarget;
 
+pub mod accumulate_event;
 pub mod make_tree;
 pub mod merge;
 pub mod propagate;
@@ -253,4 +254,14 @@ fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
         let child = builder.select(maybe_v, child, parent);
         builder.connect(parent, child);
     }
+}
+
+fn hash_event<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    owner: [Target; 4],
+    ty: Target,
+    address: Target,
+    value: [Target; 4],
+) -> HashOutTarget {
+    builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(chain!(owner, [ty, address], value,).collect())
 }
