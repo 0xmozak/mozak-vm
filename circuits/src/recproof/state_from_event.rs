@@ -466,13 +466,13 @@ impl LeafSubCircuit {
         event_ty: EventType,
         event_value: [F; 4],
     ) {
-        self.set_inputs_unsafe(
+        self.set_witness_unsafe(
             witness,
             LeafWitnessValue::from_event(address, event_owner, event_ty, event_value),
         );
     }
 
-    pub fn set_inputs_unsafe<F: RichField>(
+    pub fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         v: LeafWitnessValue<F>,
@@ -917,7 +917,7 @@ mod test {
                 event_ty,
                 event_value,
             );
-            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
 
@@ -928,8 +928,8 @@ mod test {
             v: LeafWitnessValue<F>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.state_from_events.set_inputs_unsafe(&mut inputs, v);
-            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+            self.state_from_events.set_witness_unsafe(&mut inputs, v);
+            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
     }
