@@ -6,38 +6,13 @@
 #![deny(warnings)]
 #![cfg_attr(target_os = "mozakvm", feature(restricted_std))]
 
-// ----------- ONLY FOR MOZAKVM ----------------------
 #[cfg(target_os = "mozakvm")]
-pub(crate) mod mozakvm_helpers;
-
-#[cfg(target_os = "mozakvm")]
-pub(crate) mod mozakvm_calltape;
-
-#[cfg(target_os = "mozakvm")]
-pub(crate) mod mozakvm_eventtape;
-
-#[cfg(target_os = "mozakvm")]
-pub(crate) mod mozakvm_linker_symbols;
-
-// ----------- TARGET AGNOSTIC / FOR NATIVE ----------
-#[cfg(not(target_os = "mozakvm"))]
-pub(crate) mod native_helpers;
+pub(crate) mod mozakvm;
 
 #[cfg(not(target_os = "mozakvm"))]
-pub(crate) mod native_calltape;
+pub(crate) mod native;
 
-#[cfg(not(target_os = "mozakvm"))]
-pub(crate) mod native_tape_exporter;
-
-#[cfg(not(target_os = "mozakvm"))]
-pub(crate) mod native_eventtape;
-
-pub mod io;
-pub mod types;
-
-pub(crate) mod event_tape;
-pub(crate) mod system;
-pub(crate) mod traits;
+pub(crate) mod common;
 
 // ----------- Exported methods -----------------------
 

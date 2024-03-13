@@ -2,8 +2,8 @@
 
 use std::ptr::{addr_of, slice_from_raw_parts};
 
-use crate::mozakvm_linker_symbols::mozak_self_prog_id;
-use crate::types::{Poseidon2HashType, ProgramIdentifier, DIGEST_BYTES};
+use crate::common::types::{Poseidon2HashType, ProgramIdentifier, DIGEST_BYTES};
+use crate::mozakvm::linker_symbols::mozak_self_prog_id;
 
 /// Zero-copy archived format derivation of any given type (rkyv)
 /// on a memory region starting at `addr`. It is expected that

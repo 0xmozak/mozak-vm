@@ -1,23 +1,23 @@
 use rkyv::{Archive, Deserialize};
 
-use crate::traits::{EventEmit, SelfIdentify};
-use crate::types::{CanonicalEventType, Event, ProgramIdentifier};
+use crate::common::traits::{EventEmit, SelfIdentify};
+use crate::common::types::{CanonicalEventType, Event, ProgramIdentifier};
 
 /// Represents the `EventTape` under native execution
 #[derive(Default)]
-pub struct EventTapeMozak {
+pub struct EventTape {
     pub self_prog_id: ProgramIdentifier,
     pub reader: Option<&'static <Vec<Event> as Archive>::Archived>,
     pub index: usize,
 }
 
-impl SelfIdentify for EventTapeMozak {
+impl SelfIdentify for EventTape {
     fn set_self_identity(&mut self, id: ProgramIdentifier) { self.self_prog_id = id }
 
     fn get_self_identity(&self) -> ProgramIdentifier { self.self_prog_id }
 }
 
-impl EventEmit for EventTapeMozak {
+impl EventEmit for EventTape {
     fn emit(&mut self, event: Event) {
         assert!(self.index < self.reader.unwrap().len());
 

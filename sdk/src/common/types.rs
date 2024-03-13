@@ -3,9 +3,9 @@ use itertools::chain;
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
 #[cfg(target_os = "mozakvm")]
-use crate::mozakvm_helpers::poseidon2_hash;
+use crate::mozakvm::helpers::poseidon2_hash;
 #[cfg(not(target_os = "mozakvm"))]
-use crate::native_helpers::poseidon2_hash;
+use crate::native::helpers::poseidon2_hash;
 
 pub const DIGEST_BYTES: usize = 32;
 
@@ -42,7 +42,7 @@ impl std::fmt::Debug for Poseidon2HashType {
 
 impl Poseidon2HashType {
     #[must_use]
-    pub fn to_le_bytes(&self) -> [u8; DIGEST_BYTES] { self.0 }
+    pub fn inner(&self) -> [u8; DIGEST_BYTES] { self.0 }
 }
 
 impl From<[u8; DIGEST_BYTES]> for Poseidon2HashType {
@@ -89,7 +89,7 @@ impl std::fmt::Debug for Address {
 
 impl Address {
     #[must_use]
-    pub fn get_raw(&self) -> [u8; STATE_TREE_DEPTH] { self.0 }
+    pub fn inner(self) -> [u8; STATE_TREE_DEPTH] { self.0 }
 }
 
 impl From<[u8; STATE_TREE_DEPTH]> for Address {
@@ -119,8 +119,8 @@ impl ProgramIdentifier {
         entry_point: u32,
     ) -> Self {
         let input: Vec<u8> = chain!(
-            program_rom_hash.to_le_bytes(),
-            memory_init_hash.to_le_bytes(),
+            program_rom_hash.inner(),
+            memory_init_hash.inner(),
             entry_point.to_le_bytes(),
         )
         .collect();
@@ -147,9 +147,9 @@ impl ProgramIdentifier {
     }
 
     #[must_use]
-    pub fn to_le_bytes(&self) -> [u8; DIGEST_BYTES] {
+    pub fn inner(&self) -> [u8; DIGEST_BYTES] {
         let mut le_bytes_array: [u8; DIGEST_BYTES] = [0; DIGEST_BYTES];
-        le_bytes_array[0..DIGEST_BYTES].copy_from_slice(&self.0.to_le_bytes());
+        le_bytes_array[0..DIGEST_BYTES].copy_from_slice(&self.0.inner());
         le_bytes_array
     }
 }
@@ -161,7 +161,7 @@ impl std::fmt::Debug for ProgramIdentifier {
             f,
             "MZK-{}",
             &self
-                .to_le_bytes()
+                .inner()
                 .iter()
                 .map(|x| hex::encode([*x]))
                 .collect::<String>(),

@@ -8,7 +8,7 @@ use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 
-use crate::types::{Poseidon2HashType, ProgramIdentifier};
+use crate::common::types::{Poseidon2HashType, ProgramIdentifier};
 
 /// Represents a stack for call contexts during native execution.
 #[derive(Default)]

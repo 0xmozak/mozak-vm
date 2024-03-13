@@ -3,20 +3,18 @@ use once_cell::unsync::Lazy;
 use rkyv::Deserialize;
 
 #[cfg(target_os = "mozakvm")]
-use crate::mozakvm_calltape::CallTapeMozakVM;
+use crate::common::types::{CPCMessage, ProgramIdentifier};
 #[cfg(target_os = "mozakvm")]
-use crate::mozakvm_helpers::{
+use crate::mozakvm::helpers::{
     archived_repr, get_rkyv_archived, get_rkyv_deserialized, get_self_prog_id,
 };
 #[cfg(target_os = "mozakvm")]
-use crate::mozakvm_linker_symbols::{mozak_call_tape, mozak_cast_list};
-#[cfg(target_os = "mozakvm")]
-use crate::types::{CPCMessage, ProgramIdentifier};
+use crate::mozakvm::linker_symbols::{mozak_call_tape, mozak_cast_list};
 
 #[cfg(target_os = "mozakvm")]
-type SystemTapeCallTapeType = crate::mozakvm_calltape::CallTapeMozakVM;
+type SystemTapeCallTapeType = crate::mozakvm::calltape::CallTape;
 #[cfg(not(target_os = "mozakvm"))]
-type SystemTapeCallTapeType = crate::native_calltape::CallTapeNative;
+type SystemTapeCallTapeType = crate::native::calltape::CallTape;
 
 #[derive(Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -49,7 +47,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     #[cfg(target_os = "mozakvm")]
     {
         SystemTapes {
-            call_tape: CallTapeMozakVM {
+            call_tape: SystemTapeCallTapeType {
                 self_prog_id: get_self_prog_id(),
                 cast_list: get_rkyv_deserialized!(Vec<ProgramIdentifier>, mozak_cast_list),
                 reader: Some(get_rkyv_archived!(Vec<CPCMessage>, mozak_call_tape)),

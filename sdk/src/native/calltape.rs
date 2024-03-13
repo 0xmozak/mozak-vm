@@ -1,17 +1,17 @@
 use std::cell::RefCell;
 
-use crate::native_helpers::IdentityStack;
-use crate::traits::{Call, SelfIdentify};
-use crate::types::{CPCMessage, ProgramIdentifier, RawMessage};
+use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
+use crate::common::types::{CPCMessage, ProgramIdentifier, RawMessage};
+use crate::native::helpers::IdentityStack;
 
 /// Represents the `CallTape` under native execution
 #[derive(Default)]
-pub struct CallTapeNative {
+pub struct CallTape {
     pub identity_stack: RefCell<IdentityStack>,
     pub writer: Vec<CPCMessage>,
 }
 
-impl SelfIdentify for CallTapeNative {
+impl SelfIdentify for CallTape {
     fn set_self_identity(&mut self, id: ProgramIdentifier) {
         self.identity_stack.borrow_mut().add_identity(id);
     }
@@ -19,16 +19,16 @@ impl SelfIdentify for CallTapeNative {
     fn get_self_identity(&self) -> ProgramIdentifier { self.identity_stack.borrow().top_identity() }
 }
 
-impl Call for CallTapeNative {
+impl Call for CallTape {
     fn send<A, R>(
         &mut self,
-        recepient_program: crate::types::ProgramIdentifier,
+        recepient_program: ProgramIdentifier,
         arguments: A,
         resolver: impl Fn(A) -> R,
     ) -> R
     where
-        A: crate::traits::CallArgument + PartialEq,
-        R: crate::traits::CallReturn,
+        A: CallArgument + PartialEq,
+        R: CallReturn,
         <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
         <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
         // Create a skeletal `CPCMessage` to be resolved via "resolver"
@@ -56,10 +56,10 @@ impl Call for CallTapeNative {
         resolved_value
     }
 
-    fn receive<A, R>(&mut self) -> Option<(crate::types::ProgramIdentifier, A, R)>
+    fn receive<A, R>(&mut self) -> Option<(ProgramIdentifier, A, R)>
     where
-        A: crate::traits::CallArgument + PartialEq,
-        R: crate::traits::CallReturn,
+        A: CallArgument + PartialEq,
+        R: CallReturn,
         <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
         <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
         unimplemented!()
@@ -68,7 +68,7 @@ impl Call for CallTapeNative {
 
 #[cfg(test)]
 mod tests {
-    use crate::call_tape_native::CallTapeNative;
+    use crate::call_tape_native::CallTape;
     use crate::traits::Call;
     use crate::types::ProgramIdentifier;
 
@@ -83,7 +83,7 @@ mod tests {
         type A = u8;
         type B = u16;
 
-        let mut calltape = CallTapeNative::default();
+        let mut calltape = CallTape::default();
 
         let resolver = |val: A| -> B { (val + 1) as B };
 

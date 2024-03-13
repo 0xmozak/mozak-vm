@@ -1,24 +1,24 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use crate::native_helpers::IdentityStack;
-use crate::traits::{EventEmit, SelfIdentify};
-use crate::types::{Event, ProgramIdentifier};
+use crate::common::traits::{EventEmit, SelfIdentify};
+use crate::common::types::{Event, ProgramIdentifier};
+use crate::native::helpers::IdentityStack;
 
 /// Represents the `EventTape` under native execution
 #[derive(Default)]
-pub struct EventTapeNative {
+pub struct EventTape {
     pub writer: HashMap<ProgramIdentifier, Vec<Event>>,
     pub identity_stack: RefCell<IdentityStack>,
 }
 
-impl SelfIdentify for EventTapeNative {
+impl SelfIdentify for EventTape {
     fn set_self_identity(&mut self, _id: ProgramIdentifier) { unimplemented!() }
 
     fn get_self_identity(&self) -> ProgramIdentifier { unimplemented!() }
 }
 
-impl EventEmit for EventTapeNative {
+impl EventEmit for EventTape {
     fn emit(&mut self, event: Event) {
         assert_ne!(self.get_self_identity(), ProgramIdentifier::default());
         self.writer
@@ -35,7 +35,7 @@ mod tests {
         type A = u8;
         type B = u16;
 
-        let mut calltape = EventTapeNative::default();
+        let mut calltape = EventTape::default();
 
         let resolver = |val: A| -> B { (val + 1) as B };
 

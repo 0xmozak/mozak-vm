@@ -1,40 +1,40 @@
 use rkyv::{Archive, Deserialize};
 
-use crate::traits::{Call, SelfIdentify};
-use crate::types::{CPCMessage, ProgramIdentifier};
+use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
+use crate::common::types::{CPCMessage, ProgramIdentifier};
 
 /// Represents the `CallTape` under `mozak-vm`
 #[derive(Default)]
-pub struct CallTapeMozakVM {
+pub struct CallTape {
     pub cast_list: Vec<ProgramIdentifier>,
     pub self_prog_id: ProgramIdentifier,
     pub reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
     pub index: usize,
 }
 
-impl CallTapeMozakVM {
+impl CallTape {
     /// Checks if actor seen is casted actor
     fn is_casted_actor(&self, actor: &ProgramIdentifier) -> bool {
         &ProgramIdentifier::default() == actor || self.cast_list.contains(actor)
     }
 }
 
-impl SelfIdentify for CallTapeMozakVM {
+impl SelfIdentify for CallTape {
     fn set_self_identity(&mut self, id: ProgramIdentifier) { self.self_prog_id = id; }
 
     fn get_self_identity(&self) -> ProgramIdentifier { self.self_prog_id }
 }
 
-impl Call for CallTapeMozakVM {
+impl Call for CallTape {
     fn send<A, R>(
         &mut self,
-        recepient_program: crate::types::ProgramIdentifier,
+        recepient_program: ProgramIdentifier,
         arguments: A,
         _resolver: impl Fn(A) -> R,
     ) -> R
     where
-        A: crate::traits::CallArgument + PartialEq,
-        R: crate::traits::CallReturn,
+        A: CallArgument + PartialEq,
+        R: CallReturn,
         <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
         <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
         // Ensure we aren't validating past the length of the event tape
@@ -74,10 +74,10 @@ impl Call for CallTapeMozakVM {
     }
 
     #[allow(clippy::similar_names)]
-    fn receive<A, R>(&mut self) -> Option<(crate::types::ProgramIdentifier, A, R)>
+    fn receive<A, R>(&mut self) -> Option<(ProgramIdentifier, A, R)>
     where
-        A: crate::traits::CallArgument + PartialEq,
-        R: crate::traits::CallReturn,
+        A: CallArgument + PartialEq,
+        R: CallReturn,
         <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
         <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
         // Loop until we completely traverse the call tape in the
