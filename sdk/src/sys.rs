@@ -276,10 +276,10 @@ pub struct CanonicalEventTapeSingle {
 }
 
 impl CanonicalEventTapeSingle {
-    #[allow(unused)]
+    #[must_use]
     pub fn canonical_hash(&self) -> Poseidon2HashType {
         // collect hashes
-        let mut hashes_with_addr = self
+        let hashes_with_addr = self
             .sorted_events
             .iter()
             .map(|event| (event.address, event.canonical_hash()))

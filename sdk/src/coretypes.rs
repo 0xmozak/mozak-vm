@@ -367,7 +367,7 @@ pub struct CanonicalEvent {
 }
 
 impl CanonicalEvent {
-    #[allow(unused)]
+    #[must_use]
     pub fn canonical_hash(&self) -> Poseidon2HashType {
         poseidon2_hash_with_pad(
             &vec![

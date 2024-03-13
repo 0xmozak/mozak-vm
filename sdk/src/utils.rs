@@ -1,6 +1,7 @@
 use crate::coretypes::Poseidon2HashType;
 use crate::sys::poseidon2_hash_no_pad;
 
+#[must_use]
 pub fn merklelize(mut hashes_with_addr: Vec<(u32, Poseidon2HashType)>) -> Poseidon2HashType {
     while hashes_with_addr.len() > 1 {
         let mut new_hashes_with_addr = vec![];
@@ -9,8 +10,8 @@ pub fn merklelize(mut hashes_with_addr: Vec<(u32, Poseidon2HashType)>) -> Poseid
             match prev_pair {
                 None => prev_pair = Some((current_addr, current_hash)),
                 Some((mut prev_addr, prev_hash)) => {
-                    current_addr = current_addr >> 1;
-                    prev_addr = prev_addr >> 1;
+                    current_addr >>= 1;
+                    prev_addr >>= 1;
                     if prev_addr == current_addr {
                         new_hashes_with_addr.push((
                             current_addr,
@@ -26,7 +27,7 @@ pub fn merklelize(mut hashes_with_addr: Vec<(u32, Poseidon2HashType)>) -> Poseid
                         ));
                     } else {
                         new_hashes_with_addr
-                            .extend(vec![(prev_addr, prev_hash), (current_addr, current_hash)])
+                            .extend(vec![(prev_addr, prev_hash), (current_addr, current_hash)]);
                     }
                     prev_pair = None;
                 }
