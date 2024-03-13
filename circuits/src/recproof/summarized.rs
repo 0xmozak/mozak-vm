@@ -107,15 +107,15 @@ impl LeafTargets {
 }
 
 impl LeafSubCircuit {
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         summary_hash: HashOut<F>,
     ) {
-        self.set_inputs_unsafe(inputs, summary_hash != HashOut::ZERO, summary_hash);
+        self.set_witness_unsafe(inputs, summary_hash != HashOut::ZERO, summary_hash);
     }
 
-    fn set_inputs_unsafe<F: RichField>(
+    fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         summary_hash_present: bool,
@@ -249,15 +249,15 @@ impl BranchTargets {
 }
 
 impl BranchSubCircuit {
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         summary_hash: HashOut<F>,
     ) {
-        self.set_inputs_unsafe(inputs, summary_hash != HashOut::ZERO, summary_hash);
+        self.set_witness_unsafe(inputs, summary_hash != HashOut::ZERO, summary_hash);
     }
 
-    fn set_inputs_unsafe<F: RichField>(
+    fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         summary_hash_present: bool,
@@ -304,7 +304,7 @@ mod test {
 
         pub fn prove(&self, summary_hash: HashOut<F>) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.summarized.set_inputs(&mut inputs, summary_hash);
+            self.summarized.set_witness(&mut inputs, summary_hash);
             self.circuit.prove(inputs)
         }
 
@@ -315,7 +315,7 @@ mod test {
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.summarized
-                .set_inputs_unsafe(&mut inputs, summary_hash_present, summary_hash);
+                .set_witness_unsafe(&mut inputs, summary_hash_present, summary_hash);
             self.circuit.prove(inputs)
         }
     }
@@ -409,7 +409,7 @@ mod test {
             let mut inputs = PartialWitness::new();
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
             inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
-            self.summarized.set_inputs(&mut inputs, summary_hash);
+            self.summarized.set_witness(&mut inputs, summary_hash);
             self.circuit.prove(inputs)
         }
 
@@ -424,7 +424,7 @@ mod test {
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
             inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
             self.summarized
-                .set_inputs_unsafe(&mut inputs, summary_hash_present, summary_hash);
+                .set_witness_unsafe(&mut inputs, summary_hash_present, summary_hash);
             self.circuit.prove(inputs)
         }
     }
