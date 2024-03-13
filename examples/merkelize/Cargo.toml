@@ -1,0 +1,13 @@
+[package]
+edition = "2021"
+name = "merkelize-mozak-guest"
+version = "0.1.0"
+
+[dependencies]
+mozak-sdk = { path = "../../sdk" }
+guest = { path = "../../guest", features = ["std"] }
+
+
+[[bin]]
+name = "merkelize-bin"
+path = "main.rs"

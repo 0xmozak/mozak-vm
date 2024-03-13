@@ -353,6 +353,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "merkelize-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "guest",
+ "mozak-sdk",
+]
+
+[[package]]
 name = "merkleproof-trustedroot-mozak-guest"
 version = "0.1.0"
 dependencies = [

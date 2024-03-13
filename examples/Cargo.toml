@@ -16,6 +16,7 @@ members = [
   "fibonacci-input-new-api",
   "merkleproof-trustedroot",
   "empty",
+  "merkelize"
 ]
 resolver = "2"
 

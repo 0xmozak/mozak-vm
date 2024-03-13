@@ -66,8 +66,10 @@ pub fn hash_canonical_event_tape(tape: CanonicalEventTapeSingle) -> Poseidon2Has
 
 #[cfg(test)]
 mod tests {
-    use super::hash_canonical_event_tape;
-    use crate::coretypes::{Address, CanonicalEventType, Event, ProgramIdentifier, StateObject};
+    use super::{hash_canonical_event_tape, merklelize};
+    use crate::coretypes::{
+        Address, CanonicalEventType, Event, Poseidon2HashType, ProgramIdentifier, StateObject,
+    };
     use crate::sys::{CanonicalEventTapeSingle, EventTapeSingle};
 
     #[test]
@@ -117,5 +119,14 @@ mod tests {
             159, 132, 147, 134, 125, 28, 139, 35, 191, 116, 104, 28, 101, 96, 74, 246, 157, 14, 9,
             53, 55, 174, 28, 120, 129, 39, 217, 11, 93, 190, 58, 124
         ])
+    }
+    #[test]
+    fn sample_merkelize() {
+        let hashes_with_addr = vec![
+            (200, Poseidon2HashType([1u8; 32])),
+            (100, Poseidon2HashType([2u8; 32])),
+            (300, Poseidon2HashType([3u8; 32])),
+        ];
+        println!("{:?}", merklelize(hashes_with_addr).to_le_bytes());
     }
 }
