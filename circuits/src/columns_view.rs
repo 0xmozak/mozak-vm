@@ -140,6 +140,15 @@ macro_rules! columns_view_impl {
             fn from(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self { Self::from_array(value) }
         }
 
+        // TODO: probably not necassary in the long run, when we get rid of col_map();
+        impl From<usize> for $s<i64> {
+            fn from(index: usize) -> Self {
+                let mut x = Self::default().into_array();
+                x[index] = 1;
+                Self::from(x)
+            }
+        }
+
         impl<T> From<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn from(value: $s<T>) -> Self { value.into_array() }
         }
