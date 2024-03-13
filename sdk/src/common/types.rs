@@ -9,6 +9,11 @@ use crate::native::helpers::poseidon2_hash;
 
 pub const DIGEST_BYTES: usize = 32;
 
+#[cfg(target_os = "mozakvm")]
+type SystemTapeCallTapeType = crate::mozakvm::calltape::CallTape;
+#[cfg(not(target_os = "mozakvm"))]
+type SystemTapeCallTapeType = crate::native::calltape::CallTape;
+
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
 #[derive(
@@ -247,6 +252,10 @@ impl std::fmt::Debug for StateObject {
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct RawMessage(pub Vec<u8>);
@@ -278,6 +287,10 @@ impl From<AlignedVec> for RawMessage {
 
 /// Canonical "address" type of object in "mozak vm".
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
@@ -370,4 +383,16 @@ impl From<Event> for CanonicalEvent {
             }
         }
     }
+}
+
+#[derive(Default)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
+#[allow(clippy::module_name_repetitions)]
+pub struct SystemTape {
+    // TODO: Add Public and Private IO Tape
+    pub call_tape: SystemTapeCallTapeType,
+    // pub event_tape: EventTape,
 }

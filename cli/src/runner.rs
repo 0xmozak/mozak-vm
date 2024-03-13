@@ -1,17 +1,13 @@
 //! Utility functions that helps the CLI to interact with the
 //! [Mozak runner crate](mozak_runner).
-use std::collections::BTreeSet;
 use std::io::Read;
 
 use anyhow::Result;
 use clio::Input;
-use itertools::Itertools;
 use log::debug;
 use mozak_runner::elf::{Program, RuntimeArguments};
-use mozak_sdk::coretypes::{Event, ProgramIdentifier};
-use mozak_sdk::sys::SystemTapes;
+use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
 use rkyv::ser::serializers::AllocSerializer;
-use rkyv::Deserialize;
 
 pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> {
     let mut elf_bytes = Vec::new();
@@ -20,23 +16,16 @@ pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> 
     Program::mozak_load_program(&elf_bytes, args)
 }
 
-/// Deserializes an rkyv-serialized system tape binary file into `SystemTapes`.
+/// Deserializes an rkyv-serialized system tape binary file into `SystemTape`.
 ///
 /// # Errors
 ///
 /// Errors if reading from the binary file fails.
-///
-/// # Panics
-///
-/// Panics if deserialization fails.
-pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
+pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTape> {
     let mut sys_tapes_bytes = Vec::new();
     let bytes_read = bin.read_to_end(&mut sys_tapes_bytes)?;
     debug!("Read {bytes_read} of system tape data.");
-    let sys_tapes_archived = unsafe { rkyv::archived_root::<SystemTapes>(&sys_tapes_bytes[..]) };
-    let deserialized: SystemTapes = sys_tapes_archived
-        .deserialize(&mut rkyv::Infallible)
-        .unwrap();
+    let deserialized: SystemTape = serde_json::from_slice(&sys_tapes_bytes)?;
     Ok(deserialized)
 }
 
@@ -70,27 +59,27 @@ pub fn tapes_to_runtime_arguments(
     tape_bin: Input,
     self_prog_id: Option<String>,
 ) -> RuntimeArguments {
-    let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
+    let sys_tapes: SystemTape = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.unwrap_or_default().into();
 
-    let cast_list = sys_tapes
-        .call_tape
-        .writer
-        .iter()
-        .flat_map(|msg| [msg.caller_prog, msg.callee_prog])
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect_vec();
+    // let cast_list = sys_tapes
+    //     .call_tape
+    //     .writer
+    //     .iter()
+    //     .flat_map(|msg| [msg.caller_prog, msg.callee_prog])
+    //     .collect::<BTreeSet<_>>()
+    //     .into_iter()
+    //     .collect_vec();
 
-    let event_tape_single: Vec<Event> = sys_tapes
-        .event_tape
-        .writer
-        .into_iter()
-        .find_map(|t| (t.id == self_prog_id).then_some(t.contents))
-        .unwrap_or_default();
+    // let event_tape_single: Vec<Event> = sys_tapes
+    //     .event_tape
+    //     .writer
+    //     .into_iter()
+    //     .find_map(|t| (t.id == self_prog_id).then_some(t.contents))
+    //     .unwrap_or_default();
 
     debug!("Self Prog ID: {self_prog_id:#?}");
-    debug!("Cast List (canonical repr): {cast_list:#?}");
+    // debug!("Cast List (canonical repr): {cast_list:#?}");
 
     {
         fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
@@ -101,12 +90,12 @@ pub fn tapes_to_runtime_arguments(
         }
 
         RuntimeArguments {
-            self_prog_id: self_prog_id.to_le_bytes().to_vec(),
-            cast_list: serialise(&cast_list, "CAST_LIST"),
-            io_tape_public: serialise(&sys_tapes.public_tape, "IO_TAPE_PUBLIC"),
-            io_tape_private: serialise(&sys_tapes.private_tape, "IO_TAPE_PRIVATE"),
+            self_prog_id: self_prog_id.inner().to_vec(),
+            cast_list: vec![],       // serialise(&cast_list, "CAST_LIST"),
+            io_tape_public: vec![],  // serialise(&sys_tapes.public_tape, "IO_TAPE_PUBLIC"),
+            io_tape_private: vec![], // serialise(&sys_tapes.private_tape, "IO_TAPE_PRIVATE"),
             call_tape: serialise(&sys_tapes.call_tape.writer, "CALL_TAPE"),
-            event_tape: serialise(&event_tape_single, "EVENT_TAPE"),
+            event_tape: vec![], // serialise(&event_tape_single, "EVENT_TAPE"),
         }
     }
 }

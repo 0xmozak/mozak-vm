@@ -12,7 +12,7 @@ pub(crate) mod mozakvm;
 #[cfg(not(target_os = "mozakvm"))]
 pub(crate) mod native;
 
-pub(crate) mod common;
+pub mod common;
 
 // ----------- Exported methods -----------------------
 

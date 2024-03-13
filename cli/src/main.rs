@@ -26,7 +26,7 @@ use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
-use mozak_sdk::sys::SystemTapes;
+use mozak_sdk::common::types::SystemTape;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -271,8 +271,8 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::DeserializeTape { tapes } => {
-            let sys_tapes: SystemTapes = deserialize_system_tape(tapes)?;
-            println!("{sys_tapes:?}");
+            let _sys_tapes: SystemTape = deserialize_system_tape(tapes)?;
+            // println!("{sys_tapes:?}");
         }
         Command::Bench(bench) => {
             /// Times a function and returns the `Duration`.

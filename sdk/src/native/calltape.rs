@@ -5,7 +5,7 @@ use crate::common::types::{CPCMessage, ProgramIdentifier, RawMessage};
 use crate::native::helpers::IdentityStack;
 
 /// Represents the `CallTape` under native execution
-#[derive(Default)]
+#[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct CallTape {
     pub identity_stack: RefCell<IdentityStack>,
     pub writer: Vec<CPCMessage>,

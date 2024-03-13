@@ -1034,6 +1034,7 @@ dependencies = [
  "plonky2",
  "rkyv",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
