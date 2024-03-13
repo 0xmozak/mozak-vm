@@ -78,7 +78,7 @@ jobs:
           cd examples && nice cargo build --release
           cd .. && nice ./run_examples.sh
 
-  cargo-clippy:
+  lint-and-staticanalysis:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -96,6 +96,17 @@ jobs:
       - name: Run Clippy linter for sdk
         working-directory: sdk
         run: cargo clippy --all-features -- -D warnings
+      
+      - name: Run Cargo fmt
+        run: cargo fmt --all --check
+      
+      - name: Run shellcheck and shfmt
+        uses: luizm/action-sh-checker@v0.8.0
+        env:
+          SHFMT_OPTS: --indent 4 --case-indent
+      
+      - name: taplo fmt
+        run: taplo fmt --check
 
   cargo-build-examples:
     needs: check-runner
@@ -112,44 +123,3 @@ jobs:
       - name: Build all examples
         run: |
           cd examples-builder && cargo build --all-features
-
-  cargo-fmt:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install CI deps
-        uses: ./.github/actions/ci-deps
-        with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run fmt
-        run: cargo fmt --all --check
-
-  shellcheck:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run shellcheck and shfmt
-        uses: luizm/action-sh-checker@v0.8.0
-        env:
-          SHFMT_OPTS: --indent 4 --case-indent
-
-  taplo-fmt:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install CI deps
-        uses: ./.github/actions/ci-deps
-        with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: taplo fmt
-        run: taplo fmt --check
