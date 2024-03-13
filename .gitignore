@@ -29,3 +29,6 @@ perftool/plots/*.svg
 riscv-testdata/testdata/*.o
 riscv-testdata/testdata/*.s
 riscv-testdata/testdata/*.i
+
+# Temporary scripts
+*tmp.sh

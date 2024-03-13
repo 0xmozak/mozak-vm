@@ -2,7 +2,7 @@
 
 use std::ptr::{addr_of, slice_from_raw_parts};
 
-use crate::linker_symbols::mozak_self_prog_id;
+use crate::mozakvm_linker_symbols::mozak_self_prog_id;
 use crate::types::{Poseidon2HashType, ProgramIdentifier, DIGEST_BYTES};
 
 /// Zero-copy archived format derivation of any given type (rkyv)

@@ -1,9 +1,11 @@
-#[cfg(not(target_os = "mozakvm"))]
-use itertools::{chain, Itertools};
+// #[cfg(not(target_os = "mozakvm"))]
+use itertools::chain;
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
+#[cfg(target_os = "mozakvm")]
+use crate::mozakvm_helpers::poseidon2_hash;
 #[cfg(not(target_os = "mozakvm"))]
-use crate::helpers_native::poseidon2_hash;
+use crate::native_helpers::poseidon2_hash;
 
 pub const DIGEST_BYTES: usize = 32;
 
@@ -33,11 +35,7 @@ impl std::fmt::Debug for Poseidon2HashType {
         write!(
             f,
             "Poseidon2HashType({:?})",
-            &self
-                .iter()
-                .map(|x| hex::encode([*x]))
-                .collect::<Vec<String>>()
-                .join("")
+            &self.iter().map(|x| hex::encode([*x])).collect::<String>()
         )
     }
 }
@@ -84,11 +82,7 @@ impl std::fmt::Debug for Address {
         write!(
             f,
             "Addr: 0x{}",
-            &self
-                .iter()
-                .map(|x| hex::encode([*x]))
-                .collect::<Vec<String>>()
-                .join(""),
+            &self.iter().map(|x| hex::encode([*x])).collect::<String>()
         )
     }
 }
@@ -118,18 +112,18 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
 pub struct ProgramIdentifier(pub Poseidon2HashType);
 
 impl ProgramIdentifier {
-    #[cfg(not(target_os = "mozakvm"))]
+    #[must_use]
     pub fn new(
         program_rom_hash: Poseidon2HashType,
         memory_init_hash: Poseidon2HashType,
         entry_point: u32,
     ) -> Self {
-        let input = chain!(
+        let input: Vec<u8> = chain!(
             program_rom_hash.to_le_bytes(),
             memory_init_hash.to_le_bytes(),
             entry_point.to_le_bytes(),
         )
-        .collect_vec();
+        .collect();
 
         Self(poseidon2_hash(&input))
     }
@@ -170,8 +164,7 @@ impl std::fmt::Debug for ProgramIdentifier {
                 .to_le_bytes()
                 .iter()
                 .map(|x| hex::encode([*x]))
-                .collect::<Vec<String>>()
-                .join(""),
+                .collect::<String>(),
         )
     }
 }
@@ -179,7 +172,7 @@ impl std::fmt::Debug for ProgramIdentifier {
 #[cfg(not(target_os = "mozakvm"))]
 impl From<String> for ProgramIdentifier {
     fn from(value: String) -> ProgramIdentifier {
-        let components: Vec<&str> = value.split("-").collect();
+        let components: Vec<&str> = value.split('-').collect();
         assert_eq!(components.len(), 2);
         assert_eq!(components[0], "MZK");
 
@@ -248,8 +241,7 @@ impl std::fmt::Debug for StateObject {
                 .data
                 .iter()
                 .map(|x| hex::encode([*x]))
-                .collect::<Vec<String>>()
-                .join("")
+                .collect::<String>()
         )
     }
 }
@@ -265,11 +257,7 @@ impl std::fmt::Debug for RawMessage {
         write!(
             f,
             "0x{}",
-            &self
-                .iter()
-                .map(|x| hex::encode([*x]))
-                .collect::<Vec<String>>()
-                .join("")
+            &self.iter().map(|x| hex::encode([*x])).collect::<String>()
         )
     }
 }
@@ -319,11 +307,7 @@ impl std::fmt::Debug for Signature {
         write!(
             f,
             "Signature({:?})",
-            &self
-                .iter()
-                .map(|x| hex::encode([*x]))
-                .collect::<Vec<String>>()
-                .join("")
+            &self.iter().map(|x| hex::encode([*x])).collect::<String>()
         )
     }
 }
@@ -382,7 +366,7 @@ impl From<Event> for CanonicalEvent {
                 event_type: value.operation,
                 constraint_owner: value.object.constraint_owner,
                 event_value: poseidon2_hash(&value.object.data),
-                event_emitter: Default::default(), // unknown here, added later
+                event_emitter: ProgramIdentifier::default(), // unknown here, added later
             }
         }
     }

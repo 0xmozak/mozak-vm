@@ -56,7 +56,7 @@ where
 }
 
 /// Hashes the input slice to `Poseidon2HashType`
-pub fn poseidon2_hash(input: &[u8]) -> Poseidon2Hash {
+pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
     const RATE: usize = 8;
     let mut padded_input = input.to_vec();
     padded_input.push(1);

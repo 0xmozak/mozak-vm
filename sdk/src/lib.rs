@@ -9,24 +9,28 @@
 pub mod io;
 pub mod types;
 
-pub(crate) mod call_tape_native;
 pub(crate) mod event_tape;
 pub(crate) mod system;
-pub(crate) mod tape_dumper;
 pub(crate) mod traits;
 
 #[cfg(not(target_os = "mozakvm"))]
-pub(crate) mod helpers_native;
+pub(crate) mod native_helpers;
+
+#[cfg(not(target_os = "mozakvm"))]
+pub(crate) mod native_calltape;
+
+#[cfg(not(target_os = "mozakvm"))]
+pub(crate) mod native_tape_exporter;
 
 // ----------- ONLY FOR MOZAKVM ----------------------
 #[cfg(target_os = "mozakvm")]
-pub(crate) mod call_tape_vm;
+pub(crate) mod mozakvm_calltape;
 
 #[cfg(target_os = "mozakvm")]
-pub(crate) mod linker_symbols;
+pub(crate) mod mozakvm_linker_symbols;
 
 #[cfg(target_os = "mozakvm")]
-pub(crate) mod helpers_vm;
+pub(crate) mod mozakvm_helpers;
 
 // ----------- Exported methods -----------------------
 

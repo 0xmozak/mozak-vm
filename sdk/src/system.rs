@@ -1,16 +1,16 @@
 use once_cell::unsync::Lazy;
 
 #[cfg(target_os = "mozakvm")]
-use crate::helpers_vm::{archived_repr, get_self_prog_id};
+use crate::mozakvm_helpers::{archived_repr, get_self_prog_id};
 #[cfg(target_os = "mozakvm")]
-use crate::linker_symbols::{mozak_call_tape, mozak_cast_list};
+use crate::mozakvm_linker_symbols::{mozak_call_tape, mozak_cast_list};
 #[cfg(target_os = "mozakvm")]
 use crate::types::{CPCMessage, ProgramIdentifier};
 
 #[cfg(target_os = "mozakvm")]
-type SystemTapeCallTapeType = crate::call_tape_vm::CallTapeMozakVM;
+type SystemTapeCallTapeType = crate::mozakvm_calltape::CallTapeMozakVM;
 #[cfg(not(target_os = "mozakvm"))]
-type SystemTapeCallTapeType = crate::call_tape_native::CallTapeNative;
+type SystemTapeCallTapeType = crate::native_calltape::CallTapeNative;
 
 #[derive(Default)]
 #[allow(clippy::module_name_repetitions)]
