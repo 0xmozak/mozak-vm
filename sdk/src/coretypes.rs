@@ -360,7 +360,7 @@ pub struct Event {
 /// Event which is ready to be ingested into event accumulator
 /// Events are always in relation to a state object
 pub struct CanonicalEvent {
-    pub address: Address,
+    pub address: u32,
     pub event_type: CanonicalEventType,
     pub constraint_owner: ProgramIdentifier,
     pub event_value: Poseidon2HashType,
@@ -378,7 +378,7 @@ impl From<Event> for CanonicalEvent {
         #[cfg(not(target_os = "mozakvm"))]
         {
             Self {
-                address: value.object.address,
+                address: u32::from_le_bytes(*value.object.address),
                 event_type: value.operation,
                 constraint_owner: value.object.constraint_owner,
                 event_value: poseidon2_hash_with_pad(&value.object.data),
