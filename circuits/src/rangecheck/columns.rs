@@ -1,5 +1,3 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 use crate::stark::mozak_stark::{RangeCheckTable, Table};
@@ -21,14 +19,14 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data<F: Field>() -> Vec<Column<F>> {
+pub fn data() -> Vec<Column> {
     vec![(0..4)
-        .map(|limb| Column::single(col_map().limbs[limb]) * F::from_canonical_u32(1 << (8 * limb)))
+        .map(|limb| Column::single(col_map().limbs[limb]) * (1 << (8 * limb)))
         .sum()]
 }
 
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_looking() -> Vec<Table> {
     (0..4)
         .map(|limb| {
             RangeCheckTable::new(
@@ -40,4 +38,4 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 }
 
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { Column::single(col_map().multiplicity) }
+pub fn filter() -> Column { Column::single(col_map().multiplicity) }

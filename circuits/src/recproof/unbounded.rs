@@ -95,7 +95,7 @@ impl LeafSubCircuit {
     }
 
     /// Get ready to generate a proof
-    pub fn set_inputs<F, C, const D: usize>(
+    pub fn set_witness<F, C, const D: usize>(
         &self,
         inputs: &mut PartialWitness<F>,
         branch: &CircuitData<F, C, D>,
@@ -133,23 +133,9 @@ impl BranchSubCircuit {
         // Connect previous verifier data to current one. This guarantees that every
         // proof in the cycle uses the same verifier data.
         let left_verifier = from_slice::<F, D>(&left_proof.public_inputs, &leaf.common);
-        builder.connect_hashes(
-            left_verifier.circuit_digest,
-            verifier_data_target.circuit_digest,
-        );
-        builder.connect_merkle_caps(
-            &left_verifier.constants_sigmas_cap,
-            &verifier_data_target.constants_sigmas_cap,
-        );
         let right_verifier = from_slice::<F, D>(&left_proof.public_inputs, &leaf.common);
-        builder.connect_hashes(
-            right_verifier.circuit_digest,
-            verifier_data_target.circuit_digest,
-        );
-        builder.connect_merkle_caps(
-            &right_verifier.constants_sigmas_cap,
-            &verifier_data_target.constants_sigmas_cap,
-        );
+        builder.connect_verifier_data(&verifier_data_target, &left_verifier);
+        builder.connect_verifier_data(&verifier_data_target, &right_verifier);
 
         let left_verifier = select_verifier(
             &mut builder,
@@ -209,7 +195,7 @@ mod test {
 
         pub fn prove(&self, branch: &DummyBranchCircuit) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
     }
