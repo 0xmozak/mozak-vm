@@ -70,7 +70,7 @@ where
         let mut inputs = PartialWitness::new();
         self.partial_state
             .set_witness(&mut inputs, address, event_owner, event_ty, event_value);
-        self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+        self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.circuit.prove(inputs)
     }
 }
