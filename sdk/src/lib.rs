@@ -8,13 +8,16 @@
 
 // ----------- ONLY FOR MOZAKVM ----------------------
 #[cfg(target_os = "mozakvm")]
+pub(crate) mod mozakvm_helpers;
+
+#[cfg(target_os = "mozakvm")]
 pub(crate) mod mozakvm_calltape;
 
 #[cfg(target_os = "mozakvm")]
-pub(crate) mod mozakvm_linker_symbols;
+pub(crate) mod mozakvm_eventtape;
 
 #[cfg(target_os = "mozakvm")]
-pub(crate) mod mozakvm_helpers;
+pub(crate) mod mozakvm_linker_symbols;
 
 // ----------- TARGET AGNOSTIC / FOR NATIVE ----------
 #[cfg(not(target_os = "mozakvm"))]
