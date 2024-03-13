@@ -81,9 +81,15 @@ mod tests {
             ..object
         };
 
+        let another_object = StateObject {
+            address: Address::from([2u8; 4]),
+            constraint_owner: ProgramIdentifier::default(),
+            data: vec![1, 2, 3, 4, 5, 6],
+        };
+
         let read_event = Event {
             object,
-            operation: crate::coretypes::CanonicalEventType::Read,
+            operation: CanonicalEventType::Read,
         };
 
         let write_event = Event {
@@ -91,13 +97,22 @@ mod tests {
             operation: CanonicalEventType::Write,
         };
 
+        let another_object_read_event = Event {
+            object: another_object,
+            operation: CanonicalEventType::Read,
+        };
+
         let event_tape = EventTapeSingle {
             id: program_id,
-            contents: vec![read_event, write_event],
+            contents: vec![read_event, write_event, another_object_read_event],
             canonical_repr: Default::default(),
         };
 
         let canonical_event_tape: CanonicalEventTapeSingle = event_tape.into();
-        let _root_hash = hash_canonical_event_tape(canonical_event_tape);
+        let root_hash = hash_canonical_event_tape(canonical_event_tape);
+        assert_eq!(root_hash.to_le_bytes(), [
+            159, 132, 147, 134, 125, 28, 139, 35, 191, 116, 104, 28, 101, 96, 74, 246, 157, 14, 9,
+            53, 55, 174, 28, 120, 129, 39, 217, 11, 93, 190, 58, 124
+        ])
     }
 }
