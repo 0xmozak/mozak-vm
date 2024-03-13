@@ -68,9 +68,9 @@ impl Call for CallTape {
 
 #[cfg(test)]
 mod tests {
-    use crate::call_tape_native::CallTape;
-    use crate::traits::Call;
-    use crate::types::ProgramIdentifier;
+    use super::CallTape;
+    use crate::common::traits::Call;
+    use crate::common::types::ProgramIdentifier;
 
     fn test_pid_generator(val: u8) -> ProgramIdentifier {
         let mut pid = ProgramIdentifier::default();

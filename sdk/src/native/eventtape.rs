@@ -27,22 +27,3 @@ impl EventEmit for EventTape {
             .or_insert(vec![event]);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_event_emit() {
-        type A = u8;
-        type B = u16;
-
-        let mut calltape = EventTape::default();
-
-        let resolver = |val: A| -> B { (val + 1) as B };
-
-        let response = calltape.send(test_pid_generator(1), 1 as A, resolver);
-        assert_eq!(response, 2);
-        assert_eq!(calltape.writer.len(), 1);
-        assert_eq!(calltape.writer[0].caller_prog, ProgramIdentifier::default());
-        assert_eq!(calltape.writer[0].callee_prog, test_pid_generator(1));
-    }
-}
