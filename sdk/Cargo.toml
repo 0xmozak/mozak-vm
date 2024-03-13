@@ -10,10 +10,10 @@ repository = "https://github.com/0xmozak/mozak-node/sdk"
 version = "0.2.0"
 
 [dependencies]
+itertools = { version = "0.12.1", default-features = false }
 mozak-system = { path = "../system", features = ["mozak-ro-memory"] }
 once_cell = { version = "1.19.0", default-features = false, features = ["race"] }
 rkyv = { version = "0.7.1", default-features = false, features = ["size_32", "alloc"] }
-itertools = { version = "0.12.1", default-features = false}
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.lazy_static]
 version = "1.4.0"
