@@ -9,6 +9,8 @@ use crate::types::{Poseidon2HashType, ProgramIdentifier, DIGEST_BYTES};
 /// on a memory region starting at `addr`. It is expected that
 /// the memory region is length-prefixed in little-endian 4-bytes
 /// and (addr+4) marks the begining of the archived format.
+#[allow(clippy::ptr_as_ptr)]
+#[allow(clippy::cast_ptr_alignment)]
 pub fn archived_repr<T: rkyv::Archive>(addr: *const u8) -> &'static <T as rkyv::Archive>::Archived {
     let mem_len = unsafe { *{ addr as *const u32 } } as usize;
     unsafe {
@@ -19,6 +21,7 @@ pub fn archived_repr<T: rkyv::Archive>(addr: *const u8) -> &'static <T as rkyv::
 
 /// Get the Program Identifier of the running program, assumes
 /// pre-populated memory region starting `mozak_self_prog_id`.
+#[allow(clippy::ptr_as_ptr)]
 pub fn get_self_prog_id() -> ProgramIdentifier {
     let self_prog_id = unsafe { *{ addr_of!(mozak_self_prog_id) as *const ProgramIdentifier } };
     assert_ne!(self_prog_id, ProgramIdentifier::default());
@@ -28,11 +31,11 @@ pub fn get_self_prog_id() -> ProgramIdentifier {
 /// Hashes the input slice to `Poseidon2HashType`
 #[allow(dead_code)]
 pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
+    const RATE: usize = 8;
+
     let mut padded_input = input.to_vec();
     // Why?
     padded_input.push(1);
-
-    pub const RATE: usize = 8;
 
     padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
 

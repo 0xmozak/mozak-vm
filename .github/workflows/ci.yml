@@ -55,10 +55,27 @@ jobs:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and run examples
+      - name: cargo-clippy (mozakvm)
+        run: |
+          cd sdk && cargo clippy
+
+      - name: cargo-clippy (native)
         run: |
           cd sdk && ARCH_TRIPLE="$(rustc -vV | grep host | awk '{ print $2; }')"
-          cargo build && cargo build --target $ARCH_TRIPLE
+          cargo clippy --target $ARCH_TRIPLE
+
+      - name: Build (mozakvm)
+        run: |
+          cd sdk && cargo build
+      
+      - name: Build (native)
+        run: |
+          cd sdk && ARCH_TRIPLE="$(rustc -vV | grep host | awk '{ print $2; }')"
+          cargo build --target $ARCH_TRIPLE
+      
+      - name: Test library
+        run: |
+          cd sdk && ARCH_TRIPLE="$(rustc -vV | grep host | awk '{ print $2; }')"
           cargo test --lib --target $ARCH_TRIPLE
 
   run-examples:

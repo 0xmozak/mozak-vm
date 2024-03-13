@@ -1,6 +1,10 @@
 use once_cell::unsync::Lazy;
 
+#[cfg(target_os = "mozakvm")]
 use crate::helpers_vm::{archived_repr, get_self_prog_id};
+#[cfg(target_os = "mozakvm")]
+use crate::linker_symbols::{mozak_call_tape, mozak_cast_list};
+#[cfg(target_os = "mozakvm")]
 use crate::types::{CPCMessage, ProgramIdentifier};
 
 #[cfg(target_os = "mozakvm")]
@@ -9,6 +13,7 @@ type SystemTapeCallTapeType = crate::call_tape_vm::CallTapeMozakVM;
 type SystemTapeCallTapeType = crate::call_tape_native::CallTapeNative;
 
 #[derive(Default)]
+#[allow(clippy::module_name_repetitions)]
 pub struct SystemTapes {
     // TODO: Add Public and Private IO Tape
     pub call_tape: SystemTapeCallTapeType,
@@ -41,10 +46,13 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
         let _pid = get_self_prog_id();
 
         // Then, get archive access to elements in memory
-        use crate::linker_symbols::{mozak_call_tape, mozak_cast_list};
+
         macro_rules! mem_begin {
             ($x:expr) => {
-                unsafe { core::ptr::addr_of!($x) as *const u8 }
+                #[allow(clippy::ptr_as_ptr)]
+                {
+                    unsafe { core::ptr::addr_of!($x) as *const u8 }
+                }
             };
         }
 
