@@ -11,6 +11,7 @@ use plonky2::plonk::circuit_data::VerifierCircuitTarget;
 
 pub mod make_tree;
 pub mod merge;
+pub mod propagate;
 pub mod state_from_event;
 pub mod state_update;
 pub mod summarized;
