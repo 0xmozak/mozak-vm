@@ -4,7 +4,11 @@ use once_cell::unsync::Lazy;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
+#[cfg(target_os = "mozakvm")]
+use crate::coretypes::DIGEST_BYTES;
+use crate::coretypes::{CPCMessage, CanonicalEvent, Event, Poseidon2HashType, ProgramIdentifier};
+#[cfg(not(target_os = "mozakvm"))]
+use crate::native_helpers::sort_with_hints;
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -257,6 +261,43 @@ pub struct EventTape {
 pub struct EventTapeSingle {
     pub id: ProgramIdentifier,
     pub contents: Vec<Event>,
+    pub canonical_repr: Option<CanonicalEventTapeSingle>,
+}
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
+pub struct CanonicalEventTapeSingle {
+    /// sorted according to address, and opcode.
+    pub sorted_events: Vec<CanonicalEvent>,
+    pub hints: Vec<u32>,
+}
+
+impl From<EventTapeSingle> for CanonicalEventTapeSingle {
+    #[allow(unused_variables)]
+    fn from(value: EventTapeSingle) -> Self {
+        #[cfg(target_os = "mozakvm")]
+        {
+            unimplemented!()
+        }
+
+        #[cfg(not(target_os = "mozakvm"))]
+        {
+            let (sorted_events, hints_usize) = sort_with_hints::<CanonicalEvent, usize>(
+                value
+                    .contents
+                    .iter()
+                    .map(|event| CanonicalEvent::from(event.clone()))
+                    .collect::<Vec<CanonicalEvent>>(),
+            );
+
+            Self {
+                sorted_events,
+                hints: hints_usize.iter().map(|x| *x as u32).collect(),
+            }
+        }
+    }
 }
 
 impl EventTape {
@@ -275,9 +316,11 @@ impl EventTape {
     }
 
     #[allow(unused_variables)]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn emit_event(&mut self, id: ProgramIdentifier, event: Event) {
         #[cfg(target_os = "mozakvm")]
         {
+            use crate::coretypes::CanonicalEventType;
             assert!(self.index < self.reader.unwrap().len());
 
             let zcd_event = &self.reader.unwrap()[self.index];
@@ -286,12 +329,11 @@ impl EventTape {
             assert_eq!(event, event_deserialized);
 
             assert_eq!(
-                match event {
-                    Event::ReadStateObject(s)
-                    | Event::CreatedStateObject(s)
-                    | Event::DeletedStateObject(s)
-                    | Event::UpdatedStateObject(s) => s.constraint_owner,
-                    Event::ReadContextVariable(_) => self.self_prog_id,
+                match event.operation {
+                    CanonicalEventType::Create
+                    | CanonicalEventType::Delete
+                    | CanonicalEventType::Write => event.object.constraint_owner,
+                    _ => self.self_prog_id,
                 },
                 self.self_prog_id
             );
@@ -312,6 +354,7 @@ impl EventTape {
             self.writer.push(EventTapeSingle {
                 id,
                 contents: vec![event],
+                canonical_repr: None,
             });
         }
     }
@@ -326,7 +369,20 @@ pub fn dump_tapes(file_template: String) {
         file.write_all(content).unwrap();
     }
 
-    let tape_clone = unsafe { SYSTEM_TAPES.clone() }; // .clone() removes `Lazy{}`
+    let mut tape_clone = unsafe { SYSTEM_TAPES.clone() }; // .clone() removes `Lazy{}`
+    tape_clone
+        .event_tape
+        .writer
+        .iter_mut()
+        .for_each(|single_event_tape| {
+            let mut canonical_event_tape =
+                CanonicalEventTapeSingle::from(single_event_tape.clone());
+            canonical_event_tape
+                .sorted_events
+                .iter_mut()
+                .for_each(|canonical_event| canonical_event.event_emitter = single_event_tape.id);
+            single_event_tape.canonical_repr = Some(canonical_event_tape);
+        });
 
     let dbg_filename = file_template.clone() + ".tape_debug";
     let dbg_bytes = &format!("{:#?}", tape_clone).into_bytes();
@@ -404,3 +460,49 @@ pub fn io_read(_from: &IOTape, _num: usize) -> Vec<u8> { unimplemented!() }
 /// Fills a provided buffer with num elements from choice of `IOTape`
 /// in process "consuming" such bytes.
 pub fn io_read_into(_from: &IOTape, _buf: &mut [u8]) { unimplemented!() }
+
+#[must_use]
+pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
+    let mut padded_input = input.to_vec();
+    padded_input.push(1);
+    #[cfg(target_os = "mozakvm")]
+    {
+        pub const RATE: usize = 8;
+        use mozak_system::system::syscall_poseidon2;
+        padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
+
+        // VM expects input length to be multiple of RATE
+        assert!(padded_input.len() % RATE == 0);
+        let mut output = [0; DIGEST_BYTES];
+        syscall_poseidon2(
+            padded_input.as_ptr(),
+            padded_input.len(),
+            output.as_mut_ptr(),
+        );
+        Poseidon2HashType(output)
+    }
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        use plonky2::field::goldilocks_field::GoldilocksField;
+        use plonky2::field::types::Field;
+        use plonky2::hash::hashing::PlonkyPermutation;
+        use plonky2::hash::poseidon2::{Poseidon2Hash, Poseidon2Permutation};
+        use plonky2::plonk::config::{GenericHashOut, Hasher};
+        const RATE: usize =
+            <Poseidon2Permutation<GoldilocksField> as PlonkyPermutation<GoldilocksField>>::RATE;
+        padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
+        let data_fields: Vec<GoldilocksField> = padded_input
+            .iter()
+            .map(|x| GoldilocksField::from_canonical_u8(*x))
+            .collect();
+
+        assert!(padded_input.len() % RATE == 0);
+
+        Poseidon2HashType(
+            Poseidon2Hash::hash_no_pad(&data_fields)
+                .to_bytes()
+                .try_into()
+                .expect("Output length does not match to DIGEST_BYTES"),
+        )
+    }
+}

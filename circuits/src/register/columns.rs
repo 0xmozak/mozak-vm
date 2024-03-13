@@ -92,15 +92,15 @@ impl<T: Add<Output = T> + Clone> Register<T> {
 }
 
 #[must_use]
-pub fn data_for_register_init<F: Field>() -> Vec<Column<F>> { Column::singles([col_map().addr]) }
+pub fn data_for_register_init() -> Vec<Column> { Column::singles([col_map().addr]) }
 
 #[must_use]
-pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(col_map().ops.is_init) }
+pub fn filter_for_register_init() -> Column { Column::from(col_map().ops.is_init) }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn register_looked<F: Field>() -> Table<F> {
-    let reg: Register<Column<F>> = col_map().map(Column::from);
+pub fn register_looked() -> Table {
+    let reg: Register<Column> = col_map().map(Column::from);
     let ops = col_map().map(Column::from).ops;
     RegisterTable::new(
         vec![
@@ -115,7 +115,7 @@ pub fn register_looked<F: Field>() -> Table<F> {
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_looking() -> Vec<Table> {
     let lv = col_map().map(Column::single);
     let nv = col_map().map(Column::single_next);
     vec![RegisterTable::new(

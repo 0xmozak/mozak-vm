@@ -1,5 +1,3 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 
@@ -26,7 +24,7 @@ pub struct RegisterInit<T> {
 }
 
 #[must_use]
-pub fn data_for_register<F: Field>() -> Vec<Column<F>> { Column::singles([col_map().reg_addr]) }
+pub fn data_for_register() -> Vec<Column> { Column::singles([col_map().reg_addr]) }
 
 #[must_use]
-pub fn filter_for_register<F: Field>() -> Column<F> { Column::from(col_map().is_looked_up) }
+pub fn filter_for_register() -> Column { Column::from(col_map().is_looked_up) }

@@ -1,4 +1,11 @@
+#[cfg(not(target_os = "mozakvm"))]
+use itertools::{chain, Itertools};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
+
+#[cfg(not(target_os = "mozakvm"))]
+use crate::sys::poseidon2_hash;
+
+pub const DIGEST_BYTES: usize = 32;
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
@@ -12,11 +19,10 @@ use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 )]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-pub struct Poseidon2HashType([u8; 4]);
+pub struct Poseidon2HashType(pub [u8; DIGEST_BYTES]);
 
-#[cfg(not(target_os = "mozakvm"))]
-impl std::ops::Deref for Poseidon2HashType {
-    type Target = [u8; 4];
+impl core::ops::Deref for Poseidon2HashType {
+    type Target = [u8; DIGEST_BYTES];
 
     fn deref(&self) -> &Self::Target { &self.0 }
 }
@@ -38,26 +44,28 @@ impl std::fmt::Debug for Poseidon2HashType {
 
 impl Poseidon2HashType {
     #[must_use]
-    pub fn to_le_bytes(&self) -> [u8; 4] { self.0 }
+    pub fn to_le_bytes(&self) -> [u8; DIGEST_BYTES] { self.0 }
 }
 
-impl From<[u8; 4]> for Poseidon2HashType {
-    fn from(value: [u8; 4]) -> Self { Poseidon2HashType(value) }
+impl From<[u8; DIGEST_BYTES]> for Poseidon2HashType {
+    fn from(value: [u8; DIGEST_BYTES]) -> Self { Poseidon2HashType(value) }
 }
 
 impl From<Vec<u8>> for Poseidon2HashType {
     fn from(value: Vec<u8>) -> Poseidon2HashType {
-        assert_eq!(value.len(), 4);
-        <&[u8] as TryInto<[u8; 4]>>::try_into(&value[0..4])
-            .expect("Vec<u8> must have exactly 4 elements")
+        assert_eq!(value.len(), DIGEST_BYTES);
+        <&[u8] as TryInto<[u8; DIGEST_BYTES]>>::try_into(&value[0..DIGEST_BYTES])
+            .expect("Vec<u8> must have exactly {DIGEST_BYTES} elements")
             .into()
     }
 }
 
-pub const STATE_TREE_DEPTH: usize = 8;
+pub const STATE_TREE_DEPTH: usize = 4;
 
 /// Canonical "address" type of object in "mozak vm".
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
+#[derive(
+    Archive, Deserialize, Serialize, PartialEq, Eq, Default, PartialOrd, Ord, Copy, Clone, Hash,
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(target_os = "mozakvm", derive(Debug))]
@@ -107,20 +115,25 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
 #[cfg_attr(target_os = "mozakvm", derive(Debug))]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-pub struct ProgramIdentifier {
-    /// ProgramRomHash defines the hash of the text section of the
-    /// static ELF program concerned
-    pub program_rom_hash: Poseidon2HashType,
-
-    /// MemoryInitHash defines the hash of the static memory initialization
-    /// regions of the static ELF program concerned
-    pub memory_init_hash: Poseidon2HashType,
-
-    /// Entry point of the program
-    pub entry_point: u32,
-}
+pub struct ProgramIdentifier(pub Poseidon2HashType);
 
 impl ProgramIdentifier {
+    #[cfg(not(target_os = "mozakvm"))]
+    pub fn new(
+        program_rom_hash: Poseidon2HashType,
+        memory_init_hash: Poseidon2HashType,
+        entry_point: u32,
+    ) -> Self {
+        let input = chain!(
+            program_rom_hash.to_le_bytes(),
+            memory_init_hash.to_le_bytes(),
+            entry_point.to_le_bytes(),
+        )
+        .collect_vec();
+
+        Self(poseidon2_hash(&input))
+    }
+
     /// Checks if the objects all have the same `constraint_owner` as
     /// `self`.
     ///
@@ -140,11 +153,9 @@ impl ProgramIdentifier {
     }
 
     #[must_use]
-    pub fn to_le_bytes(&self) -> [u8; 12] {
-        let mut le_bytes_array: [u8; 12] = [0; 12];
-        le_bytes_array[0..4].copy_from_slice(&self.program_rom_hash.to_le_bytes());
-        le_bytes_array[4..8].copy_from_slice(&self.memory_init_hash.to_le_bytes());
-        le_bytes_array[8..12].copy_from_slice(&self.entry_point.to_le_bytes());
+    pub fn to_le_bytes(&self) -> [u8; DIGEST_BYTES] {
+        let mut le_bytes_array: [u8; DIGEST_BYTES] = [0; DIGEST_BYTES];
+        le_bytes_array[0..DIGEST_BYTES].copy_from_slice(&self.0.to_le_bytes());
         le_bytes_array
     }
 }
@@ -154,47 +165,13 @@ impl std::fmt::Debug for ProgramIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "MZK-{}-{}-{:0>2}",
+            "MZK-{}",
             &self
-                .program_rom_hash
                 .to_le_bytes()
                 .iter()
                 .map(|x| hex::encode([*x]))
                 .collect::<Vec<String>>()
                 .join(""),
-            &self
-                .memory_init_hash
-                .to_le_bytes()
-                .iter()
-                .map(|x| hex::encode([*x]))
-                .collect::<Vec<String>>()
-                .join(""),
-            &self.entry_point,
-        )
-    }
-}
-
-#[cfg(not(target_os = "mozakvm"))]
-impl std::fmt::Display for ProgramIdentifier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "MZK-{}-{}-{:0>2}",
-            &self
-                .program_rom_hash
-                .to_le_bytes()
-                .iter()
-                .map(|x| hex::encode([*x]))
-                .collect::<Vec<String>>()
-                .join(""),
-            &self
-                .memory_init_hash
-                .to_le_bytes()
-                .iter()
-                .map(|x| hex::encode([*x]))
-                .collect::<Vec<String>>()
-                .join(""),
-            &self.entry_point,
         )
     }
 }
@@ -202,39 +179,13 @@ impl std::fmt::Display for ProgramIdentifier {
 #[cfg(not(target_os = "mozakvm"))]
 impl From<String> for ProgramIdentifier {
     fn from(value: String) -> ProgramIdentifier {
-        // We assume all string presented here are of the following form:
-        // MZK-0b7114fb-021f033e-00
-        // where:
-        //      `MZK` is a common prefix
-        //      `0b7..` is the program rom hash
-        //      `021..` is the memory init hash
-        //      `00` is a u32 for program's entry point
-
-        fn u32_from_str(str: &str) -> u32 {
-            assert!(str.len() <= 4);
-            let mut u32_vec_repr = hex::decode(str).unwrap();
-            u32_vec_repr.resize(4, 0);
-            u32::from_le_bytes(
-                <&[u8] as TryInto<[u8; 4]>>::try_into(&u32_vec_repr[0..4])
-                    .expect("Vec<u8> must have exactly 4 elements")
-                    .into(),
-            )
-        }
-
         let components: Vec<&str> = value.split("-").collect();
-        assert_eq!(components.len(), 4);
+        assert_eq!(components.len(), 2);
         assert_eq!(components[0], "MZK");
 
-        ProgramIdentifier {
-            program_rom_hash: hex::decode(components[1]).unwrap().into(),
-            memory_init_hash: hex::decode(components[2]).unwrap().into(),
-            entry_point: u32_from_str(components[3]),
-        }
+        ProgramIdentifier(Poseidon2HashType::from(hex::decode(components[1]).unwrap()))
     }
 }
-
-/// Each storage object is a unit of information in the global
-/// state tree constrained for modification only by its `constraint_owner`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[cfg_attr(target_os = "mozakvm", derive(Debug))]
@@ -257,6 +208,34 @@ pub struct StateObject {
     pub data: Vec<u8>,
 }
 
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+pub struct CanonicalStateObjectEvent {
+    // TODO: change u32 to goldilocks F
+    /// Logical address of StateObject in the tree
+    pub address: Address,
+    pub event_type: CanonicalEventType,
+    pub constraint_owner: ProgramIdentifier,
+    pub event_value: Poseidon2HashType,
+    pub event_emitter: ProgramIdentifier,
+}
+
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[repr(u8)]
+pub enum CanonicalEventType {
+    Read = 0,
+    Write,
+    Ensure,
+    Create,
+    Delete,
+}
+
+impl Default for CanonicalEventType {
+    fn default() -> Self { Self::Read }
+}
 #[cfg(not(target_os = "mozakvm"))]
 impl std::fmt::Debug for StateObject {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -360,21 +339,51 @@ impl From<Vec<u8>> for Signature {
     fn from(value: Vec<u8>) -> Signature { Signature(value) }
 }
 
-#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
-pub enum ContextVariable {
-    BlockHeight(u64),
-    SelfProgramIdentifier(ProgramIdentifier),
-}
+// #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+// #[archive(compare(PartialEq))]
+// #[archive_attr(derive(Debug))]
+// pub enum ContextVariable {
+//     BlockHeight(u64),
+//     SelfProgramIdentifier(ProgramIdentifier),
+// }
 
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-pub enum Event {
-    ReadContextVariable(ContextVariable),
-    ReadStateObject(StateObject),
-    UpdatedStateObject(StateObject),
-    CreatedStateObject(StateObject),
-    DeletedStateObject(StateObject),
+pub struct Event {
+    pub object: StateObject,
+    pub operation: CanonicalEventType,
+}
+#[derive(Archive, Debug, Deserialize, Eq, PartialEq, PartialOrd, Ord, Serialize, Clone, Hash)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+/// Event which is ready to be ingested into event accumulator
+/// Events are always in relation to a state object
+pub struct CanonicalEvent {
+    pub address: Address,
+    pub event_type: CanonicalEventType,
+    pub constraint_owner: ProgramIdentifier,
+    pub event_value: Poseidon2HashType,
+    pub event_emitter: ProgramIdentifier,
+}
+
+#[allow(unused_variables)]
+impl From<Event> for CanonicalEvent {
+    fn from(value: Event) -> Self {
+        #[cfg(target_os = "mozakvm")]
+        {
+            unimplemented!()
+        }
+
+        #[cfg(not(target_os = "mozakvm"))]
+        {
+            Self {
+                address: value.object.address,
+                event_type: value.operation,
+                constraint_owner: value.object.constraint_owner,
+                event_value: poseidon2_hash(&value.object.data),
+                event_emitter: Default::default(), // unknown here, added later
+            }
+        }
+    }
 }

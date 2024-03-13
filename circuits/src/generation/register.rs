@@ -47,7 +47,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
 }
 
 // TODO: unify this with the `fn extract` in `generation/rangecheck.rs`.
-pub fn extract_raw<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<Vec<F>>
+pub fn extract_raw<'a, F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<Vec<F>>
 where
     V: Index<usize, Output = F> + 'a, {
     trace
@@ -68,7 +68,7 @@ where
 // addr, value, clk, ops
 //
 // At the moment, we need cpu and memory traces.
-pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<Register<F>>
+pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<Register<F>>
 where
     V: Index<usize, Output = F> + 'a, {
     let values: Vec<_> = extract_raw(trace, looking_table);
