@@ -2,25 +2,9 @@
 #![deny(clippy::cargo)]
 #![allow(clippy::missing_panics_doc)]
 #![feature(trait_alias)]
+#![feature(stmt_expr_attributes)]
 #![deny(warnings)]
 #![cfg_attr(target_os = "mozakvm", feature(restricted_std))]
-
-// ----------- TARGET AGNOSTIC / FOR NATIVE ----------
-pub mod io;
-pub mod types;
-
-pub(crate) mod event_tape;
-pub(crate) mod system;
-pub(crate) mod traits;
-
-#[cfg(not(target_os = "mozakvm"))]
-pub(crate) mod native_helpers;
-
-#[cfg(not(target_os = "mozakvm"))]
-pub(crate) mod native_calltape;
-
-#[cfg(not(target_os = "mozakvm"))]
-pub(crate) mod native_tape_exporter;
 
 // ----------- ONLY FOR MOZAKVM ----------------------
 #[cfg(target_os = "mozakvm")]
@@ -31,6 +15,23 @@ pub(crate) mod mozakvm_linker_symbols;
 
 #[cfg(target_os = "mozakvm")]
 pub(crate) mod mozakvm_helpers;
+
+// ----------- TARGET AGNOSTIC / FOR NATIVE ----------
+#[cfg(not(target_os = "mozakvm"))]
+pub(crate) mod native_helpers;
+
+#[cfg(not(target_os = "mozakvm"))]
+pub(crate) mod native_calltape;
+
+#[cfg(not(target_os = "mozakvm"))]
+pub(crate) mod native_tape_exporter;
+
+pub mod io;
+pub mod types;
+
+pub(crate) mod event_tape;
+pub(crate) mod system;
+pub(crate) mod traits;
 
 // ----------- Exported methods -----------------------
 

@@ -6,10 +6,10 @@ use crate::types::{CPCMessage, ProgramIdentifier};
 /// Represents the `CallTape` under `mozak-vm`
 #[derive(Default)]
 pub struct CallTapeMozakVM {
-    cast_list: Vec<ProgramIdentifier>,
-    self_prog_id: ProgramIdentifier,
-    reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
-    index: usize,
+    pub cast_list: Vec<ProgramIdentifier>,
+    pub self_prog_id: ProgramIdentifier,
+    pub reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
+    pub index: usize,
 }
 
 impl CallTapeMozakVM {

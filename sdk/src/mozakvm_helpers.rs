@@ -47,3 +47,25 @@ pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
     );
     Poseidon2HashType(output)
 }
+
+macro_rules! get_rkyv_archived {
+    ($t:ty, $x:expr) => {
+        #[allow(clippy::ptr_as_ptr)]
+        {
+            archived_repr::<$t>(unsafe { core::ptr::addr_of!($x) as *const u8 })
+        }
+    };
+}
+
+macro_rules! get_rkyv_deserialized {
+    ($t:ty, $x:expr) => {
+        #[allow(clippy::ptr_as_ptr)]
+        {
+            let archived_repr = get_rkyv_archived!($t, $x);
+            let deserialized_repr: $t = archived_repr.deserialize(&mut rkyv::Infallible).unwrap();
+            deserialized_repr
+        }
+    };
+}
+
+pub(crate) use {get_rkyv_archived, get_rkyv_deserialized};
