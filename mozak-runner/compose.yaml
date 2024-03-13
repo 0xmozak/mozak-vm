@@ -33,6 +33,8 @@ services:
     image: 0xmozak/github-runner:latest
     volumes:
       - "nix-store:/nix"
+    environment:
+      NIX_CONFIG: access-tokens = github.com=${ACCESS_TOKEN}
     entrypoint: ["/root/.nix-profile/bin/nix", "daemon"]
     # Check if we can build a small nix package from a known version of nixpkgs
     healthcheck:
