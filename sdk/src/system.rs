@@ -48,25 +48,6 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
     // pre-populated data elements
     #[cfg(target_os = "mozakvm")]
     {
-        // Firstly, get to know who we are!
-        // let self_prog_id = get_self_prog_id();
-
-        // Then, get archive access to elements in memory
-
-        // macro_rules! mem_begin {
-        //     ($x:expr) => {
-        //         #[allow(clippy::ptr_as_ptr)]
-        //         {
-        //             unsafe { core::ptr::addr_of!($x) as *const u8 }
-        //         }
-        //     };
-        // }
-
-        // let castlist_ar = get_rkyv_archived!(Vec<ProgramIdentifier>,
-        // mozak_cast_list); let calltape_ar =
-        // get_rkyv_archived!(Vec<CPCMessage>, mozak_call_tape); let evnttape_ar
-        // = archived_repr::<Vec<Event>>(mem_begin!(mozak_event_tape));
-
         SystemTapes {
             call_tape: CallTapeMozakVM {
                 self_prog_id: get_self_prog_id(),

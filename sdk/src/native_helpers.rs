@@ -8,7 +8,19 @@ use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 
-use crate::types::Poseidon2HashType;
+use crate::types::{Poseidon2HashType, ProgramIdentifier};
+
+/// Represents a stack for call contexts during native execution.
+#[derive(Default)]
+pub struct IdentityStack(Vec<ProgramIdentifier>);
+
+impl IdentityStack {
+    pub fn add_identity(&mut self, id: ProgramIdentifier) { self.0.push(id); }
+
+    pub fn top_identity(&self) -> ProgramIdentifier { self.0.last().copied().unwrap_or_default() }
+
+    pub fn rm_identity(&mut self) { self.0.truncate(self.0.len().saturating_sub(1)); }
+}
 
 /// Sort a given input vector (not in-place), returns
 /// such sorted vector alongwith the mapping of each element

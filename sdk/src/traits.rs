@@ -4,7 +4,7 @@ use rkyv::ser::serializers::{
 };
 use rkyv::{AlignedVec, Archive, Deserialize};
 
-use crate::types::ProgramIdentifier;
+use crate::types::{Event, ProgramIdentifier};
 
 pub trait RkyvSerializable = rkyv::Serialize<
     CompositeSerializer<
@@ -28,7 +28,7 @@ pub trait Call: SelfIdentify {
     /// `send` emulates a function call to the `resolver` with
     /// `argument` args and returns the value returned by it.
     /// Under the hood, wherever required, it uses `rkyv` for
-    /// deserialization. This func never serializes.
+    /// deserialization. This func never serializes in `mozakvm`.
     fn send<A, R>(
         &mut self,
         recepient_program: ProgramIdentifier,
@@ -47,11 +47,18 @@ pub trait Call: SelfIdentify {
     /// program, `A` the arguments they presented and `R` being
     /// the result that they want us to ensure is correct.
     /// Under the hood, wherever required, it uses `rkyv` for
-    /// deserialization. This func never serializes.
+    /// deserialization. This func never serializes in `mozakvm`.
     fn receive<A, R>(&mut self) -> Option<(ProgramIdentifier, A, R)>
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
         <A as Archive>::Archived: Deserialize<A, rkyv::Infallible>,
         <R as Archive>::Archived: Deserialize<R, rkyv::Infallible>;
+}
+
+/// `EventEmit` trait provides method `emit` to use the underlying
+/// tape as an output device
+pub trait EventEmit: SelfIdentify {
+    /// `emit` emulates an output device write
+    fn emit(&mut self, event: Event);
 }

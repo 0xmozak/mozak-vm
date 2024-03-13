@@ -1,20 +1,22 @@
+use std::cell::RefCell;
+
+use crate::native_helpers::IdentityStack;
 use crate::traits::{Call, SelfIdentify};
 use crate::types::{CPCMessage, ProgramIdentifier, RawMessage};
 
 /// Represents the `CallTape` under native execution
 #[derive(Default)]
 pub struct CallTapeNative {
-    pub identity_stack: Vec<ProgramIdentifier>,
+    pub identity_stack: RefCell<IdentityStack>,
     pub writer: Vec<CPCMessage>,
 }
 
 impl SelfIdentify for CallTapeNative {
-    fn set_self_identity(&mut self, _id: ProgramIdentifier) { unimplemented!() }
-
-    fn get_self_identity(&self) -> ProgramIdentifier {
-        // returns the "latest" identity
-        self.identity_stack.last().copied().unwrap_or_default()
+    fn set_self_identity(&mut self, id: ProgramIdentifier) {
+        self.identity_stack.borrow_mut().add_identity(id);
     }
+
+    fn get_self_identity(&self) -> ProgramIdentifier { self.identity_stack.borrow().top_identity() }
 }
 
 impl Call for CallTapeNative {
@@ -46,11 +48,10 @@ impl Call for CallTapeNative {
         self.writer.push(msg);
 
         // resolve the return value and add to where message was
-        self.identity_stack.push(recepient_program);
+        self.set_self_identity(recepient_program);
         let resolved_value = resolver(arguments);
         self.writer[inserted_idx].ret = rkyv::to_bytes::<_, 256>(&resolved_value).unwrap().into();
-        self.identity_stack
-            .truncate(self.identity_stack.len().saturating_sub(1));
+        self.identity_stack.borrow_mut().rm_identity();
 
         resolved_value
     }

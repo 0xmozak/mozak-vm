@@ -26,6 +26,9 @@ pub(crate) mod native_calltape;
 #[cfg(not(target_os = "mozakvm"))]
 pub(crate) mod native_tape_exporter;
 
+#[cfg(not(target_os = "mozakvm"))]
+pub(crate) mod native_eventtape;
+
 pub mod io;
 pub mod types;
 

@@ -48,6 +48,8 @@ pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
     Poseidon2HashType(output)
 }
 
+/// Given a type and the memory start address with 4-byte lenght prefix
+/// for underlying data, get an archived (not fully deserialized) object
 macro_rules! get_rkyv_archived {
     ($t:ty, $x:expr) => {
         #[allow(clippy::ptr_as_ptr)]
@@ -57,6 +59,8 @@ macro_rules! get_rkyv_archived {
     };
 }
 
+/// Given a type and the memory start address with 4-byte lenght prefix
+/// for underlying data, get a fully deserialized object
 macro_rules! get_rkyv_deserialized {
     ($t:ty, $x:expr) => {
         #[allow(clippy::ptr_as_ptr)]
