@@ -51,7 +51,7 @@ pub const NUM_POSEIDON2_COLS: usize = Poseidon2State::<()>::NUMBER_OF_COLUMNS;
 
 columns_view_impl!(Poseidon2StateCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
 pub struct Poseidon2StateCtl<F> {
     pub input: [F; STATE_SIZE],
     pub output: [F; STATE_SIZE],

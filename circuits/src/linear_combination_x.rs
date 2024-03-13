@@ -1,5 +1,6 @@
 // use core::iter::Sum;
-// use core::ops::{Add, Mul, Neg, Sub};
+use core::ops::Neg;
+
 // use std::borrow::Borrow;
 // use std::ops::Index;
 
@@ -13,8 +14,8 @@
 // use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 /// Represent a linear combination of columns.
-// #[derive(Clone, Debug, Default)]
-pub struct ColumnX<const SIZE: usize, C: From<[i64; SIZE]> + Into<[i64; SIZE]>> {
+#[derive(Clone, Debug, Default)]
+pub struct ColumnX<C> {
     /// Linear combination of the local row
     lv_linear_combination: C,
     /// Linear combination of the next row
@@ -23,28 +24,45 @@ pub struct ColumnX<const SIZE: usize, C: From<[i64; SIZE]> + Into<[i64; SIZE]>> 
     constant: i64,
 }
 
-// impl<const SIZE: usize, C: From<[i64; SIZE]> + Into<[i64; SIZE]>> Neg for ColumnX<SIZE, C> {
-//   type Output = Self;
+impl<C> Neg for ColumnX<C>
+where
+    C: Neg<Output = C>,
+{
+    type Output = Self;
 
-//   fn neg(self) -> Self::Output {
-//       Self {
-//           lv_linear_combination: self
-//               .lv_linear_combination
-//               .into()
-//               .into_iter()
-//               .map(Neg::neg)
-//               // .collect_vec()
-//               .try_into()
-//               .unwrap(),
-//           nv_linear_combination: self
-//               .nv_linear_combination
-//               .into()
-//               .into_iter()
-//               .map(Neg::neg)
-//               // .collect_vec()
-//               .try_into()
-//               .unwrap(),
-//           constant: -self.constant,
-//       }
-//   }
+    fn neg(self) -> Self::Output {
+        Self {
+            lv_linear_combination: -self.lv_linear_combination,
+            nv_linear_combination: -self.nv_linear_combination,
+            constant: self.constant.checked_neg().expect("negation overflow"),
+        }
+    }
+}
+
+// impl Add<Self> for Column {
+//     type Output = Self;
+
+//     #[allow(clippy::similar_names)]
+//     fn add(self, other: Self) -> Self {
+
+//         let add_lc = |mut slc: Vec<(usize, i64)>, mut rlc: Vec<(usize, i64)>|
+// {             slc.sort_by_key(|&(col_idx, _)| col_idx);
+//             rlc.sort_by_key(|&(col_idx, _)| col_idx);
+//             slc.into_iter()
+//                 .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
+//                 .map(|item| {
+//                     item.reduce(|(idx0, c0), (idx1, c1)| {
+//                         assert_eq!(idx0, idx1);
+//                         (idx0, c0 + c1)
+//                     })
+//                 })
+//                 .collect()
+//         };
+
+//         Self {
+//             lv_linear_combination: add_lc(self.lv_linear_combination,
+// other.lv_linear_combination),             nv_linear_combination:
+// add_lc(self.nv_linear_combination, other.nv_linear_combination),
+// constant: self.constant + other.constant,         }
+//     }
 // }

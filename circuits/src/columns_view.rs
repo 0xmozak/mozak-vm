@@ -36,8 +36,15 @@ pub trait NumberOfColumns {
 }
 
 pub trait Zip<Item> {
-    fn zip_with<F>(self, f: F, other: Self) -> Self where F: FnMut(Item, Item) -> Item;
-    fn map1<F>(self, f: F) -> Self where F: FnMut(Item) -> Item;
+    #[must_use]
+    fn zip_with<F>(self, other: Self, f: F) -> Self
+    where
+        F: FnMut(Item, Item) -> Item;
+
+    #[must_use]
+    fn map1<F>(self, f: F) -> Self
+    where
+        F: FnMut(Item) -> Item;
 }
 
 /// This structure only exists to improve macro impl hiding
@@ -57,17 +64,16 @@ pub struct ColumnViewImplHider<T>(PhantomData<T>);
 macro_rules! columns_view_impl {
     ($s: ident) => {
         impl<Item> crate::columns_view::Zip<Item> for $s<Item> {
-            fn zip_with<F>(self, mut f: F, other: Self) -> Self
+            fn zip_with<F>(self, other: Self, mut f: F) -> Self
             where
                 F: FnMut(Item, Item) -> Item, {
-                $s::from_array(
-                    {
-                        let mut a = self.into_iter();
-                        let mut b = other.into_iter();
-                        core::array::from_fn(move |_| f(a.next().unwrap(), b.next().unwrap()))
-                    }
-                )
+                $s::from_array({
+                    let mut a = self.into_iter();
+                    let mut b = other.into_iter();
+                    core::array::from_fn(move |_| f(a.next().unwrap(), b.next().unwrap()))
+                })
             }
+
             fn map1<F>(self, f: F) -> Self
             where
                 F: FnMut(Item) -> Item, {
@@ -125,7 +131,6 @@ macro_rules! columns_view_impl {
             }
         }
 
-
         impl<T> crate::columns_view::NumberOfColumns for $s<T> {
             // `u8` is guaranteed to have a `size_of` of 1.
             const NUMBER_OF_COLUMNS: usize = std::mem::size_of::<$s<u8>>();
@@ -180,6 +185,44 @@ macro_rules! columns_view_impl {
                 let vec: arrayvec::ArrayVec<T, LEN> = iter.into_iter().collect();
                 let array = vec.into_inner().expect("iterator of correct length");
                 Self::from_array(array)
+            }
+        }
+        impl core::ops::Neg for $s<i64> {
+            type Output = Self;
+
+            fn neg(self) -> Self::Output {
+                // TODO: use checked_* implementation.
+                crate::columns_view::Zip::map1(self, core::ops::Neg::neg)
+            }
+        }
+        impl core::ops::Add<$s<i64>> for $s<i64> {
+            type Output = Self;
+
+            fn add(self, other: Self) -> Self::Output {
+                // TODO: use checked_* implementation.
+                crate::columns_view::Zip::zip_with(self, other, core::ops::Add::add)
+            }
+        }
+        impl core::ops::Sub<$s<i64>> for $s<i64> {
+            type Output = Self;
+
+            fn sub(self, other: Self) -> Self::Output {
+                // TODO: use checked_* implementation.
+                crate::columns_view::Zip::zip_with(self, other, core::ops::Sub::sub)
+            }
+        }
+        impl core::ops::Mul<i64> for $s<i64> {
+            type Output = Self;
+
+            fn mul(self, other: i64) -> Self::Output {
+                // TODO: use checked_* implementation.
+                crate::columns_view::Zip::map1(self, |x| x * other)
+            }
+        }
+        impl core::iter::Sum<$s<i64>> for $s<i64> {
+            #[inline]
+            fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+                iter.fold(Self::default(), core::ops::Add::add)
             }
         }
     };
