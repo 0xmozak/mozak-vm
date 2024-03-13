@@ -133,7 +133,7 @@ impl LeafTargets {
 }
 
 impl LeafSubCircuit {
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         a_hash: HashOut<F>,
@@ -229,7 +229,7 @@ impl BranchTargets {
 }
 
 impl BranchSubCircuit {
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         a_hash: HashOut<F>,
@@ -289,8 +289,8 @@ mod test {
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.merge
-                .set_inputs(&mut inputs, a_tree, b_tree, merged_hash);
-            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+                .set_witness(&mut inputs, a_tree, b_tree, merged_hash);
+            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
     }
@@ -351,7 +351,7 @@ mod test {
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.merge
-                .set_inputs(&mut inputs, a_tree, b_tree, merged_hash);
+                .set_witness(&mut inputs, a_tree, b_tree, merged_hash);
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
             inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
             self.circuit.prove(inputs)

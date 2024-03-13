@@ -95,10 +95,10 @@ where
         address: Option<u64>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.summarized.set_inputs(&mut inputs, summary_hash);
-        self.old.set_inputs(&mut inputs, old_hash);
-        self.new.set_inputs(&mut inputs, new_hash);
-        self.address.set_inputs(&mut inputs, address);
+        self.summarized.set_witness(&mut inputs, summary_hash);
+        self.old.set_witness(&mut inputs, old_hash);
+        self.new.set_witness(&mut inputs, new_hash);
+        self.address.set_witness(&mut inputs, address);
         self.circuit.prove(inputs)
     }
 }
@@ -237,12 +237,12 @@ where
         let mut inputs = PartialWitness::new();
         inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
         inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
-        self.summarized.set_inputs(&mut inputs, summary_hash);
-        self.old.set_inputs(&mut inputs, old_hash);
-        self.new.set_inputs(&mut inputs, new_hash);
+        self.summarized.set_witness(&mut inputs, summary_hash);
+        self.old.set_witness(&mut inputs, old_hash);
+        self.new.set_witness(&mut inputs, new_hash);
         match address.into() {
-            AddressPresent::Present(a) => self.address.set_inputs(&mut inputs, Some(a)),
-            AddressPresent::Absent => self.address.set_inputs(&mut inputs, None),
+            AddressPresent::Present(a) => self.address.set_witness(&mut inputs, Some(a)),
+            AddressPresent::Absent => self.address.set_witness(&mut inputs, None),
             AddressPresent::Implicit => {}
         }
         self.circuit.prove(inputs)
