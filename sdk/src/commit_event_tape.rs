@@ -16,15 +16,7 @@ pub fn hash_canonical_event(event: &CanonicalEvent) -> Poseidon2HashType {
     )
 }
 
-#[allow(unused)]
-pub fn hash_canonical_event_tape(tape: CanonicalEventTapeSingle) -> Poseidon2HashType {
-    // collect hashes
-    let mut hashes_with_addr = tape
-        .sorted_events
-        .iter()
-        .map(|event| (event.address, hash_canonical_event(event)))
-        .collect::<Vec<(u32, Poseidon2HashType)>>();
-
+pub fn merklelize(mut hashes_with_addr: Vec<(u32, Poseidon2HashType)>) -> Poseidon2HashType {
     while hashes_with_addr.len() > 1 {
         let mut new_hashes_with_addr = vec![];
         let mut prev_pair = None;
@@ -59,6 +51,17 @@ pub fn hash_canonical_event_tape(tape: CanonicalEventTapeSingle) -> Poseidon2Has
     }
     let (_root_addr, root_hash) = hashes_with_addr[0];
     root_hash
+}
+
+#[allow(unused)]
+pub fn hash_canonical_event_tape(tape: CanonicalEventTapeSingle) -> Poseidon2HashType {
+    // collect hashes
+    let mut hashes_with_addr = tape
+        .sorted_events
+        .iter()
+        .map(|event| (event.address, hash_canonical_event(event)))
+        .collect::<Vec<(u32, Poseidon2HashType)>>();
+    merklelize(hashes_with_addr)
 }
 
 #[cfg(test)]
