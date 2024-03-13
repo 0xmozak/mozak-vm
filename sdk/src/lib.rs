@@ -9,3 +9,6 @@ pub mod io;
 #[cfg(not(target_os = "mozakvm"))]
 pub(crate) mod native_helpers;
 pub mod sys;
+
+#[cfg(not(target_os = "mozakvm"))]
+pub(crate) mod commit_event_tape;
