@@ -7,6 +7,7 @@
 //! These subcircuits are useful because with just a pair of them, say a old and
 //! new, you can prove a transition from the current merkle root (proved by old)
 //! to a new merkle root (proved by new).
+use itertools::chain;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -124,16 +125,18 @@ impl SubCircuitInputs {
     fn build_helper<F: RichField + Extendable<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
-        left: SubCircuitInputs,
-        right: SubCircuitInputs,
+        left_proof: &ProofWithPublicInputsTarget<D>,
+        right_proof: &ProofWithPublicInputsTarget<D>,
+        indices: &PublicIndices,
+        hasher: impl FnOnce(&mut CircuitBuilder<F, D>, Vec<Target>) -> HashOutTarget,
     ) -> BranchTargets {
+        let left = Self::direction_from_node(left_proof, indices);
+        let right = Self::direction_from_node(right_proof, indices);
+
         // Hash the left and right together
-        let unpruned_hash_calc = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
-            left.unpruned_hash
-                .elements
-                .into_iter()
-                .chain(right.unpruned_hash.elements)
-                .collect(),
+        let unpruned_hash_calc = hasher(
+            builder,
+            chain!(left.unpruned_hash.elements, right.unpruned_hash.elements).collect(),
         );
 
         builder.connect_hashes(unpruned_hash_calc, self.unpruned_hash);
@@ -153,9 +156,13 @@ impl SubCircuitInputs {
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
     ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, &leaf.indices);
-        let right = Self::direction_from_node(right_proof, &leaf.indices);
-        self.build_helper(builder, left, right)
+        self.build_helper(
+            builder,
+            left_proof,
+            right_proof,
+            &leaf.indices,
+            CircuitBuilder::hash_n_to_hash_no_pad::<Poseidon2Hash>,
+        )
     }
 
     pub fn from_branch<F: RichField + Extendable<D>, const D: usize>(
@@ -165,9 +172,13 @@ impl SubCircuitInputs {
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
     ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, &branch.indices);
-        let right = Self::direction_from_node(right_proof, &branch.indices);
-        self.build_helper(builder, left, right)
+        self.build_helper(
+            builder,
+            left_proof,
+            right_proof,
+            &branch.indices,
+            CircuitBuilder::hash_n_to_hash_no_pad::<Poseidon2Hash>,
+        )
     }
 }
 
