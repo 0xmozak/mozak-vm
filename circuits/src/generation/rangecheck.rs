@@ -134,7 +134,7 @@ mod tests {
         let io_transcript_rows = generate_io_transcript_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
-        let memory_rows: Vec<Memory<GoldilocksField>> = generate_memory_trace::<F>(
+        let memory_rows = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
             &halfword_memory,
