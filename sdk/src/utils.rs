@@ -1,20 +1,5 @@
-use crate::coretypes::{CanonicalEvent, Poseidon2HashType};
-use crate::sys::{poseidon2_hash_no_pad, poseidon2_hash_with_pad, CanonicalEventTapeSingle};
-
-#[allow(unused)]
-pub fn hash_canonical_event(event: &CanonicalEvent) -> Poseidon2HashType {
-    poseidon2_hash_with_pad(
-        &vec![
-            event.address.to_le_bytes().to_vec(),
-            vec![event.event_type.clone() as u8],
-            event.event_value.0.to_vec(),
-            event.event_emitter.0.to_vec(),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<u8>>(),
-    )
-}
+use crate::coretypes::Poseidon2HashType;
+use crate::sys::poseidon2_hash_no_pad;
 
 pub fn merklelize(mut hashes_with_addr: Vec<(u32, Poseidon2HashType)>) -> Poseidon2HashType {
     while hashes_with_addr.len() > 1 {
@@ -53,20 +38,9 @@ pub fn merklelize(mut hashes_with_addr: Vec<(u32, Poseidon2HashType)>) -> Poseid
     root_hash
 }
 
-#[allow(unused)]
-pub fn hash_canonical_event_tape(tape: CanonicalEventTapeSingle) -> Poseidon2HashType {
-    // collect hashes
-    let mut hashes_with_addr = tape
-        .sorted_events
-        .iter()
-        .map(|event| (event.address, hash_canonical_event(event)))
-        .collect::<Vec<(u32, Poseidon2HashType)>>();
-    merklelize(hashes_with_addr)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{hash_canonical_event_tape, merklelize};
+    use super::merklelize;
     use crate::coretypes::{
         Address, CanonicalEventType, Event, Poseidon2HashType, ProgramIdentifier, StateObject,
     };
@@ -114,7 +88,7 @@ mod tests {
         };
 
         let canonical_event_tape: CanonicalEventTapeSingle = event_tape.into();
-        let root_hash = hash_canonical_event_tape(canonical_event_tape);
+        let root_hash = canonical_event_tape.canonical_hash();
         assert_eq!(root_hash.to_le_bytes(), [
             159, 132, 147, 134, 125, 28, 139, 35, 191, 116, 104, 28, 101, 96, 74, 246, 157, 14, 9,
             53, 55, 174, 28, 120, 129, 39, 217, 11, 93, 190, 58, 124

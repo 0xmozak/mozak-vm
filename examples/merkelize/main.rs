@@ -1,8 +1,8 @@
 #![cfg_attr(target_os = "mozakvm", feature(restricted_std))]
 #![cfg_attr(target_os = "mozakvm", no_main)]
 
-use mozak_sdk::commit_event_tape::merklelize;
 use mozak_sdk::coretypes::Poseidon2HashType;
+use mozak_sdk::utils::merklelize;
 
 pub fn main() {
     let hashes_with_addr = vec![
