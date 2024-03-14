@@ -2,7 +2,9 @@
 use itertools::{chain, Itertools};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
-use crate::sys::{poseidon2_hash_no_pad, poseidon2_hash_with_pad};
+use crate::sys::poseidon2_hash_no_pad;
+#[cfg(not(target_os = "mozakvm"))]
+use crate::sys::poseidon2_hash_with_pad;
 
 pub const DIGEST_BYTES: usize = 32;
 

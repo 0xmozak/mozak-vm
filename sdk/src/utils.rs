@@ -97,27 +97,31 @@ mod tests {
         ])
     }
     #[test]
+    #[rustfmt::skip] 
     fn merkelize_test() {
         let hashes_with_addr = vec![
-            (0x010, Poseidon2HashType([1u8; 32])),
-            (0x011, Poseidon2HashType([2u8; 32])),
-            (0x011, Poseidon2HashType([3u8; 32])),
-            (0x111, Poseidon2HashType([4u8; 32])),
+            (0x010, Poseidon2HashType([1u8; 32])),// ------------|
+                                                  //             |--h_2---|  
+            (0x011, Poseidon2HashType([2u8; 32])),// ----|       |        |
+                                                  //     |-h_1---|        |---root
+            (0x011, Poseidon2HashType([3u8; 32])),// ----|                |
+                                                  //                      |
+            (0x111, Poseidon2HashType([4u8; 32])),//--------------------- |
         ];
-        let hash_12 = poseidon2_hash_no_pad(
+        let h_1 = poseidon2_hash_no_pad(
             &chain![
                 hashes_with_addr[1].1.to_le_bytes(),
                 hashes_with_addr[2].1.to_le_bytes()
             ]
             .collect::<Vec<u8>>(),
         );
-        let hash_1 = poseidon2_hash_no_pad(
-            &chain![hashes_with_addr[0].1.to_le_bytes(), hash_12.to_le_bytes()]
+        let h_2 = poseidon2_hash_no_pad(
+            &chain![hashes_with_addr[0].1.to_le_bytes(), h_1.to_le_bytes()]
                 .collect::<Vec<u8>>(),
         );
-        let hash_13 = poseidon2_hash_no_pad(
-            &chain![hash_1.to_le_bytes(), hashes_with_addr[3].1.to_le_bytes()].collect::<Vec<u8>>(),
+        let root = poseidon2_hash_no_pad(
+            &chain![h_2.to_le_bytes(), hashes_with_addr[3].1.to_le_bytes()].collect::<Vec<u8>>(),
         );
-        assert_eq!(hash_13, merklelize(hashes_with_addr));
+        assert_eq!(root, merklelize(hashes_with_addr));
     }
 }
