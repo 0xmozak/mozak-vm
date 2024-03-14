@@ -8,8 +8,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
-use super::state_from_event::EventType;
-use super::{hash_event, state_from_event, unbounded, unpruned};
+use super::{hash_event, state_from_event, unbounded, unpruned, Event, EventType};
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
@@ -68,8 +67,12 @@ where
         event_value: [F; 4],
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.partial_state
-            .set_witness(&mut inputs, address, event_owner, event_ty, event_value);
+        self.partial_state.set_witness(&mut inputs, Event {
+            owner: event_owner,
+            ty: event_ty,
+            address,
+            value: event_value,
+        });
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.circuit.prove(inputs)
     }
