@@ -7,6 +7,10 @@ use crate::native::helpers::IdentityStack;
 
 /// Represents the `EventTape` under native execution
 #[derive(Default)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct EventTape {
     pub writer: HashMap<ProgramIdentifier, Vec<Event>>,
     pub identity_stack: RefCell<IdentityStack>,

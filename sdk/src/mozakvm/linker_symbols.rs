@@ -6,5 +6,5 @@ extern "C" {
     // pub static mozak_public_io_tape: usize;
     // pub static mozak_private_io_tape: usize;
     pub static mozak_call_tape: usize;
-    // pub static mozak_event_tape: usize;
+    pub static mozak_event_tape: usize;
 }

@@ -14,6 +14,11 @@ pub type CallTapeType = crate::mozakvm::calltape::CallTape;
 #[cfg(not(target_os = "mozakvm"))]
 pub type CallTapeType = crate::native::calltape::CallTape;
 
+#[cfg(target_os = "mozakvm")]
+pub type EventTapeType = crate::mozakvm::eventtape::EventTape;
+#[cfg(not(target_os = "mozakvm"))]
+pub type EventTapeType = crate::native::eventtape::EventTape;
+
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
 #[derive(
@@ -68,6 +73,10 @@ pub const STATE_TREE_DEPTH: usize = 4;
 /// Canonical "address" type of object in "mozak vm".
 #[derive(
     Archive, Deserialize, Serialize, PartialEq, Eq, Default, PartialOrd, Ord, Copy, Clone, Hash,
+)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
 )]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
@@ -185,6 +194,10 @@ impl From<String> for ProgramIdentifier {
     }
 }
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[archive(compare(PartialEq))]
 #[cfg_attr(target_os = "mozakvm", derive(Debug))]
 #[archive_attr(derive(Debug))]
@@ -207,6 +220,10 @@ pub struct StateObject {
 }
 
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct CanonicalStateObjectEvent {
@@ -220,6 +237,10 @@ pub struct CanonicalStateObjectEvent {
 }
 
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[repr(u8)]
@@ -310,6 +331,10 @@ pub struct CPCMessage {
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct Signature(Vec<u8>);
@@ -345,13 +370,22 @@ impl From<Vec<u8>> for Signature {
 // }
 
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct Event {
     pub object: StateObject,
     pub operation: CanonicalEventType,
 }
+
 #[derive(Archive, Debug, Deserialize, Eq, PartialEq, PartialOrd, Ord, Serialize, Clone, Hash)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 /// Event which is ready to be ingested into event accumulator
@@ -394,5 +428,5 @@ impl From<Event> for CanonicalEvent {
 pub struct SystemTape {
     // TODO: Add Public and Private IO Tape
     pub call_tape: CallTapeType,
-    // pub event_tape: EventTape,
+    pub event_tape: EventTapeType,
 }
