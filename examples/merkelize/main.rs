@@ -6,13 +6,14 @@ use mozak_sdk::utils::merklelize;
 
 pub fn main() {
     let hashes_with_addr = vec![
-        (200, Poseidon2HashType([1u8; 32])),
-        (100, Poseidon2HashType([2u8; 32])),
-        (300, Poseidon2HashType([3u8; 32])),
+        (0x010, Poseidon2HashType([1u8; 32])),
+        (0x011, Poseidon2HashType([2u8; 32])),
+        (0x011, Poseidon2HashType([3u8; 32])),
+        (0x111, Poseidon2HashType([4u8; 32])),
     ];
     assert_eq!(merklelize(hashes_with_addr).to_le_bytes(), [
-        148, 89, 143, 68, 91, 176, 146, 6, 215, 130, 191, 141, 189, 91, 42, 189, 195, 109, 98, 80,
-        53, 18, 90, 71, 164, 178, 181, 93, 211, 99, 80, 86
+        232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 132, 26, 242, 155, 95, 48, 48,
+        8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53
     ]);
 }
 

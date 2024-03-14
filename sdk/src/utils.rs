@@ -118,6 +118,7 @@ mod tests {
         let hash_13 = poseidon2_hash_no_pad(
             &chain![hash_1.to_le_bytes(), hashes_with_addr[3].1.to_le_bytes()].collect::<Vec<u8>>(),
         );
+        println!("{:?}", hash_13.to_le_bytes());
         assert_eq!(hash_13, merklelize(hashes_with_addr));
     }
 }
