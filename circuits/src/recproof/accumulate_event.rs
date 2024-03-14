@@ -111,8 +111,13 @@ where
         let right_proof = builder.add_virtual_proof_with_pis(common);
         let left_is_leaf = builder.add_virtual_bool_target_safe();
         let right_is_leaf = builder.add_virtual_bool_target_safe();
-        let event_hash_targets =
-            event_hash_inputs.from_leaf(&mut builder, &leaf.event_hash, &left_proof, &right_proof);
+        let event_hash_targets = event_hash_inputs.from_leaf(
+            &mut builder,
+            &leaf.event_hash,
+            &left_proof,
+            &right_proof,
+            false,
+        );
         let partial_state_targets = partial_state_inputs.from_leaf(
             &mut builder,
             &leaf.partial_state,
