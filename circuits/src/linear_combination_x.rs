@@ -183,8 +183,6 @@ where
     pub fn ascending_sum<I>(cs: I) -> Self
     where
         I: IntoIterator<Item = Self>, {
-        izip!(cs, 0..)
-            .map(|(c, i): (Self, i64)| -> Self { c * i })
-            .sum()
+        izip!(cs, 0..).map(|(c, i)| c * i).sum()
     }
 }
