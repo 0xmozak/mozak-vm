@@ -265,6 +265,26 @@ macro_rules! make_col_map {
             };
             &MAP
         }
+
+        impl crate::columns_view::ColMap for $s<$s<i64>> {
+            // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
+            const COL_MAP: Self = {
+                use core::mem::transmute;
+
+                use crate::columns_view::NumberOfColumns;
+                const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
+                let identity_matrix = {
+                    let mut indices_mat = [[0; N]; N];
+                    let mut i = 0;
+                    while i < N {
+                        indices_mat[i][i] = 1;
+                        i += 1;
+                    }
+                    indices_mat
+                };
+                unsafe { transmute::<[[i64; N]; N], $s<$s<i64>>>(identity_matrix) }
+            };
+        }
     };
 }
 pub(crate) use make_col_map;

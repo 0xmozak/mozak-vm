@@ -7,7 +7,6 @@
 // FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
 #![allow(clippy::ignored_unit_patterns)]
 #![feature(const_trait_impl)]
-#![feature(effects)]
 
 pub mod bitshift;
 pub mod columns_view;
