@@ -274,7 +274,7 @@ impl Column {
             + FE::from_noncanonical_i64(self.constant)
     }
 
-    /// Evaluate on an row of a table given in column-major form.
+    /// Evaluate on a row of a table given in column-major form.
     #[allow(clippy::cast_possible_wrap)]
     #[must_use]
     pub fn eval_table<F: Field>(&self, table: &[PolynomialValues<F>], row: usize) -> F {
