@@ -1,5 +1,5 @@
 // use core::iter::Sum;
-use core::ops::Neg;
+use core::ops::{Add, Mul, Neg, Sub};
 
 // use std::borrow::Borrow;
 // use std::ops::Index;
@@ -24,6 +24,15 @@ pub struct ColumnX<C> {
     constant: i64,
 }
 
+/// Flip lv and nv
+pub fn flip<C>(col: ColumnX<C>) -> ColumnX<C> {
+    ColumnX {
+        lv_linear_combination: col.nv_linear_combination,
+        nv_linear_combination: col.lv_linear_combination,
+        constant: col.constant,
+    }
+}
+
 impl<C> Neg for ColumnX<C>
 where
     C: Neg<Output = C>,
@@ -39,30 +48,59 @@ where
     }
 }
 
-// impl Add<Self> for Column {
-//     type Output = Self;
+impl<C> Add<Self> for ColumnX<C>
+where
+    C: Add<Output = C>,
+{
+    type Output = Self;
 
-//     #[allow(clippy::similar_names)]
-//     fn add(self, other: Self) -> Self {
+    #[allow(clippy::similar_names)]
+    fn add(self, other: Self) -> Self {
+        Self {
+            lv_linear_combination: self.lv_linear_combination + other.lv_linear_combination,
+            nv_linear_combination: self.nv_linear_combination + other.nv_linear_combination,
+            constant: self
+                .constant
+                .checked_add(other.constant)
+                .expect("addition overflow"),
+        }
+    }
+}
 
-//         let add_lc = |mut slc: Vec<(usize, i64)>, mut rlc: Vec<(usize, i64)>|
-// {             slc.sort_by_key(|&(col_idx, _)| col_idx);
-//             rlc.sort_by_key(|&(col_idx, _)| col_idx);
-//             slc.into_iter()
-//                 .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
-//                 .map(|item| {
-//                     item.reduce(|(idx0, c0), (idx1, c1)| {
-//                         assert_eq!(idx0, idx1);
-//                         (idx0, c0 + c1)
-//                     })
-//                 })
-//                 .collect()
-//         };
+impl<C> Sub<Self> for ColumnX<C>
+where
+    C: Sub<Output = C>,
+{
+    type Output = Self;
 
-//         Self {
-//             lv_linear_combination: add_lc(self.lv_linear_combination,
-// other.lv_linear_combination),             nv_linear_combination:
-// add_lc(self.nv_linear_combination, other.nv_linear_combination),
-// constant: self.constant + other.constant,         }
-//     }
-// }
+    #[allow(clippy::similar_names)]
+    fn sub(self, other: Self) -> Self {
+        Self {
+            lv_linear_combination: self.lv_linear_combination - other.lv_linear_combination,
+            nv_linear_combination: self.nv_linear_combination - other.nv_linear_combination,
+            constant: self
+                .constant
+                .checked_sub(other.constant)
+                .expect("subtraction overflow"),
+        }
+    }
+}
+
+impl<C> Mul<i64> for ColumnX<C>
+where
+    C: Mul<i64, Output = C>,
+{
+    type Output = Self;
+
+    #[allow(clippy::similar_names)]
+    fn mul(self, other: i64) -> Self {
+        Self {
+            lv_linear_combination: self.lv_linear_combination * other,
+            nv_linear_combination: self.nv_linear_combination * other,
+            constant: self
+                .constant
+                .checked_mul(other)
+                .expect("multiplication overflow"),
+        }
+    }
+}

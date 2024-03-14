@@ -268,6 +268,7 @@ macro_rules! make_col_map {
 
         impl crate::columns_view::ColMap for $s<$s<i64>> {
             // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
+            #[allow(clippy::large_stack_arrays)]
             const COL_MAP: Self = {
                 use core::mem::transmute;
 
