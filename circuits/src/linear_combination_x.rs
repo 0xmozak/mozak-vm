@@ -1,6 +1,8 @@
 use core::iter::Sum;
 use core::ops::{Add, Mul, Neg, Sub};
 
+use crate::columns_view::Zip;
+
 // use std::borrow::Borrow;
 // use std::ops::Index;
 
@@ -111,4 +113,72 @@ where
 {
     #[inline]
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Self::default(), Add::add) }
+}
+
+impl<C> ColumnX<C>
+where
+    ColumnX<C>: Default,
+{
+    #[must_use]
+    pub fn always() -> Self {
+        ColumnX {
+            constant: 1,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
+    pub fn constant(constant: i64) -> Self {
+        ColumnX {
+            constant,
+            ..Default::default()
+        }
+    }
+}
+impl<C> From<C> for ColumnX<C>
+where
+    ColumnX<C>: Default,
+{
+    fn from(lv_linear_combination: C) -> Self {
+        Self {
+            lv_linear_combination,
+            ..Default::default()
+        }
+    }
+}
+
+impl<C> ColumnX<C>
+where
+    ColumnX<C>: Default,
+{
+    pub fn next(nv_linear_combination: C) -> Self {
+        Self {
+            nv_linear_combination,
+            ..Default::default()
+        }
+    }
+}
+
+impl<C: Default + Zip<i64>> ColumnX<C>
+where
+    ColumnX<C>: Default,
+{
+    /// This is useful for `not`: `all_lv - Self::from(my_column)`
+    // We could also implement this as a `sum` over COL_MAP, but the types are more annoying to get
+    // right.
+    #[must_use]
+    pub fn all_lv() -> Self {
+        ColumnX {
+            lv_linear_combination: C::default().map1(|_| 1),
+            ..Default::default()
+        }
+    }
+}
+
+impl<C: Default + Zip<i64>> ColumnX<C>
+where
+    ColumnX<C>: Sub<Output = ColumnX<C>>,
+{
+    #[must_use]
+    pub fn not(c: C) -> Self { Self::all_lv() - Self::from(c) }
 }
