@@ -1,4 +1,4 @@
-// use core::iter::Sum;
+use core::iter::Sum;
 use core::ops::{Add, Mul, Neg, Sub};
 
 // use std::borrow::Borrow;
@@ -103,4 +103,12 @@ where
                 .expect("multiplication overflow"),
         }
     }
+}
+
+impl<C> Sum<ColumnX<C>> for ColumnX<C>
+where
+    C: Add<Output = C> + Default,
+{
+    #[inline]
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Self::default(), Add::add) }
 }
