@@ -373,7 +373,7 @@ impl CanonicalEvent {
         poseidon2_hash_no_pad(
             &vec![
                 self.event_owner.0.to_vec(),
-                vec![0, 0, 0, 0, 0, 0, 0, self.event_type.clone() as u8],
+                vec![self.event_type.clone() as u8, 0, 0, 0, 0, 0, 0, 0],
                 self.address.to_le_bytes().to_vec(),
                 self.event_value.0.to_vec(),
             ]
