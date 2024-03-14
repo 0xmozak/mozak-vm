@@ -46,6 +46,8 @@ pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
 }
 
 #[allow(dead_code)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[allow(clippy::ptr_as_ptr)]
 pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
@@ -82,6 +84,8 @@ pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 #[allow(dead_code)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[allow(clippy::ptr_as_ptr)]
 pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
@@ -118,6 +122,8 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 #[allow(dead_code)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[allow(clippy::ptr_as_ptr)]
 pub fn transcript_read(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
