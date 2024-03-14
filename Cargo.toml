@@ -16,9 +16,18 @@
 
 [workspace]
 exclude = ["sdk", "examples-builder"]
-members = ["cli", 
-# "examples-builder", 
-"runner", "circuits", "node-cli", "node", "rpc", "state", "signatures", "wasm-demo"]
+members = [
+  "cli",
+  # "examples-builder", 
+  "runner",
+  "circuits",
+  "node-cli",
+  "node",
+  "rpc",
+  "state",
+  "signatures",
+  "wasm-demo",
+]
 resolver = "2"
 
 [profile.dev]
