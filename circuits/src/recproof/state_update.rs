@@ -146,8 +146,10 @@ where
         builder.verify_proof::<C>(&right_proof, &verifier, common);
         let summarized_targets =
             summarized_inputs.from_leaf(&mut builder, &leaf.summarized, &left_proof, &right_proof);
-        let old_targets = old_inputs.from_leaf(&mut builder, &leaf.old, &left_proof, &right_proof);
-        let new_targets = new_inputs.from_leaf(&mut builder, &leaf.new, &left_proof, &right_proof);
+        let old_targets =
+            old_inputs.from_leaf(&mut builder, &leaf.old, &left_proof, &right_proof, false);
+        let new_targets =
+            new_inputs.from_leaf(&mut builder, &leaf.new, &left_proof, &right_proof, false);
         let address_targets =
             address_inputs.from_leaf(&mut builder, &leaf.address, &left_proof, &right_proof);
         let targets = BranchTargets {
@@ -196,9 +198,9 @@ where
             &right_proof,
         );
         let old_targets =
-            old_inputs.from_branch(&mut builder, &branch.old, &left_proof, &right_proof);
+            old_inputs.from_branch(&mut builder, &branch.old, &left_proof, &right_proof, false);
         let new_targets =
-            new_inputs.from_branch(&mut builder, &branch.new, &left_proof, &right_proof);
+            new_inputs.from_branch(&mut builder, &branch.new, &left_proof, &right_proof, false);
         let address_targets =
             address_inputs.from_branch(&mut builder, &branch.address, &left_proof, &right_proof);
         let targets = BranchTargets {
