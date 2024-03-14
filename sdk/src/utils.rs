@@ -4,7 +4,7 @@ use crate::sys::poseidon2_hash_no_pad;
 #[must_use]
 /// Takes vector of leaves of the form (address, hash) sorted according to
 /// address, and returns root of corresponding merkle tree.
-pub fn merklelize(mut hashes_with_addr: Vec<(u32, Poseidon2HashType)>) -> Poseidon2HashType {
+pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
     while hashes_with_addr.len() > 1 {
         let mut new_hashes_with_addr = vec![];
         let mut i = 0;
@@ -52,7 +52,7 @@ mod tests {
     pub fn sample_test_run() {
         let program_id = ProgramIdentifier::default();
         let object = StateObject {
-            address: Address::from([1u8; 4]),
+            address: Address::from([1u8; 8]),
             constraint_owner: ProgramIdentifier::default(),
             data: vec![1, 2, 3, 4, 5],
         };
@@ -63,7 +63,7 @@ mod tests {
         };
 
         let another_object = StateObject {
-            address: Address::from([2u8; 4]),
+            address: Address::from([2u8; 8]),
             constraint_owner: ProgramIdentifier::default(),
             data: vec![1, 2, 3, 4, 5, 6],
         };
@@ -91,10 +91,9 @@ mod tests {
 
         let canonical_event_tape: CanonicalEventTapeSingle = event_tape.into();
         let root_hash = canonical_event_tape.canonical_hash();
-        println!("{:?}", root_hash.to_le_bytes());
         assert_eq!(root_hash.to_le_bytes(), [
-            220, 222, 255, 27, 9, 24, 240, 169, 105, 180, 61, 108, 64, 64, 67, 112, 42, 217, 107,
-            241, 227, 17, 131, 49, 73, 236, 108, 123, 169, 51, 29, 235
+            145, 36, 249, 45, 165, 207, 199, 178, 237, 63, 61, 119, 154, 69, 157, 172, 212, 0, 178,
+            143, 174, 36, 139, 46, 174, 198, 15, 225, 228, 164, 117, 169
         ])
     }
     #[test]
@@ -119,7 +118,6 @@ mod tests {
         let hash_13 = poseidon2_hash_no_pad(
             &chain![hash_1.to_le_bytes(), hashes_with_addr[3].1.to_le_bytes()].collect::<Vec<u8>>(),
         );
-        println!("{:?}", hash_13.to_le_bytes());
         assert_eq!(hash_13, merklelize(hashes_with_addr));
     }
 }

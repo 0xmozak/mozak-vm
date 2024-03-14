@@ -282,7 +282,7 @@ impl CanonicalEventTapeSingle {
             .sorted_events
             .iter()
             .map(|event| (event.address, event.canonical_hash()))
-            .collect::<Vec<(u32, Poseidon2HashType)>>();
+            .collect::<Vec<(u64, Poseidon2HashType)>>();
         merklelize(hashes_with_addr)
     }
 }
@@ -393,7 +393,7 @@ pub fn dump_tapes(file_template: String) {
             canonical_event_tape
                 .sorted_events
                 .iter_mut()
-                .for_each(|canonical_event| canonical_event.event_emitter = single_event_tape.id);
+                .for_each(|canonical_event| canonical_event.event_owner = single_event_tape.id);
             single_event_tape.canonical_repr = Some(canonical_event_tape);
         });
 
