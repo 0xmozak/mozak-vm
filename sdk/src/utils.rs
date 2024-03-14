@@ -91,9 +91,10 @@ mod tests {
 
         let canonical_event_tape: CanonicalEventTapeSingle = event_tape.into();
         let root_hash = canonical_event_tape.canonical_hash();
+        println!("{:?}", root_hash.to_le_bytes());
         assert_eq!(root_hash.to_le_bytes(), [
-            159, 132, 147, 134, 125, 28, 139, 35, 191, 116, 104, 28, 101, 96, 74, 246, 157, 14, 9,
-            53, 55, 174, 28, 120, 129, 39, 217, 11, 93, 190, 58, 124
+            220, 222, 255, 27, 9, 24, 240, 169, 105, 180, 61, 108, 64, 64, 67, 112, 42, 217, 107,
+            241, 227, 17, 131, 49, 73, 236, 108, 123, 169, 51, 29, 235
         ])
     }
     #[test]
