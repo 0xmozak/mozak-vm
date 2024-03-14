@@ -2,7 +2,7 @@
 use itertools::{chain, Itertools};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
-use crate::sys::poseidon2_hash_with_pad;
+use crate::sys::{poseidon2_hash_no_pad, poseidon2_hash_with_pad};
 
 pub const DIGEST_BYTES: usize = 32;
 
@@ -59,7 +59,7 @@ impl From<Vec<u8>> for Poseidon2HashType {
     }
 }
 
-pub const STATE_TREE_DEPTH: usize = 4;
+pub const STATE_TREE_DEPTH: usize = 8;
 
 /// Canonical "address" type of object in "mozak vm".
 #[derive(
@@ -359,22 +359,21 @@ pub struct Event {
 /// Event which is ready to be ingested into event accumulator
 /// Events are always in relation to a state object
 pub struct CanonicalEvent {
-    pub address: u32,
+    pub address: u64,
     pub event_type: CanonicalEventType,
-    pub constraint_owner: ProgramIdentifier,
     pub event_value: Poseidon2HashType,
-    pub event_emitter: ProgramIdentifier,
+    pub event_owner: ProgramIdentifier,
 }
 
 impl CanonicalEvent {
     #[must_use]
     pub fn canonical_hash(&self) -> Poseidon2HashType {
-        poseidon2_hash_with_pad(
+        poseidon2_hash_no_pad(
             &vec![
+                self.event_owner.0.to_vec(),
+                vec![0, 0, 0, 0, 0, 0, 0, self.event_type.clone() as u8],
                 self.address.to_le_bytes().to_vec(),
-                vec![self.event_type.clone() as u8],
                 self.event_value.0.to_vec(),
-                self.event_emitter.0.to_vec(),
             ]
             .into_iter()
             .flatten()
@@ -394,11 +393,10 @@ impl From<Event> for CanonicalEvent {
         #[cfg(not(target_os = "mozakvm"))]
         {
             Self {
-                address: u32::from_le_bytes(*value.object.address),
+                address: u64::from_le_bytes(*value.object.address),
                 event_type: value.operation,
-                constraint_owner: value.object.constraint_owner,
                 event_value: poseidon2_hash_with_pad(&value.object.data),
-                event_emitter: Default::default(), // unknown here, added later
+                event_owner: Default::default(), // unknown here, added later
             }
         }
     }
