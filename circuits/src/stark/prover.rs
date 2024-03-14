@@ -3,8 +3,8 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
-use log::log_enabled;
 use log::Level::Debug;
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -30,7 +30,6 @@ use crate::generation::{debug_traces, generate_traces};
 use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
-use crate::stark::proof::StarkProofWithMetadata;
 
 /// Prove the execution of a given [Program]
 ///
@@ -52,6 +51,7 @@ pub fn prove<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
@@ -124,7 +124,7 @@ where
             &ctl_challenges
         )
     );
-    let proofs_with_metadata = timed!(
+    let proofs = timed!(
         timing,
         "compute all proofs given commitments",
         prove_with_commitments(
@@ -146,8 +146,7 @@ where
         timing.print();
     }
     Ok(AllProof {
-        proofs_with_metadata,
-        ctl_challenges,
+        proofs,
         program_rom_trace_cap,
         elf_memory_init_trace_cap,
         mozak_memory_init_trace_cap,
@@ -171,7 +170,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<StarkProofWithMetadata<F, C, D>>
+) -> Result<StarkProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -185,8 +184,6 @@ where
         fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
         "FRI total reduction arity is too large.",
     );
-
-    let init_challenger_state = challenger.compact();
 
     let z_polys = ctl_data.z_polys();
     // TODO(Matthias): make the code work with empty z_polys, too.
@@ -304,16 +301,12 @@ where
         )
     );
 
-    let proof = StarkProof {
+    Ok(StarkProof {
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
         ctl_zs_cap,
         quotient_polys_cap,
         openings,
         opening_proof,
-    };
-    Ok(StarkProofWithMetadata {
-        init_challenger_state,
-        proof,
     })
 }
 
@@ -332,7 +325,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<TableKindArray<StarkProofWithMetadata<F, C, D>>>
+) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {

@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 
 use anyhow::Result;
 use log::info;
@@ -8,7 +9,6 @@ use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::RichField;
-use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::iop::challenger::RecursiveChallenger;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
@@ -27,16 +27,16 @@ use starky::stark::{LookupConfig, Stark};
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
 use crate::stark::mozak_stark::{MozakStark, TableKind};
-use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
+use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
 use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
     AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
-    StarkProofWithMetadata, StarkProofWithPublicInputsTarget,
+    StarkProofWithPublicInputsTarget,
 };
 
 /// Plonky2's recursion threshold is 2^12 gates.
 pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
-pub const VM_PUBLIC_INPUT_SIZE: usize = 129;
+pub const VM_PUBLIC_INPUT_SIZE: usize = 193;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
@@ -57,9 +57,8 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
     pub stark_proof_with_pis_target: StarkProofWithPublicInputsTarget<D>,
-    pub ctl_challenges_target: GrandProductChallengeSet<Target>,
-    pub init_challenger_state_target: <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation,
     pub zero_target: Target,
+    pub _f: PhantomData<(F, C)>,
 }
 
 impl<F, C, const D: usize> StarkVerifierTargets<F, C, D>
@@ -68,32 +67,12 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
-    pub fn set_targets(
-        &self,
-        witness: &mut PartialWitness<F>,
-        proof_with_metadata: &StarkProofWithMetadata<F, C, D>,
-        ctl_challenges: &GrandProductChallengeSet<F>,
-    ) {
+    pub fn set_targets(&self, witness: &mut PartialWitness<F>, proof: &StarkProof<F, C, D>) {
         set_stark_proof_with_pis_target(
             witness,
             &self.stark_proof_with_pis_target.proof,
-            &proof_with_metadata.proof,
+            proof,
             self.zero_target,
-        );
-
-        for (challenge_target, challenge) in self
-            .ctl_challenges_target
-            .challenges
-            .iter()
-            .zip(&ctl_challenges.challenges)
-        {
-            witness.set_target(challenge_target.beta, challenge.beta);
-            witness.set_target(challenge_target.gamma, challenge.gamma);
-        }
-
-        witness.set_target_arr(
-            self.init_challenger_state_target.as_ref(),
-            proof_with_metadata.init_challenger_state.as_ref(),
         );
     }
 }
@@ -108,11 +87,7 @@ where
         let mut inputs = PartialWitness::new();
 
         all_kind!(|kind| {
-            self.targets[kind].set_targets(
-                &mut inputs,
-                &all_proof.proofs_with_metadata[kind],
-                &all_proof.ctl_challenges,
-            );
+            self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
         });
 
         // Set public inputs
@@ -126,6 +101,7 @@ where
     }
 }
 
+#[must_use]
 pub fn recursive_mozak_stark_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -140,19 +116,67 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-    let targets = all_starks!(mozak_stark, |stark, kind| {
-        recursive_stark_circuit::<F, C, _, D>(
-            &mut builder,
-            kind,
-            stark,
-            degree_bits[kind],
+    let mut challenger = RecursiveChallenger::<F, C::Hasher, D>::new(&mut builder);
+
+    let stark_proof_with_pis_target = all_starks!(mozak_stark, |stark, kind| {
+        let num_ctl_zs = CrossTableLookup::num_ctl_zs(
             &mozak_stark.cross_table_lookups,
+            kind,
+            inner_config.num_challenges,
+        );
+        add_virtual_stark_proof_with_pis(
+            &mut builder,
+            stark,
             inner_config,
+            degree_bits[kind],
+            num_ctl_zs,
         )
     });
 
+    for pi in &stark_proof_with_pis_target {
+        challenger.observe_cap(&pi.proof.trace_cap);
+    }
+
+    let ctl_challenges = get_grand_product_challenge_set_target(
+        &mut builder,
+        &mut challenger,
+        inner_config.num_challenges,
+    );
+
+    let targets = all_starks!(mozak_stark, |stark, kind| {
+        let ctl_vars = CtlCheckVarsTarget::from_proof(
+            kind,
+            &stark_proof_with_pis_target[kind].proof,
+            &mozak_stark.cross_table_lookups,
+            &ctl_challenges,
+        );
+
+        let challenges_target = stark_proof_with_pis_target[kind]
+            .proof
+            .get_challenges::<F, C>(&mut builder, &mut challenger, inner_config);
+
+        verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
+            &mut builder,
+            stark,
+            &stark_proof_with_pis_target[kind],
+            &challenges_target,
+            &ctl_vars,
+            inner_config,
+        );
+
+        StarkVerifierTargets {
+            stark_proof_with_pis_target: stark_proof_with_pis_target[kind].clone(),
+            zero_target: builder.zero(),
+            _f: PhantomData,
+        }
+    });
+
     // Register program ROM and memory init trace cap as public inputs.
-    for kind in [TableKind::Program, TableKind::ElfMemoryInit] {
+    for kind in [
+        TableKind::Program,
+        TableKind::ElfMemoryInit,
+        TableKind::MozakMemoryInit,
+    ] {
         builder.register_public_inputs(
             &targets[kind]
                 .stark_proof_with_pis_target
@@ -169,75 +193,6 @@ where
     MozakStarkVerifierCircuit { circuit, targets }
 }
 
-#[allow(clippy::similar_names)]
-/// Returns the recursive Stark circuit.
-pub fn recursive_stark_circuit<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    S: Stark<F, D>,
-    const D: usize,
->(
-    builder: &mut CircuitBuilder<F, D>,
-    table: TableKind,
-    stark: &S,
-    degree_bits: usize,
-    cross_table_lookups: &[CrossTableLookup<F>],
-    inner_config: &StarkConfig,
-) -> StarkVerifierTargets<F, C, D>
-where
-    C::Hasher: AlgebraicHasher<F>, {
-    let zero_target = builder.zero();
-
-    let num_ctl_zs =
-        CrossTableLookup::num_ctl_zs(cross_table_lookups, table, inner_config.num_challenges);
-    let stark_proof_with_pis_target =
-        add_virtual_stark_proof_with_pis(builder, stark, inner_config, degree_bits, num_ctl_zs);
-
-    let ctl_challenges_target = GrandProductChallengeSet {
-        challenges: (0..inner_config.num_challenges)
-            .map(|_| GrandProductChallenge {
-                beta: builder.add_virtual_target(),
-                gamma: builder.add_virtual_target(),
-            })
-            .collect(),
-    };
-
-    let ctl_vars = CtlCheckVarsTarget::from_proof(
-        table,
-        &stark_proof_with_pis_target.proof,
-        cross_table_lookups,
-        &ctl_challenges_target,
-    );
-
-    let init_challenger_state_target =
-        <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation::new(std::iter::from_fn(|| {
-            Some(builder.add_virtual_target())
-        }));
-    let mut challenger =
-        RecursiveChallenger::<F, C::Hasher, D>::from_state(init_challenger_state_target);
-    let challenges = stark_proof_with_pis_target.proof.get_challenges::<F, C>(
-        builder,
-        &mut challenger,
-        inner_config,
-    );
-
-    verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
-        builder,
-        stark,
-        &stark_proof_with_pis_target,
-        &challenges,
-        &ctl_vars,
-        inner_config,
-    );
-
-    StarkVerifierTargets {
-        stark_proof_with_pis_target,
-        ctl_challenges_target,
-        init_challenger_state_target,
-        zero_target,
-    }
-}
-
 /// Recursively verifies an inner proof.
 fn verify_stark_proof_with_challenges_circuit<
     F: RichField + Extendable<D>,
@@ -249,7 +204,7 @@ fn verify_stark_proof_with_challenges_circuit<
     stark: &S,
     proof_with_public_inputs: &StarkProofWithPublicInputsTarget<D>,
     challenges: &StarkProofChallengesTarget<D>,
-    ctl_vars: &[CtlCheckVarsTarget<F, D>],
+    ctl_vars: &[CtlCheckVarsTarget<D>],
     inner_config: &StarkConfig,
 ) where
     C::Hasher: AlgebraicHasher<F>, {

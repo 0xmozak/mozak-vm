@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
+use log::debug;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
@@ -28,37 +29,31 @@ pub fn verify_proof<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    debug!("Starting Verify");
+
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
     } = all_proof.get_challenges(config);
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::Program]
-            .proof
-            .trace_cap
-            == all_proof.program_rom_trace_cap,
+        all_proof.proofs[TableKind::Program].trace_cap == all_proof.program_rom_trace_cap,
         "Mismatch between Program ROM trace caps"
     );
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::ElfMemoryInit]
-            .proof
-            .trace_cap
-            == all_proof.elf_memory_init_trace_cap,
+        all_proof.proofs[TableKind::ElfMemoryInit].trace_cap == all_proof.elf_memory_init_trace_cap,
         "Mismatch between ElfMemoryInit trace caps"
     );
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::MozakMemoryInit]
-            .proof
-            .trace_cap
+        all_proof.proofs[TableKind::MozakMemoryInit].trace_cap
             == all_proof.mozak_memory_init_trace_cap,
         "Mismatch between MozakMemoryInit trace caps"
     );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
-        &all_proof.proofs_with_metadata,
+        &all_proof.proofs,
         &mozak_stark.cross_table_lookups,
         &ctl_challenges,
     );
@@ -71,7 +66,7 @@ where
     all_starks!(mozak_stark, |stark, kind| {
         verify_stark_proof_with_challenges(
             stark,
-            &all_proof.proofs_with_metadata[kind].proof,
+            &all_proof.proofs[kind],
             &stark_challenges[kind],
             public_inputs[kind],
             &ctl_vars_per_table[kind],

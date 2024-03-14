@@ -30,6 +30,7 @@ macro_rules! ecrate {
 }
 
 const CRATES: &[Crate] = &[
+    ecrate!("bss-tester", "BSS_ELF", false),
     ecrate!("fibonacci", "FIBONACCI_ELF", false),
     ecrate!("fibonacci-input", "FIBONACCI_INPUT_ELF", true),
     ecrate!(
@@ -47,6 +48,8 @@ const CRATES: &[Crate] = &[
     ecrate!("stdin", "STDIN_ELF", true),
     ecrate!("merkleproof-trustedroot", "MERKLEPROOF_TRUSTEDROOT", false),
     ecrate!("empty", "EMPTY_ELF", false),
+    ecrate!("tokenbin", "TOKENBIN", false),
+    ecrate!("walletbin", "WALLETBIN", false),
 ];
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 

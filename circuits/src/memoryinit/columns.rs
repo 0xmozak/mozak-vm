@@ -1,5 +1,3 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 
@@ -28,16 +26,16 @@ pub struct MemoryInit<T> {
 
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_memory() -> Vec<Column> {
     vec![
         Column::single(col_map().is_writable),
         Column::single(col_map().element.address),
         // clk:
-        Column::constant(F::ONE),
+        Column::constant(1),
         Column::single(col_map().element.value),
     ]
 }
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(col_map().filter) }
+pub fn filter_for_memory() -> Column { Column::single(col_map().filter) }

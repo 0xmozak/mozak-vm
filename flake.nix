@@ -15,6 +15,7 @@
       systems = [
         "x86_64-linux"
         "aarch64-darwin"
+        "aarch64-linux"
       ];
 
       perSystem = {
@@ -55,8 +56,9 @@
         };
 
         # CI Setup for GitHub Actions
-        packages.ci-env = pkgs.writeScriptBin "ci-setup" ''
+        packages.ci-env = pkgs.writeShellScriptBin "ci-setup" ''
           echo CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/"
+          echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/"
           echo CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS="-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/"
         '';
 
@@ -66,6 +68,7 @@
           ];
 
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = ''-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/'';
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS = ''-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/'';
           CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS = ''-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/'';
         };
       };

@@ -1,5 +1,3 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 
@@ -17,10 +15,10 @@ columns_view_impl!(RangeCheckU8);
 make_col_map!(RangeCheckU8);
 
 #[must_use]
-pub fn data<F: Field>() -> Vec<Column<F>> { vec![Column::single(col_map().value)] }
+pub fn data() -> Vec<Column> { vec![Column::single(col_map().value)] }
 
 /// Column for a binary filter to indicate whether a row in the
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 /// contains a non-dummy value to be range checked.
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { Column::single(col_map().multiplicity) }
+pub fn filter() -> Column { Column::single(col_map().multiplicity) }

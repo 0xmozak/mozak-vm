@@ -51,10 +51,10 @@ where
     pub fn new(circuit_config: &CircuitConfig) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-        let hash_inputs = unpruned::LeafInputs::default(&mut builder);
-        let constraint_owner_inputs = propagate::LeafInputs::<4>::default(&mut builder);
+        let hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
+        let constraint_owner_inputs = propagate::SubCircuitInputs::<4>::default(&mut builder);
 
-        let hash_targets = hash_inputs.build(&mut builder);
+        let hash_targets = hash_inputs.build_leaf(&mut builder);
         let constraint_owner_targets = constraint_owner_inputs.build(&mut builder);
 
         let targets = LeafTargets {
@@ -65,20 +65,20 @@ where
 
         let event_hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
             chain!(
-                constraint_owner_targets.values,
+                constraint_owner_targets.inputs.values,
                 [targets.event_ty, targets.event_address],
                 targets.event_value,
             )
             .collect(),
         );
 
-        builder.connect_hashes(hash_targets.unpruned_hash, event_hash);
+        builder.connect_hashes(hash_targets.inputs.unpruned_hash, event_hash);
 
         let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
 
         let public_inputs = &circuit.prover_only.public_inputs;
         let hash = hash_targets.build(public_inputs);
-        let constraint_owner = constraint_owner_targets.build(public_inputs);
+        let constraint_owner = constraint_owner_targets.build_leaf(public_inputs);
 
         Self {
             hash,
@@ -102,17 +102,17 @@ where
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
         if let Some(hash) = hash {
-            self.hash.set_inputs(&mut inputs, hash);
+            self.hash.set_witness(&mut inputs, hash);
         }
         self.constraint_owner
-            .set_inputs(&mut inputs, constraint_owner);
+            .set_witness(&mut inputs, constraint_owner);
         inputs.set_target(self.targets.event_ty, F::from_canonical_u64(event_ty));
         inputs.set_target(
             self.targets.event_address,
             F::from_canonical_u64(event_address),
         );
         inputs.set_target_arr(&self.targets.event_value, &event_value);
-        self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+        self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.circuit.prove(inputs)
     }
 }
@@ -151,8 +151,8 @@ where
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
         let common = &leaf.circuit.common;
 
-        let hash_inputs = unpruned::BranchInputs::default(&mut builder);
-        let constraint_owner_inputs = propagate::BranchInputs::<4>::default(&mut builder);
+        let hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
+        let constraint_owner_inputs = propagate::SubCircuitInputs::<4>::default(&mut builder);
         let left_is_leaf = builder.add_virtual_bool_target_safe();
         let right_is_leaf = builder.add_virtual_bool_target_safe();
         let left_proof = builder.add_virtual_proof_with_pis(common);
@@ -210,11 +210,11 @@ where
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
         if let Some(hash) = hash {
-            self.hash.set_inputs(&mut inputs, hash);
+            self.hash.set_witness(&mut inputs, hash);
         }
         if let Some(constraint_owner) = constraint_owner {
             self.constraint_owner
-                .set_inputs(&mut inputs, constraint_owner);
+                .set_witness(&mut inputs, constraint_owner);
         }
         inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
         inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);

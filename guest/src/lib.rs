@@ -6,7 +6,6 @@ extern crate alloc as rust_alloc;
 #[cfg(target_os = "mozakvm")]
 mod alloc;
 pub mod env;
-pub mod hash;
 #[cfg(feature = "std")]
 pub mod stdin;
 

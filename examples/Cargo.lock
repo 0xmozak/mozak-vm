@@ -294,6 +294,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -350,7 +359,7 @@ dependencies = [
  "guest",
  "hex",
  "log",
- "mozak_sdk",
+ "mozak-sdk",
  "rkyv",
  "rs_merkle",
  "simple_logger",
@@ -364,16 +373,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "mozak-system"
-version = "0.1.0"
-
-[[package]]
-name = "mozak_sdk"
+name = "mozak-sdk"
 version = "0.1.0"
 dependencies = [
+ "hex",
+ "itertools 0.12.1",
+ "lazy_static",
  "mozak-system",
+ "once_cell",
+ "plonky2",
  "rkyv",
+ "serde",
 ]
+
+[[package]]
+name = "mozak-system"
+version = "0.1.0"
 
 [[package]]
 name = "num"
@@ -484,7 +499,7 @@ dependencies = [
  "anyhow",
  "getrandom",
  "hashbrown 0.14.3",
- "itertools",
+ "itertools 0.11.0",
  "keccak-hash",
  "log",
  "num",
@@ -504,7 +519,7 @@ version = "0.1.1"
 source = "git+https://github.com/0xmozak/plonky2.git#1017c3065b0c6a07621af69a78007938e8c036a1"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.11.0",
  "num",
  "plonky2_util",
  "rand",
@@ -529,6 +544,7 @@ version = "0.1.0"
 dependencies = [
  "guest",
  "hex-literal",
+ "mozak-sdk",
 ]
 
 [[package]]
@@ -855,6 +871,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
+name = "token-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "guest",
+ "hex",
+ "mozak-sdk",
+ "mozak-system",
+ "rkyv",
+ "wallet-mozak-guest",
+]
+
+[[package]]
 name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -893,6 +921,16 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "wallet-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "guest",
+ "hex",
+ "mozak-sdk",
+ "rkyv",
+]
 
 [[package]]
 name = "wasi"

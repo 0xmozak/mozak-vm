@@ -1,7 +1,5 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// TODO: remove this when shadow_rs updates enough.
-#![allow(clippy::needless_raw_string_hashes)]
 use std::io::{Read, Write};
 use std::time::Duration;
 
@@ -24,9 +22,11 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_runner::elf::Program;
+use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
+use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
+use mozak_sdk::sys::SystemTapes;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -48,66 +48,23 @@ struct Cli {
 }
 
 #[derive(Clone, Debug, Args)]
-pub struct RuntimeArguments {
-    /// Private input.
-    #[arg(long)]
-    io_tape_private: Option<Input>,
-    /// Public input.
-    #[arg(long)]
-    io_tape_public: Option<Input>,
-    #[arg(long)]
-    transcript: Option<Input>,
-}
-
-#[derive(Clone, Debug, Args)]
 pub struct RunArgs {
     elf: Input,
-    #[command(flatten)]
-    args: RuntimeArguments,
+    #[arg(long)]
+    system_tape: Option<Input>,
+    #[arg(long)]
+    self_prog_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Args)]
 pub struct ProveArgs {
     elf: Input,
     proof: Output,
-    #[command(flatten)]
-    args: RuntimeArguments,
+    #[arg(long)]
+    system_tape: Option<Input>,
+    #[arg(long)]
+    self_prog_id: Option<String>,
     recursive_proof: Option<Output>,
-}
-
-impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
-    fn from(value: RuntimeArguments) -> Self {
-        let mut io_tape_private = vec![];
-        let mut io_tape_public = vec![];
-        let mut transcript = vec![];
-
-        if let Some(mut t) = value.io_tape_private {
-            let bytes_read = t
-                .read_to_end(&mut io_tape_private)
-                .expect("Read should pass");
-            debug!("Read {bytes_read} of io_tape data.");
-        };
-
-        if let Some(mut t) = value.io_tape_public {
-            let bytes_read = t
-                .read_to_end(&mut io_tape_public)
-                .expect("Read should pass");
-            debug!("Read {bytes_read} of io_tape data.");
-        };
-
-        if let Some(mut t) = value.transcript {
-            let bytes_read = t.read_to_end(&mut transcript).expect("Read should pass");
-            debug!("Read {bytes_read} of transcript data.");
-        };
-
-        Self {
-            // TODO(bing): use `context_variables`
-            context_variables: vec![],
-            io_tape_private,
-            io_tape_public,
-            transcript,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Subcommand)]
@@ -129,15 +86,10 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
+    /// Deserialize a `SystemTape` from a binary. Useful for debugging.
+    DeserializeTape { tapes: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
-}
-
-fn load_program(mut elf: Input) -> Result<Program> {
-    let mut elf_bytes = Vec::new();
-    let bytes_read = elf.read_to_end(&mut elf_bytes)?;
-    debug!("Read {bytes_read} of ELF data.");
-    Program::vanilla_load_elf(&elf_bytes)
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -151,32 +103,48 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, &RuntimeArguments::default())?;
             debug!("{program:?}");
         }
-        Command::Run(RunArgs { elf, args }) => {
-            let program = load_program(elf)?;
-            let state =
-                State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.into());
-            let state = step(&program, state)?.last_state;
-            debug!("{:?}", state.registers);
+        Command::Run(RunArgs {
+            elf,
+            system_tape,
+            self_prog_id,
+        }) => {
+            let args = system_tape
+                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .unwrap_or_default();
+            let program = load_program(elf, &args).unwrap();
+            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            step(&program, state)?;
         }
-        Command::ProveAndVerify(RunArgs { elf, args }) => {
-            let program = load_program(elf)?;
-            let state =
-                State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.into());
+        Command::ProveAndVerify(RunArgs {
+            elf,
+            system_tape,
+            self_prog_id,
+        }) => {
+            let args = system_tape
+                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .unwrap_or_default();
+
+            let program = load_program(elf, &args).unwrap();
+            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
         Command::Prove(ProveArgs {
             elf,
-            args,
+            system_tape,
+            self_prog_id,
             mut proof,
             recursive_proof,
         }) => {
-            let program = load_program(elf)?;
-            let state =
-                State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.into());
+            let args = system_tape
+                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .unwrap_or_default();
+            let program = load_program(elf, &args).unwrap();
+            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -269,7 +237,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, &RuntimeArguments::default())?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -286,7 +254,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, &RuntimeArguments::default())?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -302,22 +270,25 @@ fn main() -> Result<()> {
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
         }
-
+        Command::DeserializeTape { tapes } => {
+            let sys_tapes: SystemTapes = deserialize_system_tape(tapes)?;
+            println!("{sys_tapes:?}");
+        }
         Command::Bench(bench) => {
+            /// Times a function and returns the `Duration`.
+            ///
+            /// # Errors
+            ///
+            /// This errors if the given function returns an `Err`.
+            pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
+                let start_time = std::time::Instant::now();
+                func()?;
+                Ok(start_time.elapsed())
+            }
+
             let time_taken = timeit(&|| bench.run())?.as_secs_f64();
             println!("{time_taken}");
         }
     }
     Ok(())
-}
-
-/// Times a function and returns the `Duration`.
-///
-/// # Errors
-///
-/// This errors if the given function returns an `Err`.
-pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
-    let start_time = std::time::Instant::now();
-    func()?;
-    Ok(start_time.elapsed())
 }

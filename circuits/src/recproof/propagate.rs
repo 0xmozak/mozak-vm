@@ -1,10 +1,14 @@
 //! Subcircuits for recursively proving all nodes in a tree share a common value
+use std::iter::zip;
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
+
+use super::find_targets;
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
@@ -28,17 +32,17 @@ impl<const V: usize> PublicIndices<V> {
     }
 }
 
-pub struct LeafInputs<const V: usize> {
+pub struct SubCircuitInputs<const V: usize> {
     /// The common values
     pub values: [Target; V],
 }
 
 pub struct LeafTargets<const V: usize> {
-    /// The common values
-    pub values: [Target; V],
+    /// The public inputs
+    pub inputs: SubCircuitInputs<V>,
 }
 
-impl<const V: usize> LeafInputs<V> {
+impl<const V: usize> SubCircuitInputs<V> {
     pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
     where
         F: RichField + Extendable<D>, {
@@ -51,8 +55,7 @@ impl<const V: usize> LeafInputs<V> {
     pub fn build<F, const D: usize>(self, _builder: &mut CircuitBuilder<F, D>) -> LeafTargets<V>
     where
         F: RichField + Extendable<D>, {
-        let Self { values } = self;
-        LeafTargets { values }
+        LeafTargets { inputs: self }
     }
 }
 
@@ -65,14 +68,9 @@ pub struct LeafSubCircuit<const V: usize> {
 
 impl<const V: usize> LeafTargets<V> {
     #[must_use]
-    pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit<V> {
+    pub fn build_leaf(self, public_inputs: &[Target]) -> LeafSubCircuit<V> {
         let indices = PublicIndices {
-            values: self.values.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
+            values: find_targets(public_inputs, self.inputs.values),
         };
         LeafSubCircuit {
             targets: self,
@@ -83,68 +81,48 @@ impl<const V: usize> LeafTargets<V> {
 
 impl<const V: usize> LeafSubCircuit<V> {
     /// Get ready to generate a proof
-    pub fn set_inputs<F: RichField>(&self, inputs: &mut PartialWitness<F>, values: [F; V]) {
-        inputs.set_target_arr(&self.targets.values, &values);
+    pub fn set_witness<F: RichField>(&self, inputs: &mut PartialWitness<F>, values: [F; V]) {
+        inputs.set_target_arr(&self.targets.inputs.values, &values);
     }
-}
-
-pub struct BranchInputs<const V: usize> {
-    /// The common values
-    pub values: [Target; V],
 }
 
 pub struct BranchTargets<const V: usize> {
+    /// The public inputs
+    pub inputs: SubCircuitInputs<V>,
+
     /// The left direction
-    pub left: BranchDirectionTargets<V>,
+    pub left: SubCircuitInputs<V>,
 
     /// The right direction
-    pub right: BranchDirectionTargets<V>,
-
-    /// The common values
-    pub values: [Target; V],
+    pub right: SubCircuitInputs<V>,
 }
 
-pub struct BranchDirectionTargets<const V: usize> {
-    /// The common values
-    pub values: [Target; V],
-}
-
-impl<const V: usize> BranchInputs<V> {
-    pub fn default<F: RichField + Extendable<D>, const D: usize>(
-        builder: &mut CircuitBuilder<F, D>,
-    ) -> Self {
-        let values = builder.add_virtual_target_arr::<V>();
-        builder.register_public_inputs(&values);
-        Self { values }
-    }
-
+impl<const V: usize> SubCircuitInputs<V> {
     fn direction_from_node<const D: usize>(
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices<V>,
-    ) -> BranchDirectionTargets<V> {
+    ) -> SubCircuitInputs<V> {
         let values = indices.get_values(&proof.public_inputs);
 
-        BranchDirectionTargets { values }
+        SubCircuitInputs { values }
     }
 
     fn build_helper<F: RichField + Extendable<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
-        left: BranchDirectionTargets<V>,
-        right: BranchDirectionTargets<V>,
+        left: SubCircuitInputs<V>,
+        right: SubCircuitInputs<V>,
     ) -> BranchTargets<V> {
-        let Self { values } = self;
-
         // Connect all the values
-        for ((l, r), v) in left.values.into_iter().zip(right.values).zip(values) {
+        for (v, (l, r)) in zip(self.values, zip(left.values, right.values)) {
             builder.connect(v, l);
             builder.connect(l, r);
         }
 
         BranchTargets {
+            inputs: self,
             left,
             right,
-            values,
         }
     }
 
@@ -188,12 +166,7 @@ pub struct BranchSubCircuit<const V: usize> {
 impl<const V: usize> BranchTargets<V> {
     fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices<V> {
         PublicIndices {
-            values: self.values.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
+            values: find_targets(public_inputs, self.inputs.values),
         }
     }
 
@@ -222,8 +195,8 @@ impl<const V: usize> BranchTargets<V> {
 
 impl<const V: usize> BranchSubCircuit<V> {
     /// Get ready to generate a proof
-    pub fn set_inputs<F: RichField>(&self, inputs: &mut PartialWitness<F>, values: [F; V]) {
-        inputs.set_target_arr(&self.targets.values, &values);
+    pub fn set_witness<F: RichField>(&self, inputs: &mut PartialWitness<F>, values: [F; V]) {
+        inputs.set_target_arr(&self.targets.inputs.values, &values);
     }
 }
 
@@ -247,17 +220,17 @@ mod test {
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-            let propagate_inputs = LeafInputs::default(&mut builder);
+            let propagate_inputs = SubCircuitInputs::default(&mut builder);
             let propagate_targets = propagate_inputs.build(&mut builder);
             let circuit = builder.build();
-            let propagate = propagate_targets.build(&circuit.prover_only.public_inputs);
+            let propagate = propagate_targets.build_leaf(&circuit.prover_only.public_inputs);
 
             Self { propagate, circuit }
         }
 
         pub fn prove(&self, value: [F; 3]) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.propagate.set_inputs(&mut inputs, value);
+            self.propagate.set_witness(&mut inputs, value);
             self.circuit.prove(inputs)
         }
     }
@@ -284,7 +257,7 @@ mod test {
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
 
-            let propagate_inputs = BranchInputs::default(&mut builder);
+            let propagate_inputs = SubCircuitInputs::default(&mut builder);
 
             builder.verify_proof::<C>(&left_proof, &verifier, common);
             builder.verify_proof::<C>(&right_proof, &verifier, common);
@@ -317,7 +290,7 @@ mod test {
             let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
-            let propagate_inputs = BranchInputs::default(&mut builder);
+            let propagate_inputs = SubCircuitInputs::default(&mut builder);
 
             builder.verify_proof::<C>(&left_proof, &verifier, common);
             builder.verify_proof::<C>(&right_proof, &verifier, common);
@@ -352,7 +325,7 @@ mod test {
             let mut inputs = PartialWitness::new();
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
             inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
-            self.propagate.set_inputs(&mut inputs, value);
+            self.propagate.set_witness(&mut inputs, value);
             self.circuit.prove(inputs)
         }
     }
