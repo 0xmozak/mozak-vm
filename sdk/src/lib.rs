@@ -11,7 +11,7 @@
 
 extern crate alloc as rust_alloc;
 
-pub(crate) mod core;
+pub mod core;
 
 #[cfg(feature = "std")]
 pub mod common;

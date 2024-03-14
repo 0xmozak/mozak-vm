@@ -1,6 +1,6 @@
 #[cfg(target_os = "mozakvm")]
 mod alloc;
-pub(crate) mod ecall;
+pub mod ecall;
 pub mod env;
 
 #[macro_export]

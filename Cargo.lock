@@ -934,9 +934,7 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "mozak-circuits-derive",
- "mozak-examples",
  "mozak-runner",
- "mozak-system",
  "plonky2",
  "proptest",
  "rayon",
@@ -970,7 +968,6 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "mozak-circuits",
- "mozak-examples",
  "mozak-runner",
  "mozak-sdk",
  "plonky2",
@@ -980,10 +977,6 @@ dependencies = [
  "starky",
  "tempfile",
 ]
-
-[[package]]
-name = "mozak-examples"
-version = "0.1.0"
 
 [[package]]
 name = "mozak-node"
@@ -1013,8 +1006,7 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "mimalloc",
- "mozak-examples",
- "mozak-system",
+ "mozak-sdk",
  "plonky2",
  "proptest",
  "serde",
@@ -1029,17 +1021,12 @@ dependencies = [
  "hex",
  "itertools 0.12.1",
  "lazy_static",
- "mozak-system",
  "once_cell",
  "plonky2",
  "rkyv",
  "serde",
  "serde_json",
 ]
-
-[[package]]
-name = "mozak-system"
-version = "0.1.0"
 
 [[package]]
 name = "num"
