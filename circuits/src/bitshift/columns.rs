@@ -18,6 +18,24 @@ impl From<u8> for Bitshift<u32> {
     }
 }
 
+// impl crate::columns_view::ColMap for $s<$s<i64>> {
+//     const COL_MAP: Self =
+//         Self::from_array(core::array::from_fn(|_| Self::default()))
+//     ;
+// }
+
+// pub const 
+fn x() -> BitshiftView<BitshiftView<i64>> {
+    BitshiftView::from_array(core::array::from_fn(|i| {
+        BitshiftView::from_array(core::array::from_fn(|j| i64::from(i == j)))
+    }))
+}
+// impl crate::columns_view::ColMap for BitshiftView<BitshiftView<i64>> {
+//     const COL_MAP: Self = Self::from_array(core::array::from_fn(|i| {
+//         BitshiftView::from_array(core::array::from_fn(|j| i64::from(i == j)))
+//     }));
+// }
+
 make_col_map!(BitshiftView);
 columns_view_impl!(BitshiftView);
 #[repr(C)]

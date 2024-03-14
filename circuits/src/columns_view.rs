@@ -35,6 +35,10 @@ pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
 }
 
+pub trait ColMap {
+    const COL_MAP: Self;
+}
+
 pub trait Zip<Item> {
     #[must_use]
     fn zip_with<F>(self, other: Self, f: F) -> Self
@@ -142,10 +146,8 @@ macro_rules! columns_view_impl {
 
         // TODO: probably not necassary in the long run, when we get rid of col_map();
         impl From<usize> for $s<i64> {
-            fn from(index: usize) -> Self {
-                let mut x = Self::default().into_array();
-                x[index] = 1;
-                Self::from(x)
+            fn from(i: usize) -> Self {
+                Self::from_array(core::array::from_fn(|j| i64::from(j == i)))
             }
         }
 
