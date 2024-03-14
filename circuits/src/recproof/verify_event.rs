@@ -10,7 +10,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
-use super::{propagate, unbounded, unpruned};
+use super::{byte_wise_hash_event, hash_event, propagate, unbounded, unpruned};
 
 pub struct LeafTargets {
     /// The event type
@@ -27,11 +27,14 @@ pub struct LeafCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    /// The merkle hash of all event fields
+    /// The rc-style merkle hash of all event fields
     pub hash: unpruned::LeafSubCircuit,
 
+    /// The vm-style merkle hash of all event fields
+    pub vm_hash: unpruned::LeafSubCircuit,
+
     /// The owner of this event propagated throughout this tree
-    pub constraint_owner: propagate::LeafSubCircuit<4>,
+    pub event_owner: propagate::LeafSubCircuit<4>,
 
     /// The other event fields
     pub targets: LeafTargets,
@@ -52,10 +55,12 @@ where
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
         let hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let constraint_owner_inputs = propagate::SubCircuitInputs::<4>::default(&mut builder);
+        let vm_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
+        let event_owner_inputs = propagate::SubCircuitInputs::<4>::default(&mut builder);
 
         let hash_targets = hash_inputs.build_leaf(&mut builder);
-        let constraint_owner_targets = constraint_owner_inputs.build(&mut builder);
+        let vm_hash_targets = vm_hash_inputs.build_leaf(&mut builder);
+        let event_owner_targets = event_owner_inputs.build(&mut builder);
 
         let targets = LeafTargets {
             event_ty: builder.add_virtual_target(),
@@ -63,26 +68,35 @@ where
             event_value: builder.add_virtual_target_arr::<4>(),
         };
 
-        let event_hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
-            chain!(
-                constraint_owner_targets.inputs.values,
-                [targets.event_ty, targets.event_address],
-                targets.event_value,
-            )
-            .collect(),
+        let event_hash = hash_event(
+            &mut builder,
+            event_owner_targets.inputs.values,
+            targets.event_ty,
+            targets.event_address,
+            targets.event_value,
+        );
+        let event_vm_hash = byte_wise_hash_event(
+            &mut builder,
+            event_owner_targets.inputs.values,
+            targets.event_ty,
+            targets.event_address,
+            targets.event_value,
         );
 
         builder.connect_hashes(hash_targets.inputs.unpruned_hash, event_hash);
+        builder.connect_hashes(vm_hash_targets.inputs.unpruned_hash, event_vm_hash);
 
         let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
 
         let public_inputs = &circuit.prover_only.public_inputs;
         let hash = hash_targets.build(public_inputs);
-        let constraint_owner = constraint_owner_targets.build_leaf(public_inputs);
+        let vm_hash = vm_hash_targets.build(public_inputs);
+        let event_owner = event_owner_targets.build_leaf(public_inputs);
 
         Self {
             hash,
-            constraint_owner,
+            vm_hash,
+            event_owner,
             targets,
             unbounded,
             circuit,
@@ -98,13 +112,17 @@ where
         event_address: u64,
         event_value: [F; 4],
         hash: Option<HashOut<F>>,
+        vm_hash: Option<HashOut<F>>,
         branch: &BranchCircuit<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
         if let Some(hash) = hash {
             self.hash.set_witness(&mut inputs, hash);
         }
-        self.constraint_owner
+        if let Some(vm_hash) = vm_hash {
+            self.vm_hash.set_witness(&mut inputs, vm_hash);
+        }
+        self.event_owner
             .set_witness(&mut inputs, constraint_owner);
         inputs.set_target(self.targets.event_ty, F::from_canonical_u64(event_ty));
         inputs.set_target(
@@ -121,11 +139,14 @@ pub struct BranchCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    /// The merkle hash of all event fields
+    /// The merkle hash of all events
     pub hash: unpruned::BranchSubCircuit,
 
+    /// The vm-style merkle hash of all events
+    pub vm_hash: unpruned::BranchSubCircuit,
+
     /// The owner of the events propagated throughout this tree
-    pub constraint_owner: propagate::BranchSubCircuit<4>,
+    pub event_owner: propagate::BranchSubCircuit<4>,
 
     pub targets: BranchTargets<D>,
 
@@ -152,17 +173,20 @@ where
         let common = &leaf.circuit.common;
 
         let hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let constraint_owner_inputs = propagate::SubCircuitInputs::<4>::default(&mut builder);
+        let vm_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
+        let event_owner_inputs = propagate::SubCircuitInputs::<4>::default(&mut builder);
         let left_is_leaf = builder.add_virtual_bool_target_safe();
         let right_is_leaf = builder.add_virtual_bool_target_safe();
         let left_proof = builder.add_virtual_proof_with_pis(common);
         let right_proof = builder.add_virtual_proof_with_pis(common);
 
         let hash_targets =
-            hash_inputs.from_leaf(&mut builder, &leaf.hash, &left_proof, &right_proof);
-        let constraint_owner_targets = constraint_owner_inputs.from_leaf(
+            hash_inputs.from_leaf(&mut builder, &leaf.hash, &left_proof, &right_proof, false);
+        let vm_hash_targets =
+            vm_hash_inputs.from_leaf(&mut builder, &leaf.hash, &left_proof, &right_proof, true);
+        let event_owner_targets = event_owner_inputs.from_leaf(
             &mut builder,
-            &leaf.constraint_owner,
+            &leaf.event_owner,
             &left_proof,
             &right_proof,
         );
@@ -177,8 +201,9 @@ where
         );
 
         let hash = hash_targets.from_leaf(&circuit.prover_only.public_inputs);
-        let constraint_owner =
-            constraint_owner_targets.from_leaf(&circuit.prover_only.public_inputs);
+        let vm_hash = vm_hash_targets.from_leaf(&circuit.prover_only.public_inputs);
+        let event_owner =
+            event_owner_targets.from_leaf(&circuit.prover_only.public_inputs);
         let targets = BranchTargets {
             left_is_leaf,
             right_is_leaf,
@@ -186,11 +211,12 @@ where
             right_proof,
         };
         assert_eq!(hash.indices, leaf.hash.indices);
-        assert_eq!(constraint_owner.indices, leaf.constraint_owner.indices);
+        assert_eq!(event_owner.indices, leaf.event_owner.indices);
 
         Self {
             hash,
-            constraint_owner,
+            vm_hash,
+            event_owner,
             targets,
             unbounded,
             circuit,
@@ -213,7 +239,7 @@ where
             self.hash.set_witness(&mut inputs, hash);
         }
         if let Some(constraint_owner) = constraint_owner {
-            self.constraint_owner
+            self.event_owner
                 .set_witness(&mut inputs, constraint_owner);
         }
         inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
@@ -252,6 +278,30 @@ mod test {
             .collect_vec(),
         )
     }
+    fn byte_wise_hash_event<F: RichField>(
+        constraint_owner: [F; 4],
+        ty: u64,
+        address: u64,
+        value: [F; 4],
+    ) -> HashOut<F> {
+        let bytes = chain!(
+                constraint_owner,
+                [ty, address].map(F::from_canonical_u64),
+                value,
+            )
+            .flat_map(|v| v.to_canonical_u64().to_le_bytes())
+            .map(|v| F::from_canonical_u8(v))
+            .collect_vec();
+        Poseidon2Hash::hash_no_pad(&bytes)
+    }
+
+    fn hash_branch_bytes<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
+        let bytes = chain!(left.elements, right.elements)
+            .flat_map(|v| v.to_canonical_u64().to_le_bytes())
+            .map(|v| F::from_canonical_u8(v))
+            .collect_vec();
+        Poseidon2Hash::hash_no_pad(&bytes)
+    }
 
     #[test]
     fn verify_simple() -> Result<()> {
@@ -269,6 +319,9 @@ mod test {
         let event_42_read_0 = hash_event(program_hash_1, 1, 42, zero_val);
         let event_42_write_1 = hash_event(program_hash_1, 0, 42, non_zero_val_1);
         let event_42_write_2 = hash_event(program_hash_1, 0, 42, non_zero_val_2);
+        let event_bytes_42_read_0 = byte_wise_hash_event(program_hash_1, 1, 42, zero_val);
+        let event_bytes_42_write_1 = byte_wise_hash_event(program_hash_1, 0, 42, non_zero_val_1);
+        let event_bytes_42_write_2 = byte_wise_hash_event(program_hash_1, 0, 42, non_zero_val_2);
 
         // Read zero
         let read_proof = leaf.prove(
@@ -277,6 +330,7 @@ mod test {
             42,
             zero_val,
             Some(event_42_read_0),
+            Some(event_bytes_42_read_0),
             &branch,
         )?;
         leaf.circuit.verify(read_proof.clone())?;
@@ -288,6 +342,7 @@ mod test {
             42,
             non_zero_val_1,
             Some(event_42_write_1),
+            Some(event_bytes_42_write_1),
             &branch,
         )?;
         leaf.circuit.verify(write_proof_1.clone())?;
@@ -299,12 +354,15 @@ mod test {
             42,
             non_zero_val_2,
             Some(event_42_write_2),
+            Some(event_bytes_42_write_2),
             &branch,
         )?;
         leaf.circuit.verify(write_proof_2.clone())?;
 
         let branch_1_hash = hash_branch(&event_42_write_1, &event_42_write_2);
         let branch_2_hash = hash_branch(&event_42_read_0, &branch_1_hash);
+        let branch_1_bytes_hash = hash_branch_bytes(&event_42_write_1, &event_42_write_2);
+        let branch_2_bytes_hash = hash_branch_bytes(&event_42_read_0, &branch_1_hash);
 
         // Combine writes
         let branch_proof_1 = branch.prove(

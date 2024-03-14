@@ -266,3 +266,43 @@ fn hash_event<F: RichField + Extendable<D>, const D: usize>(
 ) -> HashOutTarget {
     builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(chain!(owner, [ty, address], value,).collect())
 }
+
+fn byte_wise_hash_event<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    owner: [Target; 4],
+    ty: Target,
+    address: Target,
+    value: [Target; 4],
+) -> HashOutTarget {
+    byte_wise_hash(builder, chain!(owner, [ty, address], value,).collect())
+}
+
+fn split_bytes<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    mut source: Target,
+) -> [Target; 8] {
+    [(); 8]
+        .into_iter_fixed()
+        .enumerate()
+        .map(|(i, _)| {
+            if i == 7 {
+                source
+            } else {
+                let (lo, rest) = builder.split_low_high(source, 8, 64 - 8 * i);
+                source = rest;
+                lo
+            }
+        })
+        .collect()
+}
+
+fn byte_wise_hash<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    inputs: Vec<Target>,
+) -> HashOutTarget {
+    let bytes = inputs
+        .into_iter()
+        .flat_map(|v| split_bytes(builder, v))
+        .collect();
+    builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(bytes)
+}
