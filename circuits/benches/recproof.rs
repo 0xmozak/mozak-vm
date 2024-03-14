@@ -45,8 +45,8 @@ impl DummyLeafCircuit {
         branch: &DummyBranchCircuit,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.make_tree.set_inputs(&mut inputs, present, leaf_value);
-        self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+        self.make_tree.set_witness(&mut inputs, present, leaf_value);
+        self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.circuit.prove(inputs)
     }
 }
@@ -107,7 +107,7 @@ impl DummyBranchCircuit {
         right_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.make_tree.set_inputs(&mut inputs, hash, leaf_value);
+        self.make_tree.set_witness(&mut inputs, hash, leaf_value);
         inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
         inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
         self.circuit.prove(inputs)

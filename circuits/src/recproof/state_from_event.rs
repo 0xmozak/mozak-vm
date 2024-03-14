@@ -32,7 +32,7 @@ impl EventType {
 
 #[bitflags]
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Flags {
     WriteFlag = 1 << 0,
     EnsureFlag = 1 << 1,
@@ -466,13 +466,13 @@ impl LeafSubCircuit {
         event_ty: EventType,
         event_value: [F; 4],
     ) {
-        self.set_inputs_unsafe(
+        self.set_witness_unsafe(
             witness,
             LeafWitnessValue::from_event(address, event_owner, event_ty, event_value),
         );
     }
 
-    pub fn set_inputs_unsafe<F: RichField>(
+    pub fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         v: LeafWitnessValue<F>,
@@ -697,17 +697,25 @@ pub struct BranchWitnessValue<F> {
     pub credit_delta: i64,
 }
 
-fn branch_helper<F: RichField>(
+fn merge_branch<F: RichField>(
     l: &BranchWitnessValue<F>,
     r: &BranchWitnessValue<F>,
     f: impl Fn(&BranchWitnessValue<F>) -> [F; 4],
     flags: impl Into<BitFlags<Flags>>,
 ) -> [F; 4] {
+    merge_branch_helper(l, l.object_flags, r, r.object_flags, f, flags)
+}
+
+fn merge_branch_helper<F: RichField, W>(
+    l: W,
+    l_flags: BitFlags<Flags>,
+    r: W,
+    r_flags: BitFlags<Flags>,
+    f: impl Fn(W) -> [F; 4],
+    flags: impl Into<BitFlags<Flags>>,
+) -> [F; 4] {
     let flags = flags.into();
-    match (
-        l.object_flags.intersects(flags),
-        r.object_flags.intersects(flags),
-    ) {
+    match (l_flags.intersects(flags), r_flags.intersects(flags)) {
         (false, false) => [F::ZERO; 4],
         (true, false) => f(l),
         (false, true) => f(r),
@@ -732,10 +740,10 @@ impl<F: RichField> BranchWitnessValue<F> {
         Self {
             address: left.address,
             object_flags: left.object_flags | right.object_flags,
-            old_owner: branch_helper(&left, &right, |c| c.old_owner, old_owner),
-            new_owner: branch_helper(&left, &right, |c| c.new_owner, new_owner),
-            old_data: branch_helper(&left, &right, |c| c.old_data, old_data),
-            new_data: branch_helper(&left, &right, |c| c.new_data, new_data),
+            old_owner: merge_branch(&left, &right, |c| c.old_owner, old_owner),
+            new_owner: merge_branch(&left, &right, |c| c.new_owner, new_owner),
+            old_data: merge_branch(&left, &right, |c| c.old_data, old_data),
+            new_data: merge_branch(&left, &right, |c| c.new_data, new_data),
             credit_delta: left.credit_delta + right.credit_delta,
         }
     }
@@ -762,6 +770,96 @@ impl BranchSubCircuit {
         witness.set_target(
             self.targets.inputs.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
+        );
+    }
+
+    pub fn set_witness_from_proofs<F: RichField>(
+        &self,
+        witness: &mut PartialWitness<F>,
+        left_inputs: &[F],
+        right_inputs: &[F],
+    ) {
+        // Address can be derived, so we can skip it
+
+        // Handle flags
+        let left_flags = self
+            .indices
+            .get_object_flags(left_inputs)
+            .to_canonical_u64();
+        let right_flags = self
+            .indices
+            .get_object_flags(right_inputs)
+            .to_canonical_u64();
+        witness.set_target(
+            self.targets.inputs.object_flags,
+            F::from_canonical_u64(left_flags | right_flags),
+        );
+        #[allow(clippy::cast_possible_truncation)]
+        let left_flags = BitFlags::<Flags>::from_bits(left_flags as u8).unwrap();
+        #[allow(clippy::cast_possible_truncation)]
+        let right_flags = BitFlags::<Flags>::from_bits(right_flags as u8).unwrap();
+
+        // Setup the flags for each scenario
+        let old_owner = Flags::WriteFlag | Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
+        let new_owner = Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
+        let old_data = Flags::ReadFlag;
+        let new_data = Flags::WriteFlag | Flags::EnsureFlag;
+
+        // Get the object fields based on the flags
+        let old_owner = merge_branch_helper(
+            left_inputs,
+            left_flags,
+            right_inputs,
+            right_flags,
+            |inputs| self.indices.get_old_owner(inputs),
+            old_owner,
+        );
+        let new_owner = merge_branch_helper(
+            left_inputs,
+            left_flags,
+            right_inputs,
+            right_flags,
+            |inputs| self.indices.get_new_owner(inputs),
+            new_owner,
+        );
+        let old_data = merge_branch_helper(
+            left_inputs,
+            left_flags,
+            right_inputs,
+            right_flags,
+            |inputs| self.indices.get_old_data(inputs),
+            old_data,
+        );
+        let new_data = merge_branch_helper(
+            left_inputs,
+            left_flags,
+            right_inputs,
+            right_flags,
+            |inputs| self.indices.get_new_data(inputs),
+            new_data,
+        );
+
+        // Set the object fields
+        witness.set_target_arr(&self.targets.inputs.old_owner, &old_owner);
+        witness.set_target_arr(&self.targets.inputs.new_owner, &new_owner);
+        witness.set_target_arr(&self.targets.inputs.old_data, &old_data);
+        witness.set_target_arr(&self.targets.inputs.new_data, &new_data);
+
+        // Handle the credits
+        #[allow(clippy::cast_possible_wrap)]
+        let left_credits = self
+            .indices
+            .get_credit_delta(left_inputs)
+            .to_canonical_u64() as i64;
+        #[allow(clippy::cast_possible_wrap)]
+        let right_credits = self
+            .indices
+            .get_credit_delta(right_inputs)
+            .to_canonical_u64() as i64;
+        let credits = left_credits + right_credits;
+        witness.set_target(
+            self.targets.inputs.credit_delta,
+            F::from_noncanonical_i64(credits),
         );
     }
 }
@@ -819,7 +917,7 @@ mod test {
                 event_ty,
                 event_value,
             );
-            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
 
@@ -830,8 +928,8 @@ mod test {
             v: LeafWitnessValue<F>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.state_from_events.set_inputs_unsafe(&mut inputs, v);
-            self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+            self.state_from_events.set_witness_unsafe(&mut inputs, v);
+            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
     }
@@ -904,6 +1002,26 @@ mod test {
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.state_from_events.set_witness(&mut inputs, v);
+            inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
+            inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
+            inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
+            inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
+            self.circuit.prove(inputs)
+        }
+
+        pub fn prove_implicit(
+            &self,
+            left_is_leaf: bool,
+            left_proof: &ProofWithPublicInputs<F, C, D>,
+            right_is_leaf: bool,
+            right_proof: &ProofWithPublicInputs<F, C, D>,
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+            let mut inputs = PartialWitness::new();
+            self.state_from_events.set_witness_from_proofs(
+                &mut inputs,
+                &left_proof.public_inputs,
+                &right_proof.public_inputs,
+            );
             inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
             inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
@@ -1322,6 +1440,8 @@ mod test {
             &write_proof,
         )?;
         branch.circuit.verify(branch_proof_1.clone())?;
+        let branch_proof_1 = branch.prove_implicit(true, &read_proof, true, &write_proof)?;
+        branch.circuit.verify(branch_proof_1.clone())?;
 
         let branch_proof_2 = branch.prove(
             BranchWitnessValue {
@@ -1338,6 +1458,8 @@ mod test {
             true,
             &ensure_proof,
         )?;
+        branch.circuit.verify(branch_proof_2)?;
+        let branch_proof_2 = branch.prove_implicit(false, &branch_proof_1, true, &ensure_proof)?;
         branch.circuit.verify(branch_proof_2)?;
 
         Ok(())
