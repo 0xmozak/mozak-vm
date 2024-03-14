@@ -273,7 +273,7 @@ fn split_bytes<F: RichField + Extendable<D>, const D: usize>(
     [(); 8]
         .into_iter_fixed()
         .enumerate()
-        .map(|(i, _)| {
+        .map(|(i, ())| {
             if i == 7 {
                 source
             } else {
