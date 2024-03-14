@@ -212,17 +212,12 @@ dependencies = [
  "hex",
  "itertools",
  "lazy_static",
- "mozak-system",
  "once_cell",
  "plonky2",
  "rkyv",
  "serde",
  "serde_json",
 ]
-
-[[package]]
-name = "mozak-system"
-version = "0.1.0"
 
 [[package]]
 name = "num"

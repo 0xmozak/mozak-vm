@@ -17,7 +17,7 @@ pub fn init() {
 #[cfg(target_os = "mozakvm")]
 pub fn finalize() {
     unsafe {
-        mozak_system::system::syscall_halt(
+        super::ecall::halt(
             OUTPUT_BYTES
                 .as_ref()
                 .and_then(|v| v.first().copied())

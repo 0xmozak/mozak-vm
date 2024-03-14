@@ -11,7 +11,6 @@ version = "0.2.0"
 
 [dependencies]
 itertools = { version = "0.12.1", default-features = false }
-mozak-system = { path = "../system", features = ["mozak-ro-memory"] }
 once_cell = { version = "1.19.0", default-features = false, features = ["race"] }
 rkyv = { version = "0.7.1", default-features = false, features = ["size_32", "alloc"] }
 

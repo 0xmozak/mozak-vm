@@ -61,10 +61,12 @@ _start:
 mod handlers {
     use core::panic::PanicInfo;
 
+    use crate::core::ecall;
+
     #[panic_handler]
     fn panic_fault(panic_info: &PanicInfo) -> ! {
         let msg = rust_alloc::format!("{panic_info}");
-        mozak_system::system::syscall_panic(msg.as_ptr(), msg.len());
+        ecall::panic(msg.as_ptr(), msg.len());
         unreachable!();
     }
 }

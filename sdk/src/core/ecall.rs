@@ -70,7 +70,7 @@ pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
-            "ecall_id",
+            "ecall",
             in ("a0") ecall_id::POSEIDON2,
             in ("a1") input_ptr,
             in ("a2") input_len,
@@ -91,7 +91,7 @@ pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
-            "ecall_id",
+            "ecall",
             in ("a0") ecall_id::IO_READ_PRIVATE,
             in ("a1") buf_ptr,
             in ("a2") buf_len,
@@ -127,7 +127,7 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
-        "ecall_id",
+        "ecall",
         in ("a0") ecall_id::IO_READ_PUBLIC,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
@@ -163,7 +163,7 @@ pub fn transcript_read(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
-        "ecall_id",
+        "ecall",
         in ("a0") ecall_id::IO_READ_TRANSCRIPT,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
@@ -199,7 +199,7 @@ pub fn panic(msg_ptr: *const u8, msg_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
-            "ecall_id",
+            "ecall",
             in ("a0") ecall_id::PANIC,
             in ("a1") msg_len,
             in ("a2") msg_ptr,
@@ -218,7 +218,7 @@ pub fn trace(msg_ptr: *const u8, msg_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
-            "ecall_id",
+            "ecall",
             in ("a0") ecall_id::VM_TRACE_LOG,
             in ("a1") msg_len,
             in ("a2") msg_ptr,
@@ -243,7 +243,7 @@ pub fn halt(output: u8) {
     // a1 is used to pass output bytes.
     unsafe {
         asm!(
-            "ecall_id",
+            "ecall",
             in ("a0") ecall_id::HALT,
             in ("a1") output,
         );

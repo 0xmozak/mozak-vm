@@ -40,7 +40,7 @@ pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
     padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
 
     let mut output = [0; DIGEST_BYTES];
-    mozak_system::system::syscall_poseidon2(
+    crate::core::ecall::poseidon2(
         padded_input.as_ptr(),
         padded_input.len(),
         output.as_mut_ptr(),
