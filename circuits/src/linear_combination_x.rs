@@ -1,19 +1,9 @@
 use core::iter::Sum;
 use core::ops::{Add, Mul, Neg, Sub};
 
+use itertools::izip;
+
 use crate::columns_view::Zip;
-
-// use std::borrow::Borrow;
-// use std::ops::Index;
-
-// use itertools::{chain, izip, Itertools};
-// use plonky2::field::extension::{Extendable, FieldExtension};
-// use plonky2::field::packed::PackedField;
-// use plonky2::field::polynomial::PolynomialValues;
-// use plonky2::field::types::Field;
-// use plonky2::hash::hash_types::RichField;
-// use plonky2::iop::ext_target::ExtensionTarget;
-// use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
@@ -109,7 +99,7 @@ where
 
 impl<C> Sum<ColumnX<C>> for ColumnX<C>
 where
-    C: Add<Output = C> + Default,
+    Self: Add<Output = Self> + Default,
 {
     #[inline]
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Self::default(), Add::add) }
@@ -147,9 +137,14 @@ where
     }
 }
 
-impl<C> ColumnX<C>
+impl<C: Default + Zip<i64>> ColumnX<C>
 where
-    ColumnX<C>: Default,
+    Self: Default
+        + Sub<Output = Self>
+        + Mul<i64, Output = Self>
+        + Add<Output = Self>
+        + Neg<Output = Self>
+        + Sum,
 {
     pub fn next(nv_linear_combination: C) -> Self {
         Self {
@@ -157,12 +152,7 @@ where
             ..Default::default()
         }
     }
-}
 
-impl<C: Default + Zip<i64>> ColumnX<C>
-where
-    ColumnX<C>: Default,
-{
     /// This is useful for `not`: `all_lv - Self::from(my_column)`
     // We could also implement this as a `sum` over COL_MAP, but the types are more annoying to get
     // right.
@@ -173,12 +163,28 @@ where
             ..Default::default()
         }
     }
-}
 
-impl<C: Default + Zip<i64>> ColumnX<C>
-where
-    ColumnX<C>: Sub<Output = ColumnX<C>>,
-{
     #[must_use]
     pub fn not(c: C) -> Self { Self::all_lv() - Self::from(c) }
+
+    // TODO(Matthias): Be careful about overflow here?
+    #[must_use]
+    pub fn reduce_with_powers<I>(terms: I, alpha: i64) -> Self
+    where
+        I: IntoIterator<Item = Self>,
+        <I as IntoIterator>::IntoIter: DoubleEndedIterator, {
+        terms
+            .into_iter()
+            .rev()
+            .fold(Self::default(), |acc, term| acc * alpha + term)
+    }
+
+    #[must_use]
+    pub fn ascending_sum<I>(cs: I) -> Self
+    where
+        I: IntoIterator<Item = Self>, {
+        izip!(cs, 0..)
+            .map(|(c, i): (Self, i64)| -> Self { c * i })
+            .sum()
+    }
 }
