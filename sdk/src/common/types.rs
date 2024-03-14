@@ -10,9 +10,9 @@ use crate::native::helpers::poseidon2_hash;
 pub const DIGEST_BYTES: usize = 32;
 
 #[cfg(target_os = "mozakvm")]
-type SystemTapeCallTapeType = crate::mozakvm::calltape::CallTape;
+pub type CallTapeType = crate::mozakvm::calltape::CallTape;
 #[cfg(not(target_os = "mozakvm"))]
-type SystemTapeCallTapeType = crate::native::calltape::CallTape;
+pub type CallTapeType = crate::native::calltape::CallTape;
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
@@ -393,6 +393,6 @@ impl From<Event> for CanonicalEvent {
 #[allow(clippy::module_name_repetitions)]
 pub struct SystemTape {
     // TODO: Add Public and Private IO Tape
-    pub call_tape: SystemTapeCallTapeType,
+    pub call_tape: CallTapeType,
     // pub event_tape: EventTape,
 }

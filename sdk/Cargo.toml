@@ -31,3 +31,7 @@ version = "1.0.113"
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.plonky2]
 default-features = false
 git = "https://github.com/0xmozak/plonky2.git"
+
+[features]
+std = ["plonky2/std"]
+mozak-ro-memory = []

@@ -98,7 +98,7 @@ mod tests {
         let expected_sorted: Vec<char>  = vec!['a', 'b', 'c', 'd', 'e', 'f'];
         let expected_hints: Vec<usize>  = vec![ 5 ,  2 ,  3 ,  1 ,  0 ,  4 ];
 
-        let (sorted, hints) = sort_with_hints(input);
+        let (sorted, hints) = sort_with_hints::<char, usize>(input);
 
         assert_eq!(expected_sorted, sorted);
         assert_eq!(expected_hints, hints);

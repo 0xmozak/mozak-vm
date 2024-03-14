@@ -2,17 +2,25 @@
 #![deny(clippy::cargo)]
 #![allow(clippy::missing_panics_doc)]
 #![feature(trait_alias)]
+#![feature(raw_ref_op)]
 #![feature(stmt_expr_attributes)]
 #![deny(warnings)]
-#![cfg_attr(target_os = "mozakvm", feature(restricted_std))]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "std", feature(restricted_std))]
+// #![cfg_attr(target_os = "mozakvm", feature(restricted_std))]
 
-#[cfg(target_os = "mozakvm")]
+extern crate alloc as rust_alloc;
+
+pub(crate) mod core;
+
+#[cfg(feature = "std")]
+pub mod common;
+
+#[cfg(all(feature = "std", target_os = "mozakvm"))]
 pub(crate) mod mozakvm;
 
-#[cfg(not(target_os = "mozakvm"))]
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
 pub(crate) mod native;
-
-pub mod common;
 
 // ----------- Exported methods -----------------------
 
