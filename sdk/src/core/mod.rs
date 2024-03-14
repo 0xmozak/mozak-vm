@@ -2,6 +2,7 @@
 mod alloc;
 pub mod ecall;
 pub mod env;
+pub mod reg_abi;
 
 #[macro_export]
 macro_rules! entry {

@@ -2,8 +2,8 @@
 //! 'ECALL'.
 
 use itertools::izip;
-use mozak_system::system::ecall;
-use mozak_system::system::reg_abi::REG_A0;
+use mozak_sdk::core::ecall;
+use mozak_sdk::core::reg_abi::REG_A0;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;

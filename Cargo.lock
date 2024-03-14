@@ -935,6 +935,7 @@ dependencies = [
  "log",
  "mozak-circuits-derive",
  "mozak-runner",
+ "mozak-sdk",
  "plonky2",
  "proptest",
  "rayon",

@@ -1,6 +1,6 @@
 // use std::io::{self, stdin, BufReader, Read};
 
-// use mozak_system::system::{syscall_ioread_private, syscall_ioread_public};
+// use mozak_sdk::core::{syscall_ioread_private, syscall_ioread_public};
 // use rkyv::ser::serializers::AllocSerializer;
 // use rkyv::{Archive, Deserialize, Serialize};
 
