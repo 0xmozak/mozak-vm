@@ -5,10 +5,14 @@ use crate::common::types::{CPCMessage, ProgramIdentifier, RawMessage};
 use crate::native::helpers::IdentityStack;
 
 /// Represents the `CallTape` under native execution
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CallTape {
-    pub identity_stack: RefCell<IdentityStack>,
-    pub writer: Vec<CPCMessage>,
+    identity_stack: RefCell<IdentityStack>,
+    writer: Vec<CPCMessage>,
+}
+
+impl std::fmt::Debug for CallTape {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.writer.fmt(f) }
 }
 
 impl SelfIdentify for CallTape {

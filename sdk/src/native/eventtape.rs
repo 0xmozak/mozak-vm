@@ -6,14 +6,18 @@ use crate::common::types::{Event, ProgramIdentifier};
 use crate::native::helpers::IdentityStack;
 
 /// Represents the `EventTape` under native execution
-#[derive(Default)]
+#[derive(Default, Clone)]
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
 pub struct EventTape {
-    pub writer: HashMap<ProgramIdentifier, Vec<Event>>,
-    pub identity_stack: RefCell<IdentityStack>,
+    writer: HashMap<ProgramIdentifier, Vec<Event>>,
+    identity_stack: RefCell<IdentityStack>,
+}
+
+impl std::fmt::Debug for EventTape {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.writer.fmt(f) }
 }
 
 impl SelfIdentify for EventTape {

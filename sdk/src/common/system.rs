@@ -16,7 +16,7 @@ use crate::mozakvm::linker_symbols::{_mozak_call_tape, _mozak_cast_list, _mozak_
 /// all the `IO-Tapes`, `CallTape` and the `EventTape` both in
 /// native as well as mozakvm environment.
 #[allow(dead_code)]
-static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
+pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // The following is initialization of `SYSTEM_TAPE` in native.
     // In most cases, when run in native, `SYSTEM_TAPE` is used to
     // generate and fill the elements found within `CallTape`,

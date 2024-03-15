@@ -4,11 +4,11 @@ use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{CanonicalEventType, Event, ProgramIdentifier};
 
 /// Represents the `EventTape` under native execution
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct EventTape {
-    pub self_prog_id: ProgramIdentifier,
-    pub reader: Option<&'static <Vec<Event> as Archive>::Archived>,
-    pub index: usize,
+    pub(crate) self_prog_id: ProgramIdentifier,
+    pub(crate) reader: Option<&'static <Vec<Event> as Archive>::Archived>,
+    pub(crate) index: usize,
 }
 
 impl SelfIdentify for EventTape {

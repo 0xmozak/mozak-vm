@@ -8,10 +8,10 @@ use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 
-use crate::common::types::{Poseidon2HashType, ProgramIdentifier};
+use crate::common::types::{Poseidon2HashType, ProgramIdentifier, SystemTape};
 
 /// Represents a stack for call contexts during native execution.
-#[derive(Default, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IdentityStack(Vec<ProgramIdentifier>);
 
 impl IdentityStack {
@@ -85,6 +85,49 @@ pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
             .try_into()
             .expect("Output length does not match to DIGEST_BYTES"),
     )
+}
+
+/// Writes a byte slice to a given file
+fn write_to_file(file_path: &str, content: &[u8]) {
+    use std::io::Write;
+    let path = std::path::Path::new(file_path);
+    let mut file = std::fs::File::create(path).unwrap();
+    file.write_all(content).unwrap();
+}
+
+/// Dumps a copy of `SYSTEM_TAPE` to disk, serialized
+/// via `serde_json` as well as in rust debug file format
+/// if opted for. Extension of `.tape` is used for serialized
+/// formed of tape on disk, `.tape_debug` will be used for
+/// debug tape on disk. Prior to dumping on disk, a pre-processor
+/// runs on `SYSTEM_TAPE` as needed.
+#[allow(dead_code)]
+pub fn dump_system_tape(
+    file_template: &str,
+    is_debug_tape_required: bool,
+    pre_processor: Option<impl Fn(SystemTape) -> SystemTape>,
+) {
+    let mut tape_clone = unsafe {
+        crate::common::system::SYSTEM_TAPE.clone() // .clone() removes `Lazy{}`
+    };
+
+    if let Some(pre_processor) = pre_processor {
+        tape_clone = pre_processor(tape_clone);
+    }
+
+    if is_debug_tape_required {
+        write_to_file(
+            &(file_template.to_string() + ".tape_debug"),
+            &format!("{tape_clone:#?}").into_bytes(),
+        );
+    }
+
+    write_to_file(
+        &(file_template.to_string() + ".tape"),
+        &serde_json::to_string_pretty(&tape_clone)
+            .unwrap()
+            .into_bytes(),
+    );
 }
 
 #[cfg(test)]

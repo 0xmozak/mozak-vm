@@ -4,12 +4,12 @@ use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
 use crate::common::types::{CPCMessage, ProgramIdentifier};
 
 /// Represents the `CallTape` under `mozak-vm`
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CallTape {
-    pub cast_list: Vec<ProgramIdentifier>,
-    pub self_prog_id: ProgramIdentifier,
-    pub reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
-    pub index: usize,
+    pub(crate) cast_list: Vec<ProgramIdentifier>,
+    pub(crate) self_prog_id: ProgramIdentifier,
+    pub(crate) reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
+    pub(crate) index: usize,
 }
 
 impl CallTape {

@@ -419,10 +419,10 @@ impl From<Event> for CanonicalEvent {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 #[cfg_attr(
     not(target_os = "mozakvm"),
-    derive(serde::Serialize, serde::Deserialize)
+    derive(Debug, serde::Serialize, serde::Deserialize)
 )]
 #[allow(clippy::module_name_repetitions)]
 pub struct SystemTape {
