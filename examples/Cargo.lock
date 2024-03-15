@@ -766,6 +766,7 @@ dependencies = [
  "hex",
  "mozak-sdk",
  "rkyv",
+ "wallet-mozak-guest",
 ]
 
 [[package]]

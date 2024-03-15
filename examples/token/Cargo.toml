@@ -9,7 +9,7 @@ native = []
 [dependencies]
 mozak-sdk = { path = "../../sdk" }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
-# wallet-mozak-guest = { path = "../wallet" }
+wallet-mozak-guest = { path = "../wallet" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"

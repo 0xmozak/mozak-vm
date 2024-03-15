@@ -10,7 +10,6 @@ pub enum MethodArgs {
     // Mint,
     // Burn,
     Transfer(
-        ProgramIdentifier,
         StateObject,
         ProgramIdentifier,
         ProgramIdentifier,
@@ -30,22 +29,21 @@ pub enum MethodReturns {
 #[allow(dead_code)]
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
-        MethodArgs::Transfer(id, object, remitter, remittee) => {
-            transfer(id, object, remitter, remittee);
+        MethodArgs::Transfer(object, remitter, remittee) => {
+            transfer(object, remitter, remittee);
             MethodReturns::Transfer
         }
     }
 }
 
-// fn state_object_data_to_token_object(value: StateObject) -> TokenObject {
-//     let archived = unsafe { rkyv::archived_root::<TokenObject>(&value.data[..]) };
-//     let token_object: TokenObject = archived.deserialize(&mut rkyv::Infallible).unwrap();
-//     token_object
-// }
+fn deserialize_token_object(value: StateObject) -> wallet::TokenObject {
+    let archived = unsafe { rkyv::archived_root::<wallet::TokenObject>(&value.data[..]) };
+    let token_object: wallet::TokenObject = archived.deserialize(&mut rkyv::Infallible).unwrap();
+    token_object
+}
 
 #[allow(dead_code)]
 pub fn transfer(
-    self_prog_id: ProgramIdentifier,
     state_object: StateObject,
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
@@ -55,25 +53,18 @@ pub fn transfer(
     //     operation: CanonicalEventType::Read,
     // };
     // event_emit(self_prog_id, read_event);
-    // let token_object: TokenObject = state_object_data_to_token_object(state_object.clone());
-    // assert_eq!(
-    //     call_send(
-    //         self_prog_id,
-    //         remitter_wallet,
-    //         wallet::MethodArgs::ApproveSignature(
-    //             remitter_wallet,
-    //             token_object.pub_key.clone(),
-    //             wallet::BlackBox::new(remitter_wallet, remittee_wallet, token_object),
-    //         ),
-    //         wallet::dispatch,
-    //         || -> wallet::MethodReturns {
-    //             wallet::MethodReturns::ApproveSignature(()) // TODO read from
-    //                                                         // private tape
-    //         }
-    //     ),
-    //     wallet::MethodReturns::ApproveSignature(()),
-    //     "wallet approval not found"
-    // );
+    let token_object: wallet::TokenObject = deserialize_token_object(state_object.clone());
+
+    assert!(
+        mozak_sdk::call_send(
+            remitter_wallet,
+            wallet::MethodArgs::ApproveSignature(
+                token_object.pub_key.clone(),
+                wallet::BlackBox::new(remitter_wallet, remittee_wallet, token_object),
+            ),
+            wallet::dispatch,
+        ) == wallet::MethodReturns::ApproveSignature(()),
+    );
 
     // let write_event = Event {
     //     object: state_object,

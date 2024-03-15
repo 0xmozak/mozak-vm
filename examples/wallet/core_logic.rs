@@ -79,7 +79,7 @@ impl BlackBox {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
-    ApproveSignature(ProgramIdentifier, PublicKey, BlackBox),
+    ApproveSignature(PublicKey, BlackBox),
 }
 
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
@@ -94,17 +94,13 @@ impl Default for MethodReturns {
 
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
-        MethodArgs::ApproveSignature(id, pub_key, black_box) =>
-            MethodReturns::ApproveSignature(approve_signature(id, pub_key, black_box)),
+        MethodArgs::ApproveSignature(pub_key, black_box) =>
+            MethodReturns::ApproveSignature(approve_signature(pub_key, black_box)),
     }
 }
 
 // TODO(bing): Read private key from private tape and public key from call tape.
 // hash and compare against public key.
-pub fn approve_signature<T>(
-    _self_prog_id: ProgramIdentifier,
-    _pub_key: PublicKey,
-    _black_box: T,
-) -> () {
+pub fn approve_signature<T>(_pub_key: PublicKey, _black_box: T) -> () {
     // Null for now
 }
