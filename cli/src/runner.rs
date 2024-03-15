@@ -7,7 +7,7 @@ use clio::Input;
 use log::debug;
 use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
-use rkyv::ser::serializers::AllocSerializer;
+// use rkyv::ser::serializers::AllocSerializer;
 
 pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> {
     let mut elf_bytes = Vec::new();
@@ -29,23 +29,23 @@ pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTape> {
     Ok(deserialized)
 }
 
-fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
-    let data_len = data.len();
-    let mut len_prefix_bytes = Vec::with_capacity(data_len + 4);
-    len_prefix_bytes.extend_from_slice(
-        &(u32::try_from(data.len()))
-            .expect("length of data's max size shouldn't be more than u32")
-            .to_le_bytes(),
-    );
-    len_prefix_bytes.extend(data);
-    debug!(
-        "Length-Prefixed {:<15} of byte len: {:>5}, on-mem bytes: {:>5}",
-        dgb_string,
-        data_len,
-        len_prefix_bytes.len()
-    );
-    len_prefix_bytes
-}
+// fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
+//     let data_len = data.len();
+//     let mut len_prefix_bytes = Vec::with_capacity(data_len + 4);
+//     len_prefix_bytes.extend_from_slice(
+//         &(u32::try_from(data.len()))
+//             .expect("length of data's max size shouldn't be more than u32")
+//             .to_le_bytes(),
+//     );
+//     len_prefix_bytes.extend(data);
+//     debug!(
+//         "Length-Prefixed {:<15} of byte len: {:>5}, on-mem bytes: {:>5}",
+//         dgb_string,
+//         data_len,
+//         len_prefix_bytes.len()
+//     );
+//     len_prefix_bytes
+// }
 
 /// Deserializes an rkyv-serialized system tape binary file into
 /// [`SystemTapes`](mozak_sdk::sys::SystemTapes).
@@ -56,10 +56,10 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
 /// [`RuntimeArguments`](mozak_runner::elf::RuntimeArguments)
 /// fails.
 pub fn tapes_to_runtime_arguments(
-    tape_bin: Input,
+    _tape_bin: Input,
     self_prog_id: Option<String>,
 ) -> RuntimeArguments {
-    let sys_tapes: SystemTape = deserialize_system_tape(tape_bin).unwrap();
+    // let sys_tapes: SystemTape = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.unwrap_or_default().into();
 
     // let cast_list = sys_tapes
@@ -82,19 +82,20 @@ pub fn tapes_to_runtime_arguments(
     // debug!("Cast List (canonical repr): {cast_list:#?}");
 
     {
-        fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
-        where
-            T: rkyv::Archive + rkyv::Serialize<AllocSerializer<256>>, {
-            let tape_bytes = rkyv::to_bytes::<_, 256>(tape).unwrap().into();
-            length_prefixed_bytes(tape_bytes, dgb_string)
-        }
+        // fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
+        // where
+        //     T: rkyv::Archive + rkyv::Serialize<AllocSerializer<256>>, {
+        //     let tape_bytes = rkyv::to_bytes::<_, 256>(tape).unwrap().into();
+        //     length_prefixed_bytes(tape_bytes, dgb_string)
+        // }
 
         RuntimeArguments {
             self_prog_id: self_prog_id.inner().to_vec(),
             cast_list: vec![],       // serialise(&cast_list, "CAST_LIST"),
             io_tape_public: vec![],  // serialise(&sys_tapes.public_tape, "IO_TAPE_PUBLIC"),
             io_tape_private: vec![], // serialise(&sys_tapes.private_tape, "IO_TAPE_PRIVATE"),
-            call_tape: serialise(&sys_tapes.call_tape.writer, "CALL_TAPE"),
+            // call_tape: serialise(&sys_tapes.call_tape.writer, "CALL_TAPE"),
+            call_tape: vec![],
             event_tape: vec![], // serialise(&event_tape_single, "EVENT_TAPE"),
         }
     }

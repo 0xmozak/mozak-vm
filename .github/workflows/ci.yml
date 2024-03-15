@@ -58,12 +58,12 @@ jobs:
 
       - name: cargo-clippy (mozakvm)
         run: |
-          cd sdk && cargo clippy
+          cd sdk && cargo clippy --all-features -- -D warnings
 
       - name: cargo-clippy (native)
         run: |
           cd sdk && ARCH_TRIPLE="$(rustc -vV | grep host | awk '{ print $2; }')"
-          cargo clippy --target $ARCH_TRIPLE
+          cargo clippy --target $ARCH_TRIPLE --all-features -- -D warnings
 
       - name: Build (mozakvm)
         run: |
@@ -110,10 +110,6 @@ jobs:
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
-
-      - name: Run Clippy linter for sdk
-        working-directory: sdk
-        run: cargo clippy --all-features -- -D warnings
 
   cargo-build-examples:
     needs: check-runner
