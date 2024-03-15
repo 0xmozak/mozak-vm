@@ -27,26 +27,29 @@ pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseid
     root_hash
 }
 
-fn merklelize_group(mut group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
-    while group.len() > 1 {
-        let mut new_hashes = Vec::with_capacity(group.len().div_ceil(2));
-        let len_group = group.len();
-        for i in 0..group.len() / 2 {
-            let left = group[2 * i];
-            let right = group[2 * i + 1];
-            new_hashes.push(poseidon2_hash_no_pad(
-                &vec![left.to_le_bytes(), right.to_le_bytes()]
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<u8>>(),
-            ));
+fn merklelize_group(group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
+    match group.len() {
+        0 => panic!("Empty group"),
+        1 => group[0],
+        _ => {
+            let mut new_hashes = Vec::with_capacity(group.len().div_ceil(2));
+            let len_group = group.len();
+            for i in 0..group.len() / 2 {
+                let left = group[2 * i];
+                let right = group[2 * i + 1];
+                new_hashes.push(poseidon2_hash_no_pad(
+                    &vec![left.to_le_bytes(), right.to_le_bytes()]
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<u8>>(),
+                ));
+            }
+            if len_group % 2 == 1 {
+                new_hashes.push(*group.last().unwrap());
+            }
+            merklelize_group(new_hashes)
         }
-        if len_group % 2 == 1 {
-            new_hashes.push(group[len_group - 1]);
-        }
-        group = new_hashes;
     }
-    group[0]
 }
 
 #[cfg(test)]
