@@ -3,6 +3,7 @@
 #![allow(clippy::missing_panics_doc)]
 #![feature(trait_alias)]
 #![deny(warnings)]
+#![feature(slice_group_by)]
 #![cfg_attr(target_os = "mozakvm", feature(restricted_std))]
 pub mod coretypes;
 pub mod io;

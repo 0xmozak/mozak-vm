@@ -1,47 +1,50 @@
-use itertools::{chain, Itertools};
-
 use crate::coretypes::Poseidon2HashType;
 use crate::sys::poseidon2_hash_no_pad;
 
 #[must_use]
 /// Takes vector of leaves of the form (address, hash) sorted according to
 /// address, and returns root of corresponding merkle tree.
-pub fn merkleize(hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
+pub fn merkleize(hashes_with_addr: &[(u64, Poseidon2HashType)]) -> Poseidon2HashType {
     match hashes_with_addr.len() {
         // case 0 will never arise.
-        0 | 1 => hashes_with_addr[0].1,
+        0 => Poseidon2HashType::default(),
+        1 => hashes_with_addr[0].1,
         _ => merkleize(
-            hashes_with_addr
-                .iter()
-                .group_by(|(addr, _hash)| addr)
-                .into_iter()
-                .map(|(addr, group)| {
+            &hashes_with_addr
+                .group_by(|(prev_addr, _prev_hash), (curr_addr, _curr_hash)| prev_addr == curr_addr)
+                .map(|group| {
+                    let (addr, _hash) = group[0];
                     (
                         addr >> 1,
-                        merkleize_group(group.map(|(_addr, hash)| *hash).collect()),
+                        merkleize_group(
+                            &group.iter().map(|(_addr, hash)| *hash).collect::<Vec<_>>(),
+                        ),
                     )
                 })
-                .collect(),
+                .collect::<Vec<_>>(),
         ),
     }
 }
 
-fn merkleize_group(group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
+fn merkleize_group(group: &[Poseidon2HashType]) -> Poseidon2HashType {
     match group.len() {
         // case 0 will never arise
-        0 | 1 => group[0],
+        0 => Poseidon2HashType::default(),
+        1 => group[0],
         _ => merkleize_group(
-            group
+            &group
                 .chunks(2)
-                .into_iter()
                 .map(|chunk| match chunk {
                     [left, right] => poseidon2_hash_no_pad(
-                        &chain!(left.to_le_bytes(), right.to_le_bytes()).collect::<Vec<u8>>(),
+                        &vec![left.to_le_bytes(), right.to_le_bytes()]
+                            .into_iter()
+                            .flatten()
+                            .collect::<Vec<u8>>(),
                     ),
                     [remainder] => *remainder,
                     _ => panic!("Invalid chunk"),
                 })
-                .collect(),
+                .collect::<Vec<_>>(),
         ),
     }
 }
@@ -135,7 +138,7 @@ mod tests {
         assert_eq!(root.to_le_bytes(), [
             232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 
             132, 26, 242, 155, 95, 48, 48, 8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53]);
-        assert_eq!(root, merkleize(hashes_with_addr));
+        assert_eq!(root, merkleize(&hashes_with_addr));
     }
 
     fn hashout_to_bytes_hash(hashout: [u64; 4]) -> [u8; 32] {
