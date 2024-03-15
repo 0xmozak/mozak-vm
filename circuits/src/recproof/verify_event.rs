@@ -177,7 +177,7 @@ where
         let hash_targets =
             hash_inputs.from_leaf(&mut builder, &leaf.hash, &left_proof, &right_proof, false);
         let vm_hash_targets =
-            vm_hash_inputs.from_leaf(&mut builder, &leaf.hash, &left_proof, &right_proof, true);
+            vm_hash_inputs.from_leaf(&mut builder, &leaf.vm_hash, &left_proof, &right_proof, true);
         let event_owner_targets = event_owner_inputs.from_leaf(
             &mut builder,
             &leaf.event_owner,
@@ -302,16 +302,16 @@ mod test {
             4658801606188332384,
         ];
         const BRANCH_1_HASH: [u64; NUM_HASH_OUT_ELTS] = [
-            88764321591514059,
-            10503748073345865485,
-            15355677360756047521,
-            16845255503341572647,
+            16758566829994364981,
+            15311795646108582705,
+            12773152691662485878,
+            2551708493265210224,
         ];
         const BRANCH_2_HASH: [u64; NUM_HASH_OUT_ELTS] = [
-            4084073639657686962,
-            15767823416900577290,
-            9019853347778163094,
-            176850375235051035,
+            8577138257922146843,
+            5112874340235798754,
+            4121828782781403483,
+            12250937462246573507,
         ];
 
         assert_hash(read_0_byte_hash, READ_0_HASH);
@@ -404,8 +404,8 @@ mod test {
 
         let branch_1_hash = hash_branch(&write_1_hash, &write_2_hash);
         let branch_2_hash = hash_branch(&read_0_hash, &branch_1_hash);
-        let branch_1_bytes_hash = hash_branch_bytes(&write_1_hash, &write_2_hash);
-        let branch_2_bytes_hash = hash_branch_bytes(&read_0_hash, &branch_1_hash);
+        let branch_1_bytes_hash = hash_branch_bytes(&write_1_byte_hash, &write_2_byte_hash);
+        let branch_2_bytes_hash = hash_branch_bytes(&read_0_byte_hash, &branch_1_bytes_hash);
 
         // Combine writes
         let branch_proof_1 = branch.prove(
