@@ -32,8 +32,8 @@ default-features = false
 git = "https://github.com/0xmozak/plonky2.git"
 
 [features]
-default = ["std", "rawio", "readtrait"]
+default = ["std", "rawio", "stdread"]
 
 std = ["plonky2/std"]
-readtrait = []
+stdread = []
 rawio = []

@@ -12,7 +12,7 @@ pub struct RandomAccessPreinitMemTape {
 /// the original buffer remains owned by the Tape and only
 /// copies of relevant data asked is returned back to the caller.
 /// This suffers from spent cpu cycles in `memcpy`.
-#[cfg(feature = "readtrait")]
+#[cfg(feature = "stdread")]
 impl std::io::Read for RandomAccessPreinitMemTape {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let (mut read_bytes, remaining_buf) = (buf.len(), self.tape.len() - self.read_offset);
@@ -30,7 +30,7 @@ impl std::io::Read for RandomAccessPreinitMemTape {
     }
 }
 
-#[cfg(feature = "readtrait")]
+#[cfg(feature = "stdread")]
 impl std::io::Seek for RandomAccessPreinitMemTape {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         match pos {
@@ -65,7 +65,7 @@ impl std::io::Seek for RandomAccessPreinitMemTape {
 /// room for seekability, but any seek is only allowed on currently
 /// owned data elements (a.k.a. ahead from current `read_offset`).
 /// When that happens, slice uptil that point will be thrown away.
-#[cfg(not(feature = "readtrait"))]
+#[cfg(not(feature = "stdread"))]
 impl RandomAccessPreinitMemTape {
     fn read(&mut self, max_readlen: usize) -> Box<[u8]> {
         let (mut read_bytes, remaining_buf) = (buf.len(), self.tape.len());
@@ -137,12 +137,12 @@ impl Default for PublicInputTape {
     }
 }
 
-#[cfg(feature = "readtrait")]
+#[cfg(feature = "stdread")]
 impl std::io::Read for PrivateInputTape {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> { self.0.read(buf) }
 }
 
-#[cfg(feature = "readtrait")]
+#[cfg(feature = "stdread")]
 impl std::io::Read for PublicInputTape {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> { self.0.read(buf) }
 }
