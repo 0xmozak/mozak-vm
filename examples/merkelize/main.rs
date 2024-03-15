@@ -11,7 +11,7 @@ pub fn main() {
         (0x011, Poseidon2HashType([3u8; 32])),
         (0x111, Poseidon2HashType([4u8; 32])),
     ];
-    assert_eq!(merklelize(hashes_with_addr).to_le_bytes(), [
+    assert_eq!(merkleize(hashes_with_addr).to_le_bytes(), [
         232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 132, 26, 242, 155, 95, 48, 48,
         8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53
     ]);
