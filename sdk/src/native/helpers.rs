@@ -5,10 +5,10 @@ use std::hash::Hash;
 
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
-use plonky2::hash::poseidon2::Poseidon2Hash;
+use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 
-use crate::common::types::{Poseidon2HashType, ProgramIdentifier, SystemTape};
+use crate::common::types::{Poseidon2Hash, ProgramIdentifier, SystemTape};
 
 /// Represents a stack for call contexts during native execution.
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -67,8 +67,8 @@ where
     (sorted, hints)
 }
 
-/// Hashes the input slice to `Poseidon2HashType`
-pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
+/// Hashes the input slice to `Poseidon2Hash`
+pub fn poseidon2_hash(input: &[u8]) -> Poseidon2Hash {
     const RATE: usize = 8;
     let mut padded_input = input.to_vec();
     padded_input.push(1);
@@ -79,8 +79,8 @@ pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
         .map(|x| GoldilocksField::from_canonical_u8(*x))
         .collect();
 
-    Poseidon2HashType(
-        Poseidon2Hash::hash_no_pad(&data_fields)
+    Poseidon2Hash(
+        Plonky2Poseidon2Hash::hash_no_pad(&data_fields)
             .to_bytes()
             .try_into()
             .expect("Output length does not match to DIGEST_BYTES"),

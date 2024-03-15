@@ -20,4 +20,4 @@ pub fn main() {
 }
 
 // We define `main()` to be the program's entry point.
-guest::entry!(main);
+mozak_sdk::core::entry!(main);

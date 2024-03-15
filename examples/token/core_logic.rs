@@ -1,10 +1,8 @@
 #![feature(restricted_std)]
 extern crate alloc;
 
-use mozak_sdk::coretypes::{CanonicalEventType, Event, ProgramIdentifier, StateObject};
-use mozak_sdk::sys::{call_send, event_emit};
+use mozak_sdk::common::types::{ProgramIdentifier, StateObject};
 use rkyv::{Archive, Deserialize, Serialize};
-use wallet::TokenObject;
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
@@ -43,11 +41,11 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
     }
 }
 
-fn state_object_data_to_token_object(value: StateObject) -> TokenObject {
-    let archived = unsafe { rkyv::archived_root::<TokenObject>(&value.data[..]) };
-    let token_object: TokenObject = archived.deserialize(&mut rkyv::Infallible).unwrap();
-    token_object
-}
+// fn state_object_data_to_token_object(value: StateObject) -> TokenObject {
+//     let archived = unsafe { rkyv::archived_root::<TokenObject>(&value.data[..]) };
+//     let token_object: TokenObject = archived.deserialize(&mut rkyv::Infallible).unwrap();
+//     token_object
+// }
 
 #[allow(dead_code)]
 pub fn transfer(
@@ -56,34 +54,34 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    let read_event = Event {
-        object: state_object.clone(),
-        operation: CanonicalEventType::Read,
-    };
-    event_emit(self_prog_id, read_event);
-    let token_object: TokenObject = state_object_data_to_token_object(state_object.clone());
-    assert_eq!(
-        call_send(
-            self_prog_id,
-            remitter_wallet,
-            wallet::MethodArgs::ApproveSignature(
-                remitter_wallet,
-                token_object.pub_key.clone(),
-                wallet::BlackBox::new(remitter_wallet, remittee_wallet, token_object),
-            ),
-            wallet::dispatch,
-            || -> wallet::MethodReturns {
-                wallet::MethodReturns::ApproveSignature(()) // TODO read from
-                                                            // private tape
-            }
-        ),
-        wallet::MethodReturns::ApproveSignature(()),
-        "wallet approval not found"
-    );
+    // let read_event = Event {
+    //     object: state_object.clone(),
+    //     operation: CanonicalEventType::Read,
+    // };
+    // event_emit(self_prog_id, read_event);
+    // let token_object: TokenObject = state_object_data_to_token_object(state_object.clone());
+    // assert_eq!(
+    //     call_send(
+    //         self_prog_id,
+    //         remitter_wallet,
+    //         wallet::MethodArgs::ApproveSignature(
+    //             remitter_wallet,
+    //             token_object.pub_key.clone(),
+    //             wallet::BlackBox::new(remitter_wallet, remittee_wallet, token_object),
+    //         ),
+    //         wallet::dispatch,
+    //         || -> wallet::MethodReturns {
+    //             wallet::MethodReturns::ApproveSignature(()) // TODO read from
+    //                                                         // private tape
+    //         }
+    //     ),
+    //     wallet::MethodReturns::ApproveSignature(()),
+    //     "wallet approval not found"
+    // );
 
-    let write_event = Event {
-        object: state_object,
-        operation: CanonicalEventType::Write,
-    };
-    event_emit(self_prog_id, write_event);
+    // let write_event = Event {
+    //     object: state_object,
+    //     operation: CanonicalEventType::Write,
+    // };
+    // event_emit(self_prog_id, write_event);
 }

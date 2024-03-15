@@ -32,7 +32,7 @@ pub trait Call: SelfIdentify {
     fn send<A, R>(
         &mut self,
         recepient_program: ProgramIdentifier,
-        arguments: A,
+        argument: A,
         resolver: impl Fn(A) -> R,
     ) -> R
     where

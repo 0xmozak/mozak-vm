@@ -17,10 +17,10 @@ pub mod core;
 pub mod common;
 
 #[cfg(all(feature = "std", target_os = "mozakvm"))]
-pub(crate) mod mozakvm;
+pub mod mozakvm;
 
 #[cfg(all(feature = "std", not(target_os = "mozakvm")))]
-pub(crate) mod native;
+pub mod native;
 
 // ----------- Exported methods -----------------------
 

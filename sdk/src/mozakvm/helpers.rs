@@ -2,7 +2,8 @@
 
 use std::ptr::{addr_of, slice_from_raw_parts};
 
-use crate::common::types::{Poseidon2HashType, ProgramIdentifier, DIGEST_BYTES};
+use crate::common::types::poseidon2hash::{DIGEST_BYTES, RATE};
+use crate::common::types::{Poseidon2Hash, ProgramIdentifier};
 use crate::mozakvm::linker_symbols::_mozak_self_prog_id;
 
 /// Get a owned reference to a length-prefixed memory region.
@@ -39,15 +40,13 @@ pub fn archived_repr<T: rkyv::Archive>(addr: *const u8) -> &'static <T as rkyv::
 #[allow(clippy::ptr_as_ptr)]
 pub fn get_self_prog_id() -> ProgramIdentifier {
     let self_prog_id = unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } };
-    assert_ne!(self_prog_id, ProgramIdentifier::default());
+    assert!(self_prog_id != ProgramIdentifier::default());
     self_prog_id
 }
 
-/// Hashes the input slice to `Poseidon2HashType`
+/// Hashes the input slice to `Poseidon2Hash`
 #[allow(dead_code)]
-pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
-    const RATE: usize = 8;
-
+pub fn poseidon2_hash(input: &[u8]) -> Poseidon2Hash {
     let mut padded_input = input.to_vec();
     // Why?
     padded_input.push(1);
@@ -60,7 +59,7 @@ pub fn poseidon2_hash(input: &[u8]) -> Poseidon2HashType {
         padded_input.len(),
         output.as_mut_ptr(),
     );
-    Poseidon2HashType(output)
+    Poseidon2Hash(output)
 }
 
 /// Given a memory start address with 4-byte length prefix

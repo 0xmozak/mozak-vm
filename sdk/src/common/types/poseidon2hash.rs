@@ -1,0 +1,57 @@
+pub const DIGEST_BYTES: usize = 32;
+#[allow(dead_code)]
+pub const RATE: usize = 8;
+// Common derives
+#[derive(
+    Default,
+    Copy,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+)]
+// Derives only for non-mozakvm
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
+pub struct Poseidon2Hash(pub [u8; DIGEST_BYTES]);
+
+impl core::ops::Deref for Poseidon2Hash {
+    type Target = [u8; DIGEST_BYTES];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+#[cfg(not(target_os = "mozakvm"))]
+impl std::fmt::Debug for Poseidon2Hash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Poseidon2Hash(0x{:?})",
+            &self.iter().map(|x| hex::encode([*x])).collect::<String>()
+        )
+    }
+}
+
+impl Poseidon2Hash {
+    #[must_use]
+    pub fn inner(&self) -> [u8; DIGEST_BYTES] { self.0 }
+}
+
+impl From<[u8; DIGEST_BYTES]> for Poseidon2Hash {
+    fn from(value: [u8; DIGEST_BYTES]) -> Self { Poseidon2Hash(value) }
+}
+
+impl From<Vec<u8>> for Poseidon2Hash {
+    fn from(value: Vec<u8>) -> Poseidon2Hash {
+        assert_eq!(value.len(), DIGEST_BYTES);
+        <&[u8] as TryInto<[u8; DIGEST_BYTES]>>::try_into(&value[0..DIGEST_BYTES])
+            .expect("Vec<u8> must have exactly {DIGEST_BYTES} elements")
+            .into()
+    }
+}

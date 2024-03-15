@@ -1,14 +1,14 @@
 use std::cell::RefCell;
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
-use crate::common::types::{CPCMessage, ProgramIdentifier, RawMessage};
+use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};
 use crate::native::helpers::IdentityStack;
 
 /// Represents the `CallTape` under native execution
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CallTape {
     identity_stack: RefCell<IdentityStack>,
-    writer: Vec<CPCMessage>,
+    writer: Vec<CrossProgramCall>,
 }
 
 impl std::fmt::Debug for CallTape {
@@ -27,7 +27,7 @@ impl Call for CallTape {
     fn send<A, R>(
         &mut self,
         recepient_program: ProgramIdentifier,
-        arguments: A,
+        argument: A,
         resolver: impl Fn(A) -> R,
     ) -> R
     where
@@ -35,17 +35,17 @@ impl Call for CallTape {
         R: CallReturn,
         <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
         <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
-        // Create a skeletal `CPCMessage` to be resolved via "resolver"
-        let msg = CPCMessage {
-            caller_prog: self.get_self_identity(),
-            callee_prog: recepient_program,
-            args: rkyv::to_bytes::<_, 256>(&arguments).unwrap().into(),
-            ret: RawMessage::default(), // Unfilled: we have to still resolve it
+        // Create a skeletal `CrossProgramCall` to be resolved via "resolver"
+        let msg = CrossProgramCall {
+            caller: self.get_self_identity(),
+            callee: recepient_program,
+            argument: rkyv::to_bytes::<_, 256>(&argument).unwrap().into(),
+            return_: RawMessage::default(), // Unfilled: we have to still resolve it
         };
 
         // Remember where in the "writer" are we pushing this.
         // This is needed since during the time we spend resolving this
-        // `CPCMessage`, other elements would be added onto "writer"
+        // `CrossProgramCall`, other elements would be added onto "writer"
         let inserted_idx = self.writer.len();
 
         // and... insert
@@ -53,8 +53,9 @@ impl Call for CallTape {
 
         // resolve the return value and add to where message was
         self.set_self_identity(recepient_program);
-        let resolved_value = resolver(arguments);
-        self.writer[inserted_idx].ret = rkyv::to_bytes::<_, 256>(&resolved_value).unwrap().into();
+        let resolved_value = resolver(argument);
+        self.writer[inserted_idx].return_ =
+            rkyv::to_bytes::<_, 256>(&resolved_value).unwrap().into();
         self.identity_stack.borrow_mut().rm_identity();
 
         resolved_value
@@ -94,7 +95,7 @@ mod tests {
         let response = calltape.send(test_pid_generator(1), 1 as A, resolver);
         assert_eq!(response, 2);
         assert_eq!(calltape.writer.len(), 1);
-        assert_eq!(calltape.writer[0].caller_prog, ProgramIdentifier::default());
-        assert_eq!(calltape.writer[0].callee_prog, test_pid_generator(1));
+        assert_eq!(calltape.writer[0].caller, ProgramIdentifier::default());
+        assert_eq!(calltape.writer[0].callee, test_pid_generator(1));
     }
 }

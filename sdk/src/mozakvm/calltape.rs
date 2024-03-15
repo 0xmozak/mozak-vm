@@ -1,14 +1,14 @@
 use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
-use crate::common::types::{CPCMessage, ProgramIdentifier};
+use crate::common::types::{CrossProgramCall, ProgramIdentifier};
 
 /// Represents the `CallTape` under `mozak-vm`
 #[derive(Default, Clone)]
 pub struct CallTape {
     pub(crate) cast_list: Vec<ProgramIdentifier>,
     pub(crate) self_prog_id: ProgramIdentifier,
-    pub(crate) reader: Option<&'static <Vec<CPCMessage> as Archive>::Archived>,
+    pub(crate) reader: Option<&'static <Vec<CrossProgramCall> as Archive>::Archived>,
     pub(crate) index: usize,
 }
 
@@ -29,7 +29,7 @@ impl Call for CallTape {
     fn send<A, R>(
         &mut self,
         recepient_program: ProgramIdentifier,
-        arguments: A,
+        argument: A,
         _resolver: impl Fn(A) -> R,
     ) -> R
     where
@@ -40,24 +40,24 @@ impl Call for CallTape {
         // Ensure we aren't validating past the length of the event tape
         assert!(self.index < self.reader.unwrap().len());
 
-        // Deserialize into rust form: CPCMessage.
+        // Deserialize into rust form: CrossProgramCall.
         let zcd_cpcmsg = &self.reader.unwrap()[self.index];
-        let cpcmsg: CPCMessage = zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
+        let cpcmsg: CrossProgramCall = zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
 
         // Ensure fields are correctly populated for caller and callee
-        assert_eq!(cpcmsg.caller_prog, self.get_self_identity());
-        assert_eq!(cpcmsg.callee_prog, recepient_program);
+        assert!(cpcmsg.caller == self.get_self_identity());
+        assert!(cpcmsg.callee == recepient_program);
         assert!(self.is_casted_actor(&recepient_program));
 
         // Deserialize the `arguments` seen on the tape, and assert
-        let zcd_args = unsafe { rkyv::archived_root::<A>(&cpcmsg.args.0[..]) };
+        let zcd_args = unsafe { rkyv::archived_root::<A>(&cpcmsg.argument.0[..]) };
         let deserialized_args =
             <<A as Archive>::Archived as Deserialize<A, rkyv::Infallible>>::deserialize(
                 zcd_args,
                 &mut rkyv::Infallible,
             )
             .unwrap();
-        assert!(deserialized_args == arguments);
+        assert!(deserialized_args == argument);
 
         // Ensure we mark this index as "read"
         self.index += 1;
@@ -65,7 +65,7 @@ impl Call for CallTape {
         // Return the claimed return value as seen on the tape
         // It remains that specific program's prerogative to ensure
         // that the return value used here is according to expectation
-        let zcd_ret = unsafe { rkyv::archived_root::<R>(&cpcmsg.ret.0[..]) };
+        let zcd_ret = unsafe { rkyv::archived_root::<R>(&cpcmsg.return_.0[..]) };
         <<R as Archive>::Archived as Deserialize<R, rkyv::Infallible>>::deserialize(
             zcd_ret,
             &mut rkyv::Infallible,
@@ -95,16 +95,16 @@ impl Call for CallTape {
             // themselves. (Even if they can w.r.t. self-calling extension,
             // the `caller` field would remain distinct)
             let caller: ProgramIdentifier = zcd_cpcmsg
-                .caller_prog
+                .caller
                 .deserialize(&mut rkyv::Infallible)
                 .unwrap();
-            assert_ne!(caller, self.self_prog_id);
+            assert!(caller != self.self_prog_id);
 
             // Well, once we are sure that we were not the caller, we can
             // either be a callee in which case we process and send information
             // back or we continue searching.
             let callee: ProgramIdentifier = zcd_cpcmsg
-                .callee_prog
+                .callee
                 .deserialize(&mut rkyv::Infallible)
                 .unwrap();
 
@@ -113,10 +113,11 @@ impl Call for CallTape {
                 assert!(self.is_casted_actor(&caller));
 
                 let archived_args =
-                    unsafe { rkyv::archived_root::<A>(zcd_cpcmsg.args.0.as_slice()) };
+                    unsafe { rkyv::archived_root::<A>(zcd_cpcmsg.argument.0.as_slice()) };
                 let args: A = archived_args.deserialize(&mut rkyv::Infallible).unwrap();
 
-                let archived_ret = unsafe { rkyv::archived_root::<R>(zcd_cpcmsg.ret.0.as_slice()) };
+                let archived_ret =
+                    unsafe { rkyv::archived_root::<R>(zcd_cpcmsg.return_.0.as_slice()) };
                 let ret: R = archived_ret.deserialize(&mut rkyv::Infallible).unwrap();
 
                 return Some((caller, args, ret));

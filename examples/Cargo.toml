@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  # -------- members that depend only on sdk::core
   "bss-tester",
   "fibonacci",
   "min-max",
@@ -9,6 +10,10 @@ members = [
   "sha2",
   "rkyv-serialization",
   "empty",
+
+  # --------- members that depend on more than sdk::core
+  "token",
+  # "wallet"
 ]
 resolver = "2"
 

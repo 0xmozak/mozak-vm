@@ -1,7 +1,7 @@
 use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{EventEmit, SelfIdentify};
-use crate::common::types::{CanonicalEventType, Event, ProgramIdentifier};
+use crate::common::types::{Event, EventType, ProgramIdentifier};
 
 /// Represents the `EventTape` under native execution
 #[derive(Default, Clone)]
@@ -24,16 +24,14 @@ impl EventEmit for EventTape {
         let zcd_event = &self.reader.unwrap()[self.index];
         let event_deserialized: Event = zcd_event.deserialize(&mut rkyv::Infallible).unwrap();
 
-        assert_eq!(event, event_deserialized);
+        assert!(event == event_deserialized);
 
-        assert_eq!(
-            match event.operation {
-                CanonicalEventType::Create
-                | CanonicalEventType::Delete
-                | CanonicalEventType::Write => event.object.constraint_owner,
+        assert!(
+            match event.type_ {
+                EventType::Create | EventType::Delete | EventType::Write =>
+                    event.object.constraint_owner,
                 _ => self.self_prog_id,
-            },
-            self.self_prog_id
+            } == self.self_prog_id
         );
 
         self.index += 1;

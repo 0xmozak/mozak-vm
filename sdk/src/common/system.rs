@@ -4,7 +4,9 @@ use rkyv::Deserialize;
 
 use super::types::SystemTape;
 #[cfg(target_os = "mozakvm")]
-use crate::common::types::{CPCMessage, CallTapeType, Event, EventTapeType, ProgramIdentifier};
+use crate::common::types::{
+    CallTapeType, CrossProgramCall, Event, EventTapeType, ProgramIdentifier,
+};
 #[cfg(target_os = "mozakvm")]
 use crate::mozakvm::helpers::{
     archived_repr, get_rkyv_archived, get_rkyv_deserialized, get_self_prog_id,
@@ -38,7 +40,7 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
             call_tape: CallTapeType {
                 self_prog_id: get_self_prog_id(),
                 cast_list: get_rkyv_deserialized!(Vec<ProgramIdentifier>, _mozak_cast_list),
-                reader: Some(get_rkyv_archived!(Vec<CPCMessage>, _mozak_call_tape)),
+                reader: Some(get_rkyv_archived!(Vec<CrossProgramCall>, _mozak_call_tape)),
                 index: 0,
             },
             event_tape: EventTapeType {
