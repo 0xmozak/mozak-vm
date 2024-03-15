@@ -17,7 +17,7 @@ pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseid
                 curr_group.push(hash)
             } else {
                 if !curr_group.is_empty() {
-                new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(&curr_group)));
+                    new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(&curr_group)));
                 }
                 curr_group = vec![hash];
                 curr_addr = addr;
@@ -37,14 +37,19 @@ fn merklelize_group(group: &[Poseidon2HashType]) -> Poseidon2HashType {
     match group.len() {
         0 => panic!("Empty group"),
         1 => group[0],
-        _ => {
-            merklelize_group(&group.chunks(2).map(|g|
-                match g {
+        _ => merklelize_group(
+            &group
+                .chunks(2)
+                .map(|g| match g {
                     [remainder] => *remainder,
-                    g => poseidon2_hash_no_pad(&g.into_iter().flat_map(Poseidon2HashType::to_le_bytes).collect::<Vec<u8>>()),
-                }
-            ).collect::<Vec<_>>())
-        }
+                    g => poseidon2_hash_no_pad(
+                        &g.into_iter()
+                            .flat_map(Poseidon2HashType::to_le_bytes)
+                            .collect::<Vec<u8>>(),
+                    ),
+                })
+                .collect::<Vec<_>>(),
+        ),
     }
 }
 
