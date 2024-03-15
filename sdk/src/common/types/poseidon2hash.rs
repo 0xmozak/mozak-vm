@@ -1,3 +1,6 @@
+#[cfg(not(target_os = "mozakvm"))]
+use serde_hex::{SerHex, StrictPfx};
+
 pub const DIGEST_BYTES: usize = 32;
 #[allow(dead_code)]
 pub const RATE: usize = 8;
@@ -19,7 +22,10 @@ pub const RATE: usize = 8;
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
-pub struct Poseidon2Hash(pub [u8; DIGEST_BYTES]);
+pub struct Poseidon2Hash(
+    #[cfg_attr(not(target_os = "mozakvm"), serde(with = "SerHex::<StrictPfx>"))]
+    pub  [u8; DIGEST_BYTES],
+);
 
 impl core::ops::Deref for Poseidon2Hash {
     type Target = [u8; DIGEST_BYTES];

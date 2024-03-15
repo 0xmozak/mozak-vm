@@ -1,3 +1,6 @@
+#[cfg(not(target_os = "mozakvm"))]
+use serde_hex::{SerHexSeq, StrictPfx};
+
 // Common derives
 #[derive(
     Default, Clone, Hash, PartialEq, PartialOrd, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
@@ -10,6 +13,7 @@
 pub struct StateObject {
     pub address: super::StateAddress,
     pub constraint_owner: super::ProgramIdentifier,
+    #[cfg_attr(not(target_os = "mozakvm"), serde(with = "SerHexSeq::<StrictPfx>"))]
     pub data: Vec<u8>,
 }
 

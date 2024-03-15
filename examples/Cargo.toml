@@ -13,7 +13,7 @@ members = [
 
   # --------- members that depend on more than sdk::core
   "token",
-  # "wallet"
+  "wallet"
 ]
 resolver = "2"
 

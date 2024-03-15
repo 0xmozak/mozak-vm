@@ -44,32 +44,27 @@ pub mod native;
 //     unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
 // }
 
-// /// Send one message from mailbox targetted to some third-party
-// /// resulting in such messages finding itself in their mailbox
-// /// Panics on call-tape non-abidance.
-// #[allow(clippy::similar_names)]
-// pub fn call_send<A, R>(
-//     caller_prog: ProgramIdentifier,
-//     callee_prog: ProgramIdentifier,
-//     call_args: A,
-//     dispatch_native: impl Fn(A) -> R,
-//     dispatch_mozakvm: impl Fn() -> R,
-// ) -> R
-// where
-//     A: crate::traits::CallArgument + PartialEq,
-//     R: crate::traits::CallReturn,
-//     <A as Archive>::Archived: Deserialize<A, rkyv::Infallible>,
-//     <R as Archive>::Archived: Deserialize<R, rkyv::Infallible>, {
-//     unsafe {
-//         SYSTEM_TAPES.call_tape.to_mailbox(
-//             caller_prog,
-//             callee_prog,
-//             call_args,
-//             dispatch_native,
-//             dispatch_mozakvm,
-//         )
-//     }
-// }
+/// Send one message from mailbox targetted to some third-party
+/// resulting in such messages finding itself in their mailbox
+/// Panics on call-tape non-abidance.
+#[allow(clippy::similar_names)]
+pub fn call_send<A, R>(
+    recepient_program: crate::common::types::ProgramIdentifier,
+    argument: A,
+    resolver: impl Fn(A) -> R,
+) -> R
+where
+    A: crate::common::traits::CallArgument + PartialEq,
+    R: crate::common::traits::CallReturn,
+    <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
+    <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
+    use crate::common::traits::Call;
+    unsafe {
+        crate::common::system::SYSTEM_TAPE
+            .call_tape
+            .send(recepient_program, argument, resolver)
+    }
+}
 
 // /// Get raw pointer to access iotape (unsafe) without copy into
 // /// buffer. Subsequent calls will provide pointers `num` away

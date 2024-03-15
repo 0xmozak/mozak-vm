@@ -1,3 +1,6 @@
+#[cfg(not(target_os = "mozakvm"))]
+use serde_hex::{SerHex, StrictPfx};
+
 pub const STATE_TREE_DEPTH: usize = 4;
 
 // Common derives
@@ -17,7 +20,10 @@ pub const STATE_TREE_DEPTH: usize = 4;
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
-pub struct StateAddress([u8; STATE_TREE_DEPTH]);
+pub struct StateAddress(
+    #[cfg_attr(not(target_os = "mozakvm"), serde(with = "SerHex::<StrictPfx>"))]
+    pub  [u8; STATE_TREE_DEPTH],
+);
 
 impl std::ops::Deref for StateAddress {
     type Target = [u8; STATE_TREE_DEPTH];

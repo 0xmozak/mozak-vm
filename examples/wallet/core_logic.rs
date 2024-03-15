@@ -1,13 +1,12 @@
 #![feature(restricted_std)]
 #![allow(unused_attributes)]
 extern crate alloc;
-use mozak_sdk::coretypes::ProgramIdentifier;
+
+use mozak_sdk::common::types::ProgramIdentifier;
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// A generic public key used by the wallet.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct PublicKey([u8; 32]);
 
@@ -15,11 +14,22 @@ impl From<[u8; 32]> for PublicKey {
     fn from(value: [u8; 32]) -> Self { PublicKey(value) }
 }
 
+impl PublicKey {
+    #[must_use]
+    #[cfg(not(target_os = "mozakvm"))]
+    /// To be removed later, when we have actual pubkeys
+    pub fn new_from_rand_seed(seed: u64) -> Self {
+        use rand::prelude::*;
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+        let mut slice: [u8; 32] = [0; 32];
+        rng.fill_bytes(&mut slice[..]);
+        Self(slice)
+    }
+}
+
 /// Amount of tokens to be used in a program, represented as part of
 /// `TokenObject`.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct Amount(u64);
 
@@ -30,12 +40,8 @@ impl From<u64> for Amount {
 /// A token object is represented in the `data` section of a `StateObject`, and
 /// contains information about the token that is being used in a program.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct TokenObject {
-    /// The wallet that is the economic owner of this `TokenObject`.
-    pub wallet_prog_id: ProgramIdentifier,
     /// The public key that is the economic owner of this `TokenObject`.
     pub pub_key: PublicKey,
     /// The amount of tokens to be used.
@@ -49,40 +55,34 @@ pub struct TokenObject {
 /// merkle caps generated, which allows us (in this particular use case) to
 /// differentiate between transactions.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub struct BlackBox {
-    pub remitter_wallet: ProgramIdentifier,
-    pub remittee_wallet: ProgramIdentifier,
+    pub remitter_program: ProgramIdentifier,
+    pub remittee_program: ProgramIdentifier,
     pub token_object: TokenObject,
 }
 
 impl BlackBox {
     pub fn new(
-        remitter_wallet: ProgramIdentifier,
-        remittee_wallet: ProgramIdentifier,
+        remitter_program: ProgramIdentifier,
+        remittee_program: ProgramIdentifier,
         token_object: TokenObject,
     ) -> Self {
         BlackBox {
-            remitter_wallet,
-            remittee_wallet,
+            remitter_program,
+            remittee_program,
             token_object,
         }
     }
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
     ApproveSignature(ProgramIdentifier, PublicKey, BlackBox),
 }
 
 #[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
 pub enum MethodReturns {
     ApproveSignature(()),
 }

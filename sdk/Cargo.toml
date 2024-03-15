@@ -37,6 +37,9 @@ version = "0.3.1"
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.rand]
 version = "0.8.5"
 
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.serde-hex]
+version = "0.1.0"
+
 [features]
 default = ["std", "rawio", "stdread"]
 
