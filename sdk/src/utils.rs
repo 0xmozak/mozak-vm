@@ -5,27 +5,32 @@ use crate::sys::poseidon2_hash_no_pad;
 /// Takes vector of leaves of the form (address, hash) sorted according to
 /// address, and returns root of corresponding merkle tree.
 /// It works in following fashion.
-pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
-    while hashes_with_addr.len() > 1 {
-        let mut new_hashes_with_addr = vec![];
-        // let (first_addr, first_hash) = hashes_with_addr[0];
-        let mut curr_addr = Default::default();
-        let mut curr_group = vec![];
-        for (addr, hash) in hashes_with_addr.into_iter() {
-            // OK, looks like we are doing a group-by?
-            if curr_addr != addr {
-                merklelize_group(&curr_group)
-                    .map(|h| new_hashes_with_addr.push((curr_addr >> 1, h)));
-                curr_group = vec![];
+pub fn merklelize(hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
+    match hashes_with_addr.len() {
+        0 => panic!("Didn't expect 0"),
+        1 => hashes_with_addr[0].1,
+        _ => {
+            let mut new_hashes_with_addr = vec![];
+            let mut curr_addr = Default::default();
+            let mut curr_group = vec![];
+            for (addr, hash) in hashes_with_addr {
+                if curr_addr != addr {
+                    if let Some(h) = merklelize_group(&curr_group) {
+                        new_hashes_with_addr.push((curr_addr >> 1, h))
+                    }
+                    curr_group = vec![];
+                }
+                curr_group.push(hash);
+                curr_addr = addr;
             }
-            curr_group.push(hash);
-            curr_addr = addr;
+            if let Some(h) = merklelize_group(&curr_group) {
+                new_hashes_with_addr.push((curr_addr >> 1, h))
+            }
+            merklelize(new_hashes_with_addr)
         }
-        merklelize_group(&curr_group).map(|h| new_hashes_with_addr.push((curr_addr >> 1, h)));
-        hashes_with_addr = new_hashes_with_addr;
     }
-    let (_root_addr, root_hash) = hashes_with_addr[0];
-    root_hash
+    // let _ = hashes_with_addr.group_by(|(addr0, _), (addr1, _)| addr0 ==
+    // addr1);
 }
 
 // This could also be seen as binary addition with a roll-up step?
@@ -39,7 +44,7 @@ fn merklelize_group(group: &[Poseidon2HashType]) -> Option<Poseidon2HashType> {
                 .map(|g| match g {
                     [remainder] => *remainder,
                     g => poseidon2_hash_no_pad(
-                        &g.into_iter()
+                        &g.iter()
                             .flat_map(Poseidon2HashType::to_le_bytes)
                             .collect::<Vec<u8>>(),
                     ),

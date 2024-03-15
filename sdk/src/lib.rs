@@ -2,6 +2,7 @@
 #![deny(clippy::cargo)]
 #![allow(clippy::missing_panics_doc)]
 #![feature(trait_alias)]
+#![feature(slice_group_by)]
 #![deny(warnings)]
 #![cfg_attr(target_os = "mozakvm", feature(restricted_std))]
 pub mod coretypes;
