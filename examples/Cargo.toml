@@ -8,11 +8,6 @@ members = [
   "static-mem-access",
   "sha2",
   "rkyv-serialization",
-<<<<<<< HEAD
-=======
-  "stdin",
-  "merkleproof-trustedroot",
->>>>>>> main
   "empty",
 ]
 resolver = "2"
