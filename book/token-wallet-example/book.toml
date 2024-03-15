@@ -1,0 +1,6 @@
+[book]
+authors = ["Mozak team"]
+language = "en"
+multilingual = false
+src = "src"
+title = "wallet-token-example"
