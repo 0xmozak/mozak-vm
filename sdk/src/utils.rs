@@ -123,6 +123,9 @@ mod tests {
         let root = poseidon2_hash_no_pad(
             &chain![h_2.to_le_bytes(), hashes_with_addr[3].1.to_le_bytes()].collect::<Vec<u8>>(),
         );
+        assert_eq!(root.to_le_bytes(), [
+            232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 
+            132, 26, 242, 155, 95, 48, 48, 8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53]);
         assert_eq!(root, merklelize(hashes_with_addr));
     }
 
