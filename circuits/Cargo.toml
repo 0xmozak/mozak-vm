@@ -33,7 +33,6 @@ criterion = { version = "0.5", features = ["html_reports"] }
 env_logger = { version = "0.11" }
 hex = "0.4"
 im = "15.1"
-# mozak-examples = { path = "../examples-builder", features = ["fibonacci", "fibonacci-input-new-api"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
 
