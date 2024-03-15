@@ -29,12 +29,15 @@ pub mod native;
 //     Public,
 // }
 
-// /// Emit an event from `mozak_vm` to provide receipts of
-// /// `reads` and state updates including `create` and `delete`.
-// /// Panics on event-tape non-abidance.
-// pub fn event_emit(id: ProgramIdentifier, event: Event) {
-//     unsafe { SYSTEM_TAPES.event_tape.emit_event(id, event) }
-// }
+/// Emit an event from `mozak_vm` to provide receipts of
+/// `reads` and state updates including `create` and `delete`.
+/// Panics on event-tape non-abidance.
+pub fn event_emit(event: crate::common::types::Event) {
+    use crate::common::traits::EventEmit;
+    unsafe {
+        crate::common::system::SYSTEM_TAPE.event_tape.emit(event);
+    }
+}
 
 // /// Receive one message from mailbox targetted to us and its index
 // /// "consume" such message. Subsequent reads will never

@@ -1,12 +1,15 @@
+#[cfg(not(target_os = "mozakvm"))]
+use core::cell::RefCell;
+#[cfg(not(target_os = "mozakvm"))]
+use std::rc::Rc;
+
 use once_cell::unsync::Lazy;
 #[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
 
-use super::types::SystemTape;
+use super::types::{CallTapeType, EventTapeType, SystemTape};
 #[cfg(target_os = "mozakvm")]
-use crate::common::types::{
-    CallTapeType, CrossProgramCall, Event, EventTapeType, ProgramIdentifier,
-};
+use crate::common::types::{CrossProgramCall, Event, ProgramIdentifier};
 #[cfg(target_os = "mozakvm")]
 use crate::mozakvm::helpers::{
     archived_repr, get_rkyv_archived, get_rkyv_deserialized, get_self_prog_id,
@@ -25,7 +28,18 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // `EventTape` etc. As such, an empty `SystemTapes` works here.
     #[cfg(not(target_os = "mozakvm"))]
     {
-        SystemTape::default()
+        let common_identity_stack =
+            Rc::from(RefCell::new(crate::native::helpers::IdentityStack::new()));
+        SystemTape {
+            call_tape: CallTapeType {
+                identity_stack: common_identity_stack.clone(),
+                ..CallTapeType::default()
+            },
+            event_tape: EventTapeType {
+                identity_stack: common_identity_stack,
+                ..EventTapeType::default()
+            },
+        }
     }
 
     // On the other hand, when `SYSTEM_TAPE` is used in mozakvm,

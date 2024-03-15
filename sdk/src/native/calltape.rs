@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
 use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};
@@ -8,9 +9,9 @@ use crate::native::helpers::IdentityStack;
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CallTape {
     #[serde(skip)]
-    identity_stack: RefCell<IdentityStack>,
+    pub(crate) identity_stack: Rc<RefCell<IdentityStack>>,
     #[serde(rename = "global_calltape")]
-    writer: Vec<CrossProgramCall>,
+    pub(crate) writer: Vec<CrossProgramCall>,
 }
 
 impl std::fmt::Debug for CallTape {

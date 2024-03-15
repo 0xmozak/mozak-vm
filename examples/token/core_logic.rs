@@ -1,7 +1,7 @@
 #![feature(restricted_std)]
 extern crate alloc;
 
-use mozak_sdk::common::types::{ProgramIdentifier, StateObject};
+use mozak_sdk::common::types::{Event, EventType, ProgramIdentifier, StateObject};
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
@@ -48,11 +48,12 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    // let read_event = Event {
-    //     object: state_object.clone(),
-    //     operation: CanonicalEventType::Read,
-    // };
-    // event_emit(self_prog_id, read_event);
+    let read_event = Event {
+        object: state_object.clone(),
+        type_: EventType::Read,
+    };
+    mozak_sdk::event_emit(read_event);
+
     let token_object: wallet::TokenObject = deserialize_token_object(state_object.clone());
 
     assert!(
@@ -66,9 +67,9 @@ pub fn transfer(
         ) == wallet::MethodReturns::ApproveSignature(()),
     );
 
-    // let write_event = Event {
-    //     object: state_object,
-    //     operation: CanonicalEventType::Write,
-    // };
-    // event_emit(self_prog_id, write_event);
+    let write_event = Event {
+        object: state_object,
+        type_: EventType::Write,
+    };
+    mozak_sdk::event_emit(write_event);
 }

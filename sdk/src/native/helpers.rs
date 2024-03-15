@@ -11,10 +11,12 @@ use plonky2::plonk::config::{GenericHashOut, Hasher};
 use crate::common::types::{Poseidon2Hash, ProgramIdentifier};
 
 /// Represents a stack for call contexts during native execution.
-#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct IdentityStack(Vec<ProgramIdentifier>);
 
 impl IdentityStack {
+    pub fn new() -> Self { Self(Vec::new()) }
+
     pub fn add_identity(&mut self, id: ProgramIdentifier) { self.0.push(id); }
 
     pub fn top_identity(&self) -> ProgramIdentifier { self.0.last().copied().unwrap_or_default() }
