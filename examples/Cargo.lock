@@ -153,6 +153,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "fibonacci-input"
+version = "0.1.0"
+dependencies = [
+ "mozak-sdk",
+]
+
+[[package]]
 name = "fibonacci-mozak-guest"
 version = "0.1.0"
 dependencies = [
