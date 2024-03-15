@@ -149,7 +149,11 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 name = "empty"
 version = "0.1.0"
 dependencies = [
+<<<<<<< HEAD
  "mozak-sdk",
+=======
+ "guest",
+>>>>>>> main
 ]
 
 [[package]]
