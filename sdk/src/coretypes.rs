@@ -227,9 +227,9 @@ pub struct CanonicalStateObjectEvent {
 #[archive_attr(derive(Debug))]
 #[repr(u8)]
 pub enum CanonicalEventType {
-    Read = 0,
-    Write,
+    Write = 0,
     Ensure,
+    Read,
     Create,
     Delete,
 }

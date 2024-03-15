@@ -44,7 +44,8 @@ mod tests {
 
     use super::merklelize;
     use crate::coretypes::{
-        Address, CanonicalEventType, Event, Poseidon2HashType, ProgramIdentifier, StateObject,
+        Address, CanonicalEvent, CanonicalEventType, Event, Poseidon2HashType, ProgramIdentifier,
+        StateObject,
     };
     use crate::sys::{poseidon2_hash_no_pad, CanonicalEventTapeSingle, EventTapeSingle};
 
@@ -92,8 +93,8 @@ mod tests {
         let canonical_event_tape: CanonicalEventTapeSingle = event_tape.into();
         let root_hash = canonical_event_tape.canonical_hash();
         assert_eq!(root_hash.to_le_bytes(), [
-            134, 77, 72, 139, 219, 0, 80, 102, 90, 89, 101, 188, 116, 77, 215, 171, 177, 6, 155,
-            107, 101, 180, 165, 216, 112, 128, 4, 202, 190, 123, 197, 60
+            79, 14, 176, 199, 183, 132, 30, 42, 230, 153, 157, 39, 200, 196, 161, 42, 143, 239,
+            246, 55, 106, 106, 211, 0, 8, 102, 73, 157, 46, 176, 198, 26
         ])
     }
     #[test]
@@ -123,5 +124,113 @@ mod tests {
             &chain![h_2.to_le_bytes(), hashes_with_addr[3].1.to_le_bytes()].collect::<Vec<u8>>(),
         );
         assert_eq!(root, merklelize(hashes_with_addr));
+    }
+
+    fn hashout_to_bytes_hash(hashout: [u64; 4]) -> [u8; 32] {
+        hashout
+            .to_vec()
+            .into_iter()
+            .flat_map(|limb| limb.to_le_bytes())
+            .collect::<Vec<u8>>()
+            .try_into()
+            .unwrap()
+    }
+
+    #[test]
+    fn check_sample_events_hash() {
+        let hash_1 = hashout_to_bytes_hash([4, 8, 15, 16]);
+        let zero_val = hashout_to_bytes_hash([0, 0, 0, 0]);
+        let non_zero_val_1 = Poseidon2HashType(hashout_to_bytes_hash([3, 1, 4, 15]));
+        let non_zero_val_2 = Poseidon2HashType(hashout_to_bytes_hash([1, 6, 180, 33]));
+        let program_hash_1 = ProgramIdentifier(Poseidon2HashType(hash_1));
+        let zero_val_hash = Poseidon2HashType(zero_val);
+        let read_0 = CanonicalEvent {
+            address: 42,
+            event_owner: program_hash_1,
+            event_value: zero_val_hash,
+            event_type: CanonicalEventType::Read,
+        };
+
+        let write_1 = CanonicalEvent {
+            address: 42,
+            event_owner: program_hash_1,
+            event_type: CanonicalEventType::Write,
+            event_value: non_zero_val_1,
+        };
+        let write_2 = CanonicalEvent {
+            address: 42,
+            event_owner: program_hash_1,
+            event_type: CanonicalEventType::Write,
+            event_value: non_zero_val_2,
+        };
+        const READ_0_HASH: [u64; 4] = [
+            7272290939186032751,
+            8185818005188304227,
+            17555306369107993266,
+            17187284268557234321,
+        ];
+
+        const WRITE_1_HASH: [u64; 4] = [
+            11469795294276139037,
+            799622748573506082,
+            15272809121316752941,
+            7142640452443475716,
+        ];
+        const WRITE_2_HASH: [u64; 4] = [
+            1484423020241144842,
+            17207848040428508675,
+            7995793996020726058,
+            4658801606188332384,
+        ];
+
+        const BRANCH_1_HASH: [u64; 4] = [
+            16758566829994364981,
+            15311795646108582705,
+            12773152691662485878,
+            2551708493265210224,
+        ];
+        const BRANCH_2_HASH: [u64; 4] = [
+            8577138257922146843,
+            5112874340235798754,
+            4121828782781403483,
+            12250937462246573507,
+        ];
+
+        assert_eq!(
+            hashout_to_bytes_hash(READ_0_HASH),
+            read_0.canonical_hash().to_le_bytes()
+        );
+        assert_eq!(
+            hashout_to_bytes_hash(WRITE_1_HASH),
+            write_1.canonical_hash().to_le_bytes()
+        );
+        assert_eq!(
+            hashout_to_bytes_hash(WRITE_2_HASH),
+            write_2.canonical_hash().to_le_bytes()
+        );
+
+        assert_eq!(
+            hashout_to_bytes_hash(BRANCH_1_HASH),
+            poseidon2_hash_no_pad(
+                &chain!(
+                    write_1.canonical_hash().to_le_bytes(),
+                    write_2.canonical_hash().to_le_bytes()
+                )
+                .collect::<Vec<u8>>()
+            )
+            .to_le_bytes()
+        );
+
+        assert_eq!(
+            hashout_to_bytes_hash(BRANCH_2_HASH),
+            poseidon2_hash_no_pad(
+                &chain!(
+                    read_0.canonical_hash().to_le_bytes(),
+                    hashout_to_bytes_hash(BRANCH_1_HASH)
+                )
+                .collect::<Vec<u8>>()
+            )
+            .to_le_bytes()
+        )
     }
 }
