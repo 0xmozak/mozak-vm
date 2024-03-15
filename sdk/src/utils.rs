@@ -7,7 +7,7 @@ use crate::sys::poseidon2_hash_no_pad;
 /// It works in following fashion.
 pub fn merklelize(hashes_with_addr: &[(u64, Poseidon2HashType)]) -> Poseidon2HashType {
     match hashes_with_addr.len() {
-        0 => panic!("Didn't expect 0"),
+        0 => panic!("Didn't expect empty list of hashes"),
         1 => hashes_with_addr[0].1,
         _ => merklelize(
             &hashes_with_addr
@@ -25,7 +25,7 @@ pub fn merklelize(hashes_with_addr: &[(u64, Poseidon2HashType)]) -> Poseidon2Has
 
 fn merklelize_group(group: &[Poseidon2HashType]) -> Poseidon2HashType {
     match group.len() {
-        0 => panic!("Didn't expect 0"),
+        0 => panic!("Didn't expect empty group"),
         1 => group[0],
         _ => merklelize_group(
             &group
