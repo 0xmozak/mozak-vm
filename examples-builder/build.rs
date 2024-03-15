@@ -32,12 +32,6 @@ macro_rules! ecrate {
 const CRATES: &[Crate] = &[
     ecrate!("bss-tester", "BSS_ELF", false),
     ecrate!("fibonacci", "FIBONACCI_ELF", false),
-    ecrate!("fibonacci-input", "FIBONACCI_INPUT_ELF", true),
-    ecrate!(
-        "fibonacci-input-new-api",
-        "FIBONACCI_INPUT_ELF_NEW_API",
-        true
-    ),
     ecrate!("memory-access", "MEMORY_ACCESS_ELF", false),
     ecrate!("min-max", "MIN_MAX_ELF", false),
     ecrate!("panic", "PANIC_ELF", false),
