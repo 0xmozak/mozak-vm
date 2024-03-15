@@ -8,20 +8,24 @@ use crate::sys::poseidon2_hash_no_pad;
 pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
     while hashes_with_addr.len() > 1 {
         let mut new_hashes_with_addr = vec![];
-        let (first_addr, first_hash) = hashes_with_addr[0];
-        let mut curr_addr = first_addr;
-        let mut curr_group = vec![first_hash];
-        for (addr, hash) in hashes_with_addr.into_iter().skip(1) {
+        // let (first_addr, first_hash) = hashes_with_addr[0];
+        let mut curr_addr = Default::default();
+        let mut curr_group = vec![];
+        for (addr, hash) in hashes_with_addr.into_iter() {
             // OK, looks like we are doing a group-by?
             if curr_addr == addr {
                 curr_group.push(hash)
             } else {
+                if !curr_group.is_empty() {
                 new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(&curr_group)));
+                }
                 curr_group = vec![hash];
                 curr_addr = addr;
             }
         }
-        new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(&curr_group)));
+        if !curr_group.is_empty() {
+            new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(&curr_group)));
+        }
         hashes_with_addr = new_hashes_with_addr;
     }
     let (_root_addr, root_hash) = hashes_with_addr[0];
