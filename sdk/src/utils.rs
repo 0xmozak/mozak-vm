@@ -13,14 +13,13 @@ pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseid
         let mut curr_group = vec![];
         for (addr, hash) in hashes_with_addr.into_iter() {
             // OK, looks like we are doing a group-by?
-            if curr_addr == addr {
-                curr_group.push(hash)
-            } else {
+            if curr_addr != addr {
                 merklelize_group(&curr_group)
                     .map(|h| new_hashes_with_addr.push((curr_addr >> 1, h)));
-                curr_group = vec![hash];
-                curr_addr = addr;
+                curr_group = vec![];
             }
+            curr_group.push(hash);
+            curr_addr = addr;
         }
         merklelize_group(&curr_group).map(|h| new_hashes_with_addr.push((curr_addr >> 1, h)));
         hashes_with_addr = new_hashes_with_addr;
