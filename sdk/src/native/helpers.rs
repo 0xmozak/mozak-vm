@@ -8,7 +8,7 @@ use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 
-use crate::common::types::{Poseidon2Hash, ProgramIdentifier, SystemTape};
+use crate::common::types::{Poseidon2Hash, ProgramIdentifier};
 
 /// Represents a stack for call contexts during native execution.
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
@@ -105,15 +105,15 @@ fn write_to_file(file_path: &str, content: &[u8]) {
 pub fn dump_system_tape(
     file_template: &str,
     is_debug_tape_required: bool,
-    pre_processor: Option<impl Fn(SystemTape) -> SystemTape>,
+    // pre_processor: Option<impl Fn(SystemTape) -> SystemTape>,
 ) {
-    let mut tape_clone = unsafe {
+    let tape_clone = unsafe {
         crate::common::system::SYSTEM_TAPE.clone() // .clone() removes `Lazy{}`
     };
 
-    if let Some(pre_processor) = pre_processor {
-        tape_clone = pre_processor(tape_clone);
-    }
+    // if let Some(pre_processor) = pre_processor {
+    //     tape_clone = pre_processor(tape_clone);
+    // }
 
     if is_debug_tape_required {
         write_to_file(

@@ -12,8 +12,10 @@ use crate::native::helpers::IdentityStack;
     derive(serde::Serialize, serde::Deserialize)
 )]
 pub struct EventTape {
-    writer: HashMap<ProgramIdentifier, Vec<Event>>,
+    #[serde(skip)]
     identity_stack: RefCell<IdentityStack>,
+    #[serde(rename = "individual_event_tapes")]
+    writer: HashMap<ProgramIdentifier, Vec<Event>>,
 }
 
 impl std::fmt::Debug for EventTape {

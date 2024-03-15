@@ -78,7 +78,7 @@ impl std::fmt::Debug for ProgramIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "ProgID-{}",
+            "MZK-{}",
             &self
                 .0
                  .0
@@ -94,7 +94,7 @@ impl From<String> for ProgramIdentifier {
     fn from(value: String) -> ProgramIdentifier {
         let components: Vec<&str> = value.split('-').collect();
         assert_eq!(components.len(), 2);
-        assert_eq!(components[0], "ProgID");
+        assert_eq!(components[0], "MZK");
 
         ProgramIdentifier(super::Poseidon2Hash::from(
             hex::decode(components[1]).unwrap(),

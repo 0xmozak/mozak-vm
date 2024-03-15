@@ -39,6 +39,16 @@ impl std::fmt::Debug for StateAddress {
 impl StateAddress {
     #[must_use]
     pub fn inner(self) -> [u8; STATE_TREE_DEPTH] { self.0 }
+
+    #[must_use]
+    #[cfg(not(target_os = "mozakvm"))]
+    pub fn new_from_rand_seed(seed: u64) -> Self {
+        use rand::prelude::*;
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+        let mut slice: [u8; STATE_TREE_DEPTH] = [0; STATE_TREE_DEPTH];
+        rng.fill_bytes(&mut slice[..]);
+        Self(slice)
+    }
 }
 
 impl From<[u8; STATE_TREE_DEPTH]> for StateAddress {

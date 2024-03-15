@@ -7,7 +7,9 @@ use crate::native::helpers::IdentityStack;
 /// Represents the `CallTape` under native execution
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CallTape {
+    #[serde(skip)]
     identity_stack: RefCell<IdentityStack>,
+    #[serde(rename = "global_calltape")]
     writer: Vec<CrossProgramCall>,
 }
 
