@@ -4,7 +4,7 @@ name = "sha2-example-mozak-guest"
 version = "0.1.0"
 
 [dependencies]
-guest = { path = "../../guest", default-features = false }
+mozak-sdk = { path = "../../sdk", default-features = false }
 hex-literal = "0.2"
 sha2 = { version = "0.10", default-features = false }
 
@@ -13,4 +13,4 @@ name = "sha2-example"
 path = "main.rs"
 
 [features]
-std = ["guest/std"]
+std = ["mozak-sdk/std"]

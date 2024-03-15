@@ -6,8 +6,6 @@ version = "0.1.0"
 [dependencies]
 guest = { path = "../../guest", default-features = false }
 
-# mozak-system = { path = "../../system" }
-
 [[bin]]
 name = "fibonacci-input"
 path = "main.rs"
