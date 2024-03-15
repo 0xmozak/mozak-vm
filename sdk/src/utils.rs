@@ -10,34 +10,25 @@ pub fn merklelize(hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2H
         0 => panic!("Didn't expect 0"),
         1 => hashes_with_addr[0].1,
         _ => {
-            let mut new_hashes_with_addr = vec![];
-            let mut curr_addr = Default::default();
-            let mut curr_group = vec![];
-            for (addr, hash) in hashes_with_addr {
-                if curr_addr != addr {
-                    if let Some(h) = merklelize_group(&curr_group) {
-                        new_hashes_with_addr.push((curr_addr >> 1, h))
-                    }
-                    curr_group = vec![];
-                }
-                curr_group.push(hash);
-                curr_addr = addr;
-            }
-            if let Some(h) = merklelize_group(&curr_group) {
-                new_hashes_with_addr.push((curr_addr >> 1, h))
-            }
+            let new_hashes_with_addr = hashes_with_addr
+                .group_by(|(addr0, _), (addr1, _)| addr0 == addr1)
+                .map(|group| {
+                    let addr = group.first().copied().unwrap_or_default().0;
+                    let hashes: Vec<Poseidon2HashType> =
+                        group.iter().map(|(_, h)| *h).collect::<Vec<_>>();
+                    (addr >> 1, merklelize_group(&hashes))
+                })
+                .collect();
             merklelize(new_hashes_with_addr)
         }
     }
-    // let _ = hashes_with_addr.group_by(|(addr0, _), (addr1, _)| addr0 ==
-    // addr1);
 }
 
 // This could also be seen as binary addition with a roll-up step?
-fn merklelize_group(group: &[Poseidon2HashType]) -> Option<Poseidon2HashType> {
+fn merklelize_group(group: &[Poseidon2HashType]) -> Poseidon2HashType {
     match group.len() {
-        0 => None,
-        1 => Some(group[0]),
+        0 => panic!("Didn't expect 0"),
+        1 => group[0],
         _ => merklelize_group(
             &group
                 .chunks(2)
