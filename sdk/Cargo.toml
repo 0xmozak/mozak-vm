@@ -34,6 +34,6 @@ git = "https://github.com/0xmozak/plonky2.git"
 [features]
 default = ["std", "rawio", "stdread"]
 
+rawio = []
 std = ["plonky2/std"]
 stdread = []
-rawio = []
