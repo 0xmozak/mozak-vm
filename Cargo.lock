@@ -1011,6 +1011,7 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "mimalloc",
+ "mozak-examples",
  "mozak-sdk",
  "plonky2",
  "proptest",
