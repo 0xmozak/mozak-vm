@@ -1,52 +1,49 @@
+use itertools::{chain, Itertools};
+
 use crate::coretypes::Poseidon2HashType;
 use crate::sys::poseidon2_hash_no_pad;
 
 #[must_use]
 /// Takes vector of leaves of the form (address, hash) sorted according to
 /// address, and returns root of corresponding merkle tree.
-/// It works in following fashion.
-pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
-    while hashes_with_addr.len() > 1 {
-        let mut new_hashes_with_addr = vec![];
-        let (first_addr, first_hash) = hashes_with_addr[0];
-        let mut curr_addr = first_addr;
-        let mut curr_group = vec![first_hash];
-        for (addr, hash) in hashes_with_addr.into_iter().skip(1) {
-            if curr_addr == addr {
-                curr_group.push(hash)
-            } else {
-                new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(curr_group)));
-                curr_group = vec![hash];
-                curr_addr = addr;
-            }
-        }
-        new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(curr_group)));
-        hashes_with_addr = new_hashes_with_addr;
+pub fn merkleize(hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
+    match hashes_with_addr.len() {
+        // case 0 will never arise.
+        0 | 1 => hashes_with_addr[0].1,
+        _ => merkleize(
+            hashes_with_addr
+                .iter()
+                .group_by(|(addr, _hash)| addr)
+                .into_iter()
+                .map(|(addr, group)| {
+                    (
+                        addr >> 1,
+                        merkleize_group(group.map(|(_addr, hash)| *hash).collect()),
+                    )
+                })
+                .collect(),
+        ),
     }
-    let (_root_addr, root_hash) = hashes_with_addr[0];
-    root_hash
 }
 
-fn merklelize_group(mut group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
-    while group.len() > 1 {
-        let mut new_hashes = Vec::with_capacity(group.len().div_ceil(2));
-        let len_group = group.len();
-        for i in 0..group.len() / 2 {
-            let left = group[2 * i];
-            let right = group[2 * i + 1];
-            new_hashes.push(poseidon2_hash_no_pad(
-                &vec![left.to_le_bytes(), right.to_le_bytes()]
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<u8>>(),
-            ));
-        }
-        if len_group % 2 == 1 {
-            new_hashes.push(group[len_group - 1]);
-        }
-        group = new_hashes;
+fn merkleize_group(group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
+    match group.len() {
+        // case 0 will never arise
+        0 | 1 => group[0],
+        _ => merkleize_group(
+            group
+                .chunks(2)
+                .into_iter()
+                .map(|chunk| match chunk {
+                    [left, right] => poseidon2_hash_no_pad(
+                        &chain!(left.to_le_bytes(), right.to_le_bytes()).collect::<Vec<u8>>(),
+                    ),
+                    [remainder] => *remainder,
+                    _ => panic!("Invalid chunk"),
+                })
+                .collect(),
+        ),
     }
-    group[0]
 }
 
 #[cfg(test)]
@@ -54,7 +51,7 @@ mod tests {
 
     use itertools::chain;
 
-    use super::merklelize;
+    use super::merkleize;
     use crate::coretypes::{
         Address, CanonicalEvent, CanonicalEventType, Event, Poseidon2HashType, ProgramIdentifier,
         StateObject,
@@ -138,7 +135,7 @@ mod tests {
         assert_eq!(root.to_le_bytes(), [
             232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 
             132, 26, 242, 155, 95, 48, 48, 8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53]);
-        assert_eq!(root, merklelize(hashes_with_addr));
+        assert_eq!(root, merkleize(hashes_with_addr));
     }
 
     fn hashout_to_bytes_hash(hashout: [u64; 4]) -> [u8; 32] {

@@ -9,7 +9,7 @@ use crate::coretypes::DIGEST_BYTES;
 use crate::coretypes::{CPCMessage, CanonicalEvent, Event, Poseidon2HashType, ProgramIdentifier};
 #[cfg(not(target_os = "mozakvm"))]
 use crate::native_helpers::sort_with_hints;
-use crate::utils::merklelize;
+use crate::utils::merkleize;
 
 pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
 pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
@@ -283,7 +283,7 @@ impl CanonicalEventTapeSingle {
             .iter()
             .map(|event| (event.address, event.canonical_hash()))
             .collect::<Vec<(u64, Poseidon2HashType)>>();
-        merklelize(hashes_with_addr)
+        merkleize(hashes_with_addr)
     }
 }
 
