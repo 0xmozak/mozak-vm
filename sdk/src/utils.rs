@@ -12,32 +12,34 @@ pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseid
         let mut curr_addr = first_addr;
         let mut curr_group = vec![first_hash];
         for (addr, hash) in hashes_with_addr.into_iter().skip(1) {
+            // OK, looks like we are doing a group-by?
             if curr_addr == addr {
                 curr_group.push(hash)
             } else {
-                new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(curr_group)));
+                new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(&curr_group)));
                 curr_group = vec![hash];
                 curr_addr = addr;
             }
         }
-        new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(curr_group)));
+        new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(&curr_group)));
         hashes_with_addr = new_hashes_with_addr;
     }
     let (_root_addr, root_hash) = hashes_with_addr[0];
     root_hash
 }
 
-fn merklelize_group(group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
+// This could also be seen as binary addition with a roll-up step?
+fn merklelize_group(group: &[Poseidon2HashType]) -> Poseidon2HashType {
     match group.len() {
         0 => panic!("Empty group"),
         1 => group[0],
         _ => {
-            merklelize_group(group.chunks(2).map(|g|
+            merklelize_group(&group.chunks(2).map(|g|
                 match g {
                     [remainder] => *remainder,
                     g => poseidon2_hash_no_pad(&g.into_iter().flat_map(Poseidon2HashType::to_le_bytes).collect::<Vec<u8>>()),
                 }
-            ).collect())
+            ).collect::<Vec<_>>())
         }
     }
 }
