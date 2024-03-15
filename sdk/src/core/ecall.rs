@@ -25,6 +25,7 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
 }
 
 #[allow(dead_code)]
+#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -38,9 +39,6 @@ pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
     }
     #[cfg(not(target_os = "mozakvm"))]
     {
-        let _ = input_ptr;
-        let _ = input_len;
-        let _ = output_ptr;
         unimplemented!()
     }
 }
@@ -48,8 +46,9 @@ pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
 #[allow(dead_code)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[allow(clippy::ptr_as_ptr)]
+#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -58,27 +57,8 @@ pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
             in ("a2") buf_len,
         );
     }
-    #[cfg(all(target_os = "mozakvm", feature = "mozak-ro-memory"))]
-    // TODO(Roman): later on please add assert(capacity >= buf_len)
-    // NOTE: it is up to the application owner how to implement this, it can be implemented using
-    // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
-    // _mozak_private_io_tape`
-    unsafe {
-        extern "C" {
-            #[link_name = "_mozak_private_io_tape"]
-            static _mozak_private_io_tape: usize;
-        }
-        let io_tape_ptr = &raw const _mozak_private_io_tape as *const u8;
-        for i in 0..isize::try_from(buf_len)
-            .expect("ecall_ioread_private: usize to isize cast should succeed for buf_len")
-        {
-            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
-        }
-    }
     #[cfg(not(target_os = "mozakvm"))]
     {
-        let _ = buf_ptr;
-        let _ = buf_len;
         unimplemented!()
     }
 }
@@ -86,8 +66,9 @@ pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
 #[allow(dead_code)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[allow(clippy::ptr_as_ptr)]
+#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -96,27 +77,8 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
         in ("a2") buf_len,
         );
     }
-    #[cfg(all(target_os = "mozakvm", feature = "mozak-ro-memory"))]
-    // TODO(Roman): later on please add assert(capacity >= buf_len)
-    // NOTE: it is up to the application owner how to implement this, it can be implemented using
-    // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
-    // _mozak_public_io_tape`
-    unsafe {
-        extern "C" {
-            #[link_name = "_mozak_public_io_tape"]
-            static _mozak_public_io_tape: usize;
-        }
-        let io_tape_ptr = &raw const _mozak_public_io_tape as *const u8;
-        for i in 0..isize::try_from(buf_len)
-            .expect("ecall_ioread_public: usize to isize cast should succeed for buf_len")
-        {
-            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
-        }
-    }
     #[cfg(not(target_os = "mozakvm"))]
     {
-        let _ = buf_ptr;
-        let _ = buf_len;
         unimplemented!()
     }
 }
@@ -124,6 +86,7 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
 #[allow(dead_code)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[allow(clippy::ptr_as_ptr)]
+#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn transcript_read(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
@@ -134,32 +97,14 @@ pub fn transcript_read(buf_ptr: *mut u8, buf_len: usize) {
         in ("a2") buf_len,
         );
     }
-    #[cfg(all(target_os = "mozakvm", feature = "mozak-ro-memory"))]
-    // TODO(Roman): later on please add assert(capacity >= buf_len)
-    // NOTE: it is up to the application owner how to implement this, it can be implemented using
-    // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
-    // _mozak_transcript`
-    unsafe {
-        extern "C" {
-            #[link_name = "_mozak_transcript"]
-            static _mozak_transcript: usize;
-        }
-        let io_tape_ptr = &raw const _mozak_transcript as *const u8;
-        for i in 0..isize::try_from(buf_len)
-            .expect("ecall_transcript_read: usize to isize cast should succeed for buf_len")
-        {
-            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
-        }
-    }
     #[cfg(not(target_os = "mozakvm"))]
     {
-        let _ = buf_ptr;
-        let _ = buf_len;
         unimplemented!()
     }
 }
 
 #[allow(dead_code)]
+#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn panic(msg_ptr: *const u8, msg_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -172,13 +117,12 @@ pub fn panic(msg_ptr: *const u8, msg_len: usize) {
     }
     #[cfg(not(target_os = "mozakvm"))]
     {
-        let _ = msg_ptr;
-        let _ = msg_len;
         unimplemented!()
     }
 }
 
 #[allow(dead_code)]
+#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn trace(msg_ptr: *const u8, msg_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -191,13 +135,12 @@ pub fn trace(msg_ptr: *const u8, msg_len: usize) {
     }
     #[cfg(not(target_os = "mozakvm"))]
     {
-        let _ = msg_ptr;
-        let _ = msg_len;
         unimplemented!()
     }
 }
 
 #[allow(dead_code)]
+#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn halt(output: u8) {
     #[cfg(target_os = "mozakvm")]
     // HALT ecall
@@ -216,7 +159,6 @@ pub fn halt(output: u8) {
     }
     #[cfg(not(target_os = "mozakvm"))]
     {
-        let _ = output;
         unimplemented!()
     }
 }

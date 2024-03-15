@@ -32,5 +32,8 @@ default-features = false
 git = "https://github.com/0xmozak/plonky2.git"
 
 [features]
-mozak-ro-memory = []
+default = ["std", "rawio", "stdread"]
+
 std = ["plonky2/std"]
+stdread = []
+rawio = []

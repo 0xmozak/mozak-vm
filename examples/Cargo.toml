@@ -12,7 +12,7 @@ members = [
   "sha2",
   "rkyv-serialization",
   # "stdin",
-  # "fibonacci-input",
+  "fibonacci-input",
   # "fibonacci-input-new-api",
   # "merkleproof-trustedroot",
   "empty",
