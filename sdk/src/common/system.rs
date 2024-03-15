@@ -10,7 +10,7 @@ use crate::mozakvm::helpers::{
     archived_repr, get_rkyv_archived, get_rkyv_deserialized, get_self_prog_id,
 };
 #[cfg(target_os = "mozakvm")]
-use crate::mozakvm::linker_symbols::{mozak_call_tape, mozak_cast_list, mozak_event_tape};
+use crate::mozakvm::linker_symbols::{_mozak_call_tape, _mozak_cast_list, _mozak_event_tape};
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
 /// all the `IO-Tapes`, `CallTape` and the `EventTape` both in
@@ -37,13 +37,13 @@ static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
         SystemTape {
             call_tape: CallTapeType {
                 self_prog_id: get_self_prog_id(),
-                cast_list: get_rkyv_deserialized!(Vec<ProgramIdentifier>, mozak_cast_list),
-                reader: Some(get_rkyv_archived!(Vec<CPCMessage>, mozak_call_tape)),
+                cast_list: get_rkyv_deserialized!(Vec<ProgramIdentifier>, _mozak_cast_list),
+                reader: Some(get_rkyv_archived!(Vec<CPCMessage>, _mozak_call_tape)),
                 index: 0,
             },
             event_tape: EventTapeType {
                 self_prog_id: get_self_prog_id(),
-                reader: Some(get_rkyv_archived!(Vec<Event>, mozak_event_tape)),
+                reader: Some(get_rkyv_archived!(Vec<Event>, _mozak_event_tape)),
                 index: 0,
             },
         }

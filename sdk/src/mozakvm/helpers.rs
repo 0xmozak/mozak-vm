@@ -3,7 +3,7 @@
 use std::ptr::{addr_of, slice_from_raw_parts};
 
 use crate::common::types::{Poseidon2HashType, ProgramIdentifier, DIGEST_BYTES};
-use crate::mozakvm::linker_symbols::mozak_self_prog_id;
+use crate::mozakvm::linker_symbols::_mozak_self_prog_id;
 
 /// Zero-copy archived format derivation of any given type (rkyv)
 /// on a memory region starting at `addr`. It is expected that
@@ -20,10 +20,10 @@ pub fn archived_repr<T: rkyv::Archive>(addr: *const u8) -> &'static <T as rkyv::
 }
 
 /// Get the Program Identifier of the running program, assumes
-/// pre-populated memory region starting `mozak_self_prog_id`.
+/// pre-populated memory region starting `_mozak_self_prog_id`.
 #[allow(clippy::ptr_as_ptr)]
 pub fn get_self_prog_id() -> ProgramIdentifier {
-    let self_prog_id = unsafe { *{ addr_of!(mozak_self_prog_id) as *const ProgramIdentifier } };
+    let self_prog_id = unsafe { *{ addr_of!(_mozak_self_prog_id) as *const ProgramIdentifier } };
     assert_ne!(self_prog_id, ProgramIdentifier::default());
     self_prog_id
 }
