@@ -4,37 +4,49 @@ use crate::sys::poseidon2_hash_no_pad;
 #[must_use]
 /// Takes vector of leaves of the form (address, hash) sorted according to
 /// address, and returns root of corresponding merkle tree.
+/// It works in following fashion.
 pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
     while hashes_with_addr.len() > 1 {
         let mut new_hashes_with_addr = vec![];
-        let mut i = 0;
-        while i < hashes_with_addr.len() {
-            let (left_addr, left_hash) = hashes_with_addr[i];
-            if i == hashes_with_addr.len() - 1 {
-                new_hashes_with_addr.push((left_addr >> 1, left_hash));
-                break;
-            }
-            let (right_addr, right_hash) = hashes_with_addr[i + 1];
-            if left_addr == right_addr {
-                new_hashes_with_addr.push((
-                    left_addr >> 1,
-                    poseidon2_hash_no_pad(
-                        &vec![left_hash.to_le_bytes(), right_hash.to_le_bytes()]
-                            .into_iter()
-                            .flatten()
-                            .collect::<Vec<u8>>(),
-                    ),
-                ));
-                i += 2;
+        let (first_addr, first_hash) = hashes_with_addr[0];
+        let mut curr_addr = first_addr;
+        let mut curr_group = vec![first_hash];
+        for (addr, hash) in hashes_with_addr.into_iter().skip(1) {
+            if curr_addr == addr {
+                curr_group.push(hash)
             } else {
-                new_hashes_with_addr.push((left_addr >> 1, left_hash));
-                i += 1;
+                new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(curr_group)));
+                curr_group = vec![hash];
+                curr_addr = addr;
             }
         }
+        new_hashes_with_addr.push((curr_addr >> 1, merklelize_group(curr_group)));
         hashes_with_addr = new_hashes_with_addr;
     }
     let (_root_addr, root_hash) = hashes_with_addr[0];
     root_hash
+}
+
+fn merklelize_group(mut group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
+    while group.len() > 1 {
+        let mut new_hashes = Vec::with_capacity(group.len().div_ceil(2));
+        let len_group = group.len();
+        for i in 0..group.len() / 2 {
+            let left = group[2 * i];
+            let right = group[2 * i + 1];
+            new_hashes.push(poseidon2_hash_no_pad(
+                &vec![left.to_le_bytes(), right.to_le_bytes()]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<u8>>(),
+            ));
+        }
+        if len_group % 2 == 1 {
+            new_hashes.push(group[len_group - 1]);
+        }
+        group = new_hashes;
+    }
+    group[0]
 }
 
 #[cfg(test)]
