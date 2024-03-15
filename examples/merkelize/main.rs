@@ -2,7 +2,7 @@
 #![cfg_attr(target_os = "mozakvm", no_main)]
 
 use mozak_sdk::coretypes::Poseidon2HashType;
-use mozak_sdk::utils::merklelize;
+use mozak_sdk::utils::merkleize;
 
 pub fn main() {
     let hashes_with_addr = vec![
