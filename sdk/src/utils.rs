@@ -23,7 +23,6 @@ pub fn merklelize(hashes_with_addr: &[(u64, Poseidon2HashType)]) -> Poseidon2Has
     }
 }
 
-// This could also be seen as binary addition with a roll-up step?
 fn merklelize_group(group: &[Poseidon2HashType]) -> Poseidon2HashType {
     match group.len() {
         0 => panic!("Didn't expect 0"),
