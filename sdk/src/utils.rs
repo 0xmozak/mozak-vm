@@ -5,12 +5,12 @@ use crate::sys::poseidon2_hash_no_pad;
 /// Takes vector of leaves of the form (address, hash) sorted according to
 /// address, and returns root of corresponding merkle tree.
 /// It works in following fashion.
-pub fn merklelize(hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
+pub fn merklelize(hashes_with_addr: &[(u64, Poseidon2HashType)]) -> Poseidon2HashType {
     match hashes_with_addr.len() {
         0 => panic!("Didn't expect 0"),
         1 => hashes_with_addr[0].1,
         _ => merklelize(
-            hashes_with_addr
+            &hashes_with_addr
                 .group_by(|(addr0, _), (addr1, _)| addr0 == addr1)
                 .map(|group| {
                     let addr = group.first().copied().unwrap_or_default().0;
@@ -18,7 +18,7 @@ pub fn merklelize(hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2H
                         group.iter().map(|(_, h)| *h).collect::<Vec<_>>();
                     (addr >> 1, merklelize_group(&hashes))
                 })
-                .collect(),
+                .collect::<Vec<_>>(),
         ),
     }
 }
