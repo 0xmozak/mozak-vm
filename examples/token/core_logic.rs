@@ -4,9 +4,7 @@ extern crate alloc;
 use mozak_sdk::common::types::{ProgramIdentifier, StateObject};
 use rkyv::{Archive, Deserialize, Serialize};
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
     // Mint,
@@ -21,9 +19,7 @@ pub enum MethodArgs {
     // Split,
 }
 
-#[derive(Archive, Default, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
+#[derive(Archive, Default, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodReturns {
     // TODO: Remove later

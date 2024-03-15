@@ -2,12 +2,13 @@
 #![allow(unused_attributes)]
 mod core_logic;
 
-use mozak_sdk::common::types::{Poseidon2HashType, ProgramIdentifier, StateObject};
+use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier, StateObject};
 use mozak_sdk::native::dump_system_tape;
 use token::{dispatch, MethodArgs, MethodReturns};
 // use wallet::TokenObject;
 
 fn main() {
+    // let token_program = Progra
 
 
     // println!("------>   Running token-native");

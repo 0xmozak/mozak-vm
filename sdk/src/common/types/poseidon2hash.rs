@@ -41,6 +41,16 @@ impl std::fmt::Debug for Poseidon2Hash {
 impl Poseidon2Hash {
     #[must_use]
     pub fn inner(&self) -> [u8; DIGEST_BYTES] { self.0 }
+
+    #[must_use]
+    #[cfg(not(target_os = "mozakvm"))]
+    pub fn new_from_rand_seed(seed: u64) -> Self {
+        use rand::prelude::*;
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
+        let mut slice: [u8; DIGEST_BYTES] = [0; DIGEST_BYTES];
+        rng.fill_bytes(&mut slice[..]);
+        Self(slice)
+    }
 }
 
 impl From<[u8; DIGEST_BYTES]> for Poseidon2Hash {

@@ -41,6 +41,12 @@ impl ProgramIdentifier {
         Self(poseidon2_hash(&input))
     }
 
+    #[must_use]
+    #[cfg(not(target_os = "mozakvm"))]
+    pub fn new_from_rand_seed(seed: u64) -> Self {
+        Self(super::Poseidon2Hash::new_from_rand_seed(seed))
+    }
+
     /// Checks if the objects all have the same `constraint_owner` as
     /// `self`.
     ///

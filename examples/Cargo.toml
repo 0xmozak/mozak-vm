@@ -12,7 +12,7 @@ members = [
   "empty",
 
   # --------- members that depend on more than sdk::core
-  # "token",
+  "token",
   # "wallet"
 ]
 resolver = "2"

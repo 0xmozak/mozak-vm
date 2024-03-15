@@ -31,6 +31,12 @@ version = "1.0.113"
 default-features = false
 git = "https://github.com/0xmozak/plonky2.git"
 
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.rand_chacha]
+version = "0.3.1"
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.rand]
+version = "0.8.5"
+
 [features]
 default = ["std", "rawio", "stdread"]
 
