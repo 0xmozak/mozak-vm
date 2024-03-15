@@ -15,10 +15,10 @@
 # the part of this workspace
 
 [workspace]
-exclude = ["sdk", "examples-builder"]
+exclude = ["sdk"]
 members = [
   "cli",
-  # "examples-builder", 
+  "examples-builder",
   "runner",
   "circuits",
   "node-cli",

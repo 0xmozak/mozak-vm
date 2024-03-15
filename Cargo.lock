@@ -980,6 +980,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mozak-examples"
+version = "0.1.0"
+
+[[package]]
 name = "mozak-node"
 version = "0.1.0"
 dependencies = [
