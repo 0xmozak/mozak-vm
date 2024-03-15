@@ -7,7 +7,6 @@
 #![deny(warnings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
-// #![cfg_attr(target_os = "mozakvm", feature(restricted_std))]
 
 extern crate alloc as rust_alloc;
 
