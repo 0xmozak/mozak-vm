@@ -32,19 +32,12 @@ fn merklelize_group(group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
         0 => panic!("Empty group"),
         1 => group[0],
         _ => {
-            let new_hashes = group.chunks(2).map(|g|
+            merklelize_group(group.chunks(2).map(|g|
                 match g {
-                    [left, right] => poseidon2_hash_no_pad(
-                        &vec![left.to_le_bytes(), right.to_le_bytes()]
-                            .into_iter()
-                            .flatten()
-                            .collect::<Vec<u8>>(),
-                    ),
-                    [left] => *left,
-                    _ => panic!("Invalid group")
+                    [remainder] => *remainder,
+                    g => poseidon2_hash_no_pad(&g.into_iter().flat_map(Poseidon2HashType::to_le_bytes).collect::<Vec<u8>>()),
                 }
-            ).collect();
-            merklelize_group(new_hashes)
+            ).collect())
         }
     }
 }
