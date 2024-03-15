@@ -1,19 +1,13 @@
 [workspace]
 members = [
-  # "token",
-  # "wallet",
   "bss-tester",
   "fibonacci",
   "min-max",
   "memory-access",
   "panic",
-  # "poseidon2",
   "static-mem-access",
   "sha2",
   "rkyv-serialization",
-  # "stdin",
-  # "fibonacci-input-new-api",
-  # "merkleproof-trustedroot",
   "empty",
 ]
 resolver = "2"
