@@ -30,16 +30,65 @@ impl std::io::Read for RandomAccessPreinitMemTape {
     }
 }
 
+#[cfg(feature = "readtrait")]
+impl std::io::Seek for RandomAccessPreinitMemTape {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        match pos {
+            std::io::SeekFrom::Start(x) =>
+                if x >= self.tape.len().try_into().unwrap() {
+                    self.read_offset = self.tape.len() - 1;
+                } else {
+                    self.read_offset = usize::try_from(x).unwrap();
+                },
+            std::io::SeekFrom::End(x) =>
+                if x >= self.tape.len().try_into().unwrap() {
+                    self.read_offset = 0;
+                } else {
+                    self.read_offset = self.tape.len() - usize::try_from(x).unwrap() - 1;
+                },
+            std::io::SeekFrom::Current(x) => {
+                if x + i64::try_from(self.read_offset).unwrap()
+                    >= self.tape.len().try_into().unwrap()
+                {
+                    self.read_offset = self.tape.len() - 1;
+                } else {
+                    self.read_offset += usize::try_from(x).unwrap();
+                }
+            }
+        }
+        Ok(self.read_offset as u64)
+    }
+}
+
 /// Not implementing `std::io::Read` allows for consumption of
 /// data slices from the Tape, albeit linearly. This still leaves
 /// room for seekability, but any seek is only allowed on currently
 /// owned data elements (a.k.a. ahead from current `read_offset`).
 /// When that happens, slice uptil that point will be thrown away.
-// #[cfg(not(feature = "readtrait"))]
+#[cfg(not(feature = "readtrait"))]
 impl RandomAccessPreinitMemTape {
-    // fn read(&mut self, max_readlen: usize) -> Box<[u8]> {
+    fn read(&mut self, max_readlen: usize) -> Box<[u8]> {
+        let (mut read_bytes, remaining_buf) = (buf.len(), self.tape.len());
+        // In case we don't have enough bytes to read
+        if read_bytes > remaining_buf {
+            read_bytes = remaining_buf;
+        }
+        self.read_offset += read_bytes;
 
-    // }
+        let read_ptr = self.tape.as_ptr();
+
+        self.tape = unsafe {
+            let mem_slice = slice_from_raw_parts::<u8>(
+                read_ptr.add(read_bytes),
+                (self.tape.len() - read_bytes),
+            );
+            Box::from_raw(mem_slice as *mut [u8])
+        };
+        unsafe {
+            let mem_slice = slice_from_raw_parts::<u8>(read_ptr, read_bytes);
+            Box::from_raw(mem_slice as *mut [u8])
+        }
+    }
 }
 
 #[derive(Default)]
