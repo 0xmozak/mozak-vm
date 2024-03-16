@@ -8,18 +8,35 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 
 use crate::columns_view::Zip;
-
 // TODO(Matthias): consider making a ColMap for ColumnX as well.
+use crate::linear_combination::Column;
+
+pub fn to_untyped<X: IntoIterator<Item = i64>>(input: ColumnX<X>) -> Column {
+    // TODO(Matthias): we could filter out zero coefficients here, if we wanted to.
+    Column {
+        lv_linear_combination: input
+            .lv_linear_combination
+            .into_iter()
+            .enumerate()
+            .collect(),
+        nv_linear_combination: input
+            .nv_linear_combination
+            .into_iter()
+            .enumerate()
+            .collect(),
+        constant: input.constant,
+    }
+}
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ColumnX<C> {
     /// Linear combination of the local row
-    lv_linear_combination: C,
+    pub lv_linear_combination: C,
     /// Linear combination of the next row
-    nv_linear_combination: C,
+    pub nv_linear_combination: C,
     /// Constant of linear combination
-    constant: i64,
+    pub constant: i64,
 }
 
 /// Flip lv and nv

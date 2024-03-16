@@ -16,11 +16,11 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 #[derive(Clone, Debug, Default)]
 pub struct Column {
     /// Linear combination of the local row
-    lv_linear_combination: Vec<(usize, i64)>,
+    pub lv_linear_combination: Vec<(usize, i64)>,
     /// Linear combination of the next row
-    nv_linear_combination: Vec<(usize, i64)>,
+    pub nv_linear_combination: Vec<(usize, i64)>,
     /// Constant of linear combination
-    constant: i64,
+    pub constant: i64,
 }
 
 impl Neg for Column {
