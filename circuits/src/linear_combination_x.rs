@@ -152,6 +152,12 @@ impl<C: Default> From<C> for ColumnX<C> {
     fn from(lv_linear_combination: C) -> Self { Self::now(lv_linear_combination) }
 }
 
+// impl<C: Default, I> From<I> for ColumnX<C> where I: : IntoIterator<Item=C>{
+//     fn from(lvs: C) -> Self {
+//         lvs.into_iter().map(Self::from).sum()
+//     }
+// }
+
 impl<C: Default> ColumnX<C> {
     pub const fn now(lv_linear_combination: C) -> Self {
         Self {

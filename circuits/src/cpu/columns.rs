@@ -314,16 +314,17 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
 // };
 
 pub fn x() {
-    let y: CpuColumnsExtended<CpuColumnsExtended<i64>> = ColMap::COL_MAP;
+    // let y: CpuColumnsExtended<CpuColumnsExtended<i64>> = ColMap::COL_MAP;
     // let z: CpuColumnsExtended<
     // CrossTableLookupNamedTyped<
     //     _,
     //     ColumnX<_>
     //     >
     // > = y.map(CrossTableLookupNamedTyped::from);
-    let z = y.cpu.inst.ops.add;
-    let m: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> = y.map(ColumnX::now);
+    // let z = y.cpu.inst.ops.add;
+    let m: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> = ColMap::COL_MAP;
     let a: ColumnX<CpuColumnsExtended<i64>> = m.cpu.inst.ops.add;
+    // let _ = m.cpu.inst.ops.into_iter().sum();
     // let a: ColumnX<CpuColumnsExtended<i64>> = ColumnX::now(z);
     // let b: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> =
     // m.cpu.inst.ops.add; let _ = b;
@@ -338,9 +339,6 @@ pub fn x() {
 
 #[must_use]
 pub fn data_for_xor() -> XorView<Column> { col_map().cpu.xor.map(Column::from) }
-
-// pub fn data_for_xor() -> XorView<ColumnX<CpuColumnsExtended<i64>>> {
-// CpuColumnsExtended::COL_MAP.cpu.xor.map(Column::from) }
 
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

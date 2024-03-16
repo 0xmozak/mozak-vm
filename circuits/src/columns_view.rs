@@ -274,8 +274,9 @@ macro_rules! make_col_map {
 
                 use crate::columns_view::NumberOfColumns;
                 const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
+                type ArrayForm = [[i64; N]; N];
                 let identity_matrix = {
-                    let mut indices_mat = [[0; N]; N];
+                    let mut indices_mat: ArrayForm = [[0; N]; N];
                     let mut i = 0;
                     while i < N {
                         indices_mat[i][i] = 1;
@@ -283,7 +284,7 @@ macro_rules! make_col_map {
                     }
                     indices_mat
                 };
-                unsafe { transmute::<[[i64; N]; N], Self>(identity_matrix) }
+                unsafe { transmute::<ArrayForm, Self>(identity_matrix) }
             };
         }
 
@@ -297,7 +298,8 @@ macro_rules! make_col_map {
                 use crate::columns_view::NumberOfColumns;
                 use crate::linear_combination_x::ColumnX;
                 const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
-                let identity_matrix: [ColumnX<[i64; N]>; N] = {
+                type ArrayForm = [ColumnX<[i64; N]>; N];
+                let identity_matrix: ArrayForm = {
                     let mut indices_mat = [ColumnX {
                         lv_linear_combination: [0_i64; N],
                         nv_linear_combination: [0_i64; N],
@@ -310,8 +312,7 @@ macro_rules! make_col_map {
                     }
                     indices_mat
                 };
-                unsafe { transmute::<[ColumnX<[i64; N]>; N], Self>(identity_matrix) }
-                // x.map(crate::linear_combination_x::ColumnX::now)
+                unsafe { transmute::<ArrayForm, Self>(identity_matrix) }
             };
         }
     };
