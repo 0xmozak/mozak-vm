@@ -6,15 +6,16 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::bitshift::columns::Bitshift;
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map, ColMap, NumberOfColumns};
 use crate::cpu::stark::add_extension_vec;
-use crate::cross_table_lookup::Column;
+use crate::cross_table_lookup::{Column, CrossTableLookupNamedTyped};
+use crate::linear_combination_x::ColumnX;
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{CpuTable, TableNamed};
+use crate::stark::mozak_stark::{CpuTable, TableNamed, TableNamedTyped};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -305,15 +306,49 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     ]
 }
 
-/// Columns containing the data to be matched against Xor stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+// const foo: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> = {
+//     let y: CpuColumnsExtended<CpuColumnsExtended<i64>> = ColMap::COL_MAP;
+//     // todo!()
+//     let m: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> =
+// y.map(ColumnX::now);     m
+// };
+
+pub fn x() {
+    let y: CpuColumnsExtended<CpuColumnsExtended<i64>> = ColMap::COL_MAP;
+    // let z: CpuColumnsExtended<
+    // CrossTableLookupNamedTyped<
+    //     _,
+    //     ColumnX<_>
+    //     >
+    // > = y.map(CrossTableLookupNamedTyped::from);
+    let z = y.cpu.inst.ops.add;
+    let m: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> = y.map(ColumnX::now);
+    let a: ColumnX<CpuColumnsExtended<i64>> = m.cpu.inst.ops.add;
+    // let a: ColumnX<CpuColumnsExtended<i64>> = ColumnX::now(z);
+    // let b: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> =
+    // m.cpu.inst.ops.add; let _ = b;
+}
+
+// /// Columns containing the data to be matched against Xor stark.
+// /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+// #[must_use]
+// pub fn data_for_xor_() -> XorView<ColumnX<CpuColumnsExtended<i64>>> {
+//     col_map().cpu.xor.map(Column::from)
+// }
+
 #[must_use]
 pub fn data_for_xor() -> XorView<Column> { col_map().cpu.xor.map(Column::from) }
+
+// pub fn data_for_xor() -> XorView<ColumnX<CpuColumnsExtended<i64>>> {
+// CpuColumnsExtended::COL_MAP.cpu.xor.map(Column::from) }
 
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_xor() -> Column { col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor() }
+pub fn filter_for_xor() -> Column { col_map().cpu.inst.ops.map(Column::from).ops_that_use_xor() }
+
+// pub fn filter_for_xor() -> ColumnX<CpuColumnsExtended<i64>> {
+// ColMap::COL_MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor() }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

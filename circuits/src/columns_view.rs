@@ -283,7 +283,35 @@ macro_rules! make_col_map {
                     }
                     indices_mat
                 };
-                unsafe { transmute::<[[i64; N]; N], $s<$s<i64>>>(identity_matrix) }
+                unsafe { transmute::<[[i64; N]; N], Self>(identity_matrix) }
+            };
+        }
+
+        impl crate::columns_view::ColMap for $s<crate::linear_combination_x::ColumnX<$s<i64>>> {
+            // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
+            // TODO: see if we can do this without transmute?
+            #[allow(clippy::large_stack_arrays)]
+            const COL_MAP: Self = {
+                use core::mem::transmute;
+
+                use crate::columns_view::NumberOfColumns;
+                use crate::linear_combination_x::ColumnX;
+                const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
+                let identity_matrix: [ColumnX<[i64; N]>; N] = {
+                    let mut indices_mat = [ColumnX {
+                        lv_linear_combination: [0_i64; N],
+                        nv_linear_combination: [0_i64; N],
+                        constant: 0,
+                    }; N];
+                    let mut i = 0;
+                    while i < N {
+                        indices_mat[i].lv_linear_combination[i] = 1;
+                        i += 1;
+                    }
+                    indices_mat
+                };
+                unsafe { transmute::<[ColumnX<[i64; N]>; N], Self>(identity_matrix) }
+                // x.map(crate::linear_combination_x::ColumnX::now)
             };
         }
     };

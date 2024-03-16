@@ -148,14 +148,24 @@ where
         }
     }
 }
-impl<C> From<C> for ColumnX<C>
-where
-    ColumnX<C>: Default,
-{
-    fn from(lv_linear_combination: C) -> Self {
+impl<C: Default> From<C> for ColumnX<C> {
+    fn from(lv_linear_combination: C) -> Self { Self::now(lv_linear_combination) }
+}
+
+impl<C: Default> ColumnX<C> {
+    pub const fn now(lv_linear_combination: C) -> Self {
         Self {
             lv_linear_combination,
-            ..Default::default()
+            nv_linear_combination: C::default(),
+            constant: Default::default(),
+        }
+    }
+
+    pub const fn next(nv_linear_combination: C) -> Self {
+        Self {
+            nv_linear_combination,
+            lv_linear_combination: C::default(),
+            constant: Default::default(),
         }
     }
 }
@@ -170,13 +180,6 @@ where
         + Sum,
     C: IntoIterator<Item = i64>,
 {
-    pub fn next(nv_linear_combination: C) -> Self {
-        Self {
-            nv_linear_combination,
-            ..Default::default()
-        }
-    }
-
     /// This is useful for `not`: `all_lv - Self::from(my_column)`
     // We could also implement this as a `sum` over COL_MAP, but the types are more annoying to get
     // right.

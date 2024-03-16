@@ -11,7 +11,9 @@ use crate::bitshift::columns::Bitshift;
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
-use crate::cross_table_lookup::{Column, CrossTableLookup, CrossTableLookupNamed};
+use crate::cross_table_lookup::{
+    Column, CrossTableLookup, CrossTableLookupNamed, CrossTableLookupNamedTyped,
+};
 use crate::linear_combination_x::ColumnX;
 use crate::memory::columns::MemoryCtl;
 use crate::memory::stark::MemoryStark;
@@ -467,6 +469,20 @@ macro_rules! table_impl {
     };
 }
 
+// /// Macro to instantiate a new table for cross table lookups.
+// macro_rules! table_impl_typed {
+//     ($t: ident, $tk: expr) => {
+//         pub struct $t<Row>(TableNamed<Row>);
+
+//         impl<Row> $t<Row> {
+//             #[allow(clippy::new_ret_no_self)]
+//             pub fn new(columns: Row, filter_column: Column) ->
+// TableNamed<Row> {                 TableNamed::new($tk, columns,
+// filter_column)             }
+//         }
+//     };
+// }
+
 table_impl!(RangeCheckTable, TableKind::RangeCheck);
 table_impl!(CpuTable, TableKind::Cpu);
 table_impl!(XorTable, TableKind::Xor);
@@ -527,13 +543,19 @@ impl Lookups for XorCpuTable {
     type Row = XorView<Column>;
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
-        CrossTableLookupNamed::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_xor(),
-                cpu::columns::filter_for_xor(),
-            )],
-            XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
-        )
+        todo!()
+        // CrossTableLookupNamed::from(CrossTableLookupNamedTyped {
+        //     looking_tables: vec![TableNamedTyped{
+        //         kind: TableKind::Cpu,
+        //         columns: cpu::columns::data_for_xor(),
+        //         filter_column: cpu::columns::filter_for_xor(),
+        //     }],
+        //     looked_table: TableNamedTyped {
+        //         kind: TableKind::Xor,
+        //         columns: xor::columns::data_for_cpu(),
+        //         filter_column: xor::columns::filter_for_cpu(),
+        // },
+        // })
     }
 }
 
