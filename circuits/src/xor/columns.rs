@@ -1,5 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
+use crate::linear_combination_x::ColumnX;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -30,8 +31,10 @@ columns_view_impl!(XorView);
 /// stark table.
 #[must_use]
 pub fn data_for_cpu() -> XorView<Column> { col_map().execution.map(Column::from) }
+pub fn data_for_cpu_() -> XorView<ColumnX<XorColumnsView<i64>>> { COL_MAP.execution }
 
 /// Column for a binary filter to indicate a lookup from the CPU table into Xor
 /// stark table.
 #[must_use]
 pub fn filter_for_cpu() -> Column { Column::single(col_map().is_execution_row) }
+pub fn filter_for_cpu_() -> ColumnX<XorColumnsView<i64>> { COL_MAP.is_execution_row }

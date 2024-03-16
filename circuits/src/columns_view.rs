@@ -315,6 +315,8 @@ macro_rules! make_col_map {
                 unsafe { transmute::<ArrayForm, Self>(identity_matrix) }
             };
         }
+        pub(crate) const COL_MAP: $s<crate::linear_combination_x::ColumnX<$s<i64>>> =
+            crate::columns_view::ColMap::COL_MAP;
     };
 }
 pub(crate) use make_col_map;

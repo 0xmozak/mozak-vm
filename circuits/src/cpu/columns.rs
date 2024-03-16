@@ -306,36 +306,10 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     ]
 }
 
-// const foo: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> = {
-//     let y: CpuColumnsExtended<CpuColumnsExtended<i64>> = ColMap::COL_MAP;
-//     // todo!()
-//     let m: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> =
-// y.map(ColumnX::now);     m
-// };
-
-pub fn x() {
-    // let y: CpuColumnsExtended<CpuColumnsExtended<i64>> = ColMap::COL_MAP;
-    // let z: CpuColumnsExtended<
-    // CrossTableLookupNamedTyped<
-    //     _,
-    //     ColumnX<_>
-    //     >
-    // > = y.map(CrossTableLookupNamedTyped::from);
-    // let z = y.cpu.inst.ops.add;
-    let m: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> = ColMap::COL_MAP;
-    let a: ColumnX<CpuColumnsExtended<i64>> = m.cpu.inst.ops.add;
-    // let _ = m.cpu.inst.ops.into_iter().sum();
-    // let a: ColumnX<CpuColumnsExtended<i64>> = ColumnX::now(z);
-    // let b: CpuColumnsExtended<ColumnX<CpuColumnsExtended<i64>>> =
-    // m.cpu.inst.ops.add; let _ = b;
-}
-
-// /// Columns containing the data to be matched against Xor stark.
-// /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-// #[must_use]
-// pub fn data_for_xor_() -> XorView<ColumnX<CpuColumnsExtended<i64>>> {
-//     col_map().cpu.xor.map(Column::from)
-// }
+/// Columns containing the data to be matched against Xor stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_xor_() -> XorView<ColumnX<CpuColumnsExtended<i64>>> { COL_MAP.cpu.xor }
 
 #[must_use]
 pub fn data_for_xor() -> XorView<Column> { col_map().cpu.xor.map(Column::from) }
@@ -344,6 +318,10 @@ pub fn data_for_xor() -> XorView<Column> { col_map().cpu.xor.map(Column::from) }
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_xor() -> Column { col_map().cpu.inst.ops.map(Column::from).ops_that_use_xor() }
+
+pub fn filter_for_xor_() -> ColumnX<CpuColumnsExtended<i64>> {
+    COL_MAP.cpu.inst.ops.ops_that_use_xor()
+}
 
 // pub fn filter_for_xor() -> ColumnX<CpuColumnsExtended<i64>> {
 // ColMap::COL_MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor() }
