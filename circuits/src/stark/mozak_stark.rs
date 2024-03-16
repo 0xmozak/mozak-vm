@@ -12,6 +12,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup, CrossTableLookupNamed};
+use crate::linear_combination_x::ColumnX;
 use crate::memory::columns::MemoryCtl;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
@@ -397,6 +398,28 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
         Self {
             debug: true,
             ..Self::default()
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TableNamedTyped<Row, Filter> {
+    pub(crate) kind: TableKind,
+    pub(crate) columns: Row,
+    pub(crate) filter_column: Filter,
+}
+
+impl<RowIn, RowOut, X> From<TableNamedTyped<RowIn, ColumnX<X>>> for TableNamed<RowOut>
+where
+    X: IntoIterator<Item = i64>,
+    RowOut: FromIterator<Column>,
+    RowIn: IntoIterator<Item = ColumnX<X>>,
+{
+    fn from(input: TableNamedTyped<RowIn, ColumnX<X>>) -> Self {
+        TableNamed {
+            kind: input.kind,
+            columns: input.columns.into_iter().map(Column::from).collect(),
+            filter_column: input.filter_column.into(),
         }
     }
 }
