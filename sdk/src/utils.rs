@@ -5,44 +5,46 @@ use crate::sys::poseidon2_hash_no_pad;
 /// Takes vector of leaves of the form (address, hash) sorted according to
 /// address, and returns root of corresponding merkle tree.
 /// It works in following fashion.
-pub fn merklelize(hashes_with_addr: &[(u64, Poseidon2HashType)]) -> Poseidon2HashType {
-    match hashes_with_addr.len() {
-        // TODO(Matthias): figure out a sensible value for this case, instead of panicking.
-        0 => panic!("Didn't expect empty list of hashes"),
-        1 => hashes_with_addr[0].1,
-        _ => merklelize(
-            &hashes_with_addr
-                .group_by(|(addr0, _), (addr1, _)| addr0 == addr1)
-                .map(|group| {
-                    let addr = group.first().copied().unwrap_or_default().0;
-                    let hashes: Vec<Poseidon2HashType> =
-                        group.iter().map(|(_, h)| *h).collect::<Vec<_>>();
-                    (addr >> 1, merklelize_group(&hashes))
-                })
-                .collect::<Vec<_>>(),
-        ),
+pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
+    while hashes_with_addr.len() > 1 {
+        hashes_with_addr = hashes_with_addr
+            .group_by(|(addr0, _), (addr1, _)| addr0 == addr1)
+            .map(|group| {
+                let addr = group.first().copied().unwrap_or_default().0;
+                let hashes: Vec<Poseidon2HashType> =
+                    group.iter().map(|(_, h)| *h).collect::<Vec<_>>();
+                (addr >> 1, merklelize_group(hashes))
+            })
+            .collect::<Vec<_>>();
     }
+    // TODO(Matthias): figure out a sensible value for this case, instead of
+    // panicking.
+    if hashes_with_addr.len() != 1 {
+        panic!("Didn't expect empty list of hashes");
+    }
+    hashes_with_addr[0].1
 }
 
-fn merklelize_group(group: &[Poseidon2HashType]) -> Poseidon2HashType {
-    match group.len() {
-        // TODO(Matthias): figure out a sensible value for this case, instead of panicking.
-        0 => panic!("Didn't expect empty group"),
-        1 => group[0],
-        _ => merklelize_group(
-            &group
-                .chunks(2)
-                .map(|g| match g {
-                    [remainder] => *remainder,
-                    g => poseidon2_hash_no_pad(
-                        &g.iter()
-                            .flat_map(Poseidon2HashType::to_le_bytes)
-                            .collect::<Vec<u8>>(),
-                    ),
-                })
-                .collect::<Vec<_>>(),
-        ),
+fn merklelize_group(mut group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
+    while group.len() > 1 {
+        group = group
+            .chunks(2)
+            .map(|g| match g {
+                [remainder] => *remainder,
+                g => poseidon2_hash_no_pad(
+                    &g.iter()
+                        .flat_map(Poseidon2HashType::to_le_bytes)
+                        .collect::<Vec<u8>>(),
+                ),
+            })
+            .collect::<Vec<_>>();
     }
+    // TODO(Matthias): figure out a sensible value for this case, instead of
+    // panicking.
+    if group.len() != 1 {
+        panic!("Didn't expect empty group");
+    }
+    group[0]
 }
 
 #[cfg(test)]
@@ -106,7 +108,7 @@ mod tests {
         ])
     }
     #[test]
-    #[rustfmt::skip] 
+    #[rustfmt::skip]
     fn merkelize_test() {
         let hashes_with_addr = vec![
             (0x010, Poseidon2HashType([1u8; 32])),// ------------|
