@@ -16,7 +16,10 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableNamed};
+use crate::linear_combination_x::ColumnX;
+use crate::stark::mozak_stark::{
+    all_kind, Table, TableKind, TableKindArray, TableNamed, TableNamedTyped,
+};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
 
@@ -187,6 +190,34 @@ fn partial_sums<F: Field>(
 pub struct CrossTableLookupNamed<Row> {
     pub looking_tables: Vec<TableNamed<Row>>,
     pub looked_table: TableNamed<Row>,
+}
+
+impl<RowIn, RowOut, X> From<CrossTableLookupNamedTyped<RowIn, ColumnX<X>>>
+    for CrossTableLookupNamed<RowOut>
+where
+    X: IntoIterator<Item = i64>,
+    RowOut: FromIterator<Column>,
+    RowIn: IntoIterator<Item = ColumnX<X>>,
+{
+    fn from(ctl: CrossTableLookupNamedTyped<RowIn, ColumnX<X>>) -> Self {
+        let looked_table = TableNamed::from(ctl.looked_table);
+        let looking_tables = ctl
+            .looking_tables
+            .into_iter()
+            .map(TableNamed::from)
+            .collect();
+        Self {
+            looking_tables,
+            looked_table,
+        }
+    }
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Clone, Debug)]
+pub struct CrossTableLookupNamedTyped<Row, Filter> {
+    pub looking_tables: Vec<TableNamedTyped<Row, Filter>>,
+    pub looked_table: TableNamedTyped<Row, Filter>,
 }
 
 #[allow(clippy::module_name_repetitions)]
