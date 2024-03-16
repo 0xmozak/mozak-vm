@@ -5,26 +5,25 @@ use crate::sys::poseidon2_hash_no_pad;
 /// Takes vector of leaves of the form (address, hash) sorted according to
 /// address, and returns root of corresponding merkle tree.
 /// It works in following fashion.
-pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseidon2HashType {
+// TODO: make this work with an empty tape!  Define a reasonable hash-value to
+// return in that case.
+pub fn merklelize(
+    mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>,
+) -> Option<Poseidon2HashType> {
     while hashes_with_addr.len() > 1 {
         hashes_with_addr = hashes_with_addr
             .group_by(|(addr0, _), (addr1, _)| addr0 == addr1)
-            .map(|group| {
-                let addr = group.first().copied().unwrap_or_default().0;
+            .filter_map(|group| {
+                let addr = group.first().copied()?.0;
                 let hashes = group.iter().map(|(_, h)| *h).collect::<Vec<_>>();
-                (addr >> 1, merklelize_group(hashes))
+                Some((addr >> 1, merklelize_group(hashes)?))
             })
             .collect::<Vec<_>>();
     }
-    // TODO(Matthias): figure out a sensible value for this case, instead of
-    // panicking.
-    if hashes_with_addr.len() != 1 {
-        panic!("Didn't expect empty list of hashes");
-    }
-    hashes_with_addr[0].1
+    Some(hashes_with_addr.first()?.1)
 }
 
-fn merklelize_group(mut group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
+fn merklelize_group(mut group: Vec<Poseidon2HashType>) -> Option<Poseidon2HashType> {
     while group.len() > 1 {
         group = group
             .chunks(2)
@@ -40,10 +39,7 @@ fn merklelize_group(mut group: Vec<Poseidon2HashType>) -> Poseidon2HashType {
     }
     // TODO(Matthias): figure out a sensible value for this case, instead of
     // panicking.
-    if group.len() != 1 {
-        panic!("Didn't expect empty group");
-    }
-    group[0]
+    group.first().copied()
 }
 
 #[cfg(test)]
@@ -135,7 +131,7 @@ mod tests {
         assert_eq!(root.to_le_bytes(), [
             232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 
             132, 26, 242, 155, 95, 48, 48, 8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53]);
-        assert_eq!(root, merklelize(hashes_with_addr));
+        assert_eq!(root, merklelize(hashes_with_addr).unwrap());
     }
 
     fn hashout_to_bytes_hash(hashout: [u64; 4]) -> [u8; 32] {

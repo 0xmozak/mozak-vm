@@ -283,7 +283,8 @@ impl CanonicalEventTapeSingle {
             .iter()
             .map(|event| (event.address, event.canonical_hash()))
             .collect::<Vec<(u64, Poseidon2HashType)>>();
-        merklelize(hashes_with_addr)
+        // TODO: make this work with an empty tape!
+        merklelize(hashes_with_addr).unwrap()
     }
 }
 
