@@ -11,8 +11,7 @@ pub fn merklelize(mut hashes_with_addr: Vec<(u64, Poseidon2HashType)>) -> Poseid
             .group_by(|(addr0, _), (addr1, _)| addr0 == addr1)
             .map(|group| {
                 let addr = group.first().copied().unwrap_or_default().0;
-                let hashes: Vec<Poseidon2HashType> =
-                    group.iter().map(|(_, h)| *h).collect::<Vec<_>>();
+                let hashes = group.iter().map(|(_, h)| *h).collect::<Vec<_>>();
                 (addr >> 1, merklelize_group(hashes))
             })
             .collect::<Vec<_>>();
