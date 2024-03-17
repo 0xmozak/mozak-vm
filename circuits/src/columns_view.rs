@@ -35,10 +35,6 @@ pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
 }
 
-pub trait ColMap {
-    const COL_MAP: Self;
-}
-
 pub trait Zip<Item> {
     #[must_use]
     fn zip_with<F>(self, other: Self, f: F) -> Self
@@ -239,36 +235,33 @@ pub(crate) use columns_view_impl;
 /// array with the column name rather than the column index.
 macro_rules! make_col_map {
     ($s: ident) => {
-        impl crate::columns_view::ColMap for $s<crate::linear_combination_x::ColumnX<$s<i64>>> {
-            // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
-            // TODO: see if we can do this without transmute?
-            #[allow(clippy::large_stack_arrays)]
-            const COL_MAP: Self = {
-                use core::mem::transmute;
-
-                use crate::columns_view::NumberOfColumns;
-                use crate::cross_table_lookup::ColumnX;
-                const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
-                type ArrayForm = [ColumnX<[i64; N]>; N];
-                let identity_matrix: ArrayForm = {
-                    let mut indices_mat = [ColumnX {
-                        lv_linear_combination: [0_i64; N],
-                        nv_linear_combination: [0_i64; N],
-                        constant: 0,
-                    }; N];
-                    let mut i = 0;
-                    while i < N {
-                        indices_mat[i].lv_linear_combination[i] = 1;
-                        i += 1;
-                    }
-                    indices_mat
-                };
-                unsafe { transmute::<ArrayForm, Self>(identity_matrix) }
-            };
-        }
+        // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
+        // TODO: see if we can do this without transmute?
         #[allow(dead_code)]
-        pub(crate) const COL_MAP: $s<crate::linear_combination_x::ColumnX<$s<i64>>> =
-            crate::columns_view::ColMap::COL_MAP;
+        #[allow(clippy::large_stack_arrays)]
+        pub(crate) const COL_MAP: $s<crate::linear_combination_x::ColumnX<$s<i64>>> = {
+            use core::mem::transmute;
+
+            use crate::columns_view::NumberOfColumns;
+            use crate::cross_table_lookup::ColumnX;
+            const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
+            type ArrayForm = [ColumnX<[i64; N]>; N];
+            type Output = $s<crate::linear_combination_x::ColumnX<$s<i64>>>;
+            let identity_matrix: ArrayForm = {
+                let mut indices_mat = [ColumnX {
+                    lv_linear_combination: [0_i64; N],
+                    nv_linear_combination: [0_i64; N],
+                    constant: 0,
+                }; N];
+                let mut i = 0;
+                while i < N {
+                    indices_mat[i].lv_linear_combination[i] = 1;
+                    i += 1;
+                }
+                indices_mat
+            };
+            unsafe { transmute::<ArrayForm, Output>(identity_matrix) }
+        };
     };
 }
 pub(crate) use make_col_map;
