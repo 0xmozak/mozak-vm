@@ -382,6 +382,9 @@ pub fn lookup_for_io_memory_private() -> TableNamed<InputOutputMemoryCtl<Column>
     )
 }
 
+// TODO: consolidate lookup_for_io_memory_private and
+// lookup_for_io_memory_public and data_for_io_transcript into a single lookup
+// to save implicit CPU lookups columns.
 #[must_use]
 pub fn lookup_for_io_memory_public() -> TableNamed<InputOutputMemoryCtl<Column>> {
     let cpu = CPU_MAP;
