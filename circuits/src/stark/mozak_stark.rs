@@ -678,14 +678,8 @@ impl Lookups for RegisterRegInitTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![RegisterTable::new(
-                crate::register::columns::data_for_register_init(),
-                crate::register::columns::filter_for_register_init(),
-            )],
-            RegisterInitTable::new(
-                crate::registerinit::columns::data_for_register(),
-                crate::registerinit::columns::filter_for_register(),
-            ),
+            vec![crate::register::columns::lookup_for_register_init()],
+            crate::registerinit::columns::lookup_for_register(),
         )
     }
 }

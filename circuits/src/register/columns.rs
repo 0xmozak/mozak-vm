@@ -5,7 +5,6 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map};
 #[cfg(feature = "enable_register_starks")]
 use crate::cross_table_lookup::Column;
-use crate::cross_table_lookup::ColumnX;
 use crate::registerinit::columns::RegisterInitCtl;
 #[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::RegisterTable;
@@ -94,8 +93,6 @@ pub struct Register<T> {
     pub ops: Ops<T>,
 }
 
-type RegisterColumn = ColumnX<Register<i64>>;
-
 /// We create a virtual column known as `is_used`, which flags a row as
 /// being 'used' if it any one of the ops columns are turned on.
 /// This is to differentiate between real rows and padding rows.
@@ -104,16 +101,16 @@ impl<T: Add<Output = T>> Register<T> {
 }
 
 #[must_use]
-pub fn data_for_register_init() -> RegisterInitCtl<RegisterColumn> {
+pub fn lookup_for_register_init() -> TableNamed<RegisterInitCtl<Column>> {
     let reg = COL_MAP;
-    RegisterInitCtl {
-        addr: reg.addr,
-        value: reg.value,
-    }
+    RegisterTable::new(
+        RegisterInitCtl {
+            addr: reg.addr,
+            value: reg.value,
+        },
+        COL_MAP.ops.is_init,
+    )
 }
-
-#[must_use]
-pub fn filter_for_register_init() -> RegisterColumn { COL_MAP.ops.is_init }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]

@@ -1,5 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::ColumnX;
+use crate::linear_combination::Column;
+use crate::stark::mozak_stark::{RegisterInitTable, TableNamed};
 
 columns_view_impl!(RegisterInit);
 make_col_map!(RegisterInit);
@@ -31,16 +32,14 @@ pub struct RegisterInitCtl<T> {
     pub value: T,
 }
 
-type RegisterInitColumn = ColumnX<RegisterInit<i64>>;
-
 #[must_use]
-pub fn data_for_register() -> RegisterInitCtl<RegisterInitColumn> {
+pub fn lookup_for_register() -> TableNamed<RegisterInitCtl<Column>> {
     let reg = COL_MAP;
-    RegisterInitCtl {
-        addr: reg.reg_addr,
-        value: reg.value,
-    }
+    RegisterInitTable::new(
+        RegisterInitCtl {
+            addr: reg.reg_addr,
+            value: reg.value,
+        },
+        COL_MAP.is_looked_up,
+    )
 }
-
-#[must_use]
-pub fn filter_for_register() -> RegisterInitColumn { COL_MAP.is_looked_up }
