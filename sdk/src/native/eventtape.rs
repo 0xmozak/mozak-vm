@@ -135,3 +135,58 @@ impl EventEmit for EventTape {
             .or_insert(OrderedEvents::new(self_id, vec![event]));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::types::state_address::STATE_TREE_DEPTH;
+    use crate::common::types::{EventType, StateAddress, StateObject};
+
+    #[test]
+    #[rustfmt::skip]
+    fn test_ordered_events() {
+        let common_emitter = ProgramIdentifier::new_from_rand_seed(1);
+        let event1_read = Event{
+            type_: EventType::Read,
+            object: StateObject {
+                address: StateAddress([1; STATE_TREE_DEPTH]),
+                constraint_owner: ProgramIdentifier::new_from_rand_seed(2),
+                data: vec![],
+            }
+        };
+        let event2_read = Event{
+            type_: EventType::Read,
+            object: StateObject {
+                address: StateAddress([2; STATE_TREE_DEPTH]),
+                constraint_owner: ProgramIdentifier::new_from_rand_seed(3),
+                data: vec![],
+            }
+        };
+        let event3_read = Event{
+            type_: EventType::Read,
+            object: StateObject {
+                address: StateAddress([3; STATE_TREE_DEPTH]),
+                constraint_owner: ProgramIdentifier::new_from_rand_seed(4),
+                data: vec![],
+            }
+        };
+
+        let temporal_order = vec![event3_read.clone(), event1_read.clone(), event2_read.clone()];
+        let expected_canonical_order = vec![
+            CanonicalEvent::from_event(common_emitter, &event1_read),
+            CanonicalEvent::from_event(common_emitter, &event2_read),
+            CanonicalEvent::from_event(common_emitter, &event3_read)
+        ];
+        let expected_canonical_hints = vec![1, 2, 0];
+        let expected_temporal_hints = vec![2, 0, 1];
+
+        let ordered_events = OrderedEvents::new(common_emitter, temporal_order.clone());
+
+        assert_eq!(ordered_events.get_canonical_order_temporal_hints(), 
+            expected_canonical_order.into_iter().zip(expected_temporal_hints.into_iter()).collect::<Vec<(CanonicalEvent, usize)>>()); 
+        
+
+        assert_eq!(ordered_events.get_temporal_order_canonical_hints(), 
+            temporal_order.into_iter().zip(expected_canonical_hints.into_iter()).collect::<Vec<(Event, usize)>>()); 
+    }
+}
