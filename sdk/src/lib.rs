@@ -13,7 +13,7 @@ extern crate alloc as rust_alloc;
 
 pub mod core;
 
-#[cfg(feature = "std")]
+// #[cfg(feature = "std")]
 pub mod common;
 
 #[cfg(all(feature = "std", target_os = "mozakvm"))]

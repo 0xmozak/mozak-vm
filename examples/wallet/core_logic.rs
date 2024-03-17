@@ -2,7 +2,7 @@
 #![allow(unused_attributes)]
 extern crate alloc;
 
-use mozak_sdk::common::types::ProgramIdentifier;
+use mozak_sdk::common::types::{StateObject, ProgramIdentifier};
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// A generic public key used by the wallet.
@@ -46,6 +46,14 @@ pub struct TokenObject {
     pub pub_key: PublicKey,
     /// The amount of tokens to be used.
     pub amount: Amount,
+}
+
+impl From<StateObject> for TokenObject {
+    fn from(value: StateObject) -> Self {
+        let archived = unsafe { rkyv::archived_root::<TokenObject>(&value.data[..]) };
+        let token_object: TokenObject = archived.deserialize(&mut rkyv::Infallible).unwrap();
+        token_object
+    }
 }
 
 /// A generic 'black box' object that can contain any

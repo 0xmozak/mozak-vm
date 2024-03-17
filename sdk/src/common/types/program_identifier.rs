@@ -13,6 +13,7 @@ use crate::native::helpers::poseidon2_hash;
     PartialEq,
     Eq,
     PartialOrd,
+    Ord,
     rkyv::Archive,
     rkyv::Serialize,
     rkyv::Deserialize,

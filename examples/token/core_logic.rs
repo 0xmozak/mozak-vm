@@ -36,12 +36,6 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
     }
 }
 
-fn deserialize_token_object(value: StateObject) -> wallet::TokenObject {
-    let archived = unsafe { rkyv::archived_root::<wallet::TokenObject>(&value.data[..]) };
-    let token_object: wallet::TokenObject = archived.deserialize(&mut rkyv::Infallible).unwrap();
-    token_object
-}
-
 #[allow(dead_code)]
 pub fn transfer(
     state_object: StateObject,
@@ -54,7 +48,7 @@ pub fn transfer(
     };
     mozak_sdk::event_emit(read_event);
 
-    let token_object: wallet::TokenObject = deserialize_token_object(state_object.clone());
+    let token_object: wallet::TokenObject = state_object.clone().into();
 
     assert!(
         mozak_sdk::call_send(

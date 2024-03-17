@@ -13,6 +13,7 @@ pub const RATE: usize = 8;
     PartialEq,
     Eq,
     PartialOrd,
+    Ord,
     rkyv::Archive,
     rkyv::Serialize,
     rkyv::Deserialize,
