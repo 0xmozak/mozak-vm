@@ -557,22 +557,10 @@ impl Lookups for IntoMemoryTable {
             cpu::columns::lookup_for_memory(),
             memory_halfword::columns::lookup_for_memory_limb(0),
             memory_halfword::columns::lookup_for_memory_limb(1),
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_memory_limb(0),
-                memory_fullword::columns::filter(),
-            ),
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_memory_limb(1),
-                memory_fullword::columns::filter(),
-            ),
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_memory_limb(2),
-                memory_fullword::columns::filter(),
-            ),
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_memory_limb(3),
-                memory_fullword::columns::filter(),
-            ),
+            memory_fullword::columns::lookup_for_memory_limb(0),
+            memory_fullword::columns::lookup_for_memory_limb(1),
+            memory_fullword::columns::lookup_for_memory_limb(2),
+            memory_fullword::columns::lookup_for_memory_limb(3),
             IoMemoryPrivateTable::new(
                 memory_io::columns::data_for_memory(),
                 memory_io::columns::filter_for_memory(),
@@ -718,14 +706,8 @@ impl Lookups for FullWordMemoryCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_fullword_memory(),
-                cpu::columns::filter_for_fullword_memory(),
-            )],
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_cpu(),
-                memory_fullword::columns::filter(),
-            ),
+            vec![cpu::columns::lookup_for_fullword_memory()],
+            memory_fullword::columns::lookup_for_cpu(),
         )
     }
 }

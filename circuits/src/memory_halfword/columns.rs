@@ -62,22 +62,6 @@ pub fn lookup_for_cpu() -> TableNamed<MemoryCtl<Column>> {
     )
 }
 
-/// Columns containing the data which are looked from the CPU table into Memory
-/// stark table.
-#[must_use]
-pub fn data_for_cpu() -> MemoryCtl<HalfCol> {
-    let mem = COL_MAP;
-    MemoryCtl {
-        clk: mem.clk,
-        is_store: mem.ops.is_store,
-        is_load: mem.ops.is_load,
-        value: ColumnX::reduce_with_powers(mem.limbs, 1 << 8),
-        addr: mem.addrs[0],
-    }
-}
-
-type HalfCol = ColumnX<HalfWordMemory<i64>>;
-
 /// Lookup into Memory stark table.
 #[must_use]
 pub fn lookup_for_memory_limb(limb_index: usize) -> TableNamed<MemoryCtl<Column>> {

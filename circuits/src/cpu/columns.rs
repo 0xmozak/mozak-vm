@@ -352,24 +352,22 @@ pub fn data_for_halfword_memory() -> MemoryCtl<CpuCol> {
 #[must_use]
 pub fn filter_for_halfword_memory() -> CpuCol { CPU_MAP.inst.ops.halfword_mem_ops() }
 
-/// Column containing the data to be matched against Memory stark.
+/// Lookup into Fullword Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_fullword_memory() -> MemoryCtl<CpuCol> {
+pub fn lookup_for_fullword_memory() -> TableNamed<MemoryCtl<Column>> {
     let cpu = CPU_MAP;
-    MemoryCtl {
-        clk: cpu.clk,
-        is_store: cpu.inst.ops.sw,
-        is_load: cpu.inst.ops.lw,
-        addr: cpu.mem_addr,
-        value: cpu.mem_value_raw,
-    }
+    MemoryTable::new(
+        MemoryCtl {
+            clk: cpu.clk,
+            is_store: cpu.inst.ops.sw,
+            is_load: cpu.inst.ops.lw,
+            addr: cpu.mem_addr,
+            value: cpu.mem_value_raw,
+        },
+        cpu.inst.ops.fullword_mem_ops(),
+    )
 }
-
-/// Column for a binary filter for memory instruction in Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_fullword_memory() -> CpuCol { CPU_MAP.inst.ops.fullword_mem_ops() }
 
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
