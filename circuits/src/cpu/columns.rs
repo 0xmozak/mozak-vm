@@ -452,32 +452,36 @@ pub fn lookup_for_shift_amount() -> TableNamed<Bitshift<Column>> {
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn data_for_inst() -> InstructionRow<CpuCol> {
+pub fn lookup_for_inst() -> TableNamed<InstructionRow<Column>> {
     let inst = CPU_MAP.inst;
-    InstructionRow {
-        pc: inst.pc,
-        // Combine columns into a single column.
-        // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5 bits.
-        // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
-        // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
-        // - imm_value: This field requires 32 bits.
-        // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
-        // size of the Goldilocks field.
-        // Note: The imm_value field, having more than 5 bits, must be positioned as the last
-        // column in the list to ensure the correct functioning of 'reduce_with_powers'.
-        inst_data: ColumnX::reduce_with_powers(
-            [
-                ColumnX::ascending_sum(inst.ops),
-                inst.is_op1_signed,
-                inst.is_op2_signed,
-                ColumnX::ascending_sum(inst.rs1_select),
-                ColumnX::ascending_sum(inst.rs2_select),
-                ColumnX::ascending_sum(inst.rd_select),
-                inst.imm_value,
-            ],
-            1 << 5,
-        ),
-    }
+    CpuTable::new(
+        InstructionRow {
+            pc: inst.pc,
+            // Combine columns into a single column.
+            // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
+            //   bits.
+            // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
+            // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
+            // - imm_value: This field requires 32 bits.
+            // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
+            // size of the Goldilocks field.
+            // Note: The imm_value field, having more than 5 bits, must be positioned as the last
+            // column in the list to ensure the correct functioning of 'reduce_with_powers'.
+            inst_data: ColumnX::reduce_with_powers(
+                [
+                    ColumnX::ascending_sum(inst.ops),
+                    inst.is_op1_signed,
+                    inst.is_op2_signed,
+                    ColumnX::ascending_sum(inst.rs1_select),
+                    ColumnX::ascending_sum(inst.rs2_select),
+                    ColumnX::ascending_sum(inst.rd_select),
+                    inst.imm_value,
+                ],
+                1 << 5,
+            ),
+        },
+        CPU_MAP.is_running,
+    )
 }
 
 /// Columns containing the data of permuted instructions.
