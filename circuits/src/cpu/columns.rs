@@ -177,7 +177,7 @@ pub struct CpuState<T> {
     pub is_io_transcript: T,
     pub is_halt: T,
     pub is_poseidon2: T,
-    // TODO: the two need constraints.
+    // TODO: these two need constraints.
     // (And/or should probably be removed.)
     pub poseidon2_input_addr: T,
     pub poseidon2_input_len: T,
