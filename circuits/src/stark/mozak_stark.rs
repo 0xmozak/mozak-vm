@@ -725,7 +725,7 @@ impl Lookups for RangeCheckU8LookupTable {
         .collect();
         CrossTableLookupNamed::new(
             looking,
-            RangeCheckU8Table::new(
+            RangeCheckU8Table::new_typed(
                 crate::rangecheck_u8::columns::data(),
                 crate::rangecheck_u8::columns::filter(),
             ),

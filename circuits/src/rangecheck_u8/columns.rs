@@ -1,5 +1,5 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::Column;
+use crate::linear_combination_x::ColumnX;
 use crate::rangecheck::columns::RangeCheckCtl;
 
 #[repr(C)]
@@ -15,11 +15,17 @@ pub struct RangeCheckU8<T> {
 columns_view_impl!(RangeCheckU8);
 make_col_map!(RangeCheckU8);
 
+type RangeCheckU8Col = ColumnX<RangeCheckU8<i64>>;
+
 #[must_use]
-pub fn data() -> RangeCheckCtl<Column> { RangeCheckCtl::new(Column::single(col_map().value)) }
+pub fn data() -> RangeCheckCtl<RangeCheckU8Col> {
+    RangeCheckCtl {
+        value: COL_MAP.value,
+    }
+}
 
 /// Column for a binary filter to indicate whether a row in the
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 /// contains a non-dummy value to be range checked.
 #[must_use]
-pub fn filter() -> Column { Column::single(col_map().multiplicity) }
+pub fn filter() -> RangeCheckU8Col { COL_MAP.multiplicity }
