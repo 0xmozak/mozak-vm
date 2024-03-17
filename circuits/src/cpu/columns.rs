@@ -333,24 +333,22 @@ pub fn lookup_for_memory() -> TableNamed<MemoryCtl<Column>> {
 
 type CpuCol = ColumnX<CpuColumnsExtended<i64>>;
 
-/// Column containing the data to be matched against Memory stark.
+/// Lookup into half word Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_halfword_memory() -> MemoryCtl<CpuCol> {
+pub fn lookup_for_halfword_memory() -> TableNamed<MemoryCtl<Column>> {
     let cpu = CPU_MAP;
-    MemoryCtl {
-        clk: cpu.clk,
-        is_store: cpu.inst.ops.sh,
-        is_load: cpu.inst.ops.lh,
-        addr: cpu.mem_addr,
-        value: cpu.mem_value_raw,
-    }
+    CpuTable::new(
+        MemoryCtl {
+            clk: cpu.clk,
+            is_store: cpu.inst.ops.sh,
+            is_load: cpu.inst.ops.lh,
+            addr: cpu.mem_addr,
+            value: cpu.mem_value_raw,
+        },
+        CPU_MAP.inst.ops.halfword_mem_ops(),
+    )
 }
-
-/// Column for a binary filter for memory instruction in Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_halfword_memory() -> CpuCol { CPU_MAP.inst.ops.halfword_mem_ops() }
 
 /// Lookup into Fullword Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -372,37 +370,30 @@ pub fn lookup_for_fullword_memory() -> TableNamed<MemoryCtl<Column>> {
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_io_memory_private() -> InputOutputMemoryCtl<CpuCol> {
+pub fn lookup_for_io_memory_private() -> TableNamed<InputOutputMemoryCtl<Column>> {
     let cpu = CPU_MAP;
-    InputOutputMemoryCtl {
-        clk: cpu.clk,
-        addr: cpu.io_addr,
-        size: cpu.io_size,
-    }
-}
-
-/// Column for a binary filter for memory instruction in IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_io_memory_private() -> CpuCol {
-    let cpu = CPU_MAP;
-    cpu.is_io_store_private
+    CpuTable::new(
+        InputOutputMemoryCtl {
+            clk: cpu.clk,
+            addr: cpu.io_addr,
+            size: cpu.io_size,
+        },
+        cpu.is_io_store_private,
+    )
 }
 
 #[must_use]
-pub fn data_for_io_memory_public() -> InputOutputMemoryCtl<CpuCol> {
+pub fn lookup_for_io_memory_public() -> TableNamed<InputOutputMemoryCtl<Column>> {
     let cpu = CPU_MAP;
-    InputOutputMemoryCtl {
-        clk: cpu.clk,
-        addr: cpu.io_addr,
-        size: cpu.io_size,
-    }
+    CpuTable::new(
+        InputOutputMemoryCtl {
+            clk: cpu.clk,
+            addr: cpu.io_addr,
+            size: cpu.io_size,
+        },
+        CPU_MAP.is_io_store_public,
+    )
 }
-
-/// Column for a binary filter for memory instruction in IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_io_memory_public() -> CpuCol { CPU_MAP.is_io_store_public }
 
 #[must_use]
 pub fn data_for_io_transcript() -> InputOutputMemoryCtl<CpuCol> {

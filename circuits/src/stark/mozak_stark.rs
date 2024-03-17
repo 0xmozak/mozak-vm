@@ -639,13 +639,7 @@ impl Lookups for RangeCheckU8LookupTable {
             memory::columns::rangecheck_u8_looking(),
         ]
         .collect();
-        CrossTableLookupNamed::new(
-            looking,
-            RangeCheckU8Table::new(
-                crate::rangecheck_u8::columns::data(),
-                crate::rangecheck_u8::columns::filter(),
-            ),
-        )
+        CrossTableLookupNamed::new(looking, crate::rangecheck_u8::columns::lookup())
     }
 }
 
@@ -656,10 +650,7 @@ impl Lookups for HalfWordMemoryCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<MemoryCtl<Column>> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_halfword_memory(),
-                cpu::columns::filter_for_halfword_memory(),
-            )],
+            vec![cpu::columns::lookup_for_halfword_memory()],
             memory_halfword::columns::lookup_for_cpu(),
         )
     }
@@ -706,10 +697,7 @@ impl Lookups for IoMemoryPrivateCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_io_memory_private(),
-                cpu::columns::filter_for_io_memory_private(),
-            )],
+            vec![cpu::columns::lookup_for_io_memory_private()],
             IoMemoryPrivateTable::new(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
@@ -725,10 +713,7 @@ impl Lookups for IoMemoryPublicCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_io_memory_public(),
-                cpu::columns::filter_for_io_memory_public(),
-            )],
+            vec![cpu::columns::lookup_for_io_memory_public()],
             IoMemoryPublicTable::new(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
