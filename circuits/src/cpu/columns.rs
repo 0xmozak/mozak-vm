@@ -329,9 +329,6 @@ pub fn data_for_memory() -> MemoryCtl<CpuCol> {
     }
 }
 
-// TODO: use this type everywhere it's useful.
-// Similar for other `columns.rs` files.
-// TODO: Perhaps this should be CpuInputCol?
 type CpuCol = ColumnX<CpuColumnsExtended<i64>>;
 
 /// Column for a binary filter for memory instruction in Memory stark.
