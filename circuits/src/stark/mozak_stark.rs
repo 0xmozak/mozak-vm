@@ -705,9 +705,9 @@ impl Lookups for ProgramCpuTable {
                 cpu::columns::data_for_permuted_inst(),
                 cpu::columns::COL_MAP.permuted.filter,
             )],
-            ProgramTable::new(
+            ProgramTable::new_typed(
                 program::columns::data_for_ctl(),
-                Column::single(program::columns::col_map().filter),
+                program::columns::COL_MAP.filter,
             ),
         )
     }

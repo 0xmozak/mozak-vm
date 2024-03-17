@@ -1,5 +1,5 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::Column;
+use crate::linear_combination_x::ColumnX;
 
 columns_view_impl!(InstructionRow);
 #[repr(C)]
@@ -28,8 +28,10 @@ pub struct ProgramRom<T> {
     pub filter: T,
 }
 
+type ProgramCol = ColumnX<ProgramRom<i64>>;
+
 // Total number of columns.
 pub const NUM_PROGRAM_COLS: usize = ProgramRom::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
-pub fn data_for_ctl() -> InstructionRow<Column> { col_map().inst.map(Column::from) }
+pub fn data_for_ctl() -> InstructionRow<ProgramCol> { COL_MAP.inst }
