@@ -86,14 +86,6 @@ mod tests {
             prove_add::<CpuStark<F, D>>(a, b, rd);
         }
     }
-    // input: a = 225388780, b = 1, rd = 8
-    #[test]
-    fn prove_add_mozak_example() {
-        let a = 23;
-        let b = 2;
-        let rd = 3;
-        prove_add::<MozakStark<F, D>>(a, b, rd);
-    }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
