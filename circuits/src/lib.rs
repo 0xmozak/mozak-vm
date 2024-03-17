@@ -21,6 +21,7 @@ pub mod memory_zeroinit;
 pub mod memoryinit;
 pub mod poseidon2;
 pub mod poseidon2_output_bytes;
+pub mod poseidon2_preimage_pack;
 pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;

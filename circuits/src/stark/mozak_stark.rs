@@ -2,6 +2,7 @@ use std::ops::{Index, IndexMut};
 
 use itertools::chain;
 use mozak_circuits_derive::StarkSet;
+use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -22,7 +23,8 @@ use crate::poseidon2::stark::Poseidon2_12Stark;
 use crate::poseidon2_output_bytes;
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
 #[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_sponge;
+use crate::poseidon2_preimage_pack::stark::Poseidon2PreimagePackStark;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
@@ -40,7 +42,7 @@ use crate::{
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
     13 + cfg!(feature = "enable_register_starks") as usize
-        + cfg!(feature = "enable_poseidon_starks") as usize * 3
+        + cfg!(feature = "enable_poseidon_starks") as usize * 4
 };
 
 /// STARK Gadgets of Mozak-VM
@@ -103,6 +105,11 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
         StarkSet(stark_kind = "Poseidon2OutputBytes")
     )]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
+    #[cfg_attr(
+        feature = "enable_poseidon_starks",
+        StarkSet(stark_kind = "Poseidon2PreimagePack")
+    )]
+    pub poseidon2_preimage_pack: Poseidon2PreimagePackStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; NUM_CROSS_TABLE_LOOKUP],
 
     pub debug: bool,
@@ -349,7 +356,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
-
+            poseidon2_preimage_pack: Poseidon2PreimagePackStark::default(),
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.
             cross_table_lookups: [
@@ -374,6 +381,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2Poseidon2SpongeTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
+                #[cfg(feature = "enable_poseidon_starks")]
+                Poseidon2Sponge2Poseidon2PreimagePack::lookups(),
             ],
             debug: false,
         }
@@ -446,6 +455,8 @@ table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
 table_impl!(Poseidon2Table, TableKind::Poseidon2);
 #[cfg(feature = "enable_poseidon_starks")]
 table_impl!(Poseidon2OutputBytesTable, TableKind::Poseidon2OutputBytes);
+#[cfg(feature = "enable_poseidon_starks")]
+table_impl!(Poseidon2PreimagePackTable, TableKind::Poseidon2PreimagePack);
 
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
@@ -533,12 +544,16 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
         ]);
         #[cfg(feature = "enable_poseidon_starks")]
         {
-            tables.extend((0..8).map(|index| {
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(index),
-                    poseidon2_sponge::columns::filter_for_input_memory(),
-                )
-            }));
+            tables.extend(
+                (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).map(|index| {
+                    Poseidon2PreimagePackTable::new(
+                        crate::poseidon2_preimage_pack::columns::data_for_input_memory(
+                            u8::try_from(index).expect("Should be < 255"),
+                        ),
+                        crate::poseidon2_preimage_pack::columns::filter_for_input_memory(),
+                    )
+                }),
+            );
             tables.extend((0..32).map(|index| {
                 Poseidon2OutputBytesTable::new(
                     poseidon2_output_bytes::columns::data_for_output_memory(index),
@@ -805,6 +820,28 @@ impl<F: Field> Lookups<F> for Poseidon2OutputBytesPoseidon2SpongeTable<F> {
             Poseidon2SpongeTable::new(
                 crate::poseidon2_sponge::columns::data_for_poseidon2_output_bytes(),
                 crate::poseidon2_sponge::columns::filter_for_poseidon2_output_bytes(),
+            ),
+        )
+    }
+}
+
+#[cfg(feature = "enable_poseidon_starks")]
+pub struct Poseidon2Sponge2Poseidon2PreimagePack<F: Field>(CrossTableLookup<F>);
+#[cfg(feature = "enable_poseidon_starks")]
+impl<F: Field> Lookups<F> for crate::stark::mozak_stark::Poseidon2Sponge2Poseidon2PreimagePack<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        let mut tables = vec![];
+        tables.extend((0..8).map(|index| {
+            Poseidon2SpongeTable::new(
+                crate::poseidon2_sponge::columns::data_for_preimage_pack(index),
+                crate::poseidon2_sponge::columns::filter_for_preimage_pack(index),
+            )
+        }));
+        CrossTableLookup::new(
+            tables,
+            Poseidon2PreimagePackTable::new(
+                crate::poseidon2_preimage_pack::columns::data_for_poseidon2_sponge(),
+                crate::poseidon2_preimage_pack::columns::filter_for_poseidon2_sponge(),
             ),
         )
     }

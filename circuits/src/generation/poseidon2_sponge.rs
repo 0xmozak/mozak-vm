@@ -2,7 +2,7 @@ use itertools::Itertools;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
-use plonky2::hash::poseidon2::Poseidon2Permutation;
+use plonky2::hash::poseidon2::{Poseidon2Permutation, WIDTH};
 
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::poseidon2_sponge::columns::{Ops, Poseidon2Sponge};
@@ -40,6 +40,11 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             .sponge_data
             .get(i as usize)
             .expect("unroll_count not consistent with number of permutations");
+        let padded_fes = Poseidon2Permutation::<F>::RATE - sponge_datum.padded_count;
+        let mut is_padded = [F::ZERO; WIDTH];
+        for i in 0..padded_fes {
+            is_padded[Poseidon2Permutation::<F>::RATE - i] = F::ONE;
+        }
         unroll.push(Poseidon2Sponge {
             clk: F::from_canonical_u64(row.state.clk),
             ops,
@@ -49,6 +54,7 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             preimage: sponge_datum.preimage,
             output: sponge_datum.output,
             gen_output: sponge_datum.gen_output,
+            is_padded,
         });
         input_addr += rate_size;
         input_len -= rate_size;
@@ -76,7 +82,6 @@ pub fn generate_poseidon2_sponge_trace<F: RichField>(
 #[cfg(test)]
 mod test {
     use mozak_runner::poseidon2::MozakPoseidon2;
-    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::hashing::PlonkyPermutation;
     use plonky2::hash::poseidon2::Poseidon2Permutation;
@@ -92,7 +97,7 @@ mod test {
     #[test]
     fn generate_poseidon2_sponge_trace() {
         let data = "😇 Mozak is knowledge arguments based technology".to_string();
-        let data_len_in_bytes = MozakPoseidon2::<GoldilocksField>::padding(data.as_bytes()).len();
+        let data_len_in_bytes = MozakPoseidon2::padding(data.as_bytes()).len();
         let input_start_addr = 1024;
         let output_start_addr = 2048;
         let (_program, record) = create_poseidon2_test(&[Poseidon2Test {
@@ -105,9 +110,8 @@ mod test {
         let trace = super::generate_poseidon2_sponge_trace(&step_rows);
 
         let rate_size = Poseidon2Permutation::<F>::RATE;
-        let sponge_count = (data_len_in_bytes
-            / MozakPoseidon2::<GoldilocksField>::DATA_CAPACITY_PER_FIELD_ELEMENT)
-            / rate_size;
+        let sponge_count =
+            (data_len_in_bytes / MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT) / rate_size;
         for (i, value) in trace.iter().enumerate().take(sponge_count) {
             assert_eq!(
                 value.input_addr,

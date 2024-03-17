@@ -433,7 +433,7 @@ mod tests {
                         .load_u8(test_datum.output_start_addr + u32::from(i))
                 })
                 .collect();
-            let data_fields: Vec<GoldilocksField> =
+            let (data_fields, _): (Vec<GoldilocksField>, usize) =
                 MozakPoseidon2::convert_input_to_fe_with_padding(test_datum.data.as_bytes());
             assert_eq!(
                 output,

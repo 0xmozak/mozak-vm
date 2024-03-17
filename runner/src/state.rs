@@ -197,6 +197,7 @@ pub struct IoEntry {
 pub struct Poseidon2SpongeData<F> {
     pub preimage: [F; WIDTH],
     pub output: [F; WIDTH],
+    pub padded_count: usize,
     pub gen_output: F,
 }
 
@@ -206,6 +207,7 @@ pub struct Poseidon2Entry<F: RichField> {
     pub output_addr: u32,
     pub len: u32,
     pub sponge_data: Vec<Poseidon2SpongeData<F>>,
+    pub padded_count: usize,
 }
 
 /// Auxiliary information about the instruction execution

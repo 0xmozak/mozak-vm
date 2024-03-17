@@ -13,6 +13,7 @@ pub mod memory_zeroinit;
 pub mod memoryinit;
 pub mod poseidon2;
 pub mod poseidon2_output_bytes;
+pub mod poseidon2_preimage_pack;
 pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;
@@ -59,6 +60,7 @@ use crate::generation::memoryinit::{
     generate_elf_memory_init_trace, generate_mozak_memory_init_trace,
 };
 use crate::generation::poseidon2::generate_poseidon2_trace;
+use crate::generation::poseidon2_preimage_pack::generate_poseidon2_preimage_pack_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
@@ -97,6 +99,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     #[allow(unused)]
     // This step generates the output only - it takes last sponge elements (with get-flag = true)
     let poseidon2_output_bytes_rows = generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
+    #[allow(unused)]
+    let poseidon2_preimage_pack_rows =
+        generate_poseidon2_preimage_pack_trace(&poseiden2_sponge_rows);
     #[allow(unused)]
     // This is the computation step, all the heavy logic happens here. In other words, the poseidon
     // hash
@@ -150,6 +155,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
+        #[cfg(feature = "enable_poseidon_starks")]
+        poseidon2_preimage_pack: trace_rows_to_poly_values(poseidon2_preimage_pack_rows),
     }
     .build()
 }

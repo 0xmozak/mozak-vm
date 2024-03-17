@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -112,21 +113,35 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
 
 impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
     fn from(value: &Poseidon2Sponge<F>) -> Self {
-        if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {
-            vec![]
-        } else {
-            let rate = Poseidon2Permutation::<F>::RATE;
-            // each Field element in preimage represents a byte.
-            (0..rate)
-                .map(|i| Memory {
-                    clk: value.clk,
-                    addr: value.input_addr
-                        + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
-                    is_load: F::ONE,
-                    value: value.preimage[i],
-                    ..Default::default()
+        if (value.ops.is_permute + value.ops.is_init_permute).is_one() {
+            // each Field element in preimage represents packed data (packed bytes)
+            (0..Poseidon2Permutation::<F>::RATE).filter(|i| value.is_padded[*i].is_one())
+                .flat_map(|i| {
+                    // base-address is an input-address + RATE * index-inside-preimage
+                    let base_address = value.input_addr
+                        + F::from_canonical_u64(
+                            u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect(
+                                "MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT should be cast-able to u64",
+                            ),
+                        ) * F::from_canonical_u8(u8::try_from(i).expect("i > 255"));
+                    // Throw away leading byte since "be"
+                    let packed = &value.preimage[i].clone().to_canonical_u64().to_be_bytes()
+                        [MozakPoseidon2::BYTES_PER_FIELD_ELEMENT
+                            - MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT..];
+                    (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                        .map(|j| Memory {
+                            clk: value.clk,
+                            addr: base_address
+                                + F::from_canonical_u8(u8::try_from(j).expect("j > 255")),
+                            is_load: F::ONE,
+                            value: F::from_canonical_u8(packed[j]),
+                            ..Default::default()
+                        })
+                        .collect::<Vec<_>>()
                 })
                 .collect()
+        } else {
+            vec![]
         }
     }
 }

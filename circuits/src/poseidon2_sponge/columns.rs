@@ -25,6 +25,7 @@ pub struct Poseidon2Sponge<T> {
     pub preimage: [T; WIDTH],
     pub output: [T; WIDTH],
     pub gen_output: T,
+    pub is_padded: [T; WIDTH],
 }
 
 impl<F: RichField> Default for Poseidon2Sponge<F> {
@@ -37,6 +38,7 @@ impl<F: RichField> Default for Poseidon2Sponge<F> {
             output_addr: F::default(),
             preimage: [F::default(); WIDTH],
             output: <F as Poseidon2>::poseidon2([F::default(); WIDTH]),
+            is_padded: [F::default(); WIDTH],
             gen_output: F::default(),
         }
     }
@@ -110,4 +112,22 @@ pub fn data_for_input_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
 pub fn filter_for_input_memory<F: Field>() -> Column<F> {
     let row = col_map().map(Column::from);
     row.ops.is_init_permute + row.ops.is_permute
+}
+
+#[must_use]
+pub fn data_for_preimage_pack<F: Field>(limb_index: u8) -> Vec<Column<F>> {
+    assert!(limb_index < 8, "limb_index can be 0..7");
+    let sponge = col_map().map(Column::from);
+    vec![
+        sponge.clk,
+        sponge.preimage[limb_index as usize].clone(), // value
+        sponge.input_addr + F::from_canonical_u8(limb_index), // address
+    ]
+}
+
+#[must_use]
+pub fn filter_for_preimage_pack<F: Field>(limb_index: u8) -> Column<F> {
+    assert!(limb_index < 8, "limb_index can be 0..7");
+    let row = col_map().map(Column::from);
+    row.ops.is_init_permute + row.ops.is_permute - row.is_padded[limb_index as usize].clone()
 }
