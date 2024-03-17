@@ -582,9 +582,9 @@ mod tests {
     //     /// be used generically for tests.
     //     fn lookups() -> CrossTableLookup {
     //         CrossTableLookupNamed {
-    //             looking_tables: vec![CpuTable::new_typed(lookup_data(&[1], &[2]),
+    //             looking_tables: vec![CpuTable::new(lookup_data(&[1], &[2]),
     // lookup_filter(0))],             looked_table:
-    // RangeCheckTable::new_typed(lookup_data(&[1], &[]), lookup_filter(0)),
+    // RangeCheckTable::new(lookup_data(&[1], &[]), lookup_filter(0)),
     //         }
     //     }
     // }

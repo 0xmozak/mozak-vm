@@ -406,20 +406,20 @@ mod tests {
         // ctl for is_init values
         let ctl = CrossTableLookupNamed::new(
             vec![
-                ElfMemoryInitTable::new_typed(
+                ElfMemoryInitTable::new(
                     memoryinit::columns::data_for_memory(),
                     memoryinit::columns::filter_for_memory(),
                 ),
-                MozakMemoryInitTable::new_typed(
+                MozakMemoryInitTable::new(
                     memoryinit::columns::data_for_memory(),
                     memoryinit::columns::filter_for_memory(),
                 ),
-                MemoryZeroInitTable::new_typed(
+                MemoryZeroInitTable::new(
                     memory_zeroinit::columns::data_for_memory(),
                     memory_zeroinit::columns::filter_for_memory(),
                 ),
             ],
-            MemoryTable::new_typed(
+            MemoryTable::new(
                 memory::columns::data_for_memoryinit(),
                 memory::columns::filter_for_memoryinit(),
             ),

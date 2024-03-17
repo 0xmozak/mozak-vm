@@ -187,16 +187,16 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     let new = RangeCheckCtl::new;
     let is_executed = mem.is_executed();
     vec![
-        MemoryTable::new_typed(new(mem.addr), is_executed),
-        MemoryTable::new_typed(new(COL_MAP.addr), is_executed),
-        MemoryTable::new_typed(new(mem.diff_clk), is_executed),
+        MemoryTable::new(new(mem.addr), is_executed),
+        MemoryTable::new(new(COL_MAP.addr), is_executed),
+        MemoryTable::new(new(mem.diff_clk), is_executed),
     ]
 }
 
 #[must_use]
 pub fn rangecheck_u8_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     let mem = COL_MAP;
-    vec![MemoryTable::new_typed(
+    vec![MemoryTable::new(
         RangeCheckCtl::new(mem.value),
         mem.is_executed(),
     )]

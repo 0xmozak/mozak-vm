@@ -459,7 +459,8 @@ macro_rules! table_impl {
         pub struct $t;
 
         impl $t {
-            pub fn new_typed<RowIn, RowOut, X>(
+            #[allow(clippy::new_ret_no_self)]
+            pub fn new<RowIn, RowOut, X>(
                 columns: RowIn,
                 filter_column: ColumnX<X>,
             ) -> TableNamed<RowOut>
@@ -539,11 +540,11 @@ impl Lookups for XorCpuTable {
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         // TODO: deal with heterogenous types.
         CrossTableLookupNamed {
-            looking_tables: vec![CpuTable::new_typed(
+            looking_tables: vec![CpuTable::new(
                 cpu::columns::data_for_xor(),
                 cpu::columns::filter_for_xor(),
             )],
-            looked_table: XorTable::new_typed(
+            looked_table: XorTable::new(
                 xor::columns::data_for_cpu(),
                 xor::columns::filter_for_cpu(),
             ),
@@ -560,39 +561,39 @@ impl Lookups for IntoMemoryTable {
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         let mut tables = vec![];
         tables.extend([
-            CpuTable::new_typed(
+            CpuTable::new(
                 cpu::columns::data_for_memory(),
                 cpu::columns::filter_for_byte_memory(),
             ),
-            HalfWordMemoryTable::new_typed(
+            HalfWordMemoryTable::new(
                 memory_halfword::columns::data_for_memory_limb(0),
                 memory_halfword::columns::filter(),
             ),
-            HalfWordMemoryTable::new_typed(
+            HalfWordMemoryTable::new(
                 memory_halfword::columns::data_for_memory_limb(1),
                 memory_halfword::columns::filter(),
             ),
-            FullWordMemoryTable::new_typed(
+            FullWordMemoryTable::new(
                 memory_fullword::columns::data_for_memory_limb(0),
                 memory_fullword::columns::filter(),
             ),
-            FullWordMemoryTable::new_typed(
+            FullWordMemoryTable::new(
                 memory_fullword::columns::data_for_memory_limb(1),
                 memory_fullword::columns::filter(),
             ),
-            FullWordMemoryTable::new_typed(
+            FullWordMemoryTable::new(
                 memory_fullword::columns::data_for_memory_limb(2),
                 memory_fullword::columns::filter(),
             ),
-            FullWordMemoryTable::new_typed(
+            FullWordMemoryTable::new(
                 memory_fullword::columns::data_for_memory_limb(3),
                 memory_fullword::columns::filter(),
             ),
-            IoMemoryPrivateTable::new_typed(
+            IoMemoryPrivateTable::new(
                 memory_io::columns::data_for_memory(),
                 memory_io::columns::filter_for_memory(),
             ),
-            IoMemoryPublicTable::new_typed(
+            IoMemoryPublicTable::new(
                 memory_io::columns::data_for_memory(),
                 memory_io::columns::filter_for_memory(),
             ),
@@ -600,13 +601,13 @@ impl Lookups for IntoMemoryTable {
         #[cfg(feature = "enable_poseidon_starks")]
         {
             tables.extend((0..8).map(|index| {
-                Poseidon2SpongeTable::new_typed(
+                Poseidon2SpongeTable::new(
                     poseidon2_sponge::columns::data_for_input_memory(index),
                     poseidon2_sponge::columns::filter_for_input_memory(),
                 )
             }));
             tables.extend((0..32).map(|index| {
-                Poseidon2OutputBytesTable::new_typed(
+                Poseidon2OutputBytesTable::new(
                     poseidon2_output_bytes::columns::data_for_output_memory(index),
                     poseidon2_output_bytes::columns::filter_for_output_memory(),
                 )
@@ -614,7 +615,7 @@ impl Lookups for IntoMemoryTable {
         }
         CrossTableLookupNamed::new(
             tables,
-            MemoryTable::new_typed(
+            MemoryTable::new(
                 memory::columns::data_for_cpu(),
                 memory::columns::filter_for_cpu(),
             ),
@@ -630,20 +631,20 @@ impl Lookups for MemoryInitMemoryTable {
     fn lookups() -> CrossTableLookupNamed<MemoryInitCtl<Column>> {
         CrossTableLookupNamed::new(
             vec![
-                ElfMemoryInitTable::new_typed(
+                ElfMemoryInitTable::new(
                     memoryinit::columns::data_for_memory(),
                     memoryinit::columns::filter_for_memory(),
                 ),
-                MozakMemoryInitTable::new_typed(
+                MozakMemoryInitTable::new(
                     memoryinit::columns::data_for_memory(),
                     memoryinit::columns::filter_for_memory(),
                 ),
-                MemoryZeroInitTable::new_typed(
+                MemoryZeroInitTable::new(
                     memory_zeroinit::columns::data_for_memory(),
                     memory_zeroinit::columns::filter_for_memory(),
                 ),
             ],
-            MemoryTable::new_typed(
+            MemoryTable::new(
                 memory::columns::data_for_memoryinit(),
                 memory::columns::filter_for_memoryinit(),
             ),
@@ -658,11 +659,11 @@ impl Lookups for BitshiftCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Bitshift<Column>> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new_typed(
+            vec![CpuTable::new(
                 cpu::columns::data_for_shift_amount(),
                 cpu::columns::filter_for_shift_amount(),
             )],
-            BitshiftTable::new_typed(
+            BitshiftTable::new(
                 bitshift::columns::data_for_cpu(),
                 bitshift::columns::filter_for_cpu(),
             ),
@@ -677,11 +678,11 @@ impl Lookups for InnerCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new_typed(
+            vec![CpuTable::new(
                 cpu::columns::data_for_inst(),
                 cpu::columns::CPU_MAP.is_running,
             )],
-            CpuTable::new_typed(
+            CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
                 cpu::columns::COL_MAP.cpu.is_running,
             ),
@@ -696,11 +697,11 @@ impl Lookups for ProgramCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new_typed(
+            vec![CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
                 cpu::columns::COL_MAP.permuted.filter,
             )],
-            ProgramTable::new_typed(
+            ProgramTable::new(
                 program::columns::data_for_ctl(),
                 program::columns::COL_MAP.filter,
             ),
@@ -720,7 +721,7 @@ impl Lookups for RangeCheckU8LookupTable {
         .collect();
         CrossTableLookupNamed::new(
             looking,
-            RangeCheckU8Table::new_typed(
+            RangeCheckU8Table::new(
                 crate::rangecheck_u8::columns::data(),
                 crate::rangecheck_u8::columns::filter(),
             ),
@@ -735,11 +736,11 @@ impl Lookups for HalfWordMemoryCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<MemoryCtl<Column>> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new_typed(
+            vec![CpuTable::new(
                 cpu::columns::data_for_halfword_memory(),
                 cpu::columns::filter_for_halfword_memory(),
             )],
-            HalfWordMemoryTable::new_typed(
+            HalfWordMemoryTable::new(
                 memory_halfword::columns::data_for_cpu(),
                 memory_halfword::columns::filter(),
             ),
@@ -754,11 +755,11 @@ impl Lookups for FullWordMemoryCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new_typed(
+            vec![CpuTable::new(
                 cpu::columns::data_for_fullword_memory(),
                 cpu::columns::filter_for_fullword_memory(),
             )],
-            FullWordMemoryTable::new_typed(
+            FullWordMemoryTable::new(
                 memory_fullword::columns::data_for_cpu(),
                 memory_fullword::columns::filter(),
             ),
@@ -775,11 +776,11 @@ impl Lookups for RegisterRegInitTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![RegisterTable::new_typed(
+            vec![RegisterTable::new(
                 crate::register::columns::data_for_register_init(),
                 crate::register::columns::filter_for_register_init(),
             )],
-            RegisterInitTable::new_typed(
+            RegisterInitTable::new(
                 crate::registerinit::columns::data_for_register(),
                 crate::registerinit::columns::filter_for_register(),
             ),
@@ -794,11 +795,11 @@ impl Lookups for IoMemoryPrivateCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new_typed(
+            vec![CpuTable::new(
                 cpu::columns::data_for_io_memory_private(),
                 cpu::columns::filter_for_io_memory_private(),
             )],
-            IoMemoryPrivateTable::new_typed(
+            IoMemoryPrivateTable::new(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),
@@ -813,11 +814,11 @@ impl Lookups for IoMemoryPublicCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new_typed(
+            vec![CpuTable::new(
                 cpu::columns::data_for_io_memory_public(),
                 cpu::columns::filter_for_io_memory_public(),
             )],
-            IoMemoryPublicTable::new_typed(
+            IoMemoryPublicTable::new(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),
@@ -833,11 +834,11 @@ impl Lookups for IoTranscriptCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new_typed(
+            vec![CpuTable::new(
                 cpu::columns::data_for_io_transcript(),
                 cpu::columns::filter_for_io_transcript(),
             )],
-            IoTranscriptTable::new_typed(
+            IoTranscriptTable::new(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),
@@ -853,11 +854,11 @@ impl Lookups for Poseidon2SpongeCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![Poseidon2SpongeTable::new_typed(
+            vec![Poseidon2SpongeTable::new(
                 crate::poseidon2_sponge::columns::data_for_cpu(),
                 crate::poseidon2_sponge::columns::filter_for_cpu(),
             )],
-            CpuTable::new_typed(
+            CpuTable::new(
                 crate::cpu::columns::data_for_poseidon2_sponge(),
                 crate::cpu::columns::filter_for_poseidon2_sponge(),
             ),
@@ -873,11 +874,11 @@ impl Lookups for Poseidon2Poseidon2SpongeTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![Poseidon2Table::new_typed(
+            vec![Poseidon2Table::new(
                 crate::poseidon2::columns::data_for_sponge(),
                 crate::poseidon2::columns::filter_for_sponge(),
             )],
-            Poseidon2SpongeTable::new_typed(
+            Poseidon2SpongeTable::new(
                 crate::poseidon2_sponge::columns::data_for_poseidon2(),
                 crate::poseidon2_sponge::columns::filter_for_poseidon2(),
             ),
@@ -893,11 +894,11 @@ impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![Poseidon2OutputBytesTable::new_typed(
+            vec![Poseidon2OutputBytesTable::new(
                 crate::poseidon2_output_bytes::columns::data_for_poseidon2_sponge(),
                 crate::poseidon2_output_bytes::columns::filter_for_poseidon2_sponge(),
             )],
-            Poseidon2SpongeTable::new_typed(
+            Poseidon2SpongeTable::new(
                 crate::poseidon2_sponge::columns::data_for_poseidon2_output_bytes(),
                 crate::poseidon2_sponge::columns::filter_for_poseidon2_output_bytes(),
             ),

@@ -28,7 +28,7 @@ pub fn data_filter() -> TableNamed<RangeCheckCtl<Column>> {
             .map(|limb| COL_MAP.limbs[limb] * (1 << (8 * limb)))
             .sum(),
     );
-    RangeCheckTable::new_typed(data, filter())
+    RangeCheckTable::new(data, filter())
 }
 
 columns_view_impl!(RangeCheckCtl);
@@ -46,7 +46,7 @@ impl<T> RangeCheckCtl<T> {
 pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     (0..4)
         .map(|limb| {
-            RangeCheckTable::new_typed(
+            RangeCheckTable::new(
                 RangeCheckCtl::new(COL_MAP.limbs[limb]),
                 COL_MAP.multiplicity,
             )

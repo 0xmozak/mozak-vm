@@ -3,14 +3,14 @@ use core::ops::Add;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
+#[cfg(feature = "enable_register_starks")]
+use crate::cross_table_lookup::Column;
 use crate::linear_combination_x::ColumnX;
 use crate::registerinit::columns::RegisterInitCtl;
 #[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::RegisterTable;
 #[cfg(feature = "enable_register_starks")]
 use crate::{rangecheck::columns::RangeCheckCtl, stark::mozak_stark::TableNamed};
-#[cfg(feature = "enable_register_starks")]
-use crate::cross_table_lookup::Column;
 
 columns_view_impl!(Ops);
 #[repr(C)]
@@ -120,7 +120,7 @@ pub fn filter_for_register_init() -> RegisterColumn { COL_MAP.ops.is_init }
 pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     let ops = COL_MAP.ops;
     let new = RangeCheckCtl::new;
-    vec![RegisterTable::new_typed(
+    vec![RegisterTable::new(
         new(COL_MAP.diff_augmented_clk),
         ops.is_read + ops.is_write,
     )]
