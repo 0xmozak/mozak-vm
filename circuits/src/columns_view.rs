@@ -108,7 +108,6 @@ macro_rules! columns_view_impl {
             }
         }
 
-
         impl<Item> crate::columns_view::Zip<Item> for $s<Item> {
             fn zip_with<F>(self, other: Self, mut f: F) -> Self
             where
