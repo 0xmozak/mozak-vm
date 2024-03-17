@@ -1,5 +1,7 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::ColumnX;
+use crate::linear_combination::Column;
+use crate::stark::mozak_stark::{TableKind, TableNamed};
 
 columns_view_impl!(MemElement);
 /// A Memory Slot that has an address and a value
@@ -35,20 +37,21 @@ pub struct MemoryInitCtl<T> {
     pub value: T,
 }
 
-type MemoryInitCol = ColumnX<MemoryInit<i64>>;
-
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn data_for_memory() -> MemoryInitCtl<MemoryInitCol> {
+pub fn lookup_for_memory(kind: TableKind) -> TableNamed<MemoryInitCtl<Column>> {
     let mem = COL_MAP;
-    MemoryInitCtl {
-        is_writable: mem.is_writable,
-        address: mem.element.address,
-        clk: ColumnX::constant(1),
-        value: mem.element.value,
+    TableNamed {
+        kind,
+        columns: MemoryInitCtl {
+            is_writable: mem.is_writable,
+            address: mem.element.address,
+            clk: ColumnX::constant(1),
+            value: mem.element.value,
+        }
+        .into_iter()
+        .map(Column::from)
+        .collect(),
+        filter_column: COL_MAP.filter.into(),
     }
 }
-
-/// Column for a binary filter to indicate a lookup from the Memory Table
-#[must_use]
-pub fn filter_for_memory() -> MemoryInitCol { COL_MAP.filter }

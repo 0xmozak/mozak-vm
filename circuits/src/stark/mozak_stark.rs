@@ -630,14 +630,8 @@ impl Lookups for MemoryInitMemoryTable {
     fn lookups() -> CrossTableLookupNamed<MemoryInitCtl<Column>> {
         CrossTableLookupNamed::new(
             vec![
-                ElfMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MozakMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
+                memoryinit::columns::lookup_for_memory(TableKind::ElfMemoryInit),
+                memoryinit::columns::lookup_for_memory(TableKind::MozakMemoryInit),
                 memory_zeroinit::columns::lookup_for_memory(),
             ],
             memory::columns::lookup_for_memoryinit(),
