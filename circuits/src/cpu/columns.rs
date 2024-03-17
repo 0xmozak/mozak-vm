@@ -309,18 +309,12 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
 /// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_xor_() -> XorView<ColumnX<CpuColumnsExtended<i64>>> { COL_MAP.cpu.xor }
-
-#[must_use]
-pub fn data_for_xor() -> XorView<Column> { col_map().cpu.xor.map(Column::from) }
+pub fn data_for_xor() -> XorView<ColumnX<CpuColumnsExtended<i64>>> { COL_MAP.cpu.xor }
 
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_xor() -> Column { col_map().cpu.inst.ops.map(Column::from).ops_that_use_xor() }
-
-#[must_use]
-pub fn filter_for_xor_() -> ColumnX<CpuColumnsExtended<i64>> {
+pub fn filter_for_xor() -> ColumnX<CpuColumnsExtended<i64>> {
     COL_MAP.cpu.inst.ops.ops_that_use_xor()
 }
 

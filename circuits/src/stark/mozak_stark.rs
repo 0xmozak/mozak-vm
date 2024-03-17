@@ -545,8 +545,8 @@ impl Lookups for XorCpuTable {
         CrossTableLookupNamed {
             looking_tables: vec![TableNamedTyped {
                 kind: TableKind::Cpu,
-                columns: cpu::columns::data_for_xor_(),
-                filter_column: cpu::columns::filter_for_xor_(),
+                columns: cpu::columns::data_for_xor(),
+                filter_column: cpu::columns::filter_for_xor(),
             }
             .into()],
             looked_table: TableNamedTyped {
