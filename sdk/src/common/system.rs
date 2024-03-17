@@ -9,7 +9,7 @@ use rkyv::Deserialize;
 
 use super::types::{CallTapeType, EventTapeType, SystemTape};
 #[cfg(target_os = "mozakvm")]
-use crate::common::types::{CrossProgramCall, Event, ProgramIdentifier};
+use crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, ProgramIdentifier};
 #[cfg(target_os = "mozakvm")]
 use crate::mozakvm::helpers::{
     archived_repr, get_rkyv_archived, get_rkyv_deserialized, get_self_prog_id,
@@ -50,6 +50,8 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // pre-populated data elements
     #[cfg(target_os = "mozakvm")]
     {
+        let events = get_rkyv_archived!(Vec<CanonicalOrderedTemporalHints>, _mozak_event_tape);
+
         SystemTape {
             call_tape: CallTapeType {
                 self_prog_id: get_self_prog_id(),
@@ -59,9 +61,23 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
             },
             event_tape: EventTapeType {
                 self_prog_id: get_self_prog_id(),
-                reader: Some(get_rkyv_archived!(Vec<Event>, _mozak_event_tape)),
+                reader: Some(events),
+                seen: vec![false; events.len()],
                 index: 0,
             },
         }
     }
 });
+
+#[cfg(target_os = "mozakvm")]
+#[allow(dead_code)]
+pub fn ensure_clean_shutdown() {
+    // Ensure we have read the whole tape
+    unsafe {
+        // Should have read the full call tape
+        assert!(SYSTEM_TAPE.call_tape.index == SYSTEM_TAPE.call_tape.reader.unwrap().len());
+
+        // Should have read the full event tape
+        assert!(SYSTEM_TAPE.event_tape.index == SYSTEM_TAPE.event_tape.reader.unwrap().len());
+    }
+}

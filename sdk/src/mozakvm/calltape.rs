@@ -91,15 +91,6 @@ impl Call for CallTape {
             // Mark this as "processed" regardless of what happens next.
             self.index += 1;
 
-            // First, ensure that we are not the caller, no-one can call
-            // themselves. (Even if they can w.r.t. self-calling extension,
-            // the `caller` field would remain distinct)
-            let caller: ProgramIdentifier = zcd_cpcmsg
-                .caller
-                .deserialize(&mut rkyv::Infallible)
-                .unwrap();
-            assert!(caller != self.self_prog_id);
-
             // Well, once we are sure that we were not the caller, we can
             // either be a callee in which case we process and send information
             // back or we continue searching.
@@ -109,6 +100,15 @@ impl Call for CallTape {
                 .unwrap();
 
             if self.self_prog_id == callee {
+                // First, ensure that we are not the caller, no-one can call
+                // themselves. (Even if they can w.r.t. self-calling extension,
+                // the `caller` field would remain distinct)
+                let caller: ProgramIdentifier = zcd_cpcmsg
+                    .caller
+                    .deserialize(&mut rkyv::Infallible)
+                    .unwrap();
+                assert!(caller != self.self_prog_id);
+
                 // Before accepting, make sure that caller was a part of castlist
                 assert!(self.is_casted_actor(&caller));
 

@@ -14,7 +14,10 @@ macro_rules! entry {
         #[cfg(target_os = "mozakvm")]
         mod mozak_generated_main {
             #[no_mangle]
-            fn main() { super::MOZAK_ENTRY() }
+            fn main() {
+                super::MOZAK_ENTRY();
+                mozak_sdk::common::system::ensure_clean_shutdown();
+            }
         }
     };
 }

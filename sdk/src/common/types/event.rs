@@ -70,15 +70,44 @@ pub struct CanonicalEvent {
     pub emitter: super::ProgramIdentifier,
 }
 
-#[cfg(not(target_os = "mozakvm"))]
 impl CanonicalEvent {
     #[must_use]
     pub fn from_event(emitter: super::ProgramIdentifier, value: &Event) -> Self {
-        Self {
-            address: value.object.address,
-            type_: value.type_,
-            value: crate::native::helpers::poseidon2_hash(&value.object.data),
-            emitter,
+        #[cfg(not(target_os = "mozakvm"))]
+        {
+            Self {
+                address: value.object.address,
+                type_: value.type_,
+                value: crate::native::helpers::poseidon2_hash(&value.object.data),
+                emitter,
+            }
+        }
+        #[cfg(target_os = "mozakvm")]
+        {
+            Self {
+                address: value.object.address,
+                type_: value.type_,
+                value: crate::mozakvm::helpers::poseidon2_hash(&value.object.data),
+                emitter,
+            }
         }
     }
 }
+
+#[derive(
+    Copy,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(Debug, serde::Serialize, serde::Deserialize)
+)]
+pub struct CanonicalOrderedTemporalHints(pub CanonicalEvent, pub u32);

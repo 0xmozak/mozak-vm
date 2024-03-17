@@ -54,10 +54,7 @@ fn write_to_file(file_path: &str, content: &[u8]) {
 /// formed of tape on disk, `.tape.debug` will be used for
 /// debug tape on disk.
 #[allow(dead_code)]
-pub fn dump_system_tape(
-    file_template: &str,
-    is_debug_tape_required: bool,
-) {
+pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
     let tape_clone = unsafe {
         crate::common::system::SYSTEM_TAPE.clone() // .clone() removes `Lazy{}`
     };

@@ -11,7 +11,7 @@ pub struct CallTape {
     #[serde(skip)]
     pub(crate) identity_stack: Rc<RefCell<IdentityStack>>,
     #[serde(rename = "global_calltape")]
-    pub(crate) writer: Vec<CrossProgramCall>,
+    pub writer: Vec<CrossProgramCall>,
 }
 
 impl std::fmt::Debug for CallTape {

@@ -5,7 +5,7 @@ mod core_logic;
 
 use mozak_sdk::common::types::ProgramIdentifier;
 
-use crate::core_logic::{dispatch, BlackBox, MethodArgs, MethodReturns, PublicKey, TokenObject};
+use crate::core_logic::{dispatch, BlackBox, MethodArgs, PublicKey, TokenObject};
 
 fn main() {
     let wallet_program = ProgramIdentifier::new_from_rand_seed(1);
@@ -26,7 +26,7 @@ fn main() {
 
     mozak_sdk::call_send(
         wallet_program,
-        MethodArgs::ApproveSignature(wallet_program, public_key, black_box.clone()),
+        MethodArgs::ApproveSignature(public_key, black_box.clone()),
         dispatch,
     );
 

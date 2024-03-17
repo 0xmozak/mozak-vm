@@ -5,19 +5,25 @@
 mod core_logic;
 
 use core_logic::{dispatch, MethodArgs, MethodReturns};
-use mozak_sdk::sys::call_receive;
-use rkyv::Deserialize;
+use mozak_sdk::call_receive;
 
 pub fn main() {
-    while let Some((msg, _idx)) = call_receive() {
-        let archived_args = unsafe { rkyv::archived_root::<MethodArgs>(&msg.args.0[..]) };
-        let args: MethodArgs = archived_args.deserialize(&mut rkyv::Infallible).unwrap();
-        let archived_ret = unsafe { rkyv::archived_root::<MethodReturns>(&msg.ret.0[..]) };
-        let ret: MethodReturns = archived_ret.deserialize(&mut rkyv::Infallible).unwrap();
-
-        assert!(dispatch(args) == ret);
+    while let Some((_caller, argument, return_)) = call_receive::<MethodArgs, MethodReturns>() {
+        assert!(dispatch(argument) == return_);
     }
 }
 
 // We define `main()` to be the program's entry point.
-mozak_sdk::core::entry!(main);
+mozak_sdk::entry!(main);
+
+/* 
+
+    cd examples && cargo build --release --bin tokenbin; \
+    cd .. && MOZAK_STARK_DEBUG=true \
+    ./target/release/mozak-cli prove-and-verify -vvv \
+    examples/target/riscv32im-mozak-mozakvm-elf/release/tokenbin \
+    --system-tape examples/token_tfr.tape.json \
+    --self-prog-id \
+    MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538;
+
+*/

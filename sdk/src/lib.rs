@@ -39,13 +39,19 @@ pub fn event_emit(event: crate::common::types::Event) {
     }
 }
 
-// /// Receive one message from mailbox targetted to us and its index
-// /// "consume" such message. Subsequent reads will never
-// /// return the same message. Panics on call-tape non-abidance.
-// #[must_use]
-// pub fn call_receive() -> Option<(CPCMessage, usize)> {
-//     unsafe { SYSTEM_TAPES.call_tape.from_mailbox() }
-// }
+/// Receive one message from mailbox targetted to us and its index
+/// "consume" such message. Subsequent reads will never
+/// return the same message. Panics on call-tape non-abidance.
+#[must_use]
+pub fn call_receive<A, R>() -> Option<(crate::common::types::ProgramIdentifier, A, R)>
+where
+    A: crate::common::traits::CallArgument + PartialEq,
+    R: crate::common::traits::CallReturn,
+    <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
+    <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
+    use crate::common::traits::Call;
+    unsafe { crate::common::system::SYSTEM_TAPE.call_tape.receive() }
+}
 
 /// Send one message from mailbox targetted to some third-party
 /// resulting in such messages finding itself in their mailbox

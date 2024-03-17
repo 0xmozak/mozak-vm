@@ -1,7 +1,7 @@
 #![feature(restricted_std)]
 extern crate alloc;
 
-use mozak_sdk::common::types::{Event, EventType, StateAddress, ProgramIdentifier, StateObject};
+use mozak_sdk::common::types::{Event, EventType, ProgramIdentifier, StateObject};
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
@@ -50,7 +50,7 @@ pub fn transfer(
     };
     mozak_sdk::event_emit(read_event);
 
-    let mut token_object: wallet::TokenObject = state_object.clone().into();
+    let mut token_object = wallet::TokenObject::from(state_object.clone());
 
     // Ensure spendability
     assert!(
