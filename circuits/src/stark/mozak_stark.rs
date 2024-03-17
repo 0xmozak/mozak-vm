@@ -663,11 +663,11 @@ impl Lookups for BitshiftCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Bitshift<Column>> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
+            vec![CpuTable::new_typed(
                 cpu::columns::data_for_shift_amount(),
                 cpu::columns::filter_for_shift_amount(),
             )],
-            BitshiftTable::new(
+            BitshiftTable::new_typed(
                 bitshift::columns::data_for_cpu(),
                 bitshift::columns::filter_for_cpu(),
             ),
