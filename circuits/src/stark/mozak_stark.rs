@@ -544,18 +544,14 @@ impl Lookups for XorCpuTable {
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         // TODO: deal with heterogenous types.
         CrossTableLookupNamed {
-            looking_tables: vec![TableNamedTyped {
-                kind: TableKind::Cpu,
-                columns: cpu::columns::data_for_xor(),
-                filter_column: cpu::columns::filter_for_xor(),
-            }
-            .into()],
-            looked_table: TableNamedTyped {
-                kind: TableKind::Xor,
-                columns: xor::columns::data_for_cpu(),
-                filter_column: xor::columns::filter_for_cpu(),
-            }
-            .into(),
+            looking_tables: vec![CpuTable::new_typed(
+                cpu::columns::data_for_xor(),
+                cpu::columns::filter_for_xor(),
+            )],
+            looked_table: XorTable::new_typed(
+                xor::columns::data_for_cpu(),
+                xor::columns::filter_for_cpu(),
+            ),
         }
     }
 }
