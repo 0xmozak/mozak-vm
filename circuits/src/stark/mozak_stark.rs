@@ -698,10 +698,7 @@ impl Lookups for IoMemoryPrivateCpuTable {
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
             vec![cpu::columns::lookup_for_io_memory_private()],
-            IoMemoryPrivateTable::new(
-                memory_io::columns::data_for_cpu(),
-                memory_io::columns::filter_for_cpu(),
-            ),
+            memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate),
         )
     }
 }
@@ -714,10 +711,7 @@ impl Lookups for IoMemoryPublicCpuTable {
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
             vec![cpu::columns::lookup_for_io_memory_public()],
-            IoMemoryPublicTable::new(
-                memory_io::columns::data_for_cpu(),
-                memory_io::columns::filter_for_cpu(),
-            ),
+            memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPublic),
         )
     }
 }
@@ -734,10 +728,7 @@ impl Lookups for IoTranscriptCpuTable {
                 cpu::columns::data_for_io_transcript(),
                 cpu::columns::filter_for_io_transcript(),
             )],
-            IoTranscriptTable::new(
-                memory_io::columns::data_for_cpu(),
-                memory_io::columns::filter_for_cpu(),
-            ),
+            memory_io::columns::lookup_for_cpu(TableKind::IoTranscript),
         )
     }
 }

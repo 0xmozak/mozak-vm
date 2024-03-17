@@ -56,21 +56,23 @@ pub struct InputOutputMemoryCtl<T> {
 
 type IOCol = ColumnX<InputOutputMemory<i64>>;
 
-/// Columns containing the data which are looked from the CPU table into Memory
-/// stark table.
+/// Lookup between CPU table and Memory stark table.
 #[must_use]
-pub fn data_for_cpu() -> InputOutputMemoryCtl<IOCol> {
+pub fn lookup_for_cpu(kind: TableKind) -> TableNamed<InputOutputMemoryCtl<Column>> {
     let mem = COL_MAP;
-    InputOutputMemoryCtl {
-        clk: mem.clk,
-        addr: mem.addr,
-        size: mem.size,
+    TableNamed {
+        kind,
+        columns: InputOutputMemoryCtl {
+            clk: mem.clk,
+            addr: mem.addr,
+            size: mem.size,
+        }
+        .into_iter()
+        .map(Column::from)
+        .collect(),
+        filter_column: COL_MAP.ops.is_io_store.into(),
     }
 }
-
-/// Column for a binary filter to indicate a lookup
-#[must_use]
-pub fn filter_for_cpu() -> IOCol { COL_MAP.ops.is_io_store }
 
 /// Lookup into Memory stark table.
 #[must_use]
