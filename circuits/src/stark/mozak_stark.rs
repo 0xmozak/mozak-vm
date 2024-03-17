@@ -738,14 +738,8 @@ impl Lookups for Poseidon2SpongeCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_cpu(),
-                crate::poseidon2_sponge::columns::filter_for_cpu(),
-            )],
-            CpuTable::new(
-                crate::cpu::columns::data_for_poseidon2_sponge(),
-                crate::cpu::columns::filter_for_poseidon2_sponge(),
-            ),
+            vec![crate::poseidon2_sponge::columns::lookup_for_cpu()],
+            crate::cpu::columns::lookup_for_poseidon2_sponge(),
         )
     }
 }

@@ -481,14 +481,14 @@ pub fn lookup_for_program_rom() -> TableNamed<InstructionRow<Column>> {
 }
 
 #[must_use]
-pub fn data_for_poseidon2_sponge() -> Poseidon2SpongeCtl<CpuCol> {
+pub fn lookup_for_poseidon2_sponge() -> TableNamed<Poseidon2SpongeCtl<Column>> {
     let cpu: CpuState<ColumnX<CpuColumnsExtended<i64>>> = CPU_MAP;
-    Poseidon2SpongeCtl {
-        clk: cpu.clk,
-        input_addr: cpu.poseidon2_input_addr,
-        input_len: cpu.poseidon2_input_len,
-    }
+    CpuTable::new(
+        Poseidon2SpongeCtl {
+            clk: cpu.clk,
+            input_addr: cpu.poseidon2_input_addr,
+            input_len: cpu.poseidon2_input_len,
+        },
+        CPU_MAP.is_poseidon2,
+    )
 }
-
-#[must_use]
-pub fn filter_for_poseidon2_sponge() -> CpuCol { CPU_MAP.is_poseidon2 }

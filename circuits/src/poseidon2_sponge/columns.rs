@@ -54,17 +54,17 @@ pub struct Poseidon2SpongeCtl<T> {
 }
 
 #[must_use]
-pub fn data_for_cpu() -> Poseidon2SpongeCtl<Pos2SpongeCol> {
+pub fn lookup_for_cpu() -> TableNamed<Poseidon2SpongeCtl<Column>> {
     let sponge = COL_MAP;
-    Poseidon2SpongeCtl {
-        clk: sponge.clk,
-        input_addr: sponge.input_addr,
-        input_len: sponge.input_len,
-    }
+    Poseidon2SpongeTable::new(
+        Poseidon2SpongeCtl {
+            clk: sponge.clk,
+            input_addr: sponge.input_addr,
+            input_len: sponge.input_len,
+        },
+        COL_MAP.ops.is_init_permute,
+    )
 }
-
-#[must_use]
-pub fn filter_for_cpu() -> Pos2SpongeCol { COL_MAP.ops.is_init_permute }
 
 // HERE
 #[must_use]
