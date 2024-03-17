@@ -308,21 +308,18 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
 /// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_xor() -> XorView<CpuCol> { COL_MAP.cpu.xor }
+pub fn data_for_xor() -> XorView<CpuCol> { CPU_MAP.xor }
 
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_xor() -> CpuCol { COL_MAP.cpu.inst.ops.ops_that_use_xor() }
-
-// pub fn filter_for_xor() -> CpuCol {
-// ColMap::COL_MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor() }
+pub fn filter_for_xor() -> CpuCol { CPU_MAP.inst.ops.ops_that_use_xor() }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_memory() -> MemoryCtl<CpuCol> {
-    let cpu = COL_MAP.cpu;
+    let cpu = CPU_MAP;
     MemoryCtl {
         clk: cpu.clk,
         is_store: cpu.inst.ops.sb,
@@ -340,13 +337,13 @@ type CpuCol = ColumnX<CpuColumnsExtended<i64>>;
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_byte_memory() -> CpuCol { COL_MAP.cpu.inst.ops.byte_mem_ops() }
+pub fn filter_for_byte_memory() -> CpuCol { CPU_MAP.inst.ops.byte_mem_ops() }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_halfword_memory() -> MemoryCtl<CpuCol> {
-    let cpu = COL_MAP.cpu;
+    let cpu = CPU_MAP;
     MemoryCtl {
         clk: cpu.clk,
         is_store: cpu.inst.ops.sh,
@@ -361,7 +358,7 @@ pub(crate) const CPU_MAP: CpuState<CpuCol> = COL_MAP.cpu;
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_halfword_memory() -> CpuCol { COL_MAP.cpu.inst.ops.halfword_mem_ops() }
+pub fn filter_for_halfword_memory() -> CpuCol { CPU_MAP.inst.ops.halfword_mem_ops() }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
