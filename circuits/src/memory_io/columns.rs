@@ -2,7 +2,9 @@ use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnX;
+use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
+use crate::stark::mozak_stark::{TableKind, TableNamed};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -70,18 +72,24 @@ pub fn data_for_cpu() -> InputOutputMemoryCtl<IOCol> {
 #[must_use]
 pub fn filter_for_cpu() -> IOCol { COL_MAP.ops.is_io_store }
 
-/// Columns containing the data which are looked from the halfword memory table
-/// into Memory stark table.
+/// Lookup into Memory stark table.
 #[must_use]
-pub fn data_for_memory() -> MemoryCtl<IOCol> {
+pub fn lookup_for_memory(kind: TableKind) -> TableNamed<MemoryCtl<Column>> {
     let mem = COL_MAP;
 
-    MemoryCtl {
-        clk: mem.clk,
-        is_store: mem.ops.is_memory_store,
-        is_load: ColumnX::constant(0),
-        value: mem.value,
-        addr: mem.addr,
+    TableNamed {
+        kind,
+        columns: MemoryCtl {
+            clk: mem.clk,
+            is_store: mem.ops.is_memory_store,
+            is_load: ColumnX::constant(0),
+            value: mem.value,
+            addr: mem.addr,
+        }
+        .into_iter()
+        .map(Column::from)
+        .collect(),
+        filter_column: COL_MAP.ops.is_memory_store.into(),
     }
 }
 

@@ -42,8 +42,6 @@ impl<T: Clone + Add<Output = T>> FullWordMemory<T> {
     }
 }
 
-type MemCol = ColumnX<FullWordMemory<i64>>;
-
 /// Total number of columns.
 pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 
