@@ -11,9 +11,7 @@ use crate::bitshift::columns::Bitshift;
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
-use crate::cross_table_lookup::{
-    Column, CrossTableLookup, CrossTableLookupNamed, CrossTableLookupNamedTyped,
-};
+use crate::cross_table_lookup::{Column, CrossTableLookup, CrossTableLookupNamed};
 use crate::linear_combination_x::ColumnX;
 use crate::memory::columns::MemoryCtl;
 use crate::memory::stark::MemoryStark;
@@ -544,18 +542,20 @@ impl Lookups for XorCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         // TODO: deal with heterogenous types.
-        CrossTableLookupNamed::from(CrossTableLookupNamedTyped {
+        CrossTableLookupNamed {
             looking_tables: vec![TableNamedTyped {
                 kind: TableKind::Cpu,
                 columns: cpu::columns::data_for_xor_(),
                 filter_column: cpu::columns::filter_for_xor_(),
-            }],
+            }
+            .into()],
             looked_table: TableNamedTyped {
                 kind: TableKind::Xor,
                 columns: xor::columns::data_for_cpu_(),
                 filter_column: xor::columns::filter_for_cpu_(),
-            },
-        })
+            }
+            .into(),
+        }
     }
 }
 

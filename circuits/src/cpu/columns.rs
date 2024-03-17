@@ -6,16 +6,16 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::bitshift::columns::Bitshift;
-use crate::columns_view::{columns_view_impl, make_col_map, ColMap, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cpu::stark::add_extension_vec;
-use crate::cross_table_lookup::{Column, CrossTableLookupNamedTyped};
+use crate::cross_table_lookup::Column;
 use crate::linear_combination_x::ColumnX;
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{CpuTable, TableNamed, TableNamedTyped};
+use crate::stark::mozak_stark::{CpuTable, TableNamed};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -319,6 +319,7 @@ pub fn data_for_xor() -> XorView<Column> { col_map().cpu.xor.map(Column::from) }
 #[must_use]
 pub fn filter_for_xor() -> Column { col_map().cpu.inst.ops.map(Column::from).ops_that_use_xor() }
 
+#[must_use]
 pub fn filter_for_xor_() -> ColumnX<CpuColumnsExtended<i64>> {
     COL_MAP.cpu.inst.ops.ops_that_use_xor()
 }

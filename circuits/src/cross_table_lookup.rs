@@ -192,6 +192,7 @@ pub struct CrossTableLookupNamed<Row> {
     pub looked_table: TableNamed<Row>,
 }
 
+// TODO(Matthias): carefully study the types here.
 impl<RowIn, RowOut, X> From<CrossTableLookupNamedTyped<RowIn, ColumnX<X>>>
     for CrossTableLookupNamed<RowOut>
 where
@@ -215,6 +216,8 @@ where
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug)]
+// TODO: we don't actualyl have the same Row types her.  It's heterogenous.
+// So try a `dyn` type towards an extraction function?
 pub struct CrossTableLookupNamedTyped<Row, Filter> {
     pub looking_tables: Vec<TableNamedTyped<Row, Filter>>,
     pub looked_table: TableNamedTyped<Row, Filter>,
