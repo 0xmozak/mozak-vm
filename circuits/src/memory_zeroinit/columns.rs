@@ -1,6 +1,8 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnX;
+use crate::linear_combination::Column;
 use crate::memoryinit::columns::MemoryInitCtl;
+use crate::stark::mozak_stark::{MemoryTable, TableNamed};
 
 columns_view_impl!(MemoryZeroInit);
 make_col_map!(MemoryZeroInit);
@@ -11,22 +13,19 @@ pub struct MemoryZeroInit<T> {
     pub filter: T,
 }
 
-type ZeroColumn = ColumnX<MemoryZeroInit<i64>>;
-
 pub const NUM_MEMORYINIT_COLS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 
-/// Columns containing the data which are looked up from the Memory Table
+/// Lookup into Memory Table
 #[must_use]
-pub fn data_for_memory() -> MemoryInitCtl<ZeroColumn> {
+pub fn lookup_for_memory() -> TableNamed<MemoryInitCtl<Column>> {
     let mem = COL_MAP;
-    MemoryInitCtl {
-        is_writable: ColumnX::constant(1),
-        address: mem.addr,
-        clk: ColumnX::constant(0),
-        value: ColumnX::constant(0),
-    }
+    MemoryTable::new(
+        MemoryInitCtl {
+            is_writable: ColumnX::constant(1),
+            address: mem.addr,
+            clk: ColumnX::constant(0),
+            value: ColumnX::constant(0),
+        },
+        COL_MAP.filter,
+    )
 }
-
-/// Column for a binary filter to indicate a lookup from the Memory Table
-#[must_use]
-pub fn filter_for_memory() -> ZeroColumn { COL_MAP.filter }

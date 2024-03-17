@@ -638,15 +638,9 @@ impl Lookups for MemoryInitMemoryTable {
                     memoryinit::columns::data_for_memory(),
                     memoryinit::columns::filter_for_memory(),
                 ),
-                MemoryZeroInitTable::new(
-                    memory_zeroinit::columns::data_for_memory(),
-                    memory_zeroinit::columns::filter_for_memory(),
-                ),
+                memory_zeroinit::columns::lookup_for_memory(),
             ],
-            MemoryTable::new(
-                memory::columns::data_for_memoryinit(),
-                memory::columns::filter_for_memoryinit(),
-            ),
+            memory::columns::lookup_for_memoryinit(),
         )
     }
 }

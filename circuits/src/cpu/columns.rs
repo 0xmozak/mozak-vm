@@ -454,7 +454,7 @@ pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
 /// Lookup into `Bitshift` stark.
 #[must_use]
 pub fn lookup_for_shift_amount() -> TableNamed<Bitshift<Column>> {
-    BitshiftTable::new(CPU_MAP.bitshift, CPU_MAP.inst.ops.ops_that_shift() )
+    BitshiftTable::new(CPU_MAP.bitshift, CPU_MAP.inst.ops.ops_that_shift())
 }
 
 /// Columns containing the data of original instructions.

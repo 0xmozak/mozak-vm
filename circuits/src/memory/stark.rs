@@ -278,8 +278,7 @@ mod tests {
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::stark::mozak_stark::{
-        ElfMemoryInitTable, MemoryTable, MemoryZeroInitTable, MozakMemoryInitTable, MozakStark,
-        TableKindSetBuilder,
+        ElfMemoryInitTable, MozakMemoryInitTable, MozakStark, TableKindSetBuilder,
     };
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify};
@@ -414,15 +413,9 @@ mod tests {
                     memoryinit::columns::data_for_memory(),
                     memoryinit::columns::filter_for_memory(),
                 ),
-                MemoryZeroInitTable::new(
-                    memory_zeroinit::columns::data_for_memory(),
-                    memory_zeroinit::columns::filter_for_memory(),
-                ),
+                memory_zeroinit::columns::lookup_for_memory(),
             ],
-            MemoryTable::new(
-                memory::columns::data_for_memoryinit(),
-                memory::columns::filter_for_memoryinit(),
-            ),
+            memory::columns::lookup_for_memoryinit(),
         );
 
         let memory_trace = trace_rows_to_poly_values(memory_rows);
@@ -440,7 +433,7 @@ mod tests {
         let stark = S::default();
 
         // ctl for malicious prover indeed fails, showing inconsistency in is_init
-        assert!(check_single_ctl::<F>(&trace, &ctl).is_err());
+        assert!(check_single_ctl::<F>(&trace, &ctl.to_vec()).is_err());
         let proof = prove::<F, C, S, D>(
             stark,
             &config,

@@ -236,21 +236,21 @@ pub fn filter_for_cpu() -> MemCol {
     mem.is_store + mem.is_load
 }
 
-/// Columns containing the data which are looked up in the `MemoryInit` Table
+/// Lookup into `MemoryInit` Table
 #[must_use]
-pub fn data_for_memoryinit() -> MemoryInitCtl<MemCol> {
+pub fn lookup_for_memoryinit() -> TableNamed<MemoryInitCtl<Column>> {
     let mem = COL_MAP;
-    MemoryInitCtl {
-        is_writable: mem.is_writable,
-        address: mem.addr,
-        clk: mem.clk,
-        value: mem.value,
-    }
-}
 
-/// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
-#[must_use]
-pub fn filter_for_memoryinit() -> MemCol { COL_MAP.is_init }
+    MemoryTable::new(
+        MemoryInitCtl {
+            is_writable: mem.is_writable,
+            address: mem.addr,
+            clk: mem.clk,
+            value: mem.value,
+        },
+        COL_MAP.is_init,
+    )
+}
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
