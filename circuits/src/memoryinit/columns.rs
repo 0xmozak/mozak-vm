@@ -1,5 +1,5 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::Column;
+use crate::linear_combination_x::ColumnX;
 
 columns_view_impl!(MemElement);
 /// A Memory Slot that has an address and a value
@@ -35,18 +35,20 @@ pub struct MemoryInitCtl<T> {
     pub value: T,
 }
 
+type MemoryInitCol = ColumnX<MemoryInit<i64>>;
+
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn data_for_memory() -> MemoryInitCtl<Column> {
-    let mem = col_map().map(Column::from);
+pub fn data_for_memory() -> MemoryInitCtl<MemoryInitCol> {
+    let mem = COL_MAP;
     MemoryInitCtl {
         is_writable: mem.is_writable,
         address: mem.element.address,
-        clk: Column::constant(1),
+        clk: ColumnX::constant(1),
         value: mem.element.value,
     }
 }
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]
-pub fn filter_for_memory() -> Column { Column::single(col_map().filter) }
+pub fn filter_for_memory() -> MemoryInitCol { COL_MAP.filter }

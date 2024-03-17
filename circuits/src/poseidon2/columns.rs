@@ -59,7 +59,7 @@ pub struct Poseidon2StateCtl<F> {
     pub output: [F; STATE_SIZE],
 }
 
-// HERE
+#[must_use]
 pub fn data_for_sponge() -> Poseidon2StateCtl<Pos2Col> {
     let poseidon2 = COL_MAP;
     // Extend data with outputs which is basically state after last full round.
@@ -72,4 +72,5 @@ pub fn data_for_sponge() -> Poseidon2StateCtl<Pos2Col> {
     }
 }
 
+#[must_use]
 pub fn filter_for_sponge() -> Pos2Col { COL_MAP.is_exe }
