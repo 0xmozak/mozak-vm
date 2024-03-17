@@ -180,32 +180,32 @@ macro_rules! columns_view_impl {
             type Output = Self;
 
             fn neg(self) -> Self::Output {
-                // TODO: use checked_* implementation.
-                self.map(core::ops::Neg::neg)
+                self.map(|x| x.checked_neg().expect("negation overflow"))
             }
         }
         impl core::ops::Add<$s<i64>> for $s<i64> {
             type Output = Self;
 
             fn add(self, other: Self) -> Self::Output {
-                // TODO: use checked_* implementation.
-                crate::columns_view::Zip::zip_with(self, other, core::ops::Add::add)
+                crate::columns_view::Zip::zip_with(self, other, |a, b| {
+                    a.checked_add(b).expect("addition overflow")
+                })
             }
         }
         impl core::ops::Sub<$s<i64>> for $s<i64> {
             type Output = Self;
 
             fn sub(self, other: Self) -> Self::Output {
-                // TODO: use checked_* implementation.
-                crate::columns_view::Zip::zip_with(self, other, core::ops::Sub::sub)
+                crate::columns_view::Zip::zip_with(self, other, |a, b| {
+                    a.checked_sub(b).expect("subtraction overflow")
+                })
             }
         }
         impl core::ops::Mul<i64> for $s<i64> {
             type Output = Self;
 
             fn mul(self, other: i64) -> Self::Output {
-                // TODO: use checked_* implementation.
-                self.map(|x| x * other)
+                self.map(|x| x.checked_mul(other).expect("multiplication overflow"))
             }
         }
         impl core::iter::Sum<$s<i64>> for $s<i64> {
