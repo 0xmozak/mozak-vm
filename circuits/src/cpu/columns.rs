@@ -184,6 +184,8 @@ pub struct CpuState<T> {
 }
 
 make_col_map!(CpuColumnsExtended);
+pub(crate) const CPU_MAP: CpuState<CpuCol> = COL_MAP.cpu;
+
 columns_view_impl!(CpuColumnsExtended);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -349,8 +351,6 @@ pub fn data_for_halfword_memory() -> MemoryCtl<CpuCol> {
         value: cpu.mem_value_raw,
     }
 }
-
-pub(crate) const CPU_MAP: CpuState<CpuCol> = COL_MAP.cpu;
 
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
