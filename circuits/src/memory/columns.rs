@@ -242,8 +242,8 @@ pub fn filter_for_cpu() -> MemCol {
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table
 #[must_use]
-pub fn data_for_memoryinit() -> MemoryInitCtl<Column> {
-    let mem = col_map().map(Column::from);
+pub fn data_for_memoryinit() -> MemoryInitCtl<MemCol> {
+    let mem = COL_MAP;
     MemoryInitCtl {
         is_writable: mem.is_writable,
         address: mem.addr,
@@ -254,7 +254,7 @@ pub fn data_for_memoryinit() -> MemoryInitCtl<Column> {
 
 /// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
 #[must_use]
-pub fn filter_for_memoryinit() -> Column { Column::single(col_map().is_init) }
+pub fn filter_for_memoryinit() -> MemCol { COL_MAP.is_init }
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.

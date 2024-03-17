@@ -648,7 +648,7 @@ impl Lookups for MemoryInitMemoryTable {
                     memory_zeroinit::columns::filter_for_memory(),
                 ),
             ],
-            MemoryTable::new(
+            MemoryTable::new_typed(
                 memory::columns::data_for_memoryinit(),
                 memory::columns::filter_for_memoryinit(),
             ),
