@@ -752,14 +752,8 @@ impl Lookups for Poseidon2Poseidon2SpongeTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![Poseidon2Table::new(
-                crate::poseidon2::columns::data_for_sponge(),
-                crate::poseidon2::columns::filter_for_sponge(),
-            )],
-            Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_poseidon2(),
-                crate::poseidon2_sponge::columns::filter_for_poseidon2(),
-            ),
+            vec![crate::poseidon2::columns::lookup_for_sponge()],
+            crate::poseidon2_sponge::columns::lookup_for_poseidon2(),
         )
     }
 }

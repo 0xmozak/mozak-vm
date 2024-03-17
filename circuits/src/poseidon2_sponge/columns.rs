@@ -66,21 +66,20 @@ pub fn lookup_for_cpu() -> TableNamed<Poseidon2SpongeCtl<Column>> {
     )
 }
 
-// HERE
 #[must_use]
-pub fn data_for_poseidon2() -> Poseidon2StateCtl<Pos2SpongeCol> {
+pub fn lookup_for_poseidon2() -> TableNamed<Poseidon2StateCtl<Column>> {
     let sponge = COL_MAP;
-    Poseidon2StateCtl {
-        input: sponge.preimage,
-        output: sponge.output,
-    }
+    Poseidon2SpongeTable::new(
+        Poseidon2StateCtl {
+            input: sponge.preimage,
+            output: sponge.output,
+        },
+        COL_MAP.is_executed(),
+    )
     // let mut data = sponge.preimage.to_vec();
     // data.extend(sponge.output.to_vec());
     // data
 }
-
-#[must_use]
-pub fn filter_for_poseidon2() -> Pos2SpongeCol { COL_MAP.is_executed() }
 
 #[must_use]
 pub fn lookup_for_poseidon2_output_bytes() -> TableNamed<Poseidon2OutputBytesCtl<Column>> {
