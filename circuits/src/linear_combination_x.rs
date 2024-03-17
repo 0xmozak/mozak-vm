@@ -202,20 +202,6 @@ where
         + Sum,
     C: IntoIterator<Item = i64>,
 {
-    /// This is useful for `not`: `all_lv - Self::from(my_column)`
-    // We could also implement this as a `sum` over COL_MAP, but the types are more annoying to get
-    // right.
-    #[must_use]
-    pub fn all_lv() -> Self {
-        ColumnX {
-            lv_linear_combination: C::default().map1(|_| 1),
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
-    pub fn not(c: C) -> Self { Self::all_lv() - Self::from(c) }
-
     #[must_use]
     pub fn reduce_with_powers<I>(terms: I, alpha: i64) -> Self
     where

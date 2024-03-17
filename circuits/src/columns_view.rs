@@ -40,11 +40,6 @@ pub trait Zip<Item> {
     fn zip_with<F>(self, other: Self, f: F) -> Self
     where
         F: FnMut(Item, Item) -> Item;
-
-    #[must_use]
-    fn map1<F>(self, f: F) -> Self
-    where
-        F: FnMut(Item) -> Item;
 }
 
 /// This structure only exists to improve macro impl hiding
@@ -72,12 +67,6 @@ macro_rules! columns_view_impl {
                     let mut b = other.into_iter();
                     core::array::from_fn(move |_| f(a.next().unwrap(), b.next().unwrap()))
                 })
-            }
-
-            fn map1<F>(self, f: F) -> Self
-            where
-                F: FnMut(Item) -> Item, {
-                self.map(f)
             }
         }
 
@@ -192,7 +181,7 @@ macro_rules! columns_view_impl {
 
             fn neg(self) -> Self::Output {
                 // TODO: use checked_* implementation.
-                crate::columns_view::Zip::map1(self, core::ops::Neg::neg)
+                self.map(core::ops::Neg::neg)
             }
         }
         impl core::ops::Add<$s<i64>> for $s<i64> {
@@ -216,7 +205,7 @@ macro_rules! columns_view_impl {
 
             fn mul(self, other: i64) -> Self::Output {
                 // TODO: use checked_* implementation.
-                crate::columns_view::Zip::map1(self, |x| x * other)
+                self.map(|x| x * other)
             }
         }
         impl core::iter::Sum<$s<i64>> for $s<i64> {
