@@ -482,7 +482,7 @@ pub fn lookup_for_program_rom() -> TableNamed<InstructionRow<Column>> {
 
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableNamed<Poseidon2SpongeCtl<Column>> {
-    let cpu: CpuState<ColumnX<CpuColumnsExtended<i64>>> = CPU_MAP;
+    let cpu = CPU_MAP;
     CpuTable::new(
         Poseidon2SpongeCtl {
             clk: cpu.clk,
