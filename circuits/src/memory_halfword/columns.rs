@@ -2,7 +2,9 @@ use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnX;
+use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
+use crate::stark::mozak_stark::{HalfWordMemoryTable, TableNamed};
 // use crate::stark::mozak_stark::{HalfWordMemoryTable, Table};
 
 /// Operations (one-hot encoded)
@@ -46,6 +48,23 @@ pub const NUM_HW_MEM_COLS: usize = HalfWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
+pub fn lookup_for_cpu() -> TableNamed<MemoryCtl<Column>> {
+    let mem = COL_MAP;
+    HalfWordMemoryTable::new(
+        MemoryCtl {
+            clk: mem.clk,
+            is_store: mem.ops.is_store,
+            is_load: mem.ops.is_load,
+            value: ColumnX::reduce_with_powers(mem.limbs, 1 << 8),
+            addr: mem.addrs[0],
+        },
+        COL_MAP.is_executed(),
+    )
+}
+
+/// Columns containing the data which are looked from the CPU table into Memory
+/// stark table.
+#[must_use]
 pub fn data_for_cpu() -> MemoryCtl<HalfCol> {
     let mem = COL_MAP;
     MemoryCtl {
@@ -59,24 +78,22 @@ pub fn data_for_cpu() -> MemoryCtl<HalfCol> {
 
 type HalfCol = ColumnX<HalfWordMemory<i64>>;
 
-/// Columns containing the data which are looked from the halfword memory table
-/// into Memory stark table.
+/// Lookup into Memory stark table.
 #[must_use]
-pub fn data_for_memory_limb(limb_index: usize) -> MemoryCtl<HalfCol> {
+pub fn lookup_for_memory_limb(limb_index: usize) -> TableNamed<MemoryCtl<Column>> {
     assert!(
         limb_index < 2,
         "limb_index is {limb_index} but it should be in 0..2 range"
     );
     let mem = COL_MAP;
-    MemoryCtl {
-        clk: mem.clk,
-        is_store: mem.ops.is_store,
-        is_load: mem.ops.is_load,
-        value: mem.limbs[limb_index],
-        addr: mem.addrs[limb_index],
-    }
+    HalfWordMemoryTable::new(
+        MemoryCtl {
+            clk: mem.clk,
+            is_store: mem.ops.is_store,
+            is_load: mem.ops.is_load,
+            value: mem.limbs[limb_index],
+            addr: mem.addrs[limb_index],
+        },
+        COL_MAP.is_executed(),
+    )
 }
-
-/// Column for a binary filter to indicate a lookup
-#[must_use]
-pub fn filter() -> HalfCol { COL_MAP.is_executed() }
