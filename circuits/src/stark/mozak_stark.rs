@@ -463,23 +463,24 @@ macro_rules! table_impl {
             pub fn new<Row>(columns: Row, filter_column: Column) -> TableNamed<Row> {
                 TableNamed::new($tk, columns, filter_column)
             }
+
+            pub fn new_typed<RowIn, RowOut, X>(
+                columns: RowIn,
+                filter_column: ColumnX<X>,
+            ) -> TableNamed<RowOut>
+            where
+                X: IntoIterator<Item = i64>,
+                RowOut: FromIterator<Column>,
+                RowIn: IntoIterator<Item = ColumnX<X>>, {
+                TableNamed {
+                    kind: $tk,
+                    columns: columns.into_iter().map(Column::from).collect(),
+                    filter_column: filter_column.into(),
+                }
+            }
         }
     };
 }
-
-// /// Macro to instantiate a new table for cross table lookups.
-// macro_rules! table_impl_typed {
-//     ($t: ident, $tk: expr) => {
-//         pub struct $t<Row>(TableNamed<Row>);
-
-//         impl<Row> $t<Row> {
-//             #[allow(clippy::new_ret_no_self)]
-//             pub fn new(columns: Row, filter_column: Column) ->
-// TableNamed<Row> {                 TableNamed::new($tk, columns,
-// filter_column)             }
-//         }
-//     };
-// }
 
 table_impl!(RangeCheckTable, TableKind::RangeCheck);
 table_impl!(CpuTable, TableKind::Cpu);
