@@ -6,6 +6,7 @@ use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use crate::linear_combination_x::ColumnX;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
@@ -215,11 +216,13 @@ pub struct MemoryCtl<T> {
     pub value: T,
 }
 
+type MemCol = ColumnX<Memory<i64>>;
+
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu() -> MemoryCtl<Column> {
-    let map = col_map().map(Column::from);
+pub fn data_for_cpu() -> MemoryCtl<MemCol> {
+    let map = COL_MAP;
     MemoryCtl {
         clk: map.clk,
         is_store: map.is_store,
@@ -232,8 +235,8 @@ pub fn data_for_cpu() -> MemoryCtl<Column> {
 /// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
 #[must_use]
-pub fn filter_for_cpu() -> Column {
-    let mem = col_map().map(Column::from);
+pub fn filter_for_cpu() -> MemCol {
+    let mem = COL_MAP;
     mem.is_store + mem.is_load
 }
 

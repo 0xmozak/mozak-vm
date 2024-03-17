@@ -577,27 +577,27 @@ impl Lookups for IntoMemoryTable {
                 memory_halfword::columns::data_for_memory_limb(1),
                 memory_halfword::columns::filter(),
             ),
-            FullWordMemoryTable::new(
+            FullWordMemoryTable::new_typed(
                 memory_fullword::columns::data_for_memory_limb(0),
                 memory_fullword::columns::filter(),
             ),
-            FullWordMemoryTable::new(
+            FullWordMemoryTable::new_typed(
                 memory_fullword::columns::data_for_memory_limb(1),
                 memory_fullword::columns::filter(),
             ),
-            FullWordMemoryTable::new(
+            FullWordMemoryTable::new_typed(
                 memory_fullword::columns::data_for_memory_limb(2),
                 memory_fullword::columns::filter(),
             ),
-            FullWordMemoryTable::new(
+            FullWordMemoryTable::new_typed(
                 memory_fullword::columns::data_for_memory_limb(3),
                 memory_fullword::columns::filter(),
             ),
-            IoMemoryPrivateTable::new(
+            IoMemoryPrivateTable::new_typed(
                 memory_io::columns::data_for_memory(),
                 memory_io::columns::filter_for_memory(),
             ),
-            IoMemoryPublicTable::new(
+            IoMemoryPublicTable::new_typed(
                 memory_io::columns::data_for_memory(),
                 memory_io::columns::filter_for_memory(),
             ),
@@ -619,7 +619,7 @@ impl Lookups for IntoMemoryTable {
         }
         CrossTableLookupNamed::new(
             tables,
-            MemoryTable::new(
+            MemoryTable::new_typed(
                 memory::columns::data_for_cpu(),
                 memory::columns::filter_for_cpu(),
             ),
@@ -740,7 +740,7 @@ impl Lookups for HalfWordMemoryCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<MemoryCtl<Column>> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
+            vec![CpuTable::new_typed(
                 cpu::columns::data_for_halfword_memory(),
                 cpu::columns::filter_for_halfword_memory(),
             )],
@@ -759,11 +759,11 @@ impl Lookups for FullWordMemoryCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
+            vec![CpuTable::new_typed(
                 cpu::columns::data_for_fullword_memory(),
                 cpu::columns::filter_for_fullword_memory(),
             )],
-            FullWordMemoryTable::new(
+            FullWordMemoryTable::new_typed(
                 memory_fullword::columns::data_for_cpu(),
                 memory_fullword::columns::filter(),
             ),
@@ -799,11 +799,11 @@ impl Lookups for IoMemoryPrivateCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
+            vec![CpuTable::new_typed(
                 cpu::columns::data_for_io_memory_private(),
                 cpu::columns::filter_for_io_memory_private(),
             )],
-            IoMemoryPrivateTable::new(
+            IoMemoryPrivateTable::new_typed(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),
@@ -822,7 +822,7 @@ impl Lookups for IoMemoryPublicCpuTable {
                 cpu::columns::data_for_io_memory_public(),
                 cpu::columns::filter_for_io_memory_public(),
             )],
-            IoMemoryPublicTable::new(
+            IoMemoryPublicTable::new_typed(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),
@@ -842,7 +842,7 @@ impl Lookups for IoTranscriptCpuTable {
                 cpu::columns::data_for_io_transcript(),
                 cpu::columns::filter_for_io_transcript(),
             )],
-            IoTranscriptTable::new(
+            IoTranscriptTable::new_typed(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),

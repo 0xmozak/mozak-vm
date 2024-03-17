@@ -1,7 +1,7 @@
 use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::Column;
+use crate::linear_combination_x::ColumnX;
 use crate::memory::columns::MemoryCtl;
 
 /// Operations (one-hot encoded)
@@ -52,11 +52,13 @@ pub struct InputOutputMemoryCtl<T> {
     pub size: T,
 }
 
+type IOCol = ColumnX<InputOutputMemory<i64>>;
+
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu() -> InputOutputMemoryCtl<Column> {
-    let mem = col_map().map(Column::from);
+pub fn data_for_cpu() -> InputOutputMemoryCtl<IOCol> {
+    let mem = COL_MAP;
     InputOutputMemoryCtl {
         clk: mem.clk,
         addr: mem.addr,
@@ -66,18 +68,18 @@ pub fn data_for_cpu() -> InputOutputMemoryCtl<Column> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_cpu() -> Column { col_map().map(Column::from).ops.is_io_store }
+pub fn filter_for_cpu() -> IOCol { COL_MAP.ops.is_io_store }
 
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory() -> MemoryCtl<Column> {
-    let mem = col_map().map(Column::from);
+pub fn data_for_memory() -> MemoryCtl<IOCol> {
+    let mem = COL_MAP;
 
     MemoryCtl {
         clk: mem.clk,
         is_store: mem.ops.is_memory_store,
-        is_load: Column::constant(0),
+        is_load: ColumnX::constant(0),
         value: mem.value,
         addr: mem.addr,
     }
@@ -85,4 +87,4 @@ pub fn data_for_memory() -> MemoryCtl<Column> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_memory() -> Column { col_map().map(Column::from).ops.is_memory_store }
+pub fn filter_for_memory() -> IOCol { COL_MAP.ops.is_memory_store }

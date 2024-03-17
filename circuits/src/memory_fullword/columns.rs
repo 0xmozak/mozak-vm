@@ -1,7 +1,7 @@
 use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::Column;
+use crate::linear_combination_x::ColumnX;
 use crate::memory::columns::MemoryCtl;
 
 /// Operations (one-hot encoded)
@@ -40,37 +40,39 @@ impl<T: Clone + Add<Output = T>> FullWordMemory<T> {
     }
 }
 
+type MemCol = ColumnX<FullWordMemory<i64>>;
+
 /// Total number of columns.
 pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu() -> MemoryCtl<Column> {
-    let mem = col_map().map(Column::from);
+pub fn data_for_cpu() -> MemoryCtl<MemCol> {
+    let mem = COL_MAP;
     MemoryCtl {
         clk: mem.clk,
         is_store: mem.ops.is_store,
         is_load: mem.ops.is_load,
-        value: Column::reduce_with_powers(&mem.limbs, 1 << 8),
-        addr: mem.addrs[0].clone(),
+        value: ColumnX::reduce_with_powers(mem.limbs, 1 << 8),
+        addr: mem.addrs[0],
     }
 }
 
 /// Columns containing the data which are looked from the fullword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory_limb(limb_index: usize) -> MemoryCtl<Column> {
+pub fn data_for_memory_limb(limb_index: usize) -> MemoryCtl<MemCol> {
     assert!(limb_index < 4, "limb-index can be 0..4");
-    let mem = col_map().map(Column::from);
+    let mem = COL_MAP;
     MemoryCtl {
         clk: mem.clk,
         is_store: mem.ops.is_store,
         is_load: mem.ops.is_load,
-        value: mem.limbs[limb_index].clone(),
-        addr: mem.addrs[limb_index].clone(),
+        value: mem.limbs[limb_index],
+        addr: mem.addrs[limb_index],
     }
 }
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter() -> Column { col_map().map(Column::from).is_executed() }
+pub fn filter() -> MemCol { COL_MAP.is_executed() }

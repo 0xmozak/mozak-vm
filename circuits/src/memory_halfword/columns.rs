@@ -17,6 +17,8 @@ pub struct Ops<T> {
     pub is_load: T,
 }
 
+make_col_map!(HalfWordMemory);
+columns_view_impl!(HalfWordMemory);
 // TODO(roman): address_limbs & value columns can be optimized
 // value == linear combination via range-check
 // address_limbs also linear combination + forbid  wrapping add
@@ -31,9 +33,6 @@ pub struct HalfWordMemory<T> {
     pub limbs: [T; 2],
 }
 
-columns_view_impl!(HalfWordMemory);
-make_col_map!(HalfWordMemory);
-
 impl<T: Clone + Add<Output = T>> HalfWordMemory<T> {
     pub fn is_executed(&self) -> T {
         let ops: Ops<T> = self.ops.clone();
@@ -47,7 +46,7 @@ pub const NUM_HW_MEM_COLS: usize = HalfWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu() -> MemoryCtl<ColumnX<HalfWordMemory<i64>>> {
+pub fn data_for_cpu() -> MemoryCtl<HalfCol> {
     let mem = COL_MAP;
     MemoryCtl {
         clk: mem.clk,
@@ -58,10 +57,12 @@ pub fn data_for_cpu() -> MemoryCtl<ColumnX<HalfWordMemory<i64>>> {
     }
 }
 
+type HalfCol = ColumnX<HalfWordMemory<i64>>;
+
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory_limb(limb_index: usize) -> MemoryCtl<ColumnX<HalfWordMemory<i64>>> {
+pub fn data_for_memory_limb(limb_index: usize) -> MemoryCtl<HalfCol> {
     assert!(
         limb_index < 2,
         "limb_index is {limb_index} but it should be in 0..2 range"
@@ -78,4 +79,4 @@ pub fn data_for_memory_limb(limb_index: usize) -> MemoryCtl<ColumnX<HalfWordMemo
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter() -> ColumnX<HalfWordMemory<i64>> { COL_MAP.is_executed() }
+pub fn filter() -> HalfCol { COL_MAP.is_executed() }

@@ -309,22 +309,22 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
 /// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_xor() -> XorView<ColumnX<CpuColumnsExtended<i64>>> { COL_MAP.cpu.xor }
+pub fn data_for_xor() -> XorView<CpuCol> { COL_MAP.cpu.xor }
 
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_xor() -> ColumnX<CpuColumnsExtended<i64>> {
+pub fn filter_for_xor() -> CpuCol {
     COL_MAP.cpu.inst.ops.ops_that_use_xor()
 }
 
-// pub fn filter_for_xor() -> ColumnX<CpuColumnsExtended<i64>> {
+// pub fn filter_for_xor() -> CpuCol {
 // ColMap::COL_MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor() }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_memory() -> MemoryCtl<ColumnX<CpuColumnsExtended<i64>>> {
+pub fn data_for_memory() -> MemoryCtl<CpuCol> {
     let cpu = COL_MAP.cpu;
     MemoryCtl {
         clk: cpu.clk,
@@ -335,18 +335,23 @@ pub fn data_for_memory() -> MemoryCtl<ColumnX<CpuColumnsExtended<i64>>> {
     }
 }
 
+// TODO: use this type everywhere it's useful.
+// Similar for other `columns.rs` files.
+// TODO: Perhaps this should be CpuInputCol?
+type CpuCol = ColumnX<CpuColumnsExtended<i64>>;
+
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_byte_memory() -> ColumnX<CpuColumnsExtended<i64>> {
+pub fn filter_for_byte_memory() -> CpuCol {
     COL_MAP.cpu.inst.ops.byte_mem_ops()
 }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_halfword_memory() -> MemoryCtl<Column> {
-    let cpu = col_map().cpu;
+pub fn data_for_halfword_memory() -> MemoryCtl<CpuCol> {
+    let cpu = COL_MAP.cpu;
     MemoryCtl {
         clk: cpu.clk,
         is_store: cpu.inst.ops.sh,
@@ -354,21 +359,22 @@ pub fn data_for_halfword_memory() -> MemoryCtl<Column> {
         addr: cpu.mem_addr,
         value: cpu.mem_value_raw,
     }
-    .map(Column::from)
 }
+
+const CPU_MAP: CpuState<CpuCol> = COL_MAP.cpu;
 
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_halfword_memory() -> Column {
-    col_map().cpu.map(Column::from).inst.ops.halfword_mem_ops()
+pub fn filter_for_halfword_memory() -> CpuCol {
+    COL_MAP.cpu.inst.ops.halfword_mem_ops()
 }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_fullword_memory() -> MemoryCtl<Column> {
-    let cpu = col_map().cpu;
+pub fn data_for_fullword_memory() -> MemoryCtl<CpuCol> {
+    let cpu = CPU_MAP;
     MemoryCtl {
         clk: cpu.clk,
         is_store: cpu.inst.ops.sw,
@@ -376,34 +382,32 @@ pub fn data_for_fullword_memory() -> MemoryCtl<Column> {
         addr: cpu.mem_addr,
         value: cpu.mem_value_raw,
     }
-    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_fullword_memory() -> Column {
-    col_map().cpu.map(Column::from).inst.ops.fullword_mem_ops()
+pub fn filter_for_fullword_memory() -> CpuCol {
+    CPU_MAP.inst.ops.fullword_mem_ops()
 }
 
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_io_memory_private() -> InputOutputMemoryCtl<Column> {
-    let cpu = col_map().cpu;
+pub fn data_for_io_memory_private() -> InputOutputMemoryCtl<CpuCol> {
+    let cpu = CPU_MAP;
     InputOutputMemoryCtl {
         clk: cpu.clk,
         addr: cpu.io_addr,
         size: cpu.io_size,
     }
-    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_io_memory_private() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
+pub fn filter_for_io_memory_private() -> CpuCol {
+    let cpu =  CPU_MAP;
     cpu.is_io_store_private
 }
 
