@@ -82,6 +82,22 @@ where
     }
 }
 
+impl<C> Add<i64> for ColumnX<C>
+where
+    C: Add<Output = C>,
+{
+    type Output = Self;
+
+    #[allow(clippy::similar_names)]
+    fn add(self, other: i64) -> Self {
+        Self {
+            lv_linear_combination: self.lv_linear_combination,
+            nv_linear_combination: self.nv_linear_combination,
+            constant: self.constant.checked_add(other).expect("addition overflow"),
+        }
+    }
+}
+
 impl<C> Sub<Self> for ColumnX<C>
 where
     C: Sub<Output = C>,

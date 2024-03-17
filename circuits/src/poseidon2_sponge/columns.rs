@@ -4,7 +4,7 @@ use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::linear_combination::Column;
+use crate::linear_combination_x::ColumnX;
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2::columns::Poseidon2StateCtl;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
@@ -29,6 +29,8 @@ pub struct Poseidon2Sponge<T> {
     pub gen_output: T,
 }
 
+type Pos2SpongeCol = ColumnX<Poseidon2Sponge<i64>>;
+
 columns_view_impl!(Poseidon2Sponge);
 make_col_map!(Poseidon2Sponge);
 
@@ -50,8 +52,8 @@ pub struct Poseidon2SpongeCtl<T> {
 }
 
 #[must_use]
-pub fn data_for_cpu() -> Poseidon2SpongeCtl<Column> {
-    let sponge = col_map().map(Column::from);
+pub fn data_for_cpu() -> Poseidon2SpongeCtl<Pos2SpongeCol> {
+    let sponge = COL_MAP;
     Poseidon2SpongeCtl {
         clk: sponge.clk,
         input_addr: sponge.input_addr,
@@ -60,15 +62,12 @@ pub fn data_for_cpu() -> Poseidon2SpongeCtl<Column> {
 }
 
 #[must_use]
-pub fn filter_for_cpu() -> Column {
-    let sponge = col_map().map(Column::from);
-    sponge.ops.is_init_permute
-}
+pub fn filter_for_cpu() -> Pos2SpongeCol { COL_MAP.ops.is_init_permute }
 
 // HERE
 #[must_use]
-pub fn data_for_poseidon2() -> Poseidon2StateCtl<Column> {
-    let sponge = col_map().map(Column::from);
+pub fn data_for_poseidon2() -> Poseidon2StateCtl<Pos2SpongeCol> {
+    let sponge = COL_MAP;
     Poseidon2StateCtl {
         input: sponge.preimage,
         output: sponge.output,
@@ -79,37 +78,36 @@ pub fn data_for_poseidon2() -> Poseidon2StateCtl<Column> {
 }
 
 #[must_use]
-pub fn filter_for_poseidon2() -> Column { col_map().map(Column::from).is_executed() }
+pub fn filter_for_poseidon2() -> Pos2SpongeCol { COL_MAP.is_executed() }
 
 #[must_use]
-pub fn data_for_poseidon2_output_bytes() -> Poseidon2OutputBytesCtl<Column> {
-    let sponge = col_map();
+pub fn data_for_poseidon2_output_bytes() -> Poseidon2OutputBytesCtl<Pos2SpongeCol> {
+    let sponge = COL_MAP;
     Poseidon2OutputBytesCtl {
         clk: sponge.clk,
         output_addr: sponge.output_addr,
         output_fields: sponge.output[..NUM_HASH_OUT_ELTS].try_into().unwrap(),
     }
-    .map(Column::from)
 }
 
 #[must_use]
-pub fn filter_for_poseidon2_output_bytes() -> Column { col_map().map(Column::from).gen_output }
+pub fn filter_for_poseidon2_output_bytes() -> Pos2SpongeCol { COL_MAP.gen_output }
 
 #[must_use]
-pub fn data_for_input_memory(limb_index: u8) -> MemoryCtl<Column> {
+pub fn data_for_input_memory(limb_index: u8) -> MemoryCtl<Pos2SpongeCol> {
     assert!(limb_index < 8, "limb_index can be 0..7");
-    let sponge = col_map().map(Column::from);
+    let sponge = COL_MAP;
     MemoryCtl {
         clk: sponge.clk,
-        is_store: Column::constant(0),
-        is_load: Column::constant(1),
-        value: sponge.preimage[limb_index as usize].clone(),
+        is_store: ColumnX::constant(0),
+        is_load: ColumnX::constant(1),
+        value: sponge.preimage[limb_index as usize],
         addr: sponge.input_addr + i64::from(limb_index),
     }
 }
 
 #[must_use]
-pub fn filter_for_input_memory() -> Column {
-    let row = col_map().map(Column::from);
-    row.ops.is_init_permute + row.ops.is_permute
+pub fn filter_for_input_memory() -> Pos2SpongeCol {
+    let ops = COL_MAP.ops;
+    ops.is_init_permute + ops.is_permute
 }

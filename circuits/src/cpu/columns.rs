@@ -423,23 +423,19 @@ pub fn filter_for_io_memory_public() -> Column {
 }
 
 #[must_use]
-pub fn data_for_io_transcript() -> InputOutputMemoryCtl<Column> {
-    let cpu = col_map().cpu;
+pub fn data_for_io_transcript() -> InputOutputMemoryCtl<CpuCol> {
+    let cpu = CPU_MAP;
     InputOutputMemoryCtl {
         clk: cpu.clk,
         addr: cpu.io_addr,
         size: cpu.io_size,
     }
-    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_io_transcript() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
-    cpu.is_io_transcript
-}
+pub fn filter_for_io_transcript() -> CpuCol { CPU_MAP.is_io_transcript }
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
@@ -515,18 +511,14 @@ pub fn data_for_permuted_inst() -> InstructionRow<Column> {
 }
 
 #[must_use]
-pub fn data_for_poseidon2_sponge() -> Poseidon2SpongeCtl<Column> {
-    let cpu = col_map().cpu;
+pub fn data_for_poseidon2_sponge() -> Poseidon2SpongeCtl<CpuCol> {
+    let cpu: CpuState<ColumnX<CpuColumnsExtended<i64>>> = CPU_MAP;
     Poseidon2SpongeCtl {
         clk: cpu.clk,
         input_addr: cpu.poseidon2_input_addr,
         input_len: cpu.poseidon2_input_len,
     }
-    .map(Column::from)
 }
 
 #[must_use]
-pub fn filter_for_poseidon2_sponge() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
-    cpu.is_poseidon2
-}
+pub fn filter_for_poseidon2_sponge() -> CpuCol { CPU_MAP.is_poseidon2 }
