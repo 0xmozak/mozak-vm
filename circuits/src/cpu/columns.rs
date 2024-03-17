@@ -314,9 +314,7 @@ pub fn data_for_xor() -> XorView<CpuCol> { COL_MAP.cpu.xor }
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_xor() -> CpuCol {
-    COL_MAP.cpu.inst.ops.ops_that_use_xor()
-}
+pub fn filter_for_xor() -> CpuCol { COL_MAP.cpu.inst.ops.ops_that_use_xor() }
 
 // pub fn filter_for_xor() -> CpuCol {
 // ColMap::COL_MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor() }
@@ -343,9 +341,7 @@ type CpuCol = ColumnX<CpuColumnsExtended<i64>>;
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_byte_memory() -> CpuCol {
-    COL_MAP.cpu.inst.ops.byte_mem_ops()
-}
+pub fn filter_for_byte_memory() -> CpuCol { COL_MAP.cpu.inst.ops.byte_mem_ops() }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -366,9 +362,7 @@ const CPU_MAP: CpuState<CpuCol> = COL_MAP.cpu;
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_halfword_memory() -> CpuCol {
-    COL_MAP.cpu.inst.ops.halfword_mem_ops()
-}
+pub fn filter_for_halfword_memory() -> CpuCol { COL_MAP.cpu.inst.ops.halfword_mem_ops() }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -387,9 +381,7 @@ pub fn data_for_fullword_memory() -> MemoryCtl<CpuCol> {
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_fullword_memory() -> CpuCol {
-    CPU_MAP.inst.ops.fullword_mem_ops()
-}
+pub fn filter_for_fullword_memory() -> CpuCol { CPU_MAP.inst.ops.fullword_mem_ops() }
 
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -407,7 +399,7 @@ pub fn data_for_io_memory_private() -> InputOutputMemoryCtl<CpuCol> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_io_memory_private() -> CpuCol {
-    let cpu =  CPU_MAP;
+    let cpu = CPU_MAP;
     cpu.is_io_store_private
 }
 
