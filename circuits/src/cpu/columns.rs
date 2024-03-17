@@ -367,10 +367,10 @@ pub fn lookup_for_fullword_memory() -> TableNamed<MemoryCtl<Column>> {
     )
 }
 
-/// Column containing the data to be matched against IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn lookup_for_io_memory_private() -> TableNamed<InputOutputMemoryCtl<Column>> {
+#[allow(clippy::large_types_passed_by_value)]
+fn lookup_for_io_memory_x(
+    filter: ColumnX<CpuColumnsExtended<i64>>,
+) -> TableNamed<InputOutputMemoryCtl<Column>> {
     let cpu = CPU_MAP;
     CpuTable::new(
         InputOutputMemoryCtl {
@@ -378,8 +378,15 @@ pub fn lookup_for_io_memory_private() -> TableNamed<InputOutputMemoryCtl<Column>
             addr: cpu.io_addr,
             size: cpu.io_size,
         },
-        cpu.is_io_store_private,
+        filter,
     )
+}
+
+/// Column containing the data to be matched against IO Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn lookup_for_io_memory_private() -> TableNamed<InputOutputMemoryCtl<Column>> {
+    lookup_for_io_memory_x(CPU_MAP.is_io_store_private)
 }
 
 // TODO: consolidate lookup_for_io_memory_private and
@@ -387,31 +394,14 @@ pub fn lookup_for_io_memory_private() -> TableNamed<InputOutputMemoryCtl<Column>
 // to save implicit CPU lookups columns.
 #[must_use]
 pub fn lookup_for_io_memory_public() -> TableNamed<InputOutputMemoryCtl<Column>> {
-    let cpu = CPU_MAP;
-    CpuTable::new(
-        InputOutputMemoryCtl {
-            clk: cpu.clk,
-            addr: cpu.io_addr,
-            size: cpu.io_size,
-        },
-        CPU_MAP.is_io_store_public,
-    )
+    lookup_for_io_memory_x(CPU_MAP.is_io_store_public)
 }
 
 #[must_use]
-pub fn data_for_io_transcript() -> InputOutputMemoryCtl<CpuCol> {
-    let cpu = CPU_MAP;
-    InputOutputMemoryCtl {
-        clk: cpu.clk,
-        addr: cpu.io_addr,
-        size: cpu.io_size,
-    }
+pub fn lookup_for_io_transcript() -> TableNamed<InputOutputMemoryCtl<Column>> {
+    lookup_for_io_memory_x(CPU_MAP.is_io_transcript)
 }
 
-/// Column for a binary filter for memory instruction in IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_io_transcript() -> CpuCol { CPU_MAP.is_io_transcript }
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {

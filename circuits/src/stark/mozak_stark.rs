@@ -724,10 +724,7 @@ impl Lookups for IoTranscriptCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_io_transcript(),
-                cpu::columns::filter_for_io_transcript(),
-            )],
+            vec![cpu::columns::lookup_for_io_transcript()],
             memory_io::columns::lookup_for_cpu(TableKind::IoTranscript),
         )
     }
