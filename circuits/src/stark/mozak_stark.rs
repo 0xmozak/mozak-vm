@@ -543,10 +543,7 @@ impl Lookups for XorCpuTable {
                 cpu::columns::data_for_xor(),
                 cpu::columns::filter_for_xor(),
             )],
-            looked_table: XorTable::new(
-                xor::columns::data_for_cpu(),
-                xor::columns::filter_for_cpu(),
-            ),
+            looked_table: xor::columns::lookup_for_cpu(),
         }
     }
 }
