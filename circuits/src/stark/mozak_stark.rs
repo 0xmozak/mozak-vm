@@ -480,10 +480,7 @@ pub struct XorCpuTable;
 impl Lookups for XorCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_xor(),
-                cpu::columns::filter_for_xor(),
-            )],
+            vec![cpu::columns::lookup_for_xor()],
             XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
         )
     }

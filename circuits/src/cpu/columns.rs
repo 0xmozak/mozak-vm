@@ -302,15 +302,15 @@ pub fn rangecheck_looking() -> Vec<Table> {
     ]
 }
 
-/// Columns containing the data to be matched against Xor stark.
+/// Lookup for Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_xor() -> Vec<Column> { Column::singles(col_map().cpu.xor) }
-
-/// Column for a binary filter for bitwise instruction in Xor stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_xor() -> Column { col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor() }
+pub fn lookup_for_xor() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().cpu.xor),
+        col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor(),
+    )
+}
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
