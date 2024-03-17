@@ -1,5 +1,5 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::linear_combination::Column;
+use crate::linear_combination_x::ColumnX;
 
 columns_view_impl!(RegisterInit);
 make_col_map!(RegisterInit);
@@ -31,15 +31,16 @@ pub struct RegisterInitCtl<T> {
     pub value: T,
 }
 
+type RegisterInitColumn = ColumnX<RegisterInit<i64>>;
+
 #[must_use]
-pub fn data_for_register() -> RegisterInitCtl<Column> {
-    let reg = col_map();
+pub fn data_for_register() -> RegisterInitCtl<RegisterInitColumn> {
+    let reg = COL_MAP;
     RegisterInitCtl {
         addr: reg.reg_addr,
         value: reg.value,
     }
-    .map(Column::from)
 }
 
 #[must_use]
-pub fn filter_for_register() -> Column { Column::from(col_map().is_looked_up) }
+pub fn filter_for_register() -> RegisterInitColumn { COL_MAP.is_looked_up }

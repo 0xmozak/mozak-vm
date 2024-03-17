@@ -4,6 +4,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
+use crate::linear_combination_x::ColumnX;
 use crate::registerinit::columns::RegisterInitCtl;
 #[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::RegisterTable;
@@ -92,6 +93,8 @@ pub struct Register<T> {
     pub ops: Ops<T>,
 }
 
+type RegisterColumn = ColumnX<Register<i64>>;
+
 /// We create a virtual column known as `is_used`, which flags a row as
 /// being 'used' if it any one of the ops columns are turned on.
 /// This is to differentiate between real rows and padding rows.
@@ -100,25 +103,24 @@ impl<T: Add<Output = T>> Register<T> {
 }
 
 #[must_use]
-pub fn data_for_register_init() -> RegisterInitCtl<Column> {
-    let reg = col_map();
+pub fn data_for_register_init() -> RegisterInitCtl<RegisterColumn> {
+    let reg = COL_MAP;
     RegisterInitCtl {
         addr: reg.addr,
         value: reg.value,
     }
-    .map(Column::from)
 }
 
 #[must_use]
-pub fn filter_for_register_init() -> Column { Column::from(col_map().ops.is_init) }
+pub fn filter_for_register_init() -> RegisterColumn { COL_MAP.ops.is_init }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
-    let ops = col_map().ops.map(Column::from);
+    let ops = COL_MAP.ops;
     let new = RangeCheckCtl::new;
-    vec![RegisterTable::new(
-        new(Column::from(col_map().diff_augmented_clk)),
+    vec![RegisterTable::new_typed(
+        new(COL_MAP.diff_augmented_clk),
         ops.is_read + ops.is_write,
     )]
 }
