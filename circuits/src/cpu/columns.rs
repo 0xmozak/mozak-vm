@@ -357,7 +357,7 @@ pub fn data_for_halfword_memory() -> MemoryCtl<CpuCol> {
     }
 }
 
-const CPU_MAP: CpuState<CpuCol> = COL_MAP.cpu;
+pub(crate) const CPU_MAP: CpuState<CpuCol> = COL_MAP.cpu;
 
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -474,10 +474,10 @@ pub fn filter_for_shift_amount() -> CpuCol { CPU_MAP.inst.ops.ops_that_shift() }
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn data_for_inst() -> InstructionRow<Column> {
-    let inst = col_map().cpu.inst;
+pub fn data_for_inst() -> InstructionRow<CpuCol> {
+    let inst = CPU_MAP.inst;
     InstructionRow {
-        pc: Column::single(inst.pc),
+        pc: inst.pc,
         // Combine columns into a single column.
         // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5 bits.
         // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
@@ -487,15 +487,15 @@ pub fn data_for_inst() -> InstructionRow<Column> {
         // size of the Goldilocks field.
         // Note: The imm_value field, having more than 5 bits, must be positioned as the last
         // column in the list to ensure the correct functioning of 'reduce_with_powers'.
-        inst_data: Column::reduce_with_powers(
-            &[
-                Column::ascending_sum(inst.ops),
-                Column::single(inst.is_op1_signed),
-                Column::single(inst.is_op2_signed),
-                Column::ascending_sum(inst.rs1_select),
-                Column::ascending_sum(inst.rs2_select),
-                Column::ascending_sum(inst.rd_select),
-                Column::single(inst.imm_value),
+        inst_data: ColumnX::reduce_with_powers(
+            [
+                ColumnX::ascending_sum(inst.ops),
+                inst.is_op1_signed,
+                inst.is_op2_signed,
+                ColumnX::ascending_sum(inst.rs1_select),
+                ColumnX::ascending_sum(inst.rs2_select),
+                ColumnX::ascending_sum(inst.rd_select),
+                inst.imm_value,
             ],
             1 << 5,
         ),
