@@ -644,10 +644,7 @@ pub struct HalfWordMemoryCpuTable;
 impl Lookups for HalfWordMemoryCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_halfword_memory(),
-                cpu::columns::filter_for_halfword_memory(),
-            )],
+            vec![cpu::columns::lookup_for_halfword_memory()],
             memory_halfword::columns::lookup_for_cpu(),
         )
     }
