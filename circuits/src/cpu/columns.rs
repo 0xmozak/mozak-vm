@@ -404,23 +404,19 @@ pub fn filter_for_io_memory_private() -> CpuCol {
 }
 
 #[must_use]
-pub fn data_for_io_memory_public() -> InputOutputMemoryCtl<Column> {
-    let cpu = col_map().cpu;
+pub fn data_for_io_memory_public() -> InputOutputMemoryCtl<CpuCol> {
+    let cpu = CPU_MAP;
     InputOutputMemoryCtl {
         clk: cpu.clk,
         addr: cpu.io_addr,
         size: cpu.io_size,
     }
-    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_io_memory_public() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
-    cpu.is_io_store_public
-}
+pub fn filter_for_io_memory_public() -> CpuCol { CPU_MAP.is_io_store_public }
 
 #[must_use]
 pub fn data_for_io_transcript() -> InputOutputMemoryCtl<CpuCol> {

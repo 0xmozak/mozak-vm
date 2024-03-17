@@ -818,7 +818,7 @@ impl Lookups for IoMemoryPublicCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
+            vec![CpuTable::new_typed(
                 cpu::columns::data_for_io_memory_public(),
                 cpu::columns::filter_for_io_memory_public(),
             )],
