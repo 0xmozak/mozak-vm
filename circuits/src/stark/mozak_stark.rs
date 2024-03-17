@@ -456,7 +456,7 @@ impl<Row> TableNamed<Row> {
 /// Macro to instantiate a new table for cross table lookups.
 macro_rules! table_impl {
     ($t: ident, $tk: expr) => {
-        pub struct $t<Row>(std::marker::PhantomData<Row>);
+        pub struct $t<Row>(core::marker::PhantomData<Row>);
 
         impl<Row> $t<Row> {
             #[allow(clippy::new_ret_no_self)]
