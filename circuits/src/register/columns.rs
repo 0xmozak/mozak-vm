@@ -9,6 +9,8 @@ use crate::registerinit::columns::RegisterInitCtl;
 use crate::stark::mozak_stark::RegisterTable;
 #[cfg(feature = "enable_register_starks")]
 use crate::{rangecheck::columns::RangeCheckCtl, stark::mozak_stark::TableNamed};
+#[cfg(feature = "enable_register_starks")]
+use crate::cross_table_lookup::Column;
 
 columns_view_impl!(Ops);
 #[repr(C)]
