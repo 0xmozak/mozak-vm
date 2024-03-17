@@ -271,37 +271,37 @@ pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
-    let cpu = col_map().cpu.map(Column::from);
-    let ops = &cpu.inst.ops;
-    let divs = &ops.div + &ops.rem + &ops.srl + &ops.sra;
-    let muls = &ops.mul + &ops.mulh + &ops.sll;
+    let cpu = CPU_MAP;
+    let ops = cpu.inst.ops;
+    let divs = ops.div + ops.rem + ops.srl + ops.sra;
+    let muls = ops.mul + ops.mulh + ops.sll;
 
-    let new = RangeCheckCtl::new;
+    let new: fn(CpuCol) -> RangeCheckCtl<CpuCol> = RangeCheckCtl::new;
     vec![
-        CpuTable::new(new(cpu.quotient_value.clone()), divs.clone()),
-        CpuTable::new(new(cpu.remainder_value.clone()), divs.clone()),
-        CpuTable::new(new(cpu.remainder_slack), divs),
-        CpuTable::new(new(cpu.dst_value.clone()), &ops.add + &ops.sub + &ops.jalr),
-        CpuTable::new(new(cpu.inst.pc), ops.jalr.clone()),
-        CpuTable::new(new(cpu.abs_diff), &ops.bge + &ops.blt),
-        CpuTable::new(new(cpu.product_high_limb), muls.clone()),
-        CpuTable::new(new(cpu.product_low_limb), muls),
+        CpuTable::new_typed(new(cpu.quotient_value), divs),
+        CpuTable::new_typed(new(cpu.remainder_value), divs),
+        CpuTable::new_typed(new(cpu.remainder_slack), divs),
+        CpuTable::new_typed(new(cpu.dst_value), ops.add + ops.sub + ops.jalr),
+        CpuTable::new_typed(new(cpu.inst.pc), ops.jalr),
+        CpuTable::new_typed(new(cpu.abs_diff), ops.bge + ops.blt),
+        CpuTable::new_typed(new(cpu.product_high_limb), muls),
+        CpuTable::new_typed(new(cpu.product_low_limb), muls),
         // apply range constraints for the sign bits of each operand
-        CpuTable::new(
-            new(cpu.op1_value - cpu.op1_sign_bit * (1 << 32) + &cpu.inst.is_op1_signed * (1 << 31)),
+        CpuTable::new_typed(
+            new(cpu.op1_value - cpu.op1_sign_bit * (1 << 32) + cpu.inst.is_op1_signed * (1 << 31)),
             cpu.inst.is_op1_signed,
         ),
-        CpuTable::new(
-            new(cpu.op2_value - cpu.op2_sign_bit * (1 << 32) + &cpu.inst.is_op2_signed * (1 << 31)),
+        CpuTable::new_typed(
+            new(cpu.op2_value - cpu.op2_sign_bit * (1 << 32) + cpu.inst.is_op2_signed * (1 << 31)),
             cpu.inst.is_op2_signed,
         ),
-        CpuTable::new(
-            new(cpu.dst_value.clone() - cpu.dst_sign_bit.clone() * 0xFFFF_FF00),
-            cpu.inst.ops.lb.clone(),
+        CpuTable::new_typed(
+            new(cpu.dst_value - cpu.dst_sign_bit * 0xFFFF_FF00),
+            cpu.inst.ops.lb,
         ),
-        CpuTable::new(
-            new(cpu.dst_value - cpu.dst_sign_bit.clone() * 0xFFFF_0000),
-            cpu.inst.ops.lh.clone(),
+        CpuTable::new_typed(
+            new(cpu.dst_value - cpu.dst_sign_bit * 0xFFFF_0000),
+            cpu.inst.ops.lh,
         ),
     ]
 }

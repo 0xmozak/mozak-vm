@@ -1,5 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::linear_combination_x::ColumnX;
 use crate::stark::mozak_stark::{RangeCheckTable, TableNamed};
 
 #[repr(C)]
@@ -13,6 +14,8 @@ pub struct RangeCheckColumnsView<T> {
 columns_view_impl!(RangeCheckColumnsView);
 make_col_map!(RangeCheckColumnsView);
 
+type RangeCheckColumns = ColumnX<RangeCheckColumnsView<i64>>;
+
 /// Total number of columns for the range check table.
 pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS;
 
@@ -22,10 +25,10 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 pub fn data_filter() -> TableNamed<RangeCheckCtl<Column>> {
     let data = RangeCheckCtl::new(
         (0..4)
-            .map(|limb| Column::single(col_map().limbs[limb]) * (1 << (8 * limb)))
+            .map(|limb| COL_MAP.limbs[limb] * (1 << (8 * limb)))
             .sum(),
     );
-    RangeCheckTable::new(data, filter())
+    RangeCheckTable::new_typed(data, filter())
 }
 
 columns_view_impl!(RangeCheckCtl);
@@ -43,13 +46,13 @@ impl<T> RangeCheckCtl<T> {
 pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     (0..4)
         .map(|limb| {
-            RangeCheckTable::new(
-                RangeCheckCtl::new(Column::from(col_map().limbs[limb])),
-                Column::single(col_map().multiplicity),
+            RangeCheckTable::new_typed(
+                RangeCheckCtl::new(COL_MAP.limbs[limb]),
+                COL_MAP.multiplicity,
             )
         })
         .collect()
 }
 
 #[must_use]
-pub fn filter() -> Column { Column::single(col_map().multiplicity) }
+pub fn filter() -> RangeCheckColumns { COL_MAP.multiplicity }

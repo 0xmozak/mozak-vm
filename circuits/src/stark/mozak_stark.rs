@@ -459,11 +459,6 @@ macro_rules! table_impl {
         pub struct $t;
 
         impl $t {
-            #[allow(clippy::new_ret_no_self)]
-            pub fn new<Row>(columns: Row, filter_column: Column) -> TableNamed<Row> {
-                TableNamed::new($tk, columns, filter_column)
-            }
-
             pub fn new_typed<RowIn, RowOut, X>(
                 columns: RowIn,
                 filter_column: ColumnX<X>,

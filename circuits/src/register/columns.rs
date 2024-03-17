@@ -3,7 +3,6 @@ use core::ops::Add;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::linear_combination::Column;
 use crate::linear_combination_x::ColumnX;
 use crate::registerinit::columns::RegisterInitCtl;
 #[cfg(feature = "enable_register_starks")]

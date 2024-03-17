@@ -183,24 +183,21 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 // TODO(Matthias): make the types more readable.
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
-    let mem = col_map().map(Column::from);
+    let mem = COL_MAP;
     let new = RangeCheckCtl::new;
     let is_executed = mem.is_executed();
     vec![
-        MemoryTable::new(new(mem.addr), is_executed.clone()),
-        MemoryTable::new(
-            new(Column::single_diff(col_map().addr)),
-            is_executed.clone(),
-        ),
-        MemoryTable::new(new(mem.diff_clk), is_executed),
+        MemoryTable::new_typed(new(mem.addr), is_executed.clone()),
+        MemoryTable::new_typed(new(COL_MAP.addr), is_executed),
+        MemoryTable::new_typed(new(mem.diff_clk), is_executed),
     ]
 }
 
 #[must_use]
 pub fn rangecheck_u8_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
-    let mem = col_map().map(Column::from);
-    vec![MemoryTable::new(
-        RangeCheckCtl::new(mem.clone().value),
+    let mem = COL_MAP;
+    vec![MemoryTable::new_typed(
+        RangeCheckCtl::new(mem.value),
         mem.is_executed(),
     )]
 }
