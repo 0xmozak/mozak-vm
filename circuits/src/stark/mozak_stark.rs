@@ -566,18 +566,8 @@ impl Lookups for IntoMemoryTable {
         ]);
         #[cfg(feature = "enable_poseidon_starks")]
         {
-            tables.extend((0..8).map(|index| {
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(index),
-                    poseidon2_sponge::columns::filter_for_input_memory(),
-                )
-            }));
-            tables.extend((0..32).map(|index| {
-                Poseidon2OutputBytesTable::new(
-                    poseidon2_output_bytes::columns::data_for_output_memory(index),
-                    poseidon2_output_bytes::columns::filter_for_output_memory(),
-                )
-            }));
+            tables.extend((0..8).map(poseidon2_sponge::columns::lookup_for_input_memory));
+            tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
         }
         CrossTableLookupNamed::new(
             tables,
@@ -833,14 +823,8 @@ impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![Poseidon2OutputBytesTable::new(
-                crate::poseidon2_output_bytes::columns::data_for_poseidon2_sponge(),
-                crate::poseidon2_output_bytes::columns::filter_for_poseidon2_sponge(),
-            )],
-            Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_poseidon2_output_bytes(),
-                crate::poseidon2_sponge::columns::filter_for_poseidon2_output_bytes(),
-            ),
+            vec![crate::poseidon2_output_bytes::columns::lookup_for_poseidon2_sponge()],
+            crate::poseidon2_sponge::columns::lookup_for_poseidon2_output_bytes(),
         )
     }
 }

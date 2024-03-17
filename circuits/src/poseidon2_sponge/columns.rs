@@ -5,9 +5,11 @@ use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnX;
+use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2::columns::Poseidon2StateCtl;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
+use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableNamed};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -81,17 +83,34 @@ pub fn data_for_poseidon2() -> Poseidon2StateCtl<Pos2SpongeCol> {
 pub fn filter_for_poseidon2() -> Pos2SpongeCol { COL_MAP.is_executed() }
 
 #[must_use]
-pub fn data_for_poseidon2_output_bytes() -> Poseidon2OutputBytesCtl<Pos2SpongeCol> {
+pub fn lookup_for_poseidon2_output_bytes() -> TableNamed<Poseidon2OutputBytesCtl<Column>> {
     let sponge = COL_MAP;
-    Poseidon2OutputBytesCtl {
-        clk: sponge.clk,
-        output_addr: sponge.output_addr,
-        output_fields: sponge.output[..NUM_HASH_OUT_ELTS].try_into().unwrap(),
-    }
+    Poseidon2SpongeTable::new(
+        Poseidon2OutputBytesCtl {
+            clk: sponge.clk,
+            output_addr: sponge.output_addr,
+            output_fields: sponge.output[..NUM_HASH_OUT_ELTS].try_into().unwrap(),
+        },
+        COL_MAP.gen_output,
+    )
 }
 
 #[must_use]
-pub fn filter_for_poseidon2_output_bytes() -> Pos2SpongeCol { COL_MAP.gen_output }
+pub fn lookup_for_input_memory(limb_index: u8) -> TableNamed<MemoryCtl<Column>> {
+    assert!(limb_index < 8, "limb_index can be 0..7");
+    let sponge = COL_MAP;
+    let ops = COL_MAP.ops;
+    Poseidon2SpongeTable::new(
+        MemoryCtl {
+            clk: sponge.clk,
+            is_store: ColumnX::constant(0),
+            is_load: ColumnX::constant(1),
+            value: sponge.preimage[limb_index as usize],
+            addr: sponge.input_addr + i64::from(limb_index),
+        },
+        ops.is_init_permute + ops.is_permute,
+    )
+}
 
 #[must_use]
 pub fn data_for_input_memory(limb_index: u8) -> MemoryCtl<Pos2SpongeCol> {

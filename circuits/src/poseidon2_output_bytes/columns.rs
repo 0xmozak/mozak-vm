@@ -3,8 +3,10 @@ use plonky2::plonk::config::GenericHashOut;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnX;
+use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
+use crate::stark::mozak_stark::{Poseidon2OutputBytesTable, TableNamed};
 
 pub const FIELDS_COUNT: usize = 4;
 pub const BYTES_COUNT: usize = 32;
@@ -20,8 +22,6 @@ pub struct Poseidon2OutputBytes<F> {
     pub output_fields: [F; FIELDS_COUNT],
     pub output_bytes: [F; BYTES_COUNT],
 }
-
-type Poseidon2OutputBytesCol = ColumnX<Poseidon2OutputBytes<i64>>;
 
 pub const NUM_POSEIDON2_OUTPUT_BYTES_COLS: usize = Poseidon2OutputBytes::<()>::NUMBER_OF_COLUMNS;
 
@@ -60,30 +60,30 @@ pub struct Poseidon2OutputBytesCtl<F> {
 }
 
 #[must_use]
-pub fn data_for_poseidon2_sponge() -> Poseidon2OutputBytesCtl<Poseidon2OutputBytesCol> {
+pub fn lookup_for_poseidon2_sponge() -> TableNamed<Poseidon2OutputBytesCtl<Column>> {
     let data = COL_MAP;
-    Poseidon2OutputBytesCtl {
-        clk: data.clk,
-        output_addr: data.output_addr,
-        output_fields: data.output_fields,
-    }
+    Poseidon2OutputBytesTable::new(
+        Poseidon2OutputBytesCtl {
+            clk: data.clk,
+            output_addr: data.output_addr,
+            output_fields: data.output_fields,
+        },
+        COL_MAP.is_executed,
+    )
 }
 
 #[must_use]
-pub fn filter_for_poseidon2_sponge() -> Poseidon2OutputBytesCol { COL_MAP.is_executed }
-
-#[must_use]
-pub fn data_for_output_memory(limb_index: u8) -> MemoryCtl<Poseidon2OutputBytesCol> {
+pub fn lookup_for_output_memory(limb_index: u8) -> TableNamed<MemoryCtl<Column>> {
     assert!(limb_index < 32, "limb_index can be 0..31");
     let data = COL_MAP;
-    MemoryCtl {
-        clk: data.clk,
-        is_store: ColumnX::constant(1),
-        is_load: ColumnX::constant(0),
-        value: data.output_bytes[limb_index as usize],
-        addr: data.output_addr + i64::from(limb_index),
-    }
+    Poseidon2OutputBytesTable::new(
+        MemoryCtl {
+            clk: data.clk,
+            is_store: ColumnX::constant(1),
+            is_load: ColumnX::constant(0),
+            value: data.output_bytes[limb_index as usize],
+            addr: data.output_addr + i64::from(limb_index),
+        },
+        COL_MAP.is_executed,
+    )
 }
-
-#[must_use]
-pub fn filter_for_output_memory() -> Poseidon2OutputBytesCol { COL_MAP.is_executed }
