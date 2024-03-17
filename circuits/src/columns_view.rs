@@ -58,18 +58,6 @@ pub struct ColumnViewImplHider<T>(PhantomData<T>);
 /// `new_columns_repr` can be seamlessly converted between each other.
 macro_rules! columns_view_impl {
     ($s: ident) => {
-        impl<Item> crate::columns_view::Zip<Item> for $s<Item> {
-            fn zip_with<F>(self, other: Self, mut f: F) -> Self
-            where
-                F: FnMut(Item, Item) -> Item, {
-                $s::from_array({
-                    let mut a = self.into_iter();
-                    let mut b = other.into_iter();
-                    core::array::from_fn(move |_| f(a.next().unwrap(), b.next().unwrap()))
-                })
-            }
-        }
-
         // This hides all the `unsafe` from clippy
         impl<T> crate::columns_view::ColumnViewImplHider<$s<T>> {
             const fn from_array(value: [T; std::mem::size_of::<$s<u8>>()]) -> $s<T> {
@@ -117,6 +105,19 @@ macro_rules! columns_view_impl {
             where
                 F: FnMut(T) -> B, {
                 $s::from_array(self.into_array().map(f))
+            }
+        }
+
+
+        impl<Item> crate::columns_view::Zip<Item> for $s<Item> {
+            fn zip_with<F>(self, other: Self, mut f: F) -> Self
+            where
+                F: FnMut(Item, Item) -> Item, {
+                $s::from_array({
+                    let mut a = self.into_iter();
+                    let mut b = other.into_iter();
+                    core::array::from_fn(move |_| f(a.next().unwrap(), b.next().unwrap()))
+                })
             }
         }
 
