@@ -14,7 +14,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{BitshiftTable, CpuTable, TableNamed};
+use crate::stark::mozak_stark::{BitshiftTable, CpuTable, TableNamed, XorTable};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -307,15 +307,12 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     ]
 }
 
-/// Columns containing the data to be matched against Xor stark.
+/// Lookup into Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_xor() -> XorView<CpuCol> { CPU_MAP.xor }
-
-/// Column for a binary filter for bitwise instruction in Xor stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_xor() -> CpuCol { CPU_MAP.inst.ops.ops_that_use_xor() }
+pub fn lookup_for_xor() -> TableNamed<XorView<Column>> {
+    XorTable::new(CPU_MAP.xor, CPU_MAP.inst.ops.ops_that_use_xor())
+}
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
