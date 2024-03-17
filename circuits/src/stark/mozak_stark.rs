@@ -551,8 +551,8 @@ impl Lookups for XorCpuTable {
             .into()],
             looked_table: TableNamedTyped {
                 kind: TableKind::Xor,
-                columns: xor::columns::data_for_cpu_(),
-                filter_column: xor::columns::filter_for_cpu_(),
+                columns: xor::columns::data_for_cpu(),
+                filter_column: xor::columns::filter_for_cpu(),
             }
             .into(),
         }

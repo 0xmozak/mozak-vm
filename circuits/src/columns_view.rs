@@ -257,6 +257,7 @@ pub const fn col_map<const NUMBER_OF_COLUMNS: usize>() -> [usize; NUMBER_OF_COLU
 /// array with the column name rather than the column index.
 macro_rules! make_col_map {
     ($s: ident) => {
+        #[allow(dead_code)]
         pub(crate) const fn col_map() -> &'static $s<usize> {
             const MAP: $s<usize> = {
                 use crate::columns_view::NumberOfColumns;
