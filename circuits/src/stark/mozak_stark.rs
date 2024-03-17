@@ -468,10 +468,7 @@ impl Lookups for RangecheckTable {
             register,
         ]
         .collect();
-        CrossTableLookup::new(
-            looking,
-            RangeCheckTable::new(rangecheck::columns::data(), rangecheck::columns::filter()),
-        )
+        CrossTableLookup::new(looking, rangecheck::columns::lookup())
     }
 }
 
@@ -493,18 +490,9 @@ impl Lookups for IntoMemoryTable {
     fn lookups() -> CrossTableLookup {
         let mut tables = vec![];
         tables.extend([
-            CpuTable::new(
-                cpu::columns::data_for_memory(),
-                cpu::columns::filter_for_byte_memory(),
-            ),
-            HalfWordMemoryTable::new(
-                memory_halfword::columns::data_for_memory_limb(0),
-                memory_halfword::columns::filter(),
-            ),
-            HalfWordMemoryTable::new(
-                memory_halfword::columns::data_for_memory_limb(1),
-                memory_halfword::columns::filter(),
-            ),
+            cpu::columns::lookup_for_memory(),
+            memory_halfword::columns::lookup_for_memory_limb(0),
+            memory_halfword::columns::lookup_for_memory_limb(1),
             FullWordMemoryTable::new(
                 memory_fullword::columns::data_for_memory_limb(0),
                 memory_fullword::columns::filter(),
@@ -660,10 +648,7 @@ impl Lookups for HalfWordMemoryCpuTable {
                 cpu::columns::data_for_halfword_memory(),
                 cpu::columns::filter_for_halfword_memory(),
             )],
-            HalfWordMemoryTable::new(
-                memory_halfword::columns::data_for_cpu(),
-                memory_halfword::columns::filter(),
-            ),
+            memory_halfword::columns::lookup_for_cpu(),
         )
     }
 }

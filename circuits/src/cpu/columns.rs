@@ -312,24 +312,20 @@ pub fn lookup_for_xor() -> Table {
     )
 }
 
-/// Column containing the data to be matched against Memory stark.
+/// Lookup into Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_memory() -> Vec<Column> {
-    vec![
-        Column::single(col_map().cpu.clk),
-        Column::single(col_map().cpu.inst.ops.sb),
-        Column::single(col_map().cpu.inst.ops.lb), // For both `LB` and `LBU`
-        Column::single(col_map().cpu.mem_value_raw),
-        Column::single(col_map().cpu.mem_addr),
-    ]
-}
-
-/// Column for a binary filter for memory instruction in Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_byte_memory() -> Column {
-    col_map().cpu.map(Column::from).inst.ops.byte_mem_ops()
+pub fn lookup_for_memory() -> Table {
+    CpuTable::new(
+        vec![
+            Column::single(col_map().cpu.clk),
+            Column::single(col_map().cpu.inst.ops.sb),
+            Column::single(col_map().cpu.inst.ops.lb), // For both `LB` and `LBU`
+            Column::single(col_map().cpu.mem_value_raw),
+            Column::single(col_map().cpu.mem_addr),
+        ],
+        col_map().cpu.map(Column::from).inst.ops.byte_mem_ops(),
+    )
 }
 
 /// Column containing the data to be matched against Memory stark.
