@@ -324,23 +324,22 @@ pub fn filter_for_xor() -> ColumnX<CpuColumnsExtended<i64>> {
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_memory() -> MemoryCtl<Column> {
-    let map = col_map().cpu;
+pub fn data_for_memory() -> MemoryCtl<ColumnX<CpuColumnsExtended<i64>>> {
+    let cpu = COL_MAP.cpu;
     MemoryCtl {
-        clk: map.clk,
-        is_store: map.inst.ops.sb,
-        is_load: map.inst.ops.lb, // For both `LB` and `LBU`
-        addr: map.mem_addr,
-        value: map.mem_value_raw,
+        clk: cpu.clk,
+        is_store: cpu.inst.ops.sb,
+        is_load: cpu.inst.ops.lb, // For both `LB` and `LBU`
+        addr: cpu.mem_addr,
+        value: cpu.mem_value_raw,
     }
-    .map(Column::from)
 }
 
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_byte_memory() -> Column {
-    col_map().cpu.map(Column::from).inst.ops.byte_mem_ops()
+pub fn filter_for_byte_memory() -> ColumnX<CpuColumnsExtended<i64>> {
+    COL_MAP.cpu.inst.ops.byte_mem_ops()
 }
 
 /// Column containing the data to be matched against Memory stark.
