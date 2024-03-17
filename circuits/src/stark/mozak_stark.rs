@@ -611,10 +611,7 @@ impl Lookups for InnerCpuTable {
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
             vec![cpu::columns::lookup_for_inst()],
-            CpuTable::new(
-                cpu::columns::data_for_permuted_inst(),
-                cpu::columns::COL_MAP.cpu.is_running,
-            ),
+            cpu::columns::lookup_for_permuted_inst(),
         )
     }
 }
@@ -626,14 +623,8 @@ impl Lookups for ProgramCpuTable {
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_permuted_inst(),
-                cpu::columns::COL_MAP.permuted.filter,
-            )],
-            ProgramTable::new(
-                program::columns::data_for_ctl(),
-                program::columns::COL_MAP.filter,
-            ),
+            vec![cpu::columns::lookup_for_program_rom()],
+            program::columns::lookup_for_ctl(),
         )
     }
 }
