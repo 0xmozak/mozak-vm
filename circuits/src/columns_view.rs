@@ -219,9 +219,8 @@ macro_rules! columns_view_impl {
 
 pub(crate) use columns_view_impl;
 
-/// Implement a static `MAP` of the `ColumnsView` from an array with length
-/// [`NumberOfColumns`] of the `ColumnsView` that allows for indexing into an
-/// array with the column name rather than the column index.
+/// Implement a static `MAP` of the `ColumnsView` that allows for indexing for
+/// crosstable lookups
 macro_rules! make_col_map {
     ($s: ident) => {
         // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
