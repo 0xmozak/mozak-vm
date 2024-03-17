@@ -14,7 +14,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{BitshiftTable, CpuTable, TableNamed, XorTable};
+use crate::stark::mozak_stark::{BitshiftTable, CpuTable, MemoryTable, TableNamed, XorTable};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -317,23 +317,21 @@ pub fn lookup_for_xor() -> TableNamed<XorView<Column>> {
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_memory() -> MemoryCtl<CpuCol> {
+pub fn lookup_for_memory() -> TableNamed<MemoryCtl<Column>> {
     let cpu = CPU_MAP;
-    MemoryCtl {
-        clk: cpu.clk,
-        is_store: cpu.inst.ops.sb,
-        is_load: cpu.inst.ops.lb, // For both `LB` and `LBU`
-        addr: cpu.mem_addr,
-        value: cpu.mem_value_raw,
-    }
+    MemoryTable::new(
+        MemoryCtl {
+            clk: cpu.clk,
+            is_store: cpu.inst.ops.sb,
+            is_load: cpu.inst.ops.lb, // For both `LB` and `LBU`
+            addr: cpu.mem_addr,
+            value: cpu.mem_value_raw,
+        },
+        CPU_MAP.inst.ops.byte_mem_ops(),
+    )
 }
 
 type CpuCol = ColumnX<CpuColumnsExtended<i64>>;
-
-/// Column for a binary filter for memory instruction in Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_byte_memory() -> CpuCol { CPU_MAP.inst.ops.byte_mem_ops() }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

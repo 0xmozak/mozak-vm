@@ -554,10 +554,7 @@ impl Lookups for IntoMemoryTable {
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
         let mut tables = vec![];
         tables.extend([
-            CpuTable::new(
-                cpu::columns::data_for_memory(),
-                cpu::columns::filter_for_byte_memory(),
-            ),
+            cpu::columns::lookup_for_memory(),
             HalfWordMemoryTable::new(
                 memory_halfword::columns::data_for_memory_limb(0),
                 memory_halfword::columns::filter(),
