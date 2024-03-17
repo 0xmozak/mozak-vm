@@ -214,26 +214,21 @@ pub struct MemoryCtl<T> {
 
 type MemCol = ColumnX<Memory<i64>>;
 
-/// Columns containing the data which are looked from the CPU table into Memory
+/// Lookup between CPU table and Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu() -> MemoryCtl<MemCol> {
-    let map = COL_MAP;
-    MemoryCtl {
-        clk: map.clk,
-        is_store: map.is_store,
-        is_load: map.is_load,
-        addr: map.addr,
-        value: map.value,
-    }
-}
-
-/// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
-#[must_use]
-pub fn filter_for_cpu() -> MemCol {
+pub fn lookup_for_cpu() -> TableNamed<MemoryCtl<Column>> {
     let mem = COL_MAP;
-    mem.is_store + mem.is_load
+    MemoryTable::new(
+        MemoryCtl {
+            clk: mem.clk,
+            is_store: mem.is_store,
+            is_load: mem.is_load,
+            addr: mem.addr,
+            value: mem.value,
+        },
+        mem.is_store + mem.is_load,
+    )
 }
 
 /// Lookup into `MemoryInit` Table

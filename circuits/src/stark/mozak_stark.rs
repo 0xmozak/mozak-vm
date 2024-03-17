@@ -569,13 +569,7 @@ impl Lookups for IntoMemoryTable {
             tables.extend((0..8).map(poseidon2_sponge::columns::lookup_for_input_memory));
             tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
         }
-        CrossTableLookupNamed::new(
-            tables,
-            MemoryTable::new(
-                memory::columns::data_for_cpu(),
-                memory::columns::filter_for_cpu(),
-            ),
-        )
+        CrossTableLookupNamed::new(tables, memory::columns::lookup_for_cpu())
     }
 }
 
