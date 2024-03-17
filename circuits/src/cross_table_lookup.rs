@@ -16,7 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::linear_combination_x::ColumnX;
+pub use crate::linear_combination_x::ColumnX;
 use crate::stark::mozak_stark::{
     all_kind, Table, TableKind, TableKindArray, TableNamed, TableNamedTyped,
 };

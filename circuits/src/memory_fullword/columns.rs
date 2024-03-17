@@ -1,7 +1,7 @@
 use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::linear_combination_x::ColumnX;
+use crate::cross_table_lookup::ColumnX;
 use crate::memory::columns::MemoryCtl;
 
 /// Operations (one-hot encoded)

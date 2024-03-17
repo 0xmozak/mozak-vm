@@ -297,7 +297,7 @@ macro_rules! make_col_map {
                 use core::mem::transmute;
 
                 use crate::columns_view::NumberOfColumns;
-                use crate::linear_combination_x::ColumnX;
+                use crate::cross_table_lookup::ColumnX;
                 const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
                 type ArrayForm = [ColumnX<[i64; N]>; N];
                 let identity_matrix: ArrayForm = {

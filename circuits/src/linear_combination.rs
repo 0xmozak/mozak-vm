@@ -12,7 +12,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::linear_combination_x::ColumnX;
+use crate::cross_table_lookup::ColumnX;
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]

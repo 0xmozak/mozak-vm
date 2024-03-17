@@ -2,7 +2,7 @@ use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::plonk::config::GenericHashOut;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::linear_combination_x::ColumnX;
+use crate::cross_table_lookup::ColumnX;
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 

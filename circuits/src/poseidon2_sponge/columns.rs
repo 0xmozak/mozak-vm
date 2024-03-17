@@ -4,7 +4,7 @@ use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::linear_combination_x::ColumnX;
+use crate::cross_table_lookup::ColumnX;
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2::columns::Poseidon2StateCtl;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
