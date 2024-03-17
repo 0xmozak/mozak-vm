@@ -456,11 +456,11 @@ impl<Row> TableNamed<Row> {
 /// Macro to instantiate a new table for cross table lookups.
 macro_rules! table_impl {
     ($t: ident, $tk: expr) => {
-        pub struct $t<Row>(core::marker::PhantomData<Row>);
+        pub struct $t;
 
-        impl<Row> $t<Row> {
+        impl $t {
             #[allow(clippy::new_ret_no_self)]
-            pub fn new(columns: Row, filter_column: Column) -> TableNamed<Row> {
+            pub fn new<Row>(columns: Row, filter_column: Column) -> TableNamed<Row> {
                 TableNamed::new($tk, columns, filter_column)
             }
         }
