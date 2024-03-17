@@ -504,9 +504,7 @@ pub fn data_for_inst() -> InstructionRow<CpuCol> {
 
 /// Columns containing the data of permuted instructions.
 #[must_use]
-pub fn data_for_permuted_inst() -> InstructionRow<Column> {
-    col_map().permuted.inst.map(Column::from)
-}
+pub fn data_for_permuted_inst() -> InstructionRow<CpuCol> { COL_MAP.permuted.inst }
 
 #[must_use]
 pub fn data_for_poseidon2_sponge() -> Poseidon2SpongeCtl<CpuCol> {
