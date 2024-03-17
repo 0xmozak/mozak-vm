@@ -24,7 +24,7 @@ tmp
 perftool/plots/*.svg
 
 # Generated IOTapes
-*.tape
+*.tape*
 
 riscv-testdata/testdata/*.o
 riscv-testdata/testdata/*.s

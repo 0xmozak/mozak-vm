@@ -185,7 +185,6 @@ mod tests {
         assert_eq!(ordered_events.get_canonical_order_temporal_hints(), 
             expected_canonical_order.into_iter().zip(expected_temporal_hints.into_iter()).collect::<Vec<(CanonicalEvent, usize)>>()); 
         
-
         assert_eq!(ordered_events.get_temporal_order_canonical_hints(), 
             temporal_order.into_iter().zip(expected_canonical_hints.into_iter()).collect::<Vec<(Event, usize)>>()); 
     }

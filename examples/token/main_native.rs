@@ -9,12 +9,15 @@ use token::{dispatch, MethodArgs, MethodReturns};
 
 fn main() {
     let token_program = ProgramIdentifier::new_from_rand_seed(1);
+
+    // We assume both wallet are the same program for now
     let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
     let remittee_program = ProgramIdentifier::new_from_rand_seed(3);
-    let pub_key = wallet::PublicKey::new_from_rand_seed(4);
+    let remitter_pub_key = wallet::PublicKey::new_from_rand_seed(4);
+    let remittee_pub_key = wallet::PublicKey::new_from_rand_seed(5);
 
     let token_object = wallet::TokenObject {
-        pub_key,
+        pub_key: remitter_pub_key,
         amount: 100.into(),
     };
 
@@ -23,7 +26,6 @@ fn main() {
     let state_object = StateObject {
         address: StateAddress::new_from_rand_seed(4),
         constraint_owner: token_program,
-        // TODO(bing): encode a change in different economic owner in this `TokenObject`
         data: bytes.to_vec(),
     };
 
@@ -33,26 +35,10 @@ fn main() {
             state_object,
             remitter_program,
             remittee_program,
+            remittee_pub_key
         ),
         dispatch,
     );
-    // call_send(
-    //     ProgramIdentifier::default(),
-    //     token_program,
-    //     MethodArgs::Transfer(
-    //         token_program,
-    //         state_object,
-    //         remitter_wallet,
-    //         remittee_wallet,
-    //     ),
-    //     dispatch,
-    //     || -> MethodReturns {
-    //         MethodReturns::Transfer // TODO read from
-    //                                 // private tape
-    //     },
-    // );
 
     mozak_sdk::native::dump_system_tape("token_tfr", true);
-
-    // println!("------>   Generated tapes!");
 }

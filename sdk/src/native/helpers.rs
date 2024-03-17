@@ -50,15 +50,13 @@ fn write_to_file(file_path: &str, content: &[u8]) {
 
 /// Dumps a copy of `SYSTEM_TAPE` to disk, serialized
 /// via `serde_json` as well as in rust debug file format
-/// if opted for. Extension of `.tape` is used for serialized
-/// formed of tape on disk, `.tape_debug` will be used for
-/// debug tape on disk. Prior to dumping on disk, a pre-processor
-/// runs on `SYSTEM_TAPE` as needed.
+/// if opted for. Extension of `.tape.json` is used for serialized
+/// formed of tape on disk, `.tape.debug` will be used for
+/// debug tape on disk.
 #[allow(dead_code)]
 pub fn dump_system_tape(
     file_template: &str,
     is_debug_tape_required: bool,
-    // pre_processor: Option<impl Fn(SystemTape) -> SystemTape>,
 ) {
     let tape_clone = unsafe {
         crate::common::system::SYSTEM_TAPE.clone() // .clone() removes `Lazy{}`
@@ -72,7 +70,7 @@ pub fn dump_system_tape(
     }
 
     write_to_file(
-        &(file_template.to_string() + ".tape"),
+        &(file_template.to_string() + ".tape.json"),
         &serde_json::to_string_pretty(&tape_clone)
             .unwrap()
             .into_bytes(),
