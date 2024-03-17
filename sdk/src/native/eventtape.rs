@@ -6,6 +6,101 @@ use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{CanonicalEvent, Event, ProgramIdentifier};
 use crate::native::helpers::IdentityStack;
 
+/// A list with ordered events according to either time
+/// (temporal) or address & operations (canonical). Intenally
+/// the elements are always kept in a temporal order; however
+/// extraction is possible for both orderings.
+#[derive(Default, Debug, Clone)]
+#[cfg_attr(
+    not(target_os = "mozakvm"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
+pub struct OrderedEvents {
+    temporal_ordering: Vec<(Event, CanonicalEvent)>,
+}
+
+impl OrderedEvents {
+    pub fn new(emitter: ProgramIdentifier, events: Vec<Event>) -> Self {
+        Self {
+            temporal_ordering: events
+                .into_iter()
+                .map(|x| (x.clone(), CanonicalEvent::from_event(emitter, &x)))
+                .collect(),
+        }
+    }
+
+    /// Adds to ordered events an event "temporaly" a.k.a ordered in time
+    /// after every other `Event` in `OrderedEvents`. This is the only
+    /// way to add elements to `OrderedEvents`
+    pub fn push_temporal(&mut self, emitter: ProgramIdentifier, event: Event) {
+        let canonical_repr = CanonicalEvent::from_event(emitter, &event);
+        self.temporal_ordering.push((event, canonical_repr));
+    }
+
+    /// Provides back a cononical ordering of events with attached indices
+    /// pointing to the location of such `CanonicalEvent` in temporal
+    /// ordering
+    #[allow(dead_code)]
+    fn get_canonical_ordering(&self) -> Vec<(CanonicalEvent, usize)> {
+        let mut canonically_sorted = self
+            .temporal_ordering
+            .iter()
+            .zip(0usize..)
+            .map(|((_, canonical_event), idx)| (*canonical_event, idx))
+            .collect::<Vec<(CanonicalEvent, usize)>>();
+        canonically_sorted.sort();
+        canonically_sorted
+    }
+
+    /// Returns a temporal order with hints on where to find elements
+    /// w.r.t canonical order. Example:
+    /// Temporal Order: [`Read_400`, `Read_200`, `Read_100`, `Read_300`]
+    /// Canonical Hint: [   2,          1,           3,        0]
+    #[allow(dead_code)]
+    pub fn get_temporal_order_canonical_hints(&self) -> Vec<(Event, usize)> {
+        self.temporal_ordering
+            .iter()
+            .zip(self.get_canonical_ordering())
+            .map(|((event, _), (_, idx))| (event.clone(), idx))
+            .collect::<Vec<(Event, usize)>>()
+    }
+
+    /// Returns a canonical order with hints on where to find elements
+    /// w.r.t temporal order. Example:
+    /// Temporal Order:  [`Read_400`, `Read_200`, `Read_100`, `Read_300`]
+    /// Canonical Order: [`Read_100`, `Read_200`, `Read_300`, `Read_400`]
+    /// Temporal Hints:  [   3,          1,           0,           2]
+    #[allow(dead_code)]
+    pub fn get_canonical_order_temporal_hints(&self) -> Vec<(CanonicalEvent, usize)> {
+        fn reverse_ordering(original_ordering: &[usize]) -> Vec<usize> {
+            let mut reversed_ordering = vec![0; original_ordering.len()];
+
+            // Iterate through the original ordering
+            for (index, &position) in original_ordering.iter().enumerate() {
+                reversed_ordering[position] = index;
+            }
+
+            reversed_ordering
+        }
+
+        let canonical_ordering = self.get_canonical_ordering();
+
+        let reversed_indices = reverse_ordering(
+            canonical_ordering
+                .iter()
+                .map(|(_, idx)| *idx)
+                .collect::<Vec<usize>>()
+                .as_ref(),
+        );
+
+        canonical_ordering
+            .into_iter()
+            .zip(reversed_indices)
+            .map(|((canonical_event, _), idx)| (canonical_event, idx))
+            .collect::<Vec<(CanonicalEvent, usize)>>()
+    }
+}
+
 /// Represents the `EventTape` under native execution
 #[derive(Default, Clone)]
 #[cfg_attr(
@@ -16,7 +111,7 @@ pub struct EventTape {
     #[serde(skip)]
     pub(crate) identity_stack: Rc<RefCell<IdentityStack>>,
     #[serde(rename = "individual_event_tapes")]
-    pub(crate) writer: HashMap<ProgramIdentifier, Vec<(Event, CanonicalEvent)>>,
+    pub(crate) writer: HashMap<ProgramIdentifier, OrderedEvents>,
 }
 
 impl std::fmt::Debug for EventTape {
@@ -33,10 +128,10 @@ impl EventEmit for EventTape {
     fn emit(&mut self, event: Event) {
         let self_id = self.get_self_identity();
         assert_ne!(self_id, ProgramIdentifier::default());
-        let canonical_repr = CanonicalEvent::from_event(self_id, &event);
+
         self.writer
-            .entry(self.get_self_identity())
-            .and_modify(|x| x.push((event.clone(), canonical_repr)))
-            .or_insert(vec![(event, canonical_repr)]);
+            .entry(self_id)
+            .and_modify(|x| x.push_temporal(self_id, event.clone()))
+            .or_insert(OrderedEvents::new(self_id, vec![event]));
     }
 }
