@@ -268,12 +268,12 @@ mod tests {
     #[test]
     fn test_hash_n_to_m_no_pad() {
         let data = "💥 Mozak-VM Rocks With Poseidon2";
-        let data_fields: Vec<GoldilocksField> =
+        let (data_fields, padded_counter): (Vec<GoldilocksField>, usize) =
             MozakPoseidon2::convert_input_to_fe_with_padding(data.as_bytes());
         let (hash, _sponge_data) = super::hash_n_to_m_no_pad::<
             GoldilocksField,
             Poseidon2Permutation<GoldilocksField>,
-        >(&data_fields);
+        >(&data_fields, padded_counter);
         let hash_bytes = hash.to_bytes();
         assert_eq!(
             hash_bytes,
