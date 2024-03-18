@@ -16,6 +16,7 @@ macro_rules! entry {
             #[no_mangle]
             fn main() {
                 super::MOZAK_ENTRY();
+                #[cfg(feature = "std")]
                 mozak_sdk::common::system::ensure_clean_shutdown();
             }
         }

@@ -13,7 +13,7 @@ extern crate alloc as rust_alloc;
 
 pub mod core;
 
-// #[cfg(feature = "std")]
+#[cfg(feature = "std")]
 pub mod common;
 
 #[cfg(all(feature = "std", target_os = "mozakvm"))]
@@ -32,6 +32,7 @@ pub mod native;
 /// Emit an event from `mozak_vm` to provide receipts of
 /// `reads` and state updates including `create` and `delete`.
 /// Panics on event-tape non-abidance.
+#[cfg(feature = "std")]
 pub fn event_emit(event: crate::common::types::Event) {
     use crate::common::traits::EventEmit;
     unsafe {
@@ -42,6 +43,7 @@ pub fn event_emit(event: crate::common::types::Event) {
 /// Receive one message from mailbox targetted to us and its index
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
+#[cfg(feature = "std")]
 #[must_use]
 pub fn call_receive<A, R>() -> Option<(crate::common::types::ProgramIdentifier, A, R)>
 where
@@ -56,6 +58,7 @@ where
 /// Send one message from mailbox targetted to some third-party
 /// resulting in such messages finding itself in their mailbox
 /// Panics on call-tape non-abidance.
+#[cfg(feature = "std")]
 #[allow(clippy::similar_names)]
 pub fn call_send<A, R>(
     recepient_program: crate::common::types::ProgramIdentifier,
