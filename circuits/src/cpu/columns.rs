@@ -184,7 +184,7 @@ pub struct CpuState<T> {
 }
 
 make_col_map!(CpuColumnsExtended);
-pub(crate) const CPU_MAP: CpuState<CpuCol> = COL_MAP.cpu;
+pub(crate) const CPU_MAP: CpuState<ColumnTyped<CpuColumnsExtended<i64>>> = COL_MAP.cpu;
 
 columns_view_impl!(CpuColumnsExtended);
 #[repr(C)]
@@ -331,8 +331,6 @@ pub fn lookup_for_memory() -> TableNamed<MemoryCtl<Column>> {
     )
 }
 
-type CpuCol = ColumnTyped<CpuColumnsExtended<i64>>;
-
 /// Lookup into half word Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
@@ -350,7 +348,7 @@ pub fn lookup_for_halfword_memory() -> TableNamed<MemoryCtl<Column>> {
     )
 }
 
-/// Lookup into Fullword Memory stark.
+/// Lookup into fullword Memory table.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn lookup_for_fullword_memory() -> TableNamed<MemoryCtl<Column>> {
