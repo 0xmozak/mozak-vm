@@ -484,7 +484,7 @@ pub fn lookup_for_permuted_inst() -> Table {
     )
 }
 
-/// Lookup for permuted instructions.
+/// Lookup for permuted instructions into program ROM.
 #[must_use]
 pub fn lookup_for_program_rom() -> Table {
     CpuTable::new(

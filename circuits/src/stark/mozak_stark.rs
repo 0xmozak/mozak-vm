@@ -552,10 +552,7 @@ impl Lookups for ProgramCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
             vec![cpu::columns::lookup_for_permuted_inst()],
-            ProgramTable::new(
-                program::columns::data_for_ctl(),
-                Column::single(program::columns::col_map().filter),
-            ),
+            program::columns::lookup_for_ctl(),
         )
     }
 }
@@ -607,10 +604,7 @@ pub struct RegisterRegInitTable;
 impl Lookups for RegisterRegInitTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![RegisterTable::new(
-                crate::register::columns::data_for_register_init(),
-                crate::register::columns::filter_for_register_init(),
-            )],
+            vec![crate::register::columns::lookup_for_register_init()],
             RegisterInitTable::new(
                 crate::registerinit::columns::data_for_register(),
                 crate::registerinit::columns::filter_for_register(),
