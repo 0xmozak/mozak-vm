@@ -5,11 +5,12 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map};
 #[cfg(feature = "enable_register_starks")]
 use crate::cross_table_lookup::Column;
+#[cfg(feature = "enable_register_starks")]
+use crate::rangecheck::columns::RangeCheckCtl;
+#[cfg(feature = "enable_register_starks")]
 use crate::registerinit::columns::RegisterInitCtl;
 #[cfg(feature = "enable_register_starks")]
-use crate::stark::mozak_stark::RegisterTable;
-#[cfg(feature = "enable_register_starks")]
-use crate::{rangecheck::columns::RangeCheckCtl, stark::mozak_stark::TableNamed};
+use crate::stark::mozak_stark::{RegisterTable, TableNamed};
 
 columns_view_impl!(Ops);
 #[repr(C)]
@@ -100,6 +101,7 @@ impl<T: Add<Output = T>> Register<T> {
     pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
 }
 
+#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn lookup_for_register_init() -> TableNamed<RegisterInitCtl<Column>> {
     let reg = COL_MAP;

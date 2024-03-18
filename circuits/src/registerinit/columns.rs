@@ -1,5 +1,7 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
+#[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
+#[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::{RegisterInitTable, TableNamed};
 
 columns_view_impl!(RegisterInit);
@@ -32,6 +34,7 @@ pub struct RegisterInitCtl<T> {
     pub value: T,
 }
 
+#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn lookup_for_register() -> TableNamed<RegisterInitCtl<Column>> {
     let reg = COL_MAP;
