@@ -36,20 +36,5 @@ impl EventEmit for EventTape {
 
         assert!(canonical_event == generated_canonical_event);
         self.index += 1;
-        // let zcd_event = &self.reader.unwrap()[self.index];
-        // let event_deserialized: Event = zcd_event.deserialize(&mut
-        // rkyv::Infallible).unwrap();
-
-        // assert!(event == event_deserialized);
-
-        // assert!(
-        //     match event.type_ {
-        //         EventType::Create | EventType::Delete | EventType::Write =>
-        //             event.object.constraint_owner,
-        //         _ => self.self_prog_id,
-        //     } == self.self_prog_id
-        // );
-
-        // self.index += 1;
     }
 }
