@@ -84,7 +84,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
     let cpu_trace = &trace_to_poly_values(cpu_trace.clone());
 
-    RangecheckTable::lookups_untyped()
+    RangecheckTable::lookups()
         .looking_tables
         .into_iter()
         .for_each(|looking_table| {
