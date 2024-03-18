@@ -18,7 +18,7 @@
 exclude = ["sdk"]
 members = [
   "cli",
-  # "examples-builder",
+  "examples-builder",
   "runner",
   "circuits",
   "node-cli",
