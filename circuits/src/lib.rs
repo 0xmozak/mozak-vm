@@ -7,6 +7,8 @@
 // FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
 #![allow(clippy::ignored_unit_patterns)]
 
+extern crate core;
+
 pub mod bitshift;
 pub mod columns_view;
 pub mod cpu;

@@ -20,15 +20,16 @@ impl MozakPoseidon2 {
     pub const LEADING_ZEROS: usize =
         Self::BYTES_PER_FIELD_ELEMENT - Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
 
+    // TODO: FIXME(Roman + Kapil):
+    // Padding zeros should be a
+    // security issue
     #[must_use]
-    pub fn padding(data: &[u8]) -> Vec<u8> {
+    pub fn do_padding(data: &[u8]) -> Vec<u8> {
         let mut padded = data.to_vec();
         if padded.len() % Self::DATA_PADDING != 0 {
             padded.resize(
                 padded.len().next_multiple_of(Self::DATA_PADDING), // FIXME(Roman): can be lcd
-                0_u8,                                              /* FIXME(Roman + Kapil):
-                                                                    * Padding zeros should be a
-                                                                    * security issue */
+                0_u8,
             );
         }
         padded
@@ -41,17 +42,17 @@ impl MozakPoseidon2 {
     #[must_use]
     // To make it safe for user to change constants
     #[allow(clippy::assertions_on_constants)]
-    pub fn convert_input_to_fe_with_padding<F: RichField>(data: &[u8]) -> Vec<F> {
+    pub fn pack_padded_input<F: RichField>(data: &[u8]) -> Vec<F> {
         assert!(
             Self::DATA_CAPACITY_PER_FIELD_ELEMENT < Self::BYTES_PER_FIELD_ELEMENT,
             "For 64 bit field maximum supported packing is 7 bytes"
         );
-
-        let padded_input = MozakPoseidon2::padding(data);
-
-        padded_input
-            .as_slice()
-            .chunks(Self::DATA_CAPACITY_PER_FIELD_ELEMENT)
+        assert_eq!(
+            data.len() % MozakPoseidon2::DATA_PADDING,
+            0,
+            "Allow only padded byte-data"
+        );
+        data.chunks(Self::DATA_CAPACITY_PER_FIELD_ELEMENT)
             .map(|x| {
                 // Padding with leading zeros, since `from_be_bytes` is used later on
                 let mut xx: Vec<u8> = vec![0; Self::LEADING_ZEROS];
@@ -170,7 +171,7 @@ impl<F: RichField> State<F> {
             input_len,
             MozakPoseidon2::DATA_PADDING
         );
-        let input = MozakPoseidon2::convert_input_to_fe_with_padding(
+        let input = MozakPoseidon2::pack_padded_input(
             (0..input_len)
                 .map(|i| self.load_u8(input_ptr + i))
                 .collect_vec()
@@ -234,8 +235,9 @@ mod tests {
     #[test]
     fn test_hash_n_to_m_no_pad() {
         let data = "💥 Mozak-VM Rocks With Poseidon2";
-        let data_fields: Vec<GoldilocksField> =
-            MozakPoseidon2::convert_input_to_fe_with_padding(data.as_bytes());
+        let data_fields: Vec<GoldilocksField> = MozakPoseidon2::pack_padded_input(
+            MozakPoseidon2::do_padding(data.as_bytes()).as_slice(),
+        );
         let (hash, _sponge_data) = super::hash_n_to_m_no_pad::<
             GoldilocksField,
             Poseidon2Permutation<GoldilocksField>,

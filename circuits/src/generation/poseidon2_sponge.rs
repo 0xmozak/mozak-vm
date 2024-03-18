@@ -96,7 +96,7 @@ mod test {
     #[test]
     fn generate_poseidon2_sponge_trace() {
         let data = "😇 Mozak is knowledge arguments based technology".to_string();
-        let data_len_in_bytes = MozakPoseidon2::padding(data.as_bytes()).len();
+        let data_len_in_bytes = MozakPoseidon2::do_padding(data.as_bytes()).len();
         let input_start_addr = 1024;
         let output_start_addr = 2048;
         let (_program, record) = create_poseidon2_test(&[Poseidon2Test {

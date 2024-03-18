@@ -417,7 +417,7 @@ pub fn create_poseidon2_test(
     let mut memory: Vec<(u32, u8)> = vec![];
 
     for test_datum in test_data {
-        let data_bytes = MozakPoseidon2::padding(test_datum.data.as_bytes());
+        let data_bytes = MozakPoseidon2::do_padding(test_datum.data.as_bytes());
         let data_len = data_bytes.len();
         let input_memory: Vec<(u32, u8)> =
             izip!((test_datum.input_start_addr..), data_bytes).collect();
