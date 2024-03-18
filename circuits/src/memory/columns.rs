@@ -164,11 +164,8 @@ impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
     }
 }
 
-impl<T: Clone + Add<Output = T>> Memory<T> {
-    pub fn is_executed(&self) -> T {
-        let s: Memory<T> = self.clone();
-        s.is_store + s.is_load + s.is_init
-    }
+impl<T: Copy + Add<Output = T>> Memory<T> {
+    pub fn is_executed(&self) -> T { self.is_store + self.is_load + self.is_init }
 }
 
 pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
@@ -183,13 +180,11 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     let mem = COL_MAP;
-    let new = RangeCheckCtl::new;
     let is_executed = mem.is_executed();
-    vec![
-        MemoryTable::new(new(mem.addr), is_executed),
-        MemoryTable::new(new(COL_MAP.addr), is_executed),
-        MemoryTable::new(new(mem.diff_clk), is_executed),
-    ]
+    [mem.addr, COL_MAP.addr, mem.diff_clk]
+        .into_iter()
+        .map(|addr| MemoryTable::new(RangeCheckCtl::new(addr), is_executed))
+        .collect()
 }
 
 #[must_use]
