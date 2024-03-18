@@ -5,6 +5,7 @@ use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
+use crate::stark::mozak_stark::{Poseidon2SpongeTable, Table};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -91,20 +92,17 @@ pub fn data_for_poseidon2_output_bytes() -> Vec<Column> {
 pub fn filter_for_poseidon2_output_bytes() -> Column { col_map().map(Column::from).gen_output }
 
 #[must_use]
-pub fn data_for_input_memory(limb_index: u8) -> Vec<Column> {
+pub fn lookup_for_input_memory(limb_index: u8) -> Table {
     assert!(limb_index < 8, "limb_index can be 0..7");
     let sponge = col_map().map(Column::from);
-    vec![
-        sponge.clk,
-        Column::constant(0),                          // is_store
-        Column::constant(1),                          // is_load
-        sponge.preimage[limb_index as usize].clone(), // value
-        sponge.input_addr + i64::from(limb_index),    // address
-    ]
-}
-
-#[must_use]
-pub fn filter_for_input_memory() -> Column {
-    let row = col_map().map(Column::from);
-    row.ops.is_init_permute + row.ops.is_permute
+    Poseidon2SpongeTable::new(
+        vec![
+            sponge.clk,
+            Column::constant(0),                          // is_store
+            Column::constant(1),                          // is_load
+            sponge.preimage[limb_index as usize].clone(), // value
+            sponge.input_addr + i64::from(limb_index),    // address
+        ],
+        sponge.ops.is_init_permute + sponge.ops.is_permute,
+    )
 }
