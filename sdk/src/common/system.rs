@@ -29,7 +29,7 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     #[cfg(not(target_os = "mozakvm"))]
     {
         let common_identity_stack =
-            Rc::from(RefCell::new(crate::native::helpers::IdentityStack::new()));
+            Rc::from(RefCell::new(crate::native::helpers::IdentityStack::default()));
         SystemTape {
             call_tape: CallTapeType {
                 identity_stack: common_identity_stack.clone(),
