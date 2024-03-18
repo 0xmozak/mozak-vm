@@ -20,7 +20,7 @@ pub struct PublicIndices {
     /// The indices of each of the elements of the hash
     pub hash: [usize; NUM_HASH_OUT_ELTS],
 
-    /// The indices of each of the elements of the leaf_value
+    /// The indices of each of the elements of the `leaf_value`
     pub leaf_value: [usize; NUM_HASH_OUT_ELTS],
 }
 

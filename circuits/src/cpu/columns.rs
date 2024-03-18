@@ -163,7 +163,7 @@ pub struct CpuState<T> {
     pub product_low_limb: T,  // range check u32 required
     /// Used as a helper column to check that `product_high_limb != u32::MAX`
     /// when `product_sign` is 0 and `product_high_limb != 0` when
-    /// product_sign is 1
+    /// `product_sign` is 1
     pub product_high_limb_inv_helper: T,
     pub mem_addr: T,
     pub io_addr: T,
