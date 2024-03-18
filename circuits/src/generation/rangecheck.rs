@@ -177,8 +177,8 @@ mod tests {
             &poseidon2_output_bytes,
         );
         let program_rows = generate_program_rom_trace(&program);
-        let cpu_rows = generate_cpu_trace_extended(cpu_rows, &program_rows);
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+        let cpu_cols = generate_cpu_trace_extended(cpu_rows, &program_rows);
+        let trace = generate_rangecheck_trace::<F>(&cpu_cols, &memory_rows, &register_rows);
         assert_eq!(
             trace.len(),
             MIN_TRACE_LENGTH,
@@ -187,7 +187,7 @@ mod tests {
         );
         for (i, row) in trace.iter().enumerate() {
             match i {
-                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(4)),
+                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(2)),
                 1 => assert_eq!(row.multiplicity, F::from_canonical_u8(1)),
                 _ => {}
             }
