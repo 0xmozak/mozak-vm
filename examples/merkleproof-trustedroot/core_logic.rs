@@ -1,5 +1,4 @@
 extern crate alloc;
-use alloc::vec::Vec;
 
 use rkyv::{Archive, Deserialize, Serialize};
 use rs_merkle::algorithms::Sha256;
