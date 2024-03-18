@@ -541,7 +541,7 @@ impl Lookups for InnerCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
             vec![cpu::columns::lookup_for_inst()],
-            cpu::columns::lookup_for_permuted_inst(),
+            cpu::columns::lookup_for_permuted_inst_inner(),
         )
     }
 }
@@ -551,7 +551,7 @@ pub struct ProgramCpuTable;
 impl Lookups for ProgramCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![cpu::columns::lookup_for_permuted_inst()],
+            vec![cpu::columns::lookup_for_permuted_inst_outer()],
             program::columns::lookup_for_ctl(),
         )
     }

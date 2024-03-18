@@ -465,7 +465,16 @@ pub fn lookup_for_inst() -> Table {
 
 /// Lookup for permuted instructions.
 #[must_use]
-pub fn lookup_for_permuted_inst() -> Table {
+pub fn lookup_for_permuted_inst_inner() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().permuted.inst),
+        Column::single(col_map().cpu.is_running),
+    )
+}
+
+/// Lookup for permuted instructions.
+#[must_use]
+pub fn lookup_for_permuted_inst_outer() -> Table {
     CpuTable::new(
         Column::singles(col_map().permuted.inst),
         Column::single(col_map().permuted.filter),
