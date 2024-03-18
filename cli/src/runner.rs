@@ -10,7 +10,6 @@ use log::debug;
 use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::common::types::{CanonicalOrderedTemporalHints, ProgramIdentifier, SystemTape};
 use rkyv::ser::serializers::AllocSerializer;
-// use rkyv::ser::serializers::AllocSerializer;
 
 pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> {
     let mut elf_bytes = Vec::new();
