@@ -78,7 +78,7 @@ jobs:
           cargo check --locked --target $ARCH_TRIPLE
 
       - name: Test library
-      working-directory: sdk
+        working-directory: sdk
         run: |
           ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{ print $2; }')"
           cargo test --locked --lib --target $ARCH_TRIPLE
