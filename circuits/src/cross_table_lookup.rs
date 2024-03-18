@@ -482,7 +482,11 @@ pub mod ctl_utils {
         mozak_stark
             .cross_table_lookups
             .iter()
-            .for_each(|ctl| check_single_ctl(traces_poly_values, ctl).unwrap());
+            .enumerate()
+            .for_each(|(i, ctl)| {
+                log::warn!("CTL {}: {:?}", i, ctl);
+                check_single_ctl(traces_poly_values, ctl).unwrap();
+            });
     }
 }
 
