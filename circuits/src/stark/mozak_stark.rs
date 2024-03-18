@@ -613,7 +613,6 @@ impl Lookups for IoMemoryPrivateCpuTable {
             // TODO: this is suspicious.
             // Or is this for the ecall?
             vec![cpu::columns::lookup_for_io_memory_private()],
-            // vec![memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate)],
             memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate),
         )
     }
