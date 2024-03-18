@@ -41,10 +41,8 @@ make_col_map!(Poseidon2Sponge);
 
 pub const NUM_POSEIDON2_SPONGE_COLS: usize = Poseidon2Sponge::<()>::NUMBER_OF_COLUMNS;
 
-impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
-    pub fn is_executed(&self) -> T {
-        self.ops.is_init_permute.clone() + self.ops.is_permute.clone()
-    }
+impl<T: Copy + Add<Output = T>> Poseidon2Sponge<T> {
+    pub fn is_executed(&self) -> T { self.ops.is_init_permute + self.ops.is_permute }
 }
 
 columns_view_impl!(Poseidon2SpongeCtl);

@@ -35,9 +35,9 @@ pub struct FullWordMemory<T> {
 columns_view_impl!(FullWordMemory);
 make_col_map!(FullWordMemory);
 
-impl<T: Clone + Add<Output = T>> FullWordMemory<T> {
+impl<T: Copy + Add<Output = T>> FullWordMemory<T> {
     pub fn is_executed(&self) -> T {
-        let ops: Ops<T> = self.ops.clone();
+        let ops = self.ops;
         ops.is_load + ops.is_store
     }
 }

@@ -35,9 +35,9 @@ pub struct HalfWordMemory<T> {
     pub limbs: [T; 2],
 }
 
-impl<T: Clone + Add<Output = T>> HalfWordMemory<T> {
+impl<T: Copy + Add<Output = T>> HalfWordMemory<T> {
     pub fn is_executed(&self) -> T {
-        let ops: Ops<T> = self.ops.clone();
+        let ops = self.ops;
         ops.is_load + ops.is_store
     }
 }

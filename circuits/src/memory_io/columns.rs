@@ -36,10 +36,8 @@ pub struct InputOutputMemory<T> {
 columns_view_impl!(InputOutputMemory);
 make_col_map!(InputOutputMemory);
 
-impl<T: Clone + Add<Output = T>> InputOutputMemory<T> {
-    pub fn is_executed(&self) -> T {
-        self.ops.is_io_store.clone() + self.ops.is_memory_store.clone()
-    }
+impl<T: Copy + Add<Output = T>> InputOutputMemory<T> {
+    pub fn is_executed(&self) -> T { self.ops.is_io_store + self.ops.is_memory_store }
 }
 
 /// Total number of columns.
