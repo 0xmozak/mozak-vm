@@ -56,12 +56,16 @@ impl Column {
     pub fn eval_table<F: Field>(&self, table: &[PolynomialValues<F>], row: usize) -> F {
         self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| table[c].values[row] * F::from_noncanonical_i64(f))
+            .map(|&(c, f)| {
+                dbg!((c, f, table.len(), self.lv_linear_combination.len()));
+                table[c].values[row] * F::from_noncanonical_i64(f)
+            })
             .sum::<F>()
             + self
                 .nv_linear_combination
                 .iter()
                 .map(|&(c, f)| {
+                    dbg!((row, c, table[c].values.len()));
                     table[c].values[(row + 1) % table[c].values.len()] * F::from_noncanonical_i64(f)
                 })
                 .sum::<F>()

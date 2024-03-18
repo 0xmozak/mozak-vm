@@ -9,27 +9,30 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::Zip;
 // TODO(Matthias): consider making a ColMap for ColumnX as well.
-use crate::linear_combination::Column;
+// use crate::linear_combination::Column;
 
-pub fn to_untyped<X: IntoIterator<Item = i64>>(input: ColumnX<X>) -> Column {
-    // TODO(Matthias): we could filter out zero coefficients here, if we wanted to.
-    Column {
-        lv_linear_combination: input
-            .lv_linear_combination
-            .into_iter()
-            .enumerate()
-            .collect(),
-        nv_linear_combination: input
-            .nv_linear_combination
-            .into_iter()
-            .enumerate()
-            .collect(),
-        constant: input.constant,
-    }
-}
+// TODO(Matthias): figure out why this one isn't used!
+
+// pub fn to_untyped<X: IntoIterator<Item = i64>>(input: ColumnX<X>) -> Column {
+//     // TODO(Matthias): we could filter out zero coefficients here, if we
+// wanted to.     Column {
+//         lv_linear_combination: input
+//             .lv_linear_combination
+//             .into_iter()
+//             .enumerate()
+//             .collect(),
+//         nv_linear_combination: input
+//             .nv_linear_combination
+//             .into_iter()
+//             .enumerate()
+//             .collect(),
+//         constant: input.constant,
+//     }
+// }
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
 pub struct ColumnX<C> {
     /// Linear combination of the local row
     pub lv_linear_combination: C,

@@ -6,7 +6,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::bitshift::columns::Bitshift;
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::{Column, ColumnX};
 use crate::memory::columns::MemoryCtl;
@@ -193,8 +193,6 @@ pub struct CpuColumnsExtended<T> {
     pub cpu: CpuState<T>,
     pub permuted: ProgramRom<T>,
 }
-
-pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 
 impl<T: PackedField> CpuState<T> {
     #[must_use]
