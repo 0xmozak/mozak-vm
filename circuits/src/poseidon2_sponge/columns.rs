@@ -36,8 +36,6 @@ pub struct Poseidon2Sponge<T> {
     pub gen_output: T,
 }
 
-type Pos2SpongeCol = ColumnTyped<Poseidon2Sponge<i64>>;
-
 columns_view_impl!(Poseidon2Sponge);
 make_col_map!(Poseidon2Sponge);
 
