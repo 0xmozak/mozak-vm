@@ -1,10 +1,15 @@
 use core::ops::Add;
 
-use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::RichField;
+#[cfg(feature = "enable_poseidon_starks")]
+use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
+#[cfg(feature = "enable_poseidon_starks")]
+use crate::stark::mozak_stark::{Poseidon2SpongeTable, Table};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -52,31 +57,28 @@ impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
     }
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn data_for_cpu() -> Vec<Column> {
+pub fn lookup_for_cpu() -> Table {
     let sponge = col_map().map(Column::from);
-    vec![sponge.clk, sponge.input_addr, sponge.input_len]
+    Poseidon2SpongeTable::new(
+        vec![sponge.clk, sponge.input_addr, sponge.input_len],
+        sponge.ops.is_init_permute,
+    )
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn filter_for_cpu() -> Column {
-    let sponge = col_map().map(Column::from);
-    sponge.ops.is_init_permute
-}
-
-#[must_use]
-pub fn data_for_poseidon2() -> Vec<Column> {
+pub fn lookup_for_poseidon2() -> Table {
     let sponge = col_map().map(Column::from);
     let mut data = sponge.preimage.to_vec();
     data.extend(sponge.output.to_vec());
-    data
+    Poseidon2SpongeTable::new(data, col_map().map(Column::from).is_executed())
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn filter_for_poseidon2() -> Column { col_map().map(Column::from).is_executed() }
-
-#[must_use]
-pub fn data_for_poseidon2_output_bytes() -> Vec<Column> {
+pub fn lookup_for_poseidon2_output_bytes() -> Table {
     let sponge = col_map().map(Column::from);
     let mut data = vec![];
     data.push(sponge.clk);
@@ -84,27 +86,22 @@ pub fn data_for_poseidon2_output_bytes() -> Vec<Column> {
     let mut outputs = sponge.output.to_vec();
     outputs.truncate(NUM_HASH_OUT_ELTS);
     data.extend(outputs);
-    data
+    Poseidon2SpongeTable::new(data, col_map().map(Column::from).gen_output)
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn filter_for_poseidon2_output_bytes() -> Column { col_map().map(Column::from).gen_output }
-
-#[must_use]
-pub fn data_for_input_memory(limb_index: u8) -> Vec<Column> {
+pub fn lookup_for_input_memory(limb_index: u8) -> Table {
     assert!(limb_index < 8, "limb_index can be 0..7");
     let sponge = col_map().map(Column::from);
-    vec![
-        sponge.clk,
-        Column::constant(0),                          // is_store
-        Column::constant(1),                          // is_load
-        sponge.preimage[limb_index as usize].clone(), // value
-        sponge.input_addr + i64::from(limb_index),    // address
-    ]
-}
-
-#[must_use]
-pub fn filter_for_input_memory() -> Column {
-    let row = col_map().map(Column::from);
-    row.ops.is_init_permute + row.ops.is_permute
+    Poseidon2SpongeTable::new(
+        vec![
+            sponge.clk,
+            Column::constant(0),                          // is_store
+            Column::constant(1),                          // is_load
+            sponge.preimage[limb_index as usize].clone(), // value
+            sponge.input_addr + i64::from(limb_index),    // address
+        ],
+        sponge.ops.is_init_permute + sponge.ops.is_permute,
+    )
 }

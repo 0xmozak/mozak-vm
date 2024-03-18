@@ -1,5 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
+use crate::stark::mozak_stark::{BitshiftTable, Table};
 
 columns_view_impl!(Bitshift);
 #[repr(C)]
@@ -34,12 +35,11 @@ pub struct BitshiftView<T> {
     pub multiplicity: T,
 }
 
-/// Columns containing the data which are looked from the CPU table into
-/// Bitshift stark table.
+/// Lookup from the CPU table into Bitshift stark table.
 #[must_use]
-pub fn data_for_cpu() -> Vec<Column> { Column::singles(col_map().executed) }
-
-/// Columns containing the filter which indicates whether this row is a dummy
-/// padding.
-#[must_use]
-pub fn filter_for_cpu() -> Column { col_map().multiplicity.into() }
+pub fn lookup_for_cpu() -> Table {
+    BitshiftTable::new(
+        Column::singles(col_map().executed),
+        col_map().multiplicity.into(),
+    )
+}
