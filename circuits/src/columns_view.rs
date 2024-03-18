@@ -227,14 +227,14 @@ macro_rules! make_col_map {
         // TODO: see if we can do this without transmute?
         #[allow(dead_code)]
         #[allow(clippy::large_stack_arrays)]
-        pub(crate) const COL_MAP: $s<crate::linear_combination_x::ColumnX<$s<i64>>> = {
+        pub(crate) const COL_MAP: $s<crate::linear_combination_typed::ColumnX<$s<i64>>> = {
             use core::mem::transmute;
 
             use crate::columns_view::NumberOfColumns;
             use crate::cross_table_lookup::ColumnX;
             const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
             type ArrayForm = [ColumnX<[i64; N]>; N];
-            type Output = $s<crate::linear_combination_x::ColumnX<$s<i64>>>;
+            type Output = $s<crate::linear_combination_typed::ColumnX<$s<i64>>>;
             let identity_matrix: ArrayForm = {
                 let mut indices_mat = [ColumnX {
                     lv_linear_combination: [0_i64; N],
