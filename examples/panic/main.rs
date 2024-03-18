@@ -5,4 +5,4 @@ pub fn main() {
     panic!("Mozak VM panics 😱");
 }
 
-guest::entry!(main);
+mozak_sdk::entry!(main);

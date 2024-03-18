@@ -1,13 +1,8 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(feature = "std", feature(restricted_std))]
-
-extern crate alloc as rust_alloc;
-
 #[cfg(target_os = "mozakvm")]
 mod alloc;
+pub mod ecall;
 pub mod env;
-#[cfg(feature = "std")]
-pub mod stdin;
+pub mod reg_abi;
 
 #[macro_export]
 macro_rules! entry {
@@ -19,13 +14,18 @@ macro_rules! entry {
         #[cfg(target_os = "mozakvm")]
         mod mozak_generated_main {
             #[no_mangle]
-            fn main() { super::MOZAK_ENTRY() }
+            fn main() {
+                super::MOZAK_ENTRY();
+                #[cfg(feature = "std")]
+                mozak_sdk::common::system::ensure_clean_shutdown();
+            }
         }
     };
 }
 
 #[cfg(target_os = "mozakvm")]
 #[no_mangle]
+#[allow(clippy::semicolon_if_nothing_returned)]
 unsafe extern "C" fn __start() {
     env::init();
     {
@@ -66,10 +66,12 @@ _start:
 mod handlers {
     use core::panic::PanicInfo;
 
+    use crate::core::ecall;
+
     #[panic_handler]
     fn panic_fault(panic_info: &PanicInfo) -> ! {
-        let msg = rust_alloc::format!("{}", panic_info);
-        mozak_system::system::syscall_panic(msg.as_ptr(), msg.len());
+        let msg = rust_alloc::format!("{panic_info}");
+        ecall::panic(msg.as_ptr(), msg.len());
         unreachable!();
     }
 }

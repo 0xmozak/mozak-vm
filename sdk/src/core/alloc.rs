@@ -1,4 +1,6 @@
 #[no_mangle]
+#[allow(clippy::module_name_repetitions)]
+#[allow(clippy::borrow_as_ptr)]
 pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
     extern "C" {
         // This symbol is defined in linker script

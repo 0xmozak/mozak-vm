@@ -8,7 +8,7 @@ use alloc::vec::Vec;
 pub fn main() {
     let mut vector: Vec<u8> = vec![128, 129, 100];
     let mut drain = vector.drain(..);
-    guest::env::write(&drain.next().unwrap().to_be_bytes());
+    mozak_sdk::core::env::write(&drain.next().unwrap().to_be_bytes());
 }
 
-guest::entry!(main);
+mozak_sdk::entry!(main);
