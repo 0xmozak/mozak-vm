@@ -7,12 +7,9 @@ members = [
   "min-max",
   "memory-access",
   "panic",
-  "poseidon2",
   "static-mem-access",
   "sha2",
   "rkyv-serialization",
-  "stdin",
-  "merkleproof-trustedroot",
   "empty",
 ]
 resolver = "2"
