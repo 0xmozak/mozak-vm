@@ -4,6 +4,9 @@
 // exceptions:
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
+// for bitflags
+// TODO: remove once it's fixed.
+#![allow(clippy::multiple_crate_versions)]
 
 pub mod bitshift;
 pub mod columns_view;

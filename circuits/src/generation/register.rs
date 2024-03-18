@@ -114,9 +114,8 @@ pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
     use mozak_runner::elf::Program;
-    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::instruction::{Instruction, Op};
     use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, PrimeField64};

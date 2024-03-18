@@ -310,7 +310,7 @@ impl Column {
             + F::from_noncanonical_i64(self.constant)
     }
 
-    pub fn eval_circuit<F: Field, const D: usize>(
+    pub fn eval_circuit<F, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         v: &[ExtensionTarget<D>],

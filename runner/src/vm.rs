@@ -315,7 +315,6 @@ mod tests {
     use proptest::{prop_assume, proptest};
 
     use super::*;
-    use crate::instruction::{Instruction, Op};
     use crate::test_utils::{i16_extra, i32_extra, i8_extra, reg, u16_extra, u32_extra, u8_extra};
 
     fn simple_test_code(

@@ -248,9 +248,8 @@ impl BranchSubCircuit {
 mod test {
     use anyhow::Result;
     use plonky2::field::types::Field;
-    use plonky2::hash::hash_types::{HashOut, NUM_HASH_OUT_ELTS};
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-    use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
+    use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
     use crate::recproof::unbounded;

@@ -173,7 +173,6 @@ impl BranchSubCircuit {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;

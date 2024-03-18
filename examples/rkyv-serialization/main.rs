@@ -6,6 +6,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::rancor::{Panic, Strategy};
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
 #[archive(
@@ -32,18 +33,18 @@ pub fn main() {
     };
 
     // Serializing is as easy as a single function call
-    let bytes = rkyv::to_bytes::<_, 256>(&value).unwrap();
+    let bytes = rkyv::to_bytes::<_, 256, Panic>(&value).unwrap();
 
     // Or you can use the unsafe API for maximum performance
-    let archived = unsafe { rkyv::archived_root::<Test>(&bytes[..]) };
+    let archived = unsafe { rkyv::access_unchecked::<Test>(&bytes[..]) };
     assert_eq!(archived, &value);
 
     // And you can always deserialize back to the original type
-    let deserialized: Test = archived.deserialize(&mut rkyv::Infallible).unwrap();
+    let deserialized: Test = archived.deserialize(Strategy::<(), Panic>::wrap(&mut ())).unwrap();
     assert_eq!(deserialized, value);
     #[cfg(not(target_os = "mozakvm"))]
     println!("Deserialized Value: {:?}", deserialized);
-    let bytes = rkyv::to_bytes::<_, 256>(&deserialized).unwrap();
+    let bytes = rkyv::to_bytes::<_, 256, Panic>(&deserialized).unwrap();
     guest::env::write(&bytes);
 }
 

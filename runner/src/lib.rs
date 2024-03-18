@@ -1,6 +1,10 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 
+// for `syn`
+// TODO: remove once it's fixed.
+#![allow(clippy::multiple_crate_versions)]
+
 #[cfg(not(target_arch = "wasm32"))]
 use mimalloc::MiMalloc;
 

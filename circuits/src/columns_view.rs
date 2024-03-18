@@ -24,7 +24,7 @@ pub(crate) const unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T
 }
 pub(crate) const unsafe fn transmute_ref<T, U>(t: &T) -> &U {
     debug_assert!(size_of::<T>() == size_of::<U>());
-    &*((t as *const T).cast::<U>())
+    &*(std::ptr::from_ref::<T>(t).cast::<U>())
 }
 
 pub trait HasNamedColumns {

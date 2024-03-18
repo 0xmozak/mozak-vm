@@ -273,11 +273,11 @@ pub struct Program {
     pub entry_point: u32,
 
     /// Read-only section of memory
-    /// 'ro_memory' takes precedence, if a memory location is in both.
+    /// `ro_memory` takes precedence, if a memory location is in both.
     pub ro_memory: Data,
 
     /// Read-write section of memory
-    /// 'ro_memory' takes precedence, if a memory location is in both.
+    /// `ro_memory` takes precedence, if a memory location is in both.
     pub rw_memory: Data,
 
     /// Executable code of the ELF, read only

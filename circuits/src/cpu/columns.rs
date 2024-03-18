@@ -68,7 +68,7 @@ columns_view_impl!(Instruction);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Instruction<T> {
-    /// The original instruction (+ imm_value) used for program
+    /// The original instruction (+ `imm_value`) used for program
     /// cross-table-lookup.
     pub pc: T,
 
@@ -132,8 +132,8 @@ pub struct CpuState<T> {
     pub cmp_diff_inv: T,
     /// If `op1` < `op2`
     pub less_than: T,
-    /// normalised_diff == 0 iff op1 == op2
-    /// normalised_diff == 1 iff op1 != op2
+    /// `normalised_diff` == 0 iff op1 == op2
+    /// `normalised_diff` == 1 iff op1 != op2
     /// We need this intermediate variable to keep the constraint degree <= 3.
     pub normalised_diff: T,
 
@@ -162,7 +162,7 @@ pub struct CpuState<T> {
     pub product_high_limb: T, // range check u32 required
     pub product_low_limb: T,  // range check u32 required
     /// Used as a helper column to check that `product_high_limb != u32::MAX`
-    /// when product_sign is 0 and `product_high_limb != 0` when
+    /// when `product_sign` is 0 and `product_high_limb != 0` when
     /// product_sign is 1
     pub product_high_limb_inv_helper: T,
     pub mem_addr: T,
