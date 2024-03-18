@@ -87,10 +87,7 @@ fn main() {
 
     let out_dir = std::env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("vars.rs");
-    let mut dest = File::create(dest_path).expect(
-        "failed to create
-    vars.rs",
-    );
+    let mut dest = File::create(dest_path).expect("failed to create vars.rs");
 
     for c in CRATES {
         if c.enabled {
