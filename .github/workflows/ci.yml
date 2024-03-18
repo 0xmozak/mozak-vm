@@ -55,11 +55,33 @@ jobs:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and run examples
+      - name: cargo-clippy (mozakvm)
+        working-directory: sdk
         run: |
-          cd sdk && ARCH_TRIPLE="$(rustc -vV | grep host | awk '{ print $2; }')"
-          cargo build && cargo build --target $ARCH_TRIPLE
-          cargo test --lib --target $ARCH_TRIPLE
+          cargo clippy --locked --all-features -- -D warnings
+
+      - name: cargo-clippy (native)
+        working-directory: sdk
+        run: |
+          ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{ print $2; }')"
+          cargo clippy --locked --target $ARCH_TRIPLE --all-features -- -D warnings
+
+      - name: Build (mozakvm)
+        working-directory: sdk
+        run: |
+          cargo check --locked
+
+      - name: Build (native)
+        working-directory: sdk
+        run: |
+          ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{ print $2; }')"
+          cargo check --locked --target $ARCH_TRIPLE
+
+      - name: Test library
+        working-directory: sdk
+        run: |
+          ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{ print $2; }')"
+          cargo test --locked --lib --target $ARCH_TRIPLE
 
   run-examples:
     needs: check-runner
@@ -92,10 +114,6 @@ jobs:
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
-
-      - name: Run Clippy linter for sdk
-        working-directory: sdk
-        run: cargo clippy --all-features -- -D warnings
 
   cargo-build-examples:
     needs: check-runner
