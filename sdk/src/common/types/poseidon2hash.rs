@@ -6,17 +6,17 @@ pub const DIGEST_BYTES: usize = 32;
 pub const RATE: usize = 8;
 
 #[derive(
-    Default,
-    Copy,
     Clone,
-    Hash,
-    PartialEq,
+    Copy,
+    Default,
     Eq,
-    PartialOrd,
+    Hash,
     Ord,
+    PartialEq,
+    PartialOrd,
     rkyv::Archive,
-    rkyv::Serialize,
     rkyv::Deserialize,
+    rkyv::Serialize,
 )]
 #[cfg_attr(
     not(target_os = "mozakvm"),
