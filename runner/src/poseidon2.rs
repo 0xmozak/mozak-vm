@@ -12,13 +12,13 @@ use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
 #[allow(clippy::module_name_repetitions)]
 pub struct MozakPoseidon2 {}
 impl MozakPoseidon2 {
-    pub const BYTES_PER_FIELD_ELEMENT: usize = 8;
     pub const DATA_CAPACITY_PER_FIELD_ELEMENT: usize = 7;
     pub const DATA_PADDING: usize =
         Self::DATA_CAPACITY_PER_FIELD_ELEMENT * Self::FIELD_ELEMENTS_RATE;
     pub const FIELD_ELEMENTS_RATE: usize = 8;
     pub const LEADING_ZEROS: usize =
-        Self::BYTES_PER_FIELD_ELEMENT - Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
+        Self::MAX_BYTES_PER_FIELD_ELEMENT - Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
+    pub const MAX_BYTES_PER_FIELD_ELEMENT: usize = 8;
 
     // TODO: FIXME(Roman + Kapil):
     // Padding zeros should be a
@@ -44,7 +44,7 @@ impl MozakPoseidon2 {
     #[allow(clippy::assertions_on_constants)]
     pub fn pack_padded_input<F: RichField>(data: &[u8]) -> Vec<F> {
         assert!(
-            Self::DATA_CAPACITY_PER_FIELD_ELEMENT < Self::BYTES_PER_FIELD_ELEMENT,
+            Self::DATA_CAPACITY_PER_FIELD_ELEMENT < Self::MAX_BYTES_PER_FIELD_ELEMENT,
             "For 64 bit field maximum supported packing is 7 bytes"
         );
         assert_eq!(
