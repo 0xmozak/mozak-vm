@@ -67,7 +67,7 @@ jobs:
           cargo clippy --locked --target $ARCH_TRIPLE --all-features -- -D warnings
 
       - name: Build (mozakvm)
-      working-directory: sdk
+        working-directory: sdk
         run: |
           cargo check --locked
 
