@@ -365,6 +365,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 FullWordMemoryCpuTable::lookups(),
                 #[cfg(feature = "enable_register_starks")]
                 RegisterRegInitTable::lookups(),
+                // One of these is suspicious?
                 IoMemoryPrivateCpuTable::lookups(),
                 IoMemoryPublicCpuTable::lookups(),
                 IoTranscriptCpuTable::lookups(),
@@ -517,7 +518,7 @@ impl Lookups for MemoryInitMemoryTable {
             vec![
                 memoryinit::columns::lookup_for_memory(TableKind::ElfMemoryInit),
                 memoryinit::columns::lookup_for_memory(TableKind::MozakMemoryInit),
-                memoryinit::columns::lookup_for_memory(TableKind::MemoryZeroInit),
+                crate::memory_zeroinit::columns::lookup_for_memory(),
             ],
             memory::columns::lookup_for_memoryinit(),
         )
@@ -612,6 +613,7 @@ impl Lookups for IoMemoryPrivateCpuTable {
             // TODO: this is suspicious.
             // Or is this for the ecall?
             vec![cpu::columns::lookup_for_io_memory_private()],
+            // vec![memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate)],
             memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate),
         )
     }

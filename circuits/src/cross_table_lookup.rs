@@ -484,7 +484,7 @@ pub mod ctl_utils {
             .iter()
             .enumerate()
             .for_each(|(i, ctl)| {
-                log::warn!("CTL {}: {:?}", i, ctl);
+                dbg!("CTL {}: {}", i, ctl);
                 check_single_ctl(traces_poly_values, ctl).unwrap();
             });
     }
