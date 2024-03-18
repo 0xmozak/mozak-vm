@@ -29,8 +29,16 @@ runs:
     - name: Install CI deps
       shell: bash
       run: |
-        # Install CI deps
-        nix profile install .#ci-deps
+        # Upgrade or Install CI Deps
+        # Warning, nix profile upgrade does not return error code on failure
+        nix profile install .#ci-deps || nix profile upgrade .#ci-deps
+        : installed_profile=$(nix profile list | grep 'attribute.*ci-deps' -B 1 -A 3)
+        : installed=$(echo $installed_profile | grep 'nix/store' | cut -f2 -d':' | tr -d' ')
+        : local=$(nix eval --raw .#ci-deps.outPath)
+        # Sanity check if we successfully installed/upgraded ci-deps
+        test "$installed" = "$local"
+        # Mark older versions of profile for deletion
+        nix profile wipe-history --older-than 30d
         # Set up CI environment
         nix run .#ci-env >> $GITHUB_ENV
 
