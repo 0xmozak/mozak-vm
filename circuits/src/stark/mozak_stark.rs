@@ -519,10 +519,7 @@ impl Lookups for MemoryInitMemoryTable {
                 memoryinit::columns::lookup_for_memory(TableKind::MozakMemoryInit),
                 memoryinit::columns::lookup_for_memory(TableKind::MemoryZeroInit),
             ],
-            MemoryTable::new(
-                memory::columns::data_for_memoryinit(),
-                memory::columns::filter_for_memoryinit(),
-            ),
+            memory::columns::lookup_for_memoryinit(),
         )
     }
 }

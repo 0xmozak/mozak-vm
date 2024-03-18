@@ -214,20 +214,19 @@ pub fn lookup_for_cpu() -> Table {
     )
 }
 
-/// Columns containing the data which are looked up in the `MemoryInit` Table
+/// Lookup in the `MemoryInit` Table
 #[must_use]
-pub fn data_for_memoryinit() -> Vec<Column> {
-    vec![
-        Column::single(col_map().is_writable),
-        Column::single(col_map().addr),
-        Column::single(col_map().clk),
-        Column::single(col_map().value),
-    ]
+pub fn lookup_for_memoryinit() -> Table {
+    MemoryTable::new(
+        vec![
+            Column::single(col_map().is_writable),
+            Column::single(col_map().addr),
+            Column::single(col_map().clk),
+            Column::single(col_map().value),
+        ],
+        Column::single(col_map().is_init),
+    )
 }
-
-/// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
-#[must_use]
-pub fn filter_for_memoryinit() -> Column { Column::single(col_map().is_init) }
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
