@@ -31,7 +31,7 @@ pub trait Call: SelfIdentify {
     /// deserialization. This func never serializes in `mozakvm`.
     fn send<A, R>(
         &mut self,
-        recepient_program: ProgramIdentifier,
+        recipient_program: ProgramIdentifier,
         argument: A,
         resolver: impl Fn(A) -> R,
     ) -> R

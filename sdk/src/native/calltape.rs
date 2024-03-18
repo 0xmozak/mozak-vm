@@ -29,7 +29,7 @@ impl SelfIdentify for CallTape {
 impl Call for CallTape {
     fn send<A, R>(
         &mut self,
-        recepient_program: ProgramIdentifier,
+        recipient_program: ProgramIdentifier,
         argument: A,
         resolver: impl Fn(A) -> R,
     ) -> R
@@ -41,7 +41,7 @@ impl Call for CallTape {
         // Create a skeletal `CrossProgramCall` to be resolved via "resolver"
         let msg = CrossProgramCall {
             caller: self.get_self_identity(),
-            callee: recepient_program,
+            callee: recipient_program,
             argument: rkyv::to_bytes::<_, 256>(&argument).unwrap().into(),
             return_: RawMessage::default(), // Unfilled: we have to still resolve it
         };
@@ -55,7 +55,7 @@ impl Call for CallTape {
         self.writer.push(msg);
 
         // resolve the return value and add to where message was
-        self.set_self_identity(recepient_program);
+        self.set_self_identity(recipient_program);
         let resolved_value = resolver(argument);
         self.writer[inserted_idx].return_ =
             rkyv::to_bytes::<_, 256>(&resolved_value).unwrap().into();

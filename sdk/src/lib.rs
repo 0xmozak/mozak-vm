@@ -61,7 +61,7 @@ where
 #[cfg(feature = "std")]
 #[allow(clippy::similar_names)]
 pub fn call_send<A, R>(
-    recepient_program: crate::common::types::ProgramIdentifier,
+    recipient_program: crate::common::types::ProgramIdentifier,
     argument: A,
     resolver: impl Fn(A) -> R,
 ) -> R
@@ -74,7 +74,7 @@ where
     unsafe {
         crate::common::system::SYSTEM_TAPE
             .call_tape
-            .send(recepient_program, argument, resolver)
+            .send(recipient_program, argument, resolver)
     }
 }
 

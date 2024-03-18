@@ -28,7 +28,7 @@ impl SelfIdentify for CallTape {
 impl Call for CallTape {
     fn send<A, R>(
         &mut self,
-        recepient_program: ProgramIdentifier,
+        recipient_program: ProgramIdentifier,
         argument: A,
         _resolver: impl Fn(A) -> R,
     ) -> R
@@ -46,8 +46,8 @@ impl Call for CallTape {
 
         // Ensure fields are correctly populated for caller and callee
         assert!(cpcmsg.caller == self.get_self_identity());
-        assert!(cpcmsg.callee == recepient_program);
-        assert!(self.is_casted_actor(&recepient_program));
+        assert!(cpcmsg.callee == recipient_program);
+        assert!(self.is_casted_actor(&recipient_program));
 
         // Deserialize the `arguments` seen on the tape, and assert
         let zcd_args = unsafe { rkyv::archived_root::<A>(&cpcmsg.argument.0[..]) };
