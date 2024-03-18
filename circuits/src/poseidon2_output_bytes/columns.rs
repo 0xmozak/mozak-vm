@@ -4,6 +4,7 @@ use plonky2::plonk::config::GenericHashOut;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
+use crate::stark::mozak_stark::{Poseidon2OutputBytesTable, Table};
 
 pub const FIELDS_COUNT: usize = 4;
 pub const BYTES_COUNT: usize = 32;
@@ -62,17 +63,17 @@ pub fn data_for_poseidon2_sponge() -> Vec<Column> {
 pub fn filter_for_poseidon2_sponge() -> Column { col_map().map(Column::from).is_executed }
 
 #[must_use]
-pub fn data_for_output_memory(limb_index: u8) -> Vec<Column> {
+pub fn lookup_for_output_memory(limb_index: u8) -> Table {
     assert!(limb_index < 32, "limb_index can be 0..31");
     let data = col_map().map(Column::from);
-    vec![
-        data.clk,
-        Column::constant(1),                            // is_store
-        Column::constant(0),                            // is_load
-        data.output_bytes[limb_index as usize].clone(), // value
-        data.output_addr + i64::from(limb_index),       // address
-    ]
+    Poseidon2OutputBytesTable::new(
+        vec![
+            data.clk,
+            Column::constant(1),                            // is_store
+            Column::constant(0),                            // is_load
+            data.output_bytes[limb_index as usize].clone(), // value
+            data.output_addr + i64::from(limb_index),       // address
+        ],
+        col_map().map(Column::from).is_executed,
+    )
 }
-
-#[must_use]
-pub fn filter_for_output_memory() -> Column { col_map().map(Column::from).is_executed }

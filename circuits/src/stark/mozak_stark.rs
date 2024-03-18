@@ -503,12 +503,7 @@ impl Lookups for IntoMemoryTable {
         #[cfg(feature = "enable_poseidon_starks")]
         {
             tables.extend((0..8).map(poseidon2_sponge::columns::lookup_for_input_memory));
-            tables.extend((0..32).map(|index| {
-                Poseidon2OutputBytesTable::new(
-                    poseidon2_output_bytes::columns::data_for_output_memory(index),
-                    poseidon2_output_bytes::columns::filter_for_output_memory(),
-                )
-            }));
+            tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
         }
         CrossTableLookup::new(
             tables,
