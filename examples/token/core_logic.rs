@@ -30,8 +30,8 @@ pub enum MethodReturns {
 #[allow(dead_code)]
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
-        MethodArgs::Transfer(object, remitter, remittee, remitee_pubkey) => {
-            transfer(object, remitter, remittee, remitee_pubkey);
+        MethodArgs::Transfer(object, remitter, remittee, remittee_pubkey) => {
+            transfer(object, remitter, remittee, remittee_pubkey);
             MethodReturns::Transfer
         }
     }
