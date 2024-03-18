@@ -364,6 +364,7 @@ pub fn lookup_for_fullword_memory() -> Table {
 
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+// TODO: unify all three variants into a single lookup, so we save on proving time.
 #[must_use]
 pub fn lookup_for_io_memory_x(filter: Column) -> Table {
     let cpu = col_map().cpu.map(Column::from);
