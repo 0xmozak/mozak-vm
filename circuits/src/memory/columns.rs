@@ -228,6 +228,8 @@ pub fn lookup_for_memoryinit() -> Table {
     )
 }
 
+// TODO(Matthias): consolidate with filter_for_halfword_memory and hook up to CTL!
+// Also check the other memory related tables for missing CTL!
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
