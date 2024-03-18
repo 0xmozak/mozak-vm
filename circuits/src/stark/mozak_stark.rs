@@ -834,7 +834,7 @@ impl<F: Field> Lookups<F> for crate::stark::mozak_stark::Poseidon2Sponge2Poseido
         tables.extend((0..8).map(|index| {
             Poseidon2SpongeTable::new(
                 crate::poseidon2_sponge::columns::data_for_preimage_pack(index),
-                crate::poseidon2_sponge::columns::filter_for_preimage_pack(index),
+                crate::poseidon2_sponge::columns::filter_for_preimage_pack(),
             )
         }));
         CrossTableLookup::new(

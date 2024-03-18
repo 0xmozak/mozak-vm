@@ -14,76 +14,56 @@ pub struct MozakPoseidon2 {}
 impl MozakPoseidon2 {
     pub const BYTES_PER_FIELD_ELEMENT: usize = 8;
     pub const DATA_CAPACITY_PER_FIELD_ELEMENT: usize = 3;
+    pub const DATA_PADDING: usize =
+        Self::DATA_CAPACITY_PER_FIELD_ELEMENT * Self::FIELD_ELEMENTS_RATE;
     pub const FIELD_ELEMENTS_RATE: usize = 8;
+    pub const LEADING_ZEROS: usize =
+        Self::BYTES_PER_FIELD_ELEMENT - Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
 
     #[must_use]
     pub fn padding(data: &[u8]) -> Vec<u8> {
-        let mut padded_input = data.to_vec();
-        padded_input.resize(
-            padded_input
-                .len()
-                .next_multiple_of(Self::DATA_CAPACITY_PER_FIELD_ELEMENT),
-            0_u8,
+        let mut padded = data.to_vec();
+        if padded.len() % Self::DATA_PADDING != 0 {
+            padded.resize(
+                padded.len().next_multiple_of(Self::DATA_PADDING), // FIXME(Roman): can be lcd
+                0_u8,                                              /* FIXME(Roman + Kapil):
+                                                                    * Padding zeros should be a
+                                                                    * security issue */
+            );
+        }
+        println!(
+            "padded-data: {:?}, len: {:?}, data_len: {:?}",
+            padded,
+            padded.len(),
+            data.len()
         );
-        assert_eq!(
-            padded_input.len() % Self::DATA_CAPACITY_PER_FIELD_ELEMENT,
-            0,
-            "Only mapping of {:?} bytes to single Field Element is supported",
-            Self::DATA_CAPACITY_PER_FIELD_ELEMENT
-        );
-        padded_input
+        padded
     }
 
     #[must_use]
     // To make is safe for user to change constants
     #[allow(clippy::assertions_on_constants)]
-    pub fn convert_input_to_fe_with_padding<F: RichField>(data: &[u8]) -> (Vec<F>, usize) {
+    pub fn convert_input_to_fe_with_padding<F: RichField>(data: &[u8]) -> Vec<F> {
         assert!(
             Self::DATA_CAPACITY_PER_FIELD_ELEMENT < Self::BYTES_PER_FIELD_ELEMENT,
             "For 64 bit field maximum supported packing is 7 bytes"
         );
 
         let padded_input = MozakPoseidon2::padding(data);
-        let mut padded_input_field_ellements = vec![];
 
-        // This loop takes slices of size DATA_CAP and from each such slice trys to
-        // create a single FE
-        for x in padded_input
+        padded_input
             .as_slice()
             .chunks(Self::DATA_CAPACITY_PER_FIELD_ELEMENT)
-        {
-            // Padding with leading zeros, since `from_be_bytes` is used later on
-            let leading_zeros =
-                Self::BYTES_PER_FIELD_ELEMENT - Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
-            let mut xx: Vec<u8> = vec![0; leading_zeros];
-            xx.extend(x);
+            .map(|x| {
+                // Padding with leading zeros, since `from_be_bytes` is used later on
+                let mut xx: Vec<u8> = vec![0; Self::LEADING_ZEROS];
+                xx.extend(x);
 
-            padded_input_field_ellements.push(F::from_canonical_u64(u64::from_be_bytes(
-                xx.as_slice().try_into().expect("should succeed"),
-            )));
-        }
-        // let padded_count = Self::FIELD_ELEMENTS_RATE
-        //     - padded_input_field_ellements.len() % Self::FIELD_ELEMENTS_RATE;
-        let old_len = padded_input_field_ellements.len();
-        padded_input_field_ellements.resize(
-            padded_input_field_ellements
-                .len()
-                .next_multiple_of(Self::FIELD_ELEMENTS_RATE),
-            F::ZERO,
-        );
-        let padded_count = padded_input_field_ellements.len() - old_len;
-
-        // println!(
-        //     "data: {:?}, fe-data: {:?}",
-        //     data, padded_input_field_ellements
-        // );
-        // for i in padded_input_field_ellements.clone() {
-        //     let r = i.to_canonical_u64().to_be_bytes();
-        //     for j in 0..r.len() {
-        //         println!("index: {:?}, data: {:?}", j, r[j]);
-        //     }
-        // }
-        (padded_input_field_ellements, padded_count)
+                F::from_canonical_u64(u64::from_be_bytes(
+                    xx.as_slice().try_into().expect("should succeed"),
+                ))
+            })
+            .collect::<Vec<_>>()
     }
 }
 
@@ -103,7 +83,6 @@ impl MozakPoseidon2 {
 /// 12.
 pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
-    padded_count: usize,
 ) -> (HashOut<F>, Vec<Poseidon2SpongeData<F>>) {
     let permute_and_record_data = |perm: &mut P, sponge_data: &mut Vec<Poseidon2SpongeData<F>>| {
         // STATE_SIZE is 12 since it's hard-coded in our stark-backend
@@ -123,7 +102,6 @@ pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
         sponge_data.push(Poseidon2SpongeData {
             preimage,
             output,
-            padded_count: 0,
             gen_output: F::from_bool(false),
         });
     };
@@ -162,10 +140,6 @@ pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
         .last_mut()
         .expect("Can't fail at least one elem must be there")
         .gen_output = F::from_bool(true);
-    sponge_data
-        .last_mut()
-        .expect("Can't fail at least one elem must be there")
-        .padded_count = padded_count;
     // `from` function just takes 4 elements array and create HashOut from it
     (HashOut::from(outputs), sponge_data)
 }
@@ -192,13 +166,13 @@ impl<F: RichField> State<F> {
         // Pay attention that `self.load8` loads from memory
         // Note: I am not sure why we map byte-to-FE and not 7 bytes to FE
         assert_eq!(
-            input_len % u32::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect("Cast from usize to u32 for MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT should succeed"),
+            input_len % u32::try_from(MozakPoseidon2::DATA_PADDING).expect("Cast from usize to u32 for MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT should succeed"),
             0,
             "Require padded input data length: {:?} in bytes with respect to {:?}",
             input_len,
-            MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT
+            MozakPoseidon2::DATA_PADDING
         );
-        let (input, padded_count) = MozakPoseidon2::convert_input_to_fe_with_padding(
+        let input = MozakPoseidon2::convert_input_to_fe_with_padding(
             (0..input_len)
                 .map(|i| self.load_u8(input_ptr + i))
                 .collect_vec()
@@ -216,7 +190,7 @@ impl<F: RichField> State<F> {
         // computation's taken place. This function returns `computed` hash-value and
         // the intermediate `sponge_data`
         let (hash, sponge_data) =
-            hash_n_to_m_no_pad::<F, Poseidon2Permutation<F>>(input.as_slice(), padded_count);
+            hash_n_to_m_no_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
         // In this step, HashOut<F> translated to bytes. Nothing special here, since
         // internally it is just to_canonical64 and to 8 bytes. So it is just byte
         // representation. The problem is that the same preimage can give us 2 different
@@ -226,11 +200,6 @@ impl<F: RichField> State<F> {
         // poseidon constraints don't ensure this
         let hash = hash.to_bytes();
         assert_eq!(32, hash.len(), "Supported hash-length in bytes is: 32");
-        println!("padded_count: {:?}", padded_count);
-        println!(
-            "len: {:?}",
-            u32::try_from(Poseidon2Permutation::<F>::RATE * sponge_data.len()).unwrap()
-        );
         // In this step, 2 things happen:
         // 1) Fill the Aux.poseidon2 entry
         // 2) Store the computed hash inside `output_ptr`
@@ -242,7 +211,6 @@ impl<F: RichField> State<F> {
                     len: u32::try_from(Poseidon2Permutation::<F>::RATE * sponge_data.len())
                         .unwrap(),
                     sponge_data,
-                    padded_count,
                 }),
                 ..Default::default()
             },
@@ -268,12 +236,12 @@ mod tests {
     #[test]
     fn test_hash_n_to_m_no_pad() {
         let data = "💥 Mozak-VM Rocks With Poseidon2";
-        let (data_fields, padded_counter): (Vec<GoldilocksField>, usize) =
+        let data_fields: Vec<GoldilocksField> =
             MozakPoseidon2::convert_input_to_fe_with_padding(data.as_bytes());
         let (hash, _sponge_data) = super::hash_n_to_m_no_pad::<
             GoldilocksField,
             Poseidon2Permutation<GoldilocksField>,
-        >(&data_fields, padded_counter);
+        >(&data_fields);
         let hash_bytes = hash.to_bytes();
         assert_eq!(
             hash_bytes,

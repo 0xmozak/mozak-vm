@@ -115,26 +115,29 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
     fn from(value: &Poseidon2Sponge<F>) -> Self {
         if (value.ops.is_permute + value.ops.is_init_permute).is_one() {
             // each Field element in preimage represents packed data (packed bytes)
-            (0..Poseidon2Permutation::<F>::RATE).filter(|i| value.is_padded[*i].is_one())
-                .flat_map(|i| {
-                    // base-address is an input-address + RATE * index-inside-preimage
-                    let base_address = value.input_addr
+            (0..Poseidon2Permutation::<F>::RATE)
+                .flat_map(|fe_index_inside_preimage| {
+                    let base_address = value.input_addr_padded
                         + F::from_canonical_u64(
-                            u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect(
-                                "MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT should be cast-able to u64",
-                            ),
-                        ) * F::from_canonical_u8(u8::try_from(i).expect("i > 255"));
+                            u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                                .expect("MozakPoseidon2::DATA_PADDING should be cast-able to u64"),
+                        ) * F::from_canonical_u8(
+                            u8::try_from(fe_index_inside_preimage).expect("i > 255"),
+                        );
                     // Throw away leading byte since "be"
-                    let packed = &value.preimage[i].clone().to_canonical_u64().to_be_bytes()
-                        [MozakPoseidon2::BYTES_PER_FIELD_ELEMENT
-                            - MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT..];
+                    let packed = &value.preimage[fe_index_inside_preimage]
+                        .clone()
+                        .to_canonical_u64()
+                        .to_be_bytes()[MozakPoseidon2::LEADING_ZEROS..];
                     (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
-                        .map(|j| Memory {
+                        .map(|byte_index_inside_fe| Memory {
                             clk: value.clk,
                             addr: base_address
-                                + F::from_canonical_u8(u8::try_from(j).expect("j > 255")),
+                                + F::from_canonical_u8(
+                                    u8::try_from(byte_index_inside_fe).expect("j > 255"),
+                                ),
                             is_load: F::ONE,
-                            value: F::from_canonical_u8(packed[j]),
+                            value: F::from_canonical_u8(packed[byte_index_inside_fe]),
                             ..Default::default()
                         })
                         .collect::<Vec<_>>()

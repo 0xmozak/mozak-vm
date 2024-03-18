@@ -15,7 +15,9 @@ pub const BYTES_COUNT: usize = MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT;
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Poseidon2PreimagePack<F> {
     pub clk: F,
+    pub padded_addr: F,
     pub addr: F,
+    pub value: F,
     pub bytes: [F; MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT],
     pub is_executed: F,
 }
@@ -32,13 +34,12 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                 MozakPoseidon2::FIELD_ELEMENTS_RATE < STATE_SIZE,
                 "Packing RATE should be less than STATE_SIZE"
             );
-            // FIXME: 8 should be MozakPoseidon2::FE_RATE
             let preimage: [F; MozakPoseidon2::FIELD_ELEMENTS_RATE] = value.preimage
                 [..MozakPoseidon2::FIELD_ELEMENTS_RATE]
                 .try_into()
                 .expect("Should succeed since preimage can't be empty");
-            let mut base_address = value.input_addr;
-            let mut index = 0;
+            let mut base_address = value.input_addr_padded;
+            let mut input_addr = value.input_addr;
             // For each FE of preimage we have BYTES_COUNT bytes
             let result = preimage
                 .iter()
@@ -46,23 +47,24 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                     // Note: assumed `to_be_bytes`, otherwise another side of the array should be
                     // taken
                     let bytes: Vec<_> = fe.clone().to_canonical_u64().to_be_bytes()
-                        [MozakPoseidon2::BYTES_PER_FIELD_ELEMENT
-                            - MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT..]
+                        [MozakPoseidon2::LEADING_ZEROS..]
                         .into_iter()
                         .map(|e| F::from_canonical_u8(*e))
                         .collect();
-                    let addr = base_address;
-                    let i = index;
-                    index+=1;
-                    base_address = base_address + F::from_canonical_u64( u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect("Cast from usize to u64 for MozakPoseidon2::BYTES_PER_FIELD_ELEMENT should succeed"));
+                    let padded_addr = base_address;
+                    base_address += F::from_canonical_u64(u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect("Cast from usize to u64 for MozakPoseidon2::BYTES_PER_FIELD_ELEMENT should succeed"));
+                    let addr = input_addr;
+                    input_addr = input_addr + F::ONE;
                     Poseidon2PreimagePack {
                         clk: value.clk,
+                        padded_addr,
                         addr,
+                        value: *fe,
                         bytes: <[F; MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT]>::try_from(
                             bytes,
                         )
                         .unwrap(),
-                        is_executed: F::ONE - value.is_padded[i],
+                        is_executed: F::ONE,
                     }
                 })
                 .collect_vec();
@@ -79,8 +81,9 @@ pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
     let data = col_map().map(Column::from);
     vec![
         data.clk,
+        // FIXME: Check why does not work
+        data.value, // Column::<F>::reduce_with_powers(&data.bytes, F::from_canonical_u16(1 << 8)),
         data.addr,
-        Column::<F>::reduce_with_powers(&data.bytes, F::from_canonical_u16(1 << 8)),
     ]
 }
 
@@ -99,10 +102,10 @@ pub fn data_for_input_memory<F: Field>(index: u8) -> Vec<Column<F>> {
     let data = col_map().map(Column::from);
     vec![
         data.clk,
-        Column::constant(F::ZERO),               // is_store
-        Column::constant(F::ONE),                // is_load
-        data.bytes[index as usize].clone(),      // value
-        data.addr + F::from_canonical_u8(index), // address
+        Column::constant(F::ZERO),                      // is_store
+        Column::constant(F::ONE),                       // is_load
+        data.bytes[index as usize].clone(),             // value
+        data.padded_addr + F::from_canonical_u8(index), // address
     ]
 }
 

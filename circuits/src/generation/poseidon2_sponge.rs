@@ -1,8 +1,9 @@
 use itertools::Itertools;
+use mozak_runner::poseidon2::MozakPoseidon2;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
-use plonky2::hash::poseidon2::{Poseidon2Permutation, WIDTH};
+use plonky2::hash::poseidon2::Poseidon2Permutation;
 
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::poseidon2_sponge::columns::{Ops, Poseidon2Sponge};
@@ -30,6 +31,7 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
 
     let output_addr = poseidon2.output_addr;
     let mut input_addr = poseidon2.addr;
+    let mut input_addr_padded = poseidon2.addr;
     let mut input_len = poseidon2.len;
     for i in 0..unroll_count {
         let ops: Ops<F> = Ops {
@@ -40,11 +42,7 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             .sponge_data
             .get(i as usize)
             .expect("unroll_count not consistent with number of permutations");
-        let padded_fes = Poseidon2Permutation::<F>::RATE - sponge_datum.padded_count;
-        let mut is_padded = [F::ZERO; WIDTH];
-        for i in 0..padded_fes {
-            is_padded[Poseidon2Permutation::<F>::RATE - i] = F::ONE;
-        }
+
         unroll.push(Poseidon2Sponge {
             clk: F::from_canonical_u64(row.state.clk),
             ops,
@@ -54,8 +52,9 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             preimage: sponge_datum.preimage,
             output: sponge_datum.output,
             gen_output: sponge_datum.gen_output,
-            is_padded,
+            input_addr_padded: F::from_canonical_u32(input_addr_padded),
         });
+        input_addr_padded += MozakPoseidon2::DATA_PADDING as u32;
         input_addr += rate_size;
         input_len -= rate_size;
     }
@@ -76,6 +75,7 @@ pub fn generate_poseidon2_sponge_trace<F: RichField>(
             .collect::<Vec<Poseidon2Sponge<F>>>(),
     );
     log::trace!("Poseidon2 Sponge trace {:#?}", trace);
+    println!("Poseidon2 Sponge trace {:#?}", trace);
     trace
 }
 
