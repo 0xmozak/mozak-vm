@@ -68,8 +68,8 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                     }
                 })
                 .collect_vec();
-            println!("poseidon-value: {:?}", value);
-            println!("preimage-result: {:?}", result);
+            // println!("poseidon-value: {:?}", value);
+            // println!("preimage-result: {:?}", result);
             return result;
         }
         vec![]

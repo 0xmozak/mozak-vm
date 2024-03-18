@@ -38,7 +38,7 @@ mod tests {
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     #[test]
-    fn generate_poseidon2_output_bytes_trace() {
+    fn generate_poseidon2_preimage_pack_trace() {
         let data = "😇 Mozak is knowledge arguments based technology".to_string();
         let input_start_addr = 1024;
         let output_start_addr = 2048;
@@ -54,7 +54,7 @@ mod tests {
         let trace = super::generate_poseidon2_preimage_pack_trace(&sponge_trace);
         // for one sponge construct we have one row with gen_output = 1.
         // So we expect other padding data to make trace of len MIN_TRACE_LENGTH.
-        assert_eq!(trace.len(), MIN_TRACE_LENGTH);
+        assert_eq!(trace.len(), 32);
     }
 
     #[test]

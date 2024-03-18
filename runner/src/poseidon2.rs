@@ -31,12 +31,12 @@ impl MozakPoseidon2 {
                                                                     * security issue */
             );
         }
-        println!(
-            "padded-data: {:?}, len: {:?}, data_len: {:?}",
-            padded,
-            padded.len(),
-            data.len()
-        );
+        // println!(
+        //     "padded-data: {:?}, len: {:?}, data_len: {:?}",
+        //     padded,
+        //     padded.len(),
+        //     data.len()
+        // );
         padded
     }
 
