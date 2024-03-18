@@ -73,7 +73,7 @@ impl CanonicalEvent {
             Self {
                 address: value.object.address,
                 type_: value.type_,
-                value: crate::native::helpers::poseidon2_hash(&value.object.data),
+                value: crate::native::helpers::poseidon2_hash_with_pad(&value.object.data),
                 emitter,
             }
         }
@@ -82,7 +82,7 @@ impl CanonicalEvent {
             Self {
                 address: value.object.address,
                 type_: value.type_,
-                value: crate::mozakvm::helpers::poseidon2_hash(&value.object.data),
+                value: crate::mozakvm::helpers::poseidon2_hash_with_pad(&value.object.data),
                 emitter,
             }
         }
