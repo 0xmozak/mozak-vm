@@ -22,13 +22,6 @@ pub mod mozakvm;
 #[cfg(all(feature = "std", not(target_os = "mozakvm")))]
 pub mod native;
 
-// ----------- Exported methods -----------------------
-
-// pub enum IOTape {
-//     Private,
-//     Public,
-// }
-
 /// Emit an event from `mozak_vm` to provide receipts of
 /// `reads` and state updates including `create` and `delete`.
 /// Panics on event-tape non-abidance.
@@ -77,22 +70,3 @@ where
             .send(recipient_program, argument, resolver)
     }
 }
-
-// /// Get raw pointer to access iotape (unsafe) without copy into
-// /// buffer. Subsequent calls will provide pointers `num` away
-// /// (consumed) from pointer provided in this call for best
-// /// effort safety. `io_read` and `io_read_into` would also affect
-// /// subsequent returns.
-// /// Unsafe return values, use wisely!!
-// #[must_use]
-// pub fn io_raw_read(_from: &IOTape, _num: usize) -> *const u8 {
-// unimplemented!() }
-
-// /// Get a buffer filled with num elements from choice of `IOTape`
-// /// in process "consuming" such bytes.
-// #[must_use]
-// pub fn io_read(_from: &IOTape, _num: usize) -> Vec<u8> { unimplemented!() }
-
-// /// Fills a provided buffer with num elements from choice of `IOTape`
-// /// in process "consuming" such bytes.
-// pub fn io_read_into(_from: &IOTape, _buf: &mut [u8]) { unimplemented!() }
