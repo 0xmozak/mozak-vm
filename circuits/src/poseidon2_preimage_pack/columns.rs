@@ -8,9 +8,6 @@ use crate::linear_combination::Column;
 use crate::poseidon2::columns::STATE_SIZE;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 
-// FIXME: MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT;
-pub const BYTES_COUNT: usize = MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT;
-
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Poseidon2PreimagePack<F> {
@@ -99,8 +96,9 @@ pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
 #[must_use]
 pub fn data_for_input_memory<F: Field>(index: u8) -> Vec<Column<F>> {
     assert!(
-        usize::from(index) < BYTES_COUNT,
-        "poseidon2-preimage data_for_input_memory: index can be 0..{BYTES_COUNT}",
+        usize::from(index) < MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT,
+        "poseidon2-preimage data_for_input_memory: index can be 0..{:?}",
+        MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT
     );
     let data = col_map().map(Column::from);
     vec![
