@@ -45,8 +45,8 @@ use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::XorView;
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit, program,
-    rangecheck, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
+    memoryinit, program, rangecheck, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {

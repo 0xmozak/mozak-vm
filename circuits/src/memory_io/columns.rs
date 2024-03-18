@@ -54,8 +54,6 @@ pub struct InputOutputMemoryCtl<T> {
     pub size: T,
 }
 
-type IOCol = ColumnX<InputOutputMemory<i64>>;
-
 /// Lookup between CPU table and Memory stark table.
 #[must_use]
 pub fn lookup_for_cpu(kind: TableKind) -> TableNamed<InputOutputMemoryCtl<Column>> {

@@ -310,11 +310,8 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
 /// Lookup for Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_xor() -> Table {
-    CpuTable::new(
-        Column::singles(col_map().cpu.xor),
-        col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor(),
-    )
+pub fn lookup_for_xor() -> TableNamed<XorView<Column>> {
+    XorTable::new(CPU_MAP.xor, CPU_MAP.inst.ops.ops_that_use_xor())
 }
 
 /// Lookup into Memory stark.
