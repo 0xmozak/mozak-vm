@@ -27,7 +27,7 @@ pub fn lookup() -> TableNamed<RangeCheckCtl<Column>> {
             .map(|limb| COL_MAP.limbs[limb] * (1 << (8 * limb)))
             .sum(),
     );
-    RangeCheckTable::new(data, filter())
+    RangeCheckTable::new(data, COL_MAP.multiplicity)
 }
 
 columns_view_impl!(RangeCheckCtl);
