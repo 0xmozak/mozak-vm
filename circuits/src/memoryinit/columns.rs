@@ -1,5 +1,5 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::ColumnX;
+use crate::cross_table_lookup::ColumnTyped;
 use crate::linear_combination::Column;
 use crate::stark::mozak_stark::{TableKind, TableNamed};
 
@@ -45,7 +45,7 @@ pub fn lookup_for_memory(kind: TableKind) -> TableNamed<MemoryInitCtl<Column>> {
         columns: MemoryInitCtl {
             is_writable: mem.is_writable,
             address: mem.element.address,
-            clk: ColumnX::constant(1),
+            clk: ColumnTyped::constant(1),
             value: mem.element.value,
         }
         .into_iter()

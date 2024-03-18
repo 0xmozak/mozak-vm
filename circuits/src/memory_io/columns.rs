@@ -1,7 +1,7 @@
 use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::ColumnX;
+use crate::cross_table_lookup::ColumnTyped;
 use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
 use crate::stark::mozak_stark::{TableKind, TableNamed};
@@ -82,7 +82,7 @@ pub fn lookup_for_memory(kind: TableKind) -> TableNamed<MemoryCtl<Column>> {
         columns: MemoryCtl {
             clk: mem.clk,
             is_store: mem.ops.is_memory_store,
-            is_load: ColumnX::constant(0),
+            is_load: ColumnTyped::constant(0),
             value: mem.value,
             addr: mem.addr,
         }

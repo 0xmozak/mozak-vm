@@ -1,5 +1,5 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::ColumnX;
+use crate::cross_table_lookup::ColumnTyped;
 use crate::linear_combination::Column;
 use crate::memoryinit::columns::MemoryInitCtl;
 use crate::stark::mozak_stark::{MemoryZeroInitTable, TableNamed};
@@ -21,10 +21,10 @@ pub fn lookup_for_memory() -> TableNamed<MemoryInitCtl<Column>> {
     let mem = COL_MAP;
     MemoryZeroInitTable::new(
         MemoryInitCtl {
-            is_writable: ColumnX::constant(1),
+            is_writable: ColumnTyped::constant(1),
             address: mem.addr,
-            clk: ColumnX::constant(0),
-            value: ColumnX::constant(0),
+            clk: ColumnTyped::constant(0),
+            value: ColumnTyped::constant(0),
         },
         COL_MAP.filter,
     )

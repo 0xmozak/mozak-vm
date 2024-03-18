@@ -16,7 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-pub use crate::linear_combination_typed::ColumnX;
+pub use crate::linear_combination_typed::ColumnTyped;
 use crate::stark::mozak_stark::{
     all_kind, Table, TableKind, TableKindArray, TableNamed, TableNamedTyped,
 };
@@ -193,14 +193,14 @@ pub struct CrossTableLookupNamed<Row> {
 }
 
 // TODO(Matthias): carefully study the types here.
-impl<RowIn, RowOut, X> From<CrossTableLookupNamedTyped<RowIn, ColumnX<X>>>
+impl<RowIn, RowOut, X> From<CrossTableLookupNamedTyped<RowIn, ColumnTyped<X>>>
     for CrossTableLookupNamed<RowOut>
 where
     X: IntoIterator<Item = i64>,
     RowOut: FromIterator<Column>,
-    RowIn: IntoIterator<Item = ColumnX<X>>,
+    RowIn: IntoIterator<Item = ColumnTyped<X>>,
 {
-    fn from(ctl: CrossTableLookupNamedTyped<RowIn, ColumnX<X>>) -> Self {
+    fn from(ctl: CrossTableLookupNamedTyped<RowIn, ColumnTyped<X>>) -> Self {
         let looked_table = TableNamed::from(ctl.looked_table);
         let looking_tables = ctl
             .looking_tables

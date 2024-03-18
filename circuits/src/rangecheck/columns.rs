@@ -1,5 +1,5 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::{Column, ColumnX};
+use crate::cross_table_lookup::{Column, ColumnTyped};
 use crate::stark::mozak_stark::{RangeCheckTable, TableNamed};
 
 #[repr(C)]
@@ -13,7 +13,7 @@ pub struct RangeCheckColumnsView<T> {
 columns_view_impl!(RangeCheckColumnsView);
 make_col_map!(RangeCheckColumnsView);
 
-type RangeCheckColumns = ColumnX<RangeCheckColumnsView<i64>>;
+type RangeCheckColumns = ColumnTyped<RangeCheckColumnsView<i64>>;
 
 /// Total number of columns for the range check table.
 pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS;

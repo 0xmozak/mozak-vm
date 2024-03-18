@@ -8,14 +8,14 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 
 use crate::columns_view::Zip;
-// TODO(Matthias): consider making a ColMap for ColumnX as well.
+// TODO(Matthias): consider making a ColMap for ColumnTyped as well.
 // use crate::linear_combination::Column;
 
 // TODO(Matthias): figure out why this one isn't used!
 
-// pub fn to_untyped<X: IntoIterator<Item = i64>>(input: ColumnX<X>) -> Column {
-//     // TODO(Matthias): we could filter out zero coefficients here, if we
-// wanted to.     Column {
+// pub fn to_untyped<X: IntoIterator<Item = i64>>(input: ColumnTyped<X>) ->
+// Column {     // TODO(Matthias): we could filter out zero coefficients here,
+// if we wanted to.     Column {
 //         lv_linear_combination: input
 //             .lv_linear_combination
 //             .into_iter()
@@ -33,7 +33,7 @@ use crate::columns_view::Zip;
 /// Represent a linear combination of columns.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct ColumnX<C> {
+pub struct ColumnTyped<C> {
     /// Linear combination of the local row
     pub lv_linear_combination: C,
     /// Linear combination of the next row
@@ -43,15 +43,15 @@ pub struct ColumnX<C> {
 }
 
 /// Flip lv and nv
-pub fn flip<C>(col: ColumnX<C>) -> ColumnX<C> {
-    ColumnX {
+pub fn flip<C>(col: ColumnTyped<C>) -> ColumnTyped<C> {
+    ColumnTyped {
         lv_linear_combination: col.nv_linear_combination,
         nv_linear_combination: col.lv_linear_combination,
         constant: col.constant,
     }
 }
 
-impl<C> Neg for ColumnX<C>
+impl<C> Neg for ColumnTyped<C>
 where
     C: Neg<Output = C>,
 {
@@ -66,7 +66,7 @@ where
     }
 }
 
-impl<C> Add<Self> for ColumnX<C>
+impl<C> Add<Self> for ColumnTyped<C>
 where
     C: Add<Output = C>,
 {
@@ -85,7 +85,7 @@ where
     }
 }
 
-impl<C> Add<i64> for ColumnX<C>
+impl<C> Add<i64> for ColumnTyped<C>
 where
     C: Add<Output = C>,
 {
@@ -101,7 +101,7 @@ where
     }
 }
 
-impl<C> Sub<Self> for ColumnX<C>
+impl<C> Sub<Self> for ColumnTyped<C>
 where
     C: Sub<Output = C>,
 {
@@ -120,7 +120,7 @@ where
     }
 }
 
-impl<C> Mul<i64> for ColumnX<C>
+impl<C> Mul<i64> for ColumnTyped<C>
 where
     C: Mul<i64, Output = C>,
 {
@@ -139,7 +139,7 @@ where
     }
 }
 
-impl<C> Sum<ColumnX<C>> for ColumnX<C>
+impl<C> Sum<ColumnTyped<C>> for ColumnTyped<C>
 where
     Self: Add<Output = Self> + Default,
 {
@@ -147,13 +147,13 @@ where
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Self::default(), Add::add) }
 }
 
-impl<C> ColumnX<C>
+impl<C> ColumnTyped<C>
 where
-    ColumnX<C>: Default,
+    ColumnTyped<C>: Default,
 {
     #[must_use]
     pub fn always() -> Self {
-        ColumnX {
+        ColumnTyped {
             constant: 1,
             ..Default::default()
         }
@@ -161,23 +161,23 @@ where
 
     #[must_use]
     pub fn constant(constant: i64) -> Self {
-        ColumnX {
+        ColumnTyped {
             constant,
             ..Default::default()
         }
     }
 }
-impl<C: Default> From<C> for ColumnX<C> {
+impl<C: Default> From<C> for ColumnTyped<C> {
     fn from(lv_linear_combination: C) -> Self { Self::now(lv_linear_combination) }
 }
 
-// impl<C: Default, I> From<I> for ColumnX<C> where I: : IntoIterator<Item=C>{
-//     fn from(lvs: C) -> Self {
+// impl<C: Default, I> From<I> for ColumnTyped<C> where I: :
+// IntoIterator<Item=C>{     fn from(lvs: C) -> Self {
 //         lvs.into_iter().map(Self::from).sum()
 //     }
 // }
 
-impl<C: Default> ColumnX<C> {
+impl<C: Default> ColumnTyped<C> {
     pub const fn now(lv_linear_combination: C) -> Self {
         Self {
             lv_linear_combination,
@@ -195,7 +195,7 @@ impl<C: Default> ColumnX<C> {
     }
 }
 
-impl<C: Default + Zip<i64>> ColumnX<C>
+impl<C: Default + Zip<i64>> ColumnTyped<C>
 where
     Self: Default
         + Sub<Output = Self>

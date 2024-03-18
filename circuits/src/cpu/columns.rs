@@ -8,7 +8,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cpu::stark::add_extension_vec;
-use crate::cross_table_lookup::{Column, ColumnX};
+use crate::cross_table_lookup::{Column, ColumnTyped};
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
@@ -273,7 +273,7 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     let cpu = CPU_MAP;
     let ops = cpu.inst.ops;
     let divs = ops.div + ops.rem + ops.srl + ops.sra;
-    let muls: ColumnX<CpuColumnsExtended<i64>> = ops.mul + ops.mulh + ops.sll;
+    let muls: ColumnTyped<CpuColumnsExtended<i64>> = ops.mul + ops.mulh + ops.sll;
 
     [
         (cpu.quotient_value, divs),
@@ -331,7 +331,7 @@ pub fn lookup_for_memory() -> TableNamed<MemoryCtl<Column>> {
     )
 }
 
-type CpuCol = ColumnX<CpuColumnsExtended<i64>>;
+type CpuCol = ColumnTyped<CpuColumnsExtended<i64>>;
 
 /// Lookup into half word Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -369,7 +369,7 @@ pub fn lookup_for_fullword_memory() -> TableNamed<MemoryCtl<Column>> {
 
 #[allow(clippy::large_types_passed_by_value)]
 fn lookup_for_io_memory_x(
-    filter: ColumnX<CpuColumnsExtended<i64>>,
+    filter: ColumnTyped<CpuColumnsExtended<i64>>,
 ) -> TableNamed<InputOutputMemoryCtl<Column>> {
     let cpu = CPU_MAP;
     CpuTable::new(
@@ -452,14 +452,14 @@ pub fn lookup_for_inst() -> TableNamed<InstructionRow<Column>> {
             // size of the Goldilocks field.
             // Note: The imm_value field, having more than 5 bits, must be positioned as the last
             // column in the list to ensure the correct functioning of 'reduce_with_powers'.
-            inst_data: ColumnX::reduce_with_powers(
+            inst_data: ColumnTyped::reduce_with_powers(
                 [
-                    ColumnX::ascending_sum(inst.ops),
+                    ColumnTyped::ascending_sum(inst.ops),
                     inst.is_op1_signed,
                     inst.is_op2_signed,
-                    ColumnX::ascending_sum(inst.rs1_select),
-                    ColumnX::ascending_sum(inst.rs2_select),
-                    ColumnX::ascending_sum(inst.rd_select),
+                    ColumnTyped::ascending_sum(inst.rs1_select),
+                    ColumnTyped::ascending_sum(inst.rs2_select),
+                    ColumnTyped::ascending_sum(inst.rd_select),
                     inst.imm_value,
                 ],
                 1 << 5,

@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::ColumnX;
+use crate::cross_table_lookup::ColumnTyped;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
@@ -36,7 +36,7 @@ pub struct Poseidon2Sponge<T> {
     pub gen_output: T,
 }
 
-type Pos2SpongeCol = ColumnX<Poseidon2Sponge<i64>>;
+type Pos2SpongeCol = ColumnTyped<Poseidon2Sponge<i64>>;
 
 columns_view_impl!(Poseidon2Sponge);
 make_col_map!(Poseidon2Sponge);
@@ -111,8 +111,8 @@ pub fn lookup_for_input_memory(limb_index: u8) -> TableNamed<MemoryCtl<Column>> 
     Poseidon2SpongeTable::new(
         MemoryCtl {
             clk: sponge.clk,
-            is_store: ColumnX::constant(0),
-            is_load: ColumnX::constant(1),
+            is_store: ColumnTyped::constant(0),
+            is_load: ColumnTyped::constant(1),
             value: sponge.preimage[limb_index as usize],
             addr: sponge.input_addr + i64::from(limb_index),
         },
@@ -126,8 +126,8 @@ pub fn data_for_input_memory(limb_index: u8) -> MemoryCtl<Pos2SpongeCol> {
     let sponge = COL_MAP;
     MemoryCtl {
         clk: sponge.clk,
-        is_store: ColumnX::constant(0),
-        is_load: ColumnX::constant(1),
+        is_store: ColumnTyped::constant(0),
+        is_load: ColumnTyped::constant(1),
         value: sponge.preimage[limb_index as usize],
         addr: sponge.input_addr + i64::from(limb_index),
     }

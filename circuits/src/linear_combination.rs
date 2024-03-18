@@ -9,7 +9,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::cross_table_lookup::ColumnX;
+use crate::cross_table_lookup::ColumnTyped;
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
@@ -22,8 +22,8 @@ pub struct Column {
     pub constant: i64,
 }
 
-impl<X: IntoIterator<Item = i64>> From<ColumnX<X>> for Column {
-    fn from(colx: ColumnX<X>) -> Self {
+impl<X: IntoIterator<Item = i64>> From<ColumnTyped<X>> for Column {
+    fn from(colx: ColumnTyped<X>) -> Self {
         Self {
             lv_linear_combination: colx.lv_linear_combination.into_iter().enumerate().collect(),
             nv_linear_combination: colx.nv_linear_combination.into_iter().enumerate().collect(),

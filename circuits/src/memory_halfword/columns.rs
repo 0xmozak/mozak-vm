@@ -1,7 +1,7 @@
 use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::ColumnX;
+use crate::cross_table_lookup::ColumnTyped;
 use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
 use crate::stark::mozak_stark::{HalfWordMemoryTable, TableNamed};
@@ -54,7 +54,7 @@ pub fn lookup_for_cpu() -> TableNamed<MemoryCtl<Column>> {
             clk: mem.clk,
             is_store: mem.ops.is_store,
             is_load: mem.ops.is_load,
-            value: ColumnX::reduce_with_powers(mem.limbs, 1 << 8),
+            value: ColumnTyped::reduce_with_powers(mem.limbs, 1 << 8),
             addr: mem.addrs[0],
         },
         COL_MAP.is_executed(),

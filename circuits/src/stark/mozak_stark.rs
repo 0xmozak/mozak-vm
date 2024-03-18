@@ -11,7 +11,7 @@ use crate::bitshift::columns::Bitshift;
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
-use crate::cross_table_lookup::{Column, ColumnX, CrossTableLookup, CrossTableLookupNamed};
+use crate::cross_table_lookup::{Column, ColumnTyped, CrossTableLookup, CrossTableLookupNamed};
 use crate::memory::columns::MemoryCtl;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
@@ -411,13 +411,13 @@ pub struct TableNamedTyped<Row, Filter> {
     pub(crate) filter_column: Filter,
 }
 
-impl<RowIn, RowOut, X> From<TableNamedTyped<RowIn, ColumnX<X>>> for TableNamed<RowOut>
+impl<RowIn, RowOut, X> From<TableNamedTyped<RowIn, ColumnTyped<X>>> for TableNamed<RowOut>
 where
     X: IntoIterator<Item = i64>,
     RowOut: FromIterator<Column>,
-    RowIn: IntoIterator<Item = ColumnX<X>>,
+    RowIn: IntoIterator<Item = ColumnTyped<X>>,
 {
-    fn from(input: TableNamedTyped<RowIn, ColumnX<X>>) -> Self {
+    fn from(input: TableNamedTyped<RowIn, ColumnTyped<X>>) -> Self {
         TableNamed {
             kind: input.kind,
             columns: input.columns.into_iter().map(Column::from).collect(),
@@ -464,12 +464,12 @@ macro_rules! table_impl {
             #[allow(clippy::new_ret_no_self)]
             pub fn new<RowIn, RowOut, X>(
                 columns: RowIn,
-                filter_column: ColumnX<X>,
+                filter_column: ColumnTyped<X>,
             ) -> TableNamed<RowOut>
             where
                 X: IntoIterator<Item = i64>,
                 RowOut: FromIterator<Column>,
-                RowIn: IntoIterator<Item = ColumnX<X>>, {
+                RowIn: IntoIterator<Item = ColumnTyped<X>>, {
                 TableNamed {
                     kind: $tk,
                     columns: columns.into_iter().map(Column::from).collect(),
