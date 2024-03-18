@@ -483,10 +483,7 @@ pub mod ctl_utils {
             .cross_table_lookups
             .iter()
             .enumerate()
-            .for_each(|(i, ctl)| {
-                dbg!("CTL {}: {}", i, ctl);
-                check_single_ctl(traces_poly_values, ctl).unwrap();
-            });
+            .for_each(|(i, ctl)| check_single_ctl(traces_poly_values, ctl).unwrap());
     }
 }
 
