@@ -4,7 +4,7 @@ use serde_hex::{SerHex, StrictPfx};
 pub const DIGEST_BYTES: usize = 32;
 #[allow(dead_code)]
 pub const RATE: usize = 8;
-// Common derives
+
 #[derive(
     Default,
     Copy,
@@ -18,7 +18,6 @@ pub const RATE: usize = 8;
     rkyv::Serialize,
     rkyv::Deserialize,
 )]
-// Derives only for non-mozakvm
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)

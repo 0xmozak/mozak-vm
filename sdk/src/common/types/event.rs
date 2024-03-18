@@ -10,7 +10,6 @@
     rkyv::Serialize,
     rkyv::Deserialize,
 )]
-// Derives only for non-mozakvm
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(Debug, serde::Serialize, serde::Deserialize)
@@ -29,11 +28,9 @@ impl Default for EventType {
     fn default() -> Self { Self::Read }
 }
 
-// Common derives
 #[derive(
     Default, Clone, Hash, PartialEq, PartialOrd, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
 )]
-// Derives only for non-mozakvm
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(Debug, serde::Serialize, serde::Deserialize)
@@ -43,7 +40,6 @@ pub struct Event {
     pub type_: EventType,
 }
 
-// Common derives
 #[derive(
     Default,
     Copy,
@@ -57,7 +53,6 @@ pub struct Event {
     rkyv::Serialize,
     rkyv::Deserialize,
 )]
-// Derives only for non-mozakvm
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(Debug, serde::Serialize, serde::Deserialize)

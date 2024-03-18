@@ -8,9 +8,7 @@ pub type EventTapeType = crate::mozakvm::eventtape::EventTape;
 #[cfg(not(target_os = "mozakvm"))]
 pub type EventTapeType = crate::native::eventtape::EventTape;
 
-// Common derives
 #[derive(Default, Clone)]
-// Derives only for non-mozakvm
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(Debug, serde::Serialize, serde::Deserialize)

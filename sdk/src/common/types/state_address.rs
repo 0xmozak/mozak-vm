@@ -3,7 +3,6 @@ use serde_hex::{SerHex, StrictPfx};
 
 pub const STATE_TREE_DEPTH: usize = 4;
 
-// Common derives
 #[derive(
     Default,
     Copy,
@@ -17,7 +16,6 @@ pub const STATE_TREE_DEPTH: usize = 4;
     rkyv::Serialize,
     rkyv::Deserialize,
 )]
-// Derives only for non-mozakvm
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)

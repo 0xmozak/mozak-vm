@@ -1,11 +1,9 @@
 #[cfg(not(target_os = "mozakvm"))]
 use serde_hex::{SerHexSeq, StrictPfx};
 
-// Common derives
 #[derive(
     Default, Clone, Hash, PartialEq, PartialOrd, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
 )]
-// Derives only for non-mozakvm
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)

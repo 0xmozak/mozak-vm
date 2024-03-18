@@ -4,7 +4,6 @@ use crate::mozakvm::helpers::poseidon2_hash;
 #[cfg(not(target_os = "mozakvm"))]
 use crate::native::helpers::poseidon2_hash;
 
-// Common derives
 #[derive(
     Default,
     Copy,
@@ -18,7 +17,6 @@ use crate::native::helpers::poseidon2_hash;
     rkyv::Serialize,
     rkyv::Deserialize,
 )]
-// Derives only for non-mozakvm
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
