@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  # -------- members that depend only on sdk::core
+  # Members that depend only on sdk::core
   "bss-tester",
   "fibonacci",
   "min-max",
