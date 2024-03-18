@@ -28,8 +28,9 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // `EventTape` etc. As such, an empty `SystemTapes` works here.
     #[cfg(not(target_os = "mozakvm"))]
     {
-        let common_identity_stack =
-            Rc::from(RefCell::new(crate::native::helpers::IdentityStack::default()));
+        let common_identity_stack = Rc::from(RefCell::new(
+            crate::native::helpers::IdentityStack::default(),
+        ));
         SystemTape {
             call_tape: CallTapeType {
                 identity_stack: common_identity_stack.clone(),
