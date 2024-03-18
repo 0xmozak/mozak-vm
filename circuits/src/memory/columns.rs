@@ -180,10 +180,9 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     let mem = COL_MAP;
-    let is_executed = mem.is_executed();
     [mem.addr, COL_MAP.addr, mem.diff_clk]
         .into_iter()
-        .map(|addr| MemoryTable::new(RangeCheckCtl::new(addr), is_executed))
+        .map(|addr| MemoryTable::new(RangeCheckCtl::new(addr), mem.is_executed()))
         .collect()
 }
 
