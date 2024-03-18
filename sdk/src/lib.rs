@@ -4,7 +4,6 @@
 #![feature(trait_alias)]
 #![deny(warnings)]
 #![cfg_attr(target_os = "mozakvm", feature(restricted_std))]
-
 // TODO(Matthias): Remove these once the big sdk refactor is in.
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::default_trait_access)]
