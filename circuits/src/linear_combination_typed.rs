@@ -131,14 +131,6 @@ where
     ColumnTyped<C>: Default,
 {
     #[must_use]
-    pub fn always() -> Self {
-        ColumnTyped {
-            constant: 1,
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
     pub fn constant(constant: i64) -> Self {
         ColumnTyped {
             constant,
