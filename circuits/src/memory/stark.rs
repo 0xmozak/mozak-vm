@@ -280,7 +280,7 @@ mod tests {
     use crate::stark::mozak_stark::{MozakStark, TableKind, TableKindSetBuilder};
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify};
-    use crate::{memory, memoryinit};
+    use crate::{memory, memory_zeroinit, memoryinit};
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -405,7 +405,7 @@ mod tests {
             vec![
                 memoryinit::columns::lookup_for_memory(TableKind::ElfMemoryInit),
                 memoryinit::columns::lookup_for_memory(TableKind::MozakMemoryInit),
-                memoryinit::columns::lookup_for_memory(TableKind::MemoryZeroInit),
+                memory_zeroinit::columns::lookup_for_memory(),
             ],
             memory::columns::lookup_for_memoryinit(),
         );
