@@ -42,8 +42,8 @@ const CRATES: &[Crate] = &[
     // ecrate!("stdin", "STDIN_ELF", true),
     // ecrate!("merkleproof-trustedroot", "MERKLEPROOF_TRUSTEDROOT", false),
     ecrate!("empty", "EMPTY_ELF", false),
-    ecrate!("token", "TOKENBIN", false),
-    ecrate!("wallet", "WALLETBIN", false),
+    ecrate!("tokenbin", "TOKENBIN", false),
+    ecrate!("walletbin", "WALLETBIN", false),
 ];
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 

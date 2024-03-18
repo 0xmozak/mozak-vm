@@ -483,6 +483,14 @@ version = "0.2.0"
 source = "git+https://github.com/0xmozak/plonky2.git#7a3b7d487aa23ca43d43b513b61cf0387b414015"
 
 [[package]]
+name = "poseidon2-example-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "hex-literal",
+ "mozak-sdk",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
