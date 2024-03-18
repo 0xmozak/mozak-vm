@@ -475,9 +475,23 @@ pub fn lookup_for_inst() -> Table {
     )
 }
 
-/// Columns containing the data of permuted instructions.
+/// Lookup for permuted instructions.
 #[must_use]
-pub fn data_for_permuted_inst() -> Vec<Column> { Column::singles(col_map().permuted.inst) }
+pub fn lookup_for_permuted_inst() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().permuted.inst),
+        Column::single(col_map().cpu.is_running),
+    )
+}
+
+/// Lookup for permuted instructions.
+#[must_use]
+pub fn lookup_for_program_rom() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().permuted.inst),
+        Column::single(col_map().permuted.filter),
+    )
+}
 
 #[must_use]
 pub fn data_for_poseidon2_sponge() -> Vec<Column> {
