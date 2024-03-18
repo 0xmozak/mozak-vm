@@ -49,14 +49,15 @@ pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 pub fn lookup_for_cpu() -> Table {
     let mem = col_map().map(Column::from);
     FullWordMemoryTable::new(
-    vec![
-        mem.clk,
-        mem.addrs[0].clone(),
-        Column::reduce_with_powers(&mem.limbs, 1 << 8),
-        mem.ops.is_store,
-        mem.ops.is_load,
-    ],
-    col_map().map(Column::from).is_executed())
+        vec![
+            mem.clk,
+            mem.addrs[0].clone(),
+            Column::reduce_with_powers(&mem.limbs, 1 << 8),
+            mem.ops.is_store,
+            mem.ops.is_load,
+        ],
+        col_map().map(Column::from).is_executed(),
+    )
 }
 
 /// Columns containing the data which are looked from the fullword memory table
@@ -66,12 +67,13 @@ pub fn lookup_for_memory_limb(limb_index: usize) -> Table {
     assert!(limb_index < 4, "limb-index can be 0..4");
     let mem = col_map().map(Column::from);
     FullWordMemoryTable::new(
-    vec![
-        mem.clk,
-        mem.ops.is_store,
-        mem.ops.is_load,
-        mem.limbs[limb_index].clone(),
-        mem.addrs[limb_index].clone(),
-    ],
-    col_map().map(Column::from).is_executed())
+        vec![
+            mem.clk,
+            mem.ops.is_store,
+            mem.ops.is_load,
+            mem.limbs[limb_index].clone(),
+            mem.addrs[limb_index].clone(),
+        ],
+        col_map().map(Column::from).is_executed(),
+    )
 }

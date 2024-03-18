@@ -351,14 +351,14 @@ pub fn lookup_for_halfword_memory() -> Table {
 pub fn lookup_for_fullword_memory() -> Table {
     let cpu = col_map().cpu.map(Column::from);
     CpuTable::new(
-    vec![
-        cpu.clk,
-        cpu.mem_addr,
-        cpu.dst_value,
-        cpu.inst.ops.sw,
-        cpu.inst.ops.lw,
-    ],
-    col_map().cpu.map(Column::from).inst.ops.fullword_mem_ops()
+        vec![
+            cpu.clk,
+            cpu.mem_addr,
+            cpu.dst_value,
+            cpu.inst.ops.sw,
+            cpu.inst.ops.lw,
+        ],
+        col_map().cpu.map(Column::from).inst.ops.fullword_mem_ops(),
     )
 }
 

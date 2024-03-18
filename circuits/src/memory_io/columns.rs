@@ -2,6 +2,7 @@ use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::stark::mozak_stark::{Table, TableKind};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -58,20 +59,19 @@ pub fn data_for_cpu() -> Vec<Column> {
 #[must_use]
 pub fn filter_for_cpu() -> Column { col_map().map(Column::from).is_io() }
 
-/// Columns containing the data which are looked from the halfword memory table
-/// into Memory stark table.
+/// Lookup from the halfword memory table into Memory stark table.
 #[must_use]
-pub fn data_for_memory() -> Vec<Column> {
+pub fn lookup_for_memory(kind: TableKind) -> Table {
     let mem = col_map().map(Column::from);
-    vec![
-        mem.clk,
-        mem.ops.is_memory_store,
-        Column::constant(0),
-        mem.value,
-        mem.addr,
-    ]
+    Table {
+        kind,
+        columns: vec![
+            mem.clk,
+            mem.ops.is_memory_store,
+            Column::constant(0),
+            mem.value,
+            mem.addr,
+        ],
+        filter_column: col_map().map(Column::from).is_memory(),
+    }
 }
-
-/// Column for a binary filter to indicate a lookup
-#[must_use]
-pub fn filter_for_memory() -> Column { col_map().map(Column::from).is_memory() }

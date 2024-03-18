@@ -497,14 +497,8 @@ impl Lookups for IntoMemoryTable {
             memory_fullword::columns::lookup_for_memory_limb(1),
             memory_fullword::columns::lookup_for_memory_limb(2),
             memory_fullword::columns::lookup_for_memory_limb(3),
-            IoMemoryPrivateTable::new(
-                memory_io::columns::data_for_memory(),
-                memory_io::columns::filter_for_memory(),
-            ),
-            IoMemoryPublicTable::new(
-                memory_io::columns::data_for_memory(),
-                memory_io::columns::filter_for_memory(),
-            ),
+            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
+            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
         ]);
         #[cfg(feature = "enable_poseidon_starks")]
         {
@@ -643,9 +637,8 @@ pub struct FullWordMemoryCpuTable;
 impl Lookups for FullWordMemoryCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![
-                cpu::columns::lookup_for_fullword_memory()],
-                memory_fullword::columns::lookup_for_cpu(),
+            vec![cpu::columns::lookup_for_fullword_memory()],
+            memory_fullword::columns::lookup_for_cpu(),
         )
     }
 }
