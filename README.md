@@ -63,7 +63,32 @@ You can update the tests via `./update_testdata` in the root of the repository.
 
 ## Updating Rust toolchain
 
-To update the Rust toolchain, change `rust-toolchain.toml`.
+To update the Rust toolchain you need to
+- update `rust-toolchain.toml`, and
+- update `flake.nix`.
+
+The easiest way to update `flake.nix` is to set the `sha256` in
+`packages.rust-toolchain` to an empty string `""`:
+
+```nix
+        packages.rust-toolchain = pkgs.fenix.fromToolchainFile {
+          file = ./rust-toolchain.toml;
+          sha256 = "";
+        };
+```
+
+and then try to build `rust-toolchain` using `nix build --no-link
+.#rust-toolchain`.  Nix will then assume a default hash, and then
+report a hash mismatch.  You can then copy the reported hash back to
+the file.
+
+```bash
+$ nix build --no-link .#rust-toolchain
+warning: found empty hash, assuming 'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+<...>
+         specified: sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+            got:    sha256-kfnhNT9AcZARVovq9+6aay+4rOV3G7ZRdmMQdbd9+Pg=
+```
 
 # Mozak Node
 
