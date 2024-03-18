@@ -468,7 +468,7 @@ pub fn lookup_for_inst() -> Table {
 pub fn lookup_for_permuted_inst() -> Table {
     CpuTable::new(
         Column::singles(col_map().permuted.inst),
-        Column::single(col_map().cpu.is_running),
+        Column::single(col_map().permuted.filter),
     )
 }
 
