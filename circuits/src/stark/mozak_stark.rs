@@ -378,7 +378,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 #[cfg(feature = "enable_register_starks")]
-                RegisterRegInitTable::lookups_untyped(),
+                RegisterRegInitTable::lookups(),
                 IoMemoryPrivateCpuTable::lookups(),
                 IoMemoryPublicCpuTable::lookups(),
                 IoTranscriptCpuTable::lookups(),
@@ -678,7 +678,7 @@ pub struct RegisterRegInitTable;
 impl Lookups for RegisterRegInitTable {
     type Row = RegisterInitCtl<Column>;
 
-    fn lookups() -> CrossTableLookupNamed<Self::Row> {
+    fn lookups_typed() -> CrossTableLookupNamed<Self::Row> {
         CrossTableLookupNamed::new(
             vec![crate::register::columns::lookup_for_register_init()],
             crate::registerinit::columns::lookup_for_register(),
