@@ -5,7 +5,6 @@ members = [
   "fibonacci",
   "min-max",
   "memory-access",
-  "poseidon2",
   "panic",
   "static-mem-access",
   "sha2",
