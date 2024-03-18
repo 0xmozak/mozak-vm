@@ -64,8 +64,6 @@ pub fn tapes_to_runtime_arguments(
     let sys_tapes: SystemTape = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.unwrap_or_default().into();
 
-    // println!("System Tapes\n{:#?}", sys_tapes);
-
     let cast_list = sys_tapes
         .call_tape
         .writer

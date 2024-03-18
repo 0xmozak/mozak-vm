@@ -5,17 +5,17 @@ use crate::mozakvm::helpers::poseidon2_hash_with_pad;
 use crate::native::helpers::poseidon2_hash_with_pad;
 
 #[derive(
-    Default,
-    Copy,
     Clone,
-    Hash,
-    PartialEq,
+    Copy,
+    Default,
     Eq,
-    PartialOrd,
+    Hash,
     Ord,
+    PartialEq,
+    PartialOrd,
     rkyv::Archive,
-    rkyv::Serialize,
     rkyv::Deserialize,
+    rkyv::Serialize,
 )]
 #[cfg_attr(
     not(target_os = "mozakvm"),
