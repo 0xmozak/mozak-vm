@@ -54,7 +54,7 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             gen_output: sponge_datum.gen_output,
             input_addr_padded: F::from_canonical_u32(input_addr_padded),
         });
-        input_addr_padded += MozakPoseidon2::DATA_PADDING as u32;
+        input_addr_padded += u32::try_from(MozakPoseidon2::DATA_PADDING).expect("Should succeed");
         input_addr += rate_size;
         input_len -= rate_size;
     }

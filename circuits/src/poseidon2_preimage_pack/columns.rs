@@ -28,6 +28,8 @@ make_col_map!(Poseidon2PreimagePack);
 pub const NUM_POSEIDON2_PREIMAGE_PACK_COLS: usize = Poseidon2PreimagePack::<()>::NUMBER_OF_COLUMNS;
 
 impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
+    // To make it safe for user to change constants
+    #[allow(clippy::assertions_on_constants)]
     fn from(value: &Poseidon2Sponge<F>) -> Self {
         if (value.ops.is_init_permute + value.ops.is_permute).is_one() {
             assert!(
@@ -48,13 +50,13 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                     // taken
                     let bytes: Vec<_> = fe.clone().to_canonical_u64().to_be_bytes()
                         [MozakPoseidon2::LEADING_ZEROS..]
-                        .into_iter()
+                        .iter()
                         .map(|e| F::from_canonical_u8(*e))
                         .collect();
                     let padded_addr = base_address;
                     base_address += F::from_canonical_u64(u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect("Cast from usize to u64 for MozakPoseidon2::BYTES_PER_FIELD_ELEMENT should succeed"));
                     let addr = input_addr;
-                    input_addr = input_addr + F::ONE;
+                    input_addr += F::ONE;
                     Poseidon2PreimagePack {
                         clk: value.clk,
                         padded_addr,
@@ -80,15 +82,15 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
 pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
     let data = col_map().map(Column::from);
     // FIXME: Check why does not work just reduce_with_power on &data.bytes
-    let mut rdata = data.bytes.clone();
+    let mut reversed_data = data.bytes.clone();
     let d = data.bytes.clone();
     data.bytes
         .iter()
         .enumerate()
-        .for_each(|e| rdata[e.0] = d[d.len() - e.0 - 1].clone());
+        .for_each(|e| reversed_data[e.0] = d[d.len() - e.0 - 1].clone());
     vec![
         data.clk,
-        Column::<F>::reduce_with_powers(&rdata, F::from_canonical_u16(1 << 8)),
+        Column::<F>::reduce_with_powers(&reversed_data, F::from_canonical_u16(1 << 8)),
         data.addr,
     ]
 }
@@ -101,9 +103,8 @@ pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
 #[must_use]
 pub fn data_for_input_memory<F: Field>(index: u8) -> Vec<Column<F>> {
     assert!(
-        usize::try_from(index).unwrap() < BYTES_COUNT,
-        "poseidon2-preimage data_for_input_memory: index can be 0..{:?}",
-        BYTES_COUNT
+        usize::from(index) < BYTES_COUNT,
+        "poseidon2-preimage data_for_input_memory: index can be 0..{BYTES_COUNT}",
     );
     let data = col_map().map(Column::from);
     vec![

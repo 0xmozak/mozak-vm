@@ -13,7 +13,7 @@ use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
 pub struct MozakPoseidon2 {}
 impl MozakPoseidon2 {
     pub const BYTES_PER_FIELD_ELEMENT: usize = 8;
-    pub const DATA_CAPACITY_PER_FIELD_ELEMENT: usize = 3;
+    pub const DATA_CAPACITY_PER_FIELD_ELEMENT: usize = 7;
     pub const DATA_PADDING: usize =
         Self::DATA_CAPACITY_PER_FIELD_ELEMENT * Self::FIELD_ELEMENTS_RATE;
     pub const FIELD_ELEMENTS_RATE: usize = 8;
@@ -31,17 +31,15 @@ impl MozakPoseidon2 {
                                                                     * security issue */
             );
         }
-        // println!(
-        //     "padded-data: {:?}, len: {:?}, data_len: {:?}",
-        //     padded,
-        //     padded.len(),
-        //     data.len()
-        // );
         padded
     }
 
+    /// # Panics
+    ///
+    /// Panics if `Self::DATA_CAPACITY_PER_FIELD_ELEMENT <
+    /// Self::BYTES_PER_FIELD_ELEMENT`
     #[must_use]
-    // To make is safe for user to change constants
+    // To make it safe for user to change constants
     #[allow(clippy::assertions_on_constants)]
     pub fn convert_input_to_fe_with_padding<F: RichField>(data: &[u8]) -> Vec<F> {
         assert!(

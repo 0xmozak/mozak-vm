@@ -54,7 +54,7 @@ mod tests {
         let trace = super::generate_poseidon2_preimage_pack_trace(&sponge_trace);
         // for one sponge construct we have one row with gen_output = 1.
         // So we expect other padding data to make trace of len MIN_TRACE_LENGTH.
-        assert_eq!(trace.len(), 32);
+        assert_eq!(trace.len(), MIN_TRACE_LENGTH);
     }
 
     #[test]
