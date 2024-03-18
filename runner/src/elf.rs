@@ -679,7 +679,7 @@ impl Program {
 
 #[cfg(test)]
 mod test {
-    use crate::elf::{MozakMemoryRegion, Program};
+    use crate::elf::{MozakMemory, MozakMemoryRegion, Program, RuntimeArguments};
 
     #[test]
     fn test_serialize_deserialize() {
@@ -710,49 +710,49 @@ mod test {
         });
     }
 
-    // #[test]
-    // fn test_empty_elf_with_empty_args() {
-    //     let mozak_ro_memory =
-    //         Program::mozak_load_program(mozak_examples::EMPTY_ELF,
-    // &RuntimeArguments::default())             .unwrap()
-    //             .mozak_ro_memory
-    //             .unwrap();
-    //     assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 0);
-    //     assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
-    //     assert_eq!(mozak_ro_memory.call_tape.data.len(), 0);
-    // }
+    #[test]
+    fn test_empty_elf_with_empty_args() {
+        let mozak_ro_memory =
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
+                .unwrap()
+                .mozak_ro_memory
+                .unwrap();
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 0);
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
+        assert_eq!(mozak_ro_memory.call_tape.data.len(), 0);
+    }
 
-    // #[test]
-    // fn test_empty_elf_with_args() {
-    //     let mozak_ro_memory =
-    //         Program::mozak_load_program(mozak_examples::EMPTY_ELF,
-    // &RuntimeArguments {             self_prog_id: vec![0],
-    //             cast_list: vec![0, 1],
-    //             io_tape_private: vec![0, 1, 2],
-    //             io_tape_public: vec![0, 1, 2, 3],
-    //             call_tape: vec![0, 1, 2, 3, 4],
-    //             event_tape: vec![0, 1, 2, 3, 4, 5],
-    //         })
-    //         .unwrap()
-    //         .mozak_ro_memory
-    //         .unwrap();
-    //     assert_eq!(mozak_ro_memory.self_prog_id.data.len(), 1);
-    //     assert_eq!(mozak_ro_memory.cast_list.data.len(), 2);
-    //     assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 3);
-    //     assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 4);
-    //     assert_eq!(mozak_ro_memory.call_tape.data.len(), 5);
-    //     assert_eq!(mozak_ro_memory.event_tape.data.len(), 6);
-    // }
+    #[test]
+    fn test_empty_elf_with_args() {
+        let mozak_ro_memory =
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
+                self_prog_id: vec![0],
+                cast_list: vec![0, 1],
+                io_tape_private: vec![0, 1, 2],
+                io_tape_public: vec![0, 1, 2, 3],
+                call_tape: vec![0, 1, 2, 3, 4],
+                event_tape: vec![0, 1, 2, 3, 4, 5],
+            })
+            .unwrap()
+            .mozak_ro_memory
+            .unwrap();
+        assert_eq!(mozak_ro_memory.self_prog_id.data.len(), 1);
+        assert_eq!(mozak_ro_memory.cast_list.data.len(), 2);
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 3);
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 4);
+        assert_eq!(mozak_ro_memory.call_tape.data.len(), 5);
+        assert_eq!(mozak_ro_memory.event_tape.data.len(), 6);
+    }
 
-    // #[test]
-    // fn test_empty_elf_check_assumed_values() {
-    //     // This test ensures mozak-loader & mozak-linker-script is indeed
-    // aligned     let mozak_ro_memory =
-    //         Program::mozak_load_program(mozak_examples::EMPTY_ELF,
-    // &RuntimeArguments::default())             .unwrap()
-    //             .mozak_ro_memory
-    //             .unwrap();
-    //     let test_mozak_ro_memory = MozakMemory::default();
-    //     assert_eq!(mozak_ro_memory, test_mozak_ro_memory);
-    // }
+    #[test]
+    fn test_empty_elf_check_assumed_values() {
+        // This test ensures mozak-loader & mozak-linker-script is indeed aligned
+        let mozak_ro_memory =
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
+                .unwrap()
+                .mozak_ro_memory
+                .unwrap();
+        let test_mozak_ro_memory = MozakMemory::default();
+        assert_eq!(mozak_ro_memory, test_mozak_ro_memory);
+    }
 }
