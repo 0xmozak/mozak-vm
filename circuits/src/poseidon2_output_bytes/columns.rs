@@ -2,8 +2,10 @@ use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::plonk::config::GenericHashOut;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::stark::mozak_stark::{Poseidon2OutputBytesTable, Table};
 
 pub const FIELDS_COUNT: usize = 4;
@@ -49,6 +51,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2OutputBytes<F>> {
     }
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> Table {
     let data = col_map().map(Column::from);
@@ -59,6 +62,7 @@ pub fn lookup_for_poseidon2_sponge() -> Table {
     Poseidon2OutputBytesTable::new(data_cols, col_map().map(Column::from).is_executed)
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_output_memory(limb_index: u8) -> Table {
     assert!(limb_index < 32, "limb_index can be 0..31");

@@ -1,10 +1,14 @@
 use core::ops::Add;
 
-use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::RichField;
+#[cfg(feature = "enable_poseidon_starks")]
+use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::stark::mozak_stark::{Poseidon2SpongeTable, Table};
 
 #[repr(C)]
@@ -53,6 +57,7 @@ impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
     }
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_cpu() -> Table {
     let sponge = col_map().map(Column::from);
@@ -62,6 +67,7 @@ pub fn lookup_for_cpu() -> Table {
     )
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2() -> Table {
     let sponge = col_map().map(Column::from);
@@ -70,6 +76,7 @@ pub fn lookup_for_poseidon2() -> Table {
     Poseidon2SpongeTable::new(data, col_map().map(Column::from).is_executed())
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2_output_bytes() -> Table {
     let sponge = col_map().map(Column::from);
@@ -82,6 +89,7 @@ pub fn lookup_for_poseidon2_output_bytes() -> Table {
     Poseidon2SpongeTable::new(data, col_map().map(Column::from).gen_output)
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_input_memory(limb_index: u8) -> Table {
     assert!(limb_index < 8, "limb_index can be 0..7");
