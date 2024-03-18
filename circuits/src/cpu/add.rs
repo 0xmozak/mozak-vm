@@ -76,6 +76,29 @@ mod tests {
         }
         Stark::prove_and_verify(&program, &record).unwrap();
     }
+    #[test]
+    fn prove_add_mozak_example() {
+        // use crate::columns_view::NumberOfColumns;
+        // let c = crate::cpu::columns::COL_MAP;
+        // println!("{c:?}");
+        // let clk: ColumnX<crate::cpu::columns::CpuColumnsExtended<i64>> = c.cpu.clk;
+        // println!("\n{:?}", clk);
+        // let d = c.cpu.clk.lv_linear_combination;
+        // println!("\n{:?}", d);
+        // let xx: Vec<_> = d.into_iter().collect();
+        // println!("\n{:?}", xx.len());
+        // let n = crate::cpu::columns::CpuColumnsExtended::<i64>::NUMBER_OF_COLUMNS;
+        // println!("\nNUMBER_OF_COLUMNS: {n:?}");
+
+        // let column = Column::from(clk);
+        // println!("column: {column:?}");
+
+        // panic!();
+        let a = 1;
+        let b = 2;
+        let rd = 3;
+        prove_add::<MozakStark<F, D>>(a, b, rd);
+    }
 
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
