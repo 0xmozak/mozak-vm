@@ -79,10 +79,16 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
 #[must_use]
 pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
     let data = col_map().map(Column::from);
+    // FIXME: Check why does not work just reduce_with_power on &data.bytes
+    let mut rdata = data.bytes.clone();
+    let d = data.bytes.clone();
+    data.bytes
+        .iter()
+        .enumerate()
+        .for_each(|e| rdata[e.0] = d[d.len() - e.0 - 1].clone());
     vec![
         data.clk,
-        // FIXME: Check why does not work
-        data.value, // Column::<F>::reduce_with_powers(&data.bytes, F::from_canonical_u16(1 << 8)),
+        Column::<F>::reduce_with_powers(&rdata, F::from_canonical_u16(1 << 8)),
         data.addr,
     ]
 }
