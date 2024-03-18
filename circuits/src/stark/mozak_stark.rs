@@ -540,10 +540,7 @@ pub struct InnerCpuTable;
 impl Lookups for InnerCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_inst(),
-                Column::single(cpu::columns::col_map().cpu.is_running),
-            )],
+            vec![cpu::columns::lookup_for_inst()],
             CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
                 Column::single(cpu::columns::col_map().cpu.is_running),
