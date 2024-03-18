@@ -8,27 +8,6 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 
 use crate::columns_view::Zip;
-// TODO(Matthias): consider making a ColMap for ColumnTyped as well.
-// use crate::linear_combination::Column;
-
-// TODO(Matthias): figure out why this one isn't used!
-
-// pub fn to_untyped<X: IntoIterator<Item = i64>>(input: ColumnTyped<X>) ->
-// Column {     // TODO(Matthias): we could filter out zero coefficients here,
-// if we wanted to.     Column {
-//         lv_linear_combination: input
-//             .lv_linear_combination
-//             .into_iter()
-//             .enumerate()
-//             .collect(),
-//         nv_linear_combination: input
-//             .nv_linear_combination
-//             .into_iter()
-//             .enumerate()
-//             .collect(),
-//         constant: input.constant,
-//     }
-// }
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Copy, Debug, Default)]
@@ -170,12 +149,6 @@ where
 impl<C: Default> From<C> for ColumnTyped<C> {
     fn from(lv_linear_combination: C) -> Self { Self::now(lv_linear_combination) }
 }
-
-// impl<C: Default, I> From<I> for ColumnTyped<C> where I: :
-// IntoIterator<Item=C>{     fn from(lvs: C) -> Self {
-//         lvs.into_iter().map(Self::from).sum()
-//     }
-// }
 
 impl<C: Default> ColumnTyped<C> {
     pub const fn now(lv_linear_combination: C) -> Self {

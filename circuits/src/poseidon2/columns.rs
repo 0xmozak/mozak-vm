@@ -14,7 +14,7 @@ pub const STATE_SIZE: usize = WIDTH;
 pub(crate) const ROUNDS_F: usize = ROUND_F_END;
 pub(crate) const ROUNDS_P: usize = ROUND_P;
 
-pub(crate) const X: usize = STATE_SIZE * (ROUNDS_F / 2);
+pub(crate) const STATE_SIZE_AFTER: usize = STATE_SIZE * (ROUNDS_F / 2);
 
 columns_view_impl!(Poseidon2State);
 make_col_map!(Poseidon2State);
@@ -23,13 +23,13 @@ make_col_map!(Poseidon2State);
 pub struct Poseidon2State<F> {
     pub is_exe: F,
     pub input: [F; STATE_SIZE],
-    pub state_after_first_full_rounds: [F; X],
+    pub state_after_first_full_rounds: [F; STATE_SIZE_AFTER],
     pub state0_after_partial_rounds: [F; ROUNDS_P],
     pub state_after_partial_rounds: [F; STATE_SIZE],
-    pub state_after_second_full_rounds: [F; X],
+    pub state_after_second_full_rounds: [F; STATE_SIZE_AFTER],
     // following columns are used to reduce s_box computation degree
-    pub s_box_input_qube_first_full_rounds: [F; X],
-    pub s_box_input_qube_second_full_rounds: [F; X],
+    pub s_box_input_qube_first_full_rounds: [F; STATE_SIZE_AFTER],
+    pub s_box_input_qube_second_full_rounds: [F; STATE_SIZE_AFTER],
     pub s_box_input_qube_partial_rounds: [F; ROUNDS_P],
 }
 
@@ -39,12 +39,12 @@ impl<F: Default + Copy> Default for Poseidon2State<F> {
         Self {
             is_exe: F::default(),
             input: [F::default(); STATE_SIZE],
-            state_after_first_full_rounds: [F::default(); X],
+            state_after_first_full_rounds: [F::default(); STATE_SIZE_AFTER],
             state0_after_partial_rounds: [F::default(); ROUNDS_P],
             state_after_partial_rounds: [F::default(); STATE_SIZE],
-            state_after_second_full_rounds: [F::default(); X],
-            s_box_input_qube_first_full_rounds: [F::default(); X],
-            s_box_input_qube_second_full_rounds: [F::default(); X],
+            state_after_second_full_rounds: [F::default(); STATE_SIZE_AFTER],
+            s_box_input_qube_first_full_rounds: [F::default(); STATE_SIZE_AFTER],
+            s_box_input_qube_second_full_rounds: [F::default(); STATE_SIZE_AFTER],
             s_box_input_qube_partial_rounds: [F::default(); ROUNDS_P],
         }
     }

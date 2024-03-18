@@ -411,13 +411,13 @@ pub struct TableNamedTyped<Row, Filter> {
     pub(crate) filter_column: Filter,
 }
 
-impl<RowIn, RowOut, X> From<TableNamedTyped<RowIn, ColumnTyped<X>>> for TableNamed<RowOut>
+impl<RowIn, RowOut, I> From<TableNamedTyped<RowIn, ColumnTyped<I>>> for TableNamed<RowOut>
 where
-    X: IntoIterator<Item = i64>,
+    I: IntoIterator<Item = i64>,
     RowOut: FromIterator<Column>,
-    RowIn: IntoIterator<Item = ColumnTyped<X>>,
+    RowIn: IntoIterator<Item = ColumnTyped<I>>,
 {
-    fn from(input: TableNamedTyped<RowIn, ColumnTyped<X>>) -> Self {
+    fn from(input: TableNamedTyped<RowIn, ColumnTyped<I>>) -> Self {
         TableNamed {
             kind: input.kind,
             columns: input.columns.into_iter().map(Column::from).collect(),
@@ -462,14 +462,14 @@ macro_rules! table_impl {
 
         impl $t {
             #[allow(clippy::new_ret_no_self)]
-            pub fn new<RowIn, RowOut, X>(
+            pub fn new<RowIn, RowOut, I>(
                 columns: RowIn,
-                filter_column: ColumnTyped<X>,
+                filter_column: ColumnTyped<I>,
             ) -> TableNamed<RowOut>
             where
-                X: IntoIterator<Item = i64>,
+                I: IntoIterator<Item = i64>,
                 RowOut: FromIterator<Column>,
-                RowIn: IntoIterator<Item = ColumnTyped<X>>, {
+                RowIn: IntoIterator<Item = ColumnTyped<I>>, {
                 TableNamed {
                     kind: $tk,
                     columns: columns.into_iter().map(Column::from).collect(),

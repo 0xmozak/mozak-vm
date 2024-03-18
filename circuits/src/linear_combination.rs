@@ -22,8 +22,8 @@ pub struct Column {
     pub constant: i64,
 }
 
-impl<X: IntoIterator<Item = i64>> From<ColumnTyped<X>> for Column {
-    fn from(colx: ColumnTyped<X>) -> Self {
+impl<I: IntoIterator<Item = i64>> From<ColumnTyped<I>> for Column {
+    fn from(colx: ColumnTyped<I>) -> Self {
         Self {
             lv_linear_combination: colx.lv_linear_combination.into_iter().enumerate().collect(),
             nv_linear_combination: colx.nv_linear_combination.into_iter().enumerate().collect(),

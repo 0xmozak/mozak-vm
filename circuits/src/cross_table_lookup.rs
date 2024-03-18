@@ -193,14 +193,14 @@ pub struct CrossTableLookupNamed<Row> {
 }
 
 // TODO(Matthias): carefully study the types here.
-impl<RowIn, RowOut, X> From<CrossTableLookupNamedTyped<RowIn, ColumnTyped<X>>>
+impl<RowIn, RowOut, I> From<CrossTableLookupNamedTyped<RowIn, ColumnTyped<I>>>
     for CrossTableLookupNamed<RowOut>
 where
-    X: IntoIterator<Item = i64>,
+    I: IntoIterator<Item = i64>,
     RowOut: FromIterator<Column>,
-    RowIn: IntoIterator<Item = ColumnTyped<X>>,
+    RowIn: IntoIterator<Item = ColumnTyped<I>>,
 {
-    fn from(ctl: CrossTableLookupNamedTyped<RowIn, ColumnTyped<X>>) -> Self {
+    fn from(ctl: CrossTableLookupNamedTyped<RowIn, ColumnTyped<I>>) -> Self {
         let looked_table = TableNamed::from(ctl.looked_table);
         let looking_tables = ctl
             .looking_tables
