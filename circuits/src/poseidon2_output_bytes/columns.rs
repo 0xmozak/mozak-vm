@@ -50,17 +50,14 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2OutputBytes<F>> {
 }
 
 #[must_use]
-pub fn data_for_poseidon2_sponge() -> Vec<Column> {
+pub fn lookup_for_poseidon2_sponge() -> Table {
     let data = col_map().map(Column::from);
     let mut data_cols = vec![];
     data_cols.push(data.clk);
     data_cols.push(data.output_addr);
     data_cols.extend(data.output_fields.to_vec());
-    data_cols
+    Poseidon2OutputBytesTable::new(data_cols, col_map().map(Column::from).is_executed)
 }
-
-#[must_use]
-pub fn filter_for_poseidon2_sponge() -> Column { col_map().map(Column::from).is_executed }
 
 #[must_use]
 pub fn lookup_for_output_memory(limb_index: u8) -> Table {

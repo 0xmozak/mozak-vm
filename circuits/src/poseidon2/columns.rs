@@ -1,5 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
+use crate::stark::mozak_stark::{Poseidon2Table, Table};
 
 /// The size of the state
 pub const STATE_SIZE: usize = 12;
@@ -44,7 +45,7 @@ make_col_map!(Poseidon2State);
 
 pub const NUM_POSEIDON2_COLS: usize = Poseidon2State::<()>::NUMBER_OF_COLUMNS;
 
-pub fn data_for_sponge() -> Vec<Column> {
+pub fn lookup_for_sponge() -> Table {
     let poseidon2 = col_map().map(Column::from);
     let mut data = poseidon2.input.to_vec();
     // Extend data with outputs which is basically state after last full round.
@@ -53,10 +54,5 @@ pub fn data_for_sponge() -> Vec<Column> {
             [STATE_SIZE * (ROUNDS_F / 2 - 1)..STATE_SIZE * (ROUNDS_F / 2)]
             .to_vec(),
     );
-    data
-}
-
-pub fn filter_for_sponge() -> Column {
-    let poseidon2 = col_map().map(Column::from);
-    poseidon2.is_exe
+    Poseidon2Table::new(data, poseidon2.is_exe)
 }

@@ -482,13 +482,10 @@ pub fn lookup_for_program_rom() -> Table {
 }
 
 #[must_use]
-pub fn data_for_poseidon2_sponge() -> Vec<Column> {
+pub fn lookup_for_poseidon2_sponge() -> Table {
     let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.poseidon2_input_addr, cpu.poseidon2_input_len]
-}
-
-#[must_use]
-pub fn filter_for_poseidon2_sponge() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
-    cpu.is_poseidon2
+    CpuTable::new(
+        vec![cpu.clk, cpu.poseidon2_input_addr, cpu.poseidon2_input_len],
+        cpu.is_poseidon2,
+    )
 }

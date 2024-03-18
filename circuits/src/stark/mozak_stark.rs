@@ -565,13 +565,7 @@ impl Lookups for RangeCheckU8LookupTable {
             memory::columns::rangecheck_u8_looking(),
         ]
         .collect();
-        CrossTableLookup::new(
-            looking,
-            RangeCheckU8Table::new(
-                crate::rangecheck_u8::columns::data(),
-                crate::rangecheck_u8::columns::filter(),
-            ),
-        )
+        CrossTableLookup::new(looking, crate::rangecheck_u8::columns::lookup())
     }
 }
 
@@ -651,14 +645,8 @@ pub struct Poseidon2SpongeCpuTable;
 impl Lookups for Poseidon2SpongeCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_cpu(),
-                crate::poseidon2_sponge::columns::filter_for_cpu(),
-            )],
-            CpuTable::new(
-                crate::cpu::columns::data_for_poseidon2_sponge(),
-                crate::cpu::columns::filter_for_poseidon2_sponge(),
-            ),
+            vec![crate::poseidon2_sponge::columns::lookup_for_cpu()],
+            crate::cpu::columns::lookup_for_poseidon2_sponge(),
         )
     }
 }
@@ -669,14 +657,8 @@ pub struct Poseidon2Poseidon2SpongeTable;
 impl Lookups for Poseidon2Poseidon2SpongeTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![Poseidon2Table::new(
-                crate::poseidon2::columns::data_for_sponge(),
-                crate::poseidon2::columns::filter_for_sponge(),
-            )],
-            Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_poseidon2(),
-                crate::poseidon2_sponge::columns::filter_for_poseidon2(),
-            ),
+            vec![crate::poseidon2::columns::lookup_for_sponge()],
+            crate::poseidon2_sponge::columns::lookup_for_poseidon2(),
         )
     }
 }
@@ -687,14 +669,8 @@ pub struct Poseidon2OutputBytesPoseidon2SpongeTable;
 impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![Poseidon2OutputBytesTable::new(
-                crate::poseidon2_output_bytes::columns::data_for_poseidon2_sponge(),
-                crate::poseidon2_output_bytes::columns::filter_for_poseidon2_sponge(),
-            )],
-            Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_poseidon2_output_bytes(),
-                crate::poseidon2_sponge::columns::filter_for_poseidon2_output_bytes(),
-            ),
+            vec![crate::poseidon2_output_bytes::columns::lookup_for_poseidon2_sponge()],
+            crate::poseidon2_sponge::columns::lookup_for_poseidon2_output_bytes(),
         )
     }
 }

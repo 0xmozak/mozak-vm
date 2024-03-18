@@ -54,30 +54,24 @@ impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
 }
 
 #[must_use]
-pub fn data_for_cpu() -> Vec<Column> {
+pub fn lookup_for_cpu() -> Table {
     let sponge = col_map().map(Column::from);
-    vec![sponge.clk, sponge.input_addr, sponge.input_len]
+    Poseidon2SpongeTable::new(
+        vec![sponge.clk, sponge.input_addr, sponge.input_len],
+        sponge.ops.is_init_permute,
+    )
 }
 
 #[must_use]
-pub fn filter_for_cpu() -> Column {
-    let sponge = col_map().map(Column::from);
-    sponge.ops.is_init_permute
-}
-
-#[must_use]
-pub fn data_for_poseidon2() -> Vec<Column> {
+pub fn lookup_for_poseidon2() -> Table {
     let sponge = col_map().map(Column::from);
     let mut data = sponge.preimage.to_vec();
     data.extend(sponge.output.to_vec());
-    data
+    Poseidon2SpongeTable::new(data, col_map().map(Column::from).is_executed())
 }
 
 #[must_use]
-pub fn filter_for_poseidon2() -> Column { col_map().map(Column::from).is_executed() }
-
-#[must_use]
-pub fn data_for_poseidon2_output_bytes() -> Vec<Column> {
+pub fn lookup_for_poseidon2_output_bytes() -> Table {
     let sponge = col_map().map(Column::from);
     let mut data = vec![];
     data.push(sponge.clk);
@@ -85,11 +79,8 @@ pub fn data_for_poseidon2_output_bytes() -> Vec<Column> {
     let mut outputs = sponge.output.to_vec();
     outputs.truncate(NUM_HASH_OUT_ELTS);
     data.extend(outputs);
-    data
+    Poseidon2SpongeTable::new(data, col_map().map(Column::from).gen_output)
 }
-
-#[must_use]
-pub fn filter_for_poseidon2_output_bytes() -> Column { col_map().map(Column::from).gen_output }
 
 #[must_use]
 pub fn lookup_for_input_memory(limb_index: u8) -> Table {
