@@ -179,7 +179,6 @@ mod tests {
             CanonicalEvent::from_event(common_emitter, &event2_read),
             CanonicalEvent::from_event(common_emitter, &event3_read)
         ];
-        // let expected_canonical_hints = vec![1, 2, 0];
         let expected_temporal_hints = vec![2, 0, 1];
 
         let ordered_events = OrderedEvents::new(common_emitter, temporal_order.clone());
@@ -188,8 +187,5 @@ mod tests {
             expected_canonical_order.into_iter().zip(expected_temporal_hints.into_iter())
             .map(|(ce, idx)| CanonicalOrderedTemporalHints(ce, idx))
             .collect::<Vec<CanonicalOrderedTemporalHints>>()); 
-        
-        // assert_eq!(ordered_events.get_temporal_order_canonical_hints(), 
-        //     temporal_order.into_iter().zip(expected_canonical_hints.into_iter()).collect::<Vec<(Event, u32)>>()); 
     }
 }
