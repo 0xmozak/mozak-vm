@@ -1,7 +1,8 @@
 use std::io::{self, stdin, BufReader, Read};
 
 use mozak_system::system::{syscall_ioread_private, syscall_ioread_public};
-use rkyv::ser::serializers::AllocSerializer;
+use rkyv::rancor::{Panic, Strategy};
+use rkyv::ser::AllocSerializer;
 use rkyv::{Archive, Deserialize, Serialize};
 
 pub trait Extractor {
@@ -215,8 +216,8 @@ where
 pub fn to_tape_serialized<F, T, const N: usize>(tape: &mut F, object: &T)
 where
     F: std::io::Write,
-    T: Serialize<AllocSerializer<N>>, {
-    let serialized_obj = rkyv::to_bytes::<_, N>(object).unwrap();
+    T: Serialize<Strategy<AllocSerializer<N>, Panic>>, {
+    let serialized_obj = rkyv::to_bytes::<_, N, Panic>(object).unwrap();
     let serialized_obj_len = u32::try_from(serialized_obj.len()).unwrap().to_le_bytes();
     tape.write_all(&serialized_obj_len)
         .expect("failure while writing serialized obj len prefix");
@@ -232,7 +233,7 @@ pub fn from_tape_deserialized<F, T, const N: usize>(tape: &mut F) -> T
 where
     F: std::io::Read,
     T: Archive,
-    T::Archived: Deserialize<T, rkyv::Infallible>, {
+    T::Archived: Deserialize<T, Strategy<(), Panic>>, {
     let mut length_prefix = [0u8; 4];
     tape.read_exact(&mut length_prefix)
         .expect("read failed for length prefix");
@@ -243,6 +244,6 @@ where
     tape.read_exact(&mut obj_buf[0..(length_prefix as usize)])
         .expect("read failed for obj");
 
-    let archived = unsafe { rkyv::archived_root::<T>(&obj_buf) };
-    archived.deserialize(&mut rkyv::Infallible).unwrap()
+    let archived = unsafe { rkyv::access_unchecked::<T>(&obj_buf) };
+    archived.deserialize(Strategy::wrap(&mut ())).unwrap()
 }

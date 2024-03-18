@@ -10,7 +10,8 @@ use log::debug;
 use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::coretypes::{Event, ProgramIdentifier};
 use mozak_sdk::sys::SystemTapes;
-use rkyv::ser::serializers::AllocSerializer;
+use rkyv::rancor::{Panic, Strategy};
+use rkyv::ser::AllocSerializer;
 use rkyv::Deserialize;
 
 pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> {
@@ -33,9 +34,9 @@ pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
     let mut sys_tapes_bytes = Vec::new();
     let bytes_read = bin.read_to_end(&mut sys_tapes_bytes)?;
     debug!("Read {bytes_read} of system tape data.");
-    let sys_tapes_archived = unsafe { rkyv::archived_root::<SystemTapes>(&sys_tapes_bytes[..]) };
+    let sys_tapes_archived = unsafe { rkyv::access_unchecked::<SystemTapes>(&sys_tapes_bytes[..]) };
     let deserialized: SystemTapes = sys_tapes_archived
-        .deserialize(&mut rkyv::Infallible)
+        .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
         .unwrap();
     Ok(deserialized)
 }
@@ -95,8 +96,8 @@ pub fn tapes_to_runtime_arguments(
     {
         fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
         where
-            T: rkyv::Archive + rkyv::Serialize<AllocSerializer<256>>, {
-            let tape_bytes = rkyv::to_bytes::<_, 256>(tape).unwrap().into();
+            T: rkyv::Archive + rkyv::Serialize<Strategy<AllocSerializer<256>, Panic>>, {
+            let tape_bytes = rkyv::to_bytes::<_, 256, _>(tape).unwrap().into();
             length_prefixed_bytes(tape_bytes, dgb_string)
         }
 

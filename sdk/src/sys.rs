@@ -1,7 +1,10 @@
 use std::ptr::addr_of;
 
 use once_cell::unsync::Lazy;
-use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
+use rkyv::rancor::{Panic, Strategy};
+use rkyv::ser::allocator::{AllocationTracker, GlobalAllocator};
+use rkyv::ser::{AllocSerializer, Composite};
+use rkyv::util::AlignedVec;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[cfg(target_os = "mozakvm")]
@@ -10,12 +13,8 @@ use crate::coretypes::{CPCMessage, CanonicalEvent, Event, Poseidon2HashType, Pro
 #[cfg(not(target_os = "mozakvm"))]
 use crate::native_helpers::sort_with_hints;
 
-pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
-pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
-pub type RkyvShared = rkyv::ser::serializers::SharedSerializeMap;
-
-pub trait RkyvSerializable =
-    rkyv::Serialize<CompositeSerializer<RkyvSerializer, RkyvScratch, RkyvShared>>;
+pub trait RkyvSerializable = rkyv::Serialize<Strategy<Composite<AlignedVec, AllocationTracker<GlobalAllocator>, ()>, ()>>
+    + Serialize<Strategy<AllocSerializer<256>, Panic>>;
 pub trait CallArgument = Sized + RkyvSerializable;
 pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
 
@@ -54,7 +53,7 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
             let mem_len = unsafe { *{ addr as *const u32 } } as usize;
             unsafe {
                 let mem_slice = &*slice_from_raw_parts::<u8>(addr.add(4), mem_len);
-                rkyv::archived_root::<T>(mem_slice)
+                rkyv::access_unchecked::<T>(mem_slice)
             }
         }
 
@@ -65,8 +64,9 @@ static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| {
         let castlist_zcd = get_zcd_repr::<Vec<ProgramIdentifier>>(unsafe {
             addr_of!(_mozak_cast_list) as *const u8
         });
-        let cast_list: Vec<ProgramIdentifier> =
-            castlist_zcd.deserialize(&mut rkyv::Infallible).unwrap();
+        let cast_list: Vec<ProgramIdentifier> = castlist_zcd
+            .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
+            .unwrap();
 
         let calltape_zcd =
             get_zcd_repr::<Vec<CPCMessage>>(unsafe { addr_of!(_mozak_call_tape) as *const u8 });
@@ -116,7 +116,7 @@ pub struct CallTape {
 }
 
 #[cfg(not(target_os = "mozakvm"))]
-#[derive(Default, Debug, Clone, Archive, Deserialize, Serialize)]
+#[derive(Archive, Deserialize, Default, Debug, Clone, Eq, PartialEq, Serialize)]
 #[archive_attr(derive(Debug))]
 pub struct CallTape {
     pub writer: Vec<CPCMessage>,
@@ -137,22 +137,23 @@ impl CallTape {
                 let zcd_cpcmsg = &self.reader.unwrap()[self.index];
                 let caller: ProgramIdentifier = zcd_cpcmsg
                     .caller_prog
-                    .deserialize(&mut rkyv::Infallible)
+                    .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
                     .unwrap();
 
                 assert_ne!(caller, self.self_prog_id);
 
                 let callee: ProgramIdentifier = zcd_cpcmsg
                     .callee_prog
-                    .deserialize(&mut rkyv::Infallible)
+                    .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
                     .unwrap();
 
                 assert!(self.is_casted_actor(&caller));
 
                 // if we are the callee, return this message
                 if self.self_prog_id == callee {
-                    let full_deserialized: CPCMessage =
-                        zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
+                    let full_deserialized: CPCMessage = zcd_cpcmsg
+                        .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
+                        .unwrap();
                     self.index += 1;
                     return Some((full_deserialized, self.index - 1));
                 }
@@ -182,34 +183,39 @@ impl CallTape {
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
-        <A as Archive>::Archived: Deserialize<A, rkyv::Infallible>,
-        <R as Archive>::Archived: Deserialize<R, rkyv::Infallible>, {
+        <A as Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+        <R as Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
+        A: Serialize<Strategy<AllocSerializer<256>, Panic>>,
+        R: Serialize<Strategy<AllocSerializer<256>, Panic>>, {
         #[cfg(target_os = "mozakvm")]
         {
             assert!(self.index < self.reader.unwrap().len());
 
             let zcd_cpcmsg = &self.reader.unwrap()[self.index];
-            let cpcmsg: CPCMessage = zcd_cpcmsg.deserialize(&mut rkyv::Infallible).unwrap();
+            let cpcmsg: CPCMessage = zcd_cpcmsg
+                .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
+                .unwrap();
 
             assert_eq!(cpcmsg.caller_prog, self.self_prog_id);
             assert_eq!(cpcmsg.callee_prog, callee_prog);
             assert!(self.is_casted_actor(&callee_prog));
 
-            let zcd_args = unsafe { rkyv::archived_root::<A>(&cpcmsg.args.0[..]) };
-            let deserialized_args = <<A as Archive>::Archived as Deserialize<
-                A,
-                rkyv::Infallible,
-            >>::deserialize(zcd_args, &mut rkyv::Infallible)
-            .unwrap();
+            let zcd_args = unsafe { rkyv::access_unchecked::<A>(&cpcmsg.args.0[..]) };
+            let deserialized_args =
+                <<A as Archive>::Archived as Deserialize<A, Strategy<(), Panic>>>::deserialize(
+                    zcd_args,
+                    Strategy::<(), Panic>::wrap(&mut ()),
+                )
+                .unwrap();
 
             assert!(deserialized_args == call_args);
 
             self.index += 1;
 
-            let zcd_ret = unsafe { rkyv::archived_root::<R>(&cpcmsg.ret.0[..]) };
-            <<R as Archive>::Archived as Deserialize<R, rkyv::Infallible>>::deserialize(
+            let zcd_ret = unsafe { rkyv::access_unchecked::<R>(&cpcmsg.ret.0[..]) };
+            <<R as Archive>::Archived as Deserialize<R, Strategy<(), Panic>>>::deserialize(
                 zcd_ret,
-                &mut rkyv::Infallible,
+                Strategy::wrap(&mut ()),
             )
             .unwrap()
         }
@@ -218,7 +224,7 @@ impl CallTape {
             let msg = CPCMessage {
                 caller_prog,
                 callee_prog,
-                args: rkyv::to_bytes::<_, 256>(&call_args).unwrap().into(),
+                args: rkyv::to_bytes::<_, 256, Panic>(&call_args).unwrap().into(),
                 ..CPCMessage::default()
             };
 
@@ -227,7 +233,8 @@ impl CallTape {
 
             let retval = dispatch_native(call_args);
 
-            self.writer[inserted_idx].ret = rkyv::to_bytes::<_, 256>(&retval).unwrap().into();
+            self.writer[inserted_idx].ret =
+                rkyv::to_bytes::<R, 256, Panic>(&retval).unwrap().into();
 
             println!(
                 "[CALL ] ResolvedAdd: {:#?}",
@@ -324,7 +331,9 @@ impl EventTape {
             assert!(self.index < self.reader.unwrap().len());
 
             let zcd_event = &self.reader.unwrap()[self.index];
-            let event_deserialized: Event = zcd_event.deserialize(&mut rkyv::Infallible).unwrap();
+            let event_deserialized: Event = zcd_event
+                .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
+                .unwrap();
 
             assert_eq!(event, event_deserialized);
 
@@ -390,7 +399,7 @@ pub fn dump_tapes(file_template: String) {
     write_to_file(&dbg_filename, dbg_bytes);
 
     let bin_filename = file_template + ".tape_bin";
-    let bin_bytes = unsafe { rkyv::to_bytes::<_, 256>(&*(addr_of!(tape_clone))).unwrap() };
+    let bin_bytes = unsafe { rkyv::to_bytes::<_, 256, Panic>(&*(addr_of!(tape_clone))).unwrap() };
     println!("[TPDMP] Binary dump: {:?}", bin_filename);
     write_to_file(&bin_filename, bin_bytes.as_slice());
 }
@@ -430,8 +439,10 @@ pub fn call_send<A, R>(
 where
     A: CallArgument + PartialEq,
     R: CallReturn,
-    <A as Archive>::Archived: Deserialize<A, rkyv::Infallible>,
-    <R as Archive>::Archived: Deserialize<R, rkyv::Infallible>, {
+    <A as Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+    <R as Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
+    A: Serialize<Strategy<AllocSerializer<256>, Panic>>,
+    R: Serialize<Strategy<AllocSerializer<256>, Panic>>, {
     unsafe {
         SYSTEM_TAPES.call_tape.to_mailbox(
             caller_prog,

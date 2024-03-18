@@ -1,6 +1,7 @@
 #[cfg(not(target_os = "mozakvm"))]
 use itertools::{chain, Itertools};
-use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
+use rkyv::util::AlignedVec;
+use rkyv::{Archive, Deserialize, Serialize};
 
 #[cfg(not(target_os = "mozakvm"))]
 use crate::sys::poseidon2_hash;

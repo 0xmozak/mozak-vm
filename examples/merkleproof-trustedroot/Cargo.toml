@@ -9,7 +9,7 @@ native = []
 [dependencies]
 guest = { path = "../../guest", features = ["std"] }
 mozak-sdk = { path = "../../sdk" }
-rkyv = { version = "0.7", default-features = false, features = ["pointer_width_32", "alloc"] }
+rkyv = { version = "0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 rs_merkle = { version = "1.4", default-features = false }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.log]
