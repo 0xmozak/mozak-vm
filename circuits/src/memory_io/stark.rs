@@ -160,8 +160,8 @@ mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
     use mozak_runner::util::execute_code_with_runtime_args;
-    use mozak_system::system::ecall;
-    use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
+    use mozak_sdk::core::ecall;
+    use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;

@@ -4,7 +4,7 @@ name = "empty"
 version = "0.1.0"
 
 [dependencies]
-guest = { path = "../../guest", default-features = false }
+mozak-sdk = { path = "../../sdk", default-features = false }
 
 [[bin]]
 name = "empty"
