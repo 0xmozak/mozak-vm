@@ -529,14 +529,8 @@ pub struct BitshiftCpuTable;
 impl Lookups for BitshiftCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_shift_amount(),
-                cpu::columns::filter_for_shift_amount(),
-            )],
-            BitshiftTable::new(
-                bitshift::columns::data_for_cpu(),
-                bitshift::columns::filter_for_cpu(),
-            ),
+            vec![cpu::columns::lookup_for_shift_amount()],
+            bitshift::columns::lookup_for_cpu(),
         )
     }
 }
