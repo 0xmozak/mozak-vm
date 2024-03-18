@@ -345,25 +345,21 @@ pub fn lookup_for_halfword_memory() -> Table {
     )
 }
 
-/// Column containing the data to be matched against Memory stark.
+/// Lookup into fullword memory table.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_fullword_memory() -> Vec<Column> {
+pub fn lookup_for_fullword_memory() -> Table {
     let cpu = col_map().cpu.map(Column::from);
+    CpuTable::new(
     vec![
         cpu.clk,
         cpu.mem_addr,
         cpu.dst_value,
         cpu.inst.ops.sw,
         cpu.inst.ops.lw,
-    ]
-}
-
-/// Column for a binary filter for memory instruction in Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_fullword_memory() -> Column {
+    ],
     col_map().cpu.map(Column::from).inst.ops.fullword_mem_ops()
+    )
 }
 
 /// Column containing the data to be matched against IO Memory stark.
