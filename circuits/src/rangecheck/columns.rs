@@ -52,6 +52,3 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
         })
         .collect()
 }
-
-#[must_use]
-pub fn filter() -> RangeCheckColumns { COL_MAP.multiplicity }

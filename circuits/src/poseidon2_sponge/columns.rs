@@ -119,22 +119,3 @@ pub fn lookup_for_input_memory(limb_index: u8) -> TableNamed<MemoryCtl<Column>> 
         ops.is_init_permute + ops.is_permute,
     )
 }
-
-#[must_use]
-pub fn data_for_input_memory(limb_index: u8) -> MemoryCtl<Pos2SpongeCol> {
-    assert!(limb_index < 8, "limb_index can be 0..7");
-    let sponge = COL_MAP;
-    MemoryCtl {
-        clk: sponge.clk,
-        is_store: ColumnTyped::constant(0),
-        is_load: ColumnTyped::constant(1),
-        value: sponge.preimage[limb_index as usize],
-        addr: sponge.input_addr + i64::from(limb_index),
-    }
-}
-
-#[must_use]
-pub fn filter_for_input_memory() -> Pos2SpongeCol {
-    let ops = COL_MAP.ops;
-    ops.is_init_permute + ops.is_permute
-}
