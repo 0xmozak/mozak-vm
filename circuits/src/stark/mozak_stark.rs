@@ -34,8 +34,8 @@ use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, program, rangecheck, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit, program,
+    rangecheck, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
@@ -505,13 +505,7 @@ impl Lookups for IntoMemoryTable {
             tables.extend((0..8).map(poseidon2_sponge::columns::lookup_for_input_memory));
             tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
         }
-        CrossTableLookup::new(
-            tables,
-            MemoryTable::new(
-                memory::columns::data_for_cpu(),
-                memory::columns::filter_for_cpu(),
-            ),
-        )
+        CrossTableLookup::new(tables, memory::columns::lookup_for_cpu())
     }
 }
 
@@ -521,18 +515,9 @@ impl Lookups for MemoryInitMemoryTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
             vec![
-                ElfMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MozakMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MemoryZeroInitTable::new(
-                    memory_zeroinit::columns::data_for_memory(),
-                    memory_zeroinit::columns::filter_for_memory(),
-                ),
+                memoryinit::columns::lookup_for_memory(TableKind::ElfMemoryInit),
+                memoryinit::columns::lookup_for_memory(TableKind::MozakMemoryInit),
+                memoryinit::columns::lookup_for_memory(TableKind::MemoryZeroInit),
             ],
             MemoryTable::new(
                 memory::columns::data_for_memoryinit(),

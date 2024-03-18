@@ -197,20 +197,21 @@ pub fn rangecheck_u8_looking() -> Vec<Table> {
     )]
 }
 
-/// Columns containing the data which are looked from the CPU table into Memory
+/// Lookup from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu() -> Vec<Column> {
-    let map = col_map().map(Column::from);
-    vec![map.clk, map.is_store, map.is_load, map.value, map.addr]
-}
-
-/// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
-#[must_use]
-pub fn filter_for_cpu() -> Column {
+pub fn lookup_for_cpu() -> Table {
     let mem = col_map().map(Column::from);
-    mem.is_store + mem.is_load
+    MemoryTable::new(
+        vec![
+            mem.clk,
+            mem.is_store.clone(),
+            mem.is_load.clone(),
+            mem.value,
+            mem.addr,
+        ],
+        mem.is_store + mem.is_load,
+    )
 }
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table

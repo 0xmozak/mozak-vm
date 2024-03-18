@@ -277,13 +277,10 @@ mod tests {
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::stark::mozak_stark::{
-        ElfMemoryInitTable, MemoryTable, MemoryZeroInitTable, MozakMemoryInitTable, MozakStark,
-        TableKindSetBuilder,
-    };
+    use crate::stark::mozak_stark::{MemoryTable, MozakStark, TableKind, TableKindSetBuilder};
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify};
-    use crate::{memory, memory_zeroinit, memoryinit};
+    use crate::{memory, memoryinit};
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -406,18 +403,9 @@ mod tests {
         // ctl for is_init values
         let ctl = CrossTableLookup::new(
             vec![
-                ElfMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MozakMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MemoryZeroInitTable::new(
-                    memory_zeroinit::columns::data_for_memory(),
-                    memory_zeroinit::columns::filter_for_memory(),
-                ),
+                memoryinit::columns::lookup_for_memory(TableKind::ElfMemoryInit),
+                memoryinit::columns::lookup_for_memory(TableKind::MozakMemoryInit),
+                memoryinit::columns::lookup_for_memory(TableKind::MemoryZeroInit),
             ],
             MemoryTable::new(
                 memory::columns::data_for_memoryinit(),
