@@ -1,8 +1,8 @@
 use super::poseidon2hash::DIGEST_BYTES;
 #[cfg(target_os = "mozakvm")]
-use crate::mozakvm::helpers::poseidon2_hash;
+use crate::mozakvm::helpers::poseidon2_hash_with_pad;
 #[cfg(not(target_os = "mozakvm"))]
-use crate::native::helpers::poseidon2_hash;
+use crate::native::helpers::poseidon2_hash_with_pad;
 
 #[derive(
     Default,
@@ -36,8 +36,9 @@ impl ProgramIdentifier {
             entry_point.to_le_bytes(),
         )
         .collect();
-
-        Self(poseidon2_hash(&input))
+        // would be of length 32 + 32 + 4 = 68. And 68 % 8 !=0
+        // Hence would require padding, before being hashed
+        Self(poseidon2_hash_with_pad(&input))
     }
 
     #[must_use]
