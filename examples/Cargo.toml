@@ -11,7 +11,7 @@ members = [
   "rkyv-serialization",
   "empty",
 
-  # --------- members that depend on more than sdk::core
+  # Members that depend on more than sdk::core
   "token",
   "wallet",
 ]
