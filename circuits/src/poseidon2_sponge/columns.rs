@@ -1,14 +1,19 @@
 use core::ops::Add;
 
+#[cfg(feature = "enable_poseidon_starks")]
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnX;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2StateCtl;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableNamed};
 
 #[repr(C)]
@@ -67,6 +72,7 @@ pub fn lookup_for_cpu() -> TableNamed<Poseidon2SpongeCtl<Column>> {
     )
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2() -> TableNamed<Poseidon2StateCtl<Column>> {
     let sponge = COL_MAP;
