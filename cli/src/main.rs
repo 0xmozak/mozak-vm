@@ -26,7 +26,6 @@ use mozak_cli::runner::{load_program, tapes_to_runtime_arguments};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
-use mozak_sdk::sys::SystemTapes;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
