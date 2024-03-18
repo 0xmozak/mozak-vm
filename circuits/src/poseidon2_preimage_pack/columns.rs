@@ -17,7 +17,6 @@ pub struct Poseidon2PreimagePack<F> {
     pub clk: F,
     pub padded_addr: F,
     pub addr: F,
-    pub value: F,
     pub bytes: [F; MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT],
     pub is_executed: F,
 }
@@ -61,7 +60,6 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                         clk: value.clk,
                         padded_addr,
                         addr,
-                        value: *fe,
                         bytes: <[F; MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT]>::try_from(
                             bytes,
                         )
@@ -70,8 +68,6 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                     }
                 })
                 .collect_vec();
-            // println!("poseidon-value: {:?}", value);
-            // println!("preimage-result: {:?}", result);
             return result;
         }
         vec![]
