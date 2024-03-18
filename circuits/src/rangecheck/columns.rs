@@ -18,10 +18,10 @@ type RangeCheckColumns = ColumnX<RangeCheckColumnsView<i64>>;
 /// Total number of columns for the range check table.
 pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS;
 
-/// Columns containing the data to be range checked in the Mozak
+/// Lookup for columns be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data_filter() -> TableNamed<RangeCheckCtl<Column>> {
+pub fn lookup() -> TableNamed<RangeCheckCtl<Column>> {
     let data = RangeCheckCtl::new(
         (0..4)
             .map(|limb| COL_MAP.limbs[limb] * (1 << (8 * limb)))

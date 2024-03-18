@@ -94,7 +94,3 @@ pub fn lookup_for_memory(kind: TableKind) -> TableNamed<MemoryCtl<Column>> {
         filter_column: COL_MAP.ops.is_memory_store.into(),
     }
 }
-
-/// Column for a binary filter to indicate a lookup
-#[must_use]
-pub fn filter_for_memory() -> IOCol { COL_MAP.ops.is_memory_store }

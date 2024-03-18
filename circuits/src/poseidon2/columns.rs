@@ -1,6 +1,7 @@
 use plonky2::hash::poseidon2::{ROUND_F_END, ROUND_P, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
 use crate::stark::mozak_stark::{Poseidon2Table, TableNamed};
 

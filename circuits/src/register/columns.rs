@@ -110,7 +110,7 @@ pub fn lookup_for_register_init() -> TableNamed<RegisterInitCtl<Column>> {
             addr: reg.addr,
             value: reg.value,
         },
-        COL_MAP.ops.is_init,
+        reg.ops.is_init,
     )
 }
 

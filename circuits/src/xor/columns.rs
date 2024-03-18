@@ -27,8 +27,7 @@ pub struct XorView<T> {
 }
 columns_view_impl!(XorView);
 
-/// Lookup betneew CPU table and Xor
-/// stark table.
+/// Lookup between CPU table and Xor stark table.
 #[must_use]
 pub fn lookup_for_cpu() -> TableNamed<XorView<Column>> {
     XorTable::new(COL_MAP.execution, COL_MAP.is_execution_row)

@@ -307,14 +307,17 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
     ]
 }
 
-/// Lookup into Xor stark.
+/// Lookup for Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_xor() -> TableNamed<XorView<Column>> {
-    XorTable::new(CPU_MAP.xor, CPU_MAP.inst.ops.ops_that_use_xor())
+pub fn lookup_for_xor() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().cpu.xor),
+        col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor(),
+    )
 }
 
-/// Column containing the data to be matched against Memory stark.
+/// Lookup into Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn lookup_for_memory() -> TableNamed<MemoryCtl<Column>> {
@@ -384,6 +387,7 @@ fn lookup_for_io_memory_x(
 
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+// TODO: unify all three variants into a single lookup, so we save on proving time.
 #[must_use]
 pub fn lookup_for_io_memory_private() -> TableNamed<InputOutputMemoryCtl<Column>> {
     lookup_for_io_memory_x(CPU_MAP.is_io_store_private)

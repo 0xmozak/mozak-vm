@@ -53,6 +53,7 @@ pub struct Poseidon2SpongeCtl<T> {
     pub input_len: T,
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_cpu() -> TableNamed<Poseidon2SpongeCtl<Column>> {
     let sponge = COL_MAP;
@@ -81,6 +82,7 @@ pub fn lookup_for_poseidon2() -> TableNamed<Poseidon2StateCtl<Column>> {
     // data
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2_output_bytes() -> TableNamed<Poseidon2OutputBytesCtl<Column>> {
     let sponge = COL_MAP;
@@ -94,6 +96,7 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableNamed<Poseidon2OutputBytesCtl
     )
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_input_memory(limb_index: u8) -> TableNamed<MemoryCtl<Column>> {
     assert!(limb_index < 8, "limb_index can be 0..7");

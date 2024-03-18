@@ -45,8 +45,8 @@ use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::XorView;
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, program, rangecheck, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit, program,
+    rangecheck, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
@@ -527,7 +527,7 @@ impl Lookups for RangecheckTable {
             register,
         ]
         .collect();
-        CrossTableLookupNamed::new(looking, rangecheck::columns::data_filter())
+        CrossTableLookupNamed::new(looking, rangecheck::columns::lookup())
     }
 }
 
@@ -537,7 +537,6 @@ impl Lookups for XorCpuTable {
     type Row = XorView<Column>;
 
     fn lookups() -> CrossTableLookupNamed<Self::Row> {
-        // TODO: deal with heterogenous types.
         CrossTableLookupNamed {
             looking_tables: vec![cpu::columns::lookup_for_xor()],
             looked_table: xor::columns::lookup_for_cpu(),

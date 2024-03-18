@@ -26,7 +26,6 @@ pub struct MemoryInit<T> {
     pub is_writable: T,
 }
 
-// TODO(Matthias): Do we need a col_map?
 columns_view_impl!(MemoryInitCtl);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]

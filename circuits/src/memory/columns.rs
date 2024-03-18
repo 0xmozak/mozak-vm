@@ -246,24 +246,3 @@ pub fn lookup_for_memoryinit() -> TableNamed<MemoryInitCtl<Column>> {
         COL_MAP.is_init,
     )
 }
-
-/// Columns containing the data which are looked from the CPU table into Memory
-/// stark table.
-#[must_use]
-pub fn data_for_halfword_memory() -> MemoryCtl<MemCol> {
-    MemoryCtl {
-        clk: COL_MAP.clk,
-        is_store: COL_MAP.is_store,
-        is_load: COL_MAP.is_load,
-        addr: COL_MAP.addr,
-        value: COL_MAP.value,
-    }
-}
-
-/// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
-#[must_use]
-pub fn filter_for_halfword_memory() -> MemCol {
-    let mem = COL_MAP;
-    mem.is_store + mem.is_load
-}

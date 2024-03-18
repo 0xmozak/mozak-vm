@@ -59,6 +59,7 @@ pub struct Poseidon2OutputBytesCtl<F> {
     pub output_fields: [F; FIELDS_COUNT],
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableNamed<Poseidon2OutputBytesCtl<Column>> {
     let data = COL_MAP;

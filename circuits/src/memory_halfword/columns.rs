@@ -45,8 +45,7 @@ impl<T: Clone + Add<Output = T>> HalfWordMemory<T> {
 /// Total number of columns.
 pub const NUM_HW_MEM_COLS: usize = HalfWordMemory::<()>::NUMBER_OF_COLUMNS;
 
-/// Columns containing the data which are looked from the CPU table into Memory
-/// stark table.
+/// Lookup from CPU table into halfword memory table.
 #[must_use]
 pub fn lookup_for_cpu() -> TableNamed<MemoryCtl<Column>> {
     let mem = COL_MAP;

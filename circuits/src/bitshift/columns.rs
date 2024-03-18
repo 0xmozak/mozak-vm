@@ -35,6 +35,7 @@ pub struct BitshiftView<T> {
     pub multiplicity: T,
 }
 
+/// Lookup from the CPU table into Bitshift stark table.
 #[must_use]
 pub fn lookup_for_cpu() -> TableNamed<Bitshift<Column>> {
     BitshiftTable::new(COL_MAP.executed, COL_MAP.multiplicity)
