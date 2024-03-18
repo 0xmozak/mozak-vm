@@ -365,7 +365,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 FullWordMemoryCpuTable::lookups(),
                 #[cfg(feature = "enable_register_starks")]
                 RegisterRegInitTable::lookups(),
-                // One of these is suspicious?
                 IoMemoryPrivateCpuTable::lookups(),
                 IoMemoryPublicCpuTable::lookups(),
                 IoTranscriptCpuTable::lookups(),
