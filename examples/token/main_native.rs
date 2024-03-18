@@ -5,7 +5,6 @@ mod core_logic;
 use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier, StateAddress, StateObject};
 use mozak_sdk::native::dump_system_tape;
 use token::{dispatch, MethodArgs, MethodReturns};
-// use wallet::TokenObject;
 
 fn main() {
     let token_program = ProgramIdentifier::new_from_rand_seed(1);
