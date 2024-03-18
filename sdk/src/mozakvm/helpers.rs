@@ -72,11 +72,7 @@ pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
 pub fn poseidon2_hash_no_pad(input: &[u8]) -> Poseidon2Hash {
     assert!(input.len() % RATE == 0);
     let mut output = [0; DIGEST_BYTES];
-    crate::core::ecall::poseidon2(
-        input.as_ptr(),
-        input.len(),
-        output.as_mut_ptr(),
-    );
+    crate::core::ecall::poseidon2(input.as_ptr(), input.len(), output.as_mut_ptr());
     Poseidon2Hash(output)
 }
 
