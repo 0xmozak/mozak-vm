@@ -57,7 +57,7 @@ impl Column {
         self.lv_linear_combination
             .iter()
             .map(|&(c, f)| {
-                dbg!((c, f, table.len(), self.lv_linear_combination.len()));
+                // dbg!((c, f, table.len(), self.lv_linear_combination.len()));
                 table[c].values[row] * F::from_noncanonical_i64(f)
             })
             .sum::<F>()
@@ -65,7 +65,7 @@ impl Column {
                 .nv_linear_combination
                 .iter()
                 .map(|&(c, f)| {
-                    dbg!((row, c, table[c].values.len()));
+                    // dbg!((row, c, table[c].values.len()));
                     table[c].values[(row + 1) % table[c].values.len()] * F::from_noncanonical_i64(f)
                 })
                 .sum::<F>()

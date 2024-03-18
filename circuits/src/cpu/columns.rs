@@ -14,7 +14,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{BitshiftTable, CpuTable, MemoryTable, TableNamed, XorTable};
+use crate::stark::mozak_stark::{CpuTable, TableNamed};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -309,7 +309,7 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn lookup_for_xor() -> TableNamed<XorView<Column>> {
-    XorTable::new(CPU_MAP.xor, CPU_MAP.inst.ops.ops_that_use_xor())
+    CpuTable::new(CPU_MAP.xor, CPU_MAP.inst.ops.ops_that_use_xor())
 }
 
 /// Lookup into Memory stark.
@@ -317,7 +317,7 @@ pub fn lookup_for_xor() -> TableNamed<XorView<Column>> {
 #[must_use]
 pub fn lookup_for_memory() -> TableNamed<MemoryCtl<Column>> {
     let cpu = CPU_MAP;
-    MemoryTable::new(
+    CpuTable::new(
         MemoryCtl {
             clk: cpu.clk,
             is_store: cpu.inst.ops.sb,
@@ -353,7 +353,7 @@ pub fn lookup_for_halfword_memory() -> TableNamed<MemoryCtl<Column>> {
 #[must_use]
 pub fn lookup_for_fullword_memory() -> TableNamed<MemoryCtl<Column>> {
     let cpu = CPU_MAP;
-    MemoryTable::new(
+    CpuTable::new(
         MemoryCtl {
             clk: cpu.clk,
             is_store: cpu.inst.ops.sw,
@@ -430,7 +430,7 @@ pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
 /// Lookup into `Bitshift` stark.
 #[must_use]
 pub fn lookup_for_shift_amount() -> TableNamed<Bitshift<Column>> {
-    BitshiftTable::new(CPU_MAP.bitshift, CPU_MAP.inst.ops.ops_that_shift())
+    CpuTable::new(CPU_MAP.bitshift, CPU_MAP.inst.ops.ops_that_shift())
 }
 
 /// Columns containing the data of original instructions.
