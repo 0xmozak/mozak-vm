@@ -365,37 +365,24 @@ pub fn lookup_for_fullword_memory() -> Table {
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_io_memory_private() -> Vec<Column> {
+pub fn lookup_for_io_memory_x(filter: Column) -> Table {
     let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store_private]
-}
-
-/// Column for a binary filter for memory instruction in IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_io_memory_private() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
-    cpu.is_io_store_private
+    CpuTable::new(vec![cpu.clk, cpu.io_addr, cpu.io_size], filter)
 }
 
 #[must_use]
-pub fn data_for_io_memory_public() -> Vec<Column> {
-    let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store_public]
-}
-
-/// Column for a binary filter for memory instruction in IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_io_memory_public() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
-    cpu.is_io_store_public
+pub fn lookup_for_io_memory_private() -> Table {
+    lookup_for_io_memory_x(col_map().cpu.map(Column::from).is_io_store_private)
 }
 
 #[must_use]
-pub fn data_for_io_transcript() -> Vec<Column> {
-    let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_transcript]
+pub fn lookup_for_io_memory_public() -> Table {
+    lookup_for_io_memory_x(col_map().cpu.map(Column::from).is_io_store_public)
+}
+
+#[must_use]
+pub fn lookup_for_io_transcript() -> Table {
+    lookup_for_io_memory_x(col_map().cpu.map(Column::from).is_io_transcript)
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.

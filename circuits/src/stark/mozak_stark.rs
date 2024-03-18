@@ -615,14 +615,10 @@ pub struct IoMemoryPrivateCpuTable;
 impl Lookups for IoMemoryPrivateCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_io_memory_private(),
-                cpu::columns::filter_for_io_memory_private(),
-            )],
-            IoMemoryPrivateTable::new(
-                memory_io::columns::data_for_cpu(),
-                memory_io::columns::filter_for_cpu(),
-            ),
+            // TODO: this is suspicious.
+            // Or is this for the ecall?
+            vec![cpu::columns::lookup_for_io_memory_private()],
+            memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate),
         )
     }
 }
@@ -632,14 +628,8 @@ pub struct IoMemoryPublicCpuTable;
 impl Lookups for IoMemoryPublicCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_io_memory_public(),
-                cpu::columns::filter_for_io_memory_public(),
-            )],
-            IoMemoryPublicTable::new(
-                memory_io::columns::data_for_cpu(),
-                memory_io::columns::filter_for_cpu(),
-            ),
+            vec![cpu::columns::lookup_for_io_memory_public()],
+            memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPublic),
         )
     }
 }
@@ -649,14 +639,8 @@ pub struct IoTranscriptCpuTable;
 impl Lookups for IoTranscriptCpuTable {
     fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_io_transcript(),
-                cpu::columns::filter_for_io_transcript(),
-            )],
-            IoTranscriptTable::new(
-                memory_io::columns::data_for_cpu(),
-                memory_io::columns::filter_for_cpu(),
-            ),
+            vec![cpu::columns::lookup_for_io_transcript()],
+            memory_io::columns::lookup_for_cpu(TableKind::IoTranscript),
         )
     }
 }
