@@ -1,8 +1,7 @@
 use core::ops::Add;
 
-use plonky2::field::types::Field;
-use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
-use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
+use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
+use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 #[cfg(feature = "enable_poseidon_starks")]
@@ -92,18 +91,15 @@ pub fn lookup_for_input_memory(limb_index: u8) -> Table {
 }
 
 #[must_use]
-pub fn data_for_preimage_pack<F: Field>(limb_index: u8) -> Vec<Column<F>> {
+pub fn lookup_for_preimage_pack(limb_index: u8) -> Table {
     assert!(limb_index < 8, "limb_index can be 0..7");
     let sponge = col_map().map(Column::from);
-    vec![
-        sponge.clk,
-        sponge.preimage[limb_index as usize].clone(), // value
-        sponge.input_addr + F::from_canonical_u8(limb_index), // address
-    ]
-}
-
-#[must_use]
-pub fn filter_for_preimage_pack<F: Field>() -> Column<F> {
-    let row = col_map().map(Column::from);
-    row.ops.is_init_permute + row.ops.is_permute
+    Poseidon2SpongeTable::new(
+        vec![
+            sponge.clk,
+            sponge.preimage[limb_index as usize].clone(), // value
+            sponge.input_addr + i64::from(limb_index),    // address
+        ],
+        sponge.ops.is_init_permute + sponge.ops.is_permute,
+    )
 }

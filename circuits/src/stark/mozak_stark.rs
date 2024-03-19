@@ -36,8 +36,8 @@ use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit, program,
-    rangecheck, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit,
+    poseidon2_preimage_pack, program, rangecheck, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
@@ -382,7 +382,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
-                Poseidon2Sponge2Poseidon2PreimagePack::lookups(),
+                Poseidon2Sponge2Poseidon2PreimagePackTable::lookups(),
             ],
             debug: false,
         }
@@ -513,7 +513,13 @@ impl Lookups for IntoMemoryTable {
         ]);
         #[cfg(feature = "enable_poseidon_starks")]
         {
-            tables.extend((0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).map(poseidon2_sponge::columns::poseidon2_preimage_pack));
+            tables.extend(
+                (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).map(|index| {
+                    poseidon2_preimage_pack::columns::lookup_for_input_memory(
+                        u8::try_from(index).expect("DATA_CAPACITY_PER_FIELD_ELEMENT > 255"),
+                    )
+                }),
+            );
             tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
         }
         CrossTableLookup::new(tables, memory::columns::lookup_for_cpu())
@@ -685,25 +691,37 @@ impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
         )
     }
 }
-
 #[cfg(feature = "enable_poseidon_starks")]
-pub struct Poseidon2Sponge2Poseidon2PreimagePack<F: Field>(CrossTableLookup<F>);
+pub struct Poseidon2Sponge2Poseidon2PreimagePackTable;
 #[cfg(feature = "enable_poseidon_starks")]
-impl<F: Field> Lookups<F> for crate::stark::mozak_stark::Poseidon2Sponge2Poseidon2PreimagePack<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for Poseidon2Sponge2Poseidon2PreimagePackTable {
+    fn lookups() -> CrossTableLookup {
         let mut tables = vec![];
-        tables.extend((0..8).map(|index| {
-            Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_preimage_pack(index),
-                crate::poseidon2_sponge::columns::filter_for_preimage_pack(),
-            )
-        }));
+        tables.extend(
+            (0..8).map(|index| crate::poseidon2_sponge::columns::lookup_for_preimage_pack(index)),
+        );
         CrossTableLookup::new(
             tables,
-            Poseidon2PreimagePackTable::new(
-                crate::poseidon2_preimage_pack::columns::data_for_poseidon2_sponge(),
-                crate::poseidon2_preimage_pack::columns::filter_for_poseidon2_sponge(),
-            ),
+            crate::poseidon2_preimage_pack::columns::lookup_for_poseidon2_sponge(),
         )
     }
 }
+// #[cfg(feature = "enable_poseidon_starks")]
+// {
+// tables.extend(
+// (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).map(|index| {
+// Poseidon2PreimagePackTable::new(
+// crate::poseidon2_preimage_pack::columns::data_for_input_memory(
+// u8::try_from(index).expect("Should be < 255"),
+// ),
+// crate::poseidon2_preimage_pack::columns::filter_for_input_memory(),
+// )
+// }),
+// );
+// tables.extend((0..32).map(|index| {
+// Poseidon2OutputBytesTable::new(
+// poseidon2_output_bytes::columns::data_for_output_memory(index),
+// poseidon2_output_bytes::columns::filter_for_output_memory(),
+// )
+// }));
+// }

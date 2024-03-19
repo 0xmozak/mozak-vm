@@ -1,12 +1,12 @@
 use itertools::Itertools;
 use mozak_runner::poseidon2::MozakPoseidon2;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
 use crate::poseidon2::columns::STATE_SIZE;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
+use crate::stark::mozak_stark::{Poseidon2PreimagePackTable, Table};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -78,44 +78,41 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
 }
 
 #[must_use]
-pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
+pub fn lookup_for_poseidon2_sponge() -> Table {
     let data = col_map().map(Column::from);
-    vec![
-        data.clk,
-        Column::<F>::reduce_with_powers(
-            // FIXME: Check why does not work just reduce_with_power on &data.bytes
-            {
-                let mut r = data.bytes.clone();
-                r.reverse();
-                &r.clone()
-            },
-            F::from_canonical_u16(1 << 8),
-        ),
-        data.fe_addr,
-    ]
+    Poseidon2PreimagePackTable::new(
+        vec![
+            data.clk,
+            Column::reduce_with_powers(
+                // FIXME: Check why does not work just reduce_with_power on &data.bytes
+                {
+                    let mut r = data.bytes.clone();
+                    r.reverse();
+                    &r.clone()
+                },
+                1 << 8,
+            ),
+            data.fe_addr,
+        ],
+        col_map().map(Column::from).is_executed,
+    )
 }
-
 #[must_use]
-pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
-    col_map().map(Column::from).is_executed
-}
-
-#[must_use]
-pub fn data_for_input_memory<F: Field>(index: u8) -> Vec<Column<F>> {
+pub fn lookup_for_input_memory(index: u8) -> Table {
     assert!(
         usize::from(index) < MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT,
         "poseidon2-preimage data_for_input_memory: index can be 0..{:?}",
         MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT
     );
     let data = col_map().map(Column::from);
-    vec![
-        data.clk,
-        Column::constant(F::ZERO),                    // is_store
-        Column::constant(F::ONE),                     // is_load
-        data.bytes[index as usize].clone(),           // value
-        data.byte_addr + F::from_canonical_u8(index), // address
-    ]
+    Poseidon2PreimagePackTable::new(
+        vec![
+            data.clk,
+            Column::constant(0),                // is_store
+            Column::constant(1),                // is_load
+            data.bytes[index as usize].clone(), // value
+            data.byte_addr + i64::from(index),  // address
+        ],
+        col_map().map(Column::from).is_executed,
+    )
 }
-
-#[must_use]
-pub fn filter_for_input_memory<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed }
