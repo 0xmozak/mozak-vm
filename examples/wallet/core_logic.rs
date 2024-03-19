@@ -52,7 +52,7 @@ pub struct TokenObject {
 impl From<StateObject> for TokenObject {
     fn from(value: StateObject) -> Self {
         let archived = unsafe { rkyv::access_unchecked::<TokenObject>(&value.data[..]) };
-        let token_object: TokenObject = archived.deserialize(Strategy::wrap(&mut ())).unwrap();
+        let token_object: TokenObject = archived.deserialize(Strategy::<_, Panic>::wrap(&mut ())).unwrap();
         token_object
     }
 }

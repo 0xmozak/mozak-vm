@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::Deserialize;
+use rkyv::ser::AllocSerializer;
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
 use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};

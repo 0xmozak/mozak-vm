@@ -13,6 +13,8 @@
 use rkyv::rancor::{Panic, Strategy};
 #[cfg(feature = "std")]
 use rkyv::Deserialize;
+#[cfg(feature = "std")]
+use rkyv::ser::AllocSerializer;
 
 extern crate alloc as rust_alloc;
 
