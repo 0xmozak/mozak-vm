@@ -10,7 +10,6 @@ use crate::generation::MIN_TRACE_LENGTH;
 /// length.
 // TODO(Matthias): only for testing lints.
 #[allow(static_mut_refs)]
-#[allow(static_mut_ref)]
 #[must_use]
 pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     assert!(trace
