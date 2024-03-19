@@ -67,6 +67,8 @@ jobs:
       - name: cargo-clippy (mozakvm, examples)
         working-directory: examples
         run: |
+          cargo --version
+          cargo clippy --version
           cargo clippy --locked -- -D warnings
 
       - name: cargo-clippy (native, examples)
@@ -133,7 +135,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Clippy linter
-        run: cargo clippy --all-features --all-targets -- -D warnings
+        run: |
+          cargo --version
+          cargo clippy --version
+          cargo clippy --all-features --all-targets -- -D warnings
 
   cargo-build-examples:
     needs: check-runner
