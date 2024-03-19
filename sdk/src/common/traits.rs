@@ -6,8 +6,9 @@ use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::common::types::{Event, ProgramIdentifier};
 
-pub trait RkyvSerializable = rkyv::Serialize<Strategy<Composite<AlignedVec, AllocationTracker<GlobalAllocator>, ()>, ()>>
-    + Serialize<Strategy<AllocSerializer<256>, Panic>>;
+pub trait RkyvSerializable = rkyv::Serialize<
+        Strategy<Composite<AlignedVec, AllocationTracker<GlobalAllocator>, Panic>, Panic>,
+    > + Serialize<Strategy<AllocSerializer<256>, Panic>>;
 pub trait CallArgument = Sized + RkyvSerializable;
 pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
 

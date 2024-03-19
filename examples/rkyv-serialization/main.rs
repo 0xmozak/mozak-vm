@@ -2,7 +2,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
+#[cfg(not(feature = "std"))]
 use alloc::string::String;
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
 use rkyv::rancor::{Panic, Strategy};
@@ -22,6 +24,7 @@ pub struct Test {
     pub option: Option<Vec<i32>>,
 }
 
+#[cfg(not(feature = "std"))]
 use alloc::string::ToString;
 use alloc::vec;
 
@@ -44,7 +47,7 @@ pub fn main() {
         .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
         .unwrap();
     assert_eq!(deserialized, value);
-    #[cfg(all(not(target_os = "mozakvm"),feature = "std"))]
+    #[cfg(all(not(target_os = "mozakvm"), feature = "std"))]
     println!("Deserialized Value: {:?}", deserialized);
     let bytes = rkyv::to_bytes::<_, 256, Panic>(&deserialized).unwrap();
     mozak_sdk::core::env::write(&bytes);

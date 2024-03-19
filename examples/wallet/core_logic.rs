@@ -3,8 +3,8 @@
 extern crate alloc;
 
 use mozak_sdk::common::types::{ProgramIdentifier, StateObject};
-use rkyv::{Archive, Deserialize, Serialize};
 use rkyv::rancor::{Panic, Strategy};
+use rkyv::{Archive, Deserialize, Serialize};
 
 /// A generic public key used by the wallet.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
@@ -52,7 +52,9 @@ pub struct TokenObject {
 impl From<StateObject> for TokenObject {
     fn from(value: StateObject) -> Self {
         let archived = unsafe { rkyv::access_unchecked::<TokenObject>(&value.data[..]) };
-        let token_object: TokenObject = archived.deserialize(Strategy::<_, Panic>::wrap(&mut ())).unwrap();
+        let token_object: TokenObject = archived
+            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+            .unwrap();
         token_object
     }
 }
@@ -101,6 +103,7 @@ impl Default for MethodReturns {
     fn default() -> Self { Self::ApproveSignature(()) }
 }
 
+#[allow(clippy::unit_arg)]
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
         MethodArgs::ApproveSignature(pub_key, black_box) =>
@@ -110,6 +113,6 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
 
 // TODO(bing): Read private key from private tape and public key from call tape.
 // hash and compare against public key.
-pub fn approve_signature<T>(_pub_key: PublicKey, _black_box: T) -> () {
+pub fn approve_signature<T>(_pub_key: PublicKey, _black_box: T) {
     // Null for now
 }

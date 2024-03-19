@@ -2,8 +2,8 @@
 extern crate alloc;
 
 use mozak_sdk::common::types::{Event, EventType, ProgramIdentifier, StateObject};
-use rkyv::{Archive, Deserialize, Serialize};
 use rkyv::rancor::Panic;
+use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
