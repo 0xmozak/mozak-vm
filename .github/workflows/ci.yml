@@ -24,8 +24,17 @@ jobs:
 
   cargo-test:
     strategy:
+      # For PR run only `test` profile, for changes to `main` run both `test` and `release` profiles
+      # Matrix algebra from https://github.com/orgs/community/discussions/26253#discussioncomment-6745038
       matrix:
         profile: [test, release]
+        isPR:
+          - ${{github.event_name == 'pull_request'}}
+        # Run only the `test` profile in pull reqs:
+        exclude:
+          - { isPR: true }
+        include:
+          - { profile: "test" }
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
