@@ -5,8 +5,8 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use rkyv::{Archive, Deserialize, Serialize};
 use rkyv::rancor::{Panic, Strategy};
+use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
 #[archive(
@@ -40,7 +40,9 @@ pub fn main() {
     assert_eq!(archived, &value);
 
     // And you can always deserialize back to the original type
-    let deserialized: Test = archived.deserialize(Strategy::<(), Panic>::wrap(&mut ())).unwrap();
+    let deserialized: Test = archived
+        .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
+        .unwrap();
     assert_eq!(deserialized, value);
     #[cfg(not(target_os = "mozakvm"))]
     println!("Deserialized Value: {:?}", deserialized);

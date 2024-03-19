@@ -34,7 +34,7 @@ fn main() {
             state_object,
             remitter_program,
             remittee_program,
-            remittee_pub_key
+            remittee_pub_key,
         ),
         dispatch,
     );
