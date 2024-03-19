@@ -1,7 +1,6 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
+use crate::stark::mozak_stark::{Table, TableKind};
 
 columns_view_impl!(MemElement);
 /// A Memory Slot that has an address and a value
@@ -26,18 +25,18 @@ pub struct MemoryInit<T> {
     pub is_writable: T,
 }
 
-/// Columns containing the data which are looked up from the Memory Table
+/// Lookup from the Memory Table
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(col_map().is_writable),
-        Column::single(col_map().element.address),
-        // clk:
-        Column::constant(F::ONE),
-        Column::single(col_map().element.value),
-    ]
+pub fn lookup_for_memory(kind: TableKind) -> Table {
+    Table {
+        kind,
+        columns: vec![
+            Column::single(col_map().is_writable),
+            Column::single(col_map().element.address),
+            // clk:
+            Column::constant(1),
+            Column::single(col_map().element.value),
+        ],
+        filter_column: Column::single(col_map().filter),
+    }
 }
-
-/// Column for a binary filter to indicate a lookup from the Memory Table
-#[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(col_map().filter) }

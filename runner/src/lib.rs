@@ -1,7 +1,5 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
-#![allow(clippy::ignored_unit_patterns)]
 
 #[cfg(not(target_arch = "wasm32"))]
 use mimalloc::MiMalloc;

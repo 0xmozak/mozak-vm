@@ -152,7 +152,7 @@ pub fn eval_vanishing_poly_circuit<F, S, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,
     vars: &S::EvaluationFrameTarget,
-    ctl_vars: &[CtlCheckVarsTarget<F, D>],
+    ctl_vars: &[CtlCheckVarsTarget<D>],
     consumer: &mut RecursiveConstraintConsumer<F, D>,
 ) where
     F: RichField + Extendable<D>,

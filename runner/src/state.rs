@@ -453,50 +453,6 @@ impl<F: RichField> State<F> {
         trace!("CLK: {clk:#?}, PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
     }
-
-    ///  Read bytes from `io_tape`.
-    ///
-    ///  # Panics
-    ///  Panics if number of requested bytes are more than remaining bytes on
-    /// `io_tape`.
-    /// TODO(Matthias): remove that limitation (again).
-    #[must_use]
-    pub fn read_iobytes(mut self, num_bytes: usize, op: IoOpcode) -> (Vec<u8>, Self) {
-        assert!(matches!(op, IoOpcode::StorePublic | IoOpcode::StorePrivate));
-        if op == IoOpcode::StorePublic {
-            let read_index = self.io_tape.public.read_index;
-            let remaining_len = self.io_tape.public.data.len() - read_index;
-            let limit = num_bytes.min(remaining_len);
-            log::trace!(
-                "ECALL Public IO_READ 0x{:0x}, {:?}, data.len: {:?}, data: {:?}",
-                read_index,
-                remaining_len,
-                self.io_tape.public.data.len(),
-                self.io_tape.public.data[read_index..(read_index + limit)].to_vec()
-            );
-            self.io_tape.public.read_index += limit;
-            (
-                self.io_tape.public.data[read_index..(read_index + limit)].to_vec(),
-                self,
-            )
-        } else {
-            let read_index = self.io_tape.private.read_index;
-            let remaining_len = self.io_tape.private.data.len() - read_index;
-            let limit = num_bytes.min(remaining_len);
-            log::trace!(
-                "ECALL Private IO_READ 0x{:0x}, {:?}, data.len: {:?}, data: {:?}",
-                read_index,
-                remaining_len,
-                self.io_tape.private.data.len(),
-                self.io_tape.private.data[read_index..(read_index + limit)].to_vec()
-            );
-            self.io_tape.private.read_index += limit;
-            (
-                self.io_tape.private.data[read_index..(read_index + limit)].to_vec(),
-                self,
-            )
-        }
-    }
 }
 
 #[cfg(test)]

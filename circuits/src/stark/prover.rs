@@ -187,7 +187,7 @@ where
 
     let z_polys = ctl_data.z_polys();
     // TODO(Matthias): make the code work with empty z_polys, too.
-    assert!(!z_polys.is_empty(), "No CTL?");
+    assert!(!z_polys.is_empty(), "No CTL? {stark}");
 
     let ctl_zs_commitment = timed!(
         timing,

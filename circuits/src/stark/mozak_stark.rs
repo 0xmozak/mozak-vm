@@ -36,8 +36,8 @@ use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, program, rangecheck, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit, program,
+    rangecheck, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
@@ -110,7 +110,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
         StarkSet(stark_kind = "Poseidon2PreimagePack")
     )]
     pub poseidon2_preimage_pack: Poseidon2PreimagePackStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; NUM_CROSS_TABLE_LOOKUP],
+    pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
 
     pub debug: bool,
 }
@@ -400,14 +400,15 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Table<F: Field> {
+pub struct Table {
     pub(crate) kind: TableKind,
-    pub(crate) columns: Vec<Column<F>>,
-    pub(crate) filter_column: Column<F>,
+    pub(crate) columns: Vec<Column>,
+    pub(crate) filter_column: Column,
 }
 
-impl<F: Field> Table<F> {
-    pub fn new(kind: TableKind, columns: Vec<Column<F>>, filter_column: Column<F>) -> Self {
+impl Table {
+    #[must_use]
+    pub fn new(kind: TableKind, columns: Vec<Column>, filter_column: Column) -> Self {
         Self {
             kind,
             columns,
@@ -419,11 +420,12 @@ impl<F: Field> Table<F> {
 /// Macro to instantiate a new table for cross table lookups.
 macro_rules! table_impl {
     ($t: ident, $tk: expr) => {
-        pub struct $t<F: Field>(Table<F>);
+        pub struct $t;
 
-        impl<F: Field> $t<F> {
+        impl $t {
             #[allow(clippy::new_ret_no_self)]
-            pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+            #[must_use]
+            pub fn new(columns: Vec<Column>, filter_column: Column) -> Table {
                 Table::new($tk, columns, filter_column)
             }
         }
@@ -458,369 +460,228 @@ table_impl!(Poseidon2OutputBytesTable, TableKind::Poseidon2OutputBytes);
 #[cfg(feature = "enable_poseidon_starks")]
 table_impl!(Poseidon2PreimagePackTable, TableKind::Poseidon2PreimagePack);
 
-pub trait Lookups<F: Field> {
-    fn lookups() -> CrossTableLookup<F>;
+pub trait Lookups {
+    fn lookups() -> CrossTableLookup;
 }
 
-pub struct RangecheckTable<F: Field>(CrossTableLookup<F>);
+pub struct RangecheckTable;
 
-impl<F: Field> Lookups<F> for RangecheckTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for RangecheckTable {
+    fn lookups() -> CrossTableLookup {
         #[cfg(feature = "enable_register_starks")]
         let register = register::columns::rangecheck_looking();
         #[cfg(not(feature = "enable_register_starks"))]
-        let register: Vec<Table<F>> = vec![];
+        let register: Vec<Table> = vec![];
 
-        let looking: Vec<Table<F>> = chain![
+        let looking: Vec<Table> = chain![
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
             register,
         ]
         .collect();
+        CrossTableLookup::new(looking, rangecheck::columns::lookup())
+    }
+}
+
+pub struct XorCpuTable;
+
+impl Lookups for XorCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            looking,
-            RangeCheckTable::new(rangecheck::columns::data(), rangecheck::columns::filter()),
+            vec![cpu::columns::lookup_for_xor()],
+            xor::columns::lookup_for_cpu(),
         )
     }
 }
 
-pub struct XorCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct IntoMemoryTable;
 
-impl<F: Field> Lookups<F> for XorCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_xor(),
-                cpu::columns::filter_for_xor(),
-            )],
-            XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
-        )
-    }
-}
-
-pub struct IntoMemoryTable<F: Field>(CrossTableLookup<F>);
-
-impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
+impl Lookups for IntoMemoryTable {
     #[allow(clippy::too_many_lines)]
-    fn lookups() -> CrossTableLookup<F> {
+    fn lookups() -> CrossTableLookup {
         let mut tables = vec![];
         tables.extend([
-            CpuTable::new(
-                cpu::columns::data_for_memory(),
-                cpu::columns::filter_for_byte_memory(),
-            ),
-            HalfWordMemoryTable::new(
-                memory_halfword::columns::data_for_memory_limb(0),
-                memory_halfword::columns::filter(),
-            ),
-            HalfWordMemoryTable::new(
-                memory_halfword::columns::data_for_memory_limb(1),
-                memory_halfword::columns::filter(),
-            ),
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_memory_limb(0),
-                memory_fullword::columns::filter(),
-            ),
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_memory_limb(1),
-                memory_fullword::columns::filter(),
-            ),
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_memory_limb(2),
-                memory_fullword::columns::filter(),
-            ),
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_memory_limb(3),
-                memory_fullword::columns::filter(),
-            ),
-            IoMemoryPrivateTable::new(
-                memory_io::columns::data_for_memory(),
-                memory_io::columns::filter_for_memory(),
-            ),
-            IoMemoryPublicTable::new(
-                memory_io::columns::data_for_memory(),
-                memory_io::columns::filter_for_memory(),
-            ),
+            cpu::columns::lookup_for_memory(),
+            memory_halfword::columns::lookup_for_memory_limb(0),
+            memory_halfword::columns::lookup_for_memory_limb(1),
+            memory_fullword::columns::lookup_for_memory_limb(0),
+            memory_fullword::columns::lookup_for_memory_limb(1),
+            memory_fullword::columns::lookup_for_memory_limb(2),
+            memory_fullword::columns::lookup_for_memory_limb(3),
+            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
+            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
         ]);
         #[cfg(feature = "enable_poseidon_starks")]
         {
-            tables.extend(
-                (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).map(|index| {
-                    Poseidon2PreimagePackTable::new(
-                        crate::poseidon2_preimage_pack::columns::data_for_input_memory(
-                            u8::try_from(index).expect("Should be < 255"),
-                        ),
-                        crate::poseidon2_preimage_pack::columns::filter_for_input_memory(),
-                    )
-                }),
-            );
-            tables.extend((0..32).map(|index| {
-                Poseidon2OutputBytesTable::new(
-                    poseidon2_output_bytes::columns::data_for_output_memory(index),
-                    poseidon2_output_bytes::columns::filter_for_output_memory(),
-                )
-            }));
+            tables.extend((0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).map(poseidon2_sponge::columns::poseidon2_preimage_pack));
+            tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
         }
-        CrossTableLookup::new(
-            tables,
-            MemoryTable::new(
-                memory::columns::data_for_cpu(),
-                memory::columns::filter_for_cpu(),
-            ),
-        )
+        CrossTableLookup::new(tables, memory::columns::lookup_for_cpu())
     }
 }
 
-pub struct MemoryInitMemoryTable<F: Field>(CrossTableLookup<F>);
+pub struct MemoryInitMemoryTable;
 
-impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for MemoryInitMemoryTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
             vec![
-                ElfMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MozakMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MemoryZeroInitTable::new(
-                    memory_zeroinit::columns::data_for_memory(),
-                    memory_zeroinit::columns::filter_for_memory(),
-                ),
+                memoryinit::columns::lookup_for_memory(TableKind::ElfMemoryInit),
+                memoryinit::columns::lookup_for_memory(TableKind::MozakMemoryInit),
+                crate::memory_zeroinit::columns::lookup_for_memory(),
             ],
-            MemoryTable::new(
-                memory::columns::data_for_memoryinit(),
-                memory::columns::filter_for_memoryinit(),
-            ),
+            memory::columns::lookup_for_memoryinit(),
         )
     }
 }
 
-pub struct BitshiftCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct BitshiftCpuTable;
 
-impl<F: Field> Lookups<F> for BitshiftCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for BitshiftCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_shift_amount(),
-                cpu::columns::filter_for_shift_amount(),
-            )],
-            BitshiftTable::new(
-                bitshift::columns::data_for_cpu(),
-                bitshift::columns::filter_for_cpu(),
-            ),
+            vec![cpu::columns::lookup_for_shift_amount()],
+            bitshift::columns::lookup_for_cpu(),
         )
     }
 }
 
-pub struct InnerCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct InnerCpuTable;
 
-impl<F: Field> Lookups<F> for InnerCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for InnerCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_inst(),
-                Column::single(cpu::columns::col_map().cpu.is_running),
-            )],
-            CpuTable::new(
-                cpu::columns::data_for_permuted_inst(),
-                Column::single(cpu::columns::col_map().cpu.is_running),
-            ),
+            vec![cpu::columns::lookup_for_inst()],
+            cpu::columns::lookup_for_permuted_inst_inner(),
         )
     }
 }
 
-pub struct ProgramCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct ProgramCpuTable;
 
-impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for ProgramCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_permuted_inst(),
-                Column::single(cpu::columns::col_map().permuted.filter),
-            )],
-            ProgramTable::new(
-                program::columns::data_for_ctl(),
-                Column::single(program::columns::col_map().filter),
-            ),
+            vec![cpu::columns::lookup_for_permuted_inst_outer()],
+            program::columns::lookup_for_ctl(),
         )
     }
 }
 
-pub struct RangeCheckU8LookupTable<F: Field>(CrossTableLookup<F>);
-impl<F: Field> Lookups<F> for RangeCheckU8LookupTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        let looking: Vec<Table<F>> = chain![
+pub struct RangeCheckU8LookupTable;
+impl Lookups for RangeCheckU8LookupTable {
+    fn lookups() -> CrossTableLookup {
+        let looking: Vec<Table> = chain![
             rangecheck_looking(),
             memory::columns::rangecheck_u8_looking(),
         ]
         .collect();
+        CrossTableLookup::new(looking, crate::rangecheck_u8::columns::lookup())
+    }
+}
+
+pub struct HalfWordMemoryCpuTable;
+
+impl Lookups for HalfWordMemoryCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            looking,
-            RangeCheckU8Table::new(
-                crate::rangecheck_u8::columns::data(),
-                crate::rangecheck_u8::columns::filter(),
-            ),
+            vec![cpu::columns::lookup_for_halfword_memory()],
+            memory_halfword::columns::lookup_for_cpu(),
         )
     }
 }
 
-pub struct HalfWordMemoryCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct FullWordMemoryCpuTable;
 
-impl<F: Field> Lookups<F> for HalfWordMemoryCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for FullWordMemoryCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_halfword_memory(),
-                cpu::columns::filter_for_halfword_memory(),
-            )],
-            HalfWordMemoryTable::new(
-                memory_halfword::columns::data_for_cpu(),
-                memory_halfword::columns::filter(),
-            ),
-        )
-    }
-}
-
-pub struct FullWordMemoryCpuTable<F: Field>(CrossTableLookup<F>);
-
-impl<F: Field> Lookups<F> for FullWordMemoryCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_fullword_memory(),
-                cpu::columns::filter_for_fullword_memory(),
-            )],
-            FullWordMemoryTable::new(
-                memory_fullword::columns::data_for_cpu(),
-                memory_fullword::columns::filter(),
-            ),
+            vec![cpu::columns::lookup_for_fullword_memory()],
+            memory_fullword::columns::lookup_for_cpu(),
         )
     }
 }
 
 #[cfg(feature = "enable_register_starks")]
-pub struct RegisterRegInitTable<F: Field>(CrossTableLookup<F>);
+pub struct RegisterRegInitTable;
 
 #[cfg(feature = "enable_register_starks")]
-impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for RegisterRegInitTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![RegisterTable::new(
-                crate::register::columns::data_for_register_init(),
-                crate::register::columns::filter_for_register_init(),
-            )],
-            RegisterInitTable::new(
-                crate::registerinit::columns::data_for_register(),
-                crate::registerinit::columns::filter_for_register(),
-            ),
+            vec![crate::register::columns::lookup_for_register_init()],
+            crate::registerinit::columns::lookup_for_register(),
         )
     }
 }
 
-pub struct IoMemoryPrivateCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct IoMemoryPrivateCpuTable;
 
-impl<F: Field> Lookups<F> for IoMemoryPrivateCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for IoMemoryPrivateCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_io_memory_private(),
-                cpu::columns::filter_for_io_memory_private(),
-            )],
-            IoMemoryPrivateTable::new(
-                memory_io::columns::data_for_cpu(),
-                memory_io::columns::filter_for_cpu(),
-            ),
+            // TODO: this is suspicious.
+            // Or is this for the ecall?
+            vec![cpu::columns::lookup_for_io_memory_private()],
+            memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate),
         )
     }
 }
 
-pub struct IoMemoryPublicCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct IoMemoryPublicCpuTable;
 
-impl<F: Field> Lookups<F> for IoMemoryPublicCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for IoMemoryPublicCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_io_memory_public(),
-                cpu::columns::filter_for_io_memory_public(),
-            )],
-            IoMemoryPublicTable::new(
-                memory_io::columns::data_for_cpu(),
-                memory_io::columns::filter_for_cpu(),
-            ),
+            vec![cpu::columns::lookup_for_io_memory_public()],
+            memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPublic),
         )
     }
 }
 
-pub struct IoTranscriptCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct IoTranscriptCpuTable;
 
-impl<F: Field> Lookups<F> for IoTranscriptCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for IoTranscriptCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_io_transcript(),
-                cpu::columns::filter_for_io_transcript(),
-            )],
-            IoTranscriptTable::new(
-                memory_io::columns::data_for_cpu(),
-                memory_io::columns::filter_for_cpu(),
-            ),
+            vec![cpu::columns::lookup_for_io_transcript()],
+            memory_io::columns::lookup_for_cpu(TableKind::IoTranscript),
         )
     }
 }
 
 #[cfg(feature = "enable_poseidon_starks")]
-pub struct Poseidon2SpongeCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct Poseidon2SpongeCpuTable;
 #[cfg(feature = "enable_poseidon_starks")]
-impl<F: Field> Lookups<F> for Poseidon2SpongeCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for Poseidon2SpongeCpuTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_cpu(),
-                crate::poseidon2_sponge::columns::filter_for_cpu(),
-            )],
-            CpuTable::new(
-                crate::cpu::columns::data_for_poseidon2_sponge(),
-                crate::cpu::columns::filter_for_poseidon2_sponge(),
-            ),
+            vec![crate::poseidon2_sponge::columns::lookup_for_cpu()],
+            crate::cpu::columns::lookup_for_poseidon2_sponge(),
         )
     }
 }
 
 #[cfg(feature = "enable_poseidon_starks")]
-pub struct Poseidon2Poseidon2SpongeTable<F: Field>(CrossTableLookup<F>);
+pub struct Poseidon2Poseidon2SpongeTable;
 #[cfg(feature = "enable_poseidon_starks")]
-impl<F: Field> Lookups<F> for Poseidon2Poseidon2SpongeTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for Poseidon2Poseidon2SpongeTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![Poseidon2Table::new(
-                crate::poseidon2::columns::data_for_sponge(),
-                crate::poseidon2::columns::filter_for_sponge(),
-            )],
-            Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_poseidon2(),
-                crate::poseidon2_sponge::columns::filter_for_poseidon2(),
-            ),
+            vec![crate::poseidon2::columns::lookup_for_sponge()],
+            crate::poseidon2_sponge::columns::lookup_for_poseidon2(),
         )
     }
 }
 
 #[cfg(feature = "enable_poseidon_starks")]
-pub struct Poseidon2OutputBytesPoseidon2SpongeTable<F: Field>(CrossTableLookup<F>);
+pub struct Poseidon2OutputBytesPoseidon2SpongeTable;
 #[cfg(feature = "enable_poseidon_starks")]
-impl<F: Field> Lookups<F> for Poseidon2OutputBytesPoseidon2SpongeTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
+    fn lookups() -> CrossTableLookup {
         CrossTableLookup::new(
-            vec![Poseidon2OutputBytesTable::new(
-                crate::poseidon2_output_bytes::columns::data_for_poseidon2_sponge(),
-                crate::poseidon2_output_bytes::columns::filter_for_poseidon2_sponge(),
-            )],
-            Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_poseidon2_output_bytes(),
-                crate::poseidon2_sponge::columns::filter_for_poseidon2_output_bytes(),
-            ),
+            vec![crate::poseidon2_output_bytes::columns::lookup_for_poseidon2_sponge()],
+            crate::poseidon2_sponge::columns::lookup_for_poseidon2_output_bytes(),
         )
     }
 }

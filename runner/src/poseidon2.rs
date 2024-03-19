@@ -1,7 +1,7 @@
 use std::iter::repeat;
 
 use itertools::{izip, Itertools};
-use mozak_system::system::reg_abi::{REG_A1, REG_A2, REG_A3};
+use mozak_sdk::core::reg_abi::{REG_A1, REG_A2, REG_A3};
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
@@ -83,7 +83,7 @@ impl MozakPoseidon2 {
 /// to 4 (with permuting 8 -> 8). However, we (Vivek) opted for a rate of 8 is
 /// because: first, it's more efficient; with each permutation, a rate of 8/12
 /// (rate/width) achieves higher throughput than 4/8. Second, this approach
-/// adheres to the sponge logic defined in Plonky2  
+/// adheres to the sponge logic defined in Plonky2
 /// # Panics
 ///
 /// Panics if `PlonkyPermutation` is implemented on `STATE_SIZE` different from

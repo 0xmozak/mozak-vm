@@ -1,5 +1,7 @@
+use std::iter::zip;
+
 use iter_fixed::IntoIteratorFixed;
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -7,8 +9,11 @@ use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::VerifierCircuitTarget;
 
+pub mod accumulate_event;
 pub mod make_tree;
 pub mod merge;
+pub mod propagate;
+pub mod state_from_event;
 pub mod state_update;
 pub mod summarized;
 pub mod unbounded;
@@ -210,4 +215,83 @@ fn at_least_one_true<F, const D: usize>(
 
     // If all booleans were 0, self-division will be unsatisfiable
     builder.div(total, total);
+}
+
+/// Finds the index of a target `t` in an array. Useful for getting and
+/// labelling the indicies for public inputs.
+fn find_target(targets: &[Target], t: Target) -> usize {
+    targets
+        .iter()
+        .position(|&pi| pi == t)
+        .expect("target not found")
+}
+
+/// Finds the index of a boolean target `t` in an array. Useful for getting and
+/// labelling the indicies for public inputs.
+fn find_bool(targets: &[Target], t: BoolTarget) -> usize { find_target(targets, t.target) }
+
+/// Finds the indices of targets `ts` in an array. Useful for getting and
+/// labelling the indicies for public inputs.
+fn find_targets<const N: usize>(targets: &[Target], ts: [Target; N]) -> [usize; N] {
+    ts.map(|t| find_target(targets, t))
+}
+
+/// Finds the indices of the target elements of `ts` in an array. Useful for
+/// getting and labelling the indicies for public inputs.
+fn find_hash(targets: &[Target], ts: HashOutTarget) -> [usize; NUM_HASH_OUT_ELTS] {
+    find_targets(targets, ts.elements)
+}
+
+/// Connects `x` to `v` if `maybe_v` is true
+fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    x: [Target; N],
+    maybe_v: BoolTarget,
+    v: [Target; N],
+) {
+    // Loop over the limbs
+    for (parent, child) in zip(x, v) {
+        let child = builder.select(maybe_v, child, parent);
+        builder.connect(parent, child);
+    }
+}
+
+fn hash_event<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    owner: [Target; 4],
+    ty: Target,
+    address: Target,
+    value: [Target; 4],
+) -> HashOutTarget {
+    builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(chain!(owner, [ty, address], value,).collect())
+}
+
+fn split_bytes<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    mut source: Target,
+) -> [Target; 8] {
+    [(); 8]
+        .into_iter_fixed()
+        .enumerate()
+        .map(|(i, ())| {
+            if i == 7 {
+                source
+            } else {
+                let (lo, rest) = builder.split_low_high(source, 8, 64 - 8 * i);
+                source = rest;
+                lo
+            }
+        })
+        .collect()
+}
+
+fn byte_wise_hash<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    inputs: Vec<Target>,
+) -> HashOutTarget {
+    let bytes = inputs
+        .into_iter()
+        .flat_map(|v| split_bytes(builder, v))
+        .collect();
+    builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(bytes)
 }

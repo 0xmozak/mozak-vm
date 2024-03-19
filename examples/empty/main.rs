@@ -3,4 +3,4 @@
 
 pub fn main() {}
 
-guest::entry!(main);
+mozak_sdk::entry!(main);

@@ -101,6 +101,7 @@ where
     }
 }
 
+#[must_use]
 pub fn recursive_mozak_stark_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -203,7 +204,7 @@ fn verify_stark_proof_with_challenges_circuit<
     stark: &S,
     proof_with_public_inputs: &StarkProofWithPublicInputsTarget<D>,
     challenges: &StarkProofChallengesTarget<D>,
-    ctl_vars: &[CtlCheckVarsTarget<F, D>],
+    ctl_vars: &[CtlCheckVarsTarget<D>],
     inner_config: &StarkConfig,
 ) where
     C::Hasher: AlgebraicHasher<F>, {

@@ -1,31 +1,25 @@
 #![feature(restricted_std)]
 extern crate alloc;
 
-use mozak_sdk::coretypes::{Event, ProgramIdentifier, StateObject};
-use mozak_sdk::sys::{call_send, event_emit};
+use mozak_sdk::common::types::{Event, EventType, ProgramIdentifier, StateObject};
 use rkyv::{Archive, Deserialize, Serialize};
-use wallet::TokenObject;
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
     // Mint,
     // Burn,
     Transfer(
-        ProgramIdentifier,
         StateObject,
         ProgramIdentifier,
         ProgramIdentifier,
+        wallet::PublicKey
     ),
     // GetAmount,
     // Split,
 }
 
-#[derive(Archive, Default, Deserialize, Serialize, PartialEq, Eq, Clone)]
-#[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
+#[derive(Archive, Default, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodReturns {
     // TODO: Remove later
@@ -36,46 +30,52 @@ pub enum MethodReturns {
 #[allow(dead_code)]
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
-        MethodArgs::Transfer(id, object, remitter, remittee) => {
-            transfer(id, object, remitter, remittee);
+        MethodArgs::Transfer(object, remitter, remittee, remittee_pubkey) => {
+            transfer(object, remitter, remittee, remittee_pubkey);
             MethodReturns::Transfer
         }
     }
 }
 
-fn state_object_data_to_token_object(value: StateObject) -> TokenObject {
-    let archived = unsafe { rkyv::archived_root::<TokenObject>(&value.data[..]) };
-    let token_object: TokenObject = archived.deserialize(&mut rkyv::Infallible).unwrap();
-    token_object
-}
-
 #[allow(dead_code)]
 pub fn transfer(
-    self_prog_id: ProgramIdentifier,
     state_object: StateObject,
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
+    remitee_pubkey: wallet::PublicKey
 ) {
-    event_emit(self_prog_id, Event::ReadStateObject(state_object.clone()));
-    let token_object: TokenObject = state_object_data_to_token_object(state_object.clone());
-    assert_eq!(
-        call_send(
-            self_prog_id,
+    let read_event = Event {
+        object: state_object.clone(),
+        type_: EventType::Read,
+    };
+    mozak_sdk::event_emit(read_event);
+
+    let mut token_object = wallet::TokenObject::from(state_object.clone());
+
+    // Ensure spendability
+    assert!(
+        mozak_sdk::call_send(
             remitter_wallet,
             wallet::MethodArgs::ApproveSignature(
-                remitter_wallet,
                 token_object.pub_key.clone(),
-                wallet::BlackBox::new(remitter_wallet, remittee_wallet, token_object),
+                wallet::BlackBox::new(remitter_wallet, remittee_wallet, token_object.clone()),
             ),
             wallet::dispatch,
-            || -> wallet::MethodReturns {
-                wallet::MethodReturns::ApproveSignature(()) // TODO read from
-                                                            // private tape
-            }
-        ),
-        wallet::MethodReturns::ApproveSignature(()),
-        "wallet approval not found"
+        ) == wallet::MethodReturns::ApproveSignature(()),
     );
 
-    event_emit(self_prog_id, Event::UpdatedStateObject(state_object));
+    token_object.pub_key = remitee_pubkey;
+
+    let bytes = rkyv::to_bytes::<_, 256>(&token_object).unwrap();
+
+    let state_object = StateObject {
+        data: bytes.to_vec(),
+        ..state_object
+    };
+
+    let write_event = Event {
+        object: state_object,
+        type_: EventType::Write,
+    };
+    mozak_sdk::event_emit(write_event);
 }

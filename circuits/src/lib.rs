@@ -4,8 +4,6 @@
 // exceptions:
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
-// FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
-#![allow(clippy::ignored_unit_patterns)]
 
 extern crate core;
 
@@ -15,6 +13,7 @@ pub mod cpu;
 pub mod cross_table_lookup;
 pub mod generation;
 pub mod linear_combination;
+pub mod linear_combination_typed;
 pub mod memory;
 pub mod memory_fullword;
 pub mod memory_halfword;
@@ -36,6 +35,3 @@ pub mod stark;
 pub mod test_utils;
 pub mod utils;
 pub mod xor;
-
-#[cfg(any(feature = "test", test))]
-pub mod test_examples;
