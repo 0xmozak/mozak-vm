@@ -106,7 +106,9 @@ macro_rules! get_rkyv_deserialized {
         {
             use rkyv::rancor::{Panic, Strategy};
             let archived_repr = get_rkyv_archived!($t, $x);
-            let deserialized_repr: $t = archived_repr.deserialize(Strategy::<(), Panic>::wrap(&mut ())).unwrap();
+            let deserialized_repr: $t = archived_repr
+                .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
+                .unwrap();
             deserialized_repr
         }
     };

@@ -1,5 +1,5 @@
-use rkyv::{Archive, Deserialize};
 use rkyv::rancor::{Panic, Strategy};
+use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
 use crate::common::types::{CrossProgramCall, ProgramIdentifier};
@@ -43,7 +43,9 @@ impl Call for CallTape {
 
         // Deserialize into rust form: CrossProgramCall.
         let zcd_cpcmsg = &self.reader.unwrap()[self.index];
-        let cpcmsg: CrossProgramCall = zcd_cpcmsg.deserialize(Strategy::<_, Panic>::wrap(&mut ())).unwrap();
+        let cpcmsg: CrossProgramCall = zcd_cpcmsg
+            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+            .unwrap();
 
         // Ensure fields are correctly populated for caller and callee
         assert!(cpcmsg.caller == self.get_self_identity());
