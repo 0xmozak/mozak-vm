@@ -4,7 +4,7 @@
 // exceptions:
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
-// for bitflags
+// for bitflags and syn
 // TODO: remove once it's fixed.
 #![allow(clippy::multiple_crate_versions)]
 
