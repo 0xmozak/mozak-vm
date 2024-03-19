@@ -119,13 +119,6 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
 
 #[allow(dead_code)]
 pub fn dump_proving_files(file_template: String, self_prog_id: ProgramIdentifier) {
-    fn write_to_file(file_path: &String, content: &[u8]) {
-        use std::io::Write;
-        let path = std::path::Path::new(file_path.as_str());
-        let mut file = std::fs::File::create(&path).unwrap();
-        file.write_all(content).unwrap();
-    }
-
     dump_system_tape(&file_template.clone(), true);
     let bin_filename = file_template.clone() + ".tape.json";
 
@@ -146,11 +139,11 @@ pub fn dump_proving_files(file_template: String, self_prog_id: ProgramIdentifier
 
     let elf_filename = mozak_bin.name;
     let bundle = ProofBundle {
-        self_prog_id: format!("{:?}", self_prog_id),
+        self_prog_id: format!("{self_prog_id:?}"),
         elf_filename,
         system_tape_filepath: bin_filepath_absolute,
     };
-    println!("[BNDLDMP] Bundle dump: {:?}", bundle);
+    println!("[BNDLDMP] Bundle dump: {bundle:?}");
 
     let bundle_filename = file_template + "_bundle.json";
     let bundle_json = serde_json::to_string_pretty(&bundle).unwrap();
