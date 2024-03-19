@@ -9,6 +9,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
 
+#[cfg(feature = "std")]
+use rkyv::Deserialize;
+#[cfg(feature = "std")]
+use rkyv::rancor::{Panic, Strategy};
+
 extern crate alloc as rust_alloc;
 
 pub mod core;
@@ -42,8 +47,8 @@ pub fn call_receive<A, R>() -> Option<(crate::common::types::ProgramIdentifier, 
 where
     A: crate::common::traits::CallArgument + PartialEq,
     R: crate::common::traits::CallReturn,
-    <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
-    <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
+    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
     use crate::common::traits::Call;
     unsafe { crate::common::system::SYSTEM_TAPE.call_tape.receive() }
 }
@@ -61,8 +66,8 @@ pub fn call_send<A, R>(
 where
     A: crate::common::traits::CallArgument + PartialEq,
     R: crate::common::traits::CallReturn,
-    <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
-    <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
+    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
     use crate::common::traits::Call;
     unsafe {
         crate::common::system::SYSTEM_TAPE

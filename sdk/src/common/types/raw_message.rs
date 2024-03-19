@@ -1,5 +1,6 @@
 #[cfg(not(target_os = "mozakvm"))]
 use serde_hex::{SerHexSeq, StrictPfx};
+use rkyv::util::AlignedVec;
 
 #[derive(
     Default, Clone, Hash, PartialEq, PartialOrd, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
@@ -33,6 +34,6 @@ impl From<Vec<u8>> for RawMessage {
     fn from(value: Vec<u8>) -> RawMessage { RawMessage(value) }
 }
 
-impl From<rkyv::AlignedVec> for RawMessage {
-    fn from(value: rkyv::AlignedVec) -> RawMessage { RawMessage(value.into_vec()) }
+impl From<AlignedVec> for RawMessage {
+    fn from(value: AlignedVec) -> RawMessage { RawMessage(value.into_vec()) }
 }

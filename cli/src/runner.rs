@@ -9,6 +9,7 @@ use itertools::Itertools;
 use log::debug;
 use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::common::types::{CanonicalOrderedTemporalHints, ProgramIdentifier, SystemTape};
+use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
 
 pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> {
