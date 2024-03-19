@@ -1,15 +1,21 @@
 <!doctype html>
 <html lang="en-US">
-  <head>
-    <meta charset="utf-8" />
-    <title>WASM DEMO</title>
-  </head>
-  <body>
-    <script type="module">
-      import init, { wasm_demo } from "./pkg/wasm_demo.js";
-      init().then(() => {
-        wasm_demo(99, 99);
-      });
-    </script>
-  </body>
+    <head>
+        <meta charset="utf-8" />
+        <title>WASM Testsuite</title>
+    </head>
+    <body>
+        <p>
+            Here are some tests for checking if our WASM compilation is not
+            broken
+        </p>
+        <ul>
+            <li>
+                <a href="./wasm32-unknown-unknown.html">
+                    wasm32-unknown-unknown demo
+                </a>
+            </li>
+            <li><a href="./wasm32-wasi.html">wasm32-wasi demo</a></li>
+        </ul>
+    </body>
 </html>
