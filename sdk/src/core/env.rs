@@ -2,9 +2,6 @@
 extern crate alloc;
 
 #[cfg(target_os = "mozakvm")]
-use alloc::vec::Vec;
-
-#[cfg(target_os = "mozakvm")]
 static mut OUTPUT_BYTES: Option<Vec<u8>> = None;
 
 #[cfg(target_os = "mozakvm")]

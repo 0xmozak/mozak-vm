@@ -14,6 +14,7 @@ pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
 /// A data struct that is aware of it's own ID
 pub trait SelfIdentify {
     fn get_self_identity(&self) -> ProgramIdentifier;
+    #[allow(dead_code)]
     fn set_self_identity(&mut self, id: ProgramIdentifier);
 }
 

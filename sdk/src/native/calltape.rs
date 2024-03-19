@@ -96,7 +96,7 @@ mod tests {
 
         let mut calltape = CallTape::default();
 
-        let resolver = |val: A| -> B { (val + 1) as B };
+        let resolver = |val: A| -> B { B::from(val + 1) };
 
         let response = calltape.send(test_pid_generator(1), 1 as A, resolver);
         assert_eq!(response, 2);
