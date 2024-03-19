@@ -68,6 +68,8 @@ jobs:
         working-directory: sdk
         run: |
           cargo clippy --locked --all-features -- -D warnings
+          ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{ print $2; }')"
+          cargo clippy --locked --all-features --target ${ARCH_TRIPLE} -- -D warnings
 
       - name: cargo-clippy (native)
         working-directory: sdk
