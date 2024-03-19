@@ -697,31 +697,10 @@ pub struct Poseidon2Sponge2Poseidon2PreimagePackTable;
 impl Lookups for Poseidon2Sponge2Poseidon2PreimagePackTable {
     fn lookups() -> CrossTableLookup {
         let mut tables = vec![];
-        tables.extend(
-            (0..8).map(|index| crate::poseidon2_sponge::columns::lookup_for_preimage_pack(index)),
-        );
+        tables.extend((0..8).map(crate::poseidon2_sponge::columns::lookup_for_preimage_pack));
         CrossTableLookup::new(
             tables,
-            crate::poseidon2_preimage_pack::columns::lookup_for_poseidon2_sponge(),
+            poseidon2_preimage_pack::columns::lookup_for_poseidon2_sponge(),
         )
     }
 }
-// #[cfg(feature = "enable_poseidon_starks")]
-// {
-// tables.extend(
-// (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).map(|index| {
-// Poseidon2PreimagePackTable::new(
-// crate::poseidon2_preimage_pack::columns::data_for_input_memory(
-// u8::try_from(index).expect("Should be < 255"),
-// ),
-// crate::poseidon2_preimage_pack::columns::filter_for_input_memory(),
-// )
-// }),
-// );
-// tables.extend((0..32).map(|index| {
-// Poseidon2OutputBytesTable::new(
-// poseidon2_output_bytes::columns::data_for_output_memory(index),
-// poseidon2_output_bytes::columns::filter_for_output_memory(),
-// )
-// }));
-// }
