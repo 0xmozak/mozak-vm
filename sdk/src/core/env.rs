@@ -2,12 +2,15 @@
 extern crate alloc;
 
 #[cfg(target_os = "mozakvm")]
-static mut OUTPUT_BYTES: Option<alloc::vec::Vec<u8>> = None;
+use alloc::vec::Vec;
+
+#[cfg(target_os = "mozakvm")]
+static mut OUTPUT_BYTES: Option<Vec<u8>> = None;
 
 #[cfg(target_os = "mozakvm")]
 pub fn init() {
     unsafe {
-        OUTPUT_BYTES = Some(alloc::vec::Vec::new());
+        OUTPUT_BYTES = Some(Vec::new());
     }
 }
 
