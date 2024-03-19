@@ -172,7 +172,7 @@ macro_rules! mozak_stark_helpers {
 
         // Generate the helper macros
 
-        /// Creates an array by repeatedly calls a "labmda" once per stark type.
+        /// Creates an array by repeatedly calls a "lambda" once per stark type.
         ///
         /// Note that these are not actual lambdas and so early returns will return from
         /// the caller, not the lambda
@@ -428,6 +428,8 @@ where
 
 #[derive(Debug, Clone)]
 pub struct TableNamed<Row> {
+    // TODO: when converting to untyped table, check that TableKind agrees with columns type.
+    // That would have prevented some mistakes.
     pub(crate) kind: TableKind,
     pub(crate) columns: Row,
     pub(crate) filter_column: Column,
@@ -436,6 +438,7 @@ pub struct TableNamed<Row> {
 pub type Table = TableNamed<Vec<Column>>;
 
 impl<Row: IntoIterator<Item = Column>> TableNamed<Row> {
+    // TODO: consider renaming.
     pub fn to_vec(self) -> Table {
         TableNamed {
             kind: self.kind,

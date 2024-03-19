@@ -225,6 +225,7 @@ pub struct CrossTableLookupNamed<Row> {
 pub type CrossTableLookup = CrossTableLookupNamed<Vec<Column>>;
 
 impl<Row: IntoIterator<Item = Column>> CrossTableLookupNamed<Row> {
+    // TODO: consider renaming?
     pub fn to_vec(self) -> CrossTableLookup {
         let looked_table: Table = self.looked_table.to_vec();
         let looking_tables = self
