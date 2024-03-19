@@ -1,5 +1,3 @@
-#[cfg(not(target_os = "mozakvm"))]
-use itertools::{chain, Itertools};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
 use crate::sys::poseidon2_hash_no_pad;
@@ -370,19 +368,14 @@ pub struct CanonicalEvent {
 impl CanonicalEvent {
     #[must_use]
     pub fn canonical_hash(&self) -> Poseidon2HashType {
-        poseidon2_hash_no_pad(
-            &vec![
-                self.event_owner.0.to_vec(),
-                u64::from(self.event_type.clone() as u8)
-                    .to_le_bytes()
-                    .to_vec(),
-                self.address.to_le_bytes().to_vec(),
-                self.event_value.0.to_vec(),
-            ]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<u8>>(),
+        let data_to_hash: Vec<u8> = itertools::chain!(
+            self.event_owner.0 .0,
+            u64::from(self.event_type.clone() as u8).to_le_bytes(),
+            self.address.to_le_bytes(),
+            self.event_value.0,
         )
+        .collect();
+        poseidon2_hash_no_pad(&data_to_hash)
     }
 }
 
