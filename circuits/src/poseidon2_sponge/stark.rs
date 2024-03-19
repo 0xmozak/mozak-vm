@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use mozak_circuits_derive::StarkNameDisplay;
+use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -55,6 +56,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         let rate = u8::try_from(Poseidon2Permutation::<F>::RATE).expect("rate > 255");
         let state_size = u8::try_from(Poseidon2Permutation::<F>::WIDTH).expect("state_size > 255");
         let rate_scalar = P::Scalar::from_canonical_u8(rate);
+        let padding_scalar = P::Scalar::from_canonical_u8(
+            u8::try_from(MozakPoseidon2::DATA_PADDING).expect("DATA_PADDING > 255"),
+        );
         let lv: &Poseidon2Sponge<P> = vars.get_local_values().into();
         let nv: &Poseidon2Sponge<P> = vars.get_next_values().into();
 
@@ -96,6 +100,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         yield_constr.constraint_transition(
             not_last_sponge * (lv.input_addr - (nv.input_addr - rate_scalar)),
         );
+        // and input_addr_padded increases by RATE
+        yield_constr.constraint_transition(
+            not_last_sponge * (lv.input_addr_padded - (nv.input_addr_padded - padding_scalar)),
+        );
+        // and for init permute, input_addr = input_addr_padded
+        yield_constr.constraint(lv.ops.is_init_permute * (lv.input_addr - lv.input_addr_padded));
 
         // For each init_permute capacity bits are zero.
         (rate..state_size).for_each(|i| {
@@ -141,6 +151,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // if row generates output then it must be last rate sized
         // chunk of input.
         let rate_ext = builder.constant_extension(F::Extension::from_canonical_u8(rate));
+        let padding_ext = builder.constant_extension(F::Extension::from_canonical_u8(
+            u8::try_from(MozakPoseidon2::DATA_PADDING).expect("DATA_PADDING > 255"),
+        ));
         let input_len_sub_rate = builder.sub_extension(lv.input_len, rate_ext);
         let gen_op_len_check = builder.mul_extension(lv.gen_output, input_len_sub_rate);
         yield_constr.constraint(builder, gen_op_len_check);
@@ -179,6 +192,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         let input_addr_diff_rate = builder.sub_extension(lv.input_addr, nv_input_addr_rate);
         let addr_check = builder.mul_extension(not_last_sponge, input_addr_diff_rate);
         yield_constr.constraint_transition(builder, addr_check);
+
+        // and input_addr_padding increases by DATA_PADDING
+        let nv_input_addr_padding = builder.sub_extension(nv.input_addr_padded, padding_ext);
+        let input_addr_diff_padding =
+            builder.sub_extension(lv.input_addr_padded, nv_input_addr_padding);
+        let padding_addr_check = builder.mul_extension(not_last_sponge, input_addr_diff_padding);
+        yield_constr.constraint_transition(builder, padding_addr_check);
+
+        // and for init permute, input_addr = input_addr_padded
+        // yield_constr.constraint(lv.ops.is_init_permute * (lv.input_addr -
+        // lv.input_addr_padded));
+        let lv_diff_addr_padding = builder.sub_extension(lv.input_addr, lv.input_addr_padded);
+        let padding_addr_init_check =
+            builder.mul_extension(lv.ops.is_init_permute, lv_diff_addr_padding);
+        yield_constr.constraint(builder, padding_addr_init_check);
 
         let zero = builder.constant_extension(F::Extension::ZERO);
         // For each init_permute capacity bits are zero.
