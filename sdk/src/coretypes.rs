@@ -220,7 +220,9 @@ pub struct CanonicalStateObjectEvent {
     pub event_emitter: ProgramIdentifier,
 }
 
-#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(
+    Archive, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy,
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[repr(u8)]
@@ -353,7 +355,9 @@ pub struct Event {
     pub object: StateObject,
     pub operation: CanonicalEventType,
 }
-#[derive(Archive, Debug, Deserialize, Eq, PartialEq, PartialOrd, Ord, Serialize, Clone, Hash)]
+#[derive(
+    Archive, Debug, Deserialize, Eq, PartialEq, PartialOrd, Ord, Serialize, Clone, Hash, Copy,
+)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 /// Event which is ready to be ingested into event accumulator
@@ -370,7 +374,7 @@ impl CanonicalEvent {
     pub fn canonical_hash(&self) -> Poseidon2HashType {
         let data_to_hash: Vec<u8> = itertools::chain!(
             self.event_owner.0 .0,
-            u64::from(self.event_type.clone() as u8).to_le_bytes(),
+            u64::from(self.event_type as u8).to_le_bytes(),
             self.address.to_le_bytes(),
             self.event_value.0,
         )
