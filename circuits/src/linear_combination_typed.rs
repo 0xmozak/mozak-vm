@@ -47,7 +47,6 @@ where
 {
     type Output = Self;
 
-    #[allow(clippy::similar_names)]
     fn add(self, other: Self) -> Self {
         Self {
             lv_linear_combination: self.lv_linear_combination + other.lv_linear_combination,
