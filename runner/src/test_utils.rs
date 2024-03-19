@@ -1,5 +1,5 @@
 use itertools::{chain, izip};
-use mozak_system::system::ecall;
+use mozak_sdk::core::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 #[cfg(any(feature = "test", test))]
 use proptest::prelude::any;

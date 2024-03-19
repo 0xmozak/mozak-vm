@@ -4,11 +4,11 @@ name = "memory-access-mozak-guest"
 version = "0.1.0"
 
 [dependencies]
-guest = { path = "../../guest", default-features = false }
+mozak-sdk = { path = "../../sdk", default-features = false }
 
 [[bin]]
 name = "memory-access"
 path = "main.rs"
 
 [features]
-std = ["guest/std"]
+std = ["mozak-sdk/std"]
