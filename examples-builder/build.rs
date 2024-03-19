@@ -35,12 +35,9 @@ const CRATES: &[Crate] = &[
     ecrate!("memory-access", "MEMORY_ACCESS_ELF", false),
     ecrate!("min-max", "MIN_MAX_ELF", false),
     ecrate!("panic", "PANIC_ELF", false),
-    ecrate!("poseidon2", "poseidon2-example", "POSEIDON2_ELF", false),
     ecrate!("rkyv-serialization", "RKYV_SERIALIZATION_ELF", false),
     ecrate!("sha2", "sha2-example", "SHA2_ELF", false),
     ecrate!("static-mem-access", "STATIC_MEM_ACCESS_ELF", false),
-    ecrate!("stdin", "STDIN_ELF", true),
-    ecrate!("merkleproof-trustedroot", "MERKLEPROOF_TRUSTEDROOT", false),
     ecrate!("empty", "EMPTY_ELF", false),
     ecrate!("tokenbin", "TOKENBIN", false),
     ecrate!("walletbin", "WALLETBIN", false),
@@ -72,7 +69,8 @@ fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str,
         }
         writeln!(
             dest,
-            r#"pub const {glob_name}: &[u8] = include_bytes!(r"{CARGO_MANIFEST_DIR}/{elf_path}");"#
+            r#"pub const {glob_name}: &[u8] =
+                   include_bytes!(r"{CARGO_MANIFEST_DIR}/{elf_path}");"#
         )
     }
     .expect("failed to write vars.rs");

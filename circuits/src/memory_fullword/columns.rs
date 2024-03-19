@@ -2,6 +2,7 @@ use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::stark::mozak_stark::{FullWordMemoryTable, Table};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -45,31 +46,34 @@ pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu() -> Vec<Column> {
+pub fn lookup_for_cpu() -> Table {
     let mem = col_map().map(Column::from);
-    vec![
-        mem.clk,
-        mem.addrs[0].clone(),
-        Column::reduce_with_powers(&mem.limbs, 1 << 8),
-        mem.ops.is_store,
-        mem.ops.is_load,
-    ]
+    FullWordMemoryTable::new(
+        vec![
+            mem.clk,
+            mem.addrs[0].clone(),
+            Column::reduce_with_powers(&mem.limbs, 1 << 8),
+            mem.ops.is_store,
+            mem.ops.is_load,
+        ],
+        col_map().map(Column::from).is_executed(),
+    )
 }
 
 /// Columns containing the data which are looked from the fullword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory_limb(limb_index: usize) -> Vec<Column> {
+pub fn lookup_for_memory_limb(limb_index: usize) -> Table {
     assert!(limb_index < 4, "limb-index can be 0..4");
     let mem = col_map().map(Column::from);
-    vec![
-        mem.clk,
-        mem.ops.is_store,
-        mem.ops.is_load,
-        mem.limbs[limb_index].clone(),
-        mem.addrs[limb_index].clone(),
-    ]
+    FullWordMemoryTable::new(
+        vec![
+            mem.clk,
+            mem.ops.is_store,
+            mem.ops.is_load,
+            mem.limbs[limb_index].clone(),
+            mem.addrs[limb_index].clone(),
+        ],
+        col_map().map(Column::from).is_executed(),
+    )
 }
-/// Column for a binary filter to indicate a lookup
-#[must_use]
-pub fn filter() -> Column { col_map().map(Column::from).is_executed() }

@@ -25,11 +25,10 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
+use mozak_cli::runner::{load_program, tapes_to_runtime_arguments};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
-use mozak_sdk::sys::SystemTapes;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -89,8 +88,6 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
-    /// Deserialize a `SystemTape` from a binary. Useful for debugging.
-    DeserializeTape { tapes: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -272,10 +269,6 @@ fn main() -> Result<()> {
             );
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
-        }
-        Command::DeserializeTape { tapes } => {
-            let sys_tapes: SystemTapes = deserialize_system_tape(tapes)?;
-            println!("{sys_tapes:?}");
         }
         Command::Bench(bench) => {
             /// Times a function and returns the `Duration`.

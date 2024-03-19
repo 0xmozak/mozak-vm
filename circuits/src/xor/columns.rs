@@ -1,5 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
+use crate::stark::mozak_stark::{Table, XorTable};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -26,12 +27,11 @@ pub struct XorView<T> {
 }
 columns_view_impl!(XorView);
 
-/// Columns containing the data which are looked from the CPU table into Xor
-/// stark table.
+/// Lookup between CPU table and Xor stark table.
 #[must_use]
-pub fn data_for_cpu() -> Vec<Column> { Column::singles(col_map().execution) }
-
-/// Column for a binary filter to indicate a lookup from the CPU table into Xor
-/// stark table.
-#[must_use]
-pub fn filter_for_cpu() -> Column { Column::single(col_map().is_execution_row) }
+pub fn lookup_for_cpu() -> Table {
+    XorTable::new(
+        Column::singles(col_map().execution),
+        Column::single(col_map().is_execution_row),
+    )
+}

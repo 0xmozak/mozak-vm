@@ -7,9 +7,7 @@ version = "0.1.0"
 native = []
 
 [dependencies]
-guest = { path = "../../guest", features = ["std"] }
 mozak-sdk = { path = "../../sdk" }
-mozak-system = { path = "../../system", features = ["mozak-ro-memory"] }
 rkyv = { version = "0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 wallet-mozak-guest = { path = "../wallet" }
 
