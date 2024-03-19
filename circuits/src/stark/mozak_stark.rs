@@ -404,7 +404,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct TableNamedTyped<Row, Filter> {
     pub(crate) kind: TableKind,
     pub(crate) columns: Row,

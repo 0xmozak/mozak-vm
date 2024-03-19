@@ -17,8 +17,7 @@ use thiserror::Error;
 
 pub use crate::linear_combination::Column;
 pub use crate::linear_combination_typed::ColumnTyped;
-use crate::stark::mozak_stark::{
-    all_kind, Table, TableKind, TableKindArray, TableNamed};
+use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableNamed};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
 
@@ -192,8 +191,8 @@ pub struct CrossTableLookupNamed<Row> {
 }
 
 // // TODO(Matthias): carefully study the types here.
-// impl<RowIn, RowOut, I> From<CrossTableLookupNamedTyped<RowIn, ColumnTyped<I>>>
-//     for CrossTableLookupNamed<RowOut>
+// impl<RowIn, RowOut, I> From<CrossTableLookupNamedTyped<RowIn,
+// ColumnTyped<I>>>     for CrossTableLookupNamed<RowOut>
 // where
 //     I: IntoIterator<Item = i64>,
 //     RowOut: FromIterator<Column>,

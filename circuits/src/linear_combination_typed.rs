@@ -193,22 +193,21 @@ where
     //     izip!(lv, self.lv_linear_combination)
     //         .map(|(lv1, f)| lv1 * FE::from_noncanonical_i64(f))
     //         .sum::<P>()
-    //         + izip!(nv, self.nv_linear_combination)
-    //             .map(|(nv1, f)| nv1 * FE::from_noncanonical_i64(f))
-    //             .sum::<P>()
+    //         + izip!(nv, self.nv_linear_combination) .map(|(nv1, f)| nv1 *
+    //           FE::from_noncanonical_i64(f)) .sum::<P>()
     //         + FE::from_noncanonical_i64(self.constant)
     // }
 
     // /// Evaluate on a row of a table given in column-major form.
     // #[allow(clippy::cast_possible_wrap)]
     // #[must_use]
-    // pub fn eval_table<F: Field>(self, table: &[PolynomialValues<F>], row: usize) -> F {
-    //     izip!(table, self.lv_linear_combination)
+    // pub fn eval_table<F: Field>(self, table: &[PolynomialValues<F>], row: usize)
+    // -> F {     izip!(table, self.lv_linear_combination)
     //         .map(|(t, f)| t.values[row] * F::from_noncanonical_i64(f))
     //         .sum::<F>()
-    //         + izip!(table, self.nv_linear_combination)
-    //             .map(|(t, f)| t.values[(row + 1) % t.values.len()] * F::from_noncanonical_i64(f))
-    //             .sum::<F>()
+    //         + izip!(table, self.nv_linear_combination) .map(|(t, f)|
+    //           t.values[(row + 1) % t.values.len()] * F::from_noncanonical_i64(f))
+    //           .sum::<F>()
     //         + F::from_noncanonical_i64(self.constant)
     // }
 
@@ -220,9 +219,8 @@ where
     //     izip!(lv_row, self.lv_linear_combination)
     //         .map(|(lv1, f)| lv1 * F::from_noncanonical_i64(f))
     //         .sum::<F>()
-    //         + izip!(nv_row, self.nv_linear_combination)
-    //             .map(|(nv1, f)| nv1 * F::from_noncanonical_i64(f))
-    //             .sum::<F>()
+    //         + izip!(nv_row, self.nv_linear_combination) .map(|(nv1, f)| nv1 *
+    //           F::from_noncanonical_i64(f)) .sum::<F>()
     //         + F::from_noncanonical_i64(self.constant)
     // }
 }
