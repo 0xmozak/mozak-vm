@@ -1,11 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use rkyv::rancor::{Panic, Strategy};
+use rkyv::Deserialize;
+
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
 use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};
 use crate::native::helpers::IdentityStack;
-use rkyv::Deserialize;
-use rkyv::rancor::{Strategy, Panic};
 
 /// Represents the `CallTape` under native execution
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]

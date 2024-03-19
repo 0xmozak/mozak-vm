@@ -2,12 +2,9 @@ use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::allocator::{AllocationTracker, GlobalAllocator};
 use rkyv::ser::{AllocSerializer, Composite};
 use rkyv::util::AlignedVec;
-use rkyv::Serialize;
-use rkyv::Deserialize;
+use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::common::types::{Event, ProgramIdentifier};
-use rkyv::Archive;
-
 
 pub trait RkyvSerializable = rkyv::Serialize<Strategy<Composite<AlignedVec, AllocationTracker<GlobalAllocator>, ()>, ()>>
     + Serialize<Strategy<AllocSerializer<256>, Panic>>;

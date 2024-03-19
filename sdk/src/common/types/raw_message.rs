@@ -1,6 +1,6 @@
+use rkyv::util::AlignedVec;
 #[cfg(not(target_os = "mozakvm"))]
 use serde_hex::{SerHexSeq, StrictPfx};
-use rkyv::util::AlignedVec;
 
 #[derive(
     Default, Clone, Hash, PartialEq, PartialOrd, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,

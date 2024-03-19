@@ -10,9 +10,9 @@
 #![cfg_attr(feature = "std", feature(restricted_std))]
 
 #[cfg(feature = "std")]
-use rkyv::Deserialize;
-#[cfg(feature = "std")]
 use rkyv::rancor::{Panic, Strategy};
+#[cfg(feature = "std")]
+use rkyv::Deserialize;
 
 extern crate alloc as rust_alloc;
 
