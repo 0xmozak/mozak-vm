@@ -170,7 +170,7 @@ where
     pub fn reduce_with_powers<I>(terms: I, alpha: i64) -> Self
     where
         I: IntoIterator<Item = Self>,
-        <I as IntoIterator>::IntoIter: DoubleEndedIterator, {
+        I::IntoIter: DoubleEndedIterator, {
         terms
             .into_iter()
             .rev()
