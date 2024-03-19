@@ -1,9 +1,8 @@
 use core::ops::Add;
 
-use plonky2::hash::hash_types::RichField;
 #[cfg(feature = "enable_poseidon_starks")]
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
-use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
+use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 #[cfg(feature = "enable_poseidon_starks")]
@@ -19,7 +18,7 @@ pub struct Ops<T> {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
 pub struct Poseidon2Sponge<T> {
     pub clk: T,
     pub ops: Ops<T>,
@@ -29,21 +28,6 @@ pub struct Poseidon2Sponge<T> {
     pub preimage: [T; WIDTH],
     pub output: [T; WIDTH],
     pub gen_output: T,
-}
-
-impl<F: RichField> Default for Poseidon2Sponge<F> {
-    fn default() -> Self {
-        Self {
-            clk: F::default(),
-            ops: Ops::<F>::default(),
-            input_addr: F::default(),
-            input_len: F::default(),
-            output_addr: F::default(),
-            preimage: [F::default(); WIDTH],
-            output: <F as Poseidon2>::poseidon2([F::default(); WIDTH]),
-            gen_output: F::default(),
-        }
-    }
 }
 
 columns_view_impl!(Poseidon2Sponge);
