@@ -80,10 +80,10 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
 #[must_use]
 pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
     let data = col_map().map(Column::from);
-    // FIXME: Check why does not work just reduce_with_power on &data.bytes
     vec![
         data.clk,
         Column::<F>::reduce_with_powers(
+            // FIXME: Check why does not work just reduce_with_power on &data.bytes
             {
                 let mut r = data.bytes.clone();
                 r.reverse();

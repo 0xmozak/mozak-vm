@@ -20,18 +20,23 @@ impl MozakPoseidon2 {
         Self::MAX_BYTES_PER_FIELD_ELEMENT - Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
     pub const MAX_BYTES_PER_FIELD_ELEMENT: usize = 8;
 
-    // TODO: FIXME(Roman + Kapil):
-    // Padding zeros should be a
-    // security issue
+    /// Byte padding
+    /// Bit-Padding schema is used to pad input data
+    /// Case-A - data length % `DATA_PADDING` != 0
+    /// --> Make first bit of the first padded byte to be 1 - `0b1000_0000`
+    /// Case-B - data length % `DATA_PADDING` == 0
+    /// --> Extend padding to next-multiple of `DATA_PADDING` while first bit of
+    /// the first padded byte will be 1 (same as for Case-A)
     #[must_use]
     pub fn do_padding(data: &[u8]) -> Vec<u8> {
+        let bit_padding_schema = 0b1000_0000_u8;
         let mut padded = data.to_vec();
-        if padded.len() % Self::DATA_PADDING != 0 {
-            padded.resize(
-                padded.len().next_multiple_of(Self::DATA_PADDING), // FIXME(Roman): can be lcd
-                0_u8,
-            );
-        }
+        padded.extend({
+            let extend_size = Self::DATA_PADDING - padded.len() % Self::DATA_PADDING;
+            let mut padding = vec![0_u8; extend_size];
+            padding[0] = bit_padding_schema;
+            padding
+        });
         padded
     }
 
@@ -55,11 +60,14 @@ impl MozakPoseidon2 {
         data.chunks(Self::DATA_CAPACITY_PER_FIELD_ELEMENT)
             .map(|x| {
                 // Padding with leading zeros, since `from_be_bytes` is used later on
-                let mut xx: Vec<u8> = vec![0; Self::LEADING_ZEROS];
-                xx.extend(x);
+                let mut leading_zeros_x: Vec<u8> = vec![0; Self::LEADING_ZEROS];
+                leading_zeros_x.extend(x);
 
                 F::from_canonical_u64(u64::from_be_bytes(
-                    xx.as_slice().try_into().expect("should succeed"),
+                    leading_zeros_x
+                        .as_slice()
+                        .try_into()
+                        .expect("should succeed"),
                 ))
             })
             .collect::<Vec<_>>()
