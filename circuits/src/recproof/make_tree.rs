@@ -240,6 +240,7 @@ impl BranchSubCircuit {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
+    use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::{HashOut, NUM_HASH_OUT_ELTS};
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
@@ -247,7 +248,7 @@ mod test {
 
     use super::*;
     use crate::recproof::unbounded;
-    use crate::test_utils::{hash_branch, hash_str, C, D, F};
+    use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
 
     pub struct DummyLeafCircuit {
         pub make_tree: LeafSubCircuit,
@@ -367,19 +368,22 @@ mod test {
         }
     }
 
+    const CONFIG: CircuitConfig = fast_test_circuit_config();
+
+    lazy_static! {
+        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
+        static ref BRANCH: DummyBranchCircuit = DummyBranchCircuit::new(&CONFIG, &LEAF);
+    }
+
     #[test]
     fn verify_leaf() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let non_zero_hash = hash_str("Non-Zero Hash");
 
-        let proof = leaf.prove(true, non_zero_hash, &branch)?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(true, non_zero_hash, &BRANCH)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(false, non_zero_hash, &branch)?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(false, non_zero_hash, &BRANCH)?;
+        LEAF.circuit.verify(proof)?;
 
         Ok(())
     }

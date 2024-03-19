@@ -271,12 +271,13 @@ impl From<u64> for AddressPresent {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
+    use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::Hasher;
 
     use super::*;
-    use crate::test_utils::{hash_branch, hash_str, C, D, F};
+    use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
 
     fn hash_write<F: RichField>(address: u64, left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
         let address = F::from_canonical_u64(address);
@@ -285,11 +286,17 @@ mod test {
         Poseidon2Hash::hash_no_pad(&[address, l0, l1, l2, l3, r0, r1, r2, r3])
     }
 
+    const CONFIG: CircuitConfig = fast_test_circuit_config();
+
+    lazy_static! {
+        static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
+        static ref BRANCH_0: BranchCircuit<F, C, D> = BranchCircuit::from_leaf(&CONFIG, &LEAF);
+        static ref BRANCH_1: BranchCircuit<F, C, D> =
+            BranchCircuit::from_branch(&CONFIG, &BRANCH_0);
+    }
+
     #[test]
     fn verify_leaf() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let circuit = LeafCircuit::<F, C, D>::new(&circuit_config);
-
         let zero_hash = HashOut::from([F::ZERO; 4]);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2");
@@ -298,24 +305,24 @@ mod test {
         let slot_42_r2w0 = hash_write(42, &non_zero_hash_2, &zero_hash);
 
         // Create
-        let proof = circuit.prove(zero_hash, non_zero_hash_1, slot_42_r0w1, Some(42))?;
-        circuit.circuit.verify(proof)?;
+        let proof = LEAF.prove(zero_hash, non_zero_hash_1, slot_42_r0w1, Some(42))?;
+        LEAF.circuit.verify(proof)?;
 
         // Update
-        let proof = circuit.prove(non_zero_hash_1, non_zero_hash_2, slot_42_r1w2, Some(42))?;
-        circuit.circuit.verify(proof)?;
+        let proof = LEAF.prove(non_zero_hash_1, non_zero_hash_2, slot_42_r1w2, Some(42))?;
+        LEAF.circuit.verify(proof)?;
 
         // Non-Update
-        let proof = circuit.prove(non_zero_hash_2, non_zero_hash_2, zero_hash, None)?;
-        circuit.circuit.verify(proof)?;
+        let proof = LEAF.prove(non_zero_hash_2, non_zero_hash_2, zero_hash, None)?;
+        LEAF.circuit.verify(proof)?;
 
         // Destroy
-        let proof = circuit.prove(non_zero_hash_2, zero_hash, slot_42_r2w0, Some(42))?;
-        circuit.circuit.verify(proof)?;
+        let proof = LEAF.prove(non_zero_hash_2, zero_hash, slot_42_r2w0, Some(42))?;
+        LEAF.circuit.verify(proof)?;
 
         // Non-Update
-        let proof = circuit.prove(zero_hash, zero_hash, zero_hash, None)?;
-        circuit.circuit.verify(proof)?;
+        let proof = LEAF.prove(zero_hash, zero_hash, zero_hash, None)?;
+        LEAF.circuit.verify(proof)?;
 
         Ok(())
     }
@@ -323,56 +330,42 @@ mod test {
     #[test]
     #[should_panic(expected = "Tried to invert zero")]
     fn bad_leaf_create() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let circuit = LeafCircuit::<F, C, D>::new(&circuit_config);
-
         let zero_hash = HashOut::from([F::ZERO; 4]);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
 
-        let proof = circuit
+        let proof = LEAF
             .prove(zero_hash, non_zero_hash_1, zero_hash, None)
             .unwrap();
-        circuit.circuit.verify(proof).unwrap();
+        LEAF.circuit.verify(proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_update() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let circuit = LeafCircuit::<F, C, D>::new(&circuit_config);
-
         let zero_hash = HashOut::from([F::ZERO; 4]);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2");
         let hash_0_to_1 = hash_branch(&zero_hash, &non_zero_hash_1);
 
-        let proof = circuit
+        let proof = LEAF
             .prove(non_zero_hash_1, non_zero_hash_2, hash_0_to_1, Some(42))
             .unwrap();
-        circuit.circuit.verify(proof).unwrap();
+        LEAF.circuit.verify(proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_non_update() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let circuit = LeafCircuit::<F, C, D>::new(&circuit_config);
-
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2");
 
-        let proof = circuit
+        let proof = LEAF
             .prove(non_zero_hash_2, non_zero_hash_2, non_zero_hash_2, Some(42))
             .unwrap();
-        circuit.circuit.verify(proof).unwrap();
+        LEAF.circuit.verify(proof).unwrap();
     }
 
     #[test]
     fn verify_branch() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf_circuit = LeafCircuit::<F, C, D>::new(&circuit_config);
-        let branch_circuit_h0 = BranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
-        let branch_circuit_h1 = BranchCircuit::from_branch(&circuit_config, &branch_circuit_h0);
-
         let zero_hash = HashOut::from([F::ZERO; 4]);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
         let hash_0_and_0 = hash_branch(&zero_hash, &zero_hash);
@@ -391,23 +384,20 @@ mod test {
         let slot_3_and_4 = hash_branch(&slot_3_r0w1, &slot_4_r0w1);
 
         // Leaf proofs
-        let zero_proof = leaf_circuit.prove(zero_hash, zero_hash, zero_hash, None)?;
-        leaf_circuit.circuit.verify(zero_proof.clone())?;
+        let zero_proof = LEAF.prove(zero_hash, zero_hash, zero_hash, None)?;
+        LEAF.circuit.verify(zero_proof.clone())?;
 
-        let proof_0_to_1_id_2 =
-            leaf_circuit.prove(zero_hash, non_zero_hash_1, slot_2_r0w1, Some(2))?;
-        leaf_circuit.circuit.verify(proof_0_to_1_id_2.clone())?;
+        let proof_0_to_1_id_2 = LEAF.prove(zero_hash, non_zero_hash_1, slot_2_r0w1, Some(2))?;
+        LEAF.circuit.verify(proof_0_to_1_id_2.clone())?;
 
-        let proof_0_to_1_id_3 =
-            leaf_circuit.prove(zero_hash, non_zero_hash_1, slot_3_r0w1, Some(3))?;
-        leaf_circuit.circuit.verify(proof_0_to_1_id_3.clone())?;
+        let proof_0_to_1_id_3 = LEAF.prove(zero_hash, non_zero_hash_1, slot_3_r0w1, Some(3))?;
+        LEAF.circuit.verify(proof_0_to_1_id_3.clone())?;
 
-        let proof_0_to_1_id_4 =
-            leaf_circuit.prove(zero_hash, non_zero_hash_1, slot_4_r0w1, Some(4))?;
-        leaf_circuit.circuit.verify(proof_0_to_1_id_4.clone())?;
+        let proof_0_to_1_id_4 = LEAF.prove(zero_hash, non_zero_hash_1, slot_4_r0w1, Some(4))?;
+        LEAF.circuit.verify(proof_0_to_1_id_4.clone())?;
 
         // Branch proofs
-        let branch_00_and_00_proof = branch_circuit_h0.prove(
+        let branch_00_and_00_proof = BRANCH_0.prove(
             &zero_proof,
             &zero_proof,
             hash_0_and_0,
@@ -415,9 +405,9 @@ mod test {
             zero_hash,
             (),
         )?;
-        branch_circuit_h0.circuit.verify(branch_00_and_00_proof)?;
+        BRANCH_0.circuit.verify(branch_00_and_00_proof)?;
 
-        let branch_00_and_01_proof = branch_circuit_h0.prove(
+        let branch_00_and_01_proof = BRANCH_0.prove(
             &zero_proof,
             &proof_0_to_1_id_3,
             hash_0_and_0,
@@ -425,11 +415,9 @@ mod test {
             slot_3_r0w1,
             (),
         )?;
-        branch_circuit_h0
-            .circuit
-            .verify(branch_00_and_01_proof.clone())?;
+        BRANCH_0.circuit.verify(branch_00_and_01_proof.clone())?;
 
-        let branch_01_and_00_proof = branch_circuit_h0.prove(
+        let branch_01_and_00_proof = BRANCH_0.prove(
             &proof_0_to_1_id_4,
             &zero_proof,
             hash_0_and_0,
@@ -437,11 +425,9 @@ mod test {
             slot_4_r0w1,
             (),
         )?;
-        branch_circuit_h0
-            .circuit
-            .verify(branch_01_and_00_proof.clone())?;
+        BRANCH_0.circuit.verify(branch_01_and_00_proof.clone())?;
 
-        let branch_01_and_01_proof = branch_circuit_h0.prove(
+        let branch_01_and_01_proof = BRANCH_0.prove(
             &proof_0_to_1_id_2,
             &proof_0_to_1_id_3,
             hash_0_and_0,
@@ -449,10 +435,10 @@ mod test {
             slot_2_and_3,
             (),
         )?;
-        branch_circuit_h0.circuit.verify(branch_01_and_01_proof)?;
+        BRANCH_0.circuit.verify(branch_01_and_01_proof)?;
 
         // Double branch proof
-        let proof = branch_circuit_h1.prove(
+        let proof = BRANCH_1.prove(
             &branch_00_and_01_proof,
             &branch_01_and_00_proof,
             hash_00_and_00,
@@ -460,7 +446,7 @@ mod test {
             slot_3_and_4,
             (),
         )?;
-        branch_circuit_h1.circuit.verify(proof)?;
+        BRANCH_1.circuit.verify(proof)?;
 
         Ok(())
     }

@@ -869,13 +869,14 @@ mod test {
     use std::panic::{catch_unwind, UnwindSafe};
 
     use anyhow::Result;
+    use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
     use crate::recproof::unbounded;
-    use crate::test_utils::{C, D, F};
+    use crate::test_utils::{fast_test_circuit_config, C, D, F};
 
     pub struct DummyLeafCircuit {
         pub state_from_events: LeafSubCircuit,
@@ -1030,12 +1031,15 @@ mod test {
         }
     }
 
+    const CONFIG: CircuitConfig = fast_test_circuit_config();
+
+    lazy_static! {
+        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
+        static ref BRANCH: DummyBranchCircuit = DummyBranchCircuit::new(&CONFIG, &LEAF);
+    }
+
     #[test]
     fn verify_leaf() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
         let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
 
@@ -1043,68 +1047,68 @@ mod test {
         let non_zero_val_2 = [42, 0, 0, 0].map(F::from_canonical_u64);
         let non_zero_val_3 = [42, 0, 0, 1].map(F::from_canonical_u64);
 
-        let proof = leaf.prove(
-            &branch,
+        let proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_1,
             EventType::Write,
             non_zero_val_1,
         )?;
-        leaf.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
+        let proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_1,
             EventType::Read,
             non_zero_val_1,
         )?;
-        leaf.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
+        let proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_1,
             EventType::Ensure,
             non_zero_val_1,
         )?;
-        leaf.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
+        let proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_1,
             EventType::GiveOwner,
             program_hash_2,
         )?;
-        leaf.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
+        let proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_2,
             EventType::TakeOwner,
             program_hash_1,
         )?;
-        leaf.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
+        let proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_1,
             EventType::CreditDelta,
             non_zero_val_2,
         )?;
-        leaf.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
+        let proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_1,
             EventType::CreditDelta,
             non_zero_val_3,
         )?;
-        leaf.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof)?;
 
         Ok(())
     }
@@ -1112,11 +1116,7 @@ mod test {
     fn leaf_test_helper<Fn>(owner: [u64; 4], event_ty: EventType, value: [u64; 4], f: Fn)
     where
         Fn: FnOnce(&mut LeafWitnessValue<F>, [F; 4], [F; 4]) + UnwindSafe, {
-        let (leaf, branch, event) = catch_unwind(|| {
-            let circuit_config = CircuitConfig::standard_recursion_config();
-            let leaf = DummyLeafCircuit::new(&circuit_config);
-            let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
+        let event = catch_unwind(|| {
             let owner = owner.map(F::from_canonical_u64);
             let value = value.map(F::from_canonical_u64);
 
@@ -1124,11 +1124,11 @@ mod test {
 
             f(&mut event, owner, value);
 
-            (leaf, branch, event)
+            event
         })
         .expect("shouldn't fail");
 
-        leaf.prove_unsafe(&branch, event).unwrap();
+        LEAF.prove_unsafe(&BRANCH, event).unwrap();
     }
 
     #[test]
@@ -1276,11 +1276,7 @@ mod test {
             + UnwindSafe,
         Bfn1: FnOnce(&mut BranchWitnessValue<F>) + UnwindSafe,
         Bfn2: MaybeBfn, {
-        let (branch, left, right, branch_event) = catch_unwind(|| {
-            let circuit_config = CircuitConfig::standard_recursion_config();
-            let leaf = DummyLeafCircuit::new(&circuit_config);
-            let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
+        let (left, right, branch_event) = catch_unwind(|| {
             let owners = owners.map(|owner| owner.map(F::from_canonical_u64));
             let values = values.map(|owner| owner.map(F::from_canonical_u64));
 
@@ -1297,28 +1293,28 @@ mod test {
             };
 
             let leaf_proof_array =
-                [event0, event1, event2].map(|event| leaf.prove_unsafe(&branch, event).unwrap());
+                [event0, event1, event2].map(|event| LEAF.prove_unsafe(&BRANCH, event).unwrap());
             let _ = leaf_proof_array
                 .clone()
-                .map(|proof| leaf.circuit.verify(proof).unwrap());
+                .map(|proof| LEAF.circuit.verify(proof).unwrap());
 
             let [leaf_proof0, leaf_proof1, leaf_proof2] = leaf_proof_array;
 
             let (left, right, branch_event) = if Bfn2::PRESENT {
-                let branch_proof_1 = branch
+                let branch_proof_1 = BRANCH
                     .prove(branch_event_1, true, &leaf_proof0, true, &leaf_proof1)
                     .unwrap();
-                branch.circuit.verify(branch_proof_1.clone()).unwrap();
+                BRANCH.circuit.verify(branch_proof_1.clone()).unwrap();
 
                 ((false, branch_proof_1), (true, leaf_proof2), branch_event_2)
             } else {
                 ((true, leaf_proof0), (true, leaf_proof1), branch_event_1)
             };
-            (branch, left, right, branch_event)
+            (left, right, branch_event)
         })
         .expect("shouldn't fail");
 
-        branch
+        BRANCH
             .prove(branch_event, left.0, &left.1, right.0, &right.1)
             .unwrap();
     }
@@ -1387,44 +1383,40 @@ mod test {
 
     #[test]
     fn verify_branch() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
 
         let zero_val = [F::ZERO; 4];
         let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
         let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
 
-        let read_proof = leaf.prove(
-            &branch,
+        let read_proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_1,
             EventType::Read,
             non_zero_val_1,
         )?;
-        leaf.circuit.verify(read_proof.clone())?;
+        LEAF.circuit.verify(read_proof.clone())?;
 
-        let write_proof = leaf.prove(
-            &branch,
+        let write_proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_1,
             EventType::Write,
             non_zero_val_2,
         )?;
-        leaf.circuit.verify(write_proof.clone())?;
+        LEAF.circuit.verify(write_proof.clone())?;
 
-        let ensure_proof = leaf.prove(
-            &branch,
+        let ensure_proof = LEAF.prove(
+            &BRANCH,
             200,
             program_hash_1,
             EventType::Ensure,
             non_zero_val_2,
         )?;
-        leaf.circuit.verify(ensure_proof.clone())?;
+        LEAF.circuit.verify(ensure_proof.clone())?;
 
-        let branch_proof_1 = branch.prove(
+        let branch_proof_1 = BRANCH.prove(
             BranchWitnessValue {
                 address: 200,
                 object_flags: Flags::ReadFlag | Flags::WriteFlag,
@@ -1439,11 +1431,11 @@ mod test {
             true,
             &write_proof,
         )?;
-        branch.circuit.verify(branch_proof_1.clone())?;
-        let branch_proof_1 = branch.prove_implicit(true, &read_proof, true, &write_proof)?;
-        branch.circuit.verify(branch_proof_1.clone())?;
+        BRANCH.circuit.verify(branch_proof_1.clone())?;
+        let branch_proof_1 = BRANCH.prove_implicit(true, &read_proof, true, &write_proof)?;
+        BRANCH.circuit.verify(branch_proof_1.clone())?;
 
-        let branch_proof_2 = branch.prove(
+        let branch_proof_2 = BRANCH.prove(
             BranchWitnessValue {
                 address: 200,
                 object_flags: Flags::ReadFlag | Flags::WriteFlag | Flags::EnsureFlag,
@@ -1458,9 +1450,9 @@ mod test {
             true,
             &ensure_proof,
         )?;
-        branch.circuit.verify(branch_proof_2)?;
-        let branch_proof_2 = branch.prove_implicit(false, &branch_proof_1, true, &ensure_proof)?;
-        branch.circuit.verify(branch_proof_2)?;
+        BRANCH.circuit.verify(branch_proof_2)?;
+        let branch_proof_2 = BRANCH.prove_implicit(false, &branch_proof_1, true, &ensure_proof)?;
+        BRANCH.circuit.verify(branch_proof_2)?;
 
         Ok(())
     }

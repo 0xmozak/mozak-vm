@@ -203,15 +203,19 @@ impl<const V: usize> BranchSubCircuit<V> {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
+    use lazy_static::lazy_static;
     use plonky2::field::types::Field;
+    use plonky2::iop::target::BoolTarget;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::test_utils::{C, D, F};
+    use crate::recproof::unbounded;
+    use crate::test_utils::{fast_test_circuit_config, C, D, F};
 
     pub struct DummyLeafCircuit {
         pub propagate: LeafSubCircuit<3>,
+        pub unbounded: unbounded::LeafSubCircuit,
         pub circuit: CircuitData<F, C, D>,
     }
 
@@ -222,95 +226,81 @@ mod test {
 
             let propagate_inputs = SubCircuitInputs::default(&mut builder);
             let propagate_targets = propagate_inputs.build(&mut builder);
-            let circuit = builder.build();
+
+            let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
             let propagate = propagate_targets.build_leaf(&circuit.prover_only.public_inputs);
 
-            Self { propagate, circuit }
+            Self {
+                propagate,
+                unbounded,
+                circuit,
+            }
         }
 
-        pub fn prove(&self, value: [F; 3]) -> Result<ProofWithPublicInputs<F, C, D>> {
+        pub fn prove(
+            &self,
+            value: [F; 3],
+            branch: &DummyBranchCircuit,
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.propagate.set_witness(&mut inputs, value);
+            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
     }
 
     pub struct DummyBranchCircuit {
         pub propagate: BranchSubCircuit<3>,
+        pub unbounded: unbounded::BranchSubCircuit,
         pub circuit: CircuitData<F, C, D>,
         pub targets: DummyBranchTargets,
     }
 
     pub struct DummyBranchTargets {
+        pub left_is_leaf: BoolTarget,
+        pub right_is_leaf: BoolTarget,
         pub left_proof: ProofWithPublicInputsTarget<D>,
         pub right_proof: ProofWithPublicInputsTarget<D>,
     }
 
     impl DummyBranchCircuit {
         #[must_use]
-        pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
+        pub fn new(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-
-            let circuit_data = &leaf.circuit;
-            let common = &circuit_data.common;
-            let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
+            let common = &leaf.circuit.common;
+            let left_is_leaf = builder.add_virtual_bool_target_safe();
+            let right_is_leaf = builder.add_virtual_bool_target_safe();
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
 
             let propagate_inputs = SubCircuitInputs::default(&mut builder);
 
-            builder.verify_proof::<C>(&left_proof, &verifier, common);
-            builder.verify_proof::<C>(&right_proof, &verifier, common);
             let propagate_targets = propagate_inputs.from_leaf(
                 &mut builder,
                 &leaf.propagate,
                 &left_proof,
                 &right_proof,
             );
-            let targets = DummyBranchTargets {
-                left_proof,
-                right_proof,
-            };
 
-            let circuit = builder.build();
-            let propagate = propagate_targets.from_leaf(&circuit.prover_only.public_inputs);
-
-            Self {
-                propagate,
-                circuit,
-                targets,
-            }
-        }
-
-        pub fn from_branch(circuit_config: &CircuitConfig, branch: &DummyBranchCircuit) -> Self {
-            let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-
-            let circuit_data = &branch.circuit;
-            let common = &circuit_data.common;
-            let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
-            let left_proof = builder.add_virtual_proof_with_pis(common);
-            let right_proof = builder.add_virtual_proof_with_pis(common);
-            let propagate_inputs = SubCircuitInputs::default(&mut builder);
-
-            builder.verify_proof::<C>(&left_proof, &verifier, common);
-            builder.verify_proof::<C>(&right_proof, &verifier, common);
-            let propagate_targets = propagate_inputs.from_branch(
-                &mut builder,
-                &branch.propagate,
+            let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
+                builder,
+                &leaf.circuit,
+                left_is_leaf,
+                right_is_leaf,
                 &left_proof,
                 &right_proof,
             );
             let targets = DummyBranchTargets {
+                left_is_leaf,
+                right_is_leaf,
                 left_proof,
                 right_proof,
             };
-
-            let circuit = builder.build();
-            let propagate = propagate_targets
-                .from_branch(&branch.propagate, &circuit.prover_only.public_inputs);
+            let propagate = propagate_targets.from_leaf(&circuit.prover_only.public_inputs);
 
             Self {
                 propagate,
+                unbounded,
                 circuit,
                 targets,
             }
@@ -318,11 +308,15 @@ mod test {
 
         pub fn prove(
             &self,
+            left_is_leaf: bool,
+            right_is_leaf: bool,
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_proof: &ProofWithPublicInputs<F, C, D>,
             value: [F; 3],
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
+            inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
+            inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
             inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
             self.propagate.set_witness(&mut inputs, value);
@@ -330,60 +324,60 @@ mod test {
         }
     }
 
+    const CONFIG: CircuitConfig = fast_test_circuit_config();
+
+    lazy_static! {
+        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
+        static ref BRANCH: DummyBranchCircuit = DummyBranchCircuit::new(&CONFIG, &LEAF);
+    }
+
     #[test]
     fn verify_leaf() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let circuit = DummyLeafCircuit::new(&circuit_config);
-
         let zero = [F::ZERO; 3];
         let non_zero = [1, 2, 99].map(F::from_canonical_u64);
 
-        let proof = circuit.prove(zero)?;
-        circuit.circuit.verify(proof)?;
+        let proof = LEAF.prove(zero, &BRANCH)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = circuit.prove(non_zero)?;
-        circuit.circuit.verify(proof)?;
+        let proof = LEAF.prove(non_zero, &BRANCH)?;
+        LEAF.circuit.verify(proof)?;
 
         Ok(())
     }
 
     #[test]
     fn verify_branch() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf_circuit = DummyLeafCircuit::new(&circuit_config);
-        let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
-        let branch_circuit_2 = DummyBranchCircuit::from_branch(&circuit_config, &branch_circuit_1);
-
         let zero = [F::ZERO; 3];
         let non_zero = [1, 2, 99].map(F::from_canonical_u64);
 
         // Leaf proofs
-        let zero_proof = leaf_circuit.prove(zero)?;
-        leaf_circuit.circuit.verify(zero_proof.clone())?;
+        let zero_proof = LEAF.prove(zero, &BRANCH)?;
+        LEAF.circuit.verify(zero_proof.clone())?;
 
-        let non_zero_proof = leaf_circuit.prove(non_zero)?;
-        leaf_circuit.circuit.verify(non_zero_proof.clone())?;
+        let non_zero_proof = LEAF.prove(non_zero, &BRANCH)?;
+        LEAF.circuit.verify(non_zero_proof.clone())?;
 
         // Branch proofs
-        let branch_zero_proof = branch_circuit_1.prove(&zero_proof, &zero_proof, zero)?;
-        branch_circuit_1.circuit.verify(branch_zero_proof.clone())?;
+        let branch_zero_proof = BRANCH.prove(true, true, &zero_proof, &zero_proof, zero)?;
+        BRANCH.circuit.verify(branch_zero_proof.clone())?;
 
         let branch_non_zero_proof =
-            branch_circuit_1.prove(&non_zero_proof, &non_zero_proof, non_zero)?;
-        branch_circuit_1
-            .circuit
-            .verify(branch_non_zero_proof.clone())?;
+            BRANCH.prove(true, true, &non_zero_proof, &non_zero_proof, non_zero)?;
+        BRANCH.circuit.verify(branch_non_zero_proof.clone())?;
 
         // Double branch proofs
         let double_branch_zero_proof =
-            branch_circuit_2.prove(&branch_zero_proof, &branch_zero_proof, zero)?;
-        branch_circuit_2.circuit.verify(double_branch_zero_proof)?;
+            BRANCH.prove(false, false, &branch_zero_proof, &branch_zero_proof, zero)?;
+        BRANCH.circuit.verify(double_branch_zero_proof)?;
 
-        let double_branch_non_zero_proof =
-            branch_circuit_2.prove(&branch_non_zero_proof, &branch_non_zero_proof, non_zero)?;
-        branch_circuit_2
-            .circuit
-            .verify(double_branch_non_zero_proof)?;
+        let double_branch_non_zero_proof = BRANCH.prove(
+            false,
+            false,
+            &branch_non_zero_proof,
+            &branch_non_zero_proof,
+            non_zero,
+        )?;
+        BRANCH.circuit.verify(double_branch_non_zero_proof)?;
 
         Ok(())
     }

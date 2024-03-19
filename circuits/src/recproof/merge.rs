@@ -247,6 +247,7 @@ impl BranchSubCircuit {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
+    use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::{HashOut, NUM_HASH_OUT_ELTS};
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
@@ -254,7 +255,7 @@ mod test {
 
     use super::*;
     use crate::recproof::unbounded;
-    use crate::test_utils::{hash_branch, hash_str, C, D, F};
+    use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
 
     pub struct DummyLeafCircuit {
         pub merge: LeafSubCircuit,
@@ -358,28 +359,31 @@ mod test {
         }
     }
 
+    const CONFIG: CircuitConfig = fast_test_circuit_config();
+
+    lazy_static! {
+        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
+        static ref BRANCH: DummyBranchCircuit = DummyBranchCircuit::new(&CONFIG, &LEAF);
+    }
+
     #[test]
     fn verify_leaf() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let a_val = hash_str("Value Alpha");
         let b_val = hash_str("Value Beta");
         let ab_hash = hash_branch(&a_val, &b_val);
 
-        let proof = leaf.prove(zero_hash, zero_hash, Some(zero_hash), &branch)?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(zero_hash, zero_hash, Some(zero_hash), &BRANCH)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(a_val, zero_hash, Some(a_val), &branch)?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(a_val, zero_hash, Some(a_val), &BRANCH)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(zero_hash, b_val, Some(b_val), &branch)?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(zero_hash, b_val, Some(b_val), &BRANCH)?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(a_val, b_val, Some(ab_hash), &branch)?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(a_val, b_val, Some(ab_hash), &BRANCH)?;
+        LEAF.circuit.verify(proof)?;
 
         Ok(())
     }
@@ -387,68 +391,56 @@ mod test {
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_zero_leaf() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let non_zero_hash = hash_str("Non-Zero Hash");
 
-        let proof = leaf
-            .prove(zero_hash, zero_hash, Some(non_zero_hash), &branch)
+        let proof = LEAF
+            .prove(zero_hash, zero_hash, Some(non_zero_hash), &BRANCH)
             .unwrap();
-        leaf.circuit.verify(proof).unwrap();
+        LEAF.circuit.verify(proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_mismatch() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2");
 
-        let proof = leaf
-            .prove(non_zero_hash_1, zero_hash, Some(non_zero_hash_2), &branch)
+        let proof = LEAF
+            .prove(non_zero_hash_1, zero_hash, Some(non_zero_hash_2), &BRANCH)
             .unwrap();
-        leaf.circuit.verify(proof).unwrap();
+        LEAF.circuit.verify(proof).unwrap();
     }
 
     #[test]
     #[allow(clippy::similar_names)]
     fn verify_branch() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let a_val = hash_str("Value Alpha");
         let b_val = hash_str("Value Beta");
         let ab_hash = hash_branch(&a_val, &b_val);
 
-        let a_proof = leaf.prove(a_val, zero_hash, Some(a_val), &branch)?;
-        leaf.circuit.verify(a_proof.clone())?;
+        let a_proof = LEAF.prove(a_val, zero_hash, Some(a_val), &BRANCH)?;
+        LEAF.circuit.verify(a_proof.clone())?;
 
-        let b_proof = leaf.prove(zero_hash, b_val, Some(b_val), &branch)?;
-        leaf.circuit.verify(b_proof.clone())?;
+        let b_proof = LEAF.prove(zero_hash, b_val, Some(b_val), &BRANCH)?;
+        LEAF.circuit.verify(b_proof.clone())?;
 
         // In practice, you should never merge two single value leafs because doing so
         // results in a terminal proof which can't be recursed
-        let proof = branch.prove(a_val, b_val, Some(ab_hash), &a_proof, &b_proof)?;
-        branch.circuit.verify(proof.clone())?;
+        let proof = BRANCH.prove(a_val, b_val, Some(ab_hash), &a_proof, &b_proof)?;
+        BRANCH.circuit.verify(proof.clone())?;
 
         // Test that multi-value leafs work
-        let empty_proof = leaf.prove(zero_hash, zero_hash, Some(zero_hash), &branch)?;
-        leaf.circuit.verify(empty_proof.clone())?;
+        let empty_proof = LEAF.prove(zero_hash, zero_hash, Some(zero_hash), &BRANCH)?;
+        LEAF.circuit.verify(empty_proof.clone())?;
 
-        let ab_proof = leaf.prove(a_val, b_val, Some(ab_hash), &branch)?;
-        leaf.circuit.verify(ab_proof.clone())?;
+        let ab_proof = LEAF.prove(a_val, b_val, Some(ab_hash), &BRANCH)?;
+        LEAF.circuit.verify(ab_proof.clone())?;
 
-        let proof = branch.prove(a_val, b_val, Some(ab_hash), &ab_proof, &empty_proof)?;
-        branch.circuit.verify(proof)?;
+        let proof = BRANCH.prove(a_val, b_val, Some(ab_hash), &ab_proof, &empty_proof)?;
+        BRANCH.circuit.verify(proof)?;
 
         Ok(())
     }
@@ -456,10 +448,6 @@ mod test {
     #[test]
     #[allow(clippy::similar_names)]
     fn verify_branch2() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let a_val = hash_str("Value Alpha");
         let b_val = hash_str("Value Beta");
@@ -476,24 +464,24 @@ mod test {
         //  /\    /\
         // A  B  C  D
 
-        let empty_proof = leaf.prove(zero_hash, zero_hash, Some(zero_hash), &branch)?;
-        leaf.circuit.verify(empty_proof.clone())?;
+        let empty_proof = LEAF.prove(zero_hash, zero_hash, Some(zero_hash), &BRANCH)?;
+        LEAF.circuit.verify(empty_proof.clone())?;
 
-        let ab_proof = leaf.prove(a_val, b_val, Some(ab_hash), &branch)?;
-        leaf.circuit.verify(ab_proof.clone())?;
+        let ab_proof = LEAF.prove(a_val, b_val, Some(ab_hash), &BRANCH)?;
+        LEAF.circuit.verify(ab_proof.clone())?;
 
-        let cd_proof = leaf.prove(c_val, d_val, Some(cd_hash), &branch)?;
-        leaf.circuit.verify(cd_proof.clone())?;
+        let cd_proof = LEAF.prove(c_val, d_val, Some(cd_hash), &BRANCH)?;
+        LEAF.circuit.verify(cd_proof.clone())?;
 
         let mut abcd_proof =
-            branch.prove(ac_hash, bd_hash, Some(abcd_hash), &ab_proof, &cd_proof)?;
-        branch.circuit.verify(abcd_proof.clone())?;
+            BRANCH.prove(ac_hash, bd_hash, Some(abcd_hash), &ab_proof, &cd_proof)?;
+        BRANCH.circuit.verify(abcd_proof.clone())?;
 
         // Test that empty leafs have no effect
         for _ in 0..4 {
             abcd_proof =
-                branch.prove(ac_hash, bd_hash, Some(abcd_hash), &abcd_proof, &empty_proof)?;
-            branch.circuit.verify(abcd_proof.clone())?;
+                BRANCH.prove(ac_hash, bd_hash, Some(abcd_hash), &abcd_proof, &empty_proof)?;
+            BRANCH.circuit.verify(abcd_proof.clone())?;
         }
 
         Ok(())

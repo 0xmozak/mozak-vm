@@ -173,11 +173,12 @@ impl BranchSubCircuit {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
+    use lazy_static::lazy_static;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::test_utils::{C, D, F};
+    use crate::test_utils::{fast_test_circuit_config, C, D, F};
 
     pub struct DummyLeafCircuit {
         pub unbounded: LeafSubCircuit,
@@ -263,35 +264,34 @@ mod test {
         }
     }
 
+    const CONFIG: CircuitConfig = fast_test_circuit_config();
+
+    lazy_static! {
+        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
+        static ref BRANCH: DummyBranchCircuit = DummyBranchCircuit::new(&CONFIG, &LEAF);
+    }
+
     #[test]
     fn verify_leaf() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
-        let proof = leaf.prove(&branch)?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(&BRANCH)?;
+        LEAF.circuit.verify(proof)?;
 
         Ok(())
     }
 
     #[test]
     fn verify_branch() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
+        let leaf_proof = LEAF.prove(&BRANCH)?;
+        LEAF.circuit.verify(leaf_proof.clone())?;
 
-        let leaf_proof = leaf.prove(&branch)?;
-        leaf.circuit.verify(leaf_proof.clone())?;
+        let branch_proof_1 = BRANCH.prove(true, true, &leaf_proof, &leaf_proof)?;
+        BRANCH.circuit.verify(branch_proof_1.clone())?;
 
-        let branch_proof_1 = branch.prove(true, true, &leaf_proof, &leaf_proof)?;
-        branch.circuit.verify(branch_proof_1.clone())?;
+        let branch_proof_2 = BRANCH.prove(true, false, &leaf_proof, &branch_proof_1)?;
+        BRANCH.circuit.verify(branch_proof_2.clone())?;
 
-        let branch_proof_2 = branch.prove(true, false, &leaf_proof, &branch_proof_1)?;
-        branch.circuit.verify(branch_proof_2.clone())?;
-
-        let branch_proof_3 = branch.prove(false, false, &branch_proof_1, &branch_proof_2)?;
-        branch.circuit.verify(branch_proof_3)?;
+        let branch_proof_3 = BRANCH.prove(false, false, &branch_proof_1, &branch_proof_2)?;
+        BRANCH.circuit.verify(branch_proof_3)?;
 
         Ok(())
     }
