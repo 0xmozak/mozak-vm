@@ -44,7 +44,7 @@ pub fn main() {
         .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
         .unwrap();
     assert_eq!(deserialized, value);
-    #[cfg(not(target_os = "mozakvm"))]
+    #[cfg(all(not(target_os = "mozakvm"),feature = "std"))]
     println!("Deserialized Value: {:?}", deserialized);
     let bytes = rkyv::to_bytes::<_, 256, Panic>(&deserialized).unwrap();
     mozak_sdk::core::env::write(&bytes);

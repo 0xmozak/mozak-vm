@@ -3,6 +3,7 @@ extern crate alloc;
 
 use mozak_sdk::common::types::{Event, EventType, ProgramIdentifier, StateObject};
 use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::rancor::Panic;
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
@@ -66,7 +67,7 @@ pub fn transfer(
 
     token_object.pub_key = remitee_pubkey;
 
-    let bytes = rkyv::to_bytes::<_, 256>(&token_object).unwrap();
+    let bytes = rkyv::to_bytes::<_, 256, Panic>(&token_object).unwrap();
 
     let state_object = StateObject {
         data: bytes.to_vec(),

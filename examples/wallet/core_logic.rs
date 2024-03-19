@@ -4,6 +4,7 @@ extern crate alloc;
 
 use mozak_sdk::common::types::{ProgramIdentifier, StateObject};
 use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::rancor::{Panic, Strategy};
 
 /// A generic public key used by the wallet.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
