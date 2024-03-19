@@ -1,7 +1,7 @@
 use std::fs;
 use std::process::Command;
 
-use mozak_sdk::coretypes::ProgramIdentifier;
+use mozak_sdk::common::types::ProgramIdentifier;
 use tempfile::TempDir;
 
 #[test]
@@ -30,7 +30,7 @@ fn test_prove_and_verify_recursive_proof_command() {
             elf_file,
             &proof_file.to_string_lossy(),
             "--self-prog-id",
-            &ProgramIdentifier::default().to_string(),
+            &format!("{:?}", &ProgramIdentifier::default()),
             &recursive_proof_file.to_string_lossy(),
         ])
         .output()

@@ -44,7 +44,7 @@ pub fn main() {
     #[cfg(not(target_os = "mozakvm"))]
     println!("Deserialized Value: {:?}", deserialized);
     let bytes = rkyv::to_bytes::<_, 256>(&deserialized).unwrap();
-    guest::env::write(&bytes);
+    mozak_sdk::core::env::write(&bytes);
 }
 
-guest::entry!(main);
+mozak_sdk::entry!(main);

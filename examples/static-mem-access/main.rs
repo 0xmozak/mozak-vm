@@ -11,8 +11,8 @@ pub fn main() {
         assert!(R_CONST_A == 41);
         assert!(R_STATIC_B > 0);
         R_STATIC_B = 56;
-        guest::env::write(&R_STATIC_B.to_be_bytes());
+        mozak_sdk::core::env::write(&R_STATIC_B.to_be_bytes());
     }
 }
 
-guest::entry!(main);
+mozak_sdk::entry!(main);

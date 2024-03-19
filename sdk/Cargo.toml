@@ -7,15 +7,15 @@ license = "Apache-2.0"
 name = "mozak-sdk"
 readme = "README.md"
 repository = "https://github.com/0xmozak/mozak-node/sdk"
-version = "0.1.0"
+version = "0.2.0"
 
 [dependencies]
-mozak-system = { path = "../system", features = ["mozak-ro-memory"] }
+itertools = { version = "0.12.1", default-features = false }
 once_cell = { version = "1.19.0", default-features = false, features = ["race"] }
 rkyv = { version = "0.7.1", default-features = false, features = ["size_32", "alloc"] }
-serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-toml = "0.8"
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.toml]
+version = "0.8"
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.lazy_static]
 version = "1.4.0"
@@ -26,3 +26,26 @@ version = "0.4"
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.serde]
 features = ["derive"]
 version = "1.0"
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.serde_json]
+version = "1.0.113"
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.plonky2]
+default-features = false
+git = "https://github.com/0xmozak/plonky2.git"
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.rand_chacha]
+version = "0.3.1"
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.rand]
+version = "0.8.5"
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.serde-hex]
+version = "0.1.0"
+
+[features]
+default = ["std", "rawio", "stdread"]
+
+rawio = []
+std = ["plonky2/std"]
+stdread = []

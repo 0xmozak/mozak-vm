@@ -1,7 +1,8 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map};
+#[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
+#[cfg(feature = "enable_register_starks")]
+use crate::stark::mozak_stark::{RegisterInitTable, Table};
 
 columns_view_impl!(RegisterInit);
 make_col_map!(RegisterInit);
@@ -25,8 +26,11 @@ pub struct RegisterInit<T> {
     pub is_looked_up: T,
 }
 
+#[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn data_for_register<F: Field>() -> Vec<Column<F>> { Column::singles([col_map().reg_addr]) }
-
-#[must_use]
-pub fn filter_for_register<F: Field>() -> Column<F> { Column::from(col_map().is_looked_up) }
+pub fn lookup_for_register() -> Table {
+    RegisterInitTable::new(
+        Column::singles([col_map().reg_addr]),
+        Column::from(col_map().is_looked_up),
+    )
+}

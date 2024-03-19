@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-use mozak_sdk::coretypes::{Event, ProgramIdentifier};
+use mozak_sdk::common::types::ProgramIdentifier;
+use mozak_sdk::native::OrderedEvents;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
@@ -27,7 +28,7 @@ pub struct TransparentAttestation {
     // TODO(bing): Attest to its commitment
     /// Events emitted during the execution of a MozakVM program, provided in
     /// the clear.
-    pub event_tape: Vec<Event>,
+    pub event_tape: OrderedEvents,
 }
 
 /// An attestion to the correct execution of a `MozakVM` program, denoted by its

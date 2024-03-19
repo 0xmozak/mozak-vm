@@ -18,7 +18,7 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "${MOZAK_RUNNER_CACHE:-/tmp/github-runner-mozak/cache}:/opt/hostedtoolcache"
       - "nix-store:/nix"
-      
+
     environment:
       ACCESS_TOKEN: ${ACCESS_TOKEN}
       RUNNER_NAME_PREFIX: ${RUNNER_NAME_PREFIX:-$USER-runner}
@@ -28,11 +28,13 @@ services:
       RUNNER_WORKDIR: /tmp/github-runner-mozak/workdir
       LABELS: ubuntu-latest
     labels:
-      net.unraid.docker.icon: "https://pbs.twimg.com/profile_images/1708417671694340096/RO2UoJdM_400x400.jpg"
+      net.unraid.docker.icon: "https://i.ibb.co/0FpLxW7/logo.png"
   nix:
     image: 0xmozak/github-runner:latest
     volumes:
       - "nix-store:/nix"
+    environment:
+      NIX_CONFIG: access-tokens = github.com=${ACCESS_TOKEN}
     entrypoint: ["/root/.nix-profile/bin/nix", "daemon"]
     # Check if we can build a small nix package from a known version of nixpkgs
     healthcheck:

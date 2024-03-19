@@ -25,8 +25,8 @@ impl DummyLeafCircuit {
     pub fn new(circuit_config: &CircuitConfig) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-        let make_tree_inputs = make_tree::LeafInputs::default(&mut builder);
-        let make_tree_targets = make_tree_inputs.build(&mut builder);
+        let make_tree_inputs = make_tree::SubCircuitInputs::default(&mut builder);
+        let make_tree_targets = make_tree_inputs.build_leaf(&mut builder);
 
         let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
         let make_tree = make_tree_targets.build(&circuit.prover_only.public_inputs);
@@ -45,8 +45,8 @@ impl DummyLeafCircuit {
         branch: &DummyBranchCircuit,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.make_tree.set_inputs(&mut inputs, present, leaf_value);
-        self.unbounded.set_inputs(&mut inputs, &branch.circuit);
+        self.make_tree.set_witness(&mut inputs, present, leaf_value);
+        self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.circuit.prove(inputs)
     }
 }
@@ -71,9 +71,9 @@ impl DummyBranchCircuit {
         let left_proof = builder.add_virtual_proof_with_pis(common);
         let right_proof = builder.add_virtual_proof_with_pis(common);
 
-        let make_tree_inputs = make_tree::BranchInputs::default(&mut builder);
+        let make_tree_inputs = make_tree::SubCircuitInputs::default(&mut builder);
         let make_tree_targets =
-            make_tree_inputs.build(&mut builder, &leaf.make_tree, &left_proof, &right_proof);
+            make_tree_inputs.build_branch(&mut builder, &leaf.make_tree, &left_proof, &right_proof);
 
         let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
             builder,
@@ -107,7 +107,7 @@ impl DummyBranchCircuit {
         right_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.make_tree.set_inputs(&mut inputs, hash, leaf_value);
+        self.make_tree.set_witness(&mut inputs, hash, leaf_value);
         inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
         inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
         self.circuit.prove(inputs)

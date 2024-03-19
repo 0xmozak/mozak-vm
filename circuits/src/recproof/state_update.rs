@@ -29,30 +29,28 @@ where
     pub fn new(circuit_config: &CircuitConfig) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-        let summarized_inputs = summarized::LeafInputs::default(&mut builder);
-        let old_inputs = unpruned::LeafInputs::default(&mut builder);
-        let new_inputs = unpruned::LeafInputs::default(&mut builder);
+        let summarized_inputs = summarized::SubCircuitInputs::default(&mut builder);
+        let old_inputs = unpruned::SubCircuitInputs::default(&mut builder);
+        let new_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let address_inputs = verify_address::LeafInputs {
             node_address: builder.add_virtual_target(),
             node_present: summarized_inputs.summary_hash_present,
         };
         builder.register_public_input(address_inputs.node_address);
 
-        let summarized_targets = summarized_inputs.build(&mut builder);
-        let old_targets = old_inputs.build(&mut builder);
-        let new_targets = new_inputs.build(&mut builder);
+        let summarized_targets = summarized_inputs.build_leaf(&mut builder);
+        let old_targets = old_inputs.build_leaf(&mut builder);
+        let new_targets = new_inputs.build_leaf(&mut builder);
         let address_targets = address_inputs.build(&mut builder);
 
-        let old_hash = old_targets.unpruned_hash;
-        let new_hash = new_targets.unpruned_hash;
+        let old_hash = old_targets.inputs.unpruned_hash;
+        let new_hash = new_targets.inputs.unpruned_hash;
 
         let unchanged = hashes_equal(&mut builder, old_hash, new_hash);
+        let summary_present = summarized_targets.inputs.summary_hash_present;
 
         // We can't be changed (unchanged == 0) and not-present in the summary
-        at_least_one_true(&mut builder, [
-            unchanged,
-            summarized_targets.summary_hash_present,
-        ]);
+        at_least_one_true(&mut builder, [unchanged, summary_present]);
 
         // Make the observation
         let observation = [address_targets.node_address]
@@ -65,12 +63,12 @@ where
         // zero it out based on if this node is being summarized
         let observation = observation
             .elements
-            .map(|e| builder.mul(e, summarized_targets.summary_hash_present.target));
+            .map(|e| builder.mul(e, summary_present.target));
 
         // This should be the summary hash
         builder.connect_hashes(
             HashOutTarget::from(observation),
-            summarized_targets.summary_hash,
+            summarized_targets.inputs.summary_hash,
         );
 
         let circuit = builder.build();
@@ -97,10 +95,10 @@ where
         address: Option<u64>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.summarized.set_inputs(&mut inputs, summary_hash);
-        self.old.set_inputs(&mut inputs, old_hash);
-        self.new.set_inputs(&mut inputs, new_hash);
-        self.address.set_inputs(&mut inputs, address);
+        self.summarized.set_witness(&mut inputs, summary_hash);
+        self.old.set_witness(&mut inputs, old_hash);
+        self.new.set_witness(&mut inputs, new_hash);
+        self.address.set_witness(&mut inputs, address);
         self.circuit.prove(inputs)
     }
 }
@@ -135,9 +133,9 @@ where
         let verifier = builder.constant_verifier_data(&leaf.circuit.verifier_only);
         let left_proof = builder.add_virtual_proof_with_pis(common);
         let right_proof = builder.add_virtual_proof_with_pis(common);
-        let summarized_inputs = summarized::BranchInputs::default(&mut builder);
-        let old_inputs = unpruned::BranchInputs::default(&mut builder);
-        let new_inputs = unpruned::BranchInputs::default(&mut builder);
+        let summarized_inputs = summarized::SubCircuitInputs::default(&mut builder);
+        let old_inputs = unpruned::SubCircuitInputs::default(&mut builder);
+        let new_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let address_inputs = verify_address::BranchInputs {
             node_address: builder.add_virtual_target(),
             node_present: summarized_inputs.summary_hash_present,
@@ -148,8 +146,10 @@ where
         builder.verify_proof::<C>(&right_proof, &verifier, common);
         let summarized_targets =
             summarized_inputs.from_leaf(&mut builder, &leaf.summarized, &left_proof, &right_proof);
-        let old_targets = old_inputs.from_leaf(&mut builder, &leaf.old, &left_proof, &right_proof);
-        let new_targets = new_inputs.from_leaf(&mut builder, &leaf.new, &left_proof, &right_proof);
+        let old_targets =
+            old_inputs.from_leaf(&mut builder, &leaf.old, &left_proof, &right_proof, false);
+        let new_targets =
+            new_inputs.from_leaf(&mut builder, &leaf.new, &left_proof, &right_proof, false);
         let address_targets =
             address_inputs.from_leaf(&mut builder, &leaf.address, &left_proof, &right_proof);
         let targets = BranchTargets {
@@ -180,9 +180,9 @@ where
         let verifier = builder.constant_verifier_data(&branch.circuit.verifier_only);
         let left_proof = builder.add_virtual_proof_with_pis(common);
         let right_proof = builder.add_virtual_proof_with_pis(common);
-        let summarized_inputs = summarized::BranchInputs::default(&mut builder);
-        let old_inputs = unpruned::BranchInputs::default(&mut builder);
-        let new_inputs = unpruned::BranchInputs::default(&mut builder);
+        let summarized_inputs = summarized::SubCircuitInputs::default(&mut builder);
+        let old_inputs = unpruned::SubCircuitInputs::default(&mut builder);
+        let new_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let address_inputs = verify_address::BranchInputs {
             node_address: builder.add_virtual_target(),
             node_present: summarized_inputs.summary_hash_present,
@@ -198,9 +198,9 @@ where
             &right_proof,
         );
         let old_targets =
-            old_inputs.from_branch(&mut builder, &branch.old, &left_proof, &right_proof);
+            old_inputs.from_branch(&mut builder, &branch.old, &left_proof, &right_proof, false);
         let new_targets =
-            new_inputs.from_branch(&mut builder, &branch.new, &left_proof, &right_proof);
+            new_inputs.from_branch(&mut builder, &branch.new, &left_proof, &right_proof, false);
         let address_targets =
             address_inputs.from_branch(&mut builder, &branch.address, &left_proof, &right_proof);
         let targets = BranchTargets {
@@ -239,12 +239,12 @@ where
         let mut inputs = PartialWitness::new();
         inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
         inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
-        self.summarized.set_inputs(&mut inputs, summary_hash);
-        self.old.set_inputs(&mut inputs, old_hash);
-        self.new.set_inputs(&mut inputs, new_hash);
+        self.summarized.set_witness(&mut inputs, summary_hash);
+        self.old.set_witness(&mut inputs, old_hash);
+        self.new.set_witness(&mut inputs, new_hash);
         match address.into() {
-            AddressPresent::Present(a) => self.address.set_inputs(&mut inputs, Some(a)),
-            AddressPresent::Absent => self.address.set_inputs(&mut inputs, None),
+            AddressPresent::Present(a) => self.address.set_witness(&mut inputs, Some(a)),
+            AddressPresent::Absent => self.address.set_witness(&mut inputs, None),
             AddressPresent::Implicit => {}
         }
         self.circuit.prove(inputs)

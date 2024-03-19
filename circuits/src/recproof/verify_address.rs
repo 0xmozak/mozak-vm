@@ -14,6 +14,8 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
+use super::{find_bool, find_target};
+
 #[derive(Copy, Clone)]
 pub struct PublicIndices {
     pub node_present: usize,
@@ -96,14 +98,8 @@ impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
-            node_present: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_present.target)
-                .expect("target not found"),
-            node_address: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_address)
-                .expect("target not found"),
+            node_present: find_bool(public_inputs, self.node_present),
+            node_address: find_target(public_inputs, self.node_address),
         };
         LeafSubCircuit {
             targets: self,
@@ -113,15 +109,15 @@ impl LeafTargets {
 }
 
 impl LeafSubCircuit {
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         node_address: Option<u64>,
     ) {
-        self.set_inputs_unsafe(inputs, node_address.is_some(), node_address);
+        self.set_witness_unsafe(inputs, node_address.is_some(), node_address);
     }
 
-    fn set_inputs_unsafe<F: RichField>(
+    fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         node_present: bool,
@@ -274,14 +270,8 @@ pub struct BranchSubCircuit {
 impl BranchTargets {
     fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices {
         PublicIndices {
-            node_present: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_present.target)
-                .expect("target not found"),
-            node_address: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_address)
-                .expect("target not found"),
+            node_present: find_bool(public_inputs, self.node_present),
+            node_address: find_target(public_inputs, self.node_address),
         }
     }
 
@@ -312,15 +302,15 @@ impl BranchSubCircuit {
     /// This call is actually totally unnecessary, as the parent will
     /// be calculated from the child proofs, but it can be used to verify
     /// the parent is what you think it is.
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         node_address: Option<u64>,
     ) {
-        self.set_inputs_unsafe(inputs, node_address.is_some(), node_address);
+        self.set_witness_unsafe(inputs, node_address.is_some(), node_address);
     }
 
-    fn set_inputs_unsafe<F: RichField>(
+    fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         node_present: bool,
@@ -362,7 +352,7 @@ mod test {
 
         pub fn prove(&self, node_address: Option<u64>) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.address.set_inputs(&mut inputs, node_address);
+            self.address.set_witness(&mut inputs, node_address);
             self.circuit.prove(inputs)
         }
 
@@ -373,7 +363,7 @@ mod test {
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.address
-                .set_inputs_unsafe(&mut inputs, node_present, node_address);
+                .set_witness_unsafe(&mut inputs, node_present, node_address);
             self.circuit.prove(inputs)
         }
     }
@@ -463,7 +453,7 @@ mod test {
             let mut inputs = PartialWitness::new();
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
             inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
-            self.address.set_inputs(&mut inputs, node_address);
+            self.address.set_witness(&mut inputs, node_address);
             self.circuit.prove(inputs)
         }
 
@@ -478,7 +468,7 @@ mod test {
             inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
             inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
             self.address
-                .set_inputs_unsafe(&mut inputs, node_present, node_address);
+                .set_witness_unsafe(&mut inputs, node_present, node_address);
             self.circuit.prove(inputs)
         }
     }

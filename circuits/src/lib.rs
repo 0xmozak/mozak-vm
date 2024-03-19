@@ -4,8 +4,6 @@
 // exceptions:
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
-// FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
-#![allow(clippy::ignored_unit_patterns)]
 
 pub mod bitshift;
 pub mod columns_view;
@@ -33,6 +31,3 @@ pub mod stark;
 pub mod test_utils;
 pub mod utils;
 pub mod xor;
-
-#[cfg(any(feature = "test", test))]
-pub mod test_examples;

@@ -28,11 +28,13 @@ use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
 use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
+// use mozak_node::types::{Attestation, OpaqueAttestation, Transaction,
+// TransparentAttestation};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
-use mozak_sdk::coretypes::{Event, ProgramIdentifier};
-use mozak_sdk::sys::{ProofBundle, SystemTapes};
+use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
+use mozak_sdk::native::{OrderedEvents, ProofBundle};
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -99,8 +101,6 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
-    /// Deserialize a `SystemTape` from a binary. Useful for debugging.
-    DeserializeTape { tapes: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -216,27 +216,26 @@ fn main() -> Result<()> {
             debug!("proof generated successfully!");
         }
         Command::BundleTransaction {
-            mut bundle_plans,
+            bundle_plans,
             cast_list,
         } => {
             println!("Bundling transaction...");
-            for bundle_plan in bundle_plans {
+            for mut bundle_plan in bundle_plans {
                 let mut bundle_plan_bytes = Vec::new();
                 let _ = bundle_plan.read_to_end(&mut bundle_plan_bytes)?;
 
                 let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes).unwrap();
 
-                let sys_tapes: SystemTapes =
+                let sys_tapes: SystemTape =
                     deserialize_system_tape(Input::try_from(&plan.system_tape_filepath).unwrap())
                         .unwrap();
 
-                let event_tape: Vec<Event> = sys_tapes
+                let event_tape: OrderedEvents = sys_tapes
                     .event_tape
                     .writer
                     .into_iter()
                     .find_map(|t| {
-                        (t.id == ProgramIdentifier::from(plan.self_prog_id.clone()))
-                            .then_some(t.contents)
+                        (t.0 == ProgramIdentifier::from(plan.self_prog_id.clone())).then_some(t.1)
                     })
                     .unwrap_or_default();
 
@@ -245,9 +244,10 @@ fn main() -> Result<()> {
                     Some(plan.self_prog_id.to_string()),
                 );
 
-                let release_dirpath = std::env::current_dir()
-                    .unwrap()
-                    .join("examples/target/riscv32im-mozak-mozakvm-elf/release/");
+                let release_dirpath = std::env::current_dir().unwrap().join(
+                    "examples/target/riscv32im-mozak-mozakvm-elf/
+             release/",
+                );
                 let elf_path = release_dirpath.join(plan.elf_filename);
                 let program = load_program(Input::try_from(&elf_path).unwrap(), &args)?;
                 let state =
@@ -301,14 +301,15 @@ fn main() -> Result<()> {
                 let transaction = Transaction {
                     call_tape_hash,
                     cast_list: cast_list
+                        .clone()
                         .into_iter()
                         .unique()
                         .map(ProgramIdentifier::from)
                         .collect(),
                     constituent_zs,
                 };
+                println!("Transaction bundled: {transaction:?}");
             }
-            println!("Transaction bundled: {transaction:?}");
         }
 
         Command::Verify { mut proof } => {
@@ -378,10 +379,6 @@ fn main() -> Result<()> {
             );
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
-        }
-        Command::DeserializeTape { tapes } => {
-            let sys_tapes: SystemTapes = deserialize_system_tape(tapes)?;
-            println!("{sys_tapes:?}");
         }
         Command::Bench(bench) => {
             /// Times a function and returns the `Duration`.
