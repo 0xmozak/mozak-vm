@@ -47,7 +47,6 @@ where
 {
     type Output = Self;
 
-    #[allow(clippy::similar_names)]
     fn add(self, other: Self) -> Self {
         Self {
             lv_linear_combination: self.lv_linear_combination + other.lv_linear_combination,
@@ -170,7 +169,7 @@ where
     pub fn reduce_with_powers<I>(terms: I, alpha: i64) -> Self
     where
         I: IntoIterator<Item = Self>,
-        <I as IntoIterator>::IntoIter: DoubleEndedIterator, {
+        I::IntoIter: DoubleEndedIterator, {
         terms
             .into_iter()
             .rev()
