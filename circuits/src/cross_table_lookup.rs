@@ -18,8 +18,7 @@ use thiserror::Error;
 pub use crate::linear_combination::Column;
 pub use crate::linear_combination_typed::ColumnTyped;
 use crate::stark::mozak_stark::{
-    all_kind, Table, TableKind, TableKindArray, TableNamed, TableNamedTyped,
-};
+    all_kind, Table, TableKind, TableKindArray, TableNamed};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
 
@@ -192,36 +191,36 @@ pub struct CrossTableLookupNamed<Row> {
     pub looked_table: TableNamed<Row>,
 }
 
-// TODO(Matthias): carefully study the types here.
-impl<RowIn, RowOut, I> From<CrossTableLookupNamedTyped<RowIn, ColumnTyped<I>>>
-    for CrossTableLookupNamed<RowOut>
-where
-    I: IntoIterator<Item = i64>,
-    RowOut: FromIterator<Column>,
-    RowIn: IntoIterator<Item = ColumnTyped<I>>,
-{
-    fn from(ctl: CrossTableLookupNamedTyped<RowIn, ColumnTyped<I>>) -> Self {
-        let looked_table = TableNamed::from(ctl.looked_table);
-        let looking_tables = ctl
-            .looking_tables
-            .into_iter()
-            .map(TableNamed::from)
-            .collect();
-        Self {
-            looking_tables,
-            looked_table,
-        }
-    }
-}
+// // TODO(Matthias): carefully study the types here.
+// impl<RowIn, RowOut, I> From<CrossTableLookupNamedTyped<RowIn, ColumnTyped<I>>>
+//     for CrossTableLookupNamed<RowOut>
+// where
+//     I: IntoIterator<Item = i64>,
+//     RowOut: FromIterator<Column>,
+//     RowIn: IntoIterator<Item = ColumnTyped<I>>,
+// {
+//     fn from(ctl: CrossTableLookupNamedTyped<RowIn, ColumnTyped<I>>) -> Self {
+//         let looked_table = TableNamed::from(ctl.looked_table);
+//         let looking_tables = ctl
+//             .looking_tables
+//             .into_iter()
+//             .map(TableNamed::from)
+//             .collect();
+//         Self {
+//             looking_tables,
+//             looked_table,
+//         }
+//     }
+// }
 
-#[allow(clippy::module_name_repetitions)]
-#[derive(Clone, Debug)]
-// TODO: we don't actualyl have the same Row types her.  It's heterogenous.
-// So try a `dyn` type towards an extraction function?
-pub struct CrossTableLookupNamedTyped<Row, Filter> {
-    pub looking_tables: Vec<TableNamedTyped<Row, Filter>>,
-    pub looked_table: TableNamedTyped<Row, Filter>,
-}
+// #[allow(clippy::module_name_repetitions)]
+// #[derive(Clone, Debug)]
+// // TODO: we don't actualyl have the same Row types her.  It's heterogenous.
+// // So try a `dyn` type towards an extraction function?
+// pub struct CrossTableLookupNamedTyped<Row, Filter> {
+//     pub looking_tables: Vec<TableNamedTyped<Row, Filter>>,
+//     pub looked_table: TableNamedTyped<Row, Filter>,
+// }
 
 #[allow(clippy::module_name_repetitions)]
 pub type CrossTableLookup = CrossTableLookupNamed<Vec<Column>>;
