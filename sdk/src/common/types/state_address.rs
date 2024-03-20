@@ -1,7 +1,7 @@
 #[cfg(not(target_os = "mozakvm"))]
 use serde_hex::{SerHex, StrictPfx};
 
-pub const STATE_TREE_DEPTH: usize = 4;
+pub const STATE_TREE_DEPTH: usize = 8;
 
 #[derive(
     Default,
