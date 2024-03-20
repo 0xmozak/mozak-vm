@@ -1,7 +1,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// for `syn`
-// TODO: remove once it's fixed.
+// Some of our dependencies transitively depend on different versions of the same crates, like syn
+// and bitflags. TODO: remove once our dependencies no longer do that.
 #![allow(clippy::multiple_crate_versions)]
 
 #[cfg(not(target_arch = "wasm32"))]

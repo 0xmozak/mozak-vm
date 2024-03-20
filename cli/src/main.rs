@@ -1,7 +1,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// for bitflags
-// TODO: remove once it's fixed.
+// Some of our dependencies transitively depend on different versions of the same crates, like syn
+// and bitflags. TODO: remove once our dependencies no longer do that.
 #![allow(clippy::multiple_crate_versions)]
 use std::io::{Read, Write};
 use std::time::Duration;

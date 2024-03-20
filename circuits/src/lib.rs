@@ -4,8 +4,8 @@
 // exceptions:
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
-// for bitflags and syn
-// TODO: remove once it's fixed.
+// Some of our dependencies transitively depend on different versions of the same crates, like syn
+// and bitflags. TODO: remove once our dependencies no longer do that.
 #![allow(clippy::multiple_crate_versions)]
 
 pub mod bitshift;
