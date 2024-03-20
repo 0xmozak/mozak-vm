@@ -77,7 +77,10 @@ The easiest way to update `flake.nix` is to set the `sha256` in
         };
 ```
 
-and then try to build `rust-toolchain` using `nix build --no-link .#rust-toolchain`.  Nix will then assume a default hash, and then report a hash mismatch.  You can then copy the reported hash back to the file.
+and then try to build `rust-toolchain` using `nix build --no-link
+.#rust-toolchain`.  Nix will then assume a default hash, and then
+report a hash mismatch.  You can then copy the reported hash back to
+the file.
 
 ```bash
 $ nix build --no-link .#rust-toolchain
