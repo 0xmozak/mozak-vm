@@ -990,6 +990,7 @@ impl<'a> State<'a> {
 
 #[cfg(test)]
 mod test {
+    use mozak_circuits::test_utils::fast_test_circuit_config;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::HashOut;
     use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -1003,10 +1004,16 @@ mod test {
         Poseidon2Hash::hash_no_pad(&v)
     }
 
+    const FAST_CONFIG: bool = true;
+    const CONFIG: CircuitConfig = if FAST_CONFIG {
+        fast_test_circuit_config()
+    } else {
+        CircuitConfig::standard_recursion_config()
+    };
+
     #[test]
     fn tiny_tree() {
-        let config = CircuitConfig::standard_recursion_config();
-        let aux = AuxStateData::new(&config, 0);
+        let aux = AuxStateData::new(&CONFIG, 0);
         let mut state = State::new(&aux, 0);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
@@ -1035,8 +1042,7 @@ mod test {
 
     #[test]
     fn small_tree() {
-        let config = CircuitConfig::standard_recursion_config();
-        let aux = AuxStateData::new(&config, 8);
+        let aux = AuxStateData::new(&CONFIG, 8);
         let mut state = State::new(&aux, 8);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
@@ -1066,8 +1072,7 @@ mod test {
     #[test]
     #[ignore]
     fn big_tree() {
-        let config = CircuitConfig::standard_recursion_config();
-        let aux = AuxStateData::new(&config, 63);
+        let aux = AuxStateData::new(&CONFIG, 63);
         let mut state = State::new(&aux, 63);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
