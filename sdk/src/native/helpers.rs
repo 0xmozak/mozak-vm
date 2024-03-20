@@ -94,3 +94,29 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
             .into_bytes(),
     );
 }
+
+pub fn merkleize_group(mut group: &mut [Poseidon2Hash]) -> Poseidon2Hash {
+    while group.len() > 1 {
+        let mut write_index = 0;
+        while 2 * write_index + 1 < group.len() {
+            let concatenated_node: Vec<u8> = vec![
+                group[2 * write_index].inner(),
+                group[2 * write_index + 1].inner(),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+            group[write_index] = crate::native::helpers::poseidon2_hash_no_pad(&concatenated_node);
+            write_index += 1;
+        }
+        if 2 * write_index + 1 == group.len() {
+            group[write_index] = group[2 * write_index];
+            write_index += 1;
+        }
+        group = &mut group[..write_index];
+    }
+    match group.len() {
+        0 => Poseidon2Hash::default(),
+        _ => group[0],
+    }
+}

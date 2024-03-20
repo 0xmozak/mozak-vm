@@ -12,15 +12,34 @@ pub fn merkleize(mut addrs: &mut [u64], mut hashes: &mut [Poseidon2Hash]) -> Pos
         for right_read_index in 0..addrs.len() {
             let addr = addrs[right_read_index];
             if addr != curr_addr {
-                hashes[write_index] =
-                    merkleize_group(&mut hashes[left_read_index..right_read_index]);
+                #[cfg(not(target_os = "mozakvm"))]
+                {
+                    hashes[write_index] = crate::native::helpers::merkleize_group(
+                        &mut hashes[left_read_index..right_read_index],
+                    );
+                }
+                #[cfg(target_os = "mozakvm")]
+                {
+                    hashes[write_index] = crate::mozakvm::helpers::merkleize_group(
+                        &mut hashes[left_read_index..right_read_index],
+                    );
+                }
                 addrs[write_index] = curr_addr >> 1;
                 left_read_index = right_read_index;
                 write_index += 1;
                 curr_addr = addr;
             };
         }
-        hashes[write_index] = merkleize_group(&mut hashes[left_read_index..]);
+        #[cfg(not(target_os = "mozakvm"))]
+        {
+            hashes[write_index] =
+                crate::native::helpers::merkleize_group(&mut hashes[left_read_index..]);
+        };
+        #[cfg(target_os = "mozakvm")]
+        {
+            hashes[write_index] =
+                crate::mozakvm::helpers::merkleize_group(&mut hashes[left_read_index..]);
+        }
         addrs[write_index] = curr_addr >> 1;
         write_index += 1;
 
@@ -30,60 +49,6 @@ pub fn merkleize(mut addrs: &mut [u64], mut hashes: &mut [Poseidon2Hash]) -> Pos
     match hashes.len() {
         0 => Poseidon2Hash::default(),
         _ => hashes[0],
-    }
-}
-
-#[cfg(target_os = "mozakvm")]
-fn merkleize_group(mut group: &mut [Poseidon2Hash]) -> Poseidon2Hash {
-    while group.len() > 1 {
-        let mut write_index = 0;
-        while 2 * write_index + 1 < group.len() {
-            let concatenated_node: Vec<u8> = vec![
-                group[2 * write_index].inner(),
-                group[2 * write_index + 1].inner(),
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
-            group[write_index] = crate::mozakvm::helpers::poseidon2_hash_no_pad(&concatenated_node);
-            write_index += 1;
-        }
-        if 2 * write_index + 1 == group.len() {
-            group[write_index] = group[2 * write_index];
-            write_index += 1;
-        }
-        group = &mut group[..write_index];
-    }
-    match group.len() {
-        0 => Poseidon2Hash::default(),
-        _ => group[0],
-    }
-}
-
-#[cfg(not(target_os = "mozakvm"))]
-fn merkleize_group(mut group: &mut [Poseidon2Hash]) -> Poseidon2Hash {
-    while group.len() > 1 {
-        let mut write_index = 0;
-        while 2 * write_index + 1 < group.len() {
-            let concatenated_node: Vec<u8> = vec![
-                group[2 * write_index].inner(),
-                group[2 * write_index + 1].inner(),
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
-            group[write_index] = crate::native::helpers::poseidon2_hash_no_pad(&concatenated_node);
-            write_index += 1;
-        }
-        if 2 * write_index + 1 == group.len() {
-            group[write_index] = group[2 * write_index];
-            write_index += 1;
-        }
-        group = &mut group[..write_index]
-    }
-    match group.len() {
-        0 => Poseidon2Hash::default(),
-        _ => group[0],
     }
 }
 
