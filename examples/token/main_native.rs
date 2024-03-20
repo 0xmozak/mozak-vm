@@ -1,8 +1,8 @@
 #![feature(restricted_std)]
 #![allow(unused_attributes)]
 mod core_logic;
-
 use mozak_sdk::common::types::{ProgramIdentifier, StateAddress, StateObject};
+use rkyv::rancor::Panic;
 use token::{dispatch, MethodArgs};
 
 fn main() {
@@ -19,7 +19,7 @@ fn main() {
         amount: 100.into(),
     };
 
-    let bytes = rkyv::to_bytes::<_, 256>(&token_object).unwrap();
+    let bytes = rkyv::to_bytes::<_, 256, Panic>(&token_object).unwrap();
 
     let state_object = StateObject {
         address: StateAddress::new_from_rand_seed(4),
