@@ -88,6 +88,7 @@ impl CanonicalEvent {
         }
     }
 
+    #[must_use]
     pub fn canonical_hash(&self) -> super::poseidon2hash::Poseidon2Hash {
         #[cfg(not(target_os = "mozakvm"))]
         {

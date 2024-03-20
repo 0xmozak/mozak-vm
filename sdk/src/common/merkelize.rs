@@ -1,7 +1,7 @@
 use super::types::Poseidon2Hash;
 
 /// Takes leaves of the form `Poseidon2HasType`` and returns the merkle root
-/// of the tree, where nodes are hashed according to common prefix of `addr:
+/// of the tree, where nodes are hashed according to common prefix of `addr`:
 /// u64` field. NOTE: Assumes sorted order wrt `addr`
 pub fn merkleize(mut addrs: &mut [u64], mut hashes: &mut [Poseidon2Hash]) -> Poseidon2Hash {
     assert_eq!(addrs.len(), hashes.len());
@@ -52,7 +52,7 @@ fn merkleize_group(mut group: &mut [Poseidon2Hash]) -> Poseidon2Hash {
             group[write_index] = group[2 * write_index];
             write_index += 1;
         }
-        group = &mut group[..write_index]
+        group = &mut group[..write_index];
     }
     match group.len() {
         0 => Poseidon2Hash::default(),
