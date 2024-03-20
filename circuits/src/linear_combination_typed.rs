@@ -11,6 +11,7 @@ use crate::columns_view::Zip;
 pub struct ColumnTyped<C> {
     /// Linear combination of the local row
     pub lv_linear_combination: C,
+    // C could be InputOutputMemory<i64>, dense representation.
     /// Linear combination of the next row
     pub nv_linear_combination: C,
     /// Constant of linear combination

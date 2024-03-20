@@ -470,6 +470,7 @@ macro_rules! table_impl {
                 filter_column: ColumnTyped<I>,
             ) -> TableNamed<RowOut>
             where
+                // ColumnTyped<I> and TableKind (equivalent to $t) should be compatible.
                 I: IntoIterator<Item = i64>,
                 RowOut: FromIterator<Column>,
                 RowIn: IntoIterator<Item = ColumnTyped<I>>, {
