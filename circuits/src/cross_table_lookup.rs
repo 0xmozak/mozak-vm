@@ -488,10 +488,7 @@ pub mod ctl_utils {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
-    use itertools::Itertools;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::polynomial::PolynomialValues;
 
     use super::ctl_utils::check_single_ctl;
     use super::*;

@@ -2,7 +2,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
+#[cfg(not(feature = "std"))]
 use alloc::string::String;
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
 use rkyv::rancor::{Panic, Strategy};
@@ -22,6 +24,7 @@ pub struct Test {
     pub option: Option<Vec<i32>>,
 }
 
+#[cfg(not(feature = "std"))]
 use alloc::string::ToString;
 use alloc::vec;
 
