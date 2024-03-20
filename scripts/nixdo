@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+# Run arguments inside the default devShell
+nix develop --command env "$@"
