@@ -17,9 +17,9 @@
 #[allow(clippy::module_name_repetitions)]
 #[repr(u8)]
 pub enum EventType {
-    Read = 0,
-    Write,
+    RWrite = 0,
     Ensure,
+    Read,
     Create,
     Delete,
 }
