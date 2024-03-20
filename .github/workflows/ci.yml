@@ -154,9 +154,6 @@ jobs:
           cd examples-builder && nixdo cargo build --all-features
 
   cargo-fmt:
-    strategy:
-      matrix:
-        working-directory: [".", "examples", "sdk"]
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -169,7 +166,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run fmt
-        working-directory: "${{ matrix.working-directory }}"
+        run: nixdo cargo fmt --all --check
+
+      - name: Run fmt (examples)
+        working-directory: examples
+        run: nixdo cargo fmt --all --check
+
+      - name: Run fmt (sdk)
+        working-directory: sdk
         run: nixdo cargo fmt --all --check
 
   shellcheck:
