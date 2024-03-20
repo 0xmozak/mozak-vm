@@ -41,6 +41,7 @@ const CRATES: &[Crate] = &[
     ecrate!("empty", "EMPTY_ELF", false),
     ecrate!("tokenbin", "TOKENBIN", false),
     ecrate!("walletbin", "WALLETBIN", false),
+    ecrate!("merkelize-bin", "MERKELIZEBIN", false),
 ];
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
