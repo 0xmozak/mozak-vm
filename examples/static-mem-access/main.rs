@@ -6,6 +6,7 @@ use core::assert;
 const R_CONST_A: u32 = 41;
 static mut R_STATIC_B: u32 = 51;
 
+#[allow(clippy::assertions_on_constants)]
 pub fn main() {
     unsafe {
         assert!(R_CONST_A == 41);
