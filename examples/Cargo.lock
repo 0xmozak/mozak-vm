@@ -316,6 +316,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "merkelize-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "mozak-sdk",
+]
+
+[[package]]
 name = "min-max-mozak-guest"
 version = "0.1.0"
 dependencies = [
