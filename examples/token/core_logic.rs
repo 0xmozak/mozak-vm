@@ -13,7 +13,7 @@ pub enum MethodArgs {
         StateObject,
         ProgramIdentifier,
         ProgramIdentifier,
-        wallet::PublicKey
+        wallet::PublicKey,
     ),
     // GetAmount,
     // Split,
@@ -42,7 +42,7 @@ pub fn transfer(
     state_object: StateObject,
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
-    remitee_pubkey: wallet::PublicKey
+    remitee_pubkey: wallet::PublicKey,
 ) {
     let read_event = Event {
         object: state_object.clone(),

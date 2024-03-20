@@ -2,7 +2,7 @@
 #![allow(unused_attributes)]
 extern crate alloc;
 
-use mozak_sdk::common::types::{StateObject, ProgramIdentifier};
+use mozak_sdk::common::types::{ProgramIdentifier, StateObject};
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// A generic public key used by the wallet.
