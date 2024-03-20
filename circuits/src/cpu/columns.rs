@@ -14,7 +14,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{CpuTable, TableNamed};
+use crate::stark::mozak_stark::{CpuTable, TableNamed, XorTable};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -311,7 +311,7 @@ pub fn rangecheck_looking() -> Vec<TableNamed<RangeCheckCtl<Column>>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn lookup_for_xor() -> TableNamed<XorView<Column>> {
-    CpuTable::new(CPU_MAP.xor, CPU_MAP.inst.ops.ops_that_use_xor())
+    XorTable::new(CPU_MAP.xor, CPU_MAP.inst.ops.ops_that_use_xor())
 }
 
 /// Lookup into Memory stark.
