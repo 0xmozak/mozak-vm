@@ -168,6 +168,14 @@ jobs:
       - name: Run fmt
         run: nixdo cargo fmt --all --check
 
+      - name: Run fmt (examples)
+        working-directory: examples
+        run: nixdo cargo fmt --all --check
+
+      - name: Run fmt (sdk)
+        working-directory: sdk
+        run: nixdo cargo fmt --all --check
+
   shellcheck:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
