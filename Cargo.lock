@@ -1034,7 +1034,6 @@ version = "0.2.0"
 dependencies = [
  "hex",
  "itertools 0.12.1",
- "lazy_static",
  "once_cell",
  "plonky2",
  "rand",
