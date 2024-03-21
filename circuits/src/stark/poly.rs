@@ -28,6 +28,7 @@ pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
+    open_public_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
     config: &StarkConfig,
@@ -99,6 +100,7 @@ where
             let ctl_vars = ctl_data
                 .zs_columns
                 .iter()
+                .chain(open_public_data.zs_columns.iter())
                 .enumerate()
                 .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1> {
                     local_z: ctl_zs_commitment.get_lde_values_packed(i_start, step)[i],

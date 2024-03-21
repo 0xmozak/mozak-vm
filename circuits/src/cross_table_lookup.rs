@@ -54,6 +54,7 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) challenge: GrandProductChallenge<F>,
     pub(crate) columns: Vec<Column>,
     pub(crate) filter_column: Column,
+    pub(crate) is_open_public: bool,
 }
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
@@ -131,6 +132,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                     challenge,
                     columns: table.columns.clone(),
                     filter_column: table.filter_column.clone(),
+                    is_open_public: false,
                 });
             }
         }
@@ -138,7 +140,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_data_per_table
 }
 
-fn partial_sums<F: Field>(
+pub fn partial_sums<F: Field>(
     trace: &[PolynomialValues<F>],
     columns: &[Column],
     filter_column: &Column,

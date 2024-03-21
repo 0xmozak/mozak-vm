@@ -17,6 +17,7 @@ use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::stark::MemoryInitStark;
+use crate::open_public::OpenPublic;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes;
@@ -104,6 +105,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     )]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
+    pub open_public: [OpenPublic; 0],
 
     pub debug: bool,
 }
@@ -375,6 +377,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
             ],
+            open_public: [],
             debug: false,
         }
     }

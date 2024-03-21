@@ -21,6 +21,7 @@ pub mod memory_halfword;
 pub mod memory_io;
 pub mod memory_zeroinit;
 pub mod memoryinit;
+pub mod open_public;
 pub mod poseidon2;
 pub mod poseidon2_output_bytes;
 pub mod poseidon2_sponge;

@@ -3,6 +3,7 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
+use itertools::Itertools;
 use log::Level::Debug;
 use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
@@ -27,6 +28,7 @@ use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
+use crate::open_public::open_public_data;
 use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
@@ -124,6 +126,12 @@ where
             &ctl_challenges
         )
     );
+
+    let open_public_data_per_table = open_public_data::<F, D>(
+        traces_poly_values,
+        &mozak_stark.open_public,
+        &ctl_challenges,
+    );
     let proofs = timed!(
         timing,
         "compute all proofs given commitments",
@@ -134,6 +142,7 @@ where
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
+            &open_public_data_per_table,
             &mut challenger,
             timing
         )?
@@ -168,6 +177,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
+    open_public_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
@@ -185,7 +195,11 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    let z_polys = ctl_data.z_polys();
+    // commit to both z poly of ctl and open public
+    let z_polys = vec![ctl_data.z_polys(), open_public_data.z_polys()]
+        .into_iter()
+        .flatten()
+        .collect_vec();
     // TODO(Matthias): make the code work with empty z_polys, too.
     assert!(!z_polys.is_empty(), "No CTL? {stark}");
 
@@ -201,7 +215,6 @@ where
             None,
         )
     );
-
     let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
 
@@ -215,6 +228,7 @@ where
             &ctl_zs_commitment,
             public_inputs,
             ctl_data,
+            open_public_data,
             &alphas,
             degree_bits,
             config,
@@ -291,7 +305,7 @@ where
                 config,
                 Some(&LookupConfig {
                     degree_bits,
-                    num_zs: ctl_data.len()
+                    num_zs: ctl_data.len() + open_public_data.len()
                 })
             ),
             &initial_merkle_trees,
@@ -323,6 +337,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
+    open_public_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
@@ -344,6 +359,7 @@ where
             &trace_commitments[kind],
             public_inputs[kind],
             &ctl_data_per_table[kind],
+            &open_public_data_per_table[kind],
             challenger,
             timing,
         )?
