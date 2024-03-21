@@ -2,7 +2,7 @@ use super::helpers::owned_buffer;
 use super::linker_symbols::{_mozak_private_io_tape, _mozak_public_io_tape};
 use crate::mozakvm::helpers::get_owned_buffer;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RandomAccessPreinitMemTape {
     pub tape: Box<[u8]>,
     pub read_offset: usize,
@@ -60,6 +60,27 @@ impl std::io::Seek for RandomAccessPreinitMemTape {
     }
 }
 
+impl RandomAccessPreinitMemTape {
+    /// Returns the "safe" readable length of the tape,
+    /// reading outside which may result in accessing
+    /// garbage values. `len` reduces after elements are
+    /// accessed in case the tape  is "consuming" i.e.
+    /// tape is accessed without feature `stdread` enabled.
+    /// If `stdread` is enabled, `std::io::Seek` is
+    /// implemented for the tape and length of tape never
+    /// reduces.
+    #[allow(dead_code)]
+    pub fn len(&self) -> usize { self.tape.len() }
+
+    /// Provides the read offset in tape which can be
+    /// changed via `std::io::Seek` implementation on
+    /// a tape with feature `stdread`. In case this feature
+    /// is not enabled, this function always returns `0`
+    /// and the tape elements when accessed are "consumed".
+    #[allow(dead_code)]
+    pub fn read_ptr(&self) -> usize { self.read_offset }
+}
+
 /// Not implementing `std::io::Read` allows for consumption of
 /// data slices from the Tape, albeit linearly. This still leaves
 /// room for seekability (in principle), but any seek is only
@@ -94,30 +115,33 @@ impl RandomAccessPreinitMemTape {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RandomAccessEcallTape {
     pub ecall_id: u32,
     pub read_offset: usize,
 }
 
-#[cfg(feature = "rawio")]
+#[cfg(feature = "preinitmem_inputtape")]
 type FreeformTape = RandomAccessPreinitMemTape;
-#[cfg(not(feature = "rawio"))]
+#[cfg(not(feature = "preinitmem_inputtape"))]
 type FreeformTape = RandomAccessEcallTape;
 
+#[derive(Clone)]
 pub struct PrivateInputTape(FreeformTape);
+
+#[derive(Clone)]
 pub struct PublicInputTape(FreeformTape);
 
 impl Default for PrivateInputTape {
     fn default() -> Self {
-        #[cfg(feature = "rawio")]
+        #[cfg(feature = "preinitmem_inputtape")]
         {
             Self(FreeformTape {
                 tape: get_owned_buffer!(_mozak_private_io_tape),
                 read_offset: 0,
             })
         }
-        #[cfg(not(feature = "rawio"))]
+        #[cfg(not(feature = "preinitmem_inputtape"))]
         {
             // TODO: Implement this when we want to revert back to
             // ecall based systems. Unimplemented for now.
@@ -128,14 +152,14 @@ impl Default for PrivateInputTape {
 
 impl Default for PublicInputTape {
     fn default() -> Self {
-        #[cfg(feature = "rawio")]
+        #[cfg(feature = "preinitmem_inputtape")]
         {
             Self(FreeformTape {
                 tape: get_owned_buffer!(_mozak_public_io_tape),
                 read_offset: 0,
             })
         }
-        #[cfg(not(feature = "rawio"))]
+        #[cfg(not(feature = "preinitmem_inputtape"))]
         {
             // TODO: Implement this when we want to revert back to
             // ecall based systems. Unimplemented for now.
@@ -152,4 +176,49 @@ impl std::io::Read for PrivateInputTape {
 #[cfg(feature = "stdread")]
 impl std::io::Read for PublicInputTape {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> { self.0.read(buf) }
+}
+
+impl PrivateInputTape {
+    pub fn len(&self) -> usize { self.0.len() }
+
+    pub fn read_ptr(&self) -> usize { self.0.read_ptr() }
+}
+
+impl PublicInputTape {
+    pub fn len(&self) -> usize { self.0.len() }
+
+    pub fn read_ptr(&self) -> usize { self.0.read_ptr() }
+}
+
+/// Provides the length of tape available to read
+#[cfg(all(feature = "std", target_os = "mozakvm"))]
+#[must_use]
+pub fn input_tape_len(kind: &crate::InputTapeType) -> usize {
+    match kind {
+        crate::InputTapeType::PublicTape => unsafe {
+            crate::common::system::SYSTEM_TAPE.public_input_tape.len()
+        },
+        crate::InputTapeType::PrivateTape => unsafe {
+            crate::common::system::SYSTEM_TAPE.private_input_tape.len()
+        },
+    }
+}
+
+/// Reads utmost given number of raw bytes from an input tape
+#[allow(clippy::missing_errors_doc)]
+#[cfg(all(feature = "std", feature = "stdread", target_os = "mozakvm"))]
+pub fn read(kind: &crate::InputTapeType, buf: &mut [u8]) -> std::io::Result<usize> {
+    use std::io::Read;
+    match kind {
+        crate::InputTapeType::PublicTape => unsafe {
+            crate::common::system::SYSTEM_TAPE
+                .public_input_tape
+                .read(buf)
+        },
+        crate::InputTapeType::PrivateTape => unsafe {
+            crate::common::system::SYSTEM_TAPE
+                .private_input_tape
+                .read(buf)
+        },
+    }
 }
