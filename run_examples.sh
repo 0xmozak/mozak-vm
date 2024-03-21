@@ -15,6 +15,12 @@ for profile in "${PROFILES[@]}"; do
         for bin in ${BINS}; do
             echo "(mozak-cli) running example (${profile}): ${bin}"
             case ${bin} in
+                # TODO(bing): fix to work with this script
+                "panic")
+                    echo "(mozak-cli) skipping (${profile}): ${bin}"
+                    skipped="${skipped}${bin} (${profile})\n"
+                    continue
+                    ;;
                 # For this, we skip without writing to skipped because we
                 # run the native version along with the mozakvm version.
                 "token-native" | "tokenbin" | "wallet-native" | "walletbin" | "inputtape-native" | "inputtapebin")
