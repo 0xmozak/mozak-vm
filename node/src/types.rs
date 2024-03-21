@@ -14,7 +14,7 @@ pub struct OpaqueAttestation<
     C: GenericConfig<D, F = F>,
     const D: usize,
 > {
-    /// Hash of the private inputs in the execution of a MozakVM program.
+    /// Hash of the private inputs in the execution of a `MozakVM` program.
     pub private_tape_hash: MerkleCap<F, C::Hasher>,
 }
 
@@ -22,11 +22,11 @@ pub struct OpaqueAttestation<
 #[derive(Debug)]
 pub struct TransparentAttestation {
     // TODO(bing): Attest to its commitment
-    /// Public inputs to the execution of a MozakVM program, provided in the
+    /// Public inputs to the execution of a `MozakVM` program, provided in the
     /// clear.
     pub public_tape: Vec<u8>,
     // TODO(bing): Attest to its commitment
-    /// Events emitted during the execution of a MozakVM program, provided in
+    /// Events emitted during the execution of a `MozakVM` program, provided in
     /// the clear.
     pub event_tape: OrderedEvents,
 }
