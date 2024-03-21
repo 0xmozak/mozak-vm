@@ -118,11 +118,11 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
 }
 
 #[allow(dead_code)]
-pub fn dump_proving_files(file_template: String, self_prog_id: ProgramIdentifier) {
+pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) {
     fs::create_dir_all("out").unwrap();
     let sys_tape_path = format!("out/{file_template}");
     dump_system_tape(&sys_tape_path, true);
-    let bin_filename = format!("out/{}.tape.json", file_template.clone());
+    let bin_filename = format!("out/{file_template}.tape.json");
 
     let toml_str = fs::read_to_string("Cargo.toml").expect(
         "Could not find the program's Cargo.toml. Are you running from within the project root?",
@@ -159,7 +159,7 @@ pub fn dump_proving_files(file_template: String, self_prog_id: ProgramIdentifier
     };
     println!("[BNDLDMP] Bundle dump: {bundle:?}");
 
-    let bundle_filename = format!("out/{}_bundle.json", file_template);
+    let bundle_filename = format!("out/{file_template}_bundle.json");
     let bundle_json = serde_json::to_string_pretty(&bundle).unwrap();
     write_to_file(&bundle_filename, bundle_json.as_bytes());
 }
