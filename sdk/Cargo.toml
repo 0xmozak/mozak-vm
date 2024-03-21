@@ -12,13 +12,10 @@ version = "0.2.0"
 [dependencies]
 itertools = { version = "0.12.1", default-features = false }
 once_cell = { version = "1.19.0", default-features = false, features = ["race"] }
-rkyv = { version = "0.7.1", default-features = false, features = ["size_32", "alloc"] }
+rkyv = { version = "0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.toml]
 version = "0.8"
-
-[target.'cfg(not(target_os="mozakvm"))'.dependencies.lazy_static]
-version = "1.4.0"
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"

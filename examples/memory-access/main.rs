@@ -3,6 +3,7 @@
 
 extern crate alloc;
 use alloc::vec;
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
 pub fn main() {

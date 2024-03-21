@@ -70,8 +70,8 @@ pub struct Register<T> {
     pub value: T,
 
     /// Augmented clock at register access. This is calculated as:
-    /// augmented_clk = clk * 2 for register reads, and
-    /// augmented_clk = clk * 2 + 1 for register writes,
+    /// `augmented_clk` = clk * 2 for register reads, and
+    /// `augmented_clk` = clk * 2 + 1 for register writes,
     /// to ensure that we do not write to the register before we read.
     pub augmented_clk: T,
 
