@@ -118,6 +118,14 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
 }
 
 #[allow(dead_code)]
+/// This functions dumps 3 files of the currently running guest program:
+///   1. the actual system tape (JSON),
+///   2. the debug dump of the system tape,
+///   3. the transaction bundle plan (JSON).
+///
+/// These are all dumped in a sub-directory named `out` in the project root. The
+/// user must be cautious to not move the files, as the system tape and the
+/// bundle plan are used by the CLI in proving and in transaction bundling.
 pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) {
     fs::create_dir_all("out").unwrap();
     let sys_tape_path = format!("out/{file_template}");
@@ -132,6 +140,13 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
 
     let bin_filepath_absolute = curr_dir.join(bin_filename);
 
+    /// TODO(bing): Currently, this is used to derive the name of the mozakvm
+    /// binary based on the name declared alongside some path declared as
+    /// "..._mozak.rs" in the project's `Cargo.toml`. The purpose of that is so
+    /// we can dump the absolute path of the mozakvm ELF binary in our bundle
+    /// plan (JSON).
+    ///
+    /// It might be prudent to come up with a more robust solution than this.
     let mozak_bin = toml
         .bin
         .into_iter()
@@ -151,7 +166,6 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
         mozak_bin.name
     ));
 
-    println!("filepath: {:?}", components.as_path());
     let bundle = ProofBundle {
         self_prog_id: format!("{self_prog_id:?}"),
         elf_filepath,
