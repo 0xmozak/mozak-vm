@@ -1,7 +1,8 @@
 //! Subcircuits for recursively proving an unbounded binary tree.
 //!
-//! These subcircuits are fully-recursive, building on top of each other to
-//! create the next level up of the tree.
+//! These subcircuits are fully-recursive, meaning only one `BranchCircuit` can
+//! handle generating proofs for any level regardless of depth.
+
 use std::iter::zip;
 
 use plonky2::field::extension::Extendable;
@@ -106,8 +107,6 @@ impl SubCircuitInputs {
             0,
         )
         .common;
-
-        // common_data.num_public_inputs = builder.num_public_inputs();
 
         // Make sure we have enough gates to match `common_data`.
         while builder.num_gates() < (common_data.degree() / 2) {

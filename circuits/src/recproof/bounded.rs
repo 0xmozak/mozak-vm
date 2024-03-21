@@ -1,8 +1,12 @@
 //! Subcircuits for recursively proving an bounded binary tree.
 //!
-//! These subcircuits are pseudo-recursive, building on top of each other to
-//! create the next level up of the tree. "Pseudo-" here means the height
-//! must be fixed ahead of time and not depend on the content.
+//! These subcircuits are pseudo-recursive, meaning the each `BranchCircuits`
+//! corresponds to a specific tree height and can only be used for that height
+//! (a ten layer tree needs 10 circuits).
+//!
+//! One advantage of this approach (in addition to just being directly faster)
+//! is that since each circuit is unique based on height, the height is
+//! automatically attested to
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;

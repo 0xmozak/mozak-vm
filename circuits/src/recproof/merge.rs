@@ -1,7 +1,10 @@
-//! Subcircuits for recursively proving the merge of two binary merkle trees
+//! Subcircuits for recursively proving the merge of two binary merkle trees.
 //!
-//! These subcircuits are recursive, building on top of each other to
-//! create the next level up of the merged merkle tree.
+//! The resulting merge of trees A and B will provably contain all nodes from A
+//! and B and those nodes will retain their original relative positioning within
+//! a tree, i.e. if A1 was to the left of A2 in the original tree, it will still
+//! be in the resulting tree. However no order is defined for the positioning of
+//! nodes between A and B, i.e. A1 could be to the left or right of B1.
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};

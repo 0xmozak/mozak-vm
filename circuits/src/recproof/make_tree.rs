@@ -1,8 +1,6 @@
 //! Subcircuits for recursively proving the construction of a binary merkle tree
 //! out of a single value.
-//!
-//! These subcircuits are recursive, building on top of each other to
-//! create the next level up of the merkle tree.
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::target::{BoolTarget, Target};

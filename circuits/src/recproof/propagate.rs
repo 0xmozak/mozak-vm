@@ -1,4 +1,5 @@
 //! Subcircuits for recursively proving all nodes in a tree share a common value
+
 use std::iter::zip;
 
 use plonky2::field::extension::Extendable;

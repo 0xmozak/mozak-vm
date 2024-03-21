@@ -1,11 +1,6 @@
-//! Subcircuits for recursively proving partial contents of a merkle tree
+//! Subcircuits for recursively proving partial contents of a merkle tree.
 //!
-//! These subcircuits are pseudo-recursive, building on top of each other to
-//! create the next level up of the merkle tree. "Pseudo-" here means the height
-//! must be fixed ahead of time and not depend on the content.
-//!
-//! These subcircuits are useful to prove knowledge of a selected subset of
-//! nodes.
+//! These can be used to prove a subset of nodes belong to a tree.
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::target::{BoolTarget, Target};
