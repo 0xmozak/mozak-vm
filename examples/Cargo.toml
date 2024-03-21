@@ -14,7 +14,7 @@ members = [
   # Members that depend on more than sdk::core
   "token",
   "wallet",
-  "inputtape"
+  "inputtape",
 ]
 resolver = "2"
 
