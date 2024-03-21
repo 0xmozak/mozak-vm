@@ -291,7 +291,7 @@ impl AuxStateData {
             .map(|(circuit, hash)| {
                 let hash = (*hash).into();
                 init = circuit
-                    .prove(&init, &init, hash, hash, empty_summary_hash.into(), ())
+                    .prove(hash, hash, empty_summary_hash.into(), (), &init, &init)
                     .unwrap();
                 init.clone()
             })
@@ -494,14 +494,14 @@ impl AuxStateData {
         branch.summary_hash = summary;
         branch.proof = self.branch_circuits[branch.height]
             .prove(
-                left_proof,
-                right_proof,
                 branch.old_hash.into(),
                 branch.new_hash.into(),
                 branch.summary_hash.into(),
                 addr.map_or(AddressPresent::Implicit, |v| {
                     AddressPresent::Present(v.addr.0)
                 }),
+                left_proof,
+                right_proof,
             )
             .unwrap();
     }
@@ -569,12 +569,12 @@ impl AuxStateData {
 
                 let proof = self.branch_circuits[0]
                     .prove(
-                        left_proof,
-                        right_proof,
                         old_hash.into(),
                         new_hash.into(),
                         leaf_summary.into(),
                         (),
+                        left_proof,
+                        right_proof,
                     )
                     .unwrap();
                 let leaf = Some(Box::new(SparseMerkleNode::Leaf(leaf)));
@@ -618,12 +618,12 @@ impl AuxStateData {
 
                 let proof = self.branch_circuits[height]
                     .prove(
-                        left_proof,
-                        right_proof,
                         old_hash.into(),
                         new_hash.into(),
                         child_summary.into(),
                         (),
+                        left_proof,
+                        right_proof,
                     )
                     .unwrap();
                 let child = Some(Box::new(SparseMerkleNode::Branch(child)));

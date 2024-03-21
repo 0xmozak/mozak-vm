@@ -15,7 +15,7 @@ use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::{find_bool, find_hash, hash_or_forward};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
     pub summary_hash_present: usize,
     pub summary_hash: [usize; NUM_HASH_OUT_ELTS],
@@ -155,12 +155,17 @@ impl SubCircuitInputs {
         }
     }
 
-    fn build_helper<F: RichField + Extendable<D>, const D: usize>(
+    #[must_use]
+    pub fn build_branch<F: RichField + Extendable<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
-        left: SubCircuitInputs,
-        right: SubCircuitInputs,
+        indices: &PublicIndices,
+        left_proof: &ProofWithPublicInputsTarget<D>,
+        right_proof: &ProofWithPublicInputsTarget<D>,
     ) -> BranchTargets {
+        let left = Self::direction_from_node(left_proof, indices);
+        let right = Self::direction_from_node(right_proof, indices);
+
         let l_present = left.summary_hash_present;
         let l_hash = left.summary_hash.elements;
         let r_present = right.summary_hash_present;
@@ -182,68 +187,25 @@ impl SubCircuitInputs {
             right,
         }
     }
-
-    #[must_use]
-    pub fn from_leaf<F: RichField + Extendable<D>, const D: usize>(
-        self,
-        builder: &mut CircuitBuilder<F, D>,
-        leaf: &LeafSubCircuit,
-        left_proof: &ProofWithPublicInputsTarget<D>,
-        right_proof: &ProofWithPublicInputsTarget<D>,
-    ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, &leaf.indices);
-        let right = Self::direction_from_node(right_proof, &leaf.indices);
-        self.build_helper(builder, left, right)
-    }
-
-    pub fn from_branch<F: RichField + Extendable<D>, const D: usize>(
-        self,
-        builder: &mut CircuitBuilder<F, D>,
-        branch: &BranchSubCircuit,
-        left_proof: &ProofWithPublicInputsTarget<D>,
-        right_proof: &ProofWithPublicInputsTarget<D>,
-    ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, &branch.indices);
-        let right = Self::direction_from_node(right_proof, &branch.indices);
-        self.build_helper(builder, left, right)
-    }
 }
 
 pub struct BranchSubCircuit {
     pub targets: BranchTargets,
     pub indices: PublicIndices,
-    /// The distance from the leaves (`0` being the lowest branch)
-    /// Used for debugging
-    pub dbg_height: usize,
 }
 
 impl BranchTargets {
-    fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices {
-        PublicIndices {
+    #[must_use]
+    pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit {
+        let indices = PublicIndices {
             summary_hash_present: find_bool(public_inputs, self.inputs.summary_hash_present),
             summary_hash: find_hash(public_inputs, self.inputs.summary_hash),
-        }
-    }
+        };
+        debug_assert_eq!(indices, *child);
 
-    #[must_use]
-    pub fn from_leaf(self, public_inputs: &[Target]) -> BranchSubCircuit {
         BranchSubCircuit {
-            indices: self.get_indices(public_inputs),
+            indices,
             targets: self,
-            dbg_height: 0,
-        }
-    }
-
-    #[must_use]
-    pub fn from_branch(
-        self,
-        branch: &BranchSubCircuit,
-        public_inputs: &[Target],
-    ) -> BranchSubCircuit {
-        BranchSubCircuit {
-            indices: self.get_indices(public_inputs),
-            targets: self,
-            dbg_height: branch.dbg_height + 1,
         }
     }
 }
@@ -280,12 +242,12 @@ mod test {
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::recproof::unbounded;
+    use crate::recproof::bounded;
     use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
 
     pub struct DummyLeafCircuit {
+        pub bounded: bounded::LeafSubCircuit,
         pub summarized: LeafSubCircuit,
-        pub unbounded: unbounded::LeafSubCircuit,
         pub circuit: CircuitData<F, C, D>,
     }
 
@@ -294,27 +256,28 @@ mod test {
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
+            let bounded_inputs = bounded::SubCircuitInputs::default(&mut builder);
             let summarized_inputs = SubCircuitInputs::default(&mut builder);
+
+            let bounded_targets = bounded_inputs.build_leaf(&mut builder);
             let summarized_targets = summarized_inputs.build_leaf(&mut builder);
 
-            let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
+            let circuit = builder.build();
+
+            let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
             let summarized = summarized_targets.build(&circuit.prover_only.public_inputs);
 
             Self {
+                bounded,
                 summarized,
-                unbounded,
                 circuit,
             }
         }
 
-        pub fn prove(
-            &self,
-            summary_hash: HashOut<F>,
-            branch: &DummyBranchCircuit,
-        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        pub fn prove(&self, summary_hash: HashOut<F>) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
+            self.bounded.set_witness(&mut inputs);
             self.summarized.set_witness(&mut inputs, summary_hash);
-            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
 
@@ -322,105 +285,86 @@ mod test {
             &self,
             summary_hash_present: bool,
             summary_hash: HashOut<F>,
-            branch: &DummyBranchCircuit,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
+            self.bounded.set_witness(&mut inputs);
             self.summarized
                 .set_witness_unsafe(&mut inputs, summary_hash_present, summary_hash);
-            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
     }
 
     pub struct DummyBranchCircuit {
+        pub bounded: bounded::BranchSubCircuit<D>,
         pub summarized: BranchSubCircuit,
-        pub unbounded: unbounded::BranchSubCircuit,
         pub circuit: CircuitData<F, C, D>,
-        pub targets: DummyBranchTargets,
-    }
-
-    pub struct DummyBranchTargets {
-        pub left_is_leaf: BoolTarget,
-        pub right_is_leaf: BoolTarget,
-        pub left_proof: ProofWithPublicInputsTarget<D>,
-        pub right_proof: ProofWithPublicInputsTarget<D>,
     }
 
     impl DummyBranchCircuit {
         #[must_use]
-        pub fn new(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
+        pub fn new(
+            circuit_config: &CircuitConfig,
+            indicies: &PublicIndices,
+            child: &CircuitData<F, C, D>,
+        ) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-            let circuit_data = &leaf.circuit;
-            let common = &circuit_data.common;
-            let left_is_leaf = builder.add_virtual_bool_target_safe();
-            let right_is_leaf = builder.add_virtual_bool_target_safe();
-            let left_proof = builder.add_virtual_proof_with_pis(common);
-            let right_proof = builder.add_virtual_proof_with_pis(common);
+            let bounded_inputs = bounded::SubCircuitInputs::default(&mut builder);
             let summarized_inputs = SubCircuitInputs::default(&mut builder);
 
-            let summarized_targets = summarized_inputs.from_leaf(
+            let bounded_targets = bounded_inputs.build_branch(&mut builder, child);
+            let summarized_targets = summarized_inputs.build_branch(
                 &mut builder,
-                &leaf.summarized,
-                &left_proof,
-                &right_proof,
+                indicies,
+                &bounded_targets.left_proof,
+                &bounded_targets.right_proof,
             );
 
-            let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
-                builder,
-                &leaf.circuit,
-                left_is_leaf,
-                right_is_leaf,
-                &left_proof,
-                &right_proof,
-            );
-            let targets = DummyBranchTargets {
-                left_is_leaf,
-                right_is_leaf,
-                left_proof,
-                right_proof,
-            };
-            let summarized = summarized_targets.from_leaf(&circuit.prover_only.public_inputs);
+            let circuit = builder.build();
+
+            let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
+            let summarized = summarized_targets.build(indicies, &circuit.prover_only.public_inputs);
 
             Self {
+                bounded,
                 summarized,
-                unbounded,
                 circuit,
-                targets,
             }
+        }
+
+        #[must_use]
+        pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
+            Self::new(circuit_config, &leaf.summarized.indices, &leaf.circuit)
+        }
+
+        #[must_use]
+        pub fn from_branch(circuit_config: &CircuitConfig, branch: &Self) -> Self {
+            Self::new(circuit_config, &branch.summarized.indices, &branch.circuit)
         }
 
         pub fn prove(
             &self,
-            left_is_leaf: bool,
-            right_is_leaf: bool,
+            summary_hash: HashOut<F>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_proof: &ProofWithPublicInputs<F, C, D>,
-            summary_hash: HashOut<F>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
-            inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
-            inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
-            inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
+            self.bounded
+                .set_witness(&mut inputs, left_proof, right_proof);
             self.summarized.set_witness(&mut inputs, summary_hash);
             self.circuit.prove(inputs)
         }
 
         fn prove_unsafe(
             &self,
-            left_is_leaf: bool,
-            right_is_leaf: bool,
-            left_proof: &ProofWithPublicInputs<F, C, D>,
-            right_proof: &ProofWithPublicInputs<F, C, D>,
             summary_hash_present: bool,
             summary_hash: HashOut<F>,
+            left_proof: &ProofWithPublicInputs<F, C, D>,
+            right_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
-            inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
-            inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
-            inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
+            self.bounded
+                .set_witness(&mut inputs, left_proof, right_proof);
             self.summarized
                 .set_witness_unsafe(&mut inputs, summary_hash_present, summary_hash);
             self.circuit.prove(inputs)
@@ -431,7 +375,9 @@ mod test {
 
     lazy_static! {
         static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
-        static ref BRANCH: DummyBranchCircuit = DummyBranchCircuit::new(&CONFIG, &LEAF);
+        static ref BRANCH_1: DummyBranchCircuit = DummyBranchCircuit::from_leaf(&CONFIG, &LEAF);
+        static ref BRANCH_2: DummyBranchCircuit =
+            DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1);
     }
 
     #[test]
@@ -439,10 +385,10 @@ mod test {
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let non_zero_hash = hash_str("Non-Zero Hash");
 
-        let proof = LEAF.prove(zero_hash, &BRANCH)?;
+        let proof = LEAF.prove(zero_hash)?;
         LEAF.circuit.verify(proof)?;
 
-        let proof = LEAF.prove(non_zero_hash, &BRANCH)?;
+        let proof = LEAF.prove(non_zero_hash)?;
         LEAF.circuit.verify(proof)?;
 
         Ok(())
@@ -453,7 +399,7 @@ mod test {
     fn bad_zero_leaf() {
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
 
-        let proof = LEAF.prove_unsafe(true, zero_hash, &BRANCH).unwrap();
+        let proof = LEAF.prove_unsafe(true, zero_hash).unwrap();
         LEAF.circuit.verify(proof).unwrap();
     }
 
@@ -462,7 +408,7 @@ mod test {
     fn bad_non_zero_leaf() {
         let non_zero_hash = hash_str("Non-Zero Hash");
 
-        let proof = LEAF.prove_unsafe(false, non_zero_hash, &BRANCH).unwrap();
+        let proof = LEAF.prove_unsafe(false, non_zero_hash).unwrap();
         LEAF.circuit.verify(proof).unwrap();
     }
 
@@ -475,138 +421,80 @@ mod test {
         let both_hash = hash_branch(&non_zero_hash_1, &non_zero_hash_2);
 
         // Leaf proofs
-        let zero_proof = LEAF.prove(zero_hash, &BRANCH)?;
+        let zero_proof = LEAF.prove(zero_hash)?;
         LEAF.circuit.verify(zero_proof.clone())?;
 
-        let non_zero_proof_1 = LEAF.prove(non_zero_hash_1, &BRANCH)?;
+        let non_zero_proof_1 = LEAF.prove(non_zero_hash_1)?;
         LEAF.circuit.verify(non_zero_proof_1.clone())?;
 
-        let non_zero_proof_2 = LEAF.prove(non_zero_hash_2, &BRANCH)?;
+        let non_zero_proof_2 = LEAF.prove(non_zero_hash_2)?;
         LEAF.circuit.verify(non_zero_proof_2.clone())?;
 
         // Branch proofs
-        let empty_branch_proof = BRANCH.prove(true, true, &zero_proof, &zero_proof, zero_hash)?;
-        BRANCH.circuit.verify(empty_branch_proof.clone())?;
+        let empty_branch_proof = BRANCH_1.prove(zero_hash, &zero_proof, &zero_proof)?;
+        BRANCH_1.circuit.verify(empty_branch_proof.clone())?;
 
-        let left1_branch_proof =
-            BRANCH.prove(true, true, &non_zero_proof_1, &zero_proof, non_zero_hash_1)?;
-        BRANCH.circuit.verify(left1_branch_proof.clone())?;
+        let left1_branch_proof = BRANCH_1.prove(non_zero_hash_1, &non_zero_proof_1, &zero_proof)?;
+        BRANCH_1.circuit.verify(left1_branch_proof.clone())?;
 
-        let left2_branch_proof =
-            BRANCH.prove(true, true, &non_zero_proof_2, &zero_proof, non_zero_hash_2)?;
-        BRANCH.circuit.verify(left2_branch_proof.clone())?;
+        let left2_branch_proof = BRANCH_1.prove(non_zero_hash_2, &non_zero_proof_2, &zero_proof)?;
+        BRANCH_1.circuit.verify(left2_branch_proof.clone())?;
 
         let right1_branch_proof =
-            BRANCH.prove(true, true, &zero_proof, &non_zero_proof_1, non_zero_hash_1)?;
-        BRANCH.circuit.verify(right1_branch_proof.clone())?;
+            BRANCH_1.prove(non_zero_hash_1, &zero_proof, &non_zero_proof_1)?;
+        BRANCH_1.circuit.verify(right1_branch_proof.clone())?;
 
         let right2_branch_proof =
-            BRANCH.prove(true, true, &zero_proof, &non_zero_proof_2, non_zero_hash_2)?;
-        BRANCH.circuit.verify(right2_branch_proof.clone())?;
+            BRANCH_1.prove(non_zero_hash_2, &zero_proof, &non_zero_proof_2)?;
+        BRANCH_1.circuit.verify(right2_branch_proof.clone())?;
 
-        let both_branch_proof =
-            BRANCH.prove(true, true, &non_zero_proof_1, &non_zero_proof_2, both_hash)?;
-        BRANCH.circuit.verify(both_branch_proof.clone())?;
+        let both_branch_proof = BRANCH_1.prove(both_hash, &non_zero_proof_1, &non_zero_proof_2)?;
+        BRANCH_1.circuit.verify(both_branch_proof.clone())?;
 
         // Double branch proofs
-        let empty_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &empty_branch_proof,
-            &empty_branch_proof,
-            zero_hash,
-        )?;
-        BRANCH.circuit.verify(empty_branch_2_proof)?;
+        let empty_branch_2_proof =
+            BRANCH_2.prove(zero_hash, &empty_branch_proof, &empty_branch_proof)?;
+        BRANCH_2.circuit.verify(empty_branch_2_proof)?;
 
-        let left_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &left1_branch_proof,
-            &empty_branch_proof,
-            non_zero_hash_1,
-        )?;
-        BRANCH.circuit.verify(left_branch_2_proof)?;
+        let left_branch_2_proof =
+            BRANCH_2.prove(non_zero_hash_1, &left1_branch_proof, &empty_branch_proof)?;
+        BRANCH_2.circuit.verify(left_branch_2_proof)?;
 
-        let left_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &empty_branch_proof,
-            &left1_branch_proof,
-            non_zero_hash_1,
-        )?;
-        BRANCH.circuit.verify(left_branch_2_proof)?;
+        let left_branch_2_proof =
+            BRANCH_2.prove(non_zero_hash_1, &empty_branch_proof, &left1_branch_proof)?;
+        BRANCH_2.circuit.verify(left_branch_2_proof)?;
 
-        let right_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &right2_branch_proof,
-            &empty_branch_proof,
-            non_zero_hash_2,
-        )?;
-        BRANCH.circuit.verify(right_branch_2_proof)?;
+        let right_branch_2_proof =
+            BRANCH_2.prove(non_zero_hash_2, &right2_branch_proof, &empty_branch_proof)?;
+        BRANCH_2.circuit.verify(right_branch_2_proof)?;
 
-        let right_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &empty_branch_proof,
-            &right2_branch_proof,
-            non_zero_hash_2,
-        )?;
-        BRANCH.circuit.verify(right_branch_2_proof)?;
+        let right_branch_2_proof =
+            BRANCH_2.prove(non_zero_hash_2, &empty_branch_proof, &right2_branch_proof)?;
+        BRANCH_2.circuit.verify(right_branch_2_proof)?;
 
-        let both_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &left1_branch_proof,
-            &left2_branch_proof,
-            both_hash,
-        )?;
-        BRANCH.circuit.verify(both_branch_2_proof)?;
+        let both_branch_2_proof =
+            BRANCH_2.prove(both_hash, &left1_branch_proof, &left2_branch_proof)?;
+        BRANCH_2.circuit.verify(both_branch_2_proof)?;
 
-        let both_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &left1_branch_proof,
-            &right2_branch_proof,
-            both_hash,
-        )?;
-        BRANCH.circuit.verify(both_branch_2_proof)?;
+        let both_branch_2_proof =
+            BRANCH_2.prove(both_hash, &left1_branch_proof, &right2_branch_proof)?;
+        BRANCH_2.circuit.verify(both_branch_2_proof)?;
 
-        let both_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &right1_branch_proof,
-            &left2_branch_proof,
-            both_hash,
-        )?;
-        BRANCH.circuit.verify(both_branch_2_proof)?;
+        let both_branch_2_proof =
+            BRANCH_2.prove(both_hash, &right1_branch_proof, &left2_branch_proof)?;
+        BRANCH_2.circuit.verify(both_branch_2_proof)?;
 
-        let both_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &right1_branch_proof,
-            &right2_branch_proof,
-            both_hash,
-        )?;
-        BRANCH.circuit.verify(both_branch_2_proof)?;
+        let both_branch_2_proof =
+            BRANCH_2.prove(both_hash, &right1_branch_proof, &right2_branch_proof)?;
+        BRANCH_2.circuit.verify(both_branch_2_proof)?;
 
-        let both_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &both_branch_proof,
-            &empty_branch_proof,
-            both_hash,
-        )?;
-        BRANCH.circuit.verify(both_branch_2_proof)?;
+        let both_branch_2_proof =
+            BRANCH_2.prove(both_hash, &both_branch_proof, &empty_branch_proof)?;
+        BRANCH_2.circuit.verify(both_branch_2_proof)?;
 
-        let both_branch_2_proof = BRANCH.prove(
-            false,
-            false,
-            &empty_branch_proof,
-            &both_branch_proof,
-            both_hash,
-        )?;
-        BRANCH.circuit.verify(both_branch_2_proof)?;
+        let both_branch_2_proof =
+            BRANCH_2.prove(both_hash, &empty_branch_proof, &both_branch_proof)?;
+        BRANCH_2.circuit.verify(both_branch_2_proof)?;
 
         Ok(())
     }
@@ -616,15 +504,13 @@ mod test {
     fn bad_proof_branch() {
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
 
-        let zero_proof = LEAF.prove(zero_hash, &BRANCH).unwrap();
+        let zero_proof = LEAF.prove(zero_hash).unwrap();
         LEAF.circuit.verify(zero_proof.clone()).unwrap();
 
-        let bad_proof = LEAF.prove_unsafe(true, zero_hash, &BRANCH).unwrap();
+        let bad_proof = LEAF.prove_unsafe(true, zero_hash).unwrap();
 
-        let empty_branch_proof = BRANCH
-            .prove(true, true, &zero_proof, &bad_proof, zero_hash)
-            .unwrap();
-        BRANCH.circuit.verify(empty_branch_proof).unwrap();
+        let empty_branch_proof = BRANCH_1.prove(zero_hash, &zero_proof, &bad_proof).unwrap();
+        BRANCH_1.circuit.verify(empty_branch_proof).unwrap();
     }
 
     #[test]
@@ -632,13 +518,13 @@ mod test {
     fn bad_zero_branch() {
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
 
-        let zero_proof = LEAF.prove(zero_hash, &BRANCH).unwrap();
+        let zero_proof = LEAF.prove(zero_hash).unwrap();
         LEAF.circuit.verify(zero_proof.clone()).unwrap();
 
-        let branch_proof = BRANCH
-            .prove_unsafe(true, true, &zero_proof, &zero_proof, true, zero_hash)
+        let branch_proof = BRANCH_1
+            .prove_unsafe(true, zero_hash, &zero_proof, &zero_proof)
             .unwrap();
-        BRANCH.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(branch_proof).unwrap();
     }
 
     #[test]
@@ -647,23 +533,16 @@ mod test {
         let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let non_zero_hash = hash_str("Non-Zero Hash");
 
-        let zero_proof = LEAF.prove(zero_hash, &BRANCH).unwrap();
+        let zero_proof = LEAF.prove(zero_hash).unwrap();
         LEAF.circuit.verify(zero_proof.clone()).unwrap();
 
-        let non_zero_proof = LEAF.prove(non_zero_hash, &BRANCH).unwrap();
+        let non_zero_proof = LEAF.prove(non_zero_hash).unwrap();
         LEAF.circuit.verify(non_zero_proof.clone()).unwrap();
 
-        let branch_proof = BRANCH
-            .prove_unsafe(
-                true,
-                true,
-                &zero_proof,
-                &non_zero_proof,
-                false,
-                non_zero_hash,
-            )
+        let branch_proof = BRANCH_1
+            .prove_unsafe(false, non_zero_hash, &zero_proof, &non_zero_proof)
             .unwrap();
-        BRANCH.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(branch_proof).unwrap();
     }
 
     #[test]
@@ -672,21 +551,15 @@ mod test {
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2");
 
-        let non_zero_proof_1 = LEAF.prove(non_zero_hash_1, &BRANCH).unwrap();
+        let non_zero_proof_1 = LEAF.prove(non_zero_hash_1).unwrap();
         LEAF.circuit.verify(non_zero_proof_1.clone()).unwrap();
 
-        let non_zero_proof_2 = LEAF.prove(non_zero_hash_2, &BRANCH).unwrap();
+        let non_zero_proof_2 = LEAF.prove(non_zero_hash_2).unwrap();
         LEAF.circuit.verify(non_zero_proof_2.clone()).unwrap();
 
-        let branch_proof = BRANCH
-            .prove(
-                true,
-                true,
-                &non_zero_proof_1,
-                &non_zero_proof_2,
-                non_zero_hash_1,
-            )
+        let branch_proof = BRANCH_1
+            .prove(non_zero_hash_1, &non_zero_proof_1, &non_zero_proof_2)
             .unwrap();
-        BRANCH.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(branch_proof).unwrap();
     }
 }

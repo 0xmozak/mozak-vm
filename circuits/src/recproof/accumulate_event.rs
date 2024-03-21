@@ -1,12 +1,11 @@
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::BoolTarget;
-use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
+use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::state_from_event::EventType;
 use super::{hash_event, state_from_event, unbounded, unpruned};
@@ -15,9 +14,9 @@ pub struct LeafCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    pub unbounded: unbounded::LeafSubCircuit,
     pub event_hash: unpruned::LeafSubCircuit,
     pub partial_state: state_from_event::LeafSubCircuit,
-    pub unbounded: unbounded::LeafSubCircuit,
     pub circuit: CircuitData<F, C, D>,
 }
 
@@ -31,9 +30,11 @@ where
     pub fn new(circuit_config: &CircuitConfig) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
+        let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let partial_state_inputs = state_from_event::SubCircuitInputs::default(&mut builder);
 
+        let unbounded_targets = unbounded_inputs.build_leaf::<F, C, D>(&mut builder);
         let event_hash_targets = event_hash_inputs.build_leaf(&mut builder);
         let partial_state_targets = partial_state_inputs.build_leaf(&mut builder);
 
@@ -46,15 +47,16 @@ where
         );
         builder.connect_hashes(event_hash_calc, event_hash_targets.inputs.unpruned_hash);
 
-        let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
+        let circuit = builder.build();
 
+        let unbounded = unbounded_targets.build(&circuit.prover_only.public_inputs);
         let event_hash = event_hash_targets.build(&circuit.prover_only.public_inputs);
         let partial_state = partial_state_targets.build(&circuit.prover_only.public_inputs);
 
         Self {
+            unbounded,
             event_hash,
             partial_state,
-            unbounded,
             circuit,
         }
     }
@@ -68,9 +70,9 @@ where
         event_value: [F; 4],
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
+        self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.partial_state
             .set_witness(&mut inputs, address, event_owner, event_ty, event_value);
-        self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.circuit.prove(inputs)
     }
 }
@@ -79,18 +81,10 @@ pub struct BranchCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    pub unbounded: unbounded::BranchSubCircuit<D>,
     pub event_hash: unpruned::BranchSubCircuit,
     pub partial_state: state_from_event::BranchSubCircuit,
-    pub unbounded: unbounded::BranchSubCircuit,
     pub circuit: CircuitData<F, C, D>,
-    pub targets: BranchTargets<D>,
-}
-
-pub struct BranchTargets<const D: usize> {
-    pub left_is_leaf: BoolTarget,
-    pub right_is_leaf: BoolTarget,
-    pub left_proof: ProofWithPublicInputsTarget<D>,
-    pub right_proof: ProofWithPublicInputsTarget<D>,
 }
 
 impl<F, C, const D: usize> BranchCircuit<F, C, D>
@@ -103,51 +97,42 @@ where
     pub fn new(circuit_config: &CircuitConfig, leaf: &LeafCircuit<F, C, D>) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
+        let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let partial_state_inputs = state_from_event::SubCircuitInputs::default(&mut builder);
 
-        let common = &leaf.circuit.common;
-        let left_proof = builder.add_virtual_proof_with_pis(common);
-        let right_proof = builder.add_virtual_proof_with_pis(common);
-        let left_is_leaf = builder.add_virtual_bool_target_safe();
-        let right_is_leaf = builder.add_virtual_bool_target_safe();
-        let event_hash_targets = event_hash_inputs.from_leaf(
+        let unbounded_targets =
+            unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
+        let event_hash_targets = event_hash_inputs.build_branch(
             &mut builder,
-            &leaf.event_hash,
-            &left_proof,
-            &right_proof,
+            &leaf.event_hash.indices,
+            &unbounded_targets.left_proof,
+            &unbounded_targets.right_proof,
             false,
         );
-        let partial_state_targets = partial_state_inputs.from_leaf(
+        let partial_state_targets = partial_state_inputs.build_branch(
             &mut builder,
-            &leaf.partial_state,
-            &left_proof,
-            &right_proof,
+            &leaf.partial_state.indices,
+            &unbounded_targets.left_proof,
+            &unbounded_targets.right_proof,
         );
 
-        let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
-            builder,
-            &leaf.circuit,
-            left_is_leaf,
-            right_is_leaf,
-            &left_proof,
-            &right_proof,
+        let circuit = builder.build();
+
+        let unbounded =
+            unbounded_targets.build(&leaf.unbounded, &circuit.prover_only.public_inputs);
+        let event_hash =
+            event_hash_targets.build(&leaf.event_hash.indices, &circuit.prover_only.public_inputs);
+        let partial_state = partial_state_targets.build(
+            &leaf.partial_state.indices,
+            &circuit.prover_only.public_inputs,
         );
-        let event_hash = event_hash_targets.from_leaf(&circuit.prover_only.public_inputs);
-        let partial_state = partial_state_targets.from_leaf(&circuit.prover_only.public_inputs);
-        let targets = BranchTargets {
-            left_is_leaf,
-            right_is_leaf,
-            left_proof,
-            right_proof,
-        };
 
         Self {
+            unbounded,
             event_hash,
             partial_state,
-            unbounded,
             circuit,
-            targets,
         }
     }
 
@@ -159,15 +144,18 @@ where
         right_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
+        self.unbounded.set_witness(
+            &mut inputs,
+            left_is_leaf,
+            right_is_leaf,
+            left_proof,
+            right_proof,
+        );
         self.partial_state.set_witness_from_proofs(
             &mut inputs,
             &left_proof.public_inputs,
             &right_proof.public_inputs,
         );
-        inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
-        inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
-        inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
-        inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
         self.circuit.prove(inputs)
     }
 }

@@ -8,15 +8,15 @@ use mozak_circuits::test_utils::{hash_branch, hash_str, C, D, F};
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
-use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::Hasher;
-use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
+use plonky2::plonk::proof::ProofWithPublicInputs;
 
 pub struct DummyLeafCircuit {
-    pub make_tree: make_tree::LeafSubCircuit,
     pub unbounded: unbounded::LeafSubCircuit,
+    pub make_tree: make_tree::LeafSubCircuit,
     pub circuit: CircuitData<F, C, D>,
 }
 
@@ -25,10 +25,15 @@ impl DummyLeafCircuit {
     pub fn new(circuit_config: &CircuitConfig) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
+        let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let make_tree_inputs = make_tree::SubCircuitInputs::default(&mut builder);
+
+        let unbounded_targets = unbounded_inputs.build_leaf::<F, C, D>(&mut builder);
         let make_tree_targets = make_tree_inputs.build_leaf(&mut builder);
 
-        let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
+        let circuit = builder.build();
+
+        let unbounded = unbounded_targets.build(&circuit.prover_only.public_inputs);
         let make_tree = make_tree_targets.build(&circuit.prover_only.public_inputs);
 
         Self {
@@ -52,50 +57,48 @@ impl DummyLeafCircuit {
 }
 
 pub struct DummyBranchCircuit {
+    pub unbounded: unbounded::BranchSubCircuit<D>,
     pub make_tree: make_tree::BranchSubCircuit,
-    pub unbounded: unbounded::BranchSubCircuit,
     pub circuit: CircuitData<F, C, D>,
-    pub targets: DummyBranchTargets,
-}
-
-pub struct DummyBranchTargets {
-    pub left_proof: ProofWithPublicInputsTarget<D>,
-    pub right_proof: ProofWithPublicInputsTarget<D>,
 }
 
 impl DummyBranchCircuit {
     #[must_use]
     pub fn new(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-        let common = &leaf.circuit.common;
-        let left_proof = builder.add_virtual_proof_with_pis(common);
-        let right_proof = builder.add_virtual_proof_with_pis(common);
 
+        let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let make_tree_inputs = make_tree::SubCircuitInputs::default(&mut builder);
-        let make_tree_targets =
-            make_tree_inputs.build_branch(&mut builder, &leaf.make_tree, &left_proof, &right_proof);
 
-        let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
-            builder,
-            &leaf.circuit,
-            make_tree_targets.left_is_leaf,
-            make_tree_targets.right_is_leaf,
-            &left_proof,
-            &right_proof,
+        let unbounded_targets =
+            unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
+        let make_tree_targets = make_tree_inputs.build_branch(
+            &mut builder,
+            &leaf.make_tree.indices,
+            &unbounded_targets.left_proof,
+            &unbounded_targets.right_proof,
         );
 
-        let targets = DummyBranchTargets {
-            left_proof,
-            right_proof,
-        };
+        builder.connect(
+            unbounded_targets.left_is_leaf.target,
+            make_tree_targets.left_is_leaf.target,
+        );
+        builder.connect(
+            unbounded_targets.right_is_leaf.target,
+            make_tree_targets.right_is_leaf.target,
+        );
+
+        let circuit = builder.build();
+
+        let unbounded =
+            unbounded_targets.build(&leaf.unbounded, &circuit.prover_only.public_inputs);
         let make_tree =
-            make_tree_targets.build(&leaf.make_tree, &circuit.prover_only.public_inputs);
+            make_tree_targets.build(&leaf.make_tree.indices, &circuit.prover_only.public_inputs);
 
         Self {
             make_tree,
             unbounded,
             circuit,
-            targets,
         }
     }
 
@@ -107,9 +110,9 @@ impl DummyBranchCircuit {
         right_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
+        self.unbounded
+            .set_partial_witness(&mut inputs, left_proof, right_proof);
         self.make_tree.set_witness(&mut inputs, hash, leaf_value);
-        inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
-        inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
         self.circuit.prove(inputs)
     }
 }
@@ -167,23 +170,23 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
     // Branch proofs
     let branch_00_and_01_proof = branch_circuit_1
         .prove(
-            &zero_proof,
-            &proof_0_to_1_id_3,
             hash_0_and_0,
             hash_0_and_1,
             slot_3_r0w1,
             (),
+            &zero_proof,
+            &proof_0_to_1_id_3,
         )
         .unwrap();
 
     let branch_01_and_00_proof = branch_circuit_1
         .prove(
-            &proof_0_to_1_id_4,
-            &zero_proof,
             hash_0_and_0,
             hash_1_and_0,
             slot_4_r0w1,
             (),
+            &proof_0_to_1_id_4,
+            &zero_proof,
         )
         .unwrap();
 
@@ -208,12 +211,12 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
         b.iter(|| {
             branch_circuit_1
                 .prove(
-                    &zero_proof,
-                    &proof_0_to_1_id_3,
                     hash_0_and_0,
                     hash_0_and_1,
                     slot_3_r0w1,
                     (),
+                    &zero_proof,
+                    &proof_0_to_1_id_3,
                 )
                 .unwrap()
         })
@@ -231,12 +234,12 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
         b.iter(|| {
             branch_circuit_2
                 .prove(
-                    &branch_00_and_01_proof,
-                    &branch_01_and_00_proof,
                     hash_00_and_00,
                     hash_01_and_10,
                     slot_3_and_4,
                     (),
+                    &branch_00_and_01_proof,
+                    &branch_01_and_00_proof,
                 )
                 .unwrap()
         })

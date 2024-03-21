@@ -2,17 +2,18 @@ use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
-use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
+use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::{at_least_one_true, hashes_equal, summarized, unpruned, verify_address};
+use super::{at_least_one_true, bounded, hashes_equal, summarized, unpruned, verify_address};
 pub struct LeafCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    pub bounded: bounded::LeafSubCircuit,
     pub summarized: summarized::LeafSubCircuit,
     pub old: unpruned::LeafSubCircuit,
     pub new: unpruned::LeafSubCircuit,
@@ -29,19 +30,21 @@ where
     pub fn new(circuit_config: &CircuitConfig) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
+        let bounded_inputs = bounded::SubCircuitInputs::default(&mut builder);
         let summarized_inputs = summarized::SubCircuitInputs::default(&mut builder);
         let old_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let new_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let address_inputs = verify_address::LeafInputs {
+        let address_inputs = verify_address::SubCircuitInputs {
             node_address: builder.add_virtual_target(),
             node_present: summarized_inputs.summary_hash_present,
         };
         builder.register_public_input(address_inputs.node_address);
 
+        let bounded_targets = bounded_inputs.build_leaf(&mut builder);
         let summarized_targets = summarized_inputs.build_leaf(&mut builder);
         let old_targets = old_inputs.build_leaf(&mut builder);
         let new_targets = new_inputs.build_leaf(&mut builder);
-        let address_targets = address_inputs.build(&mut builder);
+        let address_targets = address_inputs.build_leaf(&mut builder);
 
         let old_hash = old_targets.inputs.unpruned_hash;
         let new_hash = new_targets.inputs.unpruned_hash;
@@ -73,12 +76,14 @@ where
 
         let circuit = builder.build();
 
+        let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
         let summarized = summarized_targets.build(&circuit.prover_only.public_inputs);
         let old = old_targets.build(&circuit.prover_only.public_inputs);
         let new = new_targets.build(&circuit.prover_only.public_inputs);
         let address = address_targets.build(&circuit.prover_only.public_inputs);
 
         Self {
+            bounded,
             summarized,
             old,
             new,
@@ -95,6 +100,7 @@ where
         address: Option<u64>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
+        self.bounded.set_witness(&mut inputs);
         self.summarized.set_witness(&mut inputs, summary_hash);
         self.old.set_witness(&mut inputs, old_hash);
         self.new.set_witness(&mut inputs, new_hash);
@@ -107,17 +113,12 @@ pub struct BranchCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    pub bounded: bounded::BranchSubCircuit<D>,
     pub summarized: summarized::BranchSubCircuit,
     pub old: unpruned::BranchSubCircuit,
     pub new: unpruned::BranchSubCircuit,
     pub address: verify_address::BranchSubCircuit,
     pub circuit: CircuitData<F, C, D>,
-    pub targets: BranchTargets<D>,
-}
-
-pub struct BranchTargets<const D: usize> {
-    pub left_proof: ProofWithPublicInputsTarget<D>,
-    pub right_proof: ProofWithPublicInputsTarget<D>,
 }
 
 impl<F, C, const D: usize> BranchCircuit<F, C, D>
@@ -127,118 +128,111 @@ where
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
 {
     #[must_use]
-    pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &LeafCircuit<F, C, D>) -> Self {
+    pub fn new(
+        circuit_config: &CircuitConfig,
+        summarized_indicies: &summarized::PublicIndices,
+        old_indicies: &unpruned::PublicIndices,
+        new_indicies: &unpruned::PublicIndices,
+        address_indicies: &verify_address::PublicIndices,
+        child: &CircuitData<F, C, D>,
+    ) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-        let common = &leaf.circuit.common;
-        let verifier = builder.constant_verifier_data(&leaf.circuit.verifier_only);
-        let left_proof = builder.add_virtual_proof_with_pis(common);
-        let right_proof = builder.add_virtual_proof_with_pis(common);
+
+        let bounded_inputs = bounded::SubCircuitInputs::default(&mut builder);
         let summarized_inputs = summarized::SubCircuitInputs::default(&mut builder);
         let old_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let new_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let address_inputs = verify_address::BranchInputs {
+        let address_inputs = verify_address::SubCircuitInputs {
             node_address: builder.add_virtual_target(),
             node_present: summarized_inputs.summary_hash_present,
         };
         builder.register_public_input(address_inputs.node_address);
 
-        builder.verify_proof::<C>(&left_proof, &verifier, common);
-        builder.verify_proof::<C>(&right_proof, &verifier, common);
-        let summarized_targets =
-            summarized_inputs.from_leaf(&mut builder, &leaf.summarized, &left_proof, &right_proof);
-        let old_targets =
-            old_inputs.from_leaf(&mut builder, &leaf.old, &left_proof, &right_proof, false);
-        let new_targets =
-            new_inputs.from_leaf(&mut builder, &leaf.new, &left_proof, &right_proof, false);
-        let address_targets =
-            address_inputs.from_leaf(&mut builder, &leaf.address, &left_proof, &right_proof);
-        let targets = BranchTargets {
-            left_proof,
-            right_proof,
-        };
+        let bounded_targets = bounded_inputs.build_branch(&mut builder, child);
+        let summarized_targets = summarized_inputs.build_branch(
+            &mut builder,
+            summarized_indicies,
+            &bounded_targets.left_proof,
+            &bounded_targets.right_proof,
+        );
+        let old_targets = old_inputs.build_branch(
+            &mut builder,
+            old_indicies,
+            &bounded_targets.left_proof,
+            &bounded_targets.right_proof,
+            false,
+        );
+        let new_targets = new_inputs.build_branch(
+            &mut builder,
+            new_indicies,
+            &bounded_targets.left_proof,
+            &bounded_targets.right_proof,
+            false,
+        );
+        let address_targets = address_inputs.build_branch(
+            &mut builder,
+            address_indicies,
+            &bounded_targets.left_proof,
+            &bounded_targets.right_proof,
+        );
 
         let circuit = builder.build();
-        let summarized = summarized_targets.from_leaf(&circuit.prover_only.public_inputs);
-        let old = old_targets.from_leaf(&circuit.prover_only.public_inputs);
-        let new = new_targets.from_leaf(&circuit.prover_only.public_inputs);
-        let address = address_targets.from_leaf(&circuit.prover_only.public_inputs);
+
+        let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
+        let summarized =
+            summarized_targets.build(summarized_indicies, &circuit.prover_only.public_inputs);
+        let old = old_targets.build(old_indicies, &circuit.prover_only.public_inputs);
+        let new = new_targets.build(new_indicies, &circuit.prover_only.public_inputs);
+        let address = address_targets.build(address_indicies, &circuit.prover_only.public_inputs);
 
         Self {
+            bounded,
             summarized,
             old,
             new,
             address,
             circuit,
-            targets,
         }
     }
 
     #[must_use]
-    pub fn from_branch(circuit_config: &CircuitConfig, branch: &BranchCircuit<F, C, D>) -> Self {
-        let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-        let common = &branch.circuit.common;
-        let verifier = builder.constant_verifier_data(&branch.circuit.verifier_only);
-        let left_proof = builder.add_virtual_proof_with_pis(common);
-        let right_proof = builder.add_virtual_proof_with_pis(common);
-        let summarized_inputs = summarized::SubCircuitInputs::default(&mut builder);
-        let old_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let new_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let address_inputs = verify_address::BranchInputs {
-            node_address: builder.add_virtual_target(),
-            node_present: summarized_inputs.summary_hash_present,
-        };
-        builder.register_public_input(address_inputs.node_address);
+    pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &LeafCircuit<F, C, D>) -> Self {
+        Self::new(
+            circuit_config,
+            &leaf.summarized.indices,
+            &leaf.old.indices,
+            &leaf.new.indices,
+            &leaf.address.indices,
+            &leaf.circuit,
+        )
+    }
 
-        builder.verify_proof::<C>(&left_proof, &verifier, common);
-        builder.verify_proof::<C>(&right_proof, &verifier, common);
-        let summarized_targets = summarized_inputs.from_branch(
-            &mut builder,
-            &branch.summarized,
-            &left_proof,
-            &right_proof,
-        );
-        let old_targets =
-            old_inputs.from_branch(&mut builder, &branch.old, &left_proof, &right_proof, false);
-        let new_targets =
-            new_inputs.from_branch(&mut builder, &branch.new, &left_proof, &right_proof, false);
-        let address_targets =
-            address_inputs.from_branch(&mut builder, &branch.address, &left_proof, &right_proof);
-        let targets = BranchTargets {
-            left_proof,
-            right_proof,
-        };
-
-        let circuit = builder.build();
-        let summarized =
-            summarized_targets.from_branch(&branch.summarized, &circuit.prover_only.public_inputs);
-        let old = old_targets.from_branch(&branch.old, &circuit.prover_only.public_inputs);
-        let new = new_targets.from_branch(&branch.new, &circuit.prover_only.public_inputs);
-        let address = address_targets.from_leaf(&circuit.prover_only.public_inputs);
-
-        Self {
-            summarized,
-            old,
-            new,
-            address,
-            circuit,
-            targets,
-        }
+    #[must_use]
+    pub fn from_branch(circuit_config: &CircuitConfig, branch: &Self) -> Self {
+        Self::new(
+            circuit_config,
+            &branch.summarized.indices,
+            &branch.old.indices,
+            &branch.new.indices,
+            &branch.address.indices,
+            &branch.circuit,
+        )
     }
 
     pub fn prove(
         &self,
-        left_proof: &ProofWithPublicInputs<F, C, D>,
-        right_proof: &ProofWithPublicInputs<F, C, D>,
         old_hash: HashOut<F>,
         new_hash: HashOut<F>,
         summary_hash: HashOut<F>,
         address: impl Into<AddressPresent>,
+        left_proof: &ProofWithPublicInputs<F, C, D>,
+        right_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>>
     where
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
         let mut inputs = PartialWitness::new();
-        inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
-        inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
+        self.bounded
+            .set_witness(&mut inputs, left_proof, right_proof);
         self.summarized.set_witness(&mut inputs, summary_hash);
         self.old.set_witness(&mut inputs, old_hash);
         self.new.set_witness(&mut inputs, new_hash);
@@ -398,53 +392,53 @@ mod test {
 
         // Branch proofs
         let branch_00_and_00_proof = BRANCH_0.prove(
-            &zero_proof,
-            &zero_proof,
             hash_0_and_0,
             hash_0_and_0,
             zero_hash,
             (),
+            &zero_proof,
+            &zero_proof,
         )?;
         BRANCH_0.circuit.verify(branch_00_and_00_proof)?;
 
         let branch_00_and_01_proof = BRANCH_0.prove(
-            &zero_proof,
-            &proof_0_to_1_id_3,
             hash_0_and_0,
             hash_0_and_1,
             slot_3_r0w1,
             (),
+            &zero_proof,
+            &proof_0_to_1_id_3,
         )?;
         BRANCH_0.circuit.verify(branch_00_and_01_proof.clone())?;
 
         let branch_01_and_00_proof = BRANCH_0.prove(
-            &proof_0_to_1_id_4,
-            &zero_proof,
             hash_0_and_0,
             hash_1_and_0,
             slot_4_r0w1,
             (),
+            &proof_0_to_1_id_4,
+            &zero_proof,
         )?;
         BRANCH_0.circuit.verify(branch_01_and_00_proof.clone())?;
 
         let branch_01_and_01_proof = BRANCH_0.prove(
-            &proof_0_to_1_id_2,
-            &proof_0_to_1_id_3,
             hash_0_and_0,
             hash_1_and_1,
             slot_2_and_3,
             (),
+            &proof_0_to_1_id_2,
+            &proof_0_to_1_id_3,
         )?;
         BRANCH_0.circuit.verify(branch_01_and_01_proof)?;
 
         // Double branch proof
         let proof = BRANCH_1.prove(
-            &branch_00_and_01_proof,
-            &branch_01_and_00_proof,
             hash_00_and_00,
             hash_01_and_10,
             slot_3_and_4,
             (),
+            &branch_00_and_01_proof,
+            &branch_01_and_00_proof,
         )?;
         BRANCH_1.circuit.verify(proof)?;
 

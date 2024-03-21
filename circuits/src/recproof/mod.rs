@@ -10,6 +10,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::VerifierCircuitTarget;
 
 pub mod accumulate_event;
+pub mod bounded;
 pub mod make_tree;
 pub mod merge;
 pub mod propagate;
