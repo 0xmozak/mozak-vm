@@ -27,12 +27,6 @@ for profile in "${PROFILES[@]}"; do
                     echo "(mozak-cli) skipping (${profile}): ${bin}"
                     continue
                     ;;
-                "merkleproof-trustedroot")
-                    echo "(mozak-cli) skipping (${profile}): ${bin}"
-                    skipped="${skipped}${bin} (${profile})\n"
-                    continue
-                    ;;
-
             esac
 
             # shellcheck disable=SC2086
