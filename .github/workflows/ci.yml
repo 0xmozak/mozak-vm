@@ -215,4 +215,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sanity check rust analyzer on our codebase
-        run: nixdo RUST_BACKTRACE=full rust-analyzer analysis-stats .
+        run: nixdo RUST_BACKTRACE=full rust-analyzer --quiet analysis-stats .
