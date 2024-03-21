@@ -75,3 +75,46 @@ where
             .send(recipient_program, argument, resolver)
     }
 }
+
+pub enum InputTapeType {
+    PublicTape,
+    PrivateTape,
+}
+
+/// Reads given number of raw bytes from an input tape
+#[allow(clippy::missing_errors_doc)]
+#[cfg(all(feature = "std", feature = "stdread", target_os = "mozakvm"))]
+pub fn read(kind: &InputTapeType, buf: &mut [u8]) -> std::io::Result<usize> {
+    use std::io::Read;
+    match kind {
+        InputTapeType::PublicTape => unsafe {
+            crate::common::system::SYSTEM_TAPE
+                .public_input_tape
+                .read(buf)
+        },
+        InputTapeType::PrivateTape => unsafe {
+            crate::common::system::SYSTEM_TAPE
+                .private_input_tape
+                .read(buf)
+        },
+    }
+}
+
+/// Writes given number of raw bytes from an input tape
+#[allow(clippy::missing_errors_doc)]
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub fn write(kind: &InputTapeType, buf: &[u8]) -> std::io::Result<usize> {
+    use std::io::Write;
+    match kind {
+        InputTapeType::PublicTape => unsafe {
+            crate::common::system::SYSTEM_TAPE
+                .public_input_tape
+                .write(buf)
+        },
+        InputTapeType::PrivateTape => unsafe {
+            crate::common::system::SYSTEM_TAPE
+                .private_input_tape
+                .write(buf)
+        },
+    }
+}

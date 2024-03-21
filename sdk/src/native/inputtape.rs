@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::common::traits::SelfIdentify;
-use crate::common::types::ProgramIdentifier;
+use crate::common::types::{ProgramIdentifier, RawMessage};
 use crate::native::helpers::IdentityStack;
 
 /// Represents the `RawTape` under native execution
@@ -12,7 +12,7 @@ pub struct RawTape {
     #[serde(skip)]
     pub(crate) identity_stack: Rc<RefCell<IdentityStack>>,
     #[serde(rename = "individual_raw_tapes")]
-    pub writer: HashMap<ProgramIdentifier, Vec<u8>>,
+    pub writer: HashMap<ProgramIdentifier, RawMessage>,
 }
 
 impl std::fmt::Debug for RawTape {
@@ -38,8 +38,8 @@ impl std::io::Write for RawTape {
 
         self.writer
             .entry(self_id)
-            .and_modify(|x| x.extend(buf))
-            .or_insert(Vec::from(buf));
+            .and_modify(|x| x.0.extend(buf))
+            .or_insert(RawMessage::from(buf.to_vec()));
 
         Ok(buf.len())
     }
