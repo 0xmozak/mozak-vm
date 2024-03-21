@@ -7,28 +7,10 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{find_target, find_targets, maybe_connect};
+use super::{find_target, find_targets, maybe_connect, Event, EventType};
 
 // Limit transfers to 2^40 credits to avoid overflow issues
 const MAX_LEAF_TRANSFER: usize = 40;
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum EventType {
-    Write = 0,
-    Ensure = 1,
-    Read = 2,
-    GiveOwner = 3,
-    TakeOwner = 4,
-    CreditDelta = 5,
-}
-
-impl EventType {
-    fn constant<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> Target
-    where
-        F: RichField + Extendable<D>, {
-        builder.constant(F::from_canonical_u64(self as u64))
-    }
-}
 
 #[bitflags]
 #[repr(u8)]
@@ -402,15 +384,10 @@ pub struct LeafWitnessValue<F> {
 }
 
 impl<F: RichField> LeafWitnessValue<F> {
-    pub fn from_event(
-        address: u64,
-        event_owner: [F; 4],
-        event_ty: EventType,
-        event_value: [F; 4],
-    ) -> Self {
+    pub fn from_event(event: Event<F>) -> Self {
         let zero = [F::ZERO; 4];
 
-        let (object_flags, credit_delta) = match event_ty {
+        let (object_flags, credit_delta) = match event.ty {
             EventType::Write => (Flags::WriteFlag.into(), 0),
             EventType::Read => (Flags::ReadFlag.into(), 0),
             EventType::Ensure => (Flags::EnsureFlag.into(), 0),
@@ -418,8 +395,8 @@ impl<F: RichField> LeafWitnessValue<F> {
             EventType::TakeOwner => (Flags::TakeOwnerFlag.into(), 0),
             EventType::CreditDelta => {
                 #[allow(clippy::cast_possible_wrap)]
-                let value = event_value[0].to_canonical_u64() as i64;
-                let value = match event_value[3] {
+                let value = event.value[0].to_canonical_u64() as i64;
+                let value = match event.value[3] {
                     sign if sign.is_zero() => value,
                     sign if sign.is_one() => -value,
                     _ => unreachable!(),
@@ -428,48 +405,38 @@ impl<F: RichField> LeafWitnessValue<F> {
             }
         };
 
-        let (old_owner, new_owner) = match event_ty {
-            EventType::Write | EventType::CreditDelta => (event_owner, zero),
+        let (old_owner, new_owner) = match event.ty {
+            EventType::Write | EventType::CreditDelta => (event.owner, zero),
             EventType::Read | EventType::Ensure => (zero, zero),
-            EventType::GiveOwner => (event_owner, event_value),
-            EventType::TakeOwner => (event_value, event_owner),
+            EventType::GiveOwner => (event.owner, event.value),
+            EventType::TakeOwner => (event.value, event.owner),
         };
 
-        let (old_data, new_data) = match event_ty {
-            EventType::Write | EventType::Ensure => (zero, event_value),
-            EventType::Read => (event_value, zero),
+        let (old_data, new_data) = match event.ty {
+            EventType::Write | EventType::Ensure => (zero, event.value),
+            EventType::Read => (event.value, zero),
             EventType::GiveOwner | EventType::TakeOwner | EventType::CreditDelta => (zero, zero),
         };
 
         Self {
-            address,
+            address: event.address,
             object_flags,
             old_owner,
             new_owner,
             old_data,
             new_data,
             credit_delta,
-            event_owner,
-            event_ty: F::from_canonical_u64(event_ty as u64),
-            event_value,
+            event_owner: event.owner,
+            event_ty: F::from_canonical_u64(event.ty as u64),
+            event_value: event.value,
         }
     }
 }
 
 impl LeafSubCircuit {
     /// Get ready to generate a proof
-    pub fn set_witness<F: RichField>(
-        &self,
-        witness: &mut PartialWitness<F>,
-        address: u64,
-        event_owner: [F; 4],
-        event_ty: EventType,
-        event_value: [F; 4],
-    ) {
-        self.set_witness_unsafe(
-            witness,
-            LeafWitnessValue::from_event(address, event_owner, event_ty, event_value),
-        );
+    pub fn set_witness<F: RichField>(&self, witness: &mut PartialWitness<F>, event: Event<F>) {
+        self.set_witness_unsafe(witness, LeafWitnessValue::from_event(event));
     }
 
     pub fn set_witness_unsafe<F: RichField>(
@@ -904,19 +871,10 @@ mod test {
         pub fn prove(
             &self,
             branch: &DummyBranchCircuit,
-            address: u64,
-            event_owner: [F; 4],
-            event_ty: EventType,
-            event_value: [F; 4],
+            event: Event<F>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.state_from_events.set_witness(
-                &mut inputs,
-                address,
-                event_owner,
-                event_ty,
-                event_value,
-            );
+            self.state_from_events.set_witness(&mut inputs, event);
             self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
@@ -1043,73 +1001,66 @@ mod test {
         let non_zero_val_2 = [42, 0, 0, 0].map(F::from_canonical_u64);
         let non_zero_val_3 = [42, 0, 0, 1].map(F::from_canonical_u64);
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Write,
-            non_zero_val_1,
-        )?;
+        let proof = leaf.prove(&branch, Event {
+            owner: program_hash_1,
+            ty: EventType::Write,
+            address: 200,
+            value: non_zero_val_1,
+        })?;
         leaf.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Read,
-            non_zero_val_1,
-        )?;
+        let proof = leaf.prove(&branch, Event {
+            owner: program_hash_1,
+            ty: EventType::Read,
+            address: 200,
+            value: non_zero_val_1,
+        })?;
         leaf.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Ensure,
-            non_zero_val_1,
-        )?;
+        let proof = leaf.prove(&branch, Event {
+            owner: program_hash_1,
+            ty: EventType::Ensure,
+            address: 200,
+            value: non_zero_val_1,
+        })?;
         leaf.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::GiveOwner,
-            program_hash_2,
-        )?;
+        let proof = leaf.prove(&branch, Event {
+            owner: program_hash_1,
+            ty: EventType::GiveOwner,
+            address: 200,
+            value: program_hash_2,
+        })?;
         leaf.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_2,
-            EventType::TakeOwner,
-            program_hash_1,
-        )?;
+        let proof = leaf.prove(&branch, Event {
+            owner: program_hash_2,
+            ty: EventType::TakeOwner,
+            address: 200,
+            value: program_hash_1,
+        })?;
         leaf.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::CreditDelta,
-            non_zero_val_2,
-        )?;
+        let proof = leaf.prove(&branch, Event {
+            owner: program_hash_1,
+            ty: EventType::CreditDelta,
+            address: 200,
+            value: non_zero_val_2,
+        })?;
         leaf.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::CreditDelta,
-            non_zero_val_3,
-        )?;
+        let proof = leaf.prove(&branch, Event {
+            owner: program_hash_1,
+            ty: EventType::CreditDelta,
+            address: 200,
+            value: non_zero_val_3,
+        })?;
         leaf.circuit.verify(proof)?;
 
         Ok(())
     }
 
-    fn leaf_test_helper<Fn>(owner: [u64; 4], event_ty: EventType, value: [u64; 4], f: Fn)
+    fn leaf_test_helper<Fn>(owner: [u64; 4], ty: EventType, value: [u64; 4], f: Fn)
     where
         Fn: FnOnce(&mut LeafWitnessValue<F>, [F; 4], [F; 4]) + UnwindSafe, {
         let (leaf, branch, event) = catch_unwind(|| {
@@ -1120,7 +1071,12 @@ mod test {
             let owner = owner.map(F::from_canonical_u64);
             let value = value.map(F::from_canonical_u64);
 
-            let mut event = LeafWitnessValue::from_event(200, owner, event_ty, value);
+            let mut event = LeafWitnessValue::from_event(Event {
+                owner,
+                ty,
+                address: 200,
+                value,
+            });
 
             f(&mut event, owner, value);
 
@@ -1284,9 +1240,24 @@ mod test {
             let owners = owners.map(|owner| owner.map(F::from_canonical_u64));
             let values = values.map(|owner| owner.map(F::from_canonical_u64));
 
-            let mut event0 = LeafWitnessValue::from_event(200, owners[0], tys[0], values[0]);
-            let mut event1 = LeafWitnessValue::from_event(200, owners[1], tys[1], values[1]);
-            let mut event2 = LeafWitnessValue::from_event(200, owners[2], tys[2], values[2]);
+            let mut event0 = LeafWitnessValue::from_event(Event {
+                owner: owners[0],
+                ty: tys[0],
+                address: 200,
+                value: values[0],
+            });
+            let mut event1 = LeafWitnessValue::from_event(Event {
+                owner: owners[1],
+                ty: tys[1],
+                address: 200,
+                value: values[1],
+            });
+            let mut event2 = LeafWitnessValue::from_event(Event {
+                owner: owners[2],
+                ty: tys[2],
+                address: 200,
+                value: values[2],
+            });
             lf(&mut event0, &mut event1, &mut event2);
 
             let mut branch_event_1 = BranchWitnessValue::from_branches(event0, event1);
@@ -1397,31 +1368,28 @@ mod test {
         let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
         let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
 
-        let read_proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Read,
-            non_zero_val_1,
-        )?;
+        let read_proof = leaf.prove(&branch, Event {
+            owner: program_hash_1,
+            ty: EventType::Read,
+            address: 200,
+            value: non_zero_val_1,
+        })?;
         leaf.circuit.verify(read_proof.clone())?;
 
-        let write_proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Write,
-            non_zero_val_2,
-        )?;
+        let write_proof = leaf.prove(&branch, Event {
+            owner: program_hash_1,
+            ty: EventType::Write,
+            address: 200,
+            value: non_zero_val_2,
+        })?;
         leaf.circuit.verify(write_proof.clone())?;
 
-        let ensure_proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Ensure,
-            non_zero_val_2,
-        )?;
+        let ensure_proof = leaf.prove(&branch, Event {
+            owner: program_hash_1,
+            ty: EventType::Ensure,
+            address: 200,
+            value: non_zero_val_2,
+        })?;
         leaf.circuit.verify(ensure_proof.clone())?;
 
         let branch_proof_1 = branch.prove(
