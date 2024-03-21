@@ -94,7 +94,7 @@ enum Command {
     /// Builds a transaction bundle.
     BundleTransaction {
         #[arg(long)]
-        bundle_plans: Vec<Input>,
+        bundle_plan: Vec<Input>,
         #[arg(long, required = true)]
         cast_list: Vec<String>,
     },
@@ -217,13 +217,15 @@ fn main() -> Result<()> {
             debug!("proof generated successfully!");
         }
         Command::BundleTransaction {
-            bundle_plans,
+            bundle_plan,
             cast_list,
         } => {
             println!("Bundling transaction...");
-            for mut bundle_plan in bundle_plans {
+            let mut call_tape_hashes = Vec::with_capacity(cast_list.len());
+            let mut constituent_zs = Vec::with_capacity(cast_list.len());
+            for mut plan in bundle_plan {
                 let mut bundle_plan_bytes = Vec::new();
-                let _ = bundle_plan.read_to_end(&mut bundle_plan_bytes)?;
+                let _ = plan.read_to_end(&mut bundle_plan_bytes)?;
 
                 let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes).unwrap();
 
@@ -245,7 +247,11 @@ fn main() -> Result<()> {
                     Some(plan.self_prog_id.to_string()),
                 );
 
-                let program = load_program(Input::try_from(&plan.elf_filepath).unwrap(), &args)?;
+                let program = load_program(
+                    Input::try_from(&plan.elf_filepath)
+                        .expect(&format!("Elf filepath {:?} not found", plan.elf_filepath)),
+                    &args,
+                )?;
                 let state =
                     State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.clone());
                 let record = step(&program, state)?;
@@ -276,7 +282,7 @@ fn main() -> Result<()> {
                     &mut TimingTree::default(),
                     None, // fft_root_table
                 );
-                let call_tape_hash = trace_commitment.merkle_tree.cap;
+                call_tape_hashes.push(trace_commitment.merkle_tree.cap);
 
                 let transparent_attestation = TransparentAttestation {
                     public_tape: args.io_tape_public,
@@ -291,21 +297,26 @@ fn main() -> Result<()> {
                     opaque: opaque_attestation,
                     transparent: transparent_attestation,
                 };
-                // println!("Attestations:\n{attestation:#?}");
-                let constituent_zs = vec![attestation];
-
-                let transaction = Transaction {
-                    call_tape_hash,
-                    cast_list: cast_list
-                        .clone()
-                        .into_iter()
-                        .unique()
-                        .map(ProgramIdentifier::from)
-                        .collect(),
-                    constituent_zs,
-                };
-                println!("Transaction bundled: {transaction:?}");
+                constituent_zs.push(attestation);
             }
+
+            assert!(
+                call_tape_hashes.iter().all_equal(),
+                "Some call tape hashes are not the same"
+            );
+
+            let transaction = Transaction {
+                call_tape_hash: call_tape_hashes[0].clone(),
+                cast_list: cast_list
+                    .clone()
+                    .into_iter()
+                    .unique()
+                    .map(ProgramIdentifier::from)
+                    .collect(),
+                constituent_zs,
+            };
+
+            println!("Transaction bundled: {transaction:?}");
         }
 
         Command::Verify { mut proof } => {
