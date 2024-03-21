@@ -1,6 +1,5 @@
 #![feature(restricted_std)]
 #![allow(unused_attributes)]
-
 mod core_logic;
 use mozak_sdk::common::types::{ProgramIdentifier, StateAddress, StateObject};
 use rkyv::rancor::Panic;
