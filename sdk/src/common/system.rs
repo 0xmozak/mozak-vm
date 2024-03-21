@@ -7,7 +7,7 @@ use once_cell::unsync::Lazy;
 #[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
 
-use super::types::{CallTapeType, EventTapeType, SystemTape};
+use super::types::{CallTapeType, EventTapeType, PublicInputTapeType, PrivateInputTapeType, SystemTape};
 #[cfg(target_os = "mozakvm")]
 use crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, ProgramIdentifier};
 #[cfg(target_os = "mozakvm")]
@@ -28,10 +28,17 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // `EventTape` etc. As such, an empty `SystemTapes` works here.
     #[cfg(not(target_os = "mozakvm"))]
     {
-        let common_identity_stack = Rc::from(RefCell::new(
-            crate::native::helpers::IdentityStack::default(),
-        ));
+        let common_identity_stack =
+            Rc::from(RefCell::new(crate::native::helpers::IdentityStack::new()));
         SystemTape {
+            private_input_tape: PrivateInputTapeType {
+                identity_stack: common_identity_stack.clone(),
+                ..PrivateInputTapeType::default()
+            },
+            public_input_tape: PublicInputTapeType {
+                identity_stack: common_identity_stack.clone(),
+                ..PublicInputTapeType::default()
+            },
             call_tape: CallTapeType {
                 identity_stack: common_identity_stack.clone(),
                 ..CallTapeType::default()
@@ -54,6 +61,7 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
         let events = get_rkyv_archived!(Vec<CanonicalOrderedTemporalHints>, _mozak_event_tape);
 
         SystemTape {
+            // Todo: add private and public input tape here
             call_tape: CallTapeType {
                 self_prog_id: get_self_prog_id(),
                 cast_list: get_rkyv_deserialized!(Vec<ProgramIdentifier>, _mozak_cast_list),

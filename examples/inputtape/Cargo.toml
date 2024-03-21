@@ -1,0 +1,26 @@
+[package]
+edition = "2021"
+name = "inputtape-mozak-guest"
+version = "0.1.0"
+
+[features]
+native = []
+
+[dependencies]
+mozak-sdk = { path = "../../sdk" }
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
+version = "0.4"
+
+[[bin]]
+name = "inputtapebin"
+path = "main_mozak.rs"
+
+[[bin]]
+name = "inputtape-native"
+path = "main_native.rs"
+required-features = ["native"]
+
+[lib]
+name = "inputtape"
+path = "core_logic.rs"
