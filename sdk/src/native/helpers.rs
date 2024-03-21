@@ -19,6 +19,38 @@ impl IdentityStack {
     pub fn rm_identity(&mut self) { self.0.truncate(self.0.len().saturating_sub(1)); }
 }
 
+/// Manually add a `ProgramIdentifier` onto `IdentityStack`. Useful
+/// when one want to escape automatic management of `IdentityStack`
+/// via cross-program-calls sends (ideally temporarily).
+/// CAUTION: Manual function for `IdentityStack`, misuse may lead
+/// to system tape generation failure.
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub fn add_identity(id: crate::common::types::ProgramIdentifier) {
+    unsafe {
+        crate::common::system::SYSTEM_TAPE
+            .call_tape
+            .identity_stack
+            .borrow_mut()
+            .add_identity(id);
+    }
+}
+
+/// Manually remove a `ProgramIdentifier` from `IdentityStack`.
+/// Useful when one want to escape automatic management of `IdentityStack`
+/// via cross-program-calls sends (ideally temporarily).
+/// CAUTION: Manual function for `IdentityStack`, misuse may lead
+/// to system tape generation failure.
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub fn rm_identity() {
+    unsafe {
+        crate::common::system::SYSTEM_TAPE
+            .call_tape
+            .identity_stack
+            .borrow_mut()
+            .rm_identity();
+    }
+}
+
 /// Hashes the input slice to `Poseidon2Hash` after padding.
 /// We use the well known "Bit padding scheme".
 pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
