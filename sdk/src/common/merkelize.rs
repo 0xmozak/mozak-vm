@@ -1,5 +1,35 @@
 use super::types::Poseidon2Hash;
 
+#[cfg(not(target_os = "mozakvm"))]
+const F: fn(&[u8]) -> Poseidon2Hash = crate::native::helpers::poseidon2_hash_no_pad;
+#[cfg(target_os = "mozakvm")]
+const F: fn(&[u8]) -> Poseidon2Hash = crate::mozakvm::helpers::poseidon2_hash_no_pad;
+
+fn hash_top_two(mut stack: Vec<Poseidon2Hash>) -> Vec<Poseidon2Hash> {
+    let concatenated_node: Vec<u8> =
+        vec![stack.pop().unwrap().inner(), stack.pop().unwrap().inner()]
+            .into_iter()
+            .flatten()
+            .collect();
+
+    stack.push(F(&concatenated_node));
+    stack
+}
+
+pub fn merkleize_with_hints(hashes: &[(Poseidon2Hash, u8)]) -> Poseidon2Hash {
+    let mut stack: Vec<Poseidon2Hash> = Vec::new();
+    for (hash, pops) in hashes {
+        stack.push(*hash);
+        for _ in 0..*pops {
+            stack = hash_top_two(stack);
+        }
+    }
+    while stack.len() > 1 {
+        stack = hash_top_two(stack);
+    }
+    stack.pop().unwrap()
+}
+
 /// Takes leaves of the form `Poseidon2HasType`` and returns the merkle root
 /// of the tree, where nodes are hashed according to common prefix of `addr`:
 /// u64` field. NOTE: Assumes sorted order wrt `addr`
