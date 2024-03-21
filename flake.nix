@@ -38,7 +38,7 @@
 
         packages.rust-toolchain = pkgs.fenix.fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "sha256-O/yRYvLvPMuOHe2XhlCRu+uVz5rimS26W7ObyqpA8Ao=";
+          sha256 = "sha256-IIfju5JkpNdph2e98MTl1PaR7cN8awLVYkjDKd9qr5Q=";
         };
 
         packages.ci-deps = pkgs.symlinkJoin {
