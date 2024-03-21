@@ -48,8 +48,23 @@ impl std::io::Write for RawTape {
     fn flush(&mut self) -> Result<(), std::io::Error> { Ok(()) }
 }
 
-// #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub type PrivateInputTape = RawTape;
-
-// #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub type PublicInputTape = RawTape;
+
+#[allow(clippy::missing_errors_doc)]
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub fn write(kind: &crate::InputTapeType, buf: &[u8]) -> std::io::Result<usize> {
+    use std::io::Write;
+    match kind {
+        crate::InputTapeType::PublicTape => unsafe {
+            crate::common::system::SYSTEM_TAPE
+                .public_input_tape
+                .write(buf)
+        },
+        crate::InputTapeType::PrivateTape => unsafe {
+            crate::common::system::SYSTEM_TAPE
+                .private_input_tape
+                .write(buf)
+        },
+    }
+}
