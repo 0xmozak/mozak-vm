@@ -2,7 +2,7 @@
 #![allow(unused_attributes)]
 
 mod core_logic;
-use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier, StateAddress, StateObject};
+use mozak_sdk::common::types::{ProgramIdentifier, StateAddress, StateObject};
 use rkyv::rancor::Panic;
 use token::{dispatch, MethodArgs};
 

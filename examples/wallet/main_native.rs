@@ -3,8 +3,7 @@
 
 mod core_logic;
 
-use mozak_sdk::coretypes::ProgramIdentifier;
-use mozak_sdk::sys::dump_proving_files;
+use mozak_sdk::common::types::ProgramIdentifier;
 
 use crate::core_logic::{dispatch, BlackBox, MethodArgs, PublicKey, TokenObject};
 
