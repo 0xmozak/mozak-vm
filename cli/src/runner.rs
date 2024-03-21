@@ -9,7 +9,8 @@ use itertools::Itertools;
 use log::debug;
 use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::common::types::{CanonicalOrderedTemporalHints, ProgramIdentifier, SystemTape};
-use rkyv::ser::serializers::AllocSerializer;
+use rkyv::rancor::{Panic, Strategy};
+use rkyv::ser::AllocSerializer;
 
 pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> {
     let mut elf_bytes = Vec::new();
@@ -87,8 +88,8 @@ pub fn tapes_to_runtime_arguments(
     {
         fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
         where
-            T: rkyv::Archive + rkyv::Serialize<AllocSerializer<256>>, {
-            let tape_bytes = rkyv::to_bytes::<_, 256>(tape).unwrap().into();
+            T: rkyv::Archive + rkyv::Serialize<Strategy<AllocSerializer<256>, Panic>>, {
+            let tape_bytes = rkyv::to_bytes::<_, 256, _>(tape).unwrap().into();
             length_prefixed_bytes(tape_bytes, dgb_string)
         }
 

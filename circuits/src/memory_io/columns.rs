@@ -25,7 +25,7 @@ pub struct InputOutputMemory<T> {
     pub size: T,
     /// Value: byte value
     pub value: T,
-    /// Operation: io_store/load io_memory_store/load
+    /// Operation: `io_store/load` `io_memory_store/load`
     pub ops: Ops<T>,
     /// Helper to decrease poly degree
     pub is_lv_and_nv_are_memory_rows: T,
