@@ -1,9 +1,7 @@
 use std::fs;
-use std::path::PathBuf;
 use std::process::Command;
 
 use mozak_sdk::common::types::ProgramIdentifier;
-use mozak_sdk::native::ProofBundle;
 use tempfile::TempDir;
 
 #[test]
