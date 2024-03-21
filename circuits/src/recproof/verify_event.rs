@@ -251,12 +251,10 @@ where
 mod test {
     use std::panic::catch_unwind;
 
-    use anyhow::Result;
     use itertools::{chain, Itertools};
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
     use plonky2::hash::poseidon2::Poseidon2Hash;
-    use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::Hasher;
 
     use super::*;
