@@ -1,9 +1,11 @@
 use super::types::Poseidon2Hash;
 
 #[cfg(not(target_os = "mozakvm"))]
-const POSEIDON2_HASH_NO_PAD: fn(&[u8]) -> Poseidon2Hash = crate::native::helpers::poseidon2_hash_no_pad;
+const POSEIDON2_HASH_NO_PAD: fn(&[u8]) -> Poseidon2Hash =
+    crate::native::helpers::poseidon2_hash_no_pad;
 #[cfg(target_os = "mozakvm")]
-const POSEIDON2_HASH_NO_PAD: fn(&[u8]) -> Poseidon2Hash = crate::mozakvm::helpers::poseidon2_hash_no_pad;
+const POSEIDON2_HASH_NO_PAD: fn(&[u8]) -> Poseidon2Hash =
+    crate::mozakvm::helpers::poseidon2_hash_no_pad;
 
 fn hash_top_two(mut stack: Vec<Poseidon2Hash>) -> Vec<Poseidon2Hash> {
     let concatenated_node = [stack.pop().unwrap().inner(), stack.pop().unwrap().inner()].concat();
