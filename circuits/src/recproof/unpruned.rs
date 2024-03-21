@@ -20,7 +20,7 @@ use super::{byte_wise_hash, find_hash};
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct PublicIndices {
     /// The indices of each of the elements of the unpruned hash
     pub unpruned_hash: [usize; NUM_HASH_OUT_ELTS],
