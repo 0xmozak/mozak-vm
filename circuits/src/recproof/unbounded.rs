@@ -324,6 +324,7 @@ mod test {
     use anyhow::Result;
     use lazy_static::lazy_static;
     use plonky2::plonk::circuit_data::CircuitConfig;
+    use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
     use crate::test_utils::{fast_test_circuit_config, C, D, F};

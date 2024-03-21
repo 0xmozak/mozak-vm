@@ -1003,6 +1003,7 @@ mod test {
         LEAF.circuit.verify(proof)?;
 
         let proof = LEAF.prove(Event {
+
             owner: program_hash_1,
             ty: EventType::CreditDelta,
             address: 200,
