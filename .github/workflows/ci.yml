@@ -51,7 +51,7 @@ jobs:
 
       - name: Run all the tests from the archive
         run: nixdo MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
-  
+
   sdk-sanity:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
