@@ -26,7 +26,7 @@ impl IdentityStack {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProofBundle {
     pub self_prog_id: String,
-    pub elf_filename: String,
+    pub elf_filepath: PathBuf,
     pub system_tape_filepath: PathBuf,
 }
 
@@ -119,10 +119,14 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
 
 #[allow(dead_code)]
 pub fn dump_proving_files(file_template: String, self_prog_id: ProgramIdentifier) {
-    dump_system_tape(&file_template.clone(), true);
-    let bin_filename = file_template.clone() + ".tape.json";
+    fs::create_dir_all("out").unwrap();
+    let sys_tape_path = format!("out/{file_template}");
+    dump_system_tape(&sys_tape_path, true);
+    let bin_filename = format!("out/{}.tape.json", file_template.clone());
 
-    let toml_str = fs::read_to_string("Cargo.toml").unwrap();
+    let toml_str = fs::read_to_string("Cargo.toml").expect(
+        "Could not find the program's Cargo.toml. Are you running from within the project root?",
+    );
     let curr_dir = std::env::current_dir().unwrap();
     let toml: GuestProgramTomlCfg = toml::from_str(&toml_str).unwrap();
 
@@ -137,15 +141,25 @@ pub fn dump_proving_files(file_template: String, self_prog_id: ProgramIdentifier
  *_mozak.rs declared",
         );
 
-    let elf_filename = mozak_bin.name;
+    let native_exe = std::env::current_exe().unwrap();
+    let mut components = native_exe.components();
+    components.next_back();
+    components.next_back();
+    components.next_back();
+    let elf_filepath = components.as_path().join(format!(
+        "riscv32im-mozak-mozakvm-elf/release/{}",
+        mozak_bin.name
+    ));
+
+    println!("filepath: {:?}", components.as_path());
     let bundle = ProofBundle {
         self_prog_id: format!("{self_prog_id:?}"),
-        elf_filename,
+        elf_filepath,
         system_tape_filepath: bin_filepath_absolute,
     };
     println!("[BNDLDMP] Bundle dump: {bundle:?}");
 
-    let bundle_filename = file_template + "_bundle.json";
+    let bundle_filename = format!("out/{}_bundle.json", file_template);
     let bundle_json = serde_json::to_string_pretty(&bundle).unwrap();
     write_to_file(&bundle_filename, bundle_json.as_bytes());
 }

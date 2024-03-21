@@ -28,8 +28,6 @@ use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
 use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
-// use mozak_node::types::{Attestation, OpaqueAttestation, Transaction,
-// TransparentAttestation};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
@@ -244,12 +242,7 @@ fn main() -> Result<()> {
                     Some(plan.self_prog_id.to_string()),
                 );
 
-                let release_dirpath = std::env::current_dir().unwrap().join(
-                    "examples/target/riscv32im-mozak-mozakvm-elf/
-             release/",
-                );
-                let elf_path = release_dirpath.join(plan.elf_filename);
-                let program = load_program(Input::try_from(&elf_path).unwrap(), &args)?;
+                let program = load_program(Input::try_from(&plan.elf_filepath).unwrap(), &args)?;
                 let state =
                     State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.clone());
                 let record = step(&program, state)?;

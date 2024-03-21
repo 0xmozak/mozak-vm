@@ -1,7 +1,9 @@
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use mozak_sdk::common::types::ProgramIdentifier;
+use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
+use mozak_sdk::native::ProofBundle;
 use tempfile::TempDir;
 
 #[test]
@@ -61,5 +63,56 @@ fn test_prove_and_verify_recursive_proof_command() {
     assert!(
         output.status.success(),
         "Verify recursive proof command failed"
+    );
+}
+
+#[test]
+fn test_bundle_transaction_command() {
+    // Create a temporary directory
+    let temp_dir = TempDir::new().expect("Failed to create a temporary directory");
+    let temp_path = temp_dir.path();
+
+    let prog_id = "MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538";
+
+    let bundle_plans = temp_path.join("bundle.json");
+    std::fs::create_dir_all(temp_path.join("examples/target/riscv32im-mozak-mozakvm-elf/release"))
+        .unwrap();
+
+    let system_tape_filepath = PathBuf::from("tests/token_tfr_bundle.json");
+    let elf_filepath = temp_path.join("tokenbin");
+
+    fs::write(&elf_filepath, b"").expect("Failed to create elf file");
+
+    let cast_list = prog_id;
+    let bundle = ProofBundle {
+        self_prog_id: prog_id.to_string(),
+        elf_filepath,
+        system_tape_filepath,
+    };
+
+    // Create mock IO tape files
+    fs::write(
+        &bundle_plans,
+        serde_json::to_string(&bundle).unwrap().as_bytes(),
+    )
+    .expect("Failed to create bundle file");
+
+    // Execute the `prove` command
+    let output = Command::new("cargo")
+        .args([
+            "run",
+            "--",
+            "bundle-transaction",
+            "--cast-list",
+            cast_list,
+            "--bundle-plans",
+            &bundle_plans.to_string_lossy(),
+        ])
+        .output()
+        .expect("Failed to execute prove command");
+    assert!(
+        output.status.success(),
+        "Bundle transaction command failed: {:?}",
+        output
     );
 }
