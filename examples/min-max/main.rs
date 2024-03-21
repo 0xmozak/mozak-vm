@@ -2,6 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
 pub fn min_max() -> Vec<u8> {

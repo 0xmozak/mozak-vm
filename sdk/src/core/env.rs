@@ -1,7 +1,7 @@
 #[cfg(target_os = "mozakvm")]
 extern crate alloc;
 
-#[cfg(target_os = "mozakvm")]
+#[cfg(all(target_os = "mozakvm", not(feature = "std")))]
 use alloc::vec::Vec;
 
 #[cfg(target_os = "mozakvm")]

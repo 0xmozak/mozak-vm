@@ -33,8 +33,9 @@ impl DummyLeafCircuit {
 
         let circuit = builder.build();
 
-        let unbounded = unbounded_targets.build(&circuit.prover_only.public_inputs);
-        let make_tree = make_tree_targets.build(&circuit.prover_only.public_inputs);
+        let public_inputs = &circuit.prover_only.public_inputs;
+        let unbounded = unbounded_targets.build(public_inputs);
+        let make_tree = make_tree_targets.build(public_inputs);
 
         Self {
             make_tree,
@@ -90,10 +91,9 @@ impl DummyBranchCircuit {
 
         let circuit = builder.build();
 
-        let unbounded =
-            unbounded_targets.build(&leaf.unbounded, &circuit.prover_only.public_inputs);
-        let make_tree =
-            make_tree_targets.build(&leaf.make_tree.indices, &circuit.prover_only.public_inputs);
+        let public_inputs = &circuit.prover_only.public_inputs;
+        let unbounded = unbounded_targets.build(&leaf.unbounded, public_inputs);
+        let make_tree = make_tree_targets.build(&leaf.make_tree.indices, public_inputs);
 
         Self {
             make_tree,

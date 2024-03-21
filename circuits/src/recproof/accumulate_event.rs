@@ -7,8 +7,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::state_from_event::EventType;
-use super::{hash_event, state_from_event, unbounded, unpruned};
+use super::{hash_event, state_from_event, unbounded, unpruned, Event, EventType};
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
@@ -49,9 +48,10 @@ where
 
         let circuit = builder.build();
 
-        let unbounded = unbounded_targets.build(&circuit.prover_only.public_inputs);
-        let event_hash = event_hash_targets.build(&circuit.prover_only.public_inputs);
-        let partial_state = partial_state_targets.build(&circuit.prover_only.public_inputs);
+        let public_inputs = &circuit.prover_only.public_inputs;
+        let unbounded = unbounded_targets.build(public_inputs);
+        let event_hash = event_hash_targets.build(public_inputs);
+        let partial_state = partial_state_targets.build(public_inputs);
 
         Self {
             unbounded,
@@ -71,8 +71,12 @@ where
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
-        self.partial_state
-            .set_witness(&mut inputs, address, event_owner, event_ty, event_value);
+        self.partial_state.set_witness(&mut inputs, Event {
+            owner: event_owner,
+            ty: event_ty,
+            address,
+            value: event_value,
+        });
         self.circuit.prove(inputs)
     }
 }
@@ -119,14 +123,10 @@ where
 
         let circuit = builder.build();
 
-        let unbounded =
-            unbounded_targets.build(&leaf.unbounded, &circuit.prover_only.public_inputs);
-        let event_hash =
-            event_hash_targets.build(&leaf.event_hash.indices, &circuit.prover_only.public_inputs);
-        let partial_state = partial_state_targets.build(
-            &leaf.partial_state.indices,
-            &circuit.prover_only.public_inputs,
-        );
+        let public_inputs = &circuit.prover_only.public_inputs;
+        let unbounded = unbounded_targets.build(&leaf.unbounded, public_inputs);
+        let event_hash = event_hash_targets.build(&leaf.event_hash.indices, public_inputs);
+        let partial_state = partial_state_targets.build(&leaf.partial_state.indices, public_inputs);
 
         Self {
             unbounded,
@@ -162,10 +162,8 @@ where
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
-    use plonky2::plonk::circuit_data::CircuitConfig;
 
     use super::*;
     use crate::test_utils::{fast_test_circuit_config, C, D, F};

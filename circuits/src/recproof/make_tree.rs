@@ -20,7 +20,7 @@ pub struct PublicIndices {
     /// The indices of each of the elements of the hash
     pub hash: [usize; NUM_HASH_OUT_ELTS],
 
-    /// The indices of each of the elements of the leaf_value
+    /// The indices of each of the elements of the `leaf_value`
     pub leaf_value: [usize; NUM_HASH_OUT_ELTS],
 }
 
@@ -243,7 +243,6 @@ mod test {
     use anyhow::Result;
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
-    use plonky2::hash::hash_types::{HashOut, NUM_HASH_OUT_ELTS};
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
@@ -270,8 +269,9 @@ mod test {
 
             let circuit = builder.build();
 
-            let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
-            let make_tree = make_tree_targets.build(&circuit.prover_only.public_inputs);
+            let public_inputs = &circuit.prover_only.public_inputs;
+            let bounded = bounded_targets.build(public_inputs);
+            let make_tree = make_tree_targets.build(public_inputs);
 
             Self {
                 bounded,
@@ -332,8 +332,9 @@ mod test {
 
             let circuit = builder.build();
 
-            let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
-            let make_tree = make_tree_targets.build(indicies, &circuit.prover_only.public_inputs);
+            let public_inputs = &circuit.prover_only.public_inputs;
+            let bounded = bounded_targets.build(public_inputs);
+            let make_tree = make_tree_targets.build(indicies, public_inputs);
 
             Self {
                 bounded,

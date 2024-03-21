@@ -1,4 +1,4 @@
-use itertools::{self, Itertools};
+use itertools::Itertools;
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;

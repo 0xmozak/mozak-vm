@@ -1,3 +1,4 @@
+use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{EventEmit, SelfIdentify};
@@ -25,13 +26,17 @@ impl EventEmit for EventTape {
         assert!(self.index < self.reader.unwrap().len());
         let generated_canonical_event = CanonicalEvent::from_event(self.self_prog_id, &event);
 
-        let elem_idx = self.reader.unwrap()[self.index].1 as usize;
+        let elem_idx: usize = self.reader.unwrap()[self.index]
+            .1
+            .to_native()
+            .try_into()
+            .unwrap();
         assert!(!self.seen[elem_idx]);
         self.seen[elem_idx] = true;
 
         let zcd_canonical_event = &self.reader.unwrap()[self.index].0;
         let canonical_event: CanonicalEvent = zcd_canonical_event
-            .deserialize(&mut rkyv::Infallible)
+            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
             .unwrap();
 
         assert!(canonical_event == generated_canonical_event);

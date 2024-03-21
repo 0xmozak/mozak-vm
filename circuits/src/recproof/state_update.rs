@@ -76,11 +76,12 @@ where
 
         let circuit = builder.build();
 
-        let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
-        let summarized = summarized_targets.build(&circuit.prover_only.public_inputs);
-        let old = old_targets.build(&circuit.prover_only.public_inputs);
-        let new = new_targets.build(&circuit.prover_only.public_inputs);
-        let address = address_targets.build(&circuit.prover_only.public_inputs);
+        let public_inputs = &circuit.prover_only.public_inputs;
+        let bounded = bounded_targets.build(public_inputs);
+        let summarized = summarized_targets.build(public_inputs);
+        let old = old_targets.build(public_inputs);
+        let new = new_targets.build(public_inputs);
+        let address = address_targets.build(public_inputs);
 
         Self {
             bounded,
@@ -178,12 +179,12 @@ where
 
         let circuit = builder.build();
 
-        let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
-        let summarized =
-            summarized_targets.build(summarized_indicies, &circuit.prover_only.public_inputs);
-        let old = old_targets.build(old_indicies, &circuit.prover_only.public_inputs);
-        let new = new_targets.build(new_indicies, &circuit.prover_only.public_inputs);
-        let address = address_targets.build(address_indicies, &circuit.prover_only.public_inputs);
+        let public_inputs = &circuit.prover_only.public_inputs;
+        let bounded = bounded_targets.build(public_inputs);
+        let summarized = summarized_targets.build(summarized_indicies, public_inputs);
+        let old = old_targets.build(old_indicies, public_inputs);
+        let new = new_targets.build(new_indicies, public_inputs);
+        let address = address_targets.build(address_indicies, public_inputs);
 
         Self {
             bounded,
@@ -264,10 +265,8 @@ impl From<u64> for AddressPresent {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
-    use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::Hasher;
 
     use super::*;

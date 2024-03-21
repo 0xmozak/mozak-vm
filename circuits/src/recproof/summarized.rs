@@ -264,8 +264,9 @@ mod test {
 
             let circuit = builder.build();
 
-            let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
-            let summarized = summarized_targets.build(&circuit.prover_only.public_inputs);
+            let public_inputs = &circuit.prover_only.public_inputs;
+            let bounded = bounded_targets.build(public_inputs);
+            let summarized = summarized_targets.build(public_inputs);
 
             Self {
                 bounded,
@@ -322,8 +323,9 @@ mod test {
 
             let circuit = builder.build();
 
-            let bounded = bounded_targets.build(&circuit.prover_only.public_inputs);
-            let summarized = summarized_targets.build(indicies, &circuit.prover_only.public_inputs);
+            let public_inputs = &circuit.prover_only.public_inputs;
+            let bounded = bounded_targets.build(public_inputs);
+            let summarized = summarized_targets.build(indicies, public_inputs);
 
             Self {
                 bounded,
