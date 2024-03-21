@@ -177,9 +177,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
     use plonky2::field::types::Field;
-    use plonky2::plonk::circuit_data::CircuitConfig;
 
     use super::*;
     use crate::test_utils::{C, D, F};

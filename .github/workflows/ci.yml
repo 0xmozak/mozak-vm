@@ -24,8 +24,17 @@ jobs:
 
   cargo-test:
     strategy:
+      # For PR run only `test` profile, for changes to `main` run both `test` and `release` profiles
+      # Matrix algebra from https://github.com/orgs/community/discussions/26253#discussioncomment-6745038
       matrix:
         profile: [test, release]
+        isPR:
+          - ${{github.event_name == 'pull_request'}}
+        # Run only the `test` profile in pull reqs:
+        exclude:
+          - { isPR: true }
+        include:
+          - { profile: "test" }
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -38,10 +47,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compile and archive all the tests
-        run: nice cargo nextest archive --cargo-profile="${{ matrix.profile }}" --locked --features="enable_poseidon_starks" --all-targets --archive-file mozak-vm-tests.tar.zst
+        run: nixdo nice cargo nextest archive --cargo-profile="${{ matrix.profile }}" --locked --features="enable_poseidon_starks" --all-targets --archive-file mozak-vm-tests.tar.zst
 
       - name: Run all the tests from the archive
-        run: MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
+        run: nixdo MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
   
   sdk-sanity:
     needs: check-runner
@@ -55,33 +64,46 @@ jobs:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: cargo-clippy (mozakvm, examples)
+        working-directory: examples
+        run: |
+          nixdo cargo --version
+          nixdo cargo clippy --version
+          nixdo cargo clippy --locked -- -D warnings
+
+      - name: cargo-clippy (native, examples)
+        working-directory: examples
+        run: |
+          ARCH_TRIPLE="$(nixdo rustc --verbose --version | grep host | awk '{ print $2; }')"
+          nixdo cargo clippy --locked --all-features --target ${ARCH_TRIPLE} -- -D warnings
+
       - name: cargo-clippy (mozakvm)
         working-directory: sdk
         run: |
-          cargo clippy --locked --all-features -- -D warnings
+          nixdo cargo clippy --locked --all-features -- -D warnings
 
       - name: cargo-clippy (native)
         working-directory: sdk
         run: |
-          ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{ print $2; }')"
-          cargo clippy --locked --target $ARCH_TRIPLE --all-features -- -D warnings
+          ARCH_TRIPLE="$(nixdo rustc --verbose --version | grep host | awk '{ print $2; }')"
+          nixdo cargo clippy --locked --target $ARCH_TRIPLE --all-features -- -D warnings
 
       - name: Build (mozakvm)
         working-directory: sdk
         run: |
-          cargo check --locked
+          nixdo cargo check --locked
 
       - name: Build (native)
         working-directory: sdk
         run: |
-          ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{ print $2; }')"
-          cargo check --locked --target $ARCH_TRIPLE
+          ARCH_TRIPLE="$(nixdo rustc --verbose --version | grep host | awk '{ print $2; }')"
+          nixdo cargo check --locked --target $ARCH_TRIPLE
 
       - name: Test library
         working-directory: sdk
         run: |
-          ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{ print $2; }')"
-          cargo test --locked --lib --target $ARCH_TRIPLE
+          ARCH_TRIPLE="$(nixdo rustc --verbose --version | grep host | awk '{ print $2; }')"
+          nixdo cargo test --locked --lib --target $ARCH_TRIPLE
 
   run-examples:
     needs: check-runner
@@ -97,8 +119,8 @@ jobs:
 
       - name: Build and run examples
         run: |
-          cd examples && nice cargo build --release
-          cd .. && nice ./run_examples.sh
+          cd examples && nixdo nice cargo build --release
+          cd .. && nixdo nice ./run_examples.sh
 
   cargo-clippy:
     needs: check-runner
@@ -113,7 +135,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Clippy linter
-        run: cargo clippy --all-features --all-targets -- -D warnings
+        run: nixdo cargo clippy --all-features --all-targets -- -D warnings
 
   cargo-build-examples:
     needs: check-runner
@@ -129,7 +151,7 @@ jobs:
 
       - name: Build all examples
         run: |
-          cd examples-builder && cargo build --all-features
+          cd examples-builder && nixdo cargo build --all-features
 
   cargo-fmt:
     needs: check-runner
@@ -144,7 +166,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run fmt
-        run: cargo fmt --all --check
+        run: nixdo cargo fmt --all --check
+
+      - name: Run fmt (examples)
+        working-directory: examples
+        run: nixdo cargo fmt --all --check
+
+      - name: Run fmt (sdk)
+        working-directory: sdk
+        run: nixdo cargo fmt --all --check
 
   shellcheck:
     needs: check-runner
@@ -170,4 +200,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: taplo fmt
-        run: taplo fmt --check
+        run: nixdo taplo fmt --check

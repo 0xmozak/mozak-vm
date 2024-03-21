@@ -1,6 +1,9 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use rkyv::rancor::{Panic, Strategy};
+use rkyv::Deserialize;
+
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
 use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};
 use crate::native::helpers::IdentityStack;
@@ -36,13 +39,13 @@ impl Call for CallTape {
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
-        <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
-        <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
+        <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+        <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
         // Create a skeletal `CrossProgramCall` to be resolved via "resolver"
         let msg = CrossProgramCall {
             caller: self.get_self_identity(),
             callee: recipient_program,
-            argument: rkyv::to_bytes::<_, 256>(&argument).unwrap().into(),
+            argument: rkyv::to_bytes::<_, 256, _>(&argument).unwrap().into(),
             return_: RawMessage::default(), // Unfilled: we have to still resolve it
         };
 
@@ -58,7 +61,7 @@ impl Call for CallTape {
         self.set_self_identity(recipient_program);
         let resolved_value = resolver(argument);
         self.writer[inserted_idx].return_ =
-            rkyv::to_bytes::<_, 256>(&resolved_value).unwrap().into();
+            rkyv::to_bytes::<_, 256, _>(&resolved_value).unwrap().into();
         self.identity_stack.borrow_mut().rm_identity();
 
         resolved_value
@@ -68,8 +71,8 @@ impl Call for CallTape {
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
-        <A as rkyv::Archive>::Archived: rkyv::Deserialize<A, rkyv::Infallible>,
-        <R as rkyv::Archive>::Archived: rkyv::Deserialize<R, rkyv::Infallible>, {
+        <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+        <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
         unimplemented!()
     }
 }
@@ -93,7 +96,7 @@ mod tests {
 
         let mut calltape = CallTape::default();
 
-        let resolver = |val: A| -> B { (val + 1) as B };
+        let resolver = |val: A| -> B { B::from(val + 1) };
 
         let response = calltape.send(test_pid_generator(1), 1 as A, resolver);
         assert_eq!(response, 2);

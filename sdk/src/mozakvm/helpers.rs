@@ -31,7 +31,7 @@ pub fn archived_repr<T: rkyv::Archive>(addr: *const u8) -> &'static <T as rkyv::
     let mem_len = unsafe { *{ addr as *const u32 } } as usize;
     unsafe {
         let mem_slice = &*slice_from_raw_parts::<u8>(addr.add(4), mem_len);
-        rkyv::archived_root::<T>(mem_slice)
+        rkyv::access_unchecked::<T>(mem_slice)
     }
 }
 
@@ -104,8 +104,11 @@ macro_rules! get_rkyv_deserialized {
     ($t:ty, $x:expr) => {
         #[allow(clippy::ptr_as_ptr)]
         {
+            use rkyv::rancor::{Panic, Strategy};
             let archived_repr = get_rkyv_archived!($t, $x);
-            let deserialized_repr: $t = archived_repr.deserialize(&mut rkyv::Infallible).unwrap();
+            let deserialized_repr: $t = archived_repr
+                .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
+                .unwrap();
             deserialized_repr
         }
     };
