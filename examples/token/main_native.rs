@@ -39,6 +39,5 @@ fn main() {
         dispatch,
     );
 
-    let name = "token_tfr".to_string();
-    mozak_sdk::native::dump_proving_files(name.clone(), token_program);
+    mozak_sdk::native::dump_proving_files("token_tfr", token_program);
 }

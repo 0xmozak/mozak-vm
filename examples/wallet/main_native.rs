@@ -30,6 +30,5 @@ fn main() {
         dispatch,
     );
 
-    let name = "wallet_approve".to_string();
-    mozak_sdk::native::dump_proving_files(name.clone(), wallet_program);
+    mozak_sdk::native::dump_proving_files("wallet_approve", wallet_program);
 }
