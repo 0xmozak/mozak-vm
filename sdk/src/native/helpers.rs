@@ -140,13 +140,13 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
 
     let bin_filepath_absolute = curr_dir.join(bin_filename);
 
-    /// TODO(bing): Currently, this is used to derive the name of the mozakvm
-    /// binary based on the name declared alongside some path declared as
-    /// "..._mozak.rs" in the project's `Cargo.toml`. The purpose of that is so
-    /// we can dump the absolute path of the mozakvm ELF binary in our bundle
-    /// plan (JSON).
-    ///
-    /// It might be prudent to come up with a more robust solution than this.
+    // TODO(bing): Currently, this is used to derive the name of the mozakvm
+    // binary based on the name declared alongside some path declared as
+    // "..._mozak.rs" in the project's `Cargo.toml`. The purpose of that is so
+    // we can dump the absolute path of the mozakvm ELF binary in our bundle
+    // plan (JSON).
+    //
+    // It might be prudent to come up with a more robust solution than this.
     let mozak_bin = toml
         .bin
         .into_iter()
