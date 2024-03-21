@@ -16,6 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
+use crate::open_public::OpenPublic;
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
@@ -54,15 +55,19 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) challenge: GrandProductChallenge<F>,
     pub(crate) columns: Vec<Column>,
     pub(crate) filter_column: Column,
-    pub(crate) is_open_public: bool,
 }
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
     cross_table_lookups: &[CrossTableLookup],
+    open_pubilc: &[OpenPublic],
+    reduced_public_inputs: &TableKindArray<Option<Vec<F>>>,
     ctl_zs_lasts: &TableKindArray<Vec<F>>,
     config: &StarkConfig,
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
+    let mut reduced_public_input_openings = reduced_public_inputs
+        .each_ref()
+        .map(|v| v.clone().unwrap_or_default().into_iter());
     for _ in 0..config.num_challenges {
         for CrossTableLookup {
             looking_tables,
@@ -82,6 +87,14 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
                 looked_table.kind,
                 looking_zs_sum,
                 looked_z
+            );
+        }
+        for OpenPublic { table } in open_pubilc {
+            ensure!(
+                reduced_public_input_openings[table.kind].next().unwrap()
+                    == *ctl_zs_openings[table.kind].next().unwrap(),
+                "Open public verification failed for {:?} ",
+                table.kind,
             );
         }
     }
@@ -132,7 +145,6 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                     challenge,
                     columns: table.columns.clone(),
                     filter_column: table.filter_column.clone(),
-                    is_open_public: false,
                 });
             }
         }
@@ -233,6 +245,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
         proofs: &TableKindArray<StarkProof<F, C, D>>,
         cross_table_lookups: &'a [CrossTableLookup],
+        open_public_inputs: &'a [OpenPublic],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
     ) -> TableKindArray<Vec<Self>> {
         let mut ctl_zs = proofs
@@ -246,7 +259,13 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                  looked_table,
              }| chain!(looking_tables, [looked_table]),
         );
-        for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
+        let open_public_chain = open_public_inputs
+            .iter()
+            .flat_map(|OpenPublic { table }| [table]);
+        for (&challenges, table) in iproduct!(
+            &ctl_challenges.challenges,
+            chain!(ctl_chain, open_public_chain)
+        ) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {
                 local_z,

@@ -17,6 +17,7 @@ use starky::stark::{LookupConfig, Stark};
 use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindSetBuilder};
 use super::proof::AllProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
+use crate::open_public::reduce_public_input;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 
@@ -55,8 +56,11 @@ where
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.proofs,
         &mozak_stark.cross_table_lookups,
+        &mozak_stark.open_public,
         &ctl_challenges,
     );
+
+    let reduced_public_inputs = reduce_public_input(&all_proof.public_inputs, &ctl_challenges);
 
     let public_inputs = TableKindSetBuilder::<&[_]> {
         cpu_stark: all_proof.public_inputs.borrow(),
@@ -75,6 +79,8 @@ where
     });
     verify_cross_table_lookups::<F, D>(
         &mozak_stark.cross_table_lookups,
+        &mozak_stark.open_public,
+        &reduced_public_inputs,
         &all_proof.all_ctl_zs_last(),
         config,
     )?;
