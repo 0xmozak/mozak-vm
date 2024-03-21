@@ -37,6 +37,7 @@ use mozak_runner::vm::step;
 use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
 use mozak_sdk::native::{OrderedEvents, ProofBundle};
 use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
@@ -256,34 +257,25 @@ fn main() -> Result<()> {
                 let state =
                     State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.clone());
                 let record = step(&program, state)?;
-                let trace = generate_io_memory_private_trace(&record.executed);
-                let trace_poly_values = trace_rows_to_poly_values(trace);
-                let rate_bits = config.fri_config.rate_bits;
-                let cap_height = config.fri_config.cap_height;
-                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                    trace_poly_values,
-                    rate_bits,
-                    false, // blinding
-                    cap_height,
-                    &mut TimingTree::default(),
-                    None, // fft_root_table
-                );
-                let private_tape_cap = trace_commitment.merkle_tree.cap;
-                let private_tape_hash = private_tape_cap;
 
+                let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
+                    let rate_bits = config.fri_config.rate_bits;
+                    let cap_height = config.fri_config.cap_height;
+                    let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                        poly_values,
+                        rate_bits,
+                        false, // blinding
+                        cap_height,
+                        &mut TimingTree::default(),
+                        None, // fft_root_table
+                    );
+                    trace_commitment.merkle_tree.cap
+                };
+
+                let trace = generate_io_memory_private_trace(&record.executed);
+                let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
                 let trace = generate_io_transcript_trace(&record.executed);
-                let trace_poly_values = trace_rows_to_poly_values(trace);
-                let rate_bits = config.fri_config.rate_bits;
-                let cap_height = config.fri_config.cap_height;
-                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                    trace_poly_values,
-                    rate_bits,
-                    false, // blinding
-                    cap_height,
-                    &mut TimingTree::default(),
-                    None, // fft_root_table
-                );
-                call_tape_hashes.push(trace_commitment.merkle_tree.cap);
+                let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
                 let transparent_attestation = TransparentAttestation {
                     public_tape: args.io_tape_public,
@@ -292,6 +284,8 @@ fn main() -> Result<()> {
 
                 let opaque_attestation: OpaqueAttestation<F, C, D> =
                     OpaqueAttestation { private_tape_hash };
+
+                call_tape_hashes.push(call_tape_hash);
 
                 let attestation = Attestation {
                     id: plan.self_prog_id.into(),
