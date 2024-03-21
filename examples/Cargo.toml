@@ -10,7 +10,6 @@ members = [
   "sha2",
   "rkyv-serialization",
   "empty",
-  "merkelize",
 
   # Members that depend on more than sdk::core
   "token",
