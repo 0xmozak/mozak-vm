@@ -6,11 +6,7 @@ const F: fn(&[u8]) -> Poseidon2Hash = crate::native::helpers::poseidon2_hash_no_
 const F: fn(&[u8]) -> Poseidon2Hash = crate::mozakvm::helpers::poseidon2_hash_no_pad;
 
 fn hash_top_two(mut stack: Vec<Poseidon2Hash>) -> Vec<Poseidon2Hash> {
-    let concatenated_node: Vec<u8> =
-        vec![stack.pop().unwrap().inner(), stack.pop().unwrap().inner()]
-            .into_iter()
-            .flatten()
-            .collect();
+    let concatenated_node = [stack.pop().unwrap().inner(), stack.pop().unwrap().inner()].concat();
 
     stack.push(F(&concatenated_node));
     stack
@@ -102,7 +98,7 @@ pub fn merkleize_group(mut group: &mut [Poseidon2Hash]) -> Poseidon2Hash {
 mod tests {
     use itertools::chain;
 
-    use crate::common::merkelize::merkleize;
+    use crate::common::merkelize::{merkleize, merkleize_with_hints};
     use crate::common::types::Poseidon2Hash;
     use crate::native::helpers::poseidon2_hash_no_pad;
 
@@ -119,9 +115,9 @@ mod tests {
             0x111, //--------------------- |
         ];
         let mut hashes = vec![
-            Poseidon2Hash([1u8; 32]), 
-            Poseidon2Hash([2u8; 32]), 
-            Poseidon2Hash([3u8; 32]), 
+            Poseidon2Hash([1u8; 32]),
+            Poseidon2Hash([2u8; 32]),
+            Poseidon2Hash([3u8; 32]),
             Poseidon2Hash([4u8; 32])
         ];
         let h_1_pre_image: Vec<u8> = chain![
@@ -144,5 +140,24 @@ mod tests {
             232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 
             132, 26, 242, 155, 95, 48, 48, 8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53]);
         assert_eq!(root, merkleize(&mut addr, &mut hashes));
+    }
+
+    // TODO: write a better test.
+    #[test]
+    fn merkelize_with_hints_test() {
+        let hashes_with_hints = vec![
+            (Poseidon2Hash([4u8; 32]), 0),
+            (Poseidon2Hash([3u8; 32]), 0),
+            (Poseidon2Hash([2u8; 32]), 1),
+            (Poseidon2Hash([1u8; 32]), 2),
+        ];
+        let root = merkleize_with_hints(&hashes_with_hints);
+        assert_eq!(
+            [
+                232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 132, 26, 242, 155, 95,
+                48, 48, 8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53
+            ],
+            root.inner()
+        );
     }
 }
