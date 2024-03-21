@@ -100,6 +100,21 @@ pub fn read(kind: &InputTapeType, buf: &mut [u8]) -> std::io::Result<usize> {
     }
 }
 
+/// Reads given number of raw bytes from an input tape
+#[allow(clippy::missing_errors_doc)]
+#[cfg(all(feature = "std", target_os = "mozakvm"))]
+#[must_use]
+pub fn input_tape_len(kind: &InputTapeType) -> usize {
+    match kind {
+        InputTapeType::PublicTape => unsafe {
+            crate::common::system::SYSTEM_TAPE.public_input_tape.len()
+        },
+        InputTapeType::PrivateTape => unsafe {
+            crate::common::system::SYSTEM_TAPE.private_input_tape.len()
+        },
+    }
+}
+
 /// Writes given number of raw bytes from an input tape
 #[allow(clippy::missing_errors_doc)]
 #[cfg(all(feature = "std", not(target_os = "mozakvm")))]
@@ -116,5 +131,33 @@ pub fn write(kind: &InputTapeType, buf: &[u8]) -> std::io::Result<usize> {
                 .private_input_tape
                 .write(buf)
         },
+    }
+}
+
+/// Manually add a `ProgramIdentifier` onto `IdentityStack`.
+/// CAUTION: Manual function for `IdentityStack`, misuse may lead
+/// to system tape generation failure.
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub fn add_identity(id: crate::common::types::ProgramIdentifier) {
+    unsafe {
+        crate::common::system::SYSTEM_TAPE
+            .call_tape
+            .identity_stack
+            .borrow_mut()
+            .add_identity(id);
+    }
+}
+
+/// Manually remove a `ProgramIdentifier` from `IdentityStack`.
+/// CAUTION: Manual function for `IdentityStack`, misuse may lead
+/// to system tape generation failure.
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub fn rm_identity() {
+    unsafe {
+        crate::common::system::SYSTEM_TAPE
+            .call_tape
+            .identity_stack
+            .borrow_mut()
+            .rm_identity();
     }
 }

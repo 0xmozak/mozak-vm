@@ -177,3 +177,15 @@ impl std::io::Read for PrivateInputTape {
 impl std::io::Read for PublicInputTape {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> { self.0.read(buf) }
 }
+
+impl PrivateInputTape {
+    pub fn len(&self) -> usize { self.0.len() }
+
+    pub fn read_ptr(&self) -> usize { self.0.read_ptr() }
+}
+
+impl PublicInputTape {
+    pub fn len(&self) -> usize { self.0.len() }
+
+    pub fn read_ptr(&self) -> usize { self.0.read_ptr() }
+}
