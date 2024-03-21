@@ -248,8 +248,9 @@ fn main() -> Result<()> {
                 );
 
                 let program = load_program(
-                    Input::try_from(&plan.elf_filepath)
-                        .expect(&format!("Elf filepath {:?} not found", plan.elf_filepath)),
+                    Input::try_from(&plan.elf_filepath).unwrap_or_else(|_| {
+                        panic!("Elf filepath {:?} not found", plan.elf_filepath)
+                    }),
                     &args,
                 )?;
                 let state =
