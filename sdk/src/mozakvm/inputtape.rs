@@ -2,7 +2,7 @@ use super::helpers::owned_buffer;
 use super::linker_symbols::{_mozak_private_io_tape, _mozak_public_io_tape};
 use crate::mozakvm::helpers::get_owned_buffer;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RandomAccessPreinitMemTape {
     pub tape: Box<[u8]>,
     pub read_offset: usize,
@@ -60,6 +60,27 @@ impl std::io::Seek for RandomAccessPreinitMemTape {
     }
 }
 
+impl RandomAccessPreinitMemTape {
+    /// Returns the "safe" readable length of the tape,
+    /// reading outside which may result in accessing
+    /// garbage values. `len` reduces after elements are
+    /// accessed in case the tape  is "consuming" i.e.
+    /// tape is accessed without feature `stdread` enabled.
+    /// If `stdread` is enabled, `std::io::Seek` is
+    /// implemented for the tape and length of tape never
+    /// reduces.
+    #[allow(dead_code)]
+    pub fn len(&self) -> usize { self.tape.len() }
+
+    /// Provides the read offset in tape which can be
+    /// changed via `std::io::Seek` implementation on
+    /// a tape with feature `stdread`. In case this feature
+    /// is not enabled, this function always returns `0`
+    /// and the tape elements when accessed are "consumed".
+    #[allow(dead_code)]
+    pub fn read_ptr(&self) -> usize { self.read_offset }
+}
+
 /// Not implementing `std::io::Read` allows for consumption of
 /// data slices from the Tape, albeit linearly. This still leaves
 /// room for seekability (in principle), but any seek is only
@@ -94,30 +115,33 @@ impl RandomAccessPreinitMemTape {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RandomAccessEcallTape {
     pub ecall_id: u32,
     pub read_offset: usize,
 }
 
-#[cfg(feature = "rawio")]
+#[cfg(feature = "preinitmem_inputtape")]
 type FreeformTape = RandomAccessPreinitMemTape;
-#[cfg(not(feature = "rawio"))]
+#[cfg(not(feature = "preinitmem_inputtape"))]
 type FreeformTape = RandomAccessEcallTape;
 
+#[derive(Clone)]
 pub struct PrivateInputTape(FreeformTape);
+
+#[derive(Clone)]
 pub struct PublicInputTape(FreeformTape);
 
 impl Default for PrivateInputTape {
     fn default() -> Self {
-        #[cfg(feature = "rawio")]
+        #[cfg(feature = "preinitmem_inputtape")]
         {
             Self(FreeformTape {
                 tape: get_owned_buffer!(_mozak_private_io_tape),
                 read_offset: 0,
             })
         }
-        #[cfg(not(feature = "rawio"))]
+        #[cfg(not(feature = "preinitmem_inputtape"))]
         {
             // TODO: Implement this when we want to revert back to
             // ecall based systems. Unimplemented for now.
@@ -128,14 +152,14 @@ impl Default for PrivateInputTape {
 
 impl Default for PublicInputTape {
     fn default() -> Self {
-        #[cfg(feature = "rawio")]
+        #[cfg(feature = "preinitmem_inputtape")]
         {
             Self(FreeformTape {
                 tape: get_owned_buffer!(_mozak_public_io_tape),
                 read_offset: 0,
             })
         }
-        #[cfg(not(feature = "rawio"))]
+        #[cfg(not(feature = "preinitmem_inputtape"))]
         {
             // TODO: Implement this when we want to revert back to
             // ecall based systems. Unimplemented for now.

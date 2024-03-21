@@ -1,11 +1,9 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
-use rkyv::rancor::{Panic, Strategy};
-use rkyv::Deserialize;
-
-use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
-use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};
+use crate::common::traits::SelfIdentify;
+use crate::common::types::ProgramIdentifier;
 use crate::native::helpers::IdentityStack;
 
 /// Represents the `RawTape` under native execution
@@ -30,25 +28,28 @@ impl SelfIdentify for RawTape {
 }
 
 /// We have to implement `std::io::Write` in native context
-/// to infact "write" elements onto RawTape. In native context
+/// to infact "write" elements onto `RawTape`. In native context
 /// this should always be available and is not bound by
 /// `stdread` or any other feature flag.
 impl std::io::Write for RawTape {
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         let self_id = self.get_self_identity();
         assert_ne!(self_id, ProgramIdentifier::default());
 
         self.writer
             .entry(self_id)
-            .and_modify(|x| x.push(buf))
+            .and_modify(|x| x.extend(buf))
             .or_insert(Vec::from(buf));
 
-        buf.len()
+        Ok(buf.len())
     }
 
     // Flush is a no-op
-    fn flush(&mut self) -> Result<()> {Ok(())}
+    fn flush(&mut self) -> Result<(), std::io::Error> { Ok(()) }
 }
 
-pub struct PrivateInputTape(RawTape);
-pub struct PublicInputTape(RawTape);
+// #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub type PrivateInputTape = RawTape;
+
+// #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub type PublicInputTape = RawTape;
