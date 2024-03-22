@@ -115,7 +115,7 @@ impl OrderedEvents {
                 )
             })
             .collect_vec();
-        crate::common::merkelize::merkleize(hashes_with_addr)
+        crate::common::merkle::merkleize(hashes_with_addr)
     }
 }
 

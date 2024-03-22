@@ -1,9 +1,9 @@
 use slice_group_by::GroupBy;
 
 use super::types::Poseidon2Hash;
-/// Takes leaves of the form `Poseidon2HasType`` and returns the merkle root
+/// Takes leaves of the form `Poseidon2Hash` and returns the merkle root
 /// of the tree, where nodes are hashed according to common prefix of `addr`:
-/// u64` field. NOTE: Assumes sorted order wrt `addr`
+/// `u64` field. NOTE: Assumes sorted order wrt `addr`
 #[must_use]
 pub fn merkleize(mut hashes_with_addr: Vec<(u64, Poseidon2Hash)>) -> Poseidon2Hash {
     while hashes_with_addr.len() > 1 {
@@ -13,7 +13,7 @@ pub fn merkleize(mut hashes_with_addr: Vec<(u64, Poseidon2Hash)>) -> Poseidon2Ha
             .filter_map(|group| {
                 let addr = group.first().copied()?.0;
                 let hashes = group.iter().map(|(_, h)| *h).collect::<Vec<_>>();
-                Some((addr >> 1, merklelize_group(hashes)?))
+                Some((addr >> 1, merkleize_group(hashes)?))
             })
             .collect::<Vec<_>>();
     }
@@ -23,7 +23,8 @@ pub fn merkleize(mut hashes_with_addr: Vec<(u64, Poseidon2Hash)>) -> Poseidon2Ha
         .1
 }
 
-fn merklelize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
+/// Returns merkle root of `group` treated as leaves in that order.
+fn merkleize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
     while group.len() > 1 {
         group = group
             .chunks(2)
@@ -47,7 +48,7 @@ fn merklelize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
 mod tests {
     use itertools::chain;
 
-    use crate::common::merkelize::merkleize;
+    use crate::common::merkle::merkleize;
     use crate::common::types::Poseidon2Hash;
     use crate::native::helpers::poseidon2_hash_no_pad;
 
