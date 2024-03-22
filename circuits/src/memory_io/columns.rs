@@ -1,14 +1,15 @@
 use core::ops::Add;
 
-// use mozak_sdk::core::reg_abi::REG_A1;
+use mozak_sdk::core::reg_abi::REG_A1;
+
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::register::columns::RegisterCtl;
-use crate::stark::mozak_stark::{TableKind, TableWithTypedOutput};
-// use crate::stark::mozak_stark::{
-//     IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable,
-// };
+use crate::stark::mozak_stark::{
+    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, TableKind,
+    TableWithTypedOutput,
+};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -112,21 +113,17 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Colu
 /// automatically.
 #[must_use]
 pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
-    todo!()
-    // let mem = col_map().map(Column::from);
-
-    // let data = vec![
-    //     // Op is read
-    //     // TODO: replace with a named constant.
-    //     // Perhaps make CTL use structs with named fields instead of being an
-    // unnamed tuple?     Column::constant(1),
-    //     mem.clk,
-    //     Column::constant(i64::from(REG_A1)),
-    //     mem.addr,
-    // ];
-    // vec![
-    //     IoMemoryPrivateTable::new(data.clone(), mem.ops.is_io_store.clone()),
-    //     IoMemoryPublicTable::new(data.clone(), mem.ops.is_io_store.clone()),
-    //     IoTranscriptTable::new(data, mem.ops.is_io_store),
-    // ]
+    let mem = COL_MAP;
+    let data = RegisterCtl {
+        clk: mem.clk,
+        // read
+        op: ColumnWithTypedInput::constant(1),
+        addr: ColumnWithTypedInput::constant(i64::from(REG_A1)),
+        value: mem.addr,
+    };
+    vec![
+        IoMemoryPrivateTable::new(data, mem.ops.is_io_store),
+        IoMemoryPublicTable::new(data, mem.ops.is_io_store),
+        IoTranscriptTable::new(data, mem.ops.is_io_store),
+    ]
 }
