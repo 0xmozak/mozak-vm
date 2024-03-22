@@ -17,7 +17,7 @@ def read_toml_file(file_path: str):
         raise Exception(f"Error reading TOML file: {e}") from e
 
 # Lists the different sub-directories (one level) at a given root directory
-def list_directories(directory: str) -> list[str]:
+def list_directories(directory: str):
     skip_directories = {".cargo", "target"}
     try:
         dirs = [dir for dir in os.listdir(directory) if (dir not in skip_directories and os.path.isdir(os.path.join(directory, dir)))]
@@ -47,12 +47,6 @@ class ExamplesTester(unittest.TestCase):
                 print(f"{Fore.GREEN}{dir}{Style.RESET_ALL} is detected core-only example; testing build")
                 self.assertEqual(os.system(f"cd examples && cargo +nightly build --release --bin {dir}"), 0)
                 print("\n")
-                # os.system('echo "Geeks 4 Geeks"')
-
-                # subprocess.Popen('echo "Geeks 4 Geeks"', shell=True)
-        # listed_workspace_members = set(read_toml_file("examples/Cargo.toml")['workspace']['members'])
-        # self.assertEqual(actual_directories, listed_workspace_members)
 
 if __name__ == "__main__":
-    # print(read_toml_file("examples/bss-tester/Cargo.toml")["dependencies"])
     unittest.main()
