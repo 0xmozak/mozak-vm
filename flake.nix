@@ -51,6 +51,10 @@
               wasmtime
               cargo-nextest
               config.packages.rust-toolchain
+              (python39.withPackages (python-pkgs: [
+                python-pkgs.colorama
+                python-pkgs.toml
+              ]))
             ]
             ++ lib.lists.optional (stdenv.isDarwin) pkgs.darwin.libiconv;
         };
