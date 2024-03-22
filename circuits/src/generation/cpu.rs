@@ -217,8 +217,6 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
         .unwrap_or_default();
 }
 
-#[allow(clippy::cast_possible_wrap)]
-#[allow(clippy::cast_lossless)]
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
 fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux<F>) {
