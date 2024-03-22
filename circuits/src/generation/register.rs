@@ -143,7 +143,6 @@ pub fn generate_register_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
     use mozak_runner::elf::Program;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;

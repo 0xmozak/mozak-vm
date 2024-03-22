@@ -68,7 +68,7 @@ columns_view_impl!(Instruction);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Instruction<T> {
-    /// The original instruction (+ imm_value) used for program
+    /// The original instruction (+ `imm_value`) used for program
     /// cross-table-lookup.
     pub pc: T,
 
@@ -133,8 +133,8 @@ pub struct CpuState<T> {
     pub cmp_diff_inv: T,
     /// If `op1` < `op2`
     pub less_than: T,
-    /// normalised_diff == 0 iff op1 == op2
-    /// normalised_diff == 1 iff op1 != op2
+    /// `normalised_diff` == 0 iff op1 == op2
+    /// `normalised_diff` == 1 iff op1 != op2
     /// We need this intermediate variable to keep the constraint degree <= 3.
     pub normalised_diff: T,
 
@@ -163,8 +163,8 @@ pub struct CpuState<T> {
     pub product_high_limb: T, // range check u32 required
     pub product_low_limb: T,  // range check u32 required
     /// Used as a helper column to check that `product_high_limb != u32::MAX`
-    /// when product_sign is 0 and `product_high_limb != 0` when
-    /// product_sign is 1
+    /// when `product_sign` is 0 and `product_high_limb != 0` when
+    /// `product_sign` is 1
     pub product_high_limb_inv_helper: T,
     pub mem_addr: T,
     pub io_addr: T,
@@ -308,112 +308,88 @@ pub fn rangecheck_looking() -> Vec<Table> {
     ]
 }
 
-/// Columns containing the data to be matched against Xor stark.
+/// Lookup for Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_xor() -> Vec<Column> { Column::singles(col_map().cpu.xor) }
-
-/// Column for a binary filter for bitwise instruction in Xor stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_xor() -> Column { col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor() }
-
-/// Column containing the data to be matched against Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn data_for_memory() -> Vec<Column> {
-    vec![
-        Column::single(col_map().cpu.clk),
-        Column::single(col_map().cpu.inst.ops.sb),
-        Column::single(col_map().cpu.inst.ops.lb), // For both `LB` and `LBU`
-        Column::single(col_map().cpu.mem_value_raw),
-        Column::single(col_map().cpu.mem_addr),
-    ]
+pub fn lookup_for_xor() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().cpu.xor),
+        col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor(),
+    )
 }
 
-/// Column for a binary filter for memory instruction in Memory stark.
+/// Lookup into Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_byte_memory() -> Column {
-    col_map().cpu.map(Column::from).inst.ops.byte_mem_ops()
+pub fn lookup_for_memory() -> Table {
+    CpuTable::new(
+        vec![
+            Column::single(col_map().cpu.clk),
+            Column::single(col_map().cpu.inst.ops.sb),
+            Column::single(col_map().cpu.inst.ops.lb), // For both `LB` and `LBU`
+            Column::single(col_map().cpu.mem_value_raw),
+            Column::single(col_map().cpu.mem_addr),
+        ],
+        col_map().cpu.map(Column::from).inst.ops.byte_mem_ops(),
+    )
 }
 
-/// Column containing the data to be matched against Memory stark.
+/// Lookup for halfword memory table.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_halfword_memory() -> Vec<Column> {
+pub fn lookup_for_halfword_memory() -> Table {
     let cpu = col_map().cpu.map(Column::from);
-    vec![
-        cpu.clk,
-        cpu.mem_addr,
-        cpu.mem_value_raw,
-        cpu.inst.ops.sh,
-        cpu.inst.ops.lh,
-    ]
+    CpuTable::new(
+        vec![
+            cpu.clk,
+            cpu.mem_addr,
+            cpu.mem_value_raw,
+            cpu.inst.ops.sh,
+            cpu.inst.ops.lh,
+        ],
+        col_map().cpu.map(Column::from).inst.ops.halfword_mem_ops(),
+    )
 }
 
-/// Column for a binary filter for memory instruction in Memory stark.
+/// Lookup into fullword memory table.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_halfword_memory() -> Column {
-    col_map().cpu.map(Column::from).inst.ops.halfword_mem_ops()
-}
-
-/// Column containing the data to be matched against Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn data_for_fullword_memory() -> Vec<Column> {
+pub fn lookup_for_fullword_memory() -> Table {
     let cpu = col_map().cpu.map(Column::from);
-    vec![
-        cpu.clk,
-        cpu.mem_addr,
-        cpu.dst_value,
-        cpu.inst.ops.sw,
-        cpu.inst.ops.lw,
-    ]
-}
-
-/// Column for a binary filter for memory instruction in Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_fullword_memory() -> Column {
-    col_map().cpu.map(Column::from).inst.ops.fullword_mem_ops()
+    CpuTable::new(
+        vec![
+            cpu.clk,
+            cpu.mem_addr,
+            cpu.dst_value,
+            cpu.inst.ops.sw,
+            cpu.inst.ops.lw,
+        ],
+        col_map().cpu.map(Column::from).inst.ops.fullword_mem_ops(),
+    )
 }
 
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+// TODO: unify all three variants into a single lookup, so we save on proving time.
 #[must_use]
-pub fn data_for_io_memory_private() -> Vec<Column> {
+pub fn lookup_for_io_memory_x(filter: Column) -> Table {
     let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store_private]
-}
-
-/// Column for a binary filter for memory instruction in IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_io_memory_private() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
-    cpu.is_io_store_private
+    CpuTable::new(vec![cpu.clk, cpu.io_addr, cpu.io_size], filter)
 }
 
 #[must_use]
-pub fn data_for_io_memory_public() -> Vec<Column> {
-    let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store_public]
-}
-
-/// Column for a binary filter for memory instruction in IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_io_memory_public() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
-    cpu.is_io_store_public
+pub fn lookup_for_io_memory_private() -> Table {
+    lookup_for_io_memory_x(col_map().cpu.map(Column::from).is_io_store_private)
 }
 
 #[must_use]
-pub fn data_for_io_transcript() -> Vec<Column> {
-    let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_transcript]
+pub fn lookup_for_io_memory_public() -> Table {
+    lookup_for_io_memory_x(col_map().cpu.map(Column::from).is_io_store_public)
+}
+
+#[must_use]
+pub fn lookup_for_io_transcript() -> Table {
+    lookup_for_io_memory_x(col_map().cpu.map(Column::from).is_io_transcript)
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
@@ -449,63 +425,84 @@ pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
     ])
 }
 
-/// Columns containing the data to be matched against `Bitshift` stark.
+/// Lookup against `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_shift_amount() -> Vec<Column> { Column::singles(col_map().cpu.bitshift) }
-
-/// Column for a binary filter for shft instruction in `Bitshift` stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_shift_amount() -> Column {
-    col_map().cpu.map(Column::from).inst.ops.ops_that_shift()
+pub fn lookup_for_shift_amount() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().cpu.bitshift),
+        col_map().cpu.map(Column::from).inst.ops.ops_that_shift(),
+    )
 }
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn data_for_inst() -> Vec<Column> {
+pub fn lookup_for_inst() -> Table {
     let inst = col_map().cpu.inst;
-    vec![
-        Column::single(inst.pc),
-        // Combine columns into a single column.
-        // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
-        //   bits.
-        // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
-        // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
-        // - imm_value: This field requires 32 bits.
-        // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
-        // size of the Goldilocks field.
-        // Note: The imm_value field, having more than 5 bits, must be positioned as the last
-        // column in the list to ensure the correct functioning of 'reduce_with_powers'.
-        Column::reduce_with_powers(
-            &[
-                Column::ascending_sum(inst.ops),
-                Column::single(inst.is_op1_signed),
-                Column::single(inst.is_op2_signed),
-                Column::ascending_sum(inst.rs1_select),
-                Column::ascending_sum(inst.rs2_select),
-                Column::ascending_sum(inst.rd_select),
-                Column::single(inst.imm_value),
-            ],
-            1 << 5,
-        ),
-    ]
+    CpuTable::new(
+        vec![
+            Column::single(inst.pc),
+            // Combine columns into a single column.
+            // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
+            //   bits.
+            // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
+            // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
+            // - imm_value: This field requires 32 bits.
+            // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
+            // size of the Goldilocks field.
+            // Note: The imm_value field, having more than 5 bits, must be positioned as the last
+            // column in the list to ensure the correct functioning of 'reduce_with_powers'.
+            Column::reduce_with_powers(
+                &[
+                    Column::ascending_sum(inst.ops),
+                    Column::single(inst.is_op1_signed),
+                    Column::single(inst.is_op2_signed),
+                    Column::ascending_sum(inst.rs1_select),
+                    Column::ascending_sum(inst.rs2_select),
+                    Column::ascending_sum(inst.rd_select),
+                    Column::single(inst.imm_value),
+                ],
+                1 << 5,
+            ),
+        ],
+        Column::single(col_map().cpu.is_running),
+    )
 }
 
-/// Columns containing the data of permuted instructions.
+/// Lookup for permuted instructions.
 #[must_use]
-pub fn data_for_permuted_inst() -> Vec<Column> { Column::singles(col_map().permuted.inst) }
+pub fn lookup_for_permuted_inst_inner() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().permuted.inst),
+        Column::single(col_map().cpu.is_running),
+    )
+}
 
+/// Lookup for permuted instructions.
 #[must_use]
-pub fn data_for_poseidon2_sponge() -> Vec<Column> {
-    let cpu = col_map().cpu.map(Column::from);
-    vec![cpu.clk, cpu.poseidon2_input_addr, cpu.poseidon2_input_len]
+pub fn lookup_for_permuted_inst_outer() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().permuted.inst),
+        Column::single(col_map().permuted.filter),
+    )
+}
+
+/// Lookup for permuted instructions into program ROM.
+#[must_use]
+pub fn lookup_for_program_rom() -> Table {
+    CpuTable::new(
+        Column::singles(col_map().permuted.inst),
+        Column::single(col_map().permuted.filter),
+    )
 }
 
 #[must_use]
-pub fn filter_for_poseidon2_sponge() -> Column {
+pub fn lookup_for_poseidon2_sponge() -> Table {
     let cpu = col_map().cpu.map(Column::from);
-    cpu.is_poseidon2
+    CpuTable::new(
+        vec![cpu.clk, cpu.poseidon2_input_addr, cpu.poseidon2_input_len],
+        cpu.is_poseidon2,
+    )
 }
 
 #[must_use]

@@ -1,4 +1,4 @@
-use itertools::{self, chain};
+use itertools::chain;
 use mozak_runner::instruction::Op;
 use mozak_runner::state::{IoEntry, IoOpcode};
 use mozak_runner::vm::Row;

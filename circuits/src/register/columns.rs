@@ -3,6 +3,7 @@ use core::ops::Add;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
+#[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
 #[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::{RegisterTable, Table};
@@ -69,8 +70,8 @@ pub struct Register<T> {
     pub value: T,
 
     /// Augmented clock at register access. This is calculated as:
-    /// augmented_clk = clk * 2 for register reads, and
-    /// augmented_clk = clk * 2 + 1 for register writes,
+    /// `augmented_clk` = clk * 2 for register reads, and
+    /// `augmented_clk` = clk * 2 + 1 for register writes,
     /// to ensure that we do not write to the register before we read.
     pub clk: T,
 
@@ -91,11 +92,14 @@ impl<T: Add<Output = T> + Clone> Register<T> {
     pub fn augmented_clk(self) -> T { self.clk.clone() + self.clk + self.ops.is_write }
 }
 
+#[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn data_for_register_init() -> Vec<Column> { Column::singles([col_map().addr]) }
-
-#[must_use]
-pub fn filter_for_register_init() -> Column { Column::from(col_map().ops.is_init) }
+pub fn lookup_for_register_init() -> Table {
+    RegisterTable::new(
+        Column::singles([col_map().addr]),
+        Column::from(col_map().ops.is_init),
+    )
+}
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]

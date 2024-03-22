@@ -1,7 +1,8 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
-#![allow(clippy::ignored_unit_patterns)]
+// Some of our dependencies transitively depend on different versions of the same crates, like syn
+// and bitflags. TODO: remove once our dependencies no longer do that.
+#![allow(clippy::multiple_crate_versions)]
 
 #[cfg(not(target_arch = "wasm32"))]
 use mimalloc::MiMalloc;
