@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "wallet-mozak-guest"
+name = "wallet"
 version = "0.1.0"
 
 [features]

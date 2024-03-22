@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "token-mozak-guest"
+name = "token"
 version = "0.1.0"
 
 [features]
@@ -9,7 +9,7 @@ native = []
 [dependencies]
 mozak-sdk = { path = "../../sdk" }
 rkyv = { version = "0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
-wallet-mozak-guest = { path = "../wallet" }
+wallet = { path = "../wallet" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"
