@@ -132,6 +132,8 @@ where
         &mozak_stark.open_public,
         &ctl_challenges,
     );
+
+    // println!("{:?}", open_public_data_per_table);
     let proofs = timed!(
         timing,
         "compute all proofs given commitments",
@@ -177,7 +179,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    open_public_data: &CtlData<F>,
+    open_public_data: &Option<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
@@ -195,8 +197,16 @@ where
         "FRI total reduction arity is too large.",
     );
 
+    let z_poly_open_public = if let Some(data) = open_public_data {
+        data.z_polys()
+    } else {
+        vec![]
+    };
+
+    println!("len of z_poly_public is {:?}", z_poly_open_public);
+
     // commit to both z poly of ctl and open public
-    let z_polys = vec![ctl_data.z_polys(), open_public_data.z_polys()]
+    let z_polys = vec![ctl_data.z_polys(), z_poly_open_public]
         .into_iter()
         .flatten()
         .collect_vec();
@@ -293,6 +303,11 @@ where
     // Make sure that we do not use Starky's lookups.
     assert!(!stark.requires_ctls());
     assert!(!stark.uses_lookups());
+    let num_open_public_data = if let Some(data) = open_public_data {
+        data.len()
+    } else {
+        0
+    };
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
@@ -305,7 +320,7 @@ where
                 config,
                 Some(&LookupConfig {
                     degree_bits,
-                    num_zs: ctl_data.len() + open_public_data.len()
+                    num_zs: ctl_data.len() + num_open_public_data
                 })
             ),
             &initial_merkle_trees,
@@ -337,7 +352,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
-    open_public_data_per_table: &TableKindArray<CtlData<F>>,
+    open_public_data_per_table: &TableKindArray<Option<CtlData<F>>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>

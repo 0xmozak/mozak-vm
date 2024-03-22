@@ -89,6 +89,8 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
                 looked_z
             );
         }
+    }
+    for _ in 0..config.num_challenges {
         for OpenPublic { table } in open_pubilc {
             ensure!(
                 reduced_public_input_openings[table.kind].next().unwrap()
@@ -262,10 +264,18 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         let open_public_chain = open_public_inputs
             .iter()
             .flat_map(|OpenPublic { table }| [table]);
-        for (&challenges, table) in iproduct!(
-            &ctl_challenges.challenges,
-            chain!(ctl_chain, open_public_chain)
-        ) {
+        for (&challenges, table) in iproduct!(&ctl_challenges.challenges, chain!(ctl_chain)) {
+            let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
+            ctl_vars_per_table[table.kind].push(Self {
+                local_z,
+                next_z,
+                challenges,
+                columns: &table.columns,
+                filter_column: &table.filter_column,
+            });
+        }
+        for (&challenges, table) in iproduct!(&ctl_challenges.challenges, chain!(open_public_chain))
+        {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {
                 local_z,
