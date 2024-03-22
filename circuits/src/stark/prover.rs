@@ -203,8 +203,6 @@ where
         vec![]
     };
 
-    println!("len of z_poly_public is {:?}", z_poly_open_public);
-
     // commit to both z poly of ctl and open public
     let z_polys = vec![ctl_data.z_polys(), z_poly_open_public]
         .into_iter()
