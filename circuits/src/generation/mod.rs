@@ -106,7 +106,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     );
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
-    let cpu_cols = generate_cpu_trace_extended(cpu_rows, &program_rows);
 
     let register_rows = generate_register_trace(
         record,
@@ -115,6 +114,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &io_memory_public_rows,
         &io_transcript_rows,
     );
+    let cpu_cols = generate_cpu_trace_extended(cpu_rows, &program_rows);
     // Generate rows for the looking values with their multiplicities.
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_cols, &memory_rows, &register_rows);
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be

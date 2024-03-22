@@ -20,12 +20,15 @@ pub struct ColumnWithTypedInput<InputColumns> {
     pub constant: i64,
 }
 
-/// Flip lv and nv
-pub fn flip<C>(col: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> {
-    ColumnWithTypedInput {
-        lv_linear_combination: col.nv_linear_combination,
-        nv_linear_combination: col.lv_linear_combination,
-        constant: col.constant,
+impl<InputColumns> ColumnWithTypedInput<InputColumns> {
+    /// Flip lv and nv
+    #[must_use]
+    pub fn flip(self) -> Self {
+        ColumnWithTypedInput {
+            lv_linear_combination: self.nv_linear_combination,
+            nv_linear_combination: self.lv_linear_combination,
+            constant: self.constant,
+        }
     }
 }
 

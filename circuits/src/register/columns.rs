@@ -86,14 +86,14 @@ pub struct Register<T> {
 /// We create a virtual column known as `is_used`, which flags a row as
 /// being 'used' if any one of the ops columns are turned on.
 /// This is to differentiate between real rows and padding rows.
-impl<T: Add<Output = T> + Clone> Register<T> {
+impl<T: Add<Output = T> + Copy> Register<T> {
     pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
 
     pub fn is_rw(self) -> T { self.ops.is_read + self.ops.is_write }
 
     // See, if we want to add a Mul constraint, we need to add a Mul trait bound?
     // Or whether we want to keep manual addition and clone?
-    pub fn augmented_clk(self) -> T { self.clk.clone() + self.clk + self.ops.is_write }
+    pub fn augmented_clk(self) -> T { self.clk + self.clk + self.ops.is_write }
 }
 
 #[cfg(feature = "enable_register_starks")]
@@ -112,30 +112,33 @@ pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn register_looked() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    use crate::linear_combination_typed::ColumnWithTypedInput;
+    // use crate::linear_combination_typed::ColumnWithTypedInput;
 
-    let reg: Register<Column> = col_map().map(Column::from);
-    let ops = COL_MAP.ops;
-    RegisterTable::new(
-        vec![
-            ColumnWithTypedInput::ascending_sum(ops),
-            reg.clk,
-            reg.addr,
-            reg.value,
-        ],
-        ops.is_read + ops.is_write,
-    )
+    // let reg: Register<Column> = col_map().map(Column::from);
+    // let reg = COL_MAP;
+    // let ops = COL_MAP.ops;
+    todo!()
+    // RegisterTable::new(
+    //     vec![
+    //         ColumnWithTypedInput::ascending_sum(ops),
+    //         reg.clk,
+    //         reg.addr,
+    //         reg.value,
+    //     ],
+    //     ops.is_read + ops.is_write,
+    // )
 }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    let ops = COL_MAP.ops;
+    use crate::linear_combination_typed::ColumnWithTypedInput;
+
     let lv = COL_MAP;
-    let nv = COL_MAP.flip();
+    let nv = COL_MAP.map(ColumnWithTypedInput::flip);
     let new = RangeCheckCtl::new;
     vec![RegisterTable::new(
-        new(nv.diff_augmented_clk() - lv.diff_augmented_clk()),
+        new(nv.augmented_clk() - lv.augmented_clk()),
         nv.is_rw(),
     )]
 }

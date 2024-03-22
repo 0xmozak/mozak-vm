@@ -118,14 +118,14 @@ mod tests {
             &poseidon2_output_bytes,
         );
         let program_rows = generate_program_rom_trace(&program);
-        let cpu_cols = generate_cpu_trace_extended(cpu_rows, &program_rows);
         let register_rows = generate_register_trace(
             &record,
-            &cpu_cols,
+            &cpu_rows,
             &io_memory_private,
             &io_memory_public,
             &io_transcript,
         );
+        let cpu_cols = generate_cpu_trace_extended(cpu_rows, &program_rows);
         let rangecheck_rows =
             generate_rangecheck_trace::<F>(&cpu_cols, &memory_rows, &register_rows);
 

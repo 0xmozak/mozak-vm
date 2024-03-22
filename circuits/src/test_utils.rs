@@ -169,14 +169,14 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
-        let cpu_cols = generate_cpu_trace_extended(cpu_trace, &program_rows);
         let register_trace = generate_register_trace(
             record,
-            &cpu_cols,
+            &cpu_trace,
             &io_memory_private,
             &io_memory_public,
             &io_transcript,
         );
+        let cpu_cols = generate_cpu_trace_extended(cpu_trace, &program_rows);
         let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
             &cpu_cols,
             &memory_trace,

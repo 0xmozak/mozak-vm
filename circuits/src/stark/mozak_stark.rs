@@ -743,15 +743,18 @@ pub struct RegisterLookups;
 
 #[cfg(feature = "enable_register_starks")]
 impl Lookups for RegisterLookups {
-    fn lookups() -> CrossTableLookup {
-        CrossTableLookup::new(
-            chain![
-                crate::cpu::columns::register_looking(),
-                crate::memory_io::columns::register_looking()
-            ]
-            .collect(),
-            crate::register::columns::register_looked(),
-        )
+    type Row = Register<Column>;
+
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
+        todo!()
+        // CrossTableLookup::new(
+        //     chain![
+        //         crate::cpu::columns::register_looking(),
+        //         crate::memory_io::columns::register_looking()
+        //     ]
+        //     .collect(),
+        //     crate::register::columns::register_looked(),
+        // )
     }
 }
 
