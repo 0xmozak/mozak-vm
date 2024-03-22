@@ -7,8 +7,7 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::register::columns::RegisterCtl;
 use crate::stark::mozak_stark::{
-    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, TableKind,
-    TableWithTypedOutput,
+    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, TableKind, TableWithTypedOutput,
 };
 
 /// Operations (one-hot encoded)

@@ -8,7 +8,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
-use crate::register::columns::{dummy, Ops, Register};
+use crate::register::columns::{dummy, Ops, Register, RegisterCtl};
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
@@ -75,17 +75,18 @@ where
     values
         .into_iter()
         .map(|value| {
-            if let [ops, clk, addr, value] = value[..] {
-                // TODO: move to Ops::from
-                let ops = Ops::from(ops);
-                Register {
-                    addr,
-                    value,
-                    clk,
-                    ops,
-                }
-            } else {
-                panic!("Can only range check single values, not tuples.")
+            let RegisterCtl {
+                addr,
+                value,
+                clk,
+                op,
+            } = value.into_iter().collect();
+            let ops = Ops::from(op);
+            Register {
+                addr,
+                value,
+                clk,
+                ops,
             }
         })
         .collect()
