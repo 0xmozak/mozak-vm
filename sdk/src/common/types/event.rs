@@ -1,3 +1,7 @@
+#[cfg(target_os = "mozakvm")]
+use crate::mozakvm::helpers::poseidon2_hash_no_pad;
+#[cfg(not(target_os = "mozakvm"))]
+use crate::native::helpers::poseidon2_hash_no_pad;
 #[derive(
     Copy,
     Clone,
@@ -90,28 +94,14 @@ impl CanonicalEvent {
 
     #[must_use]
     pub fn canonical_hash(&self) -> super::poseidon2hash::Poseidon2Hash {
-        #[cfg(not(target_os = "mozakvm"))]
-        {
-            let data_to_hash: Vec<u8> = itertools::chain!(
-                self.emitter.inner(),
-                u64::from(self.type_ as u8).to_le_bytes(),
-                self.address.inner(),
-                self.value.inner(),
-            )
-            .collect();
-            crate::native::helpers::poseidon2_hash_no_pad(&data_to_hash)
-        }
-        #[cfg(target_os = "mozakvm")]
-        {
-            let data_to_hash: Vec<u8> = itertools::chain!(
-                self.emitter.inner(),
-                u64::from(self.type_ as u8).to_le_bytes(),
-                self.address.inner(),
-                self.value.inner(),
-            )
-            .collect();
-            crate::mozakvm::helpers::poseidon2_hash_no_pad(&data_to_hash)
-        }
+        let data_to_hash: Vec<u8> = itertools::chain!(
+            self.emitter.inner(),
+            u64::from(self.type_ as u8).to_le_bytes(),
+            self.address.inner(),
+            self.value.inner(),
+        )
+        .collect();
+        poseidon2_hash_no_pad(&data_to_hash)
     }
 }
 
