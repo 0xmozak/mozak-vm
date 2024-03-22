@@ -75,7 +75,7 @@ pub fn reduce_public_input_for_make_rows_public<F: Field>(
                         (0..256u16)
                             .map(|i| challenge.combine(&vec![F::from_canonical_u16(i)]).inverse())
                             .sum(),
-                    )
+                    );
                 }
                 Some(reduced)
             }

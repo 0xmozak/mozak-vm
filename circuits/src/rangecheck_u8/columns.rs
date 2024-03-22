@@ -23,6 +23,7 @@ pub fn lookup() -> Table {
     )
 }
 
+#[must_use]
 pub fn make_rows_public() -> Table {
     RangeCheckU8Table::new(vec![Column::single(col_map().value)], Column::constant(1))
 }
