@@ -36,7 +36,7 @@ pub struct GuestProgramTomlCfg {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct Bin {
+pub(crate) struct Bin {
     name: String,
     path: String,
 }
@@ -149,6 +149,33 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
     );
 }
 
+/// Gets the mozakvm binary name via reading the guest program's Cargo.toml,
+/// and searching for a bin entry with path "..._mozak.rs".
+pub(crate) fn get_mozak_binary_name() -> String {
+    let toml_str = fs::read_to_string("Cargo.toml").expect(
+        "Could not find the program's Cargo.toml. Are you running from within the
+    project root?",
+    );
+
+    let toml: GuestProgramTomlCfg = toml::from_str(&toml_str).unwrap();
+
+    // TODO(bing): Currently, this is used to derive the name of the mozakvm
+    // binary based on the name declared alongside some path declared as
+    // "..._mozak.rs" in the project's `Cargo.toml`. The purpose of that is so
+    // we can dump the absolute path of the mozakvm ELF binary in our bundle
+    // plan (JSON).
+    //
+    // It might be prudent to come up with a more robust solution than this.
+    toml.bin
+        .into_iter()
+        .find(|b| b.path.contains("_mozak"))
+        .expect(
+            "Guest program does not have a mozakvm bin with path
+ *_mozak.rs declared",
+        )
+        .name
+}
+
 /// This functions dumps 3 files of the currently running guest program:
 ///   1. the actual system tape (JSON),
 ///   2. the debug dump of the system tape,
@@ -163,32 +190,14 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
     dump_system_tape(&sys_tape_path, true);
     let bin_filename = format!("out/{file_template}.tape.json");
 
-    let toml_str = fs::read_to_string("Cargo.toml").expect(
-        "Could not find the program's Cargo.toml. Are you running from within the project root?",
-    );
     let curr_dir = std::env::current_dir().unwrap();
-    let toml: GuestProgramTomlCfg = toml::from_str(&toml_str).unwrap();
 
     let bin_filepath_absolute = curr_dir.join(bin_filename);
 
-    // TODO(bing): Currently, this is used to derive the name of the mozakvm
-    // binary based on the name declared alongside some path declared as
-    // "..._mozak.rs" in the project's `Cargo.toml`. The purpose of that is so
-    // we can dump the absolute path of the mozakvm ELF binary in our bundle
-    // plan (JSON).
-    //
-    // It might be prudent to come up with a more robust solution than this.
-    let mozak_bin = toml
-        .bin
-        .into_iter()
-        .find(|b| b.path.contains("_mozak"))
-        .expect(
-            "Guest program does not have a mozakvm bin with path
- *_mozak.rs declared",
-        );
-
     let native_exe = std::env::current_exe().unwrap();
     let mut components = native_exe.components();
+
+    let mozak_bin_name: String = get_mozak_binary_name();
 
     // Advance back by 3 iterations within the path components
     // to get to the target/ directory. In essence this gets rid of:
@@ -199,7 +208,7 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
 
     let elf_filepath = components.as_path().join(format!(
         "riscv32im-mozak-mozakvm-elf/release/{}",
-        mozak_bin.name
+        mozak_bin_name
     ));
 
     let bundle = ProofBundle {
