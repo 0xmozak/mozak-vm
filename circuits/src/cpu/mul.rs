@@ -341,7 +341,6 @@ mod tests {
     }
 
     #[allow(clippy::cast_sign_loss)]
-    #[allow(clippy::cast_lossless)]
     fn prove_mulh<Stark: ProveAndVerify>(a: i32, b: i32) -> Result<(), TestCaseError> {
         let (program, record) = execute_code(
             [Instruction {

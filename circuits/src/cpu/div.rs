@@ -17,7 +17,6 @@ use crate::cpu::mul::{bit_to_sign, bit_to_sign_extension};
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// Constraints for DIV / REM / DIVU / REMU / SRL / SRA instructions
-#[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
