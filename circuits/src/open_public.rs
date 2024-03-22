@@ -63,10 +63,21 @@ pub(crate) fn open_rows_public_data<F: RichField, const D: usize>(
 /// instance of `MakeRowsPublic` for that table.
 pub fn reduce_public_input_for_make_rows_public<F: Field>(
     _public_input: &PublicInputs<F>,
-    _challenges: &GrandProductChallengeSet<F>,
+    challenges: &GrandProductChallengeSet<F>,
 ) -> TableKindArray<Option<Vec<F>>> {
     all_kind!(|kind| {
         match kind {
+            TableKind::RangeCheckU8 => {
+                let mut reduced = vec![];
+                for challenge in &challenges.challenges {
+                    reduced.push(
+                        (0..256u16)
+                            .map(|i| challenge.combine(&vec![F::from_canonical_u16(i)]).inverse())
+                            .sum(),
+                    )
+                }
+                Some(reduced)
+            }
             _ => None,
         }
     })

@@ -22,3 +22,7 @@ pub fn lookup() -> Table {
         Column::single(col_map().multiplicity),
     )
 }
+
+pub fn make_rows_public() -> Table {
+    RangeCheckU8Table::new(vec![Column::single(col_map().value)], Column::constant(1))
+}

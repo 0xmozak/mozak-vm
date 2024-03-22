@@ -105,7 +105,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     )]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-    pub make_rows_public: [MakeRowsPublic; 0],
+    pub make_rows_public: [MakeRowsPublic; 1],
 
     pub debug: bool,
 }
@@ -377,7 +377,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
             ],
-            make_rows_public: [],
+            make_rows_public: [MakeRangechecku8Public::make_public()],
             debug: false,
         }
     }
@@ -675,5 +675,12 @@ impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
             vec![crate::poseidon2_output_bytes::columns::lookup_for_poseidon2_sponge()],
             crate::poseidon2_sponge::columns::lookup_for_poseidon2_output_bytes(),
         )
+    }
+}
+
+pub struct MakeRangechecku8Public;
+impl MakeRangechecku8Public {
+    fn make_public() -> MakeRowsPublic {
+        MakeRowsPublic::new(crate::rangecheck_u8::columns::make_rows_public())
     }
 }
