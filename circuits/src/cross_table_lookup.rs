@@ -16,7 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::open_public::OpenPublic;
+use crate::open_public::MakeRowsPublic;
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
@@ -59,7 +59,7 @@ pub(crate) struct CtlZData<F: Field> {
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
     cross_table_lookups: &[CrossTableLookup],
-    open_pubilc: &[OpenPublic],
+    make_rows_pubilc: &[MakeRowsPublic],
     reduced_public_inputs: &TableKindArray<Option<Vec<F>>>,
     ctl_zs_lasts: &TableKindArray<Vec<F>>,
     config: &StarkConfig,
@@ -91,7 +91,7 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
         }
     }
     for _ in 0..config.num_challenges {
-        for OpenPublic { table } in open_pubilc {
+        for MakeRowsPublic { table } in make_rows_pubilc {
             ensure!(
                 reduced_public_input_openings[table.kind].next().unwrap()
                     == *ctl_zs_openings[table.kind].next().unwrap(),
@@ -247,7 +247,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
         proofs: &TableKindArray<StarkProof<F, C, D>>,
         cross_table_lookups: &'a [CrossTableLookup],
-        open_public_inputs: &'a [OpenPublic],
+        make_rows_public: &'a [MakeRowsPublic],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
     ) -> TableKindArray<Vec<Self>> {
         let mut ctl_zs = proofs
@@ -261,9 +261,9 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                  looked_table,
              }| chain!(looking_tables, [looked_table]),
         );
-        let open_public_chain = open_public_inputs
+        let make_rows_public_chain = make_rows_public
             .iter()
-            .flat_map(|OpenPublic { table }| [table]);
+            .flat_map(|MakeRowsPublic { table }| [table]);
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, chain!(ctl_chain)) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {
@@ -274,7 +274,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 filter_column: &table.filter_column,
             });
         }
-        for (&challenges, table) in iproduct!(&ctl_challenges.challenges, chain!(open_public_chain))
+        for (&challenges, table) in
+            iproduct!(&ctl_challenges.challenges, chain!(make_rows_public_chain))
         {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {

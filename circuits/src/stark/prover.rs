@@ -28,7 +28,7 @@ use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
-use crate::open_public::open_public_data;
+use crate::open_public::open_rows_public_data;
 use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
@@ -127,9 +127,9 @@ where
         )
     );
 
-    let open_public_data_per_table = open_public_data::<F, D>(
+    let open_rows_public_data_per_table = open_rows_public_data::<F, D>(
         traces_poly_values,
-        &mozak_stark.open_public,
+        &mozak_stark.make_rows_public,
         &ctl_challenges,
     );
 
@@ -144,7 +144,7 @@ where
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
-            &open_public_data_per_table,
+            &open_rows_public_data_per_table,
             &mut challenger,
             timing
         )?
@@ -179,7 +179,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    open_public_data: &Option<CtlData<F>>,
+    make_rows_public_data: &Option<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
@@ -197,7 +197,7 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    let z_poly_open_public = if let Some(data) = open_public_data {
+    let z_poly_open_public = if let Some(data) = make_rows_public_data {
         data.z_polys()
     } else {
         vec![]
@@ -238,7 +238,7 @@ where
             &ctl_zs_commitment,
             public_inputs,
             ctl_data,
-            open_public_data,
+            make_rows_public_data,
             &alphas,
             degree_bits,
             config,
@@ -303,7 +303,7 @@ where
     // Make sure that we do not use Starky's lookups.
     assert!(!stark.requires_ctls());
     assert!(!stark.uses_lookups());
-    let num_open_public_data = if let Some(data) = open_public_data {
+    let num_make_rows_public_data = if let Some(data) = make_rows_public_data {
         data.len()
     } else {
         0
@@ -320,7 +320,7 @@ where
                 config,
                 Some(&LookupConfig {
                     degree_bits,
-                    num_zs: ctl_data.len() + num_open_public_data
+                    num_zs: ctl_data.len() + num_make_rows_public_data
                 })
             ),
             &initial_merkle_trees,
