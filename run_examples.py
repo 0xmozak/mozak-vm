@@ -44,10 +44,10 @@ class ExamplesTester(unittest.TestCase):
         actual_directories = set(list_directories("examples"))
         for dir in actual_directories:
             if is_sdk_dependency_only_on_core_features(f"examples/{dir}/Cargo.toml"):
-                print(f"{Style.BRIGHT}{Fore.GREEN}{dir}{Style.RESET_ALL} is detected core-only example; testing build")
+                print(f"{Style.BRIGHT}{Fore.BLUE}{dir}{Style.RESET_ALL} is detected core-only example; testing build")
                 command = f"cd examples && cargo +nightly build --release --bin {dir}"
                 print(f"Running: {Fore.BLUE}{command}{Style.RESET_ALL}")
-                self.assertEqual(os.system(f"cd examples && cargo +nightly build --release --bin {dir}"), 0)
+                self.assertEqual(os.system(command), 0)
                 print("\n")
 
 if __name__ == "__main__":
