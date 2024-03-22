@@ -117,9 +117,6 @@ jobs:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install pip3 dependencies
-        run: pip3 install colorama toml
-
       - name: Run examples
         run: |
           nixdo python3 run_examples.py
