@@ -149,7 +149,6 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
     );
 }
 
-#[allow(dead_code)]
 /// This functions dumps 3 files of the currently running guest program:
 ///   1. the actual system tape (JSON),
 ///   2. the debug dump of the system tape,
@@ -190,9 +189,14 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
 
     let native_exe = std::env::current_exe().unwrap();
     let mut components = native_exe.components();
-    components.next_back();
-    components.next_back();
-    components.next_back();
+
+    // Advance back by 3 iterations within the path components
+    // to get to the target/ directory. In essence this gets rid of:
+    // riscv32im-mozak-mozakvm-elf/release/<ELF_NAME>
+    (0..3).into_iter().for_each(|_| {
+        components.next_back();
+    });
+
     let elf_filepath = components.as_path().join(format!(
         "riscv32im-mozak-mozakvm-elf/release/{}",
         mozak_bin.name
