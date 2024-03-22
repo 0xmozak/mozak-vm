@@ -1,73 +1,44 @@
-use super::types::Poseidon2Hash;
+use slice_group_by::GroupBy;
 
+use super::types::Poseidon2Hash;
 /// Takes leaves of the form `Poseidon2HasType`` and returns the merkle root
 /// of the tree, where nodes are hashed according to common prefix of `addr`:
 /// u64` field. NOTE: Assumes sorted order wrt `addr`
-pub fn merkleize(mut addrs: &mut [u64], mut hashes: &mut [Poseidon2Hash]) -> Poseidon2Hash {
-    assert_eq!(addrs.len(), hashes.len());
-    while addrs.len() > 1 {
-        let mut left_read_index = 0;
-        let mut curr_addr = addrs[0];
-        let mut write_index = 0;
-        for right_read_index in 0..addrs.len() {
-            let addr = addrs[right_read_index];
-            if addr != curr_addr {
-                hashes[write_index] =
-                    merkleize_group(&mut hashes[left_read_index..right_read_index]);
-                addrs[write_index] = curr_addr >> 1;
-                left_read_index = right_read_index;
-                write_index += 1;
-                curr_addr = addr;
-            };
-        }
-        hashes[write_index] = merkleize_group(&mut hashes[left_read_index..]);
-        addrs[write_index] = curr_addr >> 1;
-        write_index += 1;
-
-        hashes = &mut hashes[..write_index];
-        addrs = &mut addrs[..write_index];
+#[must_use]
+pub fn merkleize(mut hashes_with_addr: Vec<(u64, Poseidon2Hash)>) -> Option<Poseidon2Hash> {
+    while hashes_with_addr.len() > 1 {
+        hashes_with_addr = hashes_with_addr
+            .as_slice()
+            .linear_group_by(|(addr0, _hash0), (addr1, _hash1)| addr0 == addr1)
+            .filter_map(|group| {
+                let addr = group.first().copied()?.0;
+                let hashes = group.iter().map(|(_, h)| *h).collect::<Vec<_>>();
+                Some((addr >> 1, merklelize_group(hashes)?))
+            })
+            .collect::<Vec<_>>();
     }
-    match hashes.len() {
-        0 => Poseidon2Hash::default(),
-        _ => hashes[0],
-    }
+    Some(hashes_with_addr.first()?.1)
 }
 
-pub fn merkleize_group(mut group: &mut [Poseidon2Hash]) -> Poseidon2Hash {
+fn merklelize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
     while group.len() > 1 {
-        let mut write_index = 0;
-        while 2 * write_index + 1 < group.len() {
-            let concatenated_node: Vec<u8> = vec![
-                group[2 * write_index].inner(),
-                group[2 * write_index + 1].inner(),
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
-            #[cfg(not(target_os = "mozakvm"))]
-            {
-                group[write_index] =
-                    crate::native::helpers::poseidon2_hash_no_pad(&concatenated_node);
-            }
-            #[cfg(target_os = "mozakvm")]
-            {
-                group[write_index] =
-                    crate::mozakvm::helpers::poseidon2_hash_no_pad(&concatenated_node);
-            }
-            write_index += 1;
-        }
-        if 2 * write_index + 1 == group.len() {
-            group[write_index] = group[2 * write_index];
-            write_index += 1;
-        }
-        group = &mut group[..write_index];
+        group = group
+            .chunks(2)
+            .map(|g| match g {
+                [remainder] => *remainder,
+                #[cfg(target_os = "mozakvm")]
+                g => crate::mozakvm::helpers::poseidon2_hash_no_pad(
+                    &g.iter().flat_map(Poseidon2Hash::inner).collect::<Vec<u8>>(),
+                ),
+                #[cfg(not(target_os = "mozakvm"))]
+                g => crate::native::helpers::poseidon2_hash_no_pad(
+                    &g.iter().flat_map(Poseidon2Hash::inner).collect::<Vec<u8>>(),
+                ),
+            })
+            .collect::<Vec<_>>();
     }
-    match group.len() {
-        0 => Poseidon2Hash::default(),
-        _ => group[0],
-    }
+    group.first().copied()
 }
-
 #[cfg(test)]
 mod tests {
     use itertools::chain;
@@ -79,40 +50,32 @@ mod tests {
     #[test]
     #[rustfmt::skip] 
     fn merkelize_test() {
-        let mut addr = vec![
-            0x010, // ------------|
-                   //             |--h_2---|  
-            0x011, // ----|       |        |
-                   //     |-h_1---|        |---root
-            0x011, // ----|                |
-                   //                      |
-            0x111, //--------------------- |
+        let hashes_with_addr = vec![
+            (0x010, Poseidon2Hash([1u8; 32])),// ------------|
+                                              //             |--h_2---|  
+            (0x011, Poseidon2Hash([2u8; 32])),// ----|       |        |
+                                              //     |-h_1---|        |---root
+            (0x011, Poseidon2Hash([3u8; 32])),// ----|                |
+                                              //                      |
+            (0x111, Poseidon2Hash([4u8; 32])),//--------------------- |
         ];
-        let mut hashes = vec![
-            Poseidon2Hash([1u8; 32]), 
-            Poseidon2Hash([2u8; 32]), 
-            Poseidon2Hash([3u8; 32]), 
-            Poseidon2Hash([4u8; 32])
-        ];
-        let h_1_pre_image: Vec<u8> = chain![
-            hashes[1].inner(),
-            hashes[2].inner()
-        ].collect();
         let h_1 = poseidon2_hash_no_pad(
-            &h_1_pre_image
+            &chain![
+                hashes_with_addr[1].1.inner(),
+                hashes_with_addr[2].1.inner()
+            ]
+            .collect::<Vec<u8>>(),
         );
-        let h_2_pre_image: Vec<u8> = chain![hashes[0].inner(), h_1.inner()]
-        .collect();
         let h_2 = poseidon2_hash_no_pad(
-            &h_2_pre_image,
+            &chain![hashes_with_addr[0].1.inner(), h_1.inner()]
+                .collect::<Vec<u8>>(),
         );
-        let root_pre_image: Vec<u8> = chain![h_2.inner(), hashes[3].inner()].collect();
         let root = poseidon2_hash_no_pad(
-            &root_pre_image,
+            &chain![h_2.inner(), hashes_with_addr[3].1.inner()].collect::<Vec<u8>>(),
         );
         assert_eq!(root.inner(), [
             232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 
             132, 26, 242, 155, 95, 48, 48, 8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53]);
-        assert_eq!(root, merkleize(&mut addr, &mut hashes));
+        assert_eq!(root, merkleize(hashes_with_addr).unwrap());
     }
 }
