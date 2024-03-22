@@ -36,7 +36,7 @@ const CRATES: &[Crate] = &[
     ecrate!("min-max", "MIN_MAX_ELF", false),
     ecrate!("panic", "PANIC_ELF", false),
     ecrate!("rkyv-serialization", "RKYV_SERIALIZATION_ELF", false),
-    ecrate!("sha2", "sha2-example", "SHA2_ELF", false),
+    ecrate!("sha2", "SHA2_ELF", false),
     ecrate!("static-mem-access", "STATIC_MEM_ACCESS_ELF", false),
     ecrate!("empty", "EMPTY_ELF", false),
     ecrate!("tokenbin", "TOKENBIN", false),
