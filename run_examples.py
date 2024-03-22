@@ -42,6 +42,7 @@ class ExamplesTester(unittest.TestCase):
     
     def test_core_only_examples(self):
         actual_directories = set(list_directories("examples"))
+        print(os.system("pwd"))
         for dir in actual_directories:
             if is_sdk_dependency_only_on_core_features(f"examples/{dir}/Cargo.toml"):
                 print(f"{Fore.GREEN}{dir}{Style.RESET_ALL} is detected core-only example; testing build")
