@@ -107,19 +107,20 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     );
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
+    let cpu_cols = generate_cpu_trace_extended(cpu_rows, &program_rows);
 
     // Generate rows for the looking values with their multiplicities.
-    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_cols, &memory_rows, &register_rows);
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     #[allow(unused)]
-    let register_init_rows = generate_register_init_trace::<F>();
+    let register_init_rows = generate_register_init_trace::<F>(record);
     #[allow(unused)]
     let register_rows = generate_register_trace::<F>(record);
 
     TableKindSetBuilder {
-        cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows)),
+        cpu_stark: trace_to_poly_values(cpu_cols),
         rangecheck_stark: trace_rows_to_poly_values(rangecheck_rows),
         xor_stark: trace_rows_to_poly_values(xor_rows),
         shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),

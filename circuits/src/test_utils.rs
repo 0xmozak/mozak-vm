@@ -150,6 +150,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
+        let program_rows = generate_program_rom_trace(program);
         let register_trace = generate_register_trace::<F>(record);
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
@@ -168,8 +169,9 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
+        let cpu_cols = generate_cpu_trace_extended(cpu_trace, &program_rows);
         let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
-            &cpu_trace,
+            &cpu_cols,
             &memory_trace,
             &register_trace,
         ));
@@ -323,12 +325,12 @@ impl ProveAndVerify for BitshiftStark<F, D> {
 }
 
 impl ProveAndVerify for RegisterInitStark<F, D> {
-    fn prove_and_verify(_program: &Program, _record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterInitStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
-        let trace = generate_register_init_trace::<F>();
+        let trace = generate_register_init_trace::<F>(record);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,

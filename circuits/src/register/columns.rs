@@ -6,7 +6,11 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 #[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
 #[cfg(feature = "enable_register_starks")]
-use crate::stark::mozak_stark::{RegisterTable, Table};
+use crate::rangecheck::columns::RangeCheckCtl;
+#[cfg(feature = "enable_register_starks")]
+use crate::registerinit::columns::RegisterInitCtl;
+#[cfg(feature = "enable_register_starks")]
+use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
 
 columns_view_impl!(Ops);
 #[repr(C)]
@@ -99,19 +103,24 @@ impl<T: Add<Output = T>> Register<T> {
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn lookup_for_register_init() -> Table {
+pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column>> {
+    let reg = COL_MAP;
     RegisterTable::new(
-        Column::singles([col_map().addr]),
-        Column::from(col_map().ops.is_init),
+        RegisterInitCtl {
+            addr: reg.addr,
+            value: reg.value,
+        },
+        reg.ops.is_init,
     )
 }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn rangecheck_looking() -> Vec<Table> {
-    let ops = col_map().map(Column::from).ops;
+pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+    let ops = COL_MAP.ops;
+    let new = RangeCheckCtl::new;
     vec![RegisterTable::new(
-        Column::singles([col_map().diff_augmented_clk]),
+        new(COL_MAP.diff_augmented_clk),
         ops.is_read + ops.is_write,
     )]
 }

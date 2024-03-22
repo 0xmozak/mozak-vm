@@ -261,7 +261,7 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::cross_table_lookup::ctl_utils::check_single_ctl;
-    use crate::cross_table_lookup::CrossTableLookup;
+    use crate::cross_table_lookup::CrossTableLookupWithTypedOutput;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
@@ -277,7 +277,9 @@ mod tests {
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::stark::mozak_stark::{MozakStark, TableKind, TableKindSetBuilder};
+    use crate::stark::mozak_stark::{
+        ElfMemoryInitTable, MozakMemoryInitTable, MozakStark, TableKindSetBuilder,
+    };
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify};
     use crate::{memory, memory_zeroinit, memoryinit};
@@ -401,10 +403,10 @@ mod tests {
             generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
 
         // ctl for is_init values
-        let ctl = CrossTableLookup::new(
+        let ctl = CrossTableLookupWithTypedOutput::new(
             vec![
-                memoryinit::columns::lookup_for_memory(TableKind::ElfMemoryInit),
-                memoryinit::columns::lookup_for_memory(TableKind::MozakMemoryInit),
+                memoryinit::columns::lookup_for_memory(ElfMemoryInitTable::new),
+                memoryinit::columns::lookup_for_memory(MozakMemoryInitTable::new),
                 memory_zeroinit::columns::lookup_for_memory(),
             ],
             memory::columns::lookup_for_memoryinit(),
@@ -425,7 +427,7 @@ mod tests {
         let stark = S::default();
 
         // ctl for malicious prover indeed fails, showing inconsistency in is_init
-        assert!(check_single_ctl::<F>(&trace, &ctl).is_err());
+        assert!(check_single_ctl::<F>(&trace, &ctl.to_untyped_output()).is_err());
         let proof = prove::<F, C, S, D>(
             stark,
             &config,

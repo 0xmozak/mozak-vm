@@ -1,12 +1,22 @@
 #[cfg(target_os = "mozakvm")]
-use crate::mozakvm as os;
+pub type CallTapeType = crate::mozakvm::calltape::CallTape;
 #[cfg(not(target_os = "mozakvm"))]
-use crate::native as os;
+pub type CallTapeType = crate::native::calltape::CallTape;
 
-pub type CallTapeType = os::calltape::CallTape;
-pub type EventTapeType = os::eventtape::EventTape;
-pub type PublicInputTapeType = os::inputtape::PublicInputTape;
-pub type PrivateInputTapeType = os::inputtape::PrivateInputTape;
+#[cfg(target_os = "mozakvm")]
+pub type EventTapeType = crate::mozakvm::eventtape::EventTape;
+#[cfg(not(target_os = "mozakvm"))]
+pub type EventTapeType = crate::native::eventtape::EventTape;
+
+#[cfg(target_os = "mozakvm")]
+pub type PublicInputTapeType = crate::mozakvm::inputtape::PublicInputTape;
+#[cfg(not(target_os = "mozakvm"))]
+pub type PublicInputTapeType = crate::native::inputtape::PublicInputTape;
+
+#[cfg(target_os = "mozakvm")]
+pub type PrivateInputTapeType = crate::mozakvm::inputtape::PrivateInputTape;
+#[cfg(not(target_os = "mozakvm"))]
+pub type PrivateInputTapeType = crate::native::inputtape::PrivateInputTape;
 
 #[derive(Default, Clone)]
 #[cfg_attr(
