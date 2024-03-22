@@ -39,6 +39,7 @@ pub struct GuestProgramTomlCfg {
 struct Bin {
     name: String,
     path: String,
+}
 
 /// Manually add a `ProgramIdentifier` onto `IdentityStack`. Useful
 /// when one want to escape automatic management of `IdentityStack`
