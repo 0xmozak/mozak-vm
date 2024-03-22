@@ -307,10 +307,7 @@ impl<T> TableKindArray<T> {
         TableKindSetBuilder::from_array(self).build_with_kind()
     }
 
-    pub fn each_ref(&self) -> TableKindArray<&T> {
-        // TODO: replace with `self.0.each_ref()` (blocked on rust-lang/rust#76118)
-        all_kind!(|kind| &self[kind])
-    }
+    pub fn each_ref(&self) -> TableKindArray<&T> { TableKindArray(self.0.each_ref()) }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> { self.0.iter() }
 
