@@ -25,4 +25,3 @@ mozak-circuits = { path = '../circuits', features = ["test"] }
 [features]
 default = ["std"]
 std = ["plonky2/std"]
-
