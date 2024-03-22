@@ -3,7 +3,7 @@ use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{
-    CanonicalEvent, CanonicalOrderedTemporalHints, Event, ProgramIdentifier,
+    CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
 };
 
 /// Represents the `EventTape` under native execution
@@ -41,5 +41,29 @@ impl EventEmit for EventTape {
 
         assert!(canonical_event == generated_canonical_event);
         self.index += 1;
+    }
+}
+
+impl EventTape {
+    pub fn canonical_hash(&self) -> Poseidon2Hash {
+        let vec_canonical_ordered_temporal_hints: Vec<CanonicalOrderedTemporalHints> = self
+            .reader
+            .unwrap()
+            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+            .unwrap();
+        let vec_canonical_event: Vec<CanonicalEvent> = vec_canonical_ordered_temporal_hints
+            .iter()
+            .map(|event| event.0)
+            .collect();
+        let hashes_with_addr: Vec<(u64, Poseidon2Hash)> = vec_canonical_event
+            .iter()
+            .map(|event| {
+                (
+                    u64::from_le_bytes(event.address.inner()),
+                    event.canonical_hash(),
+                )
+            })
+            .collect();
+        crate::common::merkelize::merkleize(hashes_with_addr)
     }
 }

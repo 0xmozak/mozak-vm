@@ -5,7 +5,7 @@ use super::types::Poseidon2Hash;
 /// of the tree, where nodes are hashed according to common prefix of `addr`:
 /// u64` field. NOTE: Assumes sorted order wrt `addr`
 #[must_use]
-pub fn merkleize(mut hashes_with_addr: Vec<(u64, Poseidon2Hash)>) -> Option<Poseidon2Hash> {
+pub fn merkleize(mut hashes_with_addr: Vec<(u64, Poseidon2Hash)>) -> Poseidon2Hash {
     while hashes_with_addr.len() > 1 {
         hashes_with_addr = hashes_with_addr
             .as_slice()
@@ -17,7 +17,10 @@ pub fn merkleize(mut hashes_with_addr: Vec<(u64, Poseidon2Hash)>) -> Option<Pose
             })
             .collect::<Vec<_>>();
     }
-    Some(hashes_with_addr.first()?.1)
+    hashes_with_addr
+        .first()
+        .unwrap_or(&(0, Poseidon2Hash::default()))
+        .1
 }
 
 fn merklelize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
@@ -39,6 +42,7 @@ fn merklelize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
     }
     group.first().copied()
 }
+
 #[cfg(test)]
 mod tests {
     use itertools::chain;
@@ -76,6 +80,6 @@ mod tests {
         assert_eq!(root.inner(), [
             232, 132, 143, 27, 162, 220, 25, 57, 138, 30, 151, 109, 192, 
             132, 26, 242, 155, 95, 48, 48, 8, 55, 240, 62, 54, 195, 137, 239, 231, 140, 205, 53]);
-        assert_eq!(root, merkleize(hashes_with_addr).unwrap());
+        assert_eq!(root, merkleize(hashes_with_addr));
     }
 }
