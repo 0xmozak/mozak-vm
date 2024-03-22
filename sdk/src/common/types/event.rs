@@ -132,25 +132,28 @@ mod tests {
 
     #[test]
     fn check_sample_events_hash() {
-        let alice = ProgramIdentifier([4, 8, 15, 16].into());
-        let zero_val = [0, 0, 0, 0].into();
-        let non_zero_val_1 = [3, 1, 4, 15].into();
-        let non_zero_val_2 = [1, 6, 180, 33].into();
+        // uses test vectors from tests in
+        // mozak-vm/circuits/src/recproof/verify_event.rs
+        let program_hash_1 = ProgramIdentifier([4, 8, 15, 16].into());
+
+        let zero_val: Poseidon2Hash = [0; 4].into();
+        let non_zero_val_1: Poseidon2Hash = [3, 1, 4, 15].into();
+        let non_zero_val_2: Poseidon2Hash = [1, 6, 180, 33].into();
         let read_0 = CanonicalEvent {
             address: StateAddress(42u64.to_le_bytes()),
-            emitter: alice,
+            emitter: program_hash_1,
             type_: EventType::Read,
             value: zero_val,
         };
         let write_1 = CanonicalEvent {
             address: StateAddress(42u64.to_le_bytes()),
-            emitter: alice,
+            emitter: program_hash_1,
             type_: EventType::Write,
             value: non_zero_val_1,
         };
         let write_2 = CanonicalEvent {
             address: StateAddress(42u64.to_le_bytes()),
-            emitter: alice,
+            emitter: program_hash_1,
             type_: EventType::Write,
             value: non_zero_val_2,
         };
