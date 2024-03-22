@@ -219,31 +219,39 @@ macro_rules! columns_view_impl {
 
 pub(crate) use columns_view_impl;
 
-#[must_use]
-pub const fn col_map<const NUMBER_OF_COLUMNS: usize>() -> [usize; NUMBER_OF_COLUMNS] {
-    let mut indices_arr = [0usize; NUMBER_OF_COLUMNS];
-    let mut i = 0;
-    while i < indices_arr.len() {
-        indices_arr[i] = i;
-        i += 1;
-    }
-    indices_arr
-}
-
-/// Implement a static `MAP` of the `ColumnsView` from an array with length
-/// [`NumberOfColumns`] of the `ColumnsView` that allows for indexing into an
-/// array with the column name rather than the column index.
+/// Implement a static `MAP` of the `ColumnsView` that allows for indexing for
+/// crosstable lookups
 macro_rules! make_col_map {
     ($s: ident) => {
+        // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
+        // TODO: see if we can do this without transmute?
         #[allow(dead_code)]
-        pub(crate) const fn col_map() -> &'static $s<usize> {
-            const MAP: $s<usize> = {
-                use crate::columns_view::NumberOfColumns;
-                const NUMBER_OF_COLUMNS: usize = $s::<()>::NUMBER_OF_COLUMNS;
-                $s::from_array(crate::columns_view::col_map::<NUMBER_OF_COLUMNS>())
+        #[allow(clippy::large_stack_arrays)]
+        pub(crate) const COL_MAP: $s<
+            crate::linear_combination_typed::ColumnWithTypedInput<$s<i64>>,
+        > = {
+            use core::mem::transmute;
+
+            use crate::columns_view::NumberOfColumns;
+            use crate::cross_table_lookup::ColumnWithTypedInput;
+            const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
+            type ArrayForm = [ColumnWithTypedInput<[i64; N]>; N];
+            type Output = $s<crate::linear_combination_typed::ColumnWithTypedInput<$s<i64>>>;
+            let identity_matrix: ArrayForm = {
+                let mut indices_mat = [ColumnWithTypedInput {
+                    lv_linear_combination: [0_i64; N],
+                    nv_linear_combination: [0_i64; N],
+                    constant: 0,
+                }; N];
+                let mut i = 0;
+                while i < N {
+                    indices_mat[i].lv_linear_combination[i] = 1;
+                    i += 1;
+                }
+                indices_mat
             };
-            &MAP
-        }
+            unsafe { transmute::<ArrayForm, Output>(identity_matrix) }
+        };
     };
 }
 pub(crate) use make_col_map;

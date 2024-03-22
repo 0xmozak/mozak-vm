@@ -2,19 +2,43 @@ use std::collections::BTreeMap;
 use std::ops::Index;
 
 use itertools::Itertools;
+use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::CpuState;
+use crate::cpu::columns::CpuColumnsExtended;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::register::columns::Register;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
+use crate::stark::utils::trace_to_poly_values;
 use crate::utils::pad_trace_with_default;
 
 /// Converts a u32 into 4 u8 limbs represented in [`RichField`].
 #[must_use]
 pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
     value.to_le_bytes().map(|v| F::from_canonical_u8(v))
+}
+
+/// extract the values to be rangechecked.
+/// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
+/// memory traces, hence ignored
+// TODO(Matthias): see about unifying this with the eval functions on columns.
+// Similar with the other `extract` function here.  Also perhaps make it work with typed Looking
+// Tables, instead of the untyped form.
+#[must_use]
+pub fn extract_from_column_major_form<F: RichField>(
+    trace: &[PolynomialValues<F>],
+    looking_table: &Table,
+) -> Vec<F>
+where {
+    if let [column] = &looking_table.columns[..] {
+        (0..trace[0].len())
+            .filter(|&i| looking_table.filter_column.eval_table(trace, i).is_one())
+            .map(|i| column.eval_table(trace, i))
+            .collect()
+    } else {
+        panic!("Can only range check single values, not tuples.")
+    }
 }
 
 /// extract the values to be rangechecked.
@@ -44,21 +68,24 @@ where
 /// 1. conversion of u32 values to u8 limbs fails,
 /// 2. trace width does not match the number of columns,
 /// 3. attempting to range check tuples instead of single values.
+// crate::cpu::columns::CpuColumnsExtended<Vec<F>>
+
 #[must_use]
 #[allow(unused)]
 pub(crate) fn generate_rangecheck_trace<F: RichField>(
-    cpu_trace: &[CpuState<F>],
+    cpu_trace: &CpuColumnsExtended<Vec<F>>,
     memory_trace: &[Memory<F>],
     register_trace: &[Register<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
     let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
+    let cpu_trace = &trace_to_poly_values(cpu_trace.clone());
 
     RangecheckTable::lookups()
         .looking_tables
         .into_iter()
         .for_each(|looking_table| {
             match looking_table.kind {
-                TableKind::Cpu => extract(cpu_trace, &looking_table),
+                TableKind::Cpu => extract_from_column_major_form(cpu_trace, &looking_table),
                 TableKind::Memory => extract(memory_trace, &looking_table),
                 #[cfg(feature = "enable_register_starks")]
                 TableKind::Register => extract(register_trace, &looking_table),
@@ -94,7 +121,7 @@ mod tests {
     use plonky2::field::types::Field;
 
     use super::*;
-    use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
@@ -105,6 +132,7 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::generation::program::generate_program_rom_trace;
     use crate::generation::register::generate_register_trace;
     use crate::generation::MIN_TRACE_LENGTH;
 
@@ -151,7 +179,10 @@ mod tests {
             &io_memory_public_rows,
             &io_transcript_rows,
         );
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+        let program_rows = generate_program_rom_trace(&program);
+        let cpu_cols = generate_cpu_trace_extended(cpu_rows, &program_rows);
+
+        let trace = generate_rangecheck_trace::<F>(&cpu_cols, &memory_rows, &register_rows);
         assert_eq!(
             trace.len(),
             MIN_TRACE_LENGTH,
@@ -160,7 +191,7 @@ mod tests {
         );
         for (i, row) in trace.iter().enumerate() {
             match i {
-                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(4)),
+                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(2)),
                 1 => assert_eq!(row.multiplicity, F::from_canonical_u8(1)),
                 _ => {}
             }

@@ -55,7 +55,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 
         // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
         // This constraints ensures loop unrolling was done correctly
-        yield_constr.constraint(nv.is_io() * lv.size);
+        yield_constr.constraint(nv.ops.is_io_store * lv.size);
         // If lv.is_lv_and_nv_are_memory_rows == 1:
         //    nv.address == lv.address + 1 (wrapped)
         //    nv.size == lv.size - 1 (not-wrapped)
@@ -79,10 +79,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
         //      lv.addr == nv.addr       <-- next row address must be the same !!!
         //      lv.size === nv.size - 1  <-- next row size is decreased
         yield_constr.constraint_transition(
-            lv.is_io() * lv.size * (nv.addr - lv.addr),
+            lv.ops.is_io_store * lv.size * (nv.addr - lv.addr),
         );
         yield_constr.constraint_transition(
-            lv.is_io() * lv.size * (nv.size - (lv.size - P::ONES)),
+            lv.ops.is_io_store * lv.size * (nv.size - (lv.size - P::ONES)),
         );
         // If lv.is_io() == 1 && lv.size == 0:
         //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
@@ -92,7 +92,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 
         // If lv.is_io() == 1 && nv.size != 0:
         //      nv.is_lv_and_nv_are_memory_rows == 1
-        yield_constr.constraint(lv.is_io() * nv.size * (nv.is_lv_and_nv_are_memory_rows - P::ONES));
+        yield_constr.constraint(lv.ops.is_io_store * nv.size * (nv.is_lv_and_nv_are_memory_rows - P::ONES));
     }
 
     fn eval_ext_circuit(

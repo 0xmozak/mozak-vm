@@ -6,7 +6,11 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 #[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
 #[cfg(feature = "enable_register_starks")]
-use crate::stark::mozak_stark::{RegisterTable, Table};
+use crate::rangecheck::columns::RangeCheckCtl;
+#[cfg(feature = "enable_register_starks")]
+use crate::registerinit::columns::RegisterInitCtl;
+#[cfg(feature = "enable_register_starks")]
+use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
 
 columns_view_impl!(Ops);
 #[repr(C)]
@@ -94,21 +98,27 @@ impl<T: Add<Output = T> + Clone> Register<T> {
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn lookup_for_register_init() -> Table {
+pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column>> {
+    let reg = COL_MAP;
     RegisterTable::new(
-        Column::singles([col_map().addr]),
-        Column::from(col_map().ops.is_init),
+        RegisterInitCtl {
+            addr: reg.addr,
+            value: reg.value,
+        },
+        reg.ops.is_init,
     )
 }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn register_looked() -> Table {
+pub fn register_looked() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+    use crate::linear_combination_typed::ColumnWithTypedInput;
+
     let reg: Register<Column> = col_map().map(Column::from);
-    let ops = col_map().map(Column::from).ops;
+    let ops = COL_MAP.ops;
     RegisterTable::new(
         vec![
-            Column::ascending_sum(col_map().ops),
+            ColumnWithTypedInput::ascending_sum(ops),
             reg.clk,
             reg.addr,
             reg.value,
@@ -119,11 +129,13 @@ pub fn register_looked() -> Table {
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn rangecheck_looking() -> Vec<Table> {
-    let lv = col_map().map(Column::single);
-    let nv = col_map().map(Column::single_next);
+pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+    let ops = COL_MAP.ops;
+    let lv = COL_MAP;
+    let nv = COL_MAP.flip();
+    let new = RangeCheckCtl::new;
     vec![RegisterTable::new(
-        vec![nv.clone().augmented_clk() - lv.augmented_clk()],
+        new(nv.diff_augmented_clk() - lv.diff_augmented_clk()),
         nv.is_rw(),
     )]
 }

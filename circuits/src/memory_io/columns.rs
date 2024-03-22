@@ -3,9 +3,11 @@ use core::ops::Add;
 use mozak_sdk::core::reg_abi::REG_A1;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::Column;
+use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
+use crate::memory::columns::MemoryCtl;
 use crate::stark::mozak_stark::{
-    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, Table, TableKind,
+    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, Table, TableKind, TableKind,
+    TableWithTypedOutput,
 };
 
 /// Operations (one-hot encoded)
@@ -38,44 +40,58 @@ pub struct InputOutputMemory<T> {
 columns_view_impl!(InputOutputMemory);
 make_col_map!(InputOutputMemory);
 
-impl<T: Clone + Add<Output = T>> InputOutputMemory<T> {
-    pub fn is_io(&self) -> T { self.ops.is_io_store.clone() }
-
-    pub fn is_memory(&self) -> T { self.ops.is_memory_store.clone() }
-
-    pub fn is_executed(&self) -> T {
-        self.ops.is_io_store.clone() + self.ops.is_memory_store.clone()
-    }
+impl<T: Copy + Add<Output = T>> InputOutputMemory<T> {
+    pub fn is_executed(&self) -> T { self.ops.is_io_store + self.ops.is_memory_store }
 }
 
 /// Total number of columns.
 pub const NUM_IO_MEM_COLS: usize = InputOutputMemory::<()>::NUMBER_OF_COLUMNS;
 
-/// Lookup from CPU table into Memory stark table.
+columns_view_impl!(InputOutputMemoryCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct InputOutputMemoryCtl<T> {
+    pub clk: T,
+    pub addr: T,
+    pub size: T,
+}
+
+/// Lookup between CPU table and Memory stark table.
 #[must_use]
-pub fn lookup_for_cpu(kind: TableKind) -> Table {
-    let mem = col_map().map(Column::from);
-    Table {
+pub fn lookup_for_cpu(kind: TableKind) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+    let mem = COL_MAP;
+    TableWithTypedOutput {
         kind,
-        columns: vec![mem.clk, mem.addr, mem.size],
-        filter_column: col_map().map(Column::from).is_io(),
+        columns: InputOutputMemoryCtl {
+            clk: mem.clk,
+            addr: mem.addr,
+            size: mem.size,
+        }
+        .into_iter()
+        .map(Column::from)
+        .collect(),
+        filter_column: COL_MAP.ops.is_io_store.into(),
     }
 }
 
-/// Lookup from the halfword memory table into Memory stark table.
+/// Lookup into Memory stark table.
 #[must_use]
-pub fn lookup_for_memory(kind: TableKind) -> Table {
-    let mem = col_map().map(Column::from);
-    Table {
+pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Column>> {
+    let mem = COL_MAP;
+
+    TableWithTypedOutput {
         kind,
-        columns: vec![
-            mem.clk,
-            mem.ops.is_memory_store,
-            Column::constant(0),
-            mem.value,
-            mem.addr,
-        ],
-        filter_column: col_map().map(Column::from).is_memory(),
+        columns: MemoryCtl {
+            clk: mem.clk,
+            is_store: mem.ops.is_memory_store,
+            is_load: ColumnWithTypedInput::constant(0),
+            value: mem.value,
+            addr: mem.addr,
+        }
+        .into_iter()
+        .map(Column::from)
+        .collect(),
+        filter_column: COL_MAP.ops.is_memory_store.into(),
     }
 }
 
