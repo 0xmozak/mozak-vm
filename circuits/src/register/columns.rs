@@ -147,21 +147,18 @@ pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
-    // use crate::linear_combination_typed::ColumnWithTypedInput;
-
-    // let reg: Register<Column> = col_map().map(Column::from);
-    // let reg = COL_MAP;
-    // let ops = COL_MAP.ops;
-    todo!()
-    // RegisterTable::new(
-    //     vec![
-    //         ColumnWithTypedInput::ascending_sum(ops),
-    //         reg.clk,
-    //         reg.addr,
-    //         reg.value,
-    //     ],
-    //     ops.is_read + ops.is_write,
-    // )
+    use crate::linear_combination_typed::ColumnWithTypedInput;
+    let reg = COL_MAP;
+    RegisterTable::new(
+        RegisterCtl {
+            clk: reg.clk,
+            op: ColumnWithTypedInput::ascending_sum(reg.ops),
+            addr: reg.addr,
+            value: reg.value,
+        },
+        // TODO: We can probably do the register init in the same lookup?
+        reg.ops.is_read + reg.ops.is_write,
+    )
 }
 
 #[cfg(feature = "enable_register_starks")]
