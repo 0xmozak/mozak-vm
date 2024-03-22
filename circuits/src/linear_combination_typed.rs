@@ -127,6 +127,16 @@ where
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Self::default(), Add::add) }
 }
 
+impl<'a, C: Copy> Sum<&'a Self> for ColumnWithTypedInput<C>
+where
+    Self: Add<Output = Self> + Default,
+{
+    #[inline]
+    fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        iter.copied().fold(Self::default(), Add::add)
+    }
+}
+
 impl<C> ColumnWithTypedInput<C>
 where
     ColumnWithTypedInput<C>: Default,

@@ -4,7 +4,8 @@ use core::ops::Add;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-use crate::stark::mozak_stark::{Table, TableKind, TableWithTypedOutput};
+use crate::register::columns::RegisterCtl;
+use crate::stark::mozak_stark::{TableKind, TableWithTypedOutput};
 // use crate::stark::mozak_stark::{
 //     IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable,
 // };
@@ -110,7 +111,7 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Colu
 /// from the CTL data.  Similar to what we did for generating range-check traces
 /// automatically.
 #[must_use]
-pub fn register_looking() -> Vec<Table> {
+pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
     todo!()
     // let mem = col_map().map(Column::from);
 

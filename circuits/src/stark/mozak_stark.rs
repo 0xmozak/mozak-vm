@@ -53,6 +53,7 @@ use crate::rangecheck_u8::stark::RangeCheckU8Stark;
 use crate::register;
 #[cfg(feature = "enable_register_starks")]
 use crate::register::columns::Register;
+use crate::register::columns::RegisterCtl;
 use crate::register::stark::RegisterStark;
 #[cfg(feature = "enable_register_starks")]
 use crate::registerinit::columns::RegisterInit;
@@ -743,18 +744,17 @@ pub struct RegisterLookups;
 
 #[cfg(feature = "enable_register_starks")]
 impl Lookups for RegisterLookups {
-    type Row = Register<Column>;
+    type Row = RegisterCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        todo!()
-        // CrossTableLookup::new(
-        //     chain![
-        //         crate::cpu::columns::register_looking(),
-        //         crate::memory_io::columns::register_looking()
-        //     ]
-        //     .collect(),
-        //     crate::register::columns::register_looked(),
-        // )
+        CrossTableLookupWithTypedOutput::new(
+            chain![
+                crate::cpu::columns::register_looking(),
+                crate::memory_io::columns::register_looking()
+            ]
+            .collect(),
+            crate::register::columns::register_looked(),
+        )
     }
 }
 

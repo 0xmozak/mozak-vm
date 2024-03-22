@@ -8,7 +8,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
-use crate::register::columns::{dummy, init, read, write, Register};
+use crate::register::columns::{dummy, Ops, Register};
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
@@ -28,7 +28,7 @@ fn init_register_trace<F: RichField>(state: &State<F>) -> Vec<Register<F>> {
     (1..32)
         .map(|i| Register {
             addr: F::from_canonical_u8(i),
-            ops: init(),
+            ops: Ops::init(),
             value: F::from_canonical_u32(state.get_register_value(i)),
             ..Default::default()
         })
@@ -77,12 +77,7 @@ where
         .map(|value| {
             if let [ops, clk, addr, value] = value[..] {
                 // TODO: move to Ops::from
-                let ops = match ops.to_noncanonical_u64() {
-                    0 => init(),
-                    1 => read(),
-                    2 => write(),
-                    _ => panic!("Invalid ops value: {ops}"),
-                };
+                let ops = Ops::from(ops);
                 Register {
                     addr,
                     value,

@@ -14,7 +14,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::register::columns::Register;
+use crate::register::columns::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
 use crate::xor::columns::XorView;
 
@@ -490,43 +490,41 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<
 }
 
 #[must_use]
-pub fn register_looking() -> Vec<TableWithTypedOutput<Register<i64>>> {
-    todo!()
-    // let is_read = ColumnWithTypedInput::constant(1);
-    // let is_write = ColumnWithTypedInput::constant(2);
+pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
+    let is_read = ColumnWithTypedInput::constant(1);
+    let is_write = ColumnWithTypedInput::constant(2);
 
-    // let ascending_sum = ColumnWithTypedInput::ascending_sum;
-    // // todo!();
-    // vec![
-    //     // CpuTable::new(
-    //     //     Register{
-    //     //         ops: crate::register::columns::Ops::default(),
-    //     //         clk: CPU.clk,
-    //     //         addr: ascending_sum(CPU.inst.rs1_select),
-    //     //         value: cpu.op1_value,
-    //     //     },
-    //     //     // skip register 0
-    //     //     ColumnWithTypedInput::many(&cpu_.inst.rs1_select[1..]),
-    //     // ),
-    //     // CpuTable::new(
-    //     //     vec![
-    //     //         is_read(),
-    //     //         clk(),
-    //     //         ascending_sum(cpu_.inst.rs2_select),
-    //     //         cpu.op2_value_raw,
-    //     //     ],
-    //     //     // skip register 0
-    //     //     Column::many(&cpu_.inst.rs2_select[1..]),
-    //     // ),
-    //     // CpuTable::new(
-    //     //     vec![
-    //     //         is_write(),
-    //     //         clk(),
-    //     //         ascending_sum(cpu_.inst.rd_select),
-    //     //         cpu.dst_value,
-    //     //     ],
-    //     //     // skip register 0
-    //     //     Column::many(&cpu_.inst.rd_select[1..]),
-    //     // ),
-    // ]
+    let ascending_sum = ColumnWithTypedInput::ascending_sum;
+    vec![
+        CpuTable::new(
+            RegisterCtl {
+                clk: CPU.clk,
+                op: is_read,
+                addr: ascending_sum(CPU.inst.rs1_select),
+                value: CPU.op1_value,
+            },
+            // skip register 0
+            CPU.inst.rs1_select[1..].iter().sum(),
+        ),
+        CpuTable::new(
+            RegisterCtl {
+                clk: CPU.clk,
+                op: is_read,
+                addr: ascending_sum(CPU.inst.rs2_select),
+                value: CPU.op2_value_raw,
+            },
+            // skip register 0
+            CPU.inst.rs2_select[1..].iter().sum(),
+        ),
+        CpuTable::new(
+            RegisterCtl {
+                clk: CPU.clk,
+                op: is_write,
+                addr: ascending_sum(CPU.inst.rd_select),
+                value: CPU.dst_value,
+            },
+            // skip register 0
+            CPU.inst.rd_select[1..].iter().sum(),
+        ),
+    ]
 }

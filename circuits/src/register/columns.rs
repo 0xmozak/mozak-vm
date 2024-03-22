@@ -1,6 +1,7 @@
 use core::ops::Add;
 
 use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 #[cfg(feature = "enable_register_starks")]
@@ -27,27 +28,40 @@ pub struct Ops<T> {
     pub is_write: T,
 }
 
-#[must_use]
-pub fn init<T: Field>() -> Ops<T> {
-    Ops {
-        is_init: T::ONE,
-        ..Default::default()
+impl<F: RichField> From<F> for Ops<F> {
+    fn from(f: F) -> Self {
+        match f.to_noncanonical_u64() {
+            0 => Self::init(),
+            1 => Self::read(),
+            2 => Self::write(),
+            _ => panic!("Invalid ops value: {f:?}"),
+        }
     }
 }
 
-#[must_use]
-pub fn read<T: Field>() -> Ops<T> {
-    Ops {
-        is_read: T::ONE,
-        ..Default::default()
+impl<T: RichField> Ops<T> {
+    #[must_use]
+    pub fn init() -> Self {
+        Self {
+            is_init: T::ONE,
+            ..Default::default()
+        }
     }
-}
 
-#[must_use]
-pub fn write<T: Field>() -> Ops<T> {
-    Ops {
-        is_write: T::ONE,
-        ..Default::default()
+    #[must_use]
+    pub fn read() -> Self {
+        Self {
+            is_read: T::ONE,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
+    pub fn write() -> Self {
+        Ops {
+            is_write: T::ONE,
+            ..Default::default()
+        }
     }
 }
 
@@ -83,6 +97,27 @@ pub struct Register<T> {
     pub ops: Ops<T>,
 }
 
+impl<F: RichField + core::fmt::Debug> From<RegisterCtl<F>> for Register<F> {
+    fn from(ctl: RegisterCtl<F>) -> Self {
+        Register {
+            clk: ctl.clk,
+            addr: ctl.addr,
+            value: ctl.value,
+            ops: Ops::from(ctl.op),
+        }
+    }
+}
+
+columns_view_impl!(RegisterCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct RegisterCtl<T> {
+    pub clk: T,
+    pub op: T,
+    pub addr: T,
+    pub value: T,
+}
+
 /// We create a virtual column known as `is_used`, which flags a row as
 /// being 'used' if any one of the ops columns are turned on.
 /// This is to differentiate between real rows and padding rows.
@@ -111,7 +146,7 @@ pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn register_looked() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
     // use crate::linear_combination_typed::ColumnWithTypedInput;
 
     // let reg: Register<Column> = col_map().map(Column::from);
