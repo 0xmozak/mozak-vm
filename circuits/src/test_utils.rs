@@ -13,6 +13,7 @@ use plonky2::field::types::Field;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
+use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
@@ -77,6 +78,17 @@ pub fn fast_test_config() -> StarkConfig {
             ..config.fri_config
         },
     }
+}
+
+#[must_use]
+pub const fn fast_test_circuit_config() -> CircuitConfig {
+    let mut config = CircuitConfig::standard_recursion_config();
+    config.security_bits = 1;
+    config.num_challenges = 1;
+    config.fri_config.cap_height = 0;
+    config.fri_config.proof_of_work_bits = 0;
+    config.fri_config.num_query_rounds = 1;
+    config
 }
 
 /// Prepares a table of a trace. Useful for trace generation tests.

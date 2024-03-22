@@ -263,7 +263,7 @@ mod tests {
     #[test]
     #[ignore]
     #[should_panic = "Constraint failed in"]
-    // TODO(Roman): fix this test, looks like we should constrain the `is_init` 
+    // TODO(Roman): fix this test, looks like we should constrain the `is_init`
     /// Test that we have a constraint to catch, if there is no init for any memory address.
     fn no_init() {
         let _ = env_logger::try_init();

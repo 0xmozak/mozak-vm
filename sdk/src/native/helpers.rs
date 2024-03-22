@@ -39,6 +39,37 @@ pub struct GuestProgramTomlCfg {
 struct Bin {
     name: String,
     path: String,
+
+/// Manually add a `ProgramIdentifier` onto `IdentityStack`. Useful
+/// when one want to escape automatic management of `IdentityStack`
+/// via cross-program-calls sends (ideally temporarily).
+/// CAUTION: Manual function for `IdentityStack`, misuse may lead
+/// to system tape generation failure.
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub fn add_identity(id: crate::common::types::ProgramIdentifier) {
+    unsafe {
+        crate::common::system::SYSTEM_TAPE
+            .call_tape
+            .identity_stack
+            .borrow_mut()
+            .add_identity(id);
+    }
+}
+
+/// Manually remove a `ProgramIdentifier` from `IdentityStack`.
+/// Useful when one want to escape automatic management of `IdentityStack`
+/// via cross-program-calls sends (ideally temporarily).
+/// CAUTION: Manual function for `IdentityStack`, misuse may lead
+/// to system tape generation failure.
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub fn rm_identity() {
+    unsafe {
+        crate::common::system::SYSTEM_TAPE
+            .call_tape
+            .identity_stack
+            .borrow_mut()
+            .rm_identity();
+    }
 }
 
 /// Hashes the input slice to `Poseidon2Hash` after padding.

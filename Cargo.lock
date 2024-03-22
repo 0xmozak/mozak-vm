@@ -940,6 +940,7 @@ dependencies = [
  "im",
  "iter_fixed",
  "itertools 0.12.1",
+ "lazy_static",
  "log",
  "mozak-circuits-derive",
  "mozak-runner",
