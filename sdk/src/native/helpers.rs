@@ -193,7 +193,7 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
     // Advance back by 3 iterations within the path components
     // to get to the target/ directory. In essence this gets rid of:
     // riscv32im-mozak-mozakvm-elf/release/<ELF_NAME>
-    (0..3).into_iter().for_each(|_| {
+    (0..3).for_each(|_| {
         components.next_back();
     });
 
