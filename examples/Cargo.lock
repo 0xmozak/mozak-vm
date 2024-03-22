@@ -238,6 +238,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "inputtape-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "mozak-sdk",
+ "rkyv",
+]
+
+[[package]]
 name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

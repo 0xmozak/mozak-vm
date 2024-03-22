@@ -1,12 +1,12 @@
 #[cfg(target_os = "mozakvm")]
-pub type CallTapeType = crate::mozakvm::calltape::CallTape;
+use crate::mozakvm as os;
 #[cfg(not(target_os = "mozakvm"))]
-pub type CallTapeType = crate::native::calltape::CallTape;
+use crate::native as os;
 
-#[cfg(target_os = "mozakvm")]
-pub type EventTapeType = crate::mozakvm::eventtape::EventTape;
-#[cfg(not(target_os = "mozakvm"))]
-pub type EventTapeType = crate::native::eventtape::EventTape;
+pub type CallTapeType = os::calltape::CallTape;
+pub type EventTapeType = os::eventtape::EventTape;
+pub type PublicInputTapeType = os::inputtape::PublicInputTape;
+pub type PrivateInputTapeType = os::inputtape::PrivateInputTape;
 
 #[derive(Default, Clone)]
 #[cfg_attr(
@@ -15,7 +15,8 @@ pub type EventTapeType = crate::native::eventtape::EventTape;
 )]
 #[allow(clippy::module_name_repetitions)]
 pub struct SystemTape {
-    // TODO: Add Public and Private IO Tape
+    pub private_input_tape: PrivateInputTapeType,
+    pub public_input_tape: PublicInputTapeType,
     pub call_tape: CallTapeType,
     pub event_tape: EventTapeType,
 }

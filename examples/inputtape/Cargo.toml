@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "wallet-mozak-guest"
+name = "inputtape-mozak-guest"
 version = "0.1.0"
 
 [features]
@@ -10,20 +10,18 @@ native = []
 mozak-sdk = { path = "../../sdk" }
 rkyv = { version = "0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 
-[target.'cfg(not(target_os="mozakvm"))'.dependencies]
-hex = "0.4.3"
-rand = "0.8.5"
-rand_chacha = "0.3.1"
+[target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
+version = "0.4"
 
 [[bin]]
-name = "walletbin"
+name = "inputtapebin"
 path = "main_mozak.rs"
 
 [[bin]]
-name = "wallet-native"
+name = "inputtape-native"
 path = "main_native.rs"
 required-features = ["native"]
 
 [lib]
-name = "wallet"
+name = "inputtape"
 path = "core_logic.rs"
