@@ -197,8 +197,6 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
     let native_exe = std::env::current_exe().unwrap();
     let mut components = native_exe.components();
 
-    let mozak_bin_name: String = get_mozak_binary_name();
-
     // Advance back by 3 iterations within the path components
     // to get to the target/ directory. In essence this gets rid of:
     // riscv32im-mozak-mozakvm-elf/release/<ELF_NAME>
@@ -208,7 +206,7 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
 
     let elf_filepath = components.as_path().join(format!(
         "riscv32im-mozak-mozakvm-elf/release/{}",
-        mozak_bin_name
+        get_mozak_binary_name()
     ));
 
     let bundle = ProofBundle {
