@@ -268,8 +268,6 @@ impl<F: RichField> State<F> {
     /// place after `is_some` check
     // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
     // will be removed, I will rename this function to `new`
-    // TODO(Roman): This `clippy` allow relates to the `args` - I will fix it later,
-    // when refactor this API
     pub fn new(
         Program {
             rw_memory: Data(rw_memory),
