@@ -36,13 +36,13 @@ impl<F: Field> CtlData<F> {
     pub fn len(&self) -> usize { self.zs_columns.len() }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.zs_columns.len() == 0 }
+    pub fn is_empty(&self) -> bool { self.zs_columns.is_empty() }
 
     #[must_use]
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
         self.zs_columns
             .iter()
-            .map(|zs_columns| zs_columns.z.clone())
+            .map(|zs_column| zs_column.z.clone())
             .collect()
     }
 }
@@ -374,9 +374,9 @@ pub fn eval_cross_table_lookup_checks_circuit<
 
 pub mod ctl_utils {
     use std::collections::HashMap;
-    use std::ops::{Deref, DerefMut};
 
     use anyhow::Result;
+    use derive_more::{Deref, DerefMut};
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
@@ -385,20 +385,10 @@ pub mod ctl_utils {
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
-    impl<F: Field> Deref for MultiSet<F> {
-        type Target = HashMap<Vec<F>, Vec<(TableKind, F)>>;
-
-        fn deref(&self) -> &Self::Target { &self.0 }
-    }
-    impl<F: Field> DerefMut for MultiSet<F> {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
-    }
     impl<F: Field> MultiSet<F> {
-        pub fn new() -> Self { MultiSet(HashMap::new()) }
-
         fn process_row(
             &mut self,
             trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
@@ -449,8 +439,8 @@ pub mod ctl_utils {
         }
 
         // Maps `m` with `(table.kind, multiplicity) in m[row]`
-        let mut looking_multiset = MultiSet::<F>::new();
-        let mut looked_multiset = MultiSet::<F>::new();
+        let mut looking_multiset = MultiSet::<F>::default();
+        let mut looked_multiset = MultiSet::<F>::default();
 
         for looking_table in &ctl.looking_tables {
             looking_multiset.process_row(trace_poly_values, looking_table);
@@ -494,7 +484,6 @@ mod tests {
     use super::*;
     use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable, TableKindSetBuilder};
 
-    #[allow(clippy::similar_names)]
     /// Specify which column(s) to find data related to lookups.
     /// If the lengths of `lv_col_indices` and `nv_col_indices` are not same,
     /// then we resize smaller one with empty column and then add componentwise
