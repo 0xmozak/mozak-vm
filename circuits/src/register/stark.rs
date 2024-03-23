@@ -86,12 +86,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         yield_constr
             .constraint_transition((nv.ops.is_read + nv.ops.is_write) * (nv.addr - lv.addr));
 
-        // TODO(Matthias): add constaints: address starts at 1 and ends at 31.
         // Constraint 5: Address either stays the same or increments by 1.
         yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
 
         // Constraint 6: `augmented_clk` is 0 for all `is_init` rows.
         yield_constr.constraint(lv.ops.is_init * lv.augmented_clk());
+
+        yield_constr.constraint_first_row(lv.addr - P::ONES);
+        yield_constr.constraint_last_row(lv.amount - P::Scalar::from_canonical_u8(31));
     }
 
     fn eval_ext_circuit(
