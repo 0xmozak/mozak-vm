@@ -193,7 +193,7 @@ class ExamplesTester(unittest.TestCase):
                         )
                         self.assertEqual(os.system(system_tape_generation_command), 0)
 
-                print("\n")
+                print()
 
 
 if __name__ == "__main__":
