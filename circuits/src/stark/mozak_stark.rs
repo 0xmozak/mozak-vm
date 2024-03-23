@@ -447,11 +447,12 @@ pub struct TableWithTypedOutput<Row> {
     pub(crate) filter_column: Column,
 }
 
-pub type Table = TableWithTypedOutput<Vec<Column>>;
+pub type TableUntyped = TableWithTypedOutput<Vec<Column>>;
+pub use TableUntyped as Table;
 
 impl<Row: IntoIterator<Item = Column>> TableWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> Table {
-        TableWithTypedOutput {
+        Table {
             kind: self.kind,
             columns: self.columns.into_iter().collect(),
             filter_column: self.filter_column,
