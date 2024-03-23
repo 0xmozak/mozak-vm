@@ -1,17 +1,23 @@
+"""
+Program to run our examples
+
+It not only tests the simple examples (which just used alloc etc) but also
+tests for examples on cross-program-calls among other things.
+"""
+
 # TODO: set up formatting and linting for Python files in CI.
-from colorama import Fore
-from colorama import Style
 import os
 import unittest
+
 import toml
+from colorama import Fore, Style
 
 
 # Reads a toml file and returns
 def read_toml_file(file_path: str):
     try:
         with open(file_path, "r") as f:
-            data = toml.load(f)
-            return data
+            return toml.load(f)
     except FileNotFoundError as e:
         raise FileNotFoundError(f"Error: File '{file_path}' not found.") from e
     except Exception as e:
@@ -58,7 +64,7 @@ def build_mozak_cli():
         )
         return
 
-    mozak_cli_build_command = f"cargo build --release --bin mozak-cli"
+    mozak_cli_build_command = "cargo build --release --bin mozak-cli"
     print(
         f"Building {Style.BRIGHT}{Fore.BLUE}mozak-cli{Style.RESET_ALL}: {Fore.BLUE}{mozak_cli_build_command}{Style.RESET_ALL}",
         flush=True,
@@ -130,9 +136,7 @@ class ExamplesTester(unittest.TestCase):
         prove_and_verify_exceptions = {}
 
         for dir in set(list_directories("examples")):
-            if is_sdk_dependency_beyond_core_features(
-                f"examples/{dir}/Cargo.toml"
-            ):
+            if is_sdk_dependency_beyond_core_features(f"examples/{dir}/Cargo.toml"):
                 print(
                     f"{Style.BRIGHT}{Fore.BLUE}{dir}{Style.RESET_ALL} is detected fully-featured example, building",
                     flush=True,
@@ -147,9 +151,7 @@ class ExamplesTester(unittest.TestCase):
                 print("\n")
 
         for dir in set(list_directories("examples")):
-            if is_sdk_dependency_beyond_core_features(
-                f"examples/{dir}/Cargo.toml"
-            ):
+            if is_sdk_dependency_beyond_core_features(f"examples/{dir}/Cargo.toml"):
                 print(
                     f"{Style.BRIGHT}{Fore.BLUE}{dir}{Style.RESET_ALL} is detected fully-featured example, ZK prove and verify",
                     flush=True,
