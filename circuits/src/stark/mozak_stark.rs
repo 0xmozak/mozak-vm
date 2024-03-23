@@ -57,8 +57,6 @@ use crate::register::columns::RegisterCtl;
 use crate::register::stark::RegisterStark;
 #[cfg(feature = "enable_register_starks")]
 use crate::registerinit::columns::RegisterInit;
-#[cfg(feature = "enable_register_starks")]
-use crate::registerinit::columns::RegisterInitCtl;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
@@ -68,7 +66,7 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
-    13 + cfg!(feature = "enable_register_starks") as usize * 2
+    13 + cfg!(feature = "enable_register_starks") as usize
         + cfg!(feature = "enable_poseidon_starks") as usize * 3
 };
 
@@ -389,8 +387,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 RangeCheckU8LookupTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
-                #[cfg(feature = "enable_register_starks")]
-                RegisterRegInitTable::lookups(),
                 #[cfg(feature = "enable_register_starks")]
                 RegisterLookups::lookups(),
                 IoMemoryPrivateCpuTable::lookups(),
@@ -739,25 +735,11 @@ impl Lookups for RegisterLookups {
         CrossTableLookupWithTypedOutput::new(
             chain![
                 crate::cpu::columns::register_looking(),
-                crate::memory_io::columns::register_looking()
+                crate::memory_io::columns::register_looking(),
+                vec![crate::registerinit::columns::lookup_for_register()],
             ]
             .collect(),
             crate::register::columns::register_looked(),
-        )
-    }
-}
-
-#[cfg(feature = "enable_register_starks")]
-pub struct RegisterRegInitTable;
-
-#[cfg(feature = "enable_register_starks")]
-impl Lookups for RegisterRegInitTable {
-    type Row = RegisterInitCtl<Column>;
-
-    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(
-            vec![crate::register::columns::lookup_for_register_init()],
-            crate::registerinit::columns::lookup_for_register(),
         )
     }
 }

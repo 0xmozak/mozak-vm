@@ -9,8 +9,6 @@ use crate::linear_combination::Column;
 #[cfg(feature = "enable_register_starks")]
 use crate::rangecheck::columns::RangeCheckCtl;
 #[cfg(feature = "enable_register_starks")]
-use crate::registerinit::columns::RegisterInitCtl;
-#[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
 
 columns_view_impl!(Ops);
@@ -133,19 +131,6 @@ impl<T: Add<Output = T> + Copy> Register<T> {
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column>> {
-    let reg = COL_MAP;
-    RegisterTable::new(
-        RegisterInitCtl {
-            addr: reg.addr,
-            value: reg.value,
-        },
-        reg.ops.is_init,
-    )
-}
-
-#[cfg(feature = "enable_register_starks")]
-#[must_use]
 pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
     use crate::linear_combination_typed::ColumnWithTypedInput;
     let reg = COL_MAP;
@@ -157,7 +142,7 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
             value: reg.value,
         },
         // TODO: We can probably do the register init in the same lookup?
-        reg.ops.is_read + reg.ops.is_write,
+        reg.ops.is_read + reg.ops.is_write + reg.ops.is_init,
     )
 }
 
