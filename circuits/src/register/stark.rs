@@ -93,7 +93,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         yield_constr.constraint(lv.ops.is_init * lv.augmented_clk());
 
         yield_constr.constraint_first_row(lv.addr - P::ONES);
-        yield_constr.constraint_last_row(lv.amount - P::Scalar::from_canonical_u8(31));
+        yield_constr.constraint_last_row(lv.addr - P::Scalar::from_canonical_u8(31));
     }
 
     fn eval_ext_circuit(
