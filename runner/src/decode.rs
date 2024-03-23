@@ -1,5 +1,6 @@
 use bitfield::{bitfield, BitRange};
 use log::warn;
+use mozak_sdk::core::reg_abi::{REG_A0, REG_A1};
 
 use crate::instruction::{Args, DecodingError, Instruction, Op, NOP};
 
@@ -229,7 +230,11 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
         },
         #[allow(clippy::match_same_arms)]
         0b111_0011 => match (bf.funct3(), bf.funct12()) {
-            (0x0, 0x0) => (Op::ECALL, Args::default()),
+            (0x0, 0x0) => (Op::ECALL, Args {
+                rs1: REG_A0,
+                rs2: REG_A1,
+                ..Default::default()
+            }),
             // For RISC-V this would be MRET,
             // but so far we implemented it as a no-op.
             (0x0, 0x302) => nop,

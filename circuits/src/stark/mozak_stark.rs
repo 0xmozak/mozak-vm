@@ -55,6 +55,8 @@ use crate::register;
 use crate::register::columns::Register;
 use crate::register::columns::RegisterCtl;
 use crate::register::stark::RegisterStark;
+use crate::register_zero::columns::RegisterZero;
+use crate::register_zero::stark::RegisterZeroStark;
 #[cfg(feature = "enable_register_starks")]
 use crate::registerinit::columns::RegisterInit;
 use crate::registerinit::stark::RegisterInitStark;
@@ -118,6 +120,11 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub register_init_stark: RegisterInitStark<F, D>,
     #[cfg_attr(feature = "enable_register_starks", StarkSet(stark_kind = "Register"))]
     pub register_stark: RegisterStark<F, D>,
+    #[cfg_attr(
+        feature = "enable_register_starks",
+        StarkSet(stark_kind = "RegisterZero")
+    )]
+    pub register_zero_stark: RegisterZeroStark<F, D>,
     #[cfg_attr(feature = "enable_poseidon_starks", StarkSet(stark_kind = "Poseidon2"))]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     #[cfg_attr(
@@ -367,6 +374,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
+            register_zero_stark: RegisterZeroStark::default(),
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
             io_transcript_stark: InputOutputMemoryStark::default(),
@@ -527,6 +535,8 @@ table_impl!(
 table_impl!(RegisterInitTable, TableKind::RegisterInit, RegisterInit);
 #[cfg(feature = "enable_register_starks")]
 table_impl!(RegisterTable, TableKind::Register, Register);
+#[cfg(feature = "enable_register_starks")]
+table_impl!(RegisterZeroTable, TableKind::RegisterZero, RegisterZero);
 table_impl!(
     IoMemoryPrivateTable,
     TableKind::IoMemoryPrivate,
