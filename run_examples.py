@@ -56,28 +56,6 @@ def is_sdk_dependency_beyond_core_features(cargo_file: str) -> bool:
     else:
         return True
 
-
-MOZAK_CLI_LOCATION = "target/release/mozak-cli"
-
-
-def build_mozak_cli():
-    """Builds the mozak-cli if it doesn't exist"""
-    if os.path.exists(MOZAK_CLI_LOCATION):
-        print(
-            f"Found {Style.BRIGHT}{Fore.BLUE}mozak-cli{Style.RESET_ALL}: skipping build"
-        )
-        return
-
-    mozak_cli_build_command = "cargo build --release --bin mozak-cli"
-    print(
-        f"Building {Style.BRIGHT}{Fore.BLUE}mozak-cli{Style.RESET_ALL}: {Fore.BLUE}{mozak_cli_build_command}{Style.RESET_ALL}"
-    )
-    os.system(mozak_cli_build_command)
-
-    if not os.path.exists(MOZAK_CLI_LOCATION):
-        raise FileNotFoundError("Cannot build mozak-cli", MOZAK_CLI_LOCATION)
-
-
 class ExamplesTester(unittest.TestCase):
     """Test class for running examples"""
 
@@ -95,7 +73,6 @@ class ExamplesTester(unittest.TestCase):
         """This test runs examples that depend on just the core
         capabilities of the `sdk` i.e. alloc, heap, panic etc
         """
-        build_mozak_cli()
         prove_and_verify_exceptions = {"panic"}  # TODO: check why `panic` doesn't work
         dummy_prog_id = (
             "MZK-0000000000000000000000000000000000000000000000000000000000000001"
@@ -118,7 +95,7 @@ class ExamplesTester(unittest.TestCase):
                         f"{Fore.RED}ZK prove and verify skipping for {Style.BRIGHT}{folder}{Style.NORMAL} as it is marked as an exception{Style.RESET_ALL}"
                     )
                 else:
-                    prove_and_verify_command = f"""{MOZAK_CLI_LOCATION} prove-and-verify \
+                    prove_and_verify_command = f"""cargo run --bin mozak-cli -- prove-and-verify \
                         examples/target/riscv32im-mozak-mozakvm-elf/release/{folder} \
                         --self-prog-id {dummy_prog_id}"""
                     print(
@@ -133,7 +110,6 @@ class ExamplesTester(unittest.TestCase):
         capabilities of the `sdk` i.e. make use of types, traits, system
         tape etc
         """
-        build_mozak_cli()
         prove_and_verify_exceptions = {}
 
         for folder in set(list_directories("examples")):
@@ -177,12 +153,15 @@ class ExamplesTester(unittest.TestCase):
                         "example_program_id"
                     ]  # We assume this to be different from all dependents
 
-                    system_tape_generation_command = f"""ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{{ print $2; }}')"; cd examples && cargo run --release --features="native" --bin {folder}-native --target $ARCH_TRIPLE"""
+                    system_tape_generation_command = f"""
+                        ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{{ print $2; }}')";
+                        cd examples && cargo run --release --features="native" --bin {folder}-native --target $ARCH_TRIPLE
+                        """
                     print(
                         f"System tape generation: {Fore.BLUE}{system_tape_generation_command}{Style.RESET_ALL}",
                     )
                     self.assertEqual(os.system(system_tape_generation_command), 0)
-                    print("\n")
+                    print()
 
                     system_tape = f"examples/{folder}.tape.json"
 
@@ -208,7 +187,7 @@ class ExamplesTester(unittest.TestCase):
                         print(
                             f"ZK prove and verify for {Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} requires execution of {elf} with ID: {id_}",
                         )
-                        execution_command = f"""{MOZAK_CLI_LOCATION} prove-and-verify -vvv {elf} --system-tape {system_tape} --self-prog-id {id_}"""
+                        execution_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape} --self-prog-id {id_}"""
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )
