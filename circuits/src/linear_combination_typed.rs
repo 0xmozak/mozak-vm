@@ -68,7 +68,6 @@ where
 {
     type Output = Self;
 
-    #[allow(clippy::similar_names)]
     fn add(self, other: i64) -> Self {
         Self {
             lv_linear_combination: self.lv_linear_combination,
@@ -84,7 +83,6 @@ where
 {
     type Output = Self;
 
-    #[allow(clippy::similar_names)]
     fn sub(self, other: Self) -> Self {
         Self {
             lv_linear_combination: self.lv_linear_combination - other.lv_linear_combination,
@@ -103,7 +101,6 @@ where
 {
     type Output = Self;
 
-    #[allow(clippy::similar_names)]
     fn mul(self, other: i64) -> Self {
         Self {
             lv_linear_combination: self.lv_linear_combination * other,

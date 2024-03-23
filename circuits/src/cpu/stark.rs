@@ -214,7 +214,6 @@ fn check_permuted_inst_cols<P: PackedField>(
     }
 }
 
-#[allow(clippy::similar_names)]
 pub fn check_permuted_inst_cols_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &ProgramRom<ExtensionTarget<D>>,
@@ -407,7 +406,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    #[allow(clippy::similar_names)]
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,

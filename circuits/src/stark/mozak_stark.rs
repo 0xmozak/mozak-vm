@@ -469,17 +469,6 @@ impl<Row> TableWithTypedOutput<Row> {
     }
 }
 
-pub trait NewIsh<TableType, RowOut> {
-    #[allow(clippy::new_ret_no_self)]
-    fn new<RowIn>(
-        columns: RowIn,
-        filter_column: ColumnWithTypedInput<TableType>,
-    ) -> TableWithTypedOutput<RowOut>
-    where
-        RowOut: FromIterator<Column>,
-        RowIn: IntoIterator<Item = ColumnWithTypedInput<TableType>>;
-}
-
 /// Macro to instantiate a new table for cross table lookups.
 // OK, `table_kind` determines the input type of the table.
 // But input type could relate to multiple kinds.
@@ -488,7 +477,6 @@ macro_rules! table_impl {
         #[allow(non_snake_case)]
         pub mod $lookup_input_id {
             use super::*;
-            #[allow(clippy::new_ret_no_self)]
             pub fn new<RowIn, RowOut>(
                 columns: RowIn,
                 filter_column: ColumnWithTypedInput<$input_table_type<i64>>,
