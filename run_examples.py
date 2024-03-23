@@ -1,3 +1,4 @@
+# TODO: set up formatting and linting for Python files in CI.
 from colorama import Fore
 from colorama import Style
 import os
