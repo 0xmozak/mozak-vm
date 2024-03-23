@@ -18,6 +18,71 @@ You can [open this repository in GitHub Codespaces](https://codespaces.new/0xmoz
 
 Mozak VM is built in Rust, so [installing the Rust toolchain](https://www.rust-lang.org/tools/install) is a pre-requisite, if you want to develop on your local machine.
 
+### Rust Analyzer
+
+Because we are using nightly versions of Rust toolchain we prefer to
+use nightly versions of `rust-analyzer` which can understand those
+nightly releases of Rust.
+
+Previously, we were specifying `rust-analyzer` as a component in
+`rust-toolcahin.toml`, however this made an artificial restriction on
+the version of toolchain we could use if `rust-analyzer` would break
+on our codebase.  In addition, it is much easier to update
+`rust-analyzer` once it is fixed, rather than update the whole Rust
+toolchain.
+
+Therefore we recommed to let Developer handle the version of
+`rust-analyzer` thay want to use.  Most editors can automatically
+download the latest version of `rust-analyzer`:
+
+- VSCode extension will download the latest version of `rust-analyzer`.  If you
+  need the `nightly` version, you can switch to `pre-release` version
+  of the VSCode extension;
+- Zed will automatically download the latest nightly version of `rust-analyzer`;
+- Emacs and NeoVim can be pointed to [manually
+  installed](https://rust-analyzer.github.io/manual.html#rust-analyzer-language-server-binary)
+  `rust-analyzer` binary downloaded from the [GitHub Releases
+  Page](https://github.com/rust-lang/rust-analyzer/releases).
+
+
+If you are experiencing issues with Rust analyzer you can check if it
+can correctly analyse our codebase from the command line.  Remember to
+figure out the location of your `rust-analyzer` binary used by your
+text editor.
+
+Start by running `rust-analyzer analysis-stats` on our codebase
+
+```bash
+mozak-vm $ rust-analyzer analysis-stats .
+Database loaded:     1.99s, 0b (metadata 359.47ms, 0b; build 823.73ms, 0b)
+  item trees: 194
+Item Tree Collection: 72.07ms, 0b
+  crates: 20, mods: 311, decls: 4142, bodies: 3161, adts: 336, consts: 256
+Item Collection:     7.70s, 0b
+Body lowering:       1.01s, 0b
+  exprs: 98389, ??ty: 73 (0%), ?ty: 37 (0%), !ty: 7
+  pats: 17493, ??ty: 4 (0%), ?ty: 6 (0%), !ty: 0
+Inference:           65.56s, 0b
+MIR lowering:        8.71s, 0b
+Mir failed bodies: 25 (0%)
+Data layouts:        56.44ms, 0b
+Failed data layouts: 3 (1%)
+Const evaluation:    109.09ms, 0b
+Failed const evals: 4 (1%)
+Total:               83.22s, 0b
+```
+
+If it doesn't report any panics then your version `rust-analyzer`
+should be able to handle our codebase.
+
+If it panics, then you should report it as a bug to [`rust-analyzer`
+upstream](https://github.com/rust-lang/rust-analyzer).
+
+You can try to narrow down a code sample.  One helpful tool is
+`rust-analyzer highlight` which can be run on a particular source
+file, but be warned that some errors span multiple files, and won't be
+picked by `rust-analyzer hightlight`.
+
 ## Building
 
 ```bash
