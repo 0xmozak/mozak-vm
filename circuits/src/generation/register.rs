@@ -64,9 +64,6 @@ where
         .collect()
 }
 
-// ops: is_init is_read is_write
-// addr, value, clk, ops
-//
 // At the moment, we need cpu and memory traces.
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<Register<F>>
 where
@@ -92,9 +89,6 @@ where
         .collect()
 }
 
-// #[cfg(feature = "enable_register_starks")]
-/// Generates a trace table for registers, used in building a `RegisterStark`
-/// proof.
 #[must_use]
 /// Generates the trace for registers.
 ///
