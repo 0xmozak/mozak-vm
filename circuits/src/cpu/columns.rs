@@ -297,7 +297,7 @@ pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> 
         (CPU.dst_value - CPU.dst_sign_bit * 0xFFFF_0000, ops.lh),
     ]
     .into_iter()
-    .map(|(columns, filter)| CpuTable::new(RangeCheckCtl::new(columns), filter))
+    .map(|(columns, filter)| CpuTable::new(RangeCheckCtl(columns), filter))
     .collect()
 }
 

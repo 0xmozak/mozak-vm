@@ -20,7 +20,7 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
 pub fn lookup() -> TableWithTypedOutput<RangeCheckCtl<Column>> {
-    let data = RangeCheckCtl::new(
+    let data = RangeCheckCtl(
         (0..4)
             .map(|limb| COL_MAP.limbs[limb] * (1 << (8 * limb)))
             .sum(),
@@ -31,22 +31,11 @@ pub fn lookup() -> TableWithTypedOutput<RangeCheckCtl<Column>> {
 columns_view_impl!(RangeCheckCtl);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct RangeCheckCtl<T> {
-    pub value: T,
-}
-
-impl<T> RangeCheckCtl<T> {
-    pub fn new(value: T) -> Self { Self { value } }
-}
+pub struct RangeCheckCtl<T>(pub T);
 
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
     (0..4)
-        .map(|limb| {
-            RangeCheckTable::new(
-                RangeCheckCtl::new(COL_MAP.limbs[limb]),
-                COL_MAP.multiplicity,
-            )
-        })
+        .map(|limb| RangeCheckTable::new(RangeCheckCtl(COL_MAP.limbs[limb]), COL_MAP.multiplicity))
         .collect()
 }

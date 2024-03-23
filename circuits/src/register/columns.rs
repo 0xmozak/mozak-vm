@@ -118,9 +118,8 @@ pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
     let ops = COL_MAP.ops;
-    let new = RangeCheckCtl::new;
     vec![RegisterTable::new(
-        new(COL_MAP.diff_augmented_clk),
+        RangeCheckCtl(COL_MAP.diff_augmented_clk),
         ops.is_read + ops.is_write,
     )]
 }
