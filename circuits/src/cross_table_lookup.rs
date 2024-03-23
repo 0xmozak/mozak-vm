@@ -37,13 +37,13 @@ impl<F: Field> CtlData<F> {
     pub fn len(&self) -> usize { self.zs_columns.len() }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.zs_columns.is_empty() }
+    pub fn is_empty(&self) -> bool { self.zs_columns.len() == 0 }
 
     #[must_use]
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
         self.zs_columns
             .iter()
-            .map(|zs_column| zs_column.z.clone())
+            .map(|zs_columns| zs_columns.z.clone())
             .collect()
     }
 }
@@ -409,7 +409,6 @@ pub mod ctl_utils {
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
-    use crate::register::columns::RegisterCtl;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
     #[derive(Clone, Debug, Default, Deref, DerefMut)]
@@ -436,7 +435,6 @@ pub mod ctl_utils {
         }
     }
 
-    // TODO: this code stinks.
     pub fn check_single_ctl<F: Field>(
         trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
         // TODO(Matthias): make this one work with CrossTableLookupNamed, instead of having to
@@ -456,7 +454,6 @@ pub mod ctl_utils {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
-                let row: RegisterCtl<F> = row.iter().copied().collect();
                 println!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\
@@ -478,31 +475,20 @@ pub mod ctl_utils {
         }
 
         looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
-        // assert_eq!(&looking_multiset, &looked_multiset);
 
         let empty = &vec![];
         // Check that every row in the looking tables appears in the looked table the
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations).unwrap_or_else(|_| {
-                panic!(
-                    "{:?}\n{:?}\n{:?}",
-                    &row, &looking_multiset, &looked_multiset
-                )
-            });
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
         for (row, looked_locations) in &looked_multiset.0 {
             let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations).unwrap_or_else(|_| {
-                panic!(
-                    "{:?}\n{:?}\n{:?}",
-                    &row, &looking_multiset, &looked_multiset
-                )
-            });
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         Ok(())
@@ -514,11 +500,7 @@ pub mod ctl_utils {
         mozak_stark
             .cross_table_lookups
             .iter()
-            .enumerate()
-            .for_each(|(i, ctl)| {
-                check_single_ctl(traces_poly_values, ctl)
-                    .unwrap_or_else(|x| panic!("CTL {i} is inconsistent: {x:?}\n{ctl:?}"));
-            });
+            .for_each(|ctl| check_single_ctl(traces_poly_values, ctl).unwrap());
     }
 }
 
