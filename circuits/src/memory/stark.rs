@@ -168,7 +168,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
     fn constraint_degree(&self) -> usize { 3 }
 
-    #[allow(clippy::similar_names)]
     fn eval_ext_circuit(
         &self,
         builder: &mut CircuitBuilder<F, D>,

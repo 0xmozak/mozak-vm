@@ -494,7 +494,6 @@ mod tests {
     use super::*;
     use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable, TableKindSetBuilder};
 
-    #[allow(clippy::similar_names)]
     /// Specify which column(s) to find data related to lookups.
     /// If the lengths of `lv_col_indices` and `nv_col_indices` are not same,
     /// then we resize smaller one with empty column and then add componentwise

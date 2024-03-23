@@ -79,7 +79,6 @@ bitfield! {
 /// ```
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::module_name_repetitions)]
-#[allow(clippy::similar_names)]
 #[allow(clippy::missing_errors_doc)]
 pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingError> {
     let bf = InstructionBits(word);
@@ -280,7 +279,6 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
 
 #[cfg(test)]
 #[allow(clippy::cast_sign_loss)]
-#[allow(clippy::cast_possible_wrap)]
 mod tests {
     use proptest::prelude::*;
     use test_case::test_case;

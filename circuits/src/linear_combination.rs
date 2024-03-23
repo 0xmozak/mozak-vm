@@ -46,7 +46,6 @@ impl Neg for Column {
 impl Add<Self> for Column {
     type Output = Self;
 
-    #[allow(clippy::similar_names)]
     fn add(self, other: Self) -> Self {
         let add_lc = |mut slc: Vec<(usize, i64)>, mut rlc: Vec<(usize, i64)>| {
             slc.sort_by_key(|&(col_idx, _)| col_idx);
@@ -274,7 +273,6 @@ impl Column {
     }
 
     /// Evaluate on an row of a table given in column-major form.
-    #[allow(clippy::cast_possible_wrap)]
     #[must_use]
     pub fn eval_table<F: Field>(&self, table: &[PolynomialValues<F>], row: usize) -> F {
         self.lv_linear_combination
@@ -292,7 +290,6 @@ impl Column {
     }
 
     /// Evaluate on an row of a table
-    #[allow(clippy::similar_names)]
     pub fn eval_row<F: Field>(
         &self,
         lv_row: &impl Index<usize, Output = F>,
