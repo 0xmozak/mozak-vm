@@ -9,6 +9,7 @@ use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::register::columns::{dummy, Ops, Register, RegisterCtl};
+use crate::registerinit::columns::RegisterInit;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
@@ -105,6 +106,7 @@ pub fn generate_register_trace<F: RichField>(
     mem_private: &[InputOutputMemory<F>],
     mem_public: &[InputOutputMemory<F>],
     mem_transcript: &[InputOutputMemory<F>],
+    reg_init: &[RegisterInit<F>],
 ) -> Vec<Register<F>> {
     // TODO: handle multiplicities?
     let operations: Vec<Register<F>> = RegisterLookups::lookups()
@@ -115,6 +117,7 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
             TableKind::IoTranscript => extract(mem_transcript, &looking_table),
+            TableKind::RegisterInit => extract(reg_init, &looking_table),
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
         .collect();
@@ -145,6 +148,7 @@ mod tests {
         generate_io_memory_private_trace, generate_io_memory_public_trace,
         generate_io_transcript_trace,
     };
+    use crate::generation::registerinit::generate_register_init_trace;
     use crate::test_utils::prep_table;
 
     type F = GoldilocksField;
@@ -216,12 +220,14 @@ mod tests {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
+        let register_init = generate_register_init_trace(&record);
         let trace = generate_register_trace(
             &record,
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,
             &io_transcript,
+            &register_init,
         );
 
         // This is the actual trace of the instructions.

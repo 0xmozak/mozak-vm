@@ -106,6 +106,7 @@ mod tests {
     use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::register::generate_register_trace;
+    use crate::generation::registerinit::generate_register_init_trace;
     use crate::generation::MIN_TRACE_LENGTH;
 
     #[test]
@@ -144,12 +145,14 @@ mod tests {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
+        let register_init = generate_register_init_trace(&record);
         let register_rows = generate_register_trace(
             &record,
             &cpu_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &io_transcript_rows,
+            &register_init,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
         assert_eq!(

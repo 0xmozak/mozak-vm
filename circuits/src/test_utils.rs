@@ -168,12 +168,14 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
+        let register_init = generate_register_init_trace(record);
         let register_trace = generate_register_trace(
             record,
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,
             &io_transcript,
+            &register_init,
         );
         let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
             &cpu_trace,
@@ -359,12 +361,14 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
+        let register_init = generate_register_init_trace(record);
         let trace = generate_register_trace(
             record,
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,
             &io_transcript,
+            &register_init,
         );
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
