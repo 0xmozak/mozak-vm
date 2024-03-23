@@ -1,8 +1,6 @@
 use std::ops::Index;
 
-use itertools::{chain, Itertools};
-use mozak_runner::state::State;
-use mozak_runner::vm::ExecutionRecord;
+use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
@@ -23,17 +21,6 @@ pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Ve
         )
     });
     trace
-}
-
-fn init_register_trace<F: RichField>(state: &State<F>) -> Vec<Register<F>> {
-    (1..32)
-        .map(|i| Register {
-            addr: F::from_canonical_u8(i),
-            ops: Ops::init(),
-            value: F::from_canonical_u32(state.get_register_value(i)),
-            ..Default::default()
-        })
-        .collect()
 }
 
 #[must_use]
@@ -101,7 +88,6 @@ where
 /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
 ///    2.
 pub fn generate_register_trace<F: RichField>(
-    record: &ExecutionRecord<F>,
     cpu_trace: &[CpuState<F>],
     mem_private: &[InputOutputMemory<F>],
     mem_public: &[InputOutputMemory<F>],
@@ -114,25 +100,18 @@ pub fn generate_register_trace<F: RichField>(
         .into_iter()
         .flat_map(|looking_table| {
             let a = match looking_table.kind {
-            TableKind::Cpu => extract(cpu_trace, &looking_table),
-            TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
-            TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
-            TableKind::IoTranscript => extract(mem_transcript, &looking_table),
-            TableKind::RegisterInit => extract(reg_init, &looking_table),
-            other => unimplemented!("Can't extract register ops from {other:#?} tables"),
-        };
-        dbg!((looking_table.kind, &a));
-        a
-    })
+                TableKind::Cpu => extract(cpu_trace, &looking_table),
+                TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
+                TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
+                TableKind::IoTranscript => extract(mem_transcript, &looking_table),
+                TableKind::RegisterInit => extract(reg_init, &looking_table),
+                other => unimplemented!("Can't extract register ops from {other:#?} tables"),
+            };
+            dbg!((looking_table.kind, &a));
+            a
+        })
         .collect();
-    let ExecutionRecord { last_state, .. } = record;
-    let trace = sort_into_address_blocks(
-        chain!(
-            init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
-            operations,
-        )
-        .collect_vec(),
-    );
+    let trace = sort_into_address_blocks(operations);
     log::trace!("trace {:?}", trace);
 
     pad_trace(trace)
@@ -140,9 +119,9 @@ pub fn generate_register_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
-    use mozak_runner::elf::Program;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;
+    use mozak_runner::vm::ExecutionRecord;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
@@ -157,7 +136,7 @@ mod tests {
 
     type F = GoldilocksField;
 
-    fn setup() -> (Program, ExecutionRecord<F>) {
+    fn setup() -> ExecutionRecord<F> {
         // Use same instructions as in the Notion document, see:
         // https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc
         let instructions = [
@@ -181,44 +160,13 @@ mod tests {
             }),
         ];
 
-        execute_code(instructions, &[], &[(6, 100), (7, 200)])
-    }
-
-    #[rustfmt::skip]
-    fn expected_trace_initial<F: RichField>() -> Vec<Register<F>> {
-        prep_table(
-            (1..32)
-                .map(|i| {
-                    let value = match i {
-                        6 => 100,
-                        7 => 200,
-                        _ => 0,
-                    };
-                    // Columns (repeated for registers 0-31):
-                    // addr  value clk  is_init is_read is_write
-                    [     i, value,  0,       1,      0,      0]
-                })
-                .collect_vec(),
-        )
-    }
-
-    #[test]
-    fn generate_reg_trace_initial() {
-        let (_, record) = setup();
-        let trace = init_register_trace::<F>(&record.executed[0].state);
-        let expected_trace_initial = expected_trace_initial();
-        (0..31).for_each(|i| {
-            assert_eq!(
-                trace[i], expected_trace_initial[i],
-                "Initial trace setup is wrong at row {i}"
-            );
-        });
+        execute_code(instructions, &[], &[(6, 100), (7, 200)]).1
     }
 
     #[test]
     #[rustfmt::skip]
     fn generate_reg_trace() {
-        let (_program, record) = setup();
+        let record = setup();
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
@@ -226,7 +174,7 @@ mod tests {
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let register_init = generate_register_init_trace(&record);
         let trace = generate_register_trace(
-            &record,
+      
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,

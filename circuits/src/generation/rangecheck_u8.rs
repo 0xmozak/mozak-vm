@@ -119,7 +119,6 @@ mod tests {
         );
         let register_init = generate_register_init_trace(&record);
         let register_rows = generate_register_trace(
-            &record,
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,

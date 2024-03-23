@@ -402,6 +402,7 @@ pub mod ctl_utils {
     use std::collections::HashMap;
 
     use anyhow::Result;
+    use derive_more::{Deref, DerefMut};
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
@@ -410,7 +411,6 @@ pub mod ctl_utils {
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::register::columns::RegisterCtl;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
-    use derive_more::{Deref, DerefMut};
 
     #[derive(Debug, Clone, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
@@ -458,7 +458,7 @@ pub mod ctl_utils {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
-                let row : RegisterCtl<F> = row.iter().copied().collect();
+                let row: RegisterCtl<F> = row.iter().copied().collect();
                 println!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\
@@ -487,14 +487,24 @@ pub mod ctl_utils {
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations)?;
+            check_multiplicities(row, looking_locations, looked_locations).unwrap_or_else(|_| {
+                panic!(
+                    "{:?}\n{:?}\n{:?}",
+                    &row, &looking_multiset, &looked_multiset
+                )
+            });
         }
 
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
         for (row, looked_locations) in &looked_multiset.0 {
             let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations)?;
+            check_multiplicities(row, looking_locations, looked_locations).unwrap_or_else(|_| {
+                panic!(
+                    "{:?}\n{:?}\n{:?}",
+                    &row, &looking_multiset, &looked_multiset
+                )
+            });
         }
 
         Ok(())

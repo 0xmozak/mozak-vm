@@ -78,7 +78,9 @@ mod tests {
 
     #[test]
     fn prove_add_mozak_example() {
-        let a = 1; let b = 2; let rd = 3;
+        let a = 1;
+        let b = 2;
+        let rd = 3;
         prove_add::<MozakStark<F, D>>(a, b, rd);
     }
 

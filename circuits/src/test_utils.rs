@@ -170,7 +170,6 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         );
         let register_init = generate_register_init_trace(record);
         let register_trace = generate_register_trace(
-            record,
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,
@@ -363,7 +362,6 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let register_init = generate_register_init_trace(record);
         let trace = generate_register_trace(
-            record,
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,
