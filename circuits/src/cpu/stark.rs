@@ -294,7 +294,7 @@ fn rd_assigned_correctly_circuit<F: RichField + Extendable<D>, const D: usize>(
     }
 }
 
-/// First operand should be assigned with the value of the designated register.
+/// Both operands should be assigned with the value of the designated registers.
 fn populate_op_values<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(
         lv.op1_value
