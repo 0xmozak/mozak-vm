@@ -37,12 +37,14 @@ def list_directories(directory: str):
 
 # Reads a `Cargo.toml` file and analyses whether the dependency on
 # `mozak-sdk` is only on "core" features.
-def is_sdk_dependency_only_on_core_features(cargo_file: str) -> bool:
+def is_sdk_dependency_beyond_core_features(cargo_file: str) -> bool:
     sdk_dependency = read_toml_file(cargo_file)["dependencies"]["mozak-sdk"]
     if "default-features" in sdk_dependency:
-        return sdk_dependency["default-features"] == False
+        return sdk_dependency["default-features"]
     elif "features" in sdk_dependency:
-        return len(sdk_dependency["features"]) == 0
+        return len(sdk_dependency["features"]) > 0
+    else:
+        return True
 
 
 MOZAK_CLI_LOCATION = "target/release/mozak-cli"
@@ -93,7 +95,7 @@ class ExamplesTester(unittest.TestCase):
         )
 
         for dir in set(list_directories("examples")):
-            if is_sdk_dependency_only_on_core_features(f"examples/{dir}/Cargo.toml"):
+            if not is_sdk_dependency_beyond_core_features(f"examples/{dir}/Cargo.toml"):
                 print(
                     f"{Style.BRIGHT}{Fore.BLUE}{dir}{Style.RESET_ALL} is detected core-only example"
                 )
@@ -128,7 +130,7 @@ class ExamplesTester(unittest.TestCase):
         prove_and_verify_exceptions = {}
 
         for dir in set(list_directories("examples")):
-            if not is_sdk_dependency_only_on_core_features(
+            if is_sdk_dependency_beyond_core_features(
                 f"examples/{dir}/Cargo.toml"
             ):
                 print(
@@ -145,7 +147,7 @@ class ExamplesTester(unittest.TestCase):
                 print("\n")
 
         for dir in set(list_directories("examples")):
-            if not is_sdk_dependency_only_on_core_features(
+            if is_sdk_dependency_beyond_core_features(
                 f"examples/{dir}/Cargo.toml"
             ):
                 print(
