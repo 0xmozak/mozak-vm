@@ -266,8 +266,6 @@ impl<F: RichField> State<F> {
     /// # Panics
     /// should not panic since access to the `mozak_ro_memory.unwrap()` takes
     /// place after `is_some` check
-    // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
-    // will be removed, I will rename this function to `new`
     pub fn new(
         Program {
             rw_memory: Data(rw_memory),
