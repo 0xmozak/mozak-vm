@@ -51,7 +51,7 @@
               wasmtime
               cargo-nextest
               config.packages.rust-toolchain
-              (python39.withPackages (python-pkgs: [
+              (python312.withPackages (python-pkgs: [
                 python-pkgs.colorama
                 python-pkgs.toml
               ]))
