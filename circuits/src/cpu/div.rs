@@ -352,6 +352,12 @@ mod tests {
     #[test]
     fn prove_div_example() { prove_div::<CpuStark<F, D>>(i32::MIN as u32, -1_i32 as u32, 28); }
 
+    #[allow(clippy::cast_sign_loss)]
+    #[test]
+    fn prove_div_mozak_example() {
+        prove_div::<MozakStark<F, D>>(i32::MIN as u32, -1_i32 as u32, 28);
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
         #[test]

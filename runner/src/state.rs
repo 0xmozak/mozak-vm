@@ -218,6 +218,7 @@ pub struct Aux<F: RichField> {
     pub will_halt: bool,
     pub op1: u32,
     pub op2: u32,
+    pub op2_raw: u32,
     pub poseidon2: Option<Poseidon2Entry<F>>,
     pub io: Option<IoEntry>,
 }

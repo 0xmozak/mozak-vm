@@ -79,7 +79,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     record: &ExecutionRecord<F>,
 ) -> TableKindArray<Vec<PolynomialValues<F>>> {
     let cpu_rows = generate_cpu_trace::<F>(record);
-    let register_rows = generate_register_trace::<F>(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
@@ -108,15 +107,19 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
+    let register_init_rows = generate_register_init_trace::<F>(record);
+    let register_rows = generate_register_trace(
+        &cpu_rows,
+        &io_memory_private_rows,
+        &io_memory_public_rows,
+        &io_transcript_rows,
+        &register_init_rows,
+    );
     // Generate rows for the looking values with their multiplicities.
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
-    #[allow(unused)]
-    let register_init_rows = generate_register_init_trace::<F>();
-    #[allow(unused)]
-    let register_rows = generate_register_trace::<F>(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows)),
