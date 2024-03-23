@@ -412,12 +412,10 @@ pub mod ctl_utils {
     use crate::register::columns::RegisterCtl;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
-    #[derive(Debug, Clone, Default, Deref, DerefMut)]
+    #[derive(Clone, Debug, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
     impl<F: Field> MultiSet<F> {
-        // pub fn new() -> Self { MultiSet(HashMap::new()) }
-
         fn process_row(
             &mut self,
             trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
