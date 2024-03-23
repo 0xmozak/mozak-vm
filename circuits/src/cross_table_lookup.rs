@@ -385,7 +385,7 @@ pub mod ctl_utils {
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
-    #[derive(Debug, Default, Deref, DerefMut)]
+    #[derive(Clone, Debug, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
     impl<F: Field> MultiSet<F> {
