@@ -160,7 +160,6 @@ mod tests {
     }
 
     #[test]
-    #[rustfmt::skip]
     fn generate_reg_trace() {
         let record = setup();
 
@@ -170,7 +169,6 @@ mod tests {
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let register_init = generate_register_init_trace(&record);
         let trace = generate_register_trace(
-      
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,
@@ -179,7 +177,8 @@ mod tests {
         );
 
         // This is the actual trace of the instructions.
-        let mut expected_trace = prep_table(
+        #[rustfmt::skip]
+        let mut expected_trace: Vec<Register<GoldilocksField>> = prep_table(
             vec![
                 // First, populate the table with the instructions from the above test code.
                 // Note that we filter out operations that act on r0.
@@ -212,6 +211,7 @@ mod tests {
 
         // Finally, append the above trace with the extra init rows with unused
         // registers.
+        #[rustfmt::skip]
         let mut final_init_rows = prep_table(
             (12..32).map(|i|
                 // addr value clk  is_init is_read is_write
