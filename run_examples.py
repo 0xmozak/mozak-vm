@@ -45,7 +45,7 @@ def list_directories(directory: str):
         raise OSError(f"Error while listing directory: {e}") from e
 
 
-def is_sdk_dependency_beyond_core_features(cargo_file: str) -> bool:
+def has_sdk_dependency_beyond_core_features(cargo_file: str) -> bool:
     """Reads a `Cargo.toml` file and analyses whether the dependency on
     `mozak-sdk` is only on "core" features."""
     sdk_dependency = read_toml_file(cargo_file)["dependencies"]["mozak-sdk"]
@@ -79,7 +79,7 @@ class ExamplesTester(unittest.TestCase):
         )
 
         for folder in set(list_directories("examples")):
-            if not is_sdk_dependency_beyond_core_features(
+            if not has_sdk_dependency_beyond_core_features(
                 f"examples/{folder}/Cargo.toml"
             ):
                 print(
@@ -113,7 +113,7 @@ class ExamplesTester(unittest.TestCase):
         prove_and_verify_exceptions = {}
 
         for folder in set(list_directories("examples")):
-            if is_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
+            if has_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
                 print(
                     f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected fully-featured example, building",
                 )
@@ -128,7 +128,7 @@ class ExamplesTester(unittest.TestCase):
                 print("\n")
 
         for folder in set(list_directories("examples")):
-            if is_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
+            if has_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
                 print(
                     f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected fully-featured example, ZK prove and verify",
                 )
