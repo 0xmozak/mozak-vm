@@ -3,7 +3,6 @@ use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::util::execute_code;
 use starky::config::StarkConfig;
 
-#[allow(clippy::pedantic)]
 pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
     let instructions = [
         Instruction {

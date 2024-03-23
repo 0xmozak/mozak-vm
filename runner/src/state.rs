@@ -71,7 +71,6 @@ pub struct StateMemory {
 }
 
 impl StateMemory {
-    #[allow(clippy::similar_names)]
     fn new<I, J>(ro: I, rw: J) -> Self
     where
         I: Iterator<Item = HashMap<u32, u8>>,
@@ -269,9 +268,8 @@ impl<F: RichField> State<F> {
     /// place after `is_some` check
     // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
     // will be removed, I will rename this function to `new`
-    // TODO(Roman): This `clippy` allow relates to the `args` - I will fix it later, when refactor
-    // this API
-    #[allow(clippy::needless_pass_by_value)]
+    // TODO(Roman): This `clippy` allow relates to the `args` - I will fix it later,
+    // when refactor this API
     pub fn new(
         Program {
             rw_memory: Data(rw_memory),

@@ -408,10 +408,10 @@ impl Table {
 /// Macro to instantiate a new table for cross table lookups.
 macro_rules! table_impl {
     ($t: ident, $tk: expr) => {
-        pub struct $t;
+        #[allow(non_snake_case)]
+        pub mod $t {
+            use super::*;
 
-        impl $t {
-            #[allow(clippy::new_ret_no_self)]
             #[must_use]
             pub fn new(columns: Vec<Column>, filter_column: Column) -> Table {
                 Table::new($tk, columns, filter_column)
