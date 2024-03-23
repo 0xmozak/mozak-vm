@@ -42,7 +42,7 @@ impl<F: Field> CtlData<F> {
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
         self.zs_columns
             .iter()
-            .map(|zs_columns| zs_columns.z.clone())
+            .map(|zs_column| zs_column.z.clone())
             .collect()
     }
 }
