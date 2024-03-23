@@ -37,13 +37,13 @@ impl<F: Field> CtlData<F> {
     pub fn len(&self) -> usize { self.zs_columns.len() }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.zs_columns.len() == 0 }
+    pub fn is_empty(&self) -> bool { self.zs_columns.is_empty() }
 
     #[must_use]
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
         self.zs_columns
             .iter()
-            .map(|zs_columns| zs_columns.z.clone())
+            .map(|zs_column| zs_column.z.clone())
             .collect()
     }
 }
@@ -400,7 +400,6 @@ pub fn eval_cross_table_lookup_checks_circuit<
 
 pub mod ctl_utils {
     use std::collections::HashMap;
-    use std::ops::{Deref, DerefMut};
 
     use anyhow::Result;
     use plonky2::field::extension::Extendable;
@@ -409,21 +408,15 @@ pub mod ctl_utils {
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
+    use crate::register::columns::RegisterCtl;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
+    use derive_more::{Deref, DerefMut};
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
-    impl<F: Field> Deref for MultiSet<F> {
-        type Target = HashMap<Vec<F>, Vec<(TableKind, F)>>;
-
-        fn deref(&self) -> &Self::Target { &self.0 }
-    }
-    impl<F: Field> DerefMut for MultiSet<F> {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
-    }
     impl<F: Field> MultiSet<F> {
-        pub fn new() -> Self { MultiSet(HashMap::new()) }
+        // pub fn new() -> Self { MultiSet(HashMap::new()) }
 
         fn process_row(
             &mut self,
@@ -445,6 +438,7 @@ pub mod ctl_utils {
         }
     }
 
+    // TODO: this code stinks.
     pub fn check_single_ctl<F: Field>(
         trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
         // TODO(Matthias): make this one work with CrossTableLookupNamed, instead of having to
@@ -464,6 +458,7 @@ pub mod ctl_utils {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
+                let row : RegisterCtl<F> = row.iter().copied().collect();
                 println!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\
@@ -477,14 +472,15 @@ pub mod ctl_utils {
         }
 
         // Maps `m` with `(table.kind, multiplicity) in m[row]`
-        let mut looking_multiset = MultiSet::<F>::new();
-        let mut looked_multiset = MultiSet::<F>::new();
+        let mut looking_multiset = MultiSet::<F>::default();
+        let mut looked_multiset = MultiSet::<F>::default();
 
         for looking_table in &ctl.looking_tables {
             looking_multiset.process_row(trace_poly_values, looking_table);
         }
 
         looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
+        // assert_eq!(&looking_multiset, &looked_multiset);
 
         let empty = &vec![];
         // Check that every row in the looking tables appears in the looked table the
@@ -510,7 +506,11 @@ pub mod ctl_utils {
         mozak_stark
             .cross_table_lookups
             .iter()
-            .for_each(|ctl| check_single_ctl(traces_poly_values, ctl).unwrap());
+            .enumerate()
+            .for_each(|(i, ctl)| {
+                check_single_ctl(traces_poly_values, ctl)
+                    .unwrap_or_else(|x| panic!("CTL {i} is inconsistent: {x:?}\n{ctl:?}"));
+            });
     }
 }
 

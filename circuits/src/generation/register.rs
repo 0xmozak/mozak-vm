@@ -112,14 +112,18 @@ pub fn generate_register_trace<F: RichField>(
     let operations: Vec<Register<F>> = RegisterLookups::lookups()
         .looking_tables
         .into_iter()
-        .flat_map(|looking_table| match looking_table.kind {
+        .flat_map(|looking_table| {
+            let a = match looking_table.kind {
             TableKind::Cpu => extract(cpu_trace, &looking_table),
             TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
             TableKind::IoTranscript => extract(mem_transcript, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
-        })
+        };
+        dbg!((looking_table.kind, &a));
+        a
+    })
         .collect();
     let ExecutionRecord { last_state, .. } = record;
     let trace = sort_into_address_blocks(
