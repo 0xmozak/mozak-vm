@@ -168,9 +168,8 @@ pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> 
 
     let lv = COL_MAP;
     let nv = COL_MAP.map(ColumnWithTypedInput::flip);
-    let new = RangeCheckCtl::new;
     vec![RegisterTable::new(
-        new(nv.augmented_clk() - lv.augmented_clk()),
+        RangeCheckCtl(nv.augmented_clk() - lv.augmented_clk()),
         nv.is_rw(),
     )]
 }

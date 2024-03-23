@@ -18,10 +18,5 @@ make_col_map!(RangeCheckU8);
 
 #[must_use]
 pub fn lookup() -> TableWithTypedOutput<RangeCheckCtl<Column>> {
-    RangeCheckU8Table::new(
-        RangeCheckCtl {
-            value: COL_MAP.value,
-        },
-        COL_MAP.multiplicity,
-    )
+    RangeCheckU8Table::new(RangeCheckCtl(COL_MAP.value), COL_MAP.multiplicity)
 }

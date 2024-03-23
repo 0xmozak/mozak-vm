@@ -64,7 +64,7 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
     for _ in 0..config.num_challenges {
-        for CrossTableLookupWithTypedOutput {
+        for CrossTableLookup {
             looking_tables,
             looked_table,
         } in cross_table_lookups
@@ -97,7 +97,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
 ) -> TableKindArray<CtlData<F>> {
     let mut ctl_data_per_table = all_kind!(|_kind| CtlData::default());
     for &challenge in &ctl_challenges.challenges {
-        for CrossTableLookupWithTypedOutput {
+        for CrossTableLookup {
             looking_tables,
             looked_table,
         } in cross_table_lookups
@@ -190,8 +190,12 @@ pub struct CrossTableLookupWithTypedOutput<Row> {
     pub looked_table: TableWithTypedOutput<Row>,
 }
 
+// This is a little trick, so that we can use `CrossTableLookup` as a
+// constructor, but only when the type parameter Row = Vec<Column>.
+// TODO(Matthias): See if we can do the same trick for `table_impl`.
 #[allow(clippy::module_name_repetitions)]
-pub type CrossTableLookup = CrossTableLookupWithTypedOutput<Vec<Column>>;
+pub type CrossTableLookupUntyped = CrossTableLookupWithTypedOutput<Vec<Column>>;
+pub use CrossTableLookupUntyped as CrossTableLookup;
 
 impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> CrossTableLookup {
@@ -201,7 +205,7 @@ impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
             .into_iter()
             .map(TableWithTypedOutput::to_untyped_output)
             .collect();
-        CrossTableLookupWithTypedOutput {
+        CrossTableLookup {
             looking_tables,
             looked_table,
         }
@@ -261,7 +265,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
 
         let mut ctl_vars_per_table = all_kind!(|_kind| vec![]);
         let ctl_chain = cross_table_lookups.iter().flat_map(
-            |CrossTableLookupWithTypedOutput {
+            |CrossTableLookup {
                  looking_tables,
                  looked_table,
              }| chain!(looking_tables, [looked_table]),
@@ -336,7 +340,7 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
         let ctl_zs = izip!(&proof.openings.ctl_zs, &proof.openings.ctl_zs_next);
 
         let ctl_chain = cross_table_lookups.iter().flat_map(
-            |CrossTableLookupWithTypedOutput {
+            |CrossTableLookup {
                  looking_tables,
                  looked_table,
              }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),

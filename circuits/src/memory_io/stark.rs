@@ -154,7 +154,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 }
 
 #[cfg(test)]
-#[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::elf::RuntimeArguments;
     use mozak_runner::instruction::{Args, Instruction, Op};

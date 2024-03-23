@@ -189,10 +189,9 @@ pub struct CpuState<T> {
     pub poseidon2_input_addr: T,
     pub poseidon2_input_len: T,
 }
-
-make_col_map!(CpuColumnsExtended);
 pub(crate) const CPU: CpuState<ColumnWithTypedInput<CpuColumnsExtended<i64>>> = COL_MAP.cpu;
 
+make_col_map!(CpuColumnsExtended);
 columns_view_impl!(CpuColumnsExtended);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -305,7 +304,7 @@ pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> 
         (CPU.dst_value - CPU.dst_sign_bit * 0xFFFF_0000, ops.lh),
     ]
     .into_iter()
-    .map(|(columns, filter)| CpuTable::new(RangeCheckCtl::new(columns), filter))
+    .map(|(columns, filter)| CpuTable::new(RangeCheckCtl(columns), filter))
     .collect()
 }
 
