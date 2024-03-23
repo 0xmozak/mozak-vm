@@ -399,6 +399,7 @@ mod tests {
         fn prove_mulhsu_cpu(a in i32_extra(), b in u32_extra()) {
             prove_mulhsu::<CpuStark<F, D>>(a, b)?;
         }
+
     }
 
     proptest! {
@@ -419,5 +420,6 @@ mod tests {
         fn prove_mulhsu_mozak(a in i32_extra(), b in u32_extra()) {
             prove_mulhsu::<MozakStark<F, D>>(a, b)?;
         }
+
     }
 }
