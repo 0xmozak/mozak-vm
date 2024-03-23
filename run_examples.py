@@ -56,6 +56,7 @@ def has_sdk_dependency_beyond_core_features(cargo_file: str) -> bool:
     else:
         return True
 
+
 class ExamplesTester(unittest.TestCase):
     """Test class for running examples"""
 
@@ -143,15 +144,14 @@ class ExamplesTester(unittest.TestCase):
                     # to test their own prove-and-verify, but need to ensure that other
                     # programs also prove-and-verify for system-tape they generated. All
                     # dependent programs to be tested are supposed to be listed in
-                    # `extrainfo.example_dependents` in respective `Cargo.toml` (the dependent's
+                    # `package.metadata.mozak.example_dependents` in respective `Cargo.toml` (the dependent's
                     # `Cargo.toml` is not read for recursive expansion).
                     extra_info = read_toml_file(f"examples/{folder}/Cargo.toml")[
-                        "extrainfo"
-                    ]
+                        "package"
+                    ]["metadata"]["mozak"]
                     dependents = extra_info["example_dependents"]
-                    prog_id = extra_info[
-                        "example_program_id"
-                    ]  # We assume this to be different from all dependents
+                    # We assume this to be different from all dependents
+                    prog_id = extra_info["example_program_id"]
 
                     system_tape_generation_command = f"""
                         ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{{ print $2; }}')";
@@ -175,7 +175,7 @@ class ExamplesTester(unittest.TestCase):
                     for dependent in dependents:
                         dependent_prog_id = read_toml_file(
                             f"examples/{dependent}/Cargo.toml"
-                        )["extrainfo"]["example_program_id"]
+                        )["package"]["metadata"]["mozak"]["example_program_id"]
                         programs_to_run.append(
                             (
                                 f"examples/target/riscv32im-mozak-mozakvm-elf/release/{dependent}bin",
