@@ -51,6 +51,7 @@ columns_view_impl!(InputOutputMemoryCtl);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct InputOutputMemoryCtl<T> {
+    pub op: T,
     pub clk: T,
     pub addr: T,
     pub size: T,
@@ -58,11 +59,15 @@ pub struct InputOutputMemoryCtl<T> {
 
 /// Lookup between CPU table and Memory stark table.
 #[must_use]
-pub fn lookup_for_cpu(kind: TableKind) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_cpu(
+    kind: TableKind,
+    op: i64,
+) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
     let mem = COL_MAP;
     TableWithTypedOutput {
         kind,
         columns: InputOutputMemoryCtl {
+            op: ColumnWithTypedInput::constant(op),
             clk: mem.clk,
             addr: mem.addr,
             size: mem.size,
