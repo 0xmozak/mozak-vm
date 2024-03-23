@@ -400,9 +400,9 @@ pub fn eval_cross_table_lookup_checks_circuit<
 
 pub mod ctl_utils {
     use std::collections::HashMap;
-    use std::ops::{Deref, DerefMut};
 
     use anyhow::Result;
+    use derive_more::{Deref, DerefMut};
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
@@ -411,20 +411,10 @@ pub mod ctl_utils {
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
-    impl<F: Field> Deref for MultiSet<F> {
-        type Target = HashMap<Vec<F>, Vec<(TableKind, F)>>;
-
-        fn deref(&self) -> &Self::Target { &self.0 }
-    }
-    impl<F: Field> DerefMut for MultiSet<F> {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
-    }
     impl<F: Field> MultiSet<F> {
-        pub fn new() -> Self { MultiSet(HashMap::new()) }
-
         fn process_row(
             &mut self,
             trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
@@ -477,8 +467,8 @@ pub mod ctl_utils {
         }
 
         // Maps `m` with `(table.kind, multiplicity) in m[row]`
-        let mut looking_multiset = MultiSet::<F>::new();
-        let mut looked_multiset = MultiSet::<F>::new();
+        let mut looking_multiset = MultiSet::<F>::default();
+        let mut looked_multiset = MultiSet::<F>::default();
 
         for looking_table in &ctl.looking_tables {
             looking_multiset.process_row(trace_poly_values, looking_table);
