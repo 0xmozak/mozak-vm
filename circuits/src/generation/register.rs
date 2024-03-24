@@ -10,8 +10,9 @@ use crate::register::columns::{dummy, Ops, Register, RegisterCtl};
 use crate::register_zero::columns::RegisterZero;
 use crate::registerinit::columns::RegisterInit;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
+use crate::utils::pad_trace_with_default;
 
-// Can we do this as one lookup?
+// TODO: Can we do this as one lookup?
 //
 // init_zero
 // |          \
@@ -22,15 +23,15 @@ use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
 // CPU / ecalls (memory, transcript, etc.)
 //
 // init_zero:
-// + init
+// + init -
 //
 // register:
 // + read, write
-// - init
+// - init -
 //
 // register_zero:
 // + read, write
-// - init
+// - init -
 //
 // CPU / ecalls:
 // - read, write
@@ -134,13 +135,12 @@ pub fn generate_register_trace<F: RichField>(
         })
         .collect();
     let trace = sort_into_address_blocks(operations);
-    let (_zeros, rest) = trace.into_iter().partition(|row| row.addr.is_zero());
+    let (zeros, rest): (Vec<_>, Vec<_>) = trace.into_iter().partition(|row| row.addr.is_zero());
     log::trace!("trace {:?}", rest);
 
-    let zeros = todo!();
-    // pad_trace(zeros)
+    let zeros = zeros.into_iter().map(RegisterZero::from).collect();
 
-    (zeros, pad_trace(rest))
+    (pad_trace_with_default(zeros), pad_trace(rest))
 }
 
 #[cfg(test)]

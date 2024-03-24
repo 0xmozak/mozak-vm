@@ -7,24 +7,21 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
+use super::columns::RegisterZero;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::register::columns::Register;
-use crate::stark::utils::is_binary;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct RegisterZeroStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct RegisterZeroStark<F, const D: usize>(PhantomData<F>);
 
 impl<F, const D: usize> HasNamedColumns for RegisterZeroStark<F, D> {
-    type Columns = Register<F>;
+    type Columns = RegisterZero<F>;
 }
 
-const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
+const COLUMNS: usize = RegisterZero::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroStark<F, D> {
@@ -36,61 +33,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroS
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    /// Constraints for the [`RegisterZeroStark`]:
+    /// Constraints for the [`RegisterZeroStark`]
     ///
-    /// 1) `is_init`, `is_read`, `is_write`, and the virtual `is_used` column
-    ///    are binary columns. The `is_used` column is the sum of all the other
-    ///    ops columns combined, to differentiate between real trace rows and
-    ///    padding rows.
-    /// 2) The virtual `is_used` column only take values 0 or 1.
-    /// 3) Only rd changes.
-    /// 4) Address changes only when `nv.is_init` == 1.
-    /// 5) Address either stays the same or increments by 1.
-    /// 6) `augmented_clk` is 0 for all `is_init` rows.
-    ///
-    /// For more details, refer to the [Notion
-    /// document](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2).
+    /// No constraints!  The way we set up our columns and CTL, only valid
+    /// values can be expressed.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        _vars: &Self::EvaluationFrame<FE, P, D2>,
+        _yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Register<P> = vars.get_local_values().into();
-        let nv: &Register<P> = vars.get_next_values().into();
-
-        // Constraint 1: filter columns take 0 or 1 values only.
-        is_binary(yield_constr, lv.ops.is_init);
-        is_binary(yield_constr, lv.ops.is_read);
-        is_binary(yield_constr, lv.ops.is_write);
-        is_binary(yield_constr, lv.is_used());
-
-        // Constraint 2: virtual `is_used` column can only take values 0 or 1.
-        // (lv.is_used() - nv.is_used() - 1) is expressed as such, because
-        // lv.is_used() = 1 in the last real row, and
-        // nv.is_used() = 0 in the first padding row.
-        yield_constr.constraint_transition(nv.is_used() * (nv.is_used() - lv.is_used()));
-
-        // Constraint 3: only rd changes.
-        // We reformulate the above constraint as such:
-        // For any register, only `is_write`, `is_init` or the virtual `is_used`
-        // column should be able to change values of registers.
-        // `is_read` should not change the values of registers.
-        yield_constr.constraint_transition(nv.ops.is_read * (nv.value - lv.value));
-
-        // Constraint 4: Address changes only when nv.is_init == 1.
-        // We reformulate the above constraint to be:
-        // if next `is_read` == 1 or next `is_write` == 1, the address cannot
-        // change.
-        yield_constr
-            .constraint_transition((nv.ops.is_read + nv.ops.is_write) * (nv.addr - lv.addr));
-
-        // Constraint 5: Address either stays the same or increments by 1.
-        yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
-
-        // Constraint 6: `augmented_clk` is 0 for all `is_init` rows.
-        yield_constr.constraint(lv.ops.is_init * lv.augmented_clk());
     }
 
     fn eval_ext_circuit(
@@ -99,7 +52,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroS
         _vars: &Self::EvaluationFrameTarget,
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
     }
 
     fn constraint_degree(&self) -> usize { 3 }

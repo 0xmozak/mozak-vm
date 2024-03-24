@@ -107,8 +107,10 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
+    // TODO: consider folding generate_register_init_trace into
+    // generate_register_trace, like we did for register_zero?
     let register_init_rows = generate_register_init_trace::<F>(record);
-    let (_register_zero_rows, register_rows) = generate_register_trace(
+    let (register_zero_rows, register_rows) = generate_register_trace(
         &cpu_rows,
         &io_memory_private_rows,
         &io_memory_public_rows,
@@ -143,7 +145,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         register_stark: trace_rows_to_poly_values(register_rows),
         // TODO: generate register_zero_stark trace rows.
         #[cfg(feature = "enable_register_starks")]
-        register_zero_stark: vec![],
+        register_zero_stark: trace_rows_to_poly_values(register_zero_rows),
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
         #[cfg(feature = "enable_poseidon_starks")]

@@ -1,10 +1,11 @@
 use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
+use crate::generation::instruction::ascending_sum;
 #[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
-use crate::register::columns::RegisterCtl;
+use crate::register::columns::{Register, RegisterCtl};
 use crate::stark::mozak_stark::RegisterZeroTable;
 #[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::TableWithTypedOutput;
@@ -29,11 +30,11 @@ pub struct RegisterZero<T> {
     pub is_used: T,
 }
 
-impl<F: RichField + core::fmt::Debug> From<RegisterCtl<F>> for RegisterZero<F> {
-    fn from(ctl: RegisterCtl<F>) -> Self {
+impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZero<F> {
+    fn from(ctl: Register<F>) -> Self {
         RegisterZero {
             clk: ctl.clk,
-            op: ctl.op,
+            op: ascending_sum(ctl.ops),
             is_used: F::ONE,
         }
     }
