@@ -29,6 +29,7 @@ pub fn generate_mozak_memory_init_trace<F: RichField>(program: &Program) -> Vec<
 
     let trace = pad_trace_with_default(memory_inits);
     log::trace!("MozakMemoryInit trace {:?}", trace);
+    println!("MozakMemoryInit trace {:?}", trace);
     trace
 }
 
@@ -84,5 +85,6 @@ pub fn generate_elf_memory_init_trace<F: RichField>(program: &Program) -> Vec<Me
 
     let trace = pad_trace_with_default(memory_inits);
     log::trace!("ElfMemoryInit trace {:?}", trace);
+    println!("ElfMemoryInit trace {:?}", trace);
     trace
 }

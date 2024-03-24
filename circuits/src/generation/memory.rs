@@ -88,7 +88,8 @@ pub fn transform_halfword<F: RichField>(
 pub fn transform_poseidon2_sponge<F: RichField>(
     sponge_data: &[Poseidon2Sponge<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
-    sponge_data.iter().flat_map(Into::<Vec<Memory<F>>>::into)
+    // sponge_data.iter().flat_map(Into::<Vec<Memory<F>>>::into)
+    crate::memory::columns::transform_poseidon2_sponge(sponge_data.to_vec()).into_iter()
 }
 
 #[cfg(feature = "enable_poseidon_starks")]
@@ -161,6 +162,8 @@ pub fn generate_memory_trace<F: RichField>(
     .collect();
     #[cfg(feature = "enable_poseidon_starks")]
     merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
+    let d: Vec<_> = transform_poseidon2_sponge(poseidon2_sponge_rows).collect();
+    println!("p-mem: {:?}", d);
     #[cfg(feature = "enable_poseidon_starks")]
     merged_trace.extend(transform_poseidon2_output_bytes(
         poseidon2_output_bytes_rows,

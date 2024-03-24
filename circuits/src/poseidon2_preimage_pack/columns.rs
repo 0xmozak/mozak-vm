@@ -77,6 +77,62 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
     }
 }
 
+// To make it safe for user to change constants
+#[allow(clippy::assertions_on_constants)]
+pub fn transform_poseidon2_sponge<F: RichField>(
+    values: Vec<Poseidon2Sponge<F>>,
+) -> Vec<Poseidon2PreimagePack<F>> {
+    values.iter().map(|value| {
+        if (value.ops.is_init_permute + value.ops.is_permute).is_one() {
+            assert!(
+                MozakPoseidon2::FIELD_ELEMENTS_RATE < STATE_SIZE,
+                "Packing RATE should be less than STATE_SIZE"
+            );
+            let fe_len = MozakPoseidon2::FIELD_ELEMENTS_RATE - usize::try_from(value.fe_padding.to_canonical_u64()).expect("Should succeed");
+            let preimage = &value.preimage[..fe_len];
+            println!("p-size: {:?}, values.len: {:?}", fe_len, values.len());
+            let mut byte_base_address = value.input_addr_padded;
+            let mut fe_base_addr = value.input_addr;
+            // For each FE of preimage we have BYTES_COUNT bytes
+            let result = preimage
+                .iter()
+                .map(|fe| {
+                    // Note: assumed `to_be_bytes`, otherwise another side of the array should be
+                    // taken
+                    // TODO(Roman): consider implementing un-pack function
+                    let bytes: Vec<_> = fe.clone().to_canonical_u64().to_be_bytes()
+                        [MozakPoseidon2::LEADING_ZEROS..]
+                        .iter()
+                        .map(|e| F::from_canonical_u8(*e))
+                        .collect();
+                    // specific byte address
+                    let byte_addr = byte_base_address;
+                    // increase by DATA_CAP the byte base address after each iteration
+                    byte_base_address += F::from_canonical_u64(u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect("Cast from usize to u64 for MozakPoseidon2::BYTES_PER_FIELD_ELEMENT should succeed"));
+                    // specific field-el address
+                    let fe_addr = fe_base_addr;
+                    // increase by 1 after each iteration
+                    fe_base_addr += F::ONE;
+
+                    Poseidon2PreimagePack {
+                        clk: value.clk,
+                        byte_addr,
+                        fe_addr,
+                        bytes: <[F; MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT]>::try_from(
+                            bytes,
+                        )
+                            .unwrap(),
+                        is_executed: F::ONE,
+                    }
+                })
+                .collect_vec();
+            println!("p-value: {:?}", value);
+            println!("p-result: {:?}", result);
+            return result;
+        }
+        vec![]
+    }).flatten().collect()
+}
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> Table {
     let data = col_map().map(Column::from);

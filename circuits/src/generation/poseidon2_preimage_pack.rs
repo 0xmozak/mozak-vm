@@ -17,10 +17,13 @@ fn pad_trace<F: RichField>(
 pub fn generate_poseidon2_preimage_pack_trace<F: RichField>(
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
 ) -> Vec<Poseidon2PreimagePack<F>> {
-    let trace: Vec<Poseidon2PreimagePack<F>> = poseidon2_sponge_rows
-        .iter()
-        .flat_map(Into::<Vec<Poseidon2PreimagePack<F>>>::into)
-        .collect();
+    // let trace: Vec<Poseidon2PreimagePack<F>> = poseidon2_sponge_rows
+    //     .iter()
+    //     .flat_map(Into::<Vec<Poseidon2PreimagePack<F>>>::into)
+    //     .collect();
+    let trace = crate::poseidon2_preimage_pack::columns::transform_poseidon2_sponge(
+        poseidon2_sponge_rows.to_vec(),
+    );
     let trace = pad_trace(trace);
     log::trace!("trace {:?}", trace);
     trace

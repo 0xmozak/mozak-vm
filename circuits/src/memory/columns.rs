@@ -1,4 +1,5 @@
 use core::ops::Add;
+use std::ops::Div;
 
 use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::field::extension::Extendable;
@@ -110,11 +111,105 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
     }
 }
 
+pub fn transform_poseidon2_sponge<F: RichField>(values: Vec<Poseidon2Sponge<F>>) -> Vec<Memory<F>> {
+    // This variable will be used to filter-out fe_padding elements in the last
+    // preimage chunk;
+    // these elements were added by padding schema, in an artificial
+    // way inside the last preimage
+    let fe_rate = u64::try_from(MozakPoseidon2::FIELD_ELEMENTS_RATE).expect("Should succeed");
+    let mut fe_preimage_size_without_padding = fe_rate;
+    values.iter().flat_map(|value| {
+        if (value.ops.is_permute + value.ops.is_init_permute).is_one() {
+            if value.ops.is_init_permute.is_one() {
+                let input_data_len = value.input_len.to_canonical_u64();
+                let data_cap_per_fe =
+                    u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                        .expect("Should succeed");
+                let fe_size = input_data_len.div(data_cap_per_fe);
+                assert_ne!(fe_size, 0, "input data length expected to be multiple of MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT");
+                // Case-a) when input-len is multiple of DATA_CAP & FE_RATE --> no packing of FE
+                // takes place - fe_preimage_size_without_padding =
+                // MozakPoseidon2::FIELD_ELEMENTS_RATE -- FULL SIZE
+                // Case-b) when last FE preimage indeed padding
+                if fe_size % fe_rate != 0 {
+                    let fe_padding = fe_rate - fe_size % fe_rate;
+                    fe_preimage_size_without_padding -= fe_padding;
+                }
+            }
+            let fe_len = MozakPoseidon2::FIELD_ELEMENTS_RATE - usize::try_from(value.fe_padding.to_canonical_u64()).expect("Should succeed");
+            // each Field element in preimage represents packed data (packed bytes)
+            (0..fe_len)
+                .flat_map(|fe_index_inside_preimage| {
+                    let base_address = value.input_addr_padded
+                        + F::from_canonical_u64(
+                        u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                            .expect("MozakPoseidon2::DATA_PADDING should be cast-able to u64"),
+                    ) * F::from_canonical_u8(
+                        u8::try_from(fe_index_inside_preimage).expect("i > 255"),
+                    );
+                    // Throw away leading byte since "be"
+                    let packed = &value.preimage[fe_index_inside_preimage]
+                        .clone()
+                        .to_canonical_u64()
+                        .to_be_bytes()[MozakPoseidon2::LEADING_ZEROS..];
+                    (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                        .map(|byte_index_inside_fe| Memory {
+                            clk: value.clk,
+                            addr: base_address
+                                + F::from_canonical_u8(
+                                u8::try_from(byte_index_inside_fe).expect("j > 255"),
+                            ),
+                            is_load: F::ONE,
+                            value: F::from_canonical_u8(packed[byte_index_inside_fe]),
+                            ..Default::default()
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect()
+        } else {
+            vec![]
+        }
+    }).collect()
+}
+
 impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
     fn from(value: &Poseidon2Sponge<F>) -> Self {
         if (value.ops.is_permute + value.ops.is_init_permute).is_one() {
+            // This variable will be used to filter-out fe_padding elements in the last
+            // preimage chunk;
+            // these elements were added by padding schema, in an artificial
+            // way inside the last preimage
+            let fe_rate =
+                u64::try_from(MozakPoseidon2::FIELD_ELEMENTS_RATE).expect("Should succeed");
+            let mut fe_preimage_size_without_padding = fe_rate;
+            if value.ops.is_init_permute.is_one() {
+                let input_data_len = value.input_len.to_canonical_u64();
+                let data_cap_per_fe =
+                    u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                        .expect("Should succeed");
+                let fe_size = input_data_len.div(data_cap_per_fe);
+                assert_ne!( fe_size, 0, "input data length expected to be multiple of MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT");
+                // Case-a) when input-len is multiple of DATA_CAP & FE_RATE --> no packing of FE
+                // takes place - fe_preimage_size_without_padding =
+                // MozakPoseidon2::FIELD_ELEMENTS_RATE -- FULL SIZE
+                // Case-b) when last FE preimage indeed padding
+                if fe_size % fe_rate != 0 {
+                    let fe_padding = fe_rate - fe_size % fe_rate;
+                    fe_preimage_size_without_padding -= fe_padding;
+                }
+            }
+
             // each Field element in preimage represents packed data (packed bytes)
             (0..Poseidon2Permutation::<F>::RATE)
+                .filter(|index| {
+                    if value.gen_output.is_one() {
+                        if *index < fe_preimage_size_without_padding as usize {
+                            return true;
+                        }
+                        return false;
+                    }
+                    true
+                })
                 .flat_map(|fe_index_inside_preimage| {
                     let base_address = value.input_addr_padded
                         + F::from_canonical_u64(

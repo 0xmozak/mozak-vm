@@ -206,6 +206,7 @@ pub struct Poseidon2Entry<F: RichField> {
     pub output_addr: u32,
     pub len: u32,
     pub sponge_data: Vec<Poseidon2SpongeData<F>>,
+    pub fe_padding_len: usize,
 }
 
 /// Auxiliary information about the instruction execution

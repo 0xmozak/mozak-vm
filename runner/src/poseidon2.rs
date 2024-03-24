@@ -1,4 +1,5 @@
 use std::iter::repeat;
+use std::ops::Div;
 
 use itertools::{izip, Itertools};
 use mozak_sdk::core::reg_abi::{REG_A1, REG_A2, REG_A3};
@@ -28,7 +29,7 @@ impl MozakPoseidon2 {
     /// --> Extend padding to next-multiple of `DATA_PADDING` while first bit of
     /// the first padded byte will be 1 (same as for Case-A)
     #[must_use]
-    pub fn do_padding(data: &[u8]) -> Vec<u8> {
+    pub fn do_padding2(data: &[u8]) -> Vec<u8> {
         let bit_padding_schema = 0b1000_0000_u8;
         let mut padded = data.to_vec();
         padded.extend({
@@ -40,6 +41,21 @@ impl MozakPoseidon2 {
         padded
     }
 
+    #[must_use]
+    pub fn do_padding(data: &[u8]) -> Vec<u8> {
+        let bit_padding_schema = 0b1000_0000_u8;
+        let mut padded = data.to_vec();
+        padded.extend({
+            let extend_size = Self::DATA_CAPACITY_PER_FIELD_ELEMENT
+                - padded.len() % Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
+            let mut padding = vec![0_u8; extend_size];
+            padding[0] = bit_padding_schema;
+            padding
+        });
+        println!("padded: {:?}, len: {:?}", padded, padded.len());
+        padded
+    }
+
     /// # Panics
     ///
     /// Panics if `Self::DATA_CAPACITY_PER_FIELD_ELEMENT <
@@ -48,6 +64,58 @@ impl MozakPoseidon2 {
     // To make it safe for user to change constants
     #[allow(clippy::assertions_on_constants)]
     pub fn pack_padded_input<F: RichField>(data: &[u8]) -> Vec<F> {
+        assert!(
+            Self::DATA_CAPACITY_PER_FIELD_ELEMENT < Self::MAX_BYTES_PER_FIELD_ELEMENT,
+            "For 64 bit field maximum supported packing is 7 bytes"
+        );
+        assert_eq!(
+            data.len() % MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT,
+            0,
+            "Allow only padded byte-data"
+        );
+        let mut result = data
+            .chunks(Self::DATA_CAPACITY_PER_FIELD_ELEMENT)
+            .map(|x| {
+                // Padding with leading zeros, since `from_be_bytes` is used later on
+                let mut leading_zeros_x: Vec<u8> = vec![0; Self::LEADING_ZEROS];
+                leading_zeros_x.extend(x);
+
+                F::from_canonical_u64(u64::from_be_bytes(
+                    leading_zeros_x
+                        .as_slice()
+                        .try_into()
+                        .expect("should succeed"),
+                ))
+            })
+            .collect::<Vec<_>>();
+        // Padding FE up to RATE ...
+        result.resize(
+            result
+                .len()
+                .next_multiple_of(MozakPoseidon2::FIELD_ELEMENTS_RATE),
+            F::ZERO,
+        );
+        println!("fe-padded: {:?}, len: {:?}", result, result.len());
+        result
+    }
+
+    pub fn fe_padding_len(data_len: usize) -> usize {
+        let data_len_not_padded = u64::try_from(data_len).expect("Should succeed").div(
+            u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect("Should succeed"),
+        );
+        let rate = u64::try_from(MozakPoseidon2::FIELD_ELEMENTS_RATE).expect("Should succeed");
+        let data_len_padded = rate - data_len_not_padded % rate;
+        data_len_padded.try_into().expect("Should succeed")
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `Self::DATA_CAPACITY_PER_FIELD_ELEMENT <
+    /// Self::BYTES_PER_FIELD_ELEMENT`
+    #[must_use]
+    // To make it safe for user to change constants
+    #[allow(clippy::assertions_on_constants)]
+    pub fn pack_padded_input2<F: RichField>(data: &[u8]) -> Vec<F> {
         assert!(
             Self::DATA_CAPACITY_PER_FIELD_ELEMENT < Self::MAX_BYTES_PER_FIELD_ELEMENT,
             "For 64 bit field maximum supported packing is 7 bytes"
@@ -172,13 +240,14 @@ impl<F: RichField> State<F> {
         // So if initial data is 32 bytes -> input-vector will 32 FE
         // Pay attention that `self.load8` loads from memory
         // Note: I am not sure why we map byte-to-FE and not 7 bytes to FE
-        assert_eq!(
-            input_len % u32::try_from(MozakPoseidon2::DATA_PADDING).expect("Cast from usize to u32 for MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT should succeed"),
-            0,
-            "Require padded input data length: {:?} in bytes with respect to {:?}",
-            input_len,
-            MozakPoseidon2::DATA_PADDING
-        );
+        // assert_eq!(
+        //     input_len % u32::try_from(MozakPoseidon2::DATA_PADDING).expect("Cast from
+        // usize to u32 for MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT should
+        // succeed"),     0,
+        //     "Require padded input data length: {:?} in bytes with respect to {:?}",
+        //     input_len,
+        //     MozakPoseidon2::DATA_PADDING
+        // );
         let input = MozakPoseidon2::pack_padded_input(
             (0..input_len)
                 .map(|i| self.load_u8(input_ptr + i))
@@ -218,6 +287,7 @@ impl<F: RichField> State<F> {
                     len: u32::try_from(Poseidon2Permutation::<F>::RATE * sponge_data.len())
                         .unwrap(),
                     sponge_data,
+                    fe_padding_len: MozakPoseidon2::fe_padding_len(input_len as usize),
                 }),
                 ..Default::default()
             },

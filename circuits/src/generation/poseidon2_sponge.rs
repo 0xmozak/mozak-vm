@@ -53,7 +53,17 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             output: sponge_datum.output,
             gen_output: sponge_datum.gen_output,
             input_addr_padded: F::from_canonical_u32(input_addr_padded),
+            fe_padding: {
+                if sponge_datum.gen_output.is_one() {
+                    F::from_canonical_u32(
+                        u32::try_from(poseidon2.fe_padding_len).expect("fe_padding_len > 2^32"),
+                    )
+                } else {
+                    F::ZERO
+                }
+            },
         });
+        // This one should be RATE * BYTE_PACKING ...
         input_addr_padded += u32::try_from(MozakPoseidon2::DATA_PADDING).expect("Should succeed");
         input_addr += rate_size;
         input_len -= rate_size;

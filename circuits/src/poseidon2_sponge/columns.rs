@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
@@ -28,6 +29,7 @@ pub struct Poseidon2Sponge<T> {
     pub output: [T; WIDTH],
     pub gen_output: T,
     pub input_addr_padded: T,
+    pub fe_padding: T,
 }
 
 columns_view_impl!(Poseidon2Sponge);
@@ -94,6 +96,9 @@ pub fn lookup_for_input_memory(limb_index: u8) -> Table {
 pub fn lookup_for_preimage_pack(limb_index: u8) -> Table {
     assert!(limb_index < 8, "limb_index can be 0..7");
     let sponge = col_map().map(Column::from);
+    // 8 - rate, 3 - padding, index = {0..7}
+    // if index < 8 - 3 --> TRUE
+    // else --> FALSE
     Poseidon2SpongeTable::new(
         vec![
             sponge.clk,

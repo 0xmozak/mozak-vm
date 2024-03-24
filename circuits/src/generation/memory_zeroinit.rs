@@ -100,6 +100,7 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
     memory_zeroinits.sort_by_key(|m| m.addr.to_canonical_u64());
     let trace = pad_trace_with_default(memory_zeroinits);
     log::trace!("MemoryZeroInit trace {:?}", trace);
+    println!("MemoryZeroInit trace {:?}", trace);
     trace
 }
 
