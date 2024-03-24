@@ -277,7 +277,8 @@ fn main() -> Result<()> {
             ///
             /// This errors if the given function returns an `Err`.
             pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
-                let start_time = std::time::Instant::now();
+                use cpu_time::ProcessTime;
+                let start_time = ProcessTime::try_now().expect("Getting process time failed");
                 func()?;
                 Ok(start_time.elapsed())
             }
