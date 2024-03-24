@@ -18,11 +18,11 @@ make_col_map!(RegisterZero);
 /// Register 0 is a special register that is always 0.
 /// Thus we don't need neither a value column nor a register address column.
 pub struct RegisterZero<T> {
-    /// The register 'address' that indexes into 1 of our 32 registers.
-    /// Should only take values 0-31, so this column should be a running sum
-    /// from 0 to 31 (inclusive). Note that this isn't the same as memory
-    /// address.
     pub clk: T,
+
+    /// Value of the register at time (in clk) of access.
+    /// We accept inits and write for any value, but reads will always be 0.
+    pub value: T,
 
     /// Columns that indicate what action is taken on the register.
     pub op: T,
@@ -34,6 +34,7 @@ impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZero<F> {
     fn from(ctl: Register<F>) -> Self {
         RegisterZero {
             clk: ctl.clk,
+            value: ctl.value,
             op: ascending_sum(ctl.ops),
             is_used: F::ONE,
         }
@@ -48,7 +49,7 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
             clk: reg.clk,
             op: reg.op,
             addr: ColumnWithTypedInput::constant(0),
-            value: ColumnWithTypedInput::constant(0),
+            value: reg.value,
         },
         // TODO: We can probably do the register init in the same lookup?
         // NOTE: this is negative, because we only support a single looked table.

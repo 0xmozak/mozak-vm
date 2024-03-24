@@ -409,10 +409,20 @@ pub mod ctl_utils {
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
+    use crate::register::columns::RegisterCtl;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
     #[derive(Clone, Debug, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
+
+    #[allow(clippy::cast_possible_wrap)]
+    fn to_i64<F: RichField>(f: F) -> i64 {
+        if f.to_canonical_u64() > i32::MAX as u64 {
+            -((-f).to_canonical_u64() as i64)
+        } else {
+            f.to_canonical_u64() as i64
+        }
+    }
 
     impl<F: Field> MultiSet<F> {
         fn process_row(
@@ -434,8 +444,7 @@ pub mod ctl_utils {
             }
         }
     }
-
-    pub fn check_single_ctl<F: Field>(
+    pub fn check_single_ctl<F: RichField>(
         trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
         // TODO(Matthias): make this one work with CrossTableLookupNamed, instead of having to
         // forget the types first.  That should also help with adding better debug messages.
@@ -446,7 +455,7 @@ pub mod ctl_utils {
         ///
         /// The CTL check holds iff `looking_multiplicity ==
         /// looked_multiplicity`.
-        fn check_multiplicities<F: Field>(
+        fn check_multiplicities<F: RichField>(
             row: &[F],
             looking_locations: &[(TableKind, F)],
             looked_locations: &[(TableKind, F)],
@@ -454,6 +463,9 @@ pub mod ctl_utils {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
+                let looking_multiplicity = to_i64(looking_multiplicity);
+                let looked_multiplicity = to_i64(looked_multiplicity);
+                let row: RegisterCtl<F> = row.iter().copied().collect();
                 println!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\

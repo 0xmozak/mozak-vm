@@ -7,11 +7,13 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::RegisterZero;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::generation::instruction::ascending_sum;
+use crate::register::columns::Ops;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -39,11 +41,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroS
     /// values can be expressed.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        _vars: &Self::EvaluationFrame<FE, P, D2>,
-        _yield_constr: &mut ConstraintConsumer<P>,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
+        yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
+        let lv: &RegisterZero<P> = vars.get_local_values().into();
+        yield_constr.constraint(
+            lv.value * (lv.op - P::Scalar::from_basefield(ascending_sum(Ops::write()))),
+        );
     }
 
     fn eval_ext_circuit(
