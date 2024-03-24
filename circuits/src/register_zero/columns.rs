@@ -2,13 +2,10 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::generation::instruction::ascending_sum;
-#[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::register::columns::{Register, RegisterCtl};
-use crate::stark::mozak_stark::RegisterZeroTable;
-#[cfg(feature = "enable_register_starks")]
-use crate::stark::mozak_stark::TableWithTypedOutput;
+use crate::stark::mozak_stark::{RegisterZeroTable, TableWithTypedOutput};
 
 columns_view_impl!(RegisterZero);
 make_col_map!(RegisterZero);

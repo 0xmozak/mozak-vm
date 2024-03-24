@@ -52,28 +52,20 @@ use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, Rang
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
-#[cfg(feature = "enable_register_starks")]
-use crate::register;
-#[cfg(feature = "enable_register_starks")]
-use crate::register::columns::Register;
-use crate::register::columns::RegisterCtl;
+use crate::register::columns::{Register, RegisterCtl};
 use crate::register::stark::RegisterStark;
 use crate::register_zero::columns::RegisterZero;
 use crate::register_zero::stark::RegisterZeroStark;
-#[cfg(feature = "enable_register_starks")]
 use crate::registerinit::columns::RegisterInit;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, program, rangecheck, xor,
+    memoryinit, program, rangecheck, register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = {
-    11 + cfg!(feature = "enable_register_starks") as usize
-        + cfg!(feature = "enable_poseidon_starks") as usize * 3
-};
+const NUM_CROSS_TABLE_LOOKUP: usize = 12 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -116,17 +108,11 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoTranscript")]
     pub io_transcript_stark: InputOutputMemoryStark<F, D>,
-    #[cfg_attr(
-        feature = "enable_register_starks",
-        StarkSet(stark_kind = "RegisterInit")
-    )]
+    #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
-    #[cfg_attr(feature = "enable_register_starks", StarkSet(stark_kind = "Register"))]
+    #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
-    #[cfg_attr(
-        feature = "enable_register_starks",
-        StarkSet(stark_kind = "RegisterZero")
-    )]
+    #[StarkSet(stark_kind = "RegisterZero")]
     pub register_zero_stark: RegisterZeroStark<F, D>,
     #[cfg_attr(feature = "enable_poseidon_starks", StarkSet(stark_kind = "Poseidon2"))]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
@@ -398,7 +384,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 RangeCheckU8LookupTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
-                #[cfg(feature = "enable_register_starks")]
                 RegisterLookups::lookups(),
                 IoMemoryToCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
@@ -534,11 +519,8 @@ table_impl!(
     TableKind::FullWordMemory,
     FullWordMemory
 );
-#[cfg(feature = "enable_register_starks")]
 table_impl!(RegisterInitTable, TableKind::RegisterInit, RegisterInit);
-#[cfg(feature = "enable_register_starks")]
 table_impl!(RegisterTable, TableKind::Register, Register);
-#[cfg(feature = "enable_register_starks")]
 table_impl!(RegisterZeroTable, TableKind::RegisterZero, RegisterZero);
 table_impl!(
     IoMemoryPrivateTable,
@@ -583,10 +565,7 @@ impl Lookups for RangecheckTable {
     type Row = RangeCheckCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        #[cfg(feature = "enable_register_starks")]
         let register = register::columns::rangecheck_looking();
-        #[cfg(not(feature = "enable_register_starks"))]
-        let register: Vec<TableWithTypedOutput<_>> = vec![];
 
         let looking: Vec<TableWithTypedOutput<_>> = chain![
             memory::columns::rangecheck_looking(),
@@ -735,10 +714,8 @@ impl Lookups for FullWordMemoryCpuTable {
     }
 }
 
-#[cfg(feature = "enable_register_starks")]
 pub struct RegisterLookups;
 
-#[cfg(feature = "enable_register_starks")]
 impl Lookups for RegisterLookups {
     type Row = RegisterCtl<Column>;
 

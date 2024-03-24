@@ -60,7 +60,6 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
             match looking_table.kind {
                 TableKind::Cpu => extract(cpu_trace, &looking_table),
                 TableKind::Memory => extract(memory_trace, &looking_table),
-                #[cfg(feature = "enable_register_starks")]
                 TableKind::Register => extract(register_trace, &looking_table),
                 other => unimplemented!("Can't range check {other:#?} tables"),
             }
