@@ -224,33 +224,28 @@ pub(crate) use columns_view_impl;
 macro_rules! make_col_map {
     ($s: ident) => {
         // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
-        // TODO: see if we can do this without transmute?
         #[allow(dead_code)]
         #[allow(clippy::large_stack_arrays)]
         pub(crate) const COL_MAP: $s<
             crate::linear_combination_typed::ColumnWithTypedInput<$s<i64>>,
         > = {
-            use core::mem::transmute;
-
             use crate::columns_view::NumberOfColumns;
-            use crate::cross_table_lookup::ColumnWithTypedInput;
+            use crate::linear_combination_typed::ColumnWithTypedInput;
             const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
-            type ArrayForm = [ColumnWithTypedInput<[i64; N]>; N];
-            type Output = $s<crate::linear_combination_typed::ColumnWithTypedInput<$s<i64>>>;
-            let identity_matrix: ArrayForm = {
-                let mut indices_mat = [ColumnWithTypedInput {
-                    lv_linear_combination: [0_i64; N],
-                    nv_linear_combination: [0_i64; N],
-                    constant: 0,
-                }; N];
-                let mut i = 0;
-                while i < N {
-                    indices_mat[i].lv_linear_combination[i] = 1;
-                    i += 1;
-                }
-                indices_mat
-            };
-            unsafe { transmute::<ArrayForm, Output>(identity_matrix) }
+
+            let mut indices_mat = [ColumnWithTypedInput {
+                lv_linear_combination: $s::from_array([0_i64; N]),
+                nv_linear_combination: $s::from_array([0_i64; N]),
+                constant: 0,
+            }; N];
+            let mut i = 0;
+            while i < N {
+                let mut lv_linear_combination = indices_mat[i].lv_linear_combination.into_array();
+                lv_linear_combination[i] = 1;
+                indices_mat[i].lv_linear_combination = $s::from_array(lv_linear_combination);
+                i += 1;
+            }
+            $s::from_array(indices_mat)
         };
     };
 }

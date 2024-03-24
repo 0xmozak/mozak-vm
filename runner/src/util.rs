@@ -3,6 +3,7 @@ use itertools::{chain, izip};
 use mozak_sdk::core::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 
+use crate::decode::ECALL;
 use crate::elf::{Code, Program, RuntimeArguments};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
@@ -45,10 +46,7 @@ pub fn execute_code_with_ro_memory(
                     },
                 },
                 // add ECALL to halt the program
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
+                ECALL,
             ])
             .map(Ok),
         )
