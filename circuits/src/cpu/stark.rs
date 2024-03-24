@@ -13,8 +13,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::{
-    is_mem_op_extention_target, rs2_value_extension_target, CpuColumnsExtended, CpuState,
-    Instruction, OpSelectors,
+    is_mem_op_extention_target, CpuColumnsExtended, CpuState, Instruction, OpSelectors,
 };
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
@@ -225,11 +224,11 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
     let is_shift_operation = ops.sll + ops.srl + ops.sra;
 
-    yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.rs2_value()));
+    yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.op2_value_raw));
     yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
     yield_constr.constraint(
         (P::ONES - is_branch_operation - is_shift_operation)
-            * (lv.op2_value_overflowing - lv.inst.imm_value - lv.rs2_value()),
+            * (lv.op2_value_overflowing - lv.inst.imm_value - lv.op2_value_raw),
     );
     yield_constr.constraint(
         (P::ONES - is_branch_operation - is_shift_operation)
@@ -248,8 +247,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
     let is_branch_operation = add_extension_vec(builder, vec![ops.beq, ops.bne, ops.blt, ops.bge]);
     let is_shift_operation = add_extension_vec(builder, vec![ops.sll, ops.srl, ops.sra]);
 
-    let rs2_value = rs2_value_extension_target(builder, lv);
-    let lv_op2_value_sub_rs2_value = builder.sub_extension(lv.op2_value, rs2_value);
+    let lv_op2_value_sub_rs2_value = builder.sub_extension(lv.op2_value, lv.op2_value_raw);
     let is_branch_op_mul_lv_op2_value_sub_rs2_value =
         builder.mul_extension(is_branch_operation, lv_op2_value_sub_rs2_value);
     yield_constr.constraint(builder, is_branch_op_mul_lv_op2_value_sub_rs2_value);
@@ -266,7 +264,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
     let op2_value_overflowing_sub_inst_imm_value =
         builder.sub_extension(lv.op2_value_overflowing, lv.inst.imm_value);
     let op2_value_overflowing_sub_inst_imm_value_sub_rs2_value =
-        builder.sub_extension(op2_value_overflowing_sub_inst_imm_value, rs2_value);
+        builder.sub_extension(op2_value_overflowing_sub_inst_imm_value, lv.op2_value_raw);
     let constr = builder.mul_extension(
         one_sub_is_branch_operation_sub_is_shift_operation,
         op2_value_overflowing_sub_inst_imm_value_sub_rs2_value,

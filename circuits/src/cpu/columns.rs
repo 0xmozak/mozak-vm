@@ -201,10 +201,6 @@ impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    /// The value of the designated register in rs2.
-    // TODO: remove this function.
-    pub fn rs2_value(&self) -> T { self.op2_value_raw }
-
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
@@ -221,13 +217,6 @@ impl<T: PackedField> CpuState<T> {
     /// Difference between first and second operands, which works for both pairs
     /// of signed or pairs of unsigned values.
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
-}
-
-pub fn rs2_value_extension_target<F: RichField + Extendable<D>, const D: usize>(
-    _builder: &mut CircuitBuilder<F, D>,
-    cpu: &CpuState<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    cpu.op2_value_raw
 }
 
 pub fn op1_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
