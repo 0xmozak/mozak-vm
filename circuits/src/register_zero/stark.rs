@@ -36,9 +36,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroS
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
     /// Constraints for the [`RegisterZeroStark`]
-    ///
-    /// No constraints!  The way we set up our columns and CTL, only valid
-    /// values can be expressed.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
@@ -54,10 +51,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroS
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
+        let lv: &RegisterZero<_> = vars.get_local_values().into();
+        let write =
+            builder.constant_extension(F::Extension::from_basefield(ascending_sum(Ops::write())));
+        let op_is_write = builder.sub_extension(lv.op, write);
+        let disjunction = builder.mul_extension(lv.value, op_is_write);
+        yield_constr.constraint(builder, disjunction);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
