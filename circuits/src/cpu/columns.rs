@@ -83,13 +83,10 @@ pub struct Instruction<T> {
     pub is_op2_signed: T,
     pub is_dst_signed: T,
     /// Selects the register to use as source for `rs1`
-    // pub rs1_select: [T; 32],
     pub rs1_selected: T,
     /// Selects the register to use as source for `rs2`
-    // pub rs2_select: [T; 32],
     pub rs2_selected: T,
     /// Selects the register to use as destination for `rd`
-    // pub rd_select: [T; 32],
     pub rd_selected: T,
     /// Special immediate value used for code constants
     pub imm_value: T,
