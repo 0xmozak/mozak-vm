@@ -49,6 +49,21 @@
             }
         }
     },
+    "nop-registerstark": {
+        "description": "Benching NOP repeated for given number of iterations, register starks vs old",
+        "parameter": "iterations",
+        "output": "time taken (in s)",
+        "benches": {
+            "with_register_stark": {
+                "commit": "319305cae2ed646deb7ebef7eab65d6917db77bf",
+                "bench_function": "nop-bench"
+            },
+            "nop": {
+                "commit": "f79112856c5728ad439ed6c0bd9e38fff48c5dcf",
+                "bench_function": "nop-bench"
+            }
+        }
+    },
     "poseidon2": {
         "description": "Benching Poseidon2 ECALL",
         "parameter": "input_len",

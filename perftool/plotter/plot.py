@@ -1,3 +1,30 @@
+# TODO: fix this
+# $ plot nop-registerstark
+# Traceback (most recent call last):
+
+#   File "/Users/matthias/Library/Caches/pypoetry/virtualenvs/perftool-0DeAwteW-py3.12/bin/plot", line 6, in <module>
+#     sys.exit(app())
+#              ^^^^^
+
+#   File "/Users/matthias/mozak/prog/mozak-vm-2/perftool/plotter/plot.py", line 111, in plot
+#     update_plot_from_csv(bench_name)
+
+#   File "/Users/matthias/mozak/prog/mozak-vm-2/perftool/plotter/plot.py", line 103, in update_plot_from_csv
+#     plot_all(bench_name)
+
+#   File "/Users/matthias/mozak/prog/mozak-vm-2/perftool/plotter/plot.py", line 80, in plot_all
+#     x_data, y_data, slope, intercept, predicted_y = get_data_from_csv(
+#                                                     ^^^^^^^^^^^^^^^^^^
+
+#   File "/Users/matthias/mozak/prog/mozak-vm-2/perftool/plotter/plot.py", line 40, in get_data_from_csv
+#     slope, intercept, _, _, _ = linregress(x_data, y_data)
+#                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+#   File "/Users/matthias/Library/Caches/pypoetry/virtualenvs/perftool-0DeAwteW-py3.12/lib/python3.12/site-packages/scipy/stats/_stats_mstats_common.py", line 154, in linregress
+#     raise ValueError("Inputs must not be empty.")
+
+# ValueError: Inputs must not be empty.
+
 from itertools import cycle
 from pathlib import Path
 from config import (
