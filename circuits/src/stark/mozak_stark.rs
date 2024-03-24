@@ -744,7 +744,10 @@ impl Lookups for RegisterLookups {
             chain![
                 crate::cpu::columns::register_looking(),
                 crate::memory_io::columns::register_looking(),
-                vec![crate::registerinit::columns::lookup_for_register()],
+                vec![
+                    crate::registerinit::columns::lookup_for_register(),
+                    crate::register_zero::columns::register_looked()
+                ],
             ]
             .collect(),
             crate::register::columns::register_looked(),
