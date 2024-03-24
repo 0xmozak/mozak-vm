@@ -131,6 +131,8 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
             TableKind::IoTranscript => extract(mem_transcript, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
+            // Flow of information in generation goes in the other direction.
+            TableKind::RegisterZero => vec![],
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
         .collect();
