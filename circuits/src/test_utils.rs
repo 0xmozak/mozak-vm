@@ -169,7 +169,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &poseidon2_output_bytes,
         );
         let register_init = generate_register_init_trace(record);
-        let register_trace = generate_register_trace(
+        let (_zero_register_trace, register_trace) = generate_register_trace(
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,
@@ -361,7 +361,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let register_init = generate_register_init_trace(record);
-        let trace = generate_register_trace(
+        let (_zero_trace, trace) = generate_register_trace(
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,

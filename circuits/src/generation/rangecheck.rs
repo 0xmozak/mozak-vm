@@ -146,7 +146,7 @@ mod tests {
             &poseidon2_output_bytes,
         );
         let register_init = generate_register_init_trace(&record);
-        let register_rows = generate_register_trace(
+        let (_zero_register_rows, register_rows) = generate_register_trace(
             &cpu_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
