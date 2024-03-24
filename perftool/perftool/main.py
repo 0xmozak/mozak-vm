@@ -29,6 +29,8 @@ def bench(bench_name: str, min_value: int, max_value: int):
     It keeps sampling parameter, benches the function and updates the data csv file,
       till terminated by Ctrl+C
     """
+    # TODO: make 'bench' automatically 'build', if necessary, and if not
+    # explicitly forbidden.
     bench_commits_dict = get_benches_with_commit(bench_name)
     benches = list(
         bench_with_commit for bench_with_commit in bench_commits_dict.values()
@@ -37,7 +39,7 @@ def bench(bench_name: str, min_value: int, max_value: int):
     parameter_name = get_parameter_name(bench_name)
     output_name = get_output_name(bench_name)
 
-    # initialize the csv files with headers if they does not exist
+    # initialize the csv files with headers if they do not exist
     for bench in benches:
         bench_function = bench["bench_function"]
         commit = bench["commit"]

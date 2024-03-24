@@ -64,6 +64,21 @@
             }
         }
     },
+    "nop-registerstark-cpu-time": {
+        "description": "Benching NOP repeated for given number of iterations, register starks vs old",
+        "parameter": "iterations",
+        "output": "time taken (in s)",
+        "benches": {
+            "nop with_register_stark with cpu-time": {
+                "commit": "414011b978d5275b00991dc9a40610f6d485f52d",
+                "bench_function": "nop-bench"
+            },
+            "nop main-with-cpu-time": {
+                "commit": "7b0d7fc57499f01567e372ca7c182e431e46ca71",
+                "bench_function": "nop-bench"
+            }
+        }
+    },
     "poseidon2": {
         "description": "Benching Poseidon2 ECALL",
         "parameter": "input_len",

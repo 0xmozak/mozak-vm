@@ -85,10 +85,11 @@ def init_csv(csv_file_path: Path, bench_name: str):
         existing_headers = pd.read_csv(csv_file_path, nrows=0).columns.tolist()
     except FileNotFoundError:
         df = pd.DataFrame(columns=headers)
+        csv_file_path.parent.mkdir(exist_ok=True)
         df.to_csv(csv_file_path, index=False)
-        return
-    if set(headers) != set(existing_headers):
-        raise ValueError(f"Headers do not match the existing file: {existing_headers}.")
+    else:
+        if set(headers) != set(existing_headers):
+            raise ValueError(f"Headers do not match the existing file: {existing_headers}.")
 
 
 def write_into_csv(data: dict, csv_file_path: Path):
