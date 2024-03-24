@@ -1022,7 +1022,11 @@ mod tests {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::ECALL,
-            args: Args::default(),
+            args: Args {
+                rs1: 10,
+                rs2: 11,
+                ..Default::default()
+            },
         };
         assert_eq!(ins, match_ins);
     }
