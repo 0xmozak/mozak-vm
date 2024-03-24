@@ -75,6 +75,8 @@ pub fn execute_code_with_ro_memory(
     regs: &[(u8, u32)],
     runtime_args: RuntimeArguments,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
+    use crate::decode::ECALL;
+
     let RuntimeArguments {
         self_prog_id,
         cast_list,
@@ -98,10 +100,7 @@ pub fn execute_code_with_ro_memory(
                     },
                 },
                 // add ECALL to halt the program
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
+                ECALL,
             ])
             .map(Ok),
         )
