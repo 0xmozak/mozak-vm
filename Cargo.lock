@@ -933,6 +933,7 @@ dependencies = [
  "arrayvec",
  "bitfield",
  "criterion",
+ "derive_more",
  "enumflags2",
  "env_logger",
  "flexbuffers",
