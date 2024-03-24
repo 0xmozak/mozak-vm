@@ -316,6 +316,7 @@ mod tests {
     use proptest::{prop_assume, proptest};
 
     use super::*;
+    use crate::decode::ECALL;
     use crate::test_utils::{i16_extra, i32_extra, i8_extra, reg, u16_extra, u32_extra, u8_extra};
 
     fn simple_test_code(
@@ -1365,9 +1366,7 @@ mod tests {
     // Please check https://en.wikichip.org/wiki/risc-v/registers
 
     #[test]
-    fn ecall() {
-        let _ = simple_test_code([Instruction::new(Op::ECALL, Args::default())], &[], &[]);
-    }
+    fn ecall() { let _ = simple_test_code([ECALL], &[], &[]); }
 
     #[test]
     fn lui() {
