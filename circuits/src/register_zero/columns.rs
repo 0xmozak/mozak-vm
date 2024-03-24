@@ -21,7 +21,7 @@ pub struct RegisterZero<T> {
     pub clk: T,
 
     /// Value of the register at time (in clk) of access.
-    /// We accept inits and write for any value, but reads will always be 0.
+    /// We accept writes for any value, but reads and inits will always be 0.
     pub value: T,
 
     /// Columns that indicate what action is taken on the register.
