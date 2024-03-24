@@ -489,7 +489,11 @@ pub fn create_poseidon2_test(
             },
             Instruction {
                 op: Op::ECALL,
-                args: Args::default(),
+                args: Args {
+                    rs1: REG_A0,
+                    rs2: REG_A1,
+                    ..Args::default()
+                },
             },
         ]);
     }

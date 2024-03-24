@@ -230,6 +230,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
         },
         #[allow(clippy::match_same_arms)]
         0b111_0011 => match (bf.funct3(), bf.funct12()) {
+            // TODO(Matthias): consider undo-ing this temporary fix,
+            // once we integrate ecalls properly with new register stark table.
             (0x0, 0x0) => (Op::ECALL, Args {
                 rs1: REG_A0,
                 rs2: REG_A1,

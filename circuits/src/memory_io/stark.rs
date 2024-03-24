@@ -176,7 +176,11 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    args: Args::default(),
+                    args: Args {
+                        rs1: REG_A0,
+                        rs2: REG_A1,
+                        ..Default::default()
+                    },
                 },
             ],
             &[(address, 0)],
@@ -196,7 +200,11 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    args: Args::default(),
+                    args: Args {
+                        rs1: REG_A0,
+                        rs2: REG_A1,
+                        ..Default::default()
+                    },
                 },
             ],
             &[(address, 0)],
@@ -216,7 +224,11 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    args: Args::default(),
+                    args: Args {
+                        rs1: REG_A0,
+                        rs2: REG_A1,
+                        ..Default::default()
+                    },
                 },
             ],
             &[(address, 0)],
@@ -236,7 +248,11 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    args: Args::default(),
+                    args: Args {
+                        rs1: REG_A0,
+                        rs2: REG_A1,
+                        ..Default::default()
+                    },
                 },
             ],
             &[(address, 0)],
@@ -259,7 +275,11 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    args: Args::default(),
+                    args: Args {
+                        rs1: REG_A0,
+                        rs2: REG_A1,
+                        ..Default::default()
+                    },
                 },
             ],
             &[(address, 0)],
@@ -283,7 +303,11 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    args: Args::default(),
+                    args: Args {
+                        rs1: REG_A0,
+                        rs2: REG_A1,
+                        ..Default::default()
+                    },
                 },
             ],
             &[(address, 0)],
@@ -306,7 +330,11 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    args: Args::default(),
+                    args: Args {
+                        rs1: REG_A0,
+                        rs2: REG_A1,
+                        ..Default::default()
+                    },
                 },
                 Instruction {
                     op: Op::ADD,
@@ -334,7 +362,11 @@ mod tests {
                 },
                 Instruction {
                     op: Op::ECALL,
-                    args: Args::default(),
+                    args: Args {
+                        rs1: REG_A0,
+                        rs2: REG_A1,
+                        ..Default::default()
+                    },
                 },
             ],
             &[(address, 0)],
@@ -386,7 +418,11 @@ mod tests {
                 // add ecall to io_read
                 Instruction {
                     op: Op::ECALL,
-                    args: Args::default(),
+                    args: Args {
+                        rs1: REG_A0,
+                        rs2: REG_A1,
+                        ..Default::default()
+                    },
                 },
                 Instruction {
                     op: Op::ADD,
