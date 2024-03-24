@@ -323,8 +323,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         one_hots(&lv.inst, yield_constr);
 
         // Registers
-        // TODO: handle register being always 0 via a clever CTL.
-        // r0_always_0(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 
         add::constraints(lv, yield_constr);
