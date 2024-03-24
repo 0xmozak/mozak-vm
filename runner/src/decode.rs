@@ -279,7 +279,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
 }
 
 /// ECALL in Risc-V doesn't officially have rs1 and rs2, but we find it
-/// convenient to pretend that it does.
+/// convenient to pretend that it does; and it doesn't make any difference to
+/// which executions are valid or invalid.
 pub const ECALL: Instruction = Instruction {
     op: Op::ECALL,
     args: Args {
