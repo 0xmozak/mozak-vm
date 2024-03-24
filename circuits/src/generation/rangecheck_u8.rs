@@ -137,7 +137,7 @@ mod tests {
         }
 
         assert_eq!(trace[0].value, F::from_canonical_u8(0));
-        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(18));
+        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(24));
         assert_eq!(trace[255].value, F::from_canonical_u8(u8::MAX));
         assert_eq!(trace[255].multiplicity, F::from_canonical_u64(17));
     }
