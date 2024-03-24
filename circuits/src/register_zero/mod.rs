@@ -1,9 +1,7 @@
-//! This module contains the **`Register` STARK Table**.
+//! This module contains the **`RegisterZero` STARK Table**.
 //!
-//! This module emulates the 32 registers found in a RISC-V core,
-//! indexed by addresses 0..=31 instead.
-//!
-//! This implementation is very similar to that of the
-//! [Memory STARK](crate::memory)
+//! This is a helper for the `Register` STARK Table,
+//! to deal with register 0.  Register 0 accepts any writes of any value,
+//! but always reads as 0.
 pub mod columns;
 pub mod stark;
