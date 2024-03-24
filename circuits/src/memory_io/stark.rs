@@ -155,6 +155,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 
 #[cfg(test)]
 mod tests {
+    use mozak_runner::decode::ECALL;
     use mozak_runner::elf::RuntimeArguments;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
@@ -172,17 +173,8 @@ mod tests {
 
     pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args {
-                        rs1: REG_A0,
-                        rs2: REG_A1,
-                        ..Default::default()
-                    },
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
@@ -196,17 +188,8 @@ mod tests {
 
     pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args {
-                        rs1: REG_A0,
-                        rs2: REG_A1,
-                        ..Default::default()
-                    },
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PUBLIC),
@@ -220,17 +203,8 @@ mod tests {
 
     pub fn prove_io_read_call_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args {
-                        rs1: REG_A0,
-                        rs2: REG_A1,
-                        ..Default::default()
-                    },
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_TRANSCRIPT),
@@ -244,17 +218,8 @@ mod tests {
 
     pub fn prove_io_read_private<Stark: ProveAndVerify>(address: u32, io_tape_private: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args {
-                        rs1: REG_A0,
-                        rs2: REG_A1,
-                        ..Default::default()
-                    },
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
@@ -271,17 +236,8 @@ mod tests {
 
     pub fn prove_io_read_public<Stark: ProveAndVerify>(address: u32, io_tape_public: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args {
-                        rs1: REG_A0,
-                        rs2: REG_A1,
-                        ..Default::default()
-                    },
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 // TODO: this looks like a bug, it should be IO_READ_PUBLIC?
@@ -299,17 +255,8 @@ mod tests {
 
     pub fn prove_io_read_call_tape<Stark: ProveAndVerify>(address: u32, call_tape: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args {
-                        rs1: REG_A0,
-                        rs2: REG_A1,
-                        ..Default::default()
-                    },
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_TRANSCRIPT),
@@ -326,16 +273,9 @@ mod tests {
 
     pub fn prove_io_read<Stark: ProveAndVerify>(address: u32, content: u8) {
         let (program, record) = execute_code_with_runtime_args(
+            // set sys-call IO_READ in x10(or a0)
             [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args {
-                        rs1: REG_A0,
-                        rs2: REG_A1,
-                        ..Default::default()
-                    },
-                },
+                ECALL,
                 Instruction {
                     op: Op::ADD,
                     args: Args {
@@ -360,14 +300,7 @@ mod tests {
                         ..Args::default()
                     },
                 },
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args {
-                        rs1: REG_A0,
-                        rs2: REG_A1,
-                        ..Default::default()
-                    },
-                },
+                ECALL,
             ],
             &[(address, 0)],
             &[
@@ -416,14 +349,7 @@ mod tests {
                     },
                 },
                 // add ecall to io_read
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args {
-                        rs1: REG_A0,
-                        rs2: REG_A1,
-                        ..Default::default()
-                    },
-                },
+                ECALL,
                 Instruction {
                     op: Op::ADD,
                     args: Args {

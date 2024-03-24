@@ -237,7 +237,10 @@ mod tests {
                 [    10,   0,   0,       1,      0,       0], // init
                 // This is one part of the instructions added in the setup fn `execute_code()`
                 [    10,   0,   5,       0,      0,       1],
+                [    10,   0,   6,       0,      1,       0],
                 [    11,   0,   0,       1,      0,       0], // init
+                [    11,   0,   6,       0,      1,       0],
+                [    12,   0,   0,       1,      0,       0], // init
             ],
         );
 
@@ -245,7 +248,7 @@ mod tests {
         // registers.
         #[rustfmt::skip]
         let mut final_init_rows = prep_table(
-            (12..32).map(|i|
+            (13..32).map(|i|
                 // addr value clk  is_init is_read is_write
                 [     i,   0,   0,       1,      0,       0]
             ).collect(),

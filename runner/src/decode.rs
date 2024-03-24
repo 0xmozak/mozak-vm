@@ -1,6 +1,6 @@
 use bitfield::{bitfield, BitRange};
 use log::warn;
-use mozak_sdk::core::reg_abi::{REG_A0, REG_A1};
+use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_ZERO};
 
 use crate::instruction::{Args, DecodingError, Instruction, Op, NOP};
 
@@ -230,13 +230,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
         },
         #[allow(clippy::match_same_arms)]
         0b111_0011 => match (bf.funct3(), bf.funct12()) {
-            // TODO(Matthias): consider undo-ing this temporary fix,
-            // once we integrate ecalls properly with new register stark table.
-            (0x0, 0x0) => (Op::ECALL, Args {
-                rs1: REG_A0,
-                rs2: REG_A1,
-                ..Default::default()
-            }),
+            (0x0, 0x0) => (ECALL.op, ECALL.args),
             // For RISC-V this would be MRET,
             // but so far we implemented it as a no-op.
             (0x0, 0x302) => nop,
@@ -284,6 +278,19 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
     Ok(Instruction::new(op, args))
 }
 
+/// ECALL in Risc-V doesn't officially have rs1 and rs2, but we find it
+/// convenient to pretend that it does; and it doesn't make any difference to
+/// which executions are valid or invalid.
+pub const ECALL: Instruction = Instruction {
+    op: Op::ECALL,
+    args: Args {
+        rd: REG_ZERO,
+        rs1: REG_A0,
+        rs2: REG_A1,
+        imm: 0,
+    },
+};
+
 #[cfg(test)]
 #[allow(clippy::cast_sign_loss)]
 mod tests {
@@ -291,6 +298,7 @@ mod tests {
     use test_case::test_case;
 
     use super::extract_immediate;
+    use crate::decode::ECALL;
     use crate::instruction::{Args, Instruction, Op, NOP};
     use crate::test_utils::u32_extra;
 
@@ -1022,15 +1030,7 @@ mod tests {
     #[test_case(0x0000_0073; "ecall")]
     fn ecall(word: u32) {
         let ins: Instruction = decode_instruction(0, word);
-        let match_ins = Instruction {
-            op: Op::ECALL,
-            args: Args {
-                rs1: 10,
-                rs2: 11,
-                ..Default::default()
-            },
-        };
-        assert_eq!(ins, match_ins);
+        assert_eq!(ins, ECALL);
     }
 
     #[test_case(0x0ff0_000f, 0, 0, 255; "fence, iorw, iorw")]

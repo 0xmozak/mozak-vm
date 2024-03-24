@@ -37,7 +37,7 @@ impl<F: Field> CtlData<F> {
     pub fn len(&self) -> usize { self.zs_columns.len() }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.zs_columns.len() == 0 }
+    pub fn is_empty(&self) -> bool { self.zs_columns.is_empty() }
 
     #[must_use]
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {

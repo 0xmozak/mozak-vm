@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 
 use anyhow::Result;
 use itertools::izip;
+use mozak_runner::decode::ECALL;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::util::execute_code;
@@ -487,14 +488,7 @@ pub fn create_poseidon2_test(
                     ..Args::default()
                 },
             },
-            Instruction {
-                op: Op::ECALL,
-                args: Args {
-                    rs1: REG_A0,
-                    rs2: REG_A1,
-                    ..Args::default()
-                },
-            },
+            ECALL,
         ]);
     }
 
