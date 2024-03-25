@@ -1,6 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 #[cfg(feature = "enable_register_starks")]
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 #[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::{RegisterInitTable, TableWithUntypedInput};
 
@@ -36,7 +36,7 @@ pub struct RegisterInitCtl<T> {
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn lookup_for_register() -> TableWithUntypedInput<RegisterInitCtl<Column>> {
+pub fn lookup_for_register() -> TableWithUntypedInput<RegisterInitCtl<ColumnUntyped>> {
     let reg = COL_MAP;
     RegisterInitTable::new(
         RegisterInitCtl {

@@ -1,6 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnTyped;
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 use crate::memoryinit::columns::MemoryInitCtl;
 use crate::stark::mozak_stark::{MemoryZeroInitTable, TableWithUntypedInput};
 
@@ -17,7 +17,7 @@ pub const NUM_MEMORYINIT_COLS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 
 /// Lookup into Memory Table
 #[must_use]
-pub fn lookup_for_memory() -> TableWithUntypedInput<MemoryInitCtl<Column>> {
+pub fn lookup_for_memory() -> TableWithUntypedInput<MemoryInitCtl<ColumnUntyped>> {
     let mem = COL_MAP;
     MemoryZeroInitTable::new(
         MemoryInitCtl {

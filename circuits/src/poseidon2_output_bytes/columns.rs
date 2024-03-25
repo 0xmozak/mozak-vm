@@ -5,7 +5,7 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::cross_table_lookup::ColumnTyped;
 #[cfg(feature = "enable_poseidon_starks")]
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
@@ -65,7 +65,8 @@ pub struct Poseidon2OutputBytesCtl<F> {
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_poseidon2_sponge() -> TableWithUntypedInput<Poseidon2OutputBytesCtl<Column>> {
+pub fn lookup_for_poseidon2_sponge() -> TableWithUntypedInput<Poseidon2OutputBytesCtl<ColumnUntyped>>
+{
     let data = COL_MAP;
     Poseidon2OutputBytesTable::new(
         Poseidon2OutputBytesCtl {
@@ -79,7 +80,7 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithUntypedInput<Poseidon2OutputByt
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_output_memory(limb_index: u8) -> TableWithUntypedInput<MemoryCtl<Column>> {
+pub fn lookup_for_output_memory(limb_index: u8) -> TableWithUntypedInput<MemoryCtl<ColumnUntyped>> {
     assert!(limb_index < 32, "limb_index can be 0..31");
     let data = COL_MAP;
     Poseidon2OutputBytesTable::new(

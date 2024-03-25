@@ -13,7 +13,7 @@ use crate::cross_table_lookup::ColumnTyped;
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
-pub struct Column {
+pub struct ColumnUntyped {
     /// Linear combination of the local row
     pub lv_linear_combination: Vec<(usize, i64)>,
     /// Linear combination of the next row
@@ -22,7 +22,7 @@ pub struct Column {
     pub constant: i64,
 }
 
-impl<I: IntoIterator<Item = i64>> From<ColumnTyped<I>> for Column {
+impl<I: IntoIterator<Item = i64>> From<ColumnTyped<I>> for ColumnUntyped {
     fn from(colx: ColumnTyped<I>) -> Self {
         fn to_sparse(v: impl IntoIterator<Item = i64>) -> Vec<(usize, i64)> {
             v.into_iter()
@@ -38,7 +38,7 @@ impl<I: IntoIterator<Item = i64>> From<ColumnTyped<I>> for Column {
     }
 }
 
-impl Column {
+impl ColumnUntyped {
     // TODO(Matthias): move the eval* functions into the 'typed' world.
     pub fn eval<F: Field, FE, P, const D: usize, V>(&self, lv: &V, nv: &V) -> P
     where

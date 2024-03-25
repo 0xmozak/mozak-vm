@@ -8,7 +8,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::Column;
+use crate::cross_table_lookup::ColumnUntyped;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
@@ -177,7 +177,7 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[must_use]
-pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> {
+pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<ColumnUntyped>>> {
     let mem = COL_MAP;
     [mem.addr, COL_MAP.addr, mem.diff_clk]
         .into_iter()
@@ -186,7 +186,7 @@ pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>>
 }
 
 #[must_use]
-pub fn rangecheck_u8_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> {
+pub fn rangecheck_u8_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<ColumnUntyped>>> {
     let mem = COL_MAP;
     vec![MemoryTable::new(
         RangeCheckCtl(mem.value),
@@ -208,7 +208,7 @@ pub struct MemoryCtl<T> {
 /// Lookup between CPU table and Memory
 /// stark table.
 #[must_use]
-pub fn lookup_for_cpu() -> TableWithUntypedInput<MemoryCtl<Column>> {
+pub fn lookup_for_cpu() -> TableWithUntypedInput<MemoryCtl<ColumnUntyped>> {
     let mem = COL_MAP;
     MemoryTable::new(
         MemoryCtl {
@@ -224,7 +224,7 @@ pub fn lookup_for_cpu() -> TableWithUntypedInput<MemoryCtl<Column>> {
 
 /// Lookup into `MemoryInit` Table
 #[must_use]
-pub fn lookup_for_memoryinit() -> TableWithUntypedInput<MemoryInitCtl<Column>> {
+pub fn lookup_for_memoryinit() -> TableWithUntypedInput<MemoryInitCtl<ColumnUntyped>> {
     let mem = COL_MAP;
 
     MemoryTable::new(

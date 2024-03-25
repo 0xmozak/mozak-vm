@@ -13,7 +13,7 @@ use crate::columns_view::columns_view_impl;
 use crate::cpu::columns::CpuColumnsExtended;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{
-    Column, ColumnTyped, CrossTableLookup, CrossTableLookupWithTypedOutput,
+    ColumnTyped, ColumnUntyped, CrossTableLookup, CrossTableLookupWithTypedOutput,
 };
 use crate::memory::columns::{Memory, MemoryCtl};
 use crate::memory::stark::MemoryStark;
@@ -440,31 +440,36 @@ impl<Matrix, MatrixWithUntypedInput, InputTable> From<TableTyped<Matrix, ColumnT
     for TableWithUntypedInput<MatrixWithUntypedInput>
 where
     InputTable: IntoIterator<Item = i64>,
-    MatrixWithUntypedInput: FromIterator<Column>,
+    MatrixWithUntypedInput: FromIterator<ColumnUntyped>,
     Matrix: IntoIterator<Item = ColumnTyped<InputTable>>,
 {
     fn from(input: TableTyped<Matrix, ColumnTyped<InputTable>>) -> Self {
         TableWithUntypedInput {
             input_kind: input.input_kind,
-            transformation: input.transformation.into_iter().map(Column::from).collect(),
+            transformation: input
+                .transformation
+                .into_iter()
+                .map(ColumnUntyped::from)
+                .collect(),
             filter: input.filter.into(),
         }
     }
 }
 
-pub type TableWithUntypedInput_<Row> = TableTyped<Row, Column>;
+pub type TableWithUntypedInput_<Row> = TableTyped<Row, ColumnUntyped>;
 /// We we create a cross-table-lookup, we stick multiple 'tables' with different
 /// inputs, but same outputs, into the same `looking_tables` vector.
 /// Because Rust wants all elements of a vector to have the same type, we need
 /// to erase the input type here.
 pub use TableWithUntypedInput_ as TableWithUntypedInput;
 
-pub type TableUntyped = TableWithUntypedInput<Vec<Column>>;
-/// Later on, we need to erase not only the input type, but also the output type.
+pub type TableUntyped = TableWithUntypedInput<Vec<ColumnUntyped>>;
+/// Later on, we need to erase not only the input type, but also the output
+/// type.
 // TODO(Matthias): see about preserving types for longer.
 pub use TableUntyped as Table;
 
-impl<Row: IntoIterator<Item = Column>> TableWithUntypedInput<Row> {
+impl<Row: IntoIterator<Item = ColumnUntyped>> TableWithUntypedInput<Row> {
     pub fn to_untyped_output(self) -> Table {
         Table {
             input_kind: self.input_kind,
@@ -487,11 +492,11 @@ macro_rules! table_impl {
                 filter: ColumnTyped<$input_table_type<i64>>,
             ) -> TableWithUntypedInput<RowOut>
             where
-                RowOut: FromIterator<Column>,
+                RowOut: FromIterator<ColumnUntyped>,
                 RowIn: IntoIterator<Item = ColumnTyped<$input_table_type<i64>>>, {
                 TableWithUntypedInput {
                     input_kind: $table_kind,
-                    transformation: columns.into_iter().map(Column::from).collect(),
+                    transformation: columns.into_iter().map(ColumnUntyped::from).collect(),
                     filter: filter.into(),
                 }
             }
@@ -565,7 +570,7 @@ table_impl!(
 );
 
 pub trait Lookups {
-    type Row: IntoIterator<Item = Column>;
+    type Row: IntoIterator<Item = ColumnUntyped>;
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row>;
     #[must_use]
     fn lookups() -> CrossTableLookup { Self::lookups_with_typed_output().to_untyped_output() }
@@ -574,7 +579,7 @@ pub trait Lookups {
 pub struct RangecheckTable;
 
 impl Lookups for RangecheckTable {
-    type Row = RangeCheckCtl<Column>;
+    type Row = RangeCheckCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         #[cfg(feature = "enable_register_starks")]
@@ -595,7 +600,7 @@ impl Lookups for RangecheckTable {
 pub struct XorCpuTable;
 
 impl Lookups for XorCpuTable {
-    type Row = XorView<Column>;
+    type Row = XorView<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput {
@@ -608,7 +613,7 @@ impl Lookups for XorCpuTable {
 pub struct IntoMemoryTable;
 
 impl Lookups for IntoMemoryTable {
-    type Row = MemoryCtl<Column>;
+    type Row = MemoryCtl<ColumnUntyped>;
 
     #[allow(clippy::too_many_lines)]
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
@@ -636,9 +641,10 @@ impl Lookups for IntoMemoryTable {
 pub struct MemoryInitMemoryTable;
 
 impl Lookups for MemoryInitMemoryTable {
-    type Row = MemoryInitCtl<Column>;
+    type Row = MemoryInitCtl<ColumnUntyped>;
 
-    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<MemoryInitCtl<Column>> {
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<MemoryInitCtl<ColumnUntyped>>
+    {
         CrossTableLookupWithTypedOutput::new(
             vec![
                 memoryinit::columns::lookup_for_memory(ElfMemoryInitTable::new),
@@ -653,9 +659,9 @@ impl Lookups for MemoryInitMemoryTable {
 pub struct BitshiftCpuTable;
 
 impl Lookups for BitshiftCpuTable {
-    type Row = Bitshift<Column>;
+    type Row = Bitshift<ColumnUntyped>;
 
-    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Bitshift<Column>> {
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Bitshift<ColumnUntyped>> {
         CrossTableLookupWithTypedOutput::new(
             vec![cpu::columns::lookup_for_shift_amount()],
             bitshift::columns::lookup_for_cpu(),
@@ -666,7 +672,7 @@ impl Lookups for BitshiftCpuTable {
 pub struct InnerCpuTable;
 
 impl Lookups for InnerCpuTable {
-    type Row = InstructionRow<Column>;
+    type Row = InstructionRow<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -679,7 +685,7 @@ impl Lookups for InnerCpuTable {
 pub struct ProgramCpuTable;
 
 impl Lookups for ProgramCpuTable {
-    type Row = InstructionRow<Column>;
+    type Row = InstructionRow<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -691,10 +697,10 @@ impl Lookups for ProgramCpuTable {
 
 pub struct RangeCheckU8LookupTable;
 impl Lookups for RangeCheckU8LookupTable {
-    type Row = RangeCheckCtl<Column>;
+    type Row = RangeCheckCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let looking: Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> = chain![
+        let looking: Vec<TableWithUntypedInput<RangeCheckCtl<ColumnUntyped>>> = chain![
             rangecheck_looking(),
             memory::columns::rangecheck_u8_looking(),
         ]
@@ -706,9 +712,9 @@ impl Lookups for RangeCheckU8LookupTable {
 pub struct HalfWordMemoryCpuTable;
 
 impl Lookups for HalfWordMemoryCpuTable {
-    type Row = MemoryCtl<Column>;
+    type Row = MemoryCtl<ColumnUntyped>;
 
-    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<MemoryCtl<Column>> {
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<MemoryCtl<ColumnUntyped>> {
         CrossTableLookupWithTypedOutput::new(
             vec![cpu::columns::lookup_for_halfword_memory()],
             memory_halfword::columns::lookup_for_cpu(),
@@ -719,7 +725,7 @@ impl Lookups for HalfWordMemoryCpuTable {
 pub struct FullWordMemoryCpuTable;
 
 impl Lookups for FullWordMemoryCpuTable {
-    type Row = MemoryCtl<Column>;
+    type Row = MemoryCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -734,7 +740,7 @@ pub struct RegisterRegInitTable;
 
 #[cfg(feature = "enable_register_starks")]
 impl Lookups for RegisterRegInitTable {
-    type Row = RegisterInitCtl<Column>;
+    type Row = RegisterInitCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -747,7 +753,7 @@ impl Lookups for RegisterRegInitTable {
 pub struct IoMemoryPrivateCpuTable;
 
 impl Lookups for IoMemoryPrivateCpuTable {
-    type Row = InputOutputMemoryCtl<Column>;
+    type Row = InputOutputMemoryCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -760,7 +766,7 @@ impl Lookups for IoMemoryPrivateCpuTable {
 pub struct IoMemoryPublicCpuTable;
 
 impl Lookups for IoMemoryPublicCpuTable {
-    type Row = InputOutputMemoryCtl<Column>;
+    type Row = InputOutputMemoryCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -774,7 +780,7 @@ pub struct IoTranscriptCpuTable;
 
 impl Lookups for IoTranscriptCpuTable {
     // TODO(Matthias): See about unifying these lookups?
-    type Row = InputOutputMemoryCtl<Column>;
+    type Row = InputOutputMemoryCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -788,7 +794,7 @@ impl Lookups for IoTranscriptCpuTable {
 pub struct Poseidon2SpongeCpuTable;
 #[cfg(feature = "enable_poseidon_starks")]
 impl Lookups for Poseidon2SpongeCpuTable {
-    type Row = Poseidon2SpongeCtl<Column>;
+    type Row = Poseidon2SpongeCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -802,7 +808,7 @@ impl Lookups for Poseidon2SpongeCpuTable {
 pub struct Poseidon2Poseidon2SpongeTable;
 #[cfg(feature = "enable_poseidon_starks")]
 impl Lookups for Poseidon2Poseidon2SpongeTable {
-    type Row = Poseidon2StateCtl<Column>;
+    type Row = Poseidon2StateCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -816,7 +822,7 @@ impl Lookups for Poseidon2Poseidon2SpongeTable {
 pub struct Poseidon2OutputBytesPoseidon2SpongeTable;
 #[cfg(feature = "enable_poseidon_starks")]
 impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
-    type Row = Poseidon2OutputBytesCtl<Column>;
+    type Row = Poseidon2OutputBytesCtl<ColumnUntyped>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(

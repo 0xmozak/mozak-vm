@@ -4,7 +4,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 #[cfg(feature = "enable_register_starks")]
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 #[cfg(feature = "enable_register_starks")]
 use crate::rangecheck::columns::RangeCheckCtl;
 #[cfg(feature = "enable_register_starks")]
@@ -103,7 +103,7 @@ impl<T: Add<Output = T>> Register<T> {
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn lookup_for_register_init() -> TableWithUntypedInput<RegisterInitCtl<Column>> {
+pub fn lookup_for_register_init() -> TableWithUntypedInput<RegisterInitCtl<ColumnUntyped>> {
     let reg = COL_MAP;
     RegisterTable::new(
         RegisterInitCtl {
@@ -116,7 +116,7 @@ pub fn lookup_for_register_init() -> TableWithUntypedInput<RegisterInitCtl<Colum
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> {
+pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<ColumnUntyped>>> {
     let ops = COL_MAP.ops;
     vec![RegisterTable::new(
         RangeCheckCtl(COL_MAP.diff_augmented_clk),

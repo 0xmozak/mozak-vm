@@ -1,5 +1,5 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 use crate::stark::mozak_stark::{BitshiftTable, TableWithUntypedInput};
 
 columns_view_impl!(Bitshift);
@@ -37,6 +37,6 @@ pub struct BitshiftView<T> {
 
 /// Lookup from the CPU table into Bitshift stark table.
 #[must_use]
-pub fn lookup_for_cpu() -> TableWithUntypedInput<Bitshift<Column>> {
+pub fn lookup_for_cpu() -> TableWithUntypedInput<Bitshift<ColumnUntyped>> {
     BitshiftTable::new(COL_MAP.executed, COL_MAP.multiplicity)
 }

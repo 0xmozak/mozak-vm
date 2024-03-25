@@ -7,7 +7,7 @@ use plonky2::hash::poseidon2::WIDTH;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnTyped;
 #[cfg(feature = "enable_poseidon_starks")]
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 use crate::memory::columns::MemoryCtl;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2StateCtl;
@@ -56,7 +56,7 @@ pub struct Poseidon2SpongeCtl<T> {
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_cpu() -> TableWithUntypedInput<Poseidon2SpongeCtl<Column>> {
+pub fn lookup_for_cpu() -> TableWithUntypedInput<Poseidon2SpongeCtl<ColumnUntyped>> {
     let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
         Poseidon2SpongeCtl {
@@ -70,7 +70,7 @@ pub fn lookup_for_cpu() -> TableWithUntypedInput<Poseidon2SpongeCtl<Column>> {
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_poseidon2() -> TableWithUntypedInput<Poseidon2StateCtl<Column>> {
+pub fn lookup_for_poseidon2() -> TableWithUntypedInput<Poseidon2StateCtl<ColumnUntyped>> {
     let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
         Poseidon2StateCtl {
@@ -86,8 +86,8 @@ pub fn lookup_for_poseidon2() -> TableWithUntypedInput<Poseidon2StateCtl<Column>
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_poseidon2_output_bytes() -> TableWithUntypedInput<Poseidon2OutputBytesCtl<Column>>
-{
+pub fn lookup_for_poseidon2_output_bytes(
+) -> TableWithUntypedInput<Poseidon2OutputBytesCtl<ColumnUntyped>> {
     let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
         Poseidon2OutputBytesCtl {
@@ -101,7 +101,7 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableWithUntypedInput<Poseidon2Out
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_input_memory(limb_index: u8) -> TableWithUntypedInput<MemoryCtl<Column>> {
+pub fn lookup_for_input_memory(limb_index: u8) -> TableWithUntypedInput<MemoryCtl<ColumnUntyped>> {
     assert!(limb_index < 8, "limb_index can be 0..7");
     let sponge = COL_MAP;
     let ops = COL_MAP.ops;

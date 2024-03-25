@@ -2,7 +2,7 @@ use plonky2::hash::poseidon2::{ROUND_F_END, ROUND_P, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 #[cfg(feature = "enable_poseidon_starks")]
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::stark::mozak_stark::{Poseidon2Table, TableWithUntypedInput};
 
@@ -62,7 +62,7 @@ pub struct Poseidon2StateCtl<F> {
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_sponge() -> TableWithUntypedInput<Poseidon2StateCtl<Column>> {
+pub fn lookup_for_sponge() -> TableWithUntypedInput<Poseidon2StateCtl<ColumnUntyped>> {
     let poseidon2 = COL_MAP;
     // Extend data with outputs which is basically state after last full round.
     Poseidon2Table::new(

@@ -156,8 +156,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // on last 0.001% of perf, it can be removed (if other parts of the code will
         // not use it somewhere)
         // TODO(Roman): how we insure sorted addresses - via RangeCheck:
-        // MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed())
-        // Please add test that fails with not-sorted memory trace
+        // MemoryTable::new(ColumnUntyped::singles_diff([col_map().addr]),
+        // mem.is_executed()) Please add test that fails with not-sorted memory
+        // trace
         let diff_addr = nv.addr - lv.addr;
         yield_constr.constraint_transition(diff_addr * (P::ONES - diff_addr * nv.diff_addr_inv));
 

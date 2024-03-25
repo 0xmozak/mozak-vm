@@ -15,7 +15,7 @@ use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 use thiserror::Error;
 
-pub use crate::linear_combination::Column;
+pub use crate::linear_combination::ColumnUntyped;
 pub use crate::linear_combination_typed::ColumnTyped;
 use crate::stark::mozak_stark::{
     all_kind, Table, TableKind, TableKindArray, TableWithUntypedInput,
@@ -55,8 +55,8 @@ impl<F: Field> CtlData<F> {
 pub(crate) struct CtlZData<F: Field> {
     pub(crate) z: PolynomialValues<F>,
     pub(crate) challenge: GrandProductChallenge<F>,
-    pub(crate) columns: Vec<Column>,
-    pub(crate) filter_column: Column,
+    pub(crate) columns: Vec<ColumnUntyped>,
+    pub(crate) filter_column: ColumnUntyped,
 }
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
@@ -145,8 +145,8 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
 
 fn partial_sums<F: Field>(
     trace: &[PolynomialValues<F>],
-    columns: &[Column],
-    filter_column: &Column,
+    columns: &[ColumnUntyped],
+    filter_column: &ColumnUntyped,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
     // design of table looks like  this
@@ -195,13 +195,13 @@ pub struct CrossTableLookupWithTypedOutput<Row> {
 }
 
 // This is a little trick, so that we can use `CrossTableLookup` as a
-// constructor, but only when the type parameter Row = Vec<Column>.
+// constructor, but only when the type parameter Row = Vec<ColumnUntyped>.
 // TODO(Matthias): See if we can do the same trick for `table_impl`.
 #[allow(clippy::module_name_repetitions)]
-pub type CrossTableLookupUntyped = CrossTableLookupWithTypedOutput<Vec<Column>>;
+pub type CrossTableLookupUntyped = CrossTableLookupWithTypedOutput<Vec<ColumnUntyped>>;
 pub use CrossTableLookupUntyped as CrossTableLookup;
 
-impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
+impl<Row: IntoIterator<Item = ColumnUntyped>> CrossTableLookupWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> CrossTableLookup {
         let looked_table: Table = self.looked_table.to_untyped_output();
         let looking_tables = self
@@ -251,8 +251,8 @@ where
     pub(crate) local_z: P,
     pub(crate) next_z: P,
     pub(crate) challenges: GrandProductChallenge<F>,
-    pub(crate) transformation: &'a [Column],
-    pub(crate) filter: &'a Column,
+    pub(crate) transformation: &'a [ColumnUntyped],
+    pub(crate) filter: &'a ColumnUntyped,
 }
 
 impl<'a, F: RichField + Extendable<D>, const D: usize>
@@ -329,8 +329,8 @@ pub struct CtlCheckVarsTarget<'a, const D: usize> {
     pub local_z: ExtensionTarget<D>,
     pub next_z: ExtensionTarget<D>,
     pub challenges: GrandProductChallenge<Target>,
-    pub columns: &'a [Column],
-    pub filter_column: &'a Column,
+    pub columns: &'a [ColumnUntyped],
+    pub filter_column: &'a ColumnUntyped,
 }
 
 impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {

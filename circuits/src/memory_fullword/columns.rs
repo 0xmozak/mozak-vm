@@ -2,7 +2,7 @@ use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnTyped;
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 use crate::memory::columns::MemoryCtl;
 use crate::stark::mozak_stark::{FullWordMemoryTable, TableWithUntypedInput};
 
@@ -48,7 +48,7 @@ pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn lookup_for_cpu() -> TableWithUntypedInput<MemoryCtl<Column>> {
+pub fn lookup_for_cpu() -> TableWithUntypedInput<MemoryCtl<ColumnUntyped>> {
     let mem = COL_MAP;
     FullWordMemoryTable::new(
         MemoryCtl {
@@ -65,7 +65,9 @@ pub fn lookup_for_cpu() -> TableWithUntypedInput<MemoryCtl<Column>> {
 /// Lookup between fullword memory table
 /// and Memory stark table.
 #[must_use]
-pub fn lookup_for_memory_limb(limb_index: usize) -> TableWithUntypedInput<MemoryCtl<Column>> {
+pub fn lookup_for_memory_limb(
+    limb_index: usize,
+) -> TableWithUntypedInput<MemoryCtl<ColumnUntyped>> {
     assert!(limb_index < 4, "limb-index can be 0..4");
     let mem = COL_MAP;
     FullWordMemoryTable::new(

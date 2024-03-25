@@ -1,6 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::ColumnTyped;
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 use crate::stark::mozak_stark::TableWithUntypedInput;
 
 columns_view_impl!(MemElement);
@@ -38,12 +38,12 @@ pub struct MemoryInitCtl<T> {
 
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn lookup_for_memory<T>(new: T) -> TableWithUntypedInput<MemoryInitCtl<Column>>
+pub fn lookup_for_memory<T>(new: T) -> TableWithUntypedInput<MemoryInitCtl<ColumnUntyped>>
 where
     T: Fn(
         MemoryInitCtl<ColumnTyped<MemoryInit<i64>>>,
         ColumnTyped<MemoryInit<i64>>,
-    ) -> TableWithUntypedInput<MemoryInitCtl<Column>>, {
+    ) -> TableWithUntypedInput<MemoryInitCtl<ColumnUntyped>>, {
     let mem = COL_MAP;
     new(
         MemoryInitCtl {

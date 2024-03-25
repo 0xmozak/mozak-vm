@@ -2,7 +2,7 @@ use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnTyped;
-use crate::linear_combination::Column;
+use crate::linear_combination::ColumnUntyped;
 use crate::memory::columns::MemoryCtl;
 use crate::stark::mozak_stark::{TableKind, TableWithUntypedInput};
 
@@ -54,7 +54,9 @@ pub struct InputOutputMemoryCtl<T> {
 
 /// Lookup between CPU table and Memory stark table.
 #[must_use]
-pub fn lookup_for_cpu(kind: TableKind) -> TableWithUntypedInput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_cpu(
+    kind: TableKind,
+) -> TableWithUntypedInput<InputOutputMemoryCtl<ColumnUntyped>> {
     let mem = COL_MAP;
     TableWithUntypedInput {
         input_kind: kind,
@@ -64,7 +66,7 @@ pub fn lookup_for_cpu(kind: TableKind) -> TableWithUntypedInput<InputOutputMemor
             size: mem.size,
         }
         .into_iter()
-        .map(Column::from)
+        .map(ColumnUntyped::from)
         .collect(),
         filter: COL_MAP.ops.is_io_store.into(),
     }
@@ -72,7 +74,7 @@ pub fn lookup_for_cpu(kind: TableKind) -> TableWithUntypedInput<InputOutputMemor
 
 /// Lookup into Memory stark table.
 #[must_use]
-pub fn lookup_for_memory(kind: TableKind) -> TableWithUntypedInput<MemoryCtl<Column>> {
+pub fn lookup_for_memory(kind: TableKind) -> TableWithUntypedInput<MemoryCtl<ColumnUntyped>> {
     let mem = COL_MAP;
 
     TableWithUntypedInput {
@@ -85,7 +87,7 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithUntypedInput<MemoryCtl<Col
             addr: mem.addr,
         }
         .into_iter()
-        .map(Column::from)
+        .map(ColumnUntyped::from)
         .collect(),
         filter: COL_MAP.ops.is_memory_store.into(),
     }
