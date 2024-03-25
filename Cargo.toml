@@ -30,11 +30,15 @@ members = [
 ]
 resolver = "2"
 
-[profile.dev]
-# We are running our tests with optimizations turned on to make them faster.
-# Plase turn optimizations off, when you want accurate stack traces for debugging.
-lto = "thin"
+[profile.dev.package."*"]
+# Set the default for dependencies in Development mode.
 opt-level = 3
+
+[profile.dev]
+lto = "thin"
+# We are running our tests with optimizations turned on to make them faster.
+# Please turn optimizations off, when you want accurate stack traces for debugging.
+opt-level = 2
 
 [profile.release]
 lto = "fat"
