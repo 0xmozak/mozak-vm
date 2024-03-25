@@ -76,6 +76,15 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
+    #[test]
+    fn prove_add_mozak_example() {
+        // let a = 0; let b = 544323429; let rd = 8;
+        let a = 0;
+        let b: u32 = 1;
+        let rd = 8;
+        prove_add::<MozakStark<F, D>>(a, b, rd);
+    }
+
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
     proptest! {
