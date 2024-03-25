@@ -320,9 +320,9 @@ fn populate_op_values_circuit<F: RichField + Extendable<D>, const D: usize>(
         (lv.inst.rs1_select, lv.op1_value),
         (lv.inst.rs2_select, lv.op2_value_raw),
     ] {
-        let one = builder.one_extension();
+        let starting_acc = builder.zero_extension();
         let opx_value =
-            builder.inner_product_extension(F::ZERO, one, izip!(rsx_select, lv.regs).collect());
+            builder.inner_product_extension(F::ONE, starting_acc, izip!(rsx_select, lv.regs).collect());
         let lv_op1_value_sub_op1_value = builder.sub_extension(lv_opx_value, opx_value);
         yield_constr.constraint(builder, lv_op1_value_sub_op1_value);
     }
