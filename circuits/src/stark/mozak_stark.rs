@@ -484,8 +484,6 @@ impl<Row: IntoIterator<Item = ColumnUntyped>> TableWithUntypedInput<Row> {
 }
 
 /// Macro to instantiate a new table for cross table lookups.
-// OK, `table_kind` determines the input type of the table.
-// But input type could relate to multiple kinds.
 macro_rules! table_impl {
     ($lookup_input_id: ident, $table_kind: expr, $input_table_type: ident) => {
         #[allow(non_snake_case)]
