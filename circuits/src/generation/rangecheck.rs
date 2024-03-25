@@ -45,7 +45,6 @@ where
 /// 2. trace width does not match the number of columns,
 /// 3. attempting to range check tuples instead of single values.
 #[must_use]
-#[allow(unused)]
 pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
@@ -68,10 +67,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                 let val = u32::try_from(v.to_canonical_u64())
                     .expect("casting value to u32 should succeed");
 
-                multiplicities
-                    .entry(val)
-                    .and_modify(|e| *e += 1)
-                    .or_insert(1);
+                *multiplicities.entry(val).or_default() += 1;
             });
         });
     let mut trace = Vec::with_capacity(multiplicities.len());

@@ -36,6 +36,6 @@ pub fn lookup_for_register() -> TableWithTypedOutput<RegisterCtl<Column>> {
             addr: reg.reg_addr,
             value: reg.value,
         },
-        COL_MAP.is_looked_up,
+        reg.is_looked_up,
     )
 }
