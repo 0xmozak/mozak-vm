@@ -420,6 +420,7 @@ pub struct TableTyped<Matrix, Filter> {
     /// Which table do we use for input.
     pub(crate) input_kind: TableKind,
     /// Linear transformation 'matrix' from input to output columns
+    /// The matrix could be dense or sparse.
     pub(crate) transformation: Matrix,
     /// Linear transformation from input to single output column
     pub(crate) filter: Filter,
@@ -453,16 +454,6 @@ impl<Row: IntoIterator<Item = Column>> TableWithUntypedInput<Row> {
             input_kind: self.input_kind,
             transformation: self.transformation.into_iter().collect(),
             filter: self.filter,
-        }
-    }
-}
-
-impl<Row> TableWithUntypedInput<Row> {
-    pub fn new(kind: TableKind, columns: Row, filter: Column) -> Self {
-        Self {
-            input_kind: kind,
-            transformation: columns,
-            filter,
         }
     }
 }
