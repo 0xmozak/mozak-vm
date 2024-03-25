@@ -296,39 +296,36 @@ fn rd_assigned_correctly_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 /// Both operands should be assigned with the value of the designated registers.
 fn populate_op_values<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    yield_constr.constraint(
-        lv.op1_value
+    for (rsx_select, lv_opx_value) in [
+        (lv.inst.rs1_select, lv.op1_value),
+        (lv.inst.rs2_select, lv.op2_value_raw),
+    ] {
+        yield_constr.constraint(
+            lv_opx_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep it to make it easier to reason about the code.
             - (0..32)
-            .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
+            .map(|reg| rsx_select[reg] * lv.regs[reg])
             .sum::<P>(),
-    );
-
-    yield_constr.constraint(
-        lv.op2_value_raw
-            // Note: we could skip 0, because r0 is always 0.
-            // But we keep it to make it easier to reason about the code.
-            - (0..32)
-            .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
-            .sum::<P>(),
-    );
+        );
+    }
 }
 
-fn populate_op1_value_circuit<F: RichField + Extendable<D>, const D: usize>(
+fn populate_op_values_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &CpuState<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
-    let mut op1_value = builder.zero_extension();
-    for reg in 0..32 {
-        let lv_inst_rs1_select = lv.inst.rs1_select[reg];
-        let lv_regs = lv.regs[reg];
-        let lv_inst_rs1_select_mul_lv_regs = builder.mul_extension(lv_inst_rs1_select, lv_regs);
-        op1_value = builder.add_extension(op1_value, lv_inst_rs1_select_mul_lv_regs);
+    for (rsx_select, lv_opx_value) in [
+        (lv.inst.rs1_select, lv.op1_value),
+        (lv.inst.rs2_select, lv.op2_value_raw),
+    ] {
+        let one = builder.one_extension();
+        let opx_value =
+            builder.inner_product_extension(F::ZERO, one, izip!(rsx_select, lv.regs).collect());
+        let lv_op1_value_sub_op1_value = builder.sub_extension(lv_opx_value, opx_value);
+        yield_constr.constraint(builder, lv_op1_value_sub_op1_value);
     }
-    let lv_op1_value_sub_op1_value = builder.sub_extension(lv.op1_value, op1_value);
-    yield_constr.constraint(builder, lv_op1_value_sub_op1_value);
 }
 
 /// Constraints for values in op2, which is the sum of the value of the second
@@ -495,7 +492,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         only_rd_changes_circuit(builder, lv, nv, yield_constr);
         rd_assigned_correctly_circuit(builder, lv, nv, yield_constr);
 
-        populate_op1_value_circuit(builder, lv, yield_constr);
+        populate_op_values_circuit(builder, lv, yield_constr);
         populate_op2_value_circuit(builder, lv, yield_constr);
 
         add::constraints_circuit(builder, lv, yield_constr);
