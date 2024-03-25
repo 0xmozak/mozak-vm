@@ -24,7 +24,7 @@ mozak-circuits-derive = { path = "./derive" }
 mozak-runner = { path = "../runner" }
 mozak-sdk = { path = "../sdk" }
 plonky2 = { version = "0", default-features = false }
-rayon = "1.9"
+rayon = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 starky = { version = "0", default-features = false, features = ["std"] }
 thiserror = "1.0"
