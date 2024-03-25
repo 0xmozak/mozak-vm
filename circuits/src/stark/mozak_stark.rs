@@ -53,12 +53,15 @@ use crate::rangecheck_u8::stark::RangeCheckU8Stark;
 use crate::register;
 #[cfg(feature = "enable_register_starks")]
 use crate::register::columns::Register;
+#[cfg(feature = "enable_register_starks")]
 use crate::register::columns::RegisterCtl;
+#[cfg(feature = "enable_register_starks")]
 use crate::register::stark::RegisterStark;
 #[cfg(feature = "enable_register_starks")]
 use crate::registerinit::columns::RegisterInit;
 #[cfg(feature = "enable_register_starks")]
 use crate::registerinit::columns::RegisterInitCtl;
+#[cfg(feature = "enable_register_starks")]
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
@@ -113,11 +116,13 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoTranscript")]
     pub io_transcript_stark: InputOutputMemoryStark<F, D>,
+    #[cfg(feature = "enable_register_starks")]
     #[cfg_attr(
         feature = "enable_register_starks",
         StarkSet(stark_kind = "RegisterInit")
     )]
     pub register_init_stark: RegisterInitStark<F, D>,
+    #[cfg(feature = "enable_register_starks")]
     #[cfg_attr(feature = "enable_register_starks", StarkSet(stark_kind = "Register"))]
     pub register_stark: RegisterStark<F, D>,
     #[cfg_attr(feature = "enable_poseidon_starks", StarkSet(stark_kind = "Poseidon2"))]
@@ -367,7 +372,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             rangecheck_u8_stark: RangeCheckU8Stark::default(),
             halfword_memory_stark: HalfWordMemoryStark::default(),
             fullword_memory_stark: FullWordMemoryStark::default(),
+            #[cfg(feature = "enable_register_starks")]
             register_init_stark: RegisterInitStark::default(),
+            #[cfg(feature = "enable_register_starks")]
             register_stark: RegisterStark::default(),
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
