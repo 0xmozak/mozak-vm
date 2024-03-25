@@ -48,7 +48,7 @@ use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
-use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
+use crate::rangecheck::columns::{rangecheck_outgoing, RangeCheckColumnsView, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
@@ -65,7 +65,7 @@ use crate::{
     memoryinit, program, rangecheck, register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 12 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
+const NUM_CROSS_TABLE_LOOKUP: usize = 11 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -381,7 +381,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 ProgramCpuTable::lookups(),
                 IntoMemoryTable::lookups(),
                 MemoryInitMemoryTable::lookups(),
-                RangeCheckU8LookupTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 RegisterLookups::lookups(),
@@ -565,15 +564,17 @@ impl Lookups for RangecheckTable {
     type Row = RangeCheckCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let register = register::columns::rangecheck_looking();
-
         let looking: Vec<TableWithTypedOutput<_>> = chain![
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
-            register,
+            register::columns::rangecheck_looking(),
+            // This counts negative.  It should be in the looked tables.
+            vec![rangecheck::columns::lookup_incoming()],
+            rangecheck_outgoing(),
+            memory::columns::rangecheck_u8_looking(),
         ]
         .collect();
-        CrossTableLookupWithTypedOutput::new(looking, rangecheck::columns::lookup())
+        CrossTableLookupWithTypedOutput::new(looking, crate::rangecheck_u8::columns::lookup())
     }
 }
 
@@ -671,20 +672,6 @@ impl Lookups for ProgramCpuTable {
             vec![cpu::columns::lookup_for_program_rom()],
             program::columns::lookup_for_ctl(),
         )
-    }
-}
-
-pub struct RangeCheckU8LookupTable;
-impl Lookups for RangeCheckU8LookupTable {
-    type Row = RangeCheckCtl<Column>;
-
-    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let looking: Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> = chain![
-            rangecheck_looking(),
-            memory::columns::rangecheck_u8_looking(),
-        ]
-        .collect();
-        CrossTableLookupWithTypedOutput::new(looking, crate::rangecheck_u8::columns::lookup())
     }
 }
 

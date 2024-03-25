@@ -7,6 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
+use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::register::columns::Register;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
@@ -50,7 +51,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
     register_trace: &[Register<F>],
-) -> Vec<RangeCheckColumnsView<F>> {
+) -> (Vec<RangeCheckColumnsView<F>>, Vec<RangeCheckU8<F>>) {
     let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
 
     RangecheckTable::lookups()
