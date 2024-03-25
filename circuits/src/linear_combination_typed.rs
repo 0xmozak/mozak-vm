@@ -4,6 +4,7 @@ use core::ops::{Add, Mul, Neg, Sub};
 use itertools::izip;
 
 use crate::columns_view::Zip;
+use crate::linear_combination::ColumnUntyped;
 
 /// Represent a linear combination of columns.
 ///
@@ -18,6 +19,23 @@ pub struct ColumnTyped<InputColumns> {
     pub nv_linear_combination: InputColumns,
     /// Constant of linear combination
     pub constant: i64,
+}
+
+// TODO(Matthias): see if we can use `into`?
+impl<InputColumns: IntoIterator<Item = i64>> ColumnTyped<InputColumns> {
+    pub fn to_untyped(self) -> ColumnUntyped where {
+        fn to_sparse(v: impl IntoIterator<Item = i64>) -> Vec<(usize, i64)> {
+            v.into_iter()
+                .enumerate()
+                .filter(|(_i, coefficient)| coefficient != &0)
+                .collect()
+        }
+        ColumnUntyped {
+            lv_linear_combination: to_sparse(self.lv_linear_combination),
+            nv_linear_combination: to_sparse(self.nv_linear_combination),
+            constant: self.constant,
+        }
+    }
 }
 
 impl<InputColumns> ColumnTyped<InputColumns> {

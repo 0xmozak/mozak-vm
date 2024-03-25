@@ -66,9 +66,9 @@ pub fn lookup_for_cpu(
             size: mem.size,
         }
         .into_iter()
-        .map(ColumnUntyped::from)
+        .map(ColumnTyped::to_untyped)
         .collect(),
-        filter: COL_MAP.ops.is_io_store.into(),
+        filter: COL_MAP.ops.is_io_store.to_untyped(),
     }
 }
 
@@ -87,8 +87,8 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithUntypedInput<MemoryCtl<Col
             addr: mem.addr,
         }
         .into_iter()
-        .map(ColumnUntyped::from)
+        .map(ColumnTyped::to_untyped)
         .collect(),
-        filter: COL_MAP.ops.is_memory_store.into(),
+        filter: COL_MAP.ops.is_memory_store.to_untyped(),
     }
 }

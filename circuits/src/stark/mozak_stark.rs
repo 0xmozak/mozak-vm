@@ -436,22 +436,26 @@ pub struct TableTyped<Matrix, Filter> {
     pub(crate) filter: Filter,
 }
 
-impl<Matrix, MatrixWithUntypedInput, InputTable> From<TableTyped<Matrix, ColumnTyped<InputTable>>>
-    for TableWithUntypedInput<MatrixWithUntypedInput>
+impl<Matrix, InputTable> TableTyped<Matrix, ColumnTyped<InputTable>>
 where
     InputTable: IntoIterator<Item = i64>,
-    MatrixWithUntypedInput: FromIterator<ColumnUntyped>,
+
     Matrix: IntoIterator<Item = ColumnTyped<InputTable>>,
 {
-    fn from(input: TableTyped<Matrix, ColumnTyped<InputTable>>) -> Self {
+    // TODO(Matthias): check whether we need to use this?
+    fn remove_input_type<MatrixWithUntypedInput>(
+        self,
+    ) -> TableWithUntypedInput<MatrixWithUntypedInput>
+    where
+        MatrixWithUntypedInput: FromIterator<ColumnUntyped>, {
         TableWithUntypedInput {
-            input_kind: input.input_kind,
-            transformation: input
+            input_kind: self.input_kind,
+            transformation: self
                 .transformation
                 .into_iter()
-                .map(ColumnUntyped::from)
+                .map(ColumnTyped::to_untyped)
                 .collect(),
-            filter: input.filter.into(),
+            filter: self.filter.to_untyped(),
         }
     }
 }
@@ -487,18 +491,19 @@ macro_rules! table_impl {
         #[allow(non_snake_case)]
         pub mod $lookup_input_id {
             use super::*;
-            pub fn new<RowIn, RowOut>(
-                columns: RowIn,
+            pub fn new<Matrix, MatrixWithUntypedInput>(
+                transformation: Matrix,
                 filter: ColumnTyped<$input_table_type<i64>>,
-            ) -> TableWithUntypedInput<RowOut>
+            ) -> TableWithUntypedInput<MatrixWithUntypedInput>
             where
-                RowOut: FromIterator<ColumnUntyped>,
-                RowIn: IntoIterator<Item = ColumnTyped<$input_table_type<i64>>>, {
-                TableWithUntypedInput {
+                MatrixWithUntypedInput: FromIterator<ColumnUntyped>,
+                Matrix: IntoIterator<Item = ColumnTyped<$input_table_type<i64>>>, {
+                TableTyped {
                     input_kind: $table_kind,
-                    transformation: columns.into_iter().map(ColumnUntyped::from).collect(),
-                    filter: filter.into(),
+                    transformation,
+                    filter,
                 }
+                .remove_input_type()
             }
         }
     };

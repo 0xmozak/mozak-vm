@@ -11,32 +11,19 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::cross_table_lookup::ColumnTyped;
 
-/// Represent a linear combination of columns.
-#[derive(Clone, Debug, Default)]
-pub struct ColumnUntyped {
-    /// Linear combination of the local row
-    pub lv_linear_combination: Vec<(usize, i64)>,
-    /// Linear combination of the next row
-    pub nv_linear_combination: Vec<(usize, i64)>,
-    /// Constant of linear combination
-    pub constant: i64,
-}
+// /// Represent a linear combination of columns.
+// #[derive(Clone, Debug, Default)]
+// pub struct ColumnUntyped {
+//     /// Linear combination of the local row
+//     pub lv_linear_combination: Vec<(usize, i64)>,
+//     /// Linear combination of the next row
+//     pub nv_linear_combination: Vec<(usize, i64)>,
+//     /// Constant of linear combination
+//     pub constant: i64,
+// }
 
-impl<I: IntoIterator<Item = i64>> From<ColumnTyped<I>> for ColumnUntyped {
-    fn from(colx: ColumnTyped<I>) -> Self {
-        fn to_sparse(v: impl IntoIterator<Item = i64>) -> Vec<(usize, i64)> {
-            v.into_iter()
-                .enumerate()
-                .filter(|(_i, coefficient)| coefficient != &0)
-                .collect()
-        }
-        Self {
-            lv_linear_combination: to_sparse(colx.lv_linear_combination),
-            nv_linear_combination: to_sparse(colx.nv_linear_combination),
-            constant: colx.constant,
-        }
-    }
-}
+pub type ColumnUntyped_ = ColumnTyped<Vec<(usize, i64)>>;
+pub use ColumnUntyped_ as ColumnUntyped;
 
 impl ColumnUntyped {
     // TODO(Matthias): move the eval* functions into the 'typed' world.
