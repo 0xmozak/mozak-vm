@@ -133,8 +133,8 @@ impl EventEmit for EventTape {
 
         self.writer
             .entry(self_id)
-            .and_modify(|x| x.push_temporal(self_id, event.clone()))
-            .or_insert(OrderedEvents::new(self_id, vec![event]));
+            .or_default()
+            .push_temporal(self_id, event);
     }
 }
 

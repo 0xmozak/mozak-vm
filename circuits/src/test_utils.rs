@@ -29,8 +29,10 @@ use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use crate::generation::fullword_memory::generate_fullword_memory_trace;
 use crate::generation::halfword_memory::generate_halfword_memory_trace;
+#[cfg(feature = "enable_register_starks")]
+use crate::generation::io_memory::generate_io_transcript_trace;
 use crate::generation::io_memory::{
-    generate_io_memory_private_trace, generate_io_memory_public_trace, generate_io_transcript_trace,
+    generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
@@ -38,7 +40,9 @@ use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_t
 use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
+#[cfg(feature = "enable_register_starks")]
 use crate::generation::register::generate_register_trace;
+#[cfg(feature = "enable_register_starks")]
 use crate::generation::registerinit::generate_register_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
@@ -46,7 +50,9 @@ use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
+#[cfg(feature = "enable_register_starks")]
 use crate::register::stark::RegisterStark;
+#[cfg(feature = "enable_register_starks")]
 use crate::registerinit::stark::RegisterInitStark;
 use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
@@ -156,6 +162,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
+        #[cfg(feature = "enable_register_starks")]
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
@@ -169,7 +176,9 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
+        #[cfg(feature = "enable_register_starks")]
         let register_init = generate_register_init_trace(record);
+        #[cfg(feature = "enable_register_starks")]
         let register_trace = generate_register_trace(
             &cpu_trace,
             &io_memory_private,
@@ -180,6 +189,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
             &cpu_trace,
             &memory_trace,
+            #[cfg(feature = "enable_register_starks")]
             &register_trace,
         ));
         let proof = prove_table::<F, C, S, D>(
@@ -331,6 +341,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
     }
 }
 
+#[cfg(feature = "enable_register_starks")]
 impl ProveAndVerify for RegisterInitStark<F, D> {
     fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterInitStark<F, D>;
@@ -351,6 +362,7 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
     }
 }
 
+#[cfg(feature = "enable_register_starks")]
 impl ProveAndVerify for RegisterStark<F, D> {
     fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterStark<F, D>;

@@ -36,10 +36,7 @@ impl std::io::Write for RawTape {
         let self_id = self.get_self_identity();
         assert_ne!(self_id, ProgramIdentifier::default());
 
-        self.writer
-            .entry(self_id)
-            .and_modify(|x| x.0.extend(buf))
-            .or_insert(RawMessage::from(buf.to_vec()));
+        self.writer.entry(self_id).or_default().0.extend(buf);
 
         Ok(buf.len())
     }

@@ -14,6 +14,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
+#[cfg(feature = "enable_register_starks")]
 use crate::register::columns::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
 use crate::xor::columns::XorView;
@@ -488,6 +489,7 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<
     )
 }
 
+#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
     let is_read = ColumnWithTypedInput::constant(1);

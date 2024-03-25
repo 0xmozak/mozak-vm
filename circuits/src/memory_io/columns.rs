@@ -1,14 +1,16 @@
 use core::ops::Add;
 
+#[cfg(feature = "enable_register_starks")]
 use mozak_sdk::core::reg_abi::REG_A1;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
+#[cfg(feature = "enable_register_starks")]
 use crate::register::columns::RegisterCtl;
-use crate::stark::mozak_stark::{
-    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, TableKind, TableWithTypedOutput,
-};
+#[cfg(feature = "enable_register_starks")]
+use crate::stark::mozak_stark::{IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable};
+use crate::stark::mozak_stark::{TableKind, TableWithTypedOutput};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -110,6 +112,7 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Colu
 /// TODO: write a mechanism that generates register-read-traces automatically
 /// from the CTL data.  Similar to what we did for generating range-check traces
 /// automatically.
+#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
     let mem = COL_MAP;
