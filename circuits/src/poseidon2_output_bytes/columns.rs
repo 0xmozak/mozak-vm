@@ -3,7 +3,7 @@ use plonky2::plonk::config::GenericHashOut;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 #[cfg(feature = "enable_poseidon_starks")]
-use crate::cross_table_lookup::ColumnWithTypedInput;
+use crate::cross_table_lookup::ColumnTyped;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
 #[cfg(feature = "enable_poseidon_starks")]
@@ -85,8 +85,8 @@ pub fn lookup_for_output_memory(limb_index: u8) -> TableWithUntypedInput<MemoryC
     Poseidon2OutputBytesTable::new(
         MemoryCtl {
             clk: data.clk,
-            is_store: ColumnWithTypedInput::constant(1),
-            is_load: ColumnWithTypedInput::constant(0),
+            is_store: ColumnTyped::constant(1),
+            is_load: ColumnTyped::constant(0),
             value: data.output_bytes[limb_index as usize],
             addr: data.output_addr + i64::from(limb_index),
         },

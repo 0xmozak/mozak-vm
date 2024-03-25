@@ -23,7 +23,7 @@ pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {
-    if let [column] = &looking_table.columns[..] {
+    if let [column] = &looking_table.transformation[..] {
         trace
             .iter()
             .circular_tuple_windows()
@@ -57,7 +57,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
         .looking_tables
         .into_iter()
         .for_each(|looking_table| {
-            match looking_table.kind {
+            match looking_table.input_kind {
                 TableKind::Cpu => extract(cpu_trace, &looking_table),
                 TableKind::Memory => extract(memory_trace, &looking_table),
                 #[cfg(feature = "enable_register_starks")]

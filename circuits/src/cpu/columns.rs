@@ -8,7 +8,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cpu::stark::add_extension_vec;
-use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
+use crate::cross_table_lookup::{Column, ColumnTyped};
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
@@ -182,7 +182,7 @@ pub struct CpuState<T> {
     pub poseidon2_input_addr: T,
     pub poseidon2_input_len: T,
 }
-pub(crate) const CPU: CpuState<ColumnWithTypedInput<CpuColumnsExtended<i64>>> = COL_MAP.cpu;
+pub(crate) const CPU: CpuState<ColumnTyped<CpuColumnsExtended<i64>>> = COL_MAP.cpu;
 
 make_col_map!(CpuColumnsExtended);
 columns_view_impl!(CpuColumnsExtended);
@@ -271,7 +271,7 @@ pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize
 pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> {
     let ops = CPU.inst.ops;
     let divs = ops.div + ops.rem + ops.srl + ops.sra;
-    let muls: ColumnWithTypedInput<CpuColumnsExtended<i64>> = ops.mul + ops.mulh + ops.sll;
+    let muls: ColumnTyped<CpuColumnsExtended<i64>> = ops.mul + ops.mulh + ops.sll;
 
     [
         (CPU.quotient_value, divs),
@@ -358,7 +358,7 @@ pub fn lookup_for_fullword_memory() -> TableWithUntypedInput<MemoryCtl<Column>> 
 
 #[allow(clippy::large_types_passed_by_value)]
 fn lookup_for_io_memory_x(
-    filter: ColumnWithTypedInput<CpuColumnsExtended<i64>>,
+    filter: ColumnTyped<CpuColumnsExtended<i64>>,
 ) -> TableWithUntypedInput<InputOutputMemoryCtl<Column>> {
     CpuTable::new(
         InputOutputMemoryCtl {
@@ -440,14 +440,14 @@ pub fn lookup_for_inst() -> TableWithUntypedInput<InstructionRow<Column>> {
             // size of the Goldilocks field.
             // Note: The imm_value field, having more than 5 bits, must be positioned as the last
             // column in the list to ensure the correct functioning of 'reduce_with_powers'.
-            inst_data: ColumnWithTypedInput::reduce_with_powers(
+            inst_data: ColumnTyped::reduce_with_powers(
                 [
-                    ColumnWithTypedInput::ascending_sum(inst.ops),
+                    ColumnTyped::ascending_sum(inst.ops),
                     inst.is_op1_signed,
                     inst.is_op2_signed,
-                    ColumnWithTypedInput::ascending_sum(inst.rs1_select),
-                    ColumnWithTypedInput::ascending_sum(inst.rs2_select),
-                    ColumnWithTypedInput::ascending_sum(inst.rd_select),
+                    ColumnTyped::ascending_sum(inst.rs1_select),
+                    ColumnTyped::ascending_sum(inst.rs2_select),
+                    ColumnTyped::ascending_sum(inst.rd_select),
                     inst.imm_value,
                 ],
                 1 << 5,

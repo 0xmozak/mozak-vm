@@ -9,7 +9,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::cross_table_lookup::ColumnWithTypedInput;
+use crate::cross_table_lookup::ColumnTyped;
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
@@ -22,8 +22,8 @@ pub struct Column {
     pub constant: i64,
 }
 
-impl<I: IntoIterator<Item = i64>> From<ColumnWithTypedInput<I>> for Column {
-    fn from(colx: ColumnWithTypedInput<I>) -> Self {
+impl<I: IntoIterator<Item = i64>> From<ColumnTyped<I>> for Column {
+    fn from(colx: ColumnTyped<I>) -> Self {
         fn to_sparse(v: impl IntoIterator<Item = i64>) -> Vec<(usize, i64)> {
             v.into_iter()
                 .enumerate()

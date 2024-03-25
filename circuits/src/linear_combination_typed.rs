@@ -11,7 +11,7 @@ use crate::columns_view::Zip;
 /// a 'dense' representation.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct ColumnWithTypedInput<InputColumns> {
+pub struct ColumnTyped<InputColumns> {
     /// Linear combination of the local row
     pub lv_linear_combination: InputColumns,
     /// Linear combination of the next row
@@ -20,11 +20,11 @@ pub struct ColumnWithTypedInput<InputColumns> {
     pub constant: i64,
 }
 
-impl<InputColumns> ColumnWithTypedInput<InputColumns> {
+impl<InputColumns> ColumnTyped<InputColumns> {
     /// Flip lv and nv
     #[must_use]
     pub fn flip(self) -> Self {
-        ColumnWithTypedInput {
+        ColumnTyped {
             lv_linear_combination: self.nv_linear_combination,
             nv_linear_combination: self.lv_linear_combination,
             constant: self.constant,
@@ -32,7 +32,7 @@ impl<InputColumns> ColumnWithTypedInput<InputColumns> {
     }
 }
 
-impl<C> Neg for ColumnWithTypedInput<C>
+impl<C> Neg for ColumnTyped<C>
 where
     C: Neg<Output = C>,
 {
@@ -47,7 +47,7 @@ where
     }
 }
 
-impl<C> Add<Self> for ColumnWithTypedInput<C>
+impl<C> Add<Self> for ColumnTyped<C>
 where
     C: Add<Output = C>,
 {
@@ -65,7 +65,7 @@ where
     }
 }
 
-impl<C> Add<i64> for ColumnWithTypedInput<C>
+impl<C> Add<i64> for ColumnTyped<C>
 where
     C: Add<Output = C>,
 {
@@ -80,7 +80,7 @@ where
     }
 }
 
-impl<C> Sub<Self> for ColumnWithTypedInput<C>
+impl<C> Sub<Self> for ColumnTyped<C>
 where
     C: Sub<Output = C>,
 {
@@ -98,7 +98,7 @@ where
     }
 }
 
-impl<C> Mul<i64> for ColumnWithTypedInput<C>
+impl<C> Mul<i64> for ColumnTyped<C>
 where
     C: Mul<i64, Output = C>,
 {
@@ -116,7 +116,7 @@ where
     }
 }
 
-impl<C> Sum<ColumnWithTypedInput<C>> for ColumnWithTypedInput<C>
+impl<C> Sum<ColumnTyped<C>> for ColumnTyped<C>
 where
     Self: Add<Output = Self> + Default,
 {
@@ -124,7 +124,7 @@ where
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Self::default(), Add::add) }
 }
 
-impl<'a, C: Copy> Sum<&'a Self> for ColumnWithTypedInput<C>
+impl<'a, C: Copy> Sum<&'a Self> for ColumnTyped<C>
 where
     Self: Add<Output = Self> + Default,
 {
@@ -134,23 +134,23 @@ where
     }
 }
 
-impl<C> ColumnWithTypedInput<C>
+impl<C> ColumnTyped<C>
 where
-    ColumnWithTypedInput<C>: Default,
+    ColumnTyped<C>: Default,
 {
     #[must_use]
     pub fn constant(constant: i64) -> Self {
-        ColumnWithTypedInput {
+        ColumnTyped {
             constant,
             ..Default::default()
         }
     }
 }
-impl<C: Default> From<C> for ColumnWithTypedInput<C> {
+impl<C: Default> From<C> for ColumnTyped<C> {
     fn from(lv_linear_combination: C) -> Self { Self::now(lv_linear_combination) }
 }
 
-impl<C: Default> ColumnWithTypedInput<C> {
+impl<C: Default> ColumnTyped<C> {
     pub fn now(lv_linear_combination: C) -> Self {
         Self {
             lv_linear_combination,
@@ -168,7 +168,7 @@ impl<C: Default> ColumnWithTypedInput<C> {
     }
 }
 
-impl<C: Default + Zip<i64>> ColumnWithTypedInput<C>
+impl<C: Default + Zip<i64>> ColumnTyped<C>
 where
     Self: Default
         + Sub<Output = Self>

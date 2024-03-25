@@ -13,7 +13,7 @@ use crate::columns_view::columns_view_impl;
 use crate::cpu::columns::CpuColumnsExtended;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{
-    Column, ColumnWithTypedInput, CrossTableLookup, CrossTableLookupWithTypedOutput,
+    Column, ColumnTyped, CrossTableLookup, CrossTableLookupWithTypedOutput,
 };
 use crate::memory::columns::{Memory, MemoryCtl};
 use crate::memory::stark::MemoryStark;
@@ -417,22 +417,25 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct TableTyped<Matrix, Filter> {
-    pub(crate) kind: TableKind,
-    pub(crate) columns: Matrix,
+    /// Which table do we use for input.
+    pub(crate) input_kind: TableKind,
+    /// Linear transformation 'matrix' from input to output columns
+    pub(crate) transformation: Matrix,
+    /// Linear transformation from input to single output column
     pub(crate) filter: Filter,
 }
 
-impl<RowIn, RowOut, I> From<TableTyped<RowIn, ColumnWithTypedInput<I>>>
-    for TableWithUntypedInput<RowOut>
+impl<Matrix, MatrixWithUntypedInput, InputTable> From<TableTyped<Matrix, ColumnTyped<InputTable>>>
+    for TableWithUntypedInput<MatrixWithUntypedInput>
 where
-    I: IntoIterator<Item = i64>,
-    RowOut: FromIterator<Column>,
-    RowIn: IntoIterator<Item = ColumnWithTypedInput<I>>,
+    InputTable: IntoIterator<Item = i64>,
+    MatrixWithUntypedInput: FromIterator<Column>,
+    Matrix: IntoIterator<Item = ColumnTyped<InputTable>>,
 {
-    fn from(input: TableTyped<RowIn, ColumnWithTypedInput<I>>) -> Self {
+    fn from(input: TableTyped<Matrix, ColumnTyped<InputTable>>) -> Self {
         TableWithUntypedInput {
-            kind: input.kind,
-            columns: input.columns.into_iter().map(Column::from).collect(),
+            input_kind: input.input_kind,
+            transformation: input.transformation.into_iter().map(Column::from).collect(),
             filter: input.filter.into(),
         }
     }
@@ -447,8 +450,8 @@ pub use TableUntyped as Table;
 impl<Row: IntoIterator<Item = Column>> TableWithUntypedInput<Row> {
     pub fn to_untyped_output(self) -> Table {
         Table {
-            kind: self.kind,
-            columns: self.columns.into_iter().collect(),
+            input_kind: self.input_kind,
+            transformation: self.transformation.into_iter().collect(),
             filter: self.filter,
         }
     }
@@ -457,8 +460,8 @@ impl<Row: IntoIterator<Item = Column>> TableWithUntypedInput<Row> {
 impl<Row> TableWithUntypedInput<Row> {
     pub fn new(kind: TableKind, columns: Row, filter: Column) -> Self {
         Self {
-            kind,
-            columns,
+            input_kind: kind,
+            transformation: columns,
             filter,
         }
     }
@@ -474,14 +477,14 @@ macro_rules! table_impl {
             use super::*;
             pub fn new<RowIn, RowOut>(
                 columns: RowIn,
-                filter: ColumnWithTypedInput<$input_table_type<i64>>,
+                filter: ColumnTyped<$input_table_type<i64>>,
             ) -> TableWithUntypedInput<RowOut>
             where
                 RowOut: FromIterator<Column>,
-                RowIn: IntoIterator<Item = ColumnWithTypedInput<$input_table_type<i64>>>, {
+                RowIn: IntoIterator<Item = ColumnTyped<$input_table_type<i64>>>, {
                 TableWithUntypedInput {
-                    kind: $table_kind,
-                    columns: columns.into_iter().map(Column::from).collect(),
+                    input_kind: $table_kind,
+                    transformation: columns.into_iter().map(Column::from).collect(),
                     filter: filter.into(),
                 }
             }

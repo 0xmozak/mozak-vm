@@ -226,14 +226,12 @@ macro_rules! make_col_map {
         // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
         #[allow(dead_code)]
         #[allow(clippy::large_stack_arrays)]
-        pub(crate) const COL_MAP: $s<
-            crate::linear_combination_typed::ColumnWithTypedInput<$s<i64>>,
-        > = {
+        pub(crate) const COL_MAP: $s<crate::linear_combination_typed::ColumnTyped<$s<i64>>> = {
             use crate::columns_view::NumberOfColumns;
-            use crate::linear_combination_typed::ColumnWithTypedInput;
+            use crate::linear_combination_typed::ColumnTyped;
             const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
 
-            let mut indices_mat = [ColumnWithTypedInput {
+            let mut indices_mat = [ColumnTyped {
                 lv_linear_combination: $s::from_array([0_i64; N]),
                 nv_linear_combination: $s::from_array([0_i64; N]),
                 constant: 0,

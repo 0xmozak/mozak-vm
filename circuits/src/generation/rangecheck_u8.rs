@@ -12,7 +12,7 @@ use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, Table, TableKi
 pub fn extract_with_mul<F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<(F, F)>
 where
     V: Index<usize, Output = F>, {
-    if let [column] = &looking_table.columns[..] {
+    if let [column] = &looking_table.transformation[..] {
         trace
             .iter()
             .circular_tuple_windows()
@@ -41,7 +41,7 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
     RangeCheckU8LookupTable::lookups()
         .looking_tables
         .into_iter()
-        .flat_map(|looking_table| match looking_table.kind {
+        .flat_map(|looking_table| match looking_table.input_kind {
             TableKind::RangeCheck => extract_with_mul(rangecheck_trace, &looking_table),
             TableKind::Memory => extract_with_mul(memory_trace, &looking_table),
             other => unimplemented!("Can't range check {other:?} tables"),
