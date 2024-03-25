@@ -416,20 +416,20 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct TableNamedTyped<Row, Filter> {
+pub struct TableWithTypedInputAndOutput<Row, Filter> {
     pub(crate) kind: TableKind,
     pub(crate) columns: Row,
     pub(crate) filter_column: Filter,
 }
 
-impl<RowIn, RowOut, I> From<TableNamedTyped<RowIn, ColumnWithTypedInput<I>>>
+impl<RowIn, RowOut, I> From<TableWithTypedInputAndOutput<RowIn, ColumnWithTypedInput<I>>>
     for TableWithTypedOutput<RowOut>
 where
     I: IntoIterator<Item = i64>,
     RowOut: FromIterator<Column>,
     RowIn: IntoIterator<Item = ColumnWithTypedInput<I>>,
 {
-    fn from(input: TableNamedTyped<RowIn, ColumnWithTypedInput<I>>) -> Self {
+    fn from(input: TableWithTypedInputAndOutput<RowIn, ColumnWithTypedInput<I>>) -> Self {
         TableWithTypedOutput {
             kind: input.kind,
             columns: input.columns.into_iter().map(Column::from).collect(),
