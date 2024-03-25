@@ -416,6 +416,16 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 }
 
 #[derive(Debug, Clone, Copy)]
+/// A 'table' for cross table lookups
+///
+/// This transforms some input table, specified by `input_kind`, into a new
+/// table via a `transformation` matrix, plus a `filter` column.
+///
+/// The `transformation` matrix is a linear transformation from the input
+/// columns to the output columns.
+///
+/// Inputs and outputs can be typed, or untyped.  See the type synonyms
+/// `TableWithUntypedInput` and `Table`.
 pub struct TableTyped<Matrix, Filter> {
     /// Which table do we use for input.
     pub(crate) input_kind: TableKind,
@@ -443,9 +453,15 @@ where
 }
 
 pub type TableWithUntypedInput_<Row> = TableTyped<Row, Column>;
+/// We we create a cross-table-lookup, we stick multiple 'tables' with different
+/// inputs, but same outputs, into the same `looking_tables` vector.
+/// Because Rust wants all elements of a vector to have the same type, we need
+/// to erase the input type here.
 pub use TableWithUntypedInput_ as TableWithUntypedInput;
 
 pub type TableUntyped = TableWithUntypedInput<Vec<Column>>;
+/// Later on, we need to erase not only the input type, but also the output type.
+// TODO(Matthias): see about preserving types for longer.
 pub use TableUntyped as Table;
 
 impl<Row: IntoIterator<Item = Column>> TableWithUntypedInput<Row> {
