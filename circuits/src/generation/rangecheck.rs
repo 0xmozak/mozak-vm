@@ -27,7 +27,7 @@ where
         trace
             .iter()
             .circular_tuple_windows()
-            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_one())
+            .filter(|&(prev_row, row)| looking_table.filter.eval(prev_row, row).is_one())
             .map(|(prev_row, row)| column.eval(prev_row, row))
             .collect()
     } else {

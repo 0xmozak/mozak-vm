@@ -418,9 +418,8 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 #[derive(Debug, Clone, Copy)]
 pub struct TableTyped<Matrix, Filter> {
     pub(crate) kind: TableKind,
-    // TODO: come up with better names.
     pub(crate) columns: Matrix,
-    pub(crate) filter_column: Filter,
+    pub(crate) filter: Filter,
 }
 
 impl<RowIn, RowOut, I> From<TableTyped<RowIn, ColumnWithTypedInput<I>>>
@@ -434,7 +433,7 @@ where
         TableWithTypedOutput {
             kind: input.kind,
             columns: input.columns.into_iter().map(Column::from).collect(),
-            filter_column: input.filter_column.into(),
+            filter: input.filter.into(),
         }
     }
 }
@@ -450,17 +449,17 @@ impl<Row: IntoIterator<Item = Column>> TableWithTypedOutput<Row> {
         Table {
             kind: self.kind,
             columns: self.columns.into_iter().collect(),
-            filter_column: self.filter_column,
+            filter: self.filter,
         }
     }
 }
 
 impl<Row> TableWithTypedOutput<Row> {
-    pub fn new(kind: TableKind, columns: Row, filter_column: Column) -> Self {
+    pub fn new(kind: TableKind, columns: Row, filter: Column) -> Self {
         Self {
             kind,
             columns,
-            filter_column,
+            filter,
         }
     }
 }
@@ -475,7 +474,7 @@ macro_rules! table_impl {
             use super::*;
             pub fn new<RowIn, RowOut>(
                 columns: RowIn,
-                filter_column: ColumnWithTypedInput<$input_table_type<i64>>,
+                filter: ColumnWithTypedInput<$input_table_type<i64>>,
             ) -> TableWithTypedOutput<RowOut>
             where
                 RowOut: FromIterator<Column>,
@@ -483,7 +482,7 @@ macro_rules! table_impl {
                 TableWithTypedOutput {
                     kind: $table_kind,
                     columns: columns.into_iter().map(Column::from).collect(),
-                    filter_column: filter_column.into(),
+                    filter: filter.into(),
                 }
             }
         }

@@ -18,7 +18,7 @@ where
             .circular_tuple_windows()
             .map(|(prev_row, row)| {
                 (
-                    looking_table.filter_column.eval(prev_row, row),
+                    looking_table.filter.eval(prev_row, row),
                     column.eval(prev_row, row),
                 )
             })

@@ -66,7 +66,7 @@ pub fn lookup_for_cpu(kind: TableKind) -> TableWithTypedOutput<InputOutputMemory
         .into_iter()
         .map(Column::from)
         .collect(),
-        filter_column: COL_MAP.ops.is_io_store.into(),
+        filter: COL_MAP.ops.is_io_store.into(),
     }
 }
 
@@ -87,6 +87,6 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Colu
         .into_iter()
         .map(Column::from)
         .collect(),
-        filter_column: COL_MAP.ops.is_memory_store.into(),
+        filter: COL_MAP.ops.is_memory_store.into(),
     }
 }

@@ -108,7 +108,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 partial_sums(
                     &trace_poly_values[table.kind],
                     &table.columns,
-                    &table.filter_column,
+                    &table.filter,
                     challenge,
                 )
             };
@@ -131,7 +131,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                     z,
                     challenge,
                     columns: table.columns.clone(),
-                    filter_column: table.filter_column.clone(),
+                    filter_column: table.filter.clone(),
                 });
             }
         }
@@ -277,7 +277,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 next_z,
                 challenges,
                 columns: &table.columns,
-                filter_column: &table.filter_column,
+                filter_column: &table.filter,
             });
         }
         ctl_vars_per_table
@@ -351,7 +351,7 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
                 next_z,
                 challenges,
                 columns: &table.columns,
-                filter_column: &table.filter_column,
+                filter_column: &table.filter,
             })
             .collect()
     }
@@ -422,7 +422,7 @@ pub mod ctl_utils {
         ) {
             let trace = &trace_poly_values[table.kind];
             for i in 0..trace[0].len() {
-                let filter = table.filter_column.eval_table(trace, i);
+                let filter = table.filter.eval_table(trace, i);
                 if filter.is_nonzero() {
                     let row = table
                         .columns
