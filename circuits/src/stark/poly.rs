@@ -104,8 +104,8 @@ where
                     local_z: ctl_zs_commitment.get_lde_values_packed(i_start, step)[i],
                     next_z: ctl_zs_commitment.get_lde_values_packed(i_next_start, step)[i],
                     challenges: zs_columns.challenge,
-                    columns: &zs_columns.columns,
-                    filter_column: &zs_columns.filter_column,
+                    transformation: &zs_columns.columns,
+                    filter: &zs_columns.filter_column,
                 })
                 .collect::<Vec<_>>();
             eval_vanishing_poly::<F, F, P, S, D, 1>(stark, &vars, &ctl_vars, &mut consumer);

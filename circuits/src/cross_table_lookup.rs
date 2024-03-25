@@ -251,8 +251,8 @@ where
     pub(crate) local_z: P,
     pub(crate) next_z: P,
     pub(crate) challenges: GrandProductChallenge<F>,
-    pub(crate) columns: &'a [Column],
-    pub(crate) filter_column: &'a Column,
+    pub(crate) transformation: &'a [Column],
+    pub(crate) filter: &'a Column,
 }
 
 impl<'a, F: RichField + Extendable<D>, const D: usize>
@@ -280,8 +280,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 local_z,
                 next_z,
                 challenges,
-                columns: &table.transformation,
-                filter_column: &table.filter,
+                transformation: &table.transformation,
+                filter: &table.filter,
             });
         }
         ctl_vars_per_table
@@ -302,8 +302,8 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
             local_z,
             next_z,
             challenges,
-            columns,
-            filter_column,
+            transformation: columns,
+            filter: filter_column,
         } = lookup_vars;
         let local_values = vars.get_local_values();
         let next_values = vars.get_next_values();
