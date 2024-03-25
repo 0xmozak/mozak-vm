@@ -17,7 +17,9 @@ use thiserror::Error;
 
 pub use crate::linear_combination::Column;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
-use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
+use crate::stark::mozak_stark::{
+    all_kind, Table, TableKind, TableKindArray, TableWithUntypedInput,
+};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
 
@@ -186,8 +188,8 @@ fn partial_sums<F: Field>(
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug)]
 pub struct CrossTableLookupWithTypedOutput<Row> {
-    pub looking_tables: Vec<TableWithTypedOutput<Row>>,
-    pub looked_table: TableWithTypedOutput<Row>,
+    pub looking_tables: Vec<TableWithUntypedInput<Row>>,
+    pub looked_table: TableWithUntypedInput<Row>,
 }
 
 // This is a little trick, so that we can use `CrossTableLookup` as a
@@ -203,7 +205,7 @@ impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
         let looking_tables = self
             .looking_tables
             .into_iter()
-            .map(TableWithTypedOutput::to_untyped_output)
+            .map(TableWithUntypedInput::to_untyped_output)
             .collect();
         CrossTableLookup {
             looking_tables,
@@ -219,8 +221,8 @@ impl<Row> CrossTableLookupWithTypedOutput<Row> {
     /// Panics if the two tables do not have equal number of columns.
     #[must_use]
     pub fn new(
-        looking_tables: Vec<TableWithTypedOutput<Row>>,
-        looked_table: TableWithTypedOutput<Row>,
+        looking_tables: Vec<TableWithUntypedInput<Row>>,
+        looked_table: TableWithUntypedInput<Row>,
     ) -> Self {
         Self {
             looking_tables,

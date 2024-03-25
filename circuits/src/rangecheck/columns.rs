@@ -1,6 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::stark::mozak_stark::{RangeCheckTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{RangeCheckTable, TableWithUntypedInput};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -19,7 +19,7 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// Lookup for columns be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn lookup() -> TableWithTypedOutput<RangeCheckCtl<Column>> {
+pub fn lookup() -> TableWithUntypedInput<RangeCheckCtl<Column>> {
     let data = RangeCheckCtl(
         (0..4)
             .map(|limb| COL_MAP.limbs[limb] * (1 << (8 * limb)))
@@ -34,7 +34,7 @@ columns_view_impl!(RangeCheckCtl);
 pub struct RangeCheckCtl<T>(pub T);
 
 #[must_use]
-pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> {
     (0..4)
         .map(|limb| RangeCheckTable::new(RangeCheckCtl(COL_MAP.limbs[limb]), COL_MAP.multiplicity))
         .collect()

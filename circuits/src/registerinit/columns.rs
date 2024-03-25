@@ -2,7 +2,7 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 #[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
 #[cfg(feature = "enable_register_starks")]
-use crate::stark::mozak_stark::{RegisterInitTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{RegisterInitTable, TableWithUntypedInput};
 
 columns_view_impl!(RegisterInit);
 make_col_map!(RegisterInit);
@@ -36,7 +36,7 @@ pub struct RegisterInitCtl<T> {
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn lookup_for_register() -> TableWithTypedOutput<RegisterInitCtl<Column>> {
+pub fn lookup_for_register() -> TableWithUntypedInput<RegisterInitCtl<Column>> {
     let reg = COL_MAP;
     RegisterInitTable::new(
         RegisterInitCtl {

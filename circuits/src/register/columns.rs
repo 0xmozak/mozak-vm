@@ -10,7 +10,7 @@ use crate::rangecheck::columns::RangeCheckCtl;
 #[cfg(feature = "enable_register_starks")]
 use crate::registerinit::columns::RegisterInitCtl;
 #[cfg(feature = "enable_register_starks")]
-use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{RegisterTable, TableWithUntypedInput};
 
 columns_view_impl!(Ops);
 #[repr(C)]
@@ -103,7 +103,7 @@ impl<T: Add<Output = T>> Register<T> {
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column>> {
+pub fn lookup_for_register_init() -> TableWithUntypedInput<RegisterInitCtl<Column>> {
     let reg = COL_MAP;
     RegisterTable::new(
         RegisterInitCtl {
@@ -116,7 +116,7 @@ pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
-pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> {
     let ops = COL_MAP.ops;
     vec![RegisterTable::new(
         RangeCheckCtl(COL_MAP.diff_augmented_clk),

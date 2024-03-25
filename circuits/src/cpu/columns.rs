@@ -14,7 +14,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{CpuTable, TableWithUntypedInput};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -268,7 +268,7 @@ pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize
 /// Currently, we only support expressions over the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> {
     let ops = CPU.inst.ops;
     let divs = ops.div + ops.rem + ops.srl + ops.sra;
     let muls: ColumnWithTypedInput<CpuColumnsExtended<i64>> = ops.mul + ops.mulh + ops.sll;
@@ -304,14 +304,14 @@ pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> 
 /// Lookup for Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_xor() -> TableWithTypedOutput<XorView<Column>> {
+pub fn lookup_for_xor() -> TableWithUntypedInput<XorView<Column>> {
     CpuTable::new(CPU.xor, CPU.inst.ops.ops_that_use_xor())
 }
 
 /// Lookup into Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
+pub fn lookup_for_memory() -> TableWithUntypedInput<MemoryCtl<Column>> {
     CpuTable::new(
         MemoryCtl {
             clk: CPU.clk,
@@ -327,7 +327,7 @@ pub fn lookup_for_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 /// Lookup into half word Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_halfword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
+pub fn lookup_for_halfword_memory() -> TableWithUntypedInput<MemoryCtl<Column>> {
     CpuTable::new(
         MemoryCtl {
             clk: CPU.clk,
@@ -343,7 +343,7 @@ pub fn lookup_for_halfword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 /// Lookup into fullword Memory table.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
+pub fn lookup_for_fullword_memory() -> TableWithUntypedInput<MemoryCtl<Column>> {
     CpuTable::new(
         MemoryCtl {
             clk: CPU.clk,
@@ -359,7 +359,7 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 #[allow(clippy::large_types_passed_by_value)]
 fn lookup_for_io_memory_x(
     filter: ColumnWithTypedInput<CpuColumnsExtended<i64>>,
-) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+) -> TableWithUntypedInput<InputOutputMemoryCtl<Column>> {
     CpuTable::new(
         InputOutputMemoryCtl {
             clk: CPU.clk,
@@ -374,7 +374,7 @@ fn lookup_for_io_memory_x(
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 // TODO: unify all three variants into a single lookup, so we save on proving time.
 #[must_use]
-pub fn lookup_for_io_memory_private() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_io_memory_private() -> TableWithUntypedInput<InputOutputMemoryCtl<Column>> {
     lookup_for_io_memory_x(CPU.is_io_store_private)
 }
 
@@ -382,12 +382,12 @@ pub fn lookup_for_io_memory_private() -> TableWithTypedOutput<InputOutputMemoryC
 // lookup_for_io_memory_public and lookup_for_io_transcript into a single lookup
 // to save implicit CPU lookups columns.
 #[must_use]
-pub fn lookup_for_io_memory_public() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_io_memory_public() -> TableWithUntypedInput<InputOutputMemoryCtl<Column>> {
     lookup_for_io_memory_x(CPU.is_io_store_public)
 }
 
 #[must_use]
-pub fn lookup_for_io_transcript() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_io_transcript() -> TableWithUntypedInput<InputOutputMemoryCtl<Column>> {
     lookup_for_io_memory_x(CPU.is_io_transcript)
 }
 
@@ -419,13 +419,13 @@ pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
 
 /// Lookup into `Bitshift` stark.
 #[must_use]
-pub fn lookup_for_shift_amount() -> TableWithTypedOutput<Bitshift<Column>> {
+pub fn lookup_for_shift_amount() -> TableWithUntypedInput<Bitshift<Column>> {
     CpuTable::new(CPU.bitshift, CPU.inst.ops.ops_that_shift())
 }
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn lookup_for_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_inst() -> TableWithUntypedInput<InstructionRow<Column>> {
     let inst = CPU.inst;
     CpuTable::new(
         InstructionRow {
@@ -459,18 +459,18 @@ pub fn lookup_for_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
 
 /// Lookup of permuted instructions.
 #[must_use]
-pub fn lookup_for_permuted_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_permuted_inst() -> TableWithUntypedInput<InstructionRow<Column>> {
     CpuTable::new(COL_MAP.permuted.inst, COL_MAP.cpu.is_running)
 }
 
 /// Lookup of permuted instructions.
 #[must_use]
-pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_program_rom() -> TableWithUntypedInput<InstructionRow<Column>> {
     CpuTable::new(COL_MAP.permuted.inst, COL_MAP.permuted.filter)
 }
 
 #[must_use]
-pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
+pub fn lookup_for_poseidon2_sponge() -> TableWithUntypedInput<Poseidon2SpongeCtl<Column>> {
     CpuTable::new(
         Poseidon2SpongeCtl {
             clk: CPU.clk,

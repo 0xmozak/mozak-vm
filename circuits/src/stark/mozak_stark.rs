@@ -423,14 +423,14 @@ pub struct TableTyped<Matrix, Filter> {
 }
 
 impl<RowIn, RowOut, I> From<TableTyped<RowIn, ColumnWithTypedInput<I>>>
-    for TableWithTypedOutput<RowOut>
+    for TableWithUntypedInput<RowOut>
 where
     I: IntoIterator<Item = i64>,
     RowOut: FromIterator<Column>,
     RowIn: IntoIterator<Item = ColumnWithTypedInput<I>>,
 {
     fn from(input: TableTyped<RowIn, ColumnWithTypedInput<I>>) -> Self {
-        TableWithTypedOutput {
+        TableWithUntypedInput {
             kind: input.kind,
             columns: input.columns.into_iter().map(Column::from).collect(),
             filter: input.filter.into(),
@@ -439,12 +439,12 @@ where
 }
 
 pub type TableWithUntypedInput_<Row> = TableTyped<Row, Column>;
-pub use TableWithUntypedInput_ as TableWithTypedOutput;
+pub use TableWithUntypedInput_ as TableWithUntypedInput;
 
-pub type TableUntyped = TableWithTypedOutput<Vec<Column>>;
+pub type TableUntyped = TableWithUntypedInput<Vec<Column>>;
 pub use TableUntyped as Table;
 
-impl<Row: IntoIterator<Item = Column>> TableWithTypedOutput<Row> {
+impl<Row: IntoIterator<Item = Column>> TableWithUntypedInput<Row> {
     pub fn to_untyped_output(self) -> Table {
         Table {
             kind: self.kind,
@@ -454,7 +454,7 @@ impl<Row: IntoIterator<Item = Column>> TableWithTypedOutput<Row> {
     }
 }
 
-impl<Row> TableWithTypedOutput<Row> {
+impl<Row> TableWithUntypedInput<Row> {
     pub fn new(kind: TableKind, columns: Row, filter: Column) -> Self {
         Self {
             kind,
@@ -475,11 +475,11 @@ macro_rules! table_impl {
             pub fn new<RowIn, RowOut>(
                 columns: RowIn,
                 filter: ColumnWithTypedInput<$input_table_type<i64>>,
-            ) -> TableWithTypedOutput<RowOut>
+            ) -> TableWithUntypedInput<RowOut>
             where
                 RowOut: FromIterator<Column>,
                 RowIn: IntoIterator<Item = ColumnWithTypedInput<$input_table_type<i64>>>, {
-                TableWithTypedOutput {
+                TableWithUntypedInput {
                     kind: $table_kind,
                     columns: columns.into_iter().map(Column::from).collect(),
                     filter: filter.into(),
@@ -570,9 +570,9 @@ impl Lookups for RangecheckTable {
         #[cfg(feature = "enable_register_starks")]
         let register = register::columns::rangecheck_looking();
         #[cfg(not(feature = "enable_register_starks"))]
-        let register: Vec<TableWithTypedOutput<_>> = vec![];
+        let register: Vec<TableWithUntypedInput<_>> = vec![];
 
-        let looking: Vec<TableWithTypedOutput<_>> = chain![
+        let looking: Vec<TableWithUntypedInput<_>> = chain![
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
             register,
@@ -684,7 +684,7 @@ impl Lookups for RangeCheckU8LookupTable {
     type Row = RangeCheckCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let looking: Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> = chain![
+        let looking: Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> = chain![
             rangecheck_looking(),
             memory::columns::rangecheck_u8_looking(),
         ]

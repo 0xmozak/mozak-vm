@@ -14,7 +14,7 @@ use crate::poseidon2::columns::Poseidon2StateCtl;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
 #[cfg(feature = "enable_poseidon_starks")]
-use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableWithUntypedInput};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -56,7 +56,7 @@ pub struct Poseidon2SpongeCtl<T> {
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
+pub fn lookup_for_cpu() -> TableWithUntypedInput<Poseidon2SpongeCtl<Column>> {
     let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
         Poseidon2SpongeCtl {
@@ -70,7 +70,7 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_poseidon2() -> TableWithTypedOutput<Poseidon2StateCtl<Column>> {
+pub fn lookup_for_poseidon2() -> TableWithUntypedInput<Poseidon2StateCtl<Column>> {
     let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
         Poseidon2StateCtl {
@@ -86,7 +86,7 @@ pub fn lookup_for_poseidon2() -> TableWithTypedOutput<Poseidon2StateCtl<Column>>
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2OutputBytesCtl<Column>>
+pub fn lookup_for_poseidon2_output_bytes() -> TableWithUntypedInput<Poseidon2OutputBytesCtl<Column>>
 {
     let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
@@ -101,7 +101,7 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2Outp
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
+pub fn lookup_for_input_memory(limb_index: u8) -> TableWithUntypedInput<MemoryCtl<Column>> {
     assert!(limb_index < 8, "limb_index can be 0..7");
     let sponge = COL_MAP;
     let ops = COL_MAP.ops;

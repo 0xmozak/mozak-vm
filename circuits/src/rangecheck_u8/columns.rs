@@ -1,7 +1,7 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{RangeCheckU8Table, TableWithTypedOutput};
+use crate::stark::mozak_stark::{RangeCheckU8Table, TableWithUntypedInput};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -17,6 +17,6 @@ columns_view_impl!(RangeCheckU8);
 make_col_map!(RangeCheckU8);
 
 #[must_use]
-pub fn lookup() -> TableWithTypedOutput<RangeCheckCtl<Column>> {
+pub fn lookup() -> TableWithUntypedInput<RangeCheckCtl<Column>> {
     RangeCheckU8Table::new(RangeCheckCtl(COL_MAP.value), COL_MAP.multiplicity)
 }

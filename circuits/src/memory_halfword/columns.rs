@@ -4,7 +4,7 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnWithTypedInput;
 use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
-use crate::stark::mozak_stark::{HalfWordMemoryTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{HalfWordMemoryTable, TableWithUntypedInput};
 // use crate::stark::mozak_stark::{HalfWordMemoryTable, Table};
 
 /// Operations (one-hot encoded)
@@ -47,7 +47,7 @@ pub const NUM_HW_MEM_COLS: usize = HalfWordMemory::<()>::NUMBER_OF_COLUMNS;
 
 /// Lookup from CPU table into halfword memory table.
 #[must_use]
-pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
+pub fn lookup_for_cpu() -> TableWithUntypedInput<MemoryCtl<Column>> {
     let mem = COL_MAP;
     HalfWordMemoryTable::new(
         MemoryCtl {
@@ -63,7 +63,7 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
 
 /// Lookup into Memory stark table.
 #[must_use]
-pub fn lookup_for_memory_limb(limb_index: usize) -> TableWithTypedOutput<MemoryCtl<Column>> {
+pub fn lookup_for_memory_limb(limb_index: usize) -> TableWithUntypedInput<MemoryCtl<Column>> {
     assert!(
         limb_index < 2,
         "limb_index is {limb_index} but it should be in 0..2 range"

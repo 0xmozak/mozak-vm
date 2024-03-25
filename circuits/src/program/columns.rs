@@ -1,6 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{ProgramTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{ProgramTable, TableWithUntypedInput};
 
 columns_view_impl!(InstructionRow);
 #[repr(C)]
@@ -33,6 +33,6 @@ pub struct ProgramRom<T> {
 pub const NUM_PROGRAM_COLS: usize = ProgramRom::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
-pub fn lookup_for_ctl() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_ctl() -> TableWithUntypedInput<InstructionRow<Column>> {
     ProgramTable::new(COL_MAP.inst, COL_MAP.filter)
 }

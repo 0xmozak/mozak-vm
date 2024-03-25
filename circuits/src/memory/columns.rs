@@ -16,7 +16,7 @@ use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::stark::mozak_stark::{MemoryTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{MemoryTable, TableWithUntypedInput};
 
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
@@ -177,7 +177,7 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[must_use]
-pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+pub fn rangecheck_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> {
     let mem = COL_MAP;
     [mem.addr, COL_MAP.addr, mem.diff_clk]
         .into_iter()
@@ -186,7 +186,7 @@ pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> 
 }
 
 #[must_use]
-pub fn rangecheck_u8_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+pub fn rangecheck_u8_looking() -> Vec<TableWithUntypedInput<RangeCheckCtl<Column>>> {
     let mem = COL_MAP;
     vec![MemoryTable::new(
         RangeCheckCtl(mem.value),
@@ -208,7 +208,7 @@ pub struct MemoryCtl<T> {
 /// Lookup between CPU table and Memory
 /// stark table.
 #[must_use]
-pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
+pub fn lookup_for_cpu() -> TableWithUntypedInput<MemoryCtl<Column>> {
     let mem = COL_MAP;
     MemoryTable::new(
         MemoryCtl {
@@ -224,7 +224,7 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
 
 /// Lookup into `MemoryInit` Table
 #[must_use]
-pub fn lookup_for_memoryinit() -> TableWithTypedOutput<MemoryInitCtl<Column>> {
+pub fn lookup_for_memoryinit() -> TableWithUntypedInput<MemoryInitCtl<Column>> {
     let mem = COL_MAP;
 
     MemoryTable::new(
