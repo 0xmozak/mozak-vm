@@ -416,20 +416,21 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct TableWithTypedInputAndOutput<Row, Filter> {
+pub struct TableTyped<Matrix, Filter> {
     pub(crate) kind: TableKind,
-    pub(crate) columns: Row,
+    // TODO: come up with better names.
+    pub(crate) columns: Matrix,
     pub(crate) filter_column: Filter,
 }
 
-impl<RowIn, RowOut, I> From<TableWithTypedInputAndOutput<RowIn, ColumnWithTypedInput<I>>>
+impl<RowIn, RowOut, I> From<TableTyped<RowIn, ColumnWithTypedInput<I>>>
     for TableWithTypedOutput<RowOut>
 where
     I: IntoIterator<Item = i64>,
     RowOut: FromIterator<Column>,
     RowIn: IntoIterator<Item = ColumnWithTypedInput<I>>,
 {
-    fn from(input: TableWithTypedInputAndOutput<RowIn, ColumnWithTypedInput<I>>) -> Self {
+    fn from(input: TableTyped<RowIn, ColumnWithTypedInput<I>>) -> Self {
         TableWithTypedOutput {
             kind: input.kind,
             columns: input.columns.into_iter().map(Column::from).collect(),
@@ -438,14 +439,8 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct TableWithTypedOutput<Row> {
-    // TODO: when converting to untyped table, check that TableKind agrees with columns type.
-    // That would have prevented some mistakes.
-    pub(crate) kind: TableKind,
-    pub(crate) columns: Row,
-    pub(crate) filter_column: Column,
-}
+pub type TableWithUntypedInput_<Row> = TableTyped<Row, Column>;
+pub use TableWithUntypedInput_ as TableWithTypedOutput;
 
 pub type TableUntyped = TableWithTypedOutput<Vec<Column>>;
 pub use TableUntyped as Table;
