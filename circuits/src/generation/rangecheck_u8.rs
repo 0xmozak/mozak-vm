@@ -70,15 +70,18 @@ mod tests {
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::generate_poseidon2_output_bytes_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
+    #[cfg(feature = "enable_register_starks")]
+    use crate::generation::io_memory::generate_io_transcript_trace;
     use crate::generation::io_memory::{
         generate_io_memory_private_trace, generate_io_memory_public_trace,
-        generate_io_transcript_trace,
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::rangecheck::generate_rangecheck_trace;
+    #[cfg(feature = "enable_register_starks")]
     use crate::generation::register::generate_register_trace;
+    #[cfg(feature = "enable_register_starks")]
     use crate::generation::registerinit::generate_register_init_trace;
 
     #[test]
@@ -104,6 +107,7 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
+        #[cfg(feature = "enable_register_starks")]
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
@@ -117,7 +121,9 @@ mod tests {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
+        #[cfg(feature = "enable_register_starks")]
         let register_init = generate_register_init_trace(&record);
+        #[cfg(feature = "enable_register_starks")]
         let register_rows = generate_register_trace(
             &cpu_rows,
             &io_memory_private,
@@ -125,8 +131,12 @@ mod tests {
             &io_transcript,
             &register_init,
         );
-        let rangecheck_rows =
-            generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+        let rangecheck_rows = generate_rangecheck_trace::<F>(
+            &cpu_rows,
+            &memory_rows,
+            #[cfg(feature = "enable_register_starks")]
+            &register_rows,
+        );
 
         let trace = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
 

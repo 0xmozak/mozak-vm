@@ -17,7 +17,9 @@ pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_u8;
+#[cfg(feature = "enable_register_starks")]
 pub mod register;
+#[cfg(feature = "enable_register_starks")]
 pub mod registerinit;
 pub mod xor;
 
@@ -47,7 +49,9 @@ use self::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_u8::generate_rangecheck_u8_trace;
+#[cfg(feature = "enable_register_starks")]
 use self::register::generate_register_trace;
+#[cfg(feature = "enable_register_starks")]
 use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
@@ -107,7 +111,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
+    #[cfg(feature = "enable_register_starks")]
     let register_init_rows = generate_register_init_trace::<F>(record);
+    #[cfg(feature = "enable_register_starks")]
     let register_rows = generate_register_trace(
         &cpu_rows,
         &io_memory_private_rows,
@@ -116,7 +122,12 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &register_init_rows,
     );
     // Generate rows for the looking values with their multiplicities.
-    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+    let rangecheck_rows = generate_rangecheck_trace::<F>(
+        &cpu_rows,
+        &memory_rows,
+        #[cfg(feature = "enable_register_starks")]
+        &register_rows,
+    );
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
