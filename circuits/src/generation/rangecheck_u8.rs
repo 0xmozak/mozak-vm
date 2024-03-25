@@ -81,6 +81,7 @@ mod tests {
     use crate::generation::rangecheck::generate_rangecheck_trace;
     #[cfg(feature = "enable_register_starks")]
     use crate::generation::register::generate_register_trace;
+    #[cfg(feature = "enable_register_starks")]
     use crate::generation::registerinit::generate_register_init_trace;
 
     #[test]

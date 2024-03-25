@@ -60,8 +60,6 @@ use crate::register::stark::RegisterStark;
 #[cfg(feature = "enable_register_starks")]
 use crate::registerinit::columns::RegisterInit;
 #[cfg(feature = "enable_register_starks")]
-use crate::registerinit::columns::RegisterInitCtl;
-#[cfg(feature = "enable_register_starks")]
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;

@@ -105,6 +105,7 @@ mod tests {
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     #[cfg(feature = "enable_register_starks")]
     use crate::generation::register::generate_register_trace;
+    #[cfg(feature = "enable_register_starks")]
     use crate::generation::registerinit::generate_register_init_trace;
     use crate::generation::MIN_TRACE_LENGTH;
 
