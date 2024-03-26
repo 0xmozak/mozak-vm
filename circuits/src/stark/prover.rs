@@ -376,7 +376,6 @@ where
 }
 
 #[cfg(test)]
-#[allow(clippy::cast_possible_wrap)]
 mod tests {
 
     use mozak_runner::instruction::{Args, Instruction, Op};

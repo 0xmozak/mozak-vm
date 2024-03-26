@@ -211,19 +211,10 @@ impl Add for FinalizeOutcome {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        #[allow(clippy::match_same_arms)]
         match (self, rhs) {
+            (Self::Recalc, _) | (_, Self::Recalc) => Self::Recalc,
+            (Self::NoOp, _) | (_, Self::NoOp) => Self::NoOp,
             (Self::Prune, Self::Prune) => Self::Prune,
-            (Self::Prune, Self::Recalc) => Self::Recalc,
-            (Self::Prune, Self::NoOp) => Self::NoOp,
-
-            (Self::Recalc, Self::Prune) => Self::Recalc,
-            (Self::Recalc, Self::Recalc) => Self::Recalc,
-            (Self::Recalc, Self::NoOp) => Self::Recalc,
-
-            (Self::NoOp, Self::Prune) => Self::NoOp,
-            (Self::NoOp, Self::Recalc) => Self::Recalc,
-            (Self::NoOp, Self::NoOp) => Self::NoOp,
         }
     }
 }
@@ -291,7 +282,7 @@ impl AuxStateData {
             .map(|(circuit, hash)| {
                 let hash = (*hash).into();
                 init = circuit
-                    .prove(&init, &init, hash, hash, empty_summary_hash.into(), ())
+                    .prove(hash, hash, empty_summary_hash.into(), (), &init, &init)
                     .unwrap();
                 init.clone()
             })
@@ -494,14 +485,14 @@ impl AuxStateData {
         branch.summary_hash = summary;
         branch.proof = self.branch_circuits[branch.height]
             .prove(
-                left_proof,
-                right_proof,
                 branch.old_hash.into(),
                 branch.new_hash.into(),
                 branch.summary_hash.into(),
                 addr.map_or(AddressPresent::Implicit, |v| {
                     AddressPresent::Present(v.addr.0)
                 }),
+                left_proof,
+                right_proof,
             )
             .unwrap();
     }
@@ -569,12 +560,12 @@ impl AuxStateData {
 
                 let proof = self.branch_circuits[0]
                     .prove(
-                        left_proof,
-                        right_proof,
                         old_hash.into(),
                         new_hash.into(),
                         leaf_summary.into(),
                         (),
+                        left_proof,
+                        right_proof,
                     )
                     .unwrap();
                 let leaf = Some(Box::new(SparseMerkleNode::Leaf(leaf)));
@@ -618,12 +609,12 @@ impl AuxStateData {
 
                 let proof = self.branch_circuits[height]
                     .prove(
-                        left_proof,
-                        right_proof,
                         old_hash.into(),
                         new_hash.into(),
                         child_summary.into(),
                         (),
+                        left_proof,
+                        right_proof,
                     )
                     .unwrap();
                 let child = Some(Box::new(SparseMerkleNode::Branch(child)));
@@ -990,6 +981,7 @@ impl<'a> State<'a> {
 
 #[cfg(test)]
 mod test {
+    use mozak_circuits::test_utils::fast_test_circuit_config;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::HashOut;
     use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -1003,10 +995,16 @@ mod test {
         Poseidon2Hash::hash_no_pad(&v)
     }
 
+    const FAST_CONFIG: bool = true;
+    const CONFIG: CircuitConfig = if FAST_CONFIG {
+        fast_test_circuit_config()
+    } else {
+        CircuitConfig::standard_recursion_config()
+    };
+
     #[test]
     fn tiny_tree() {
-        let config = CircuitConfig::standard_recursion_config();
-        let aux = AuxStateData::new(&config, 0);
+        let aux = AuxStateData::new(&CONFIG, 0);
         let mut state = State::new(&aux, 0);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
@@ -1035,8 +1033,7 @@ mod test {
 
     #[test]
     fn small_tree() {
-        let config = CircuitConfig::standard_recursion_config();
-        let aux = AuxStateData::new(&config, 8);
+        let aux = AuxStateData::new(&CONFIG, 8);
         let mut state = State::new(&aux, 8);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
@@ -1066,8 +1063,7 @@ mod test {
     #[test]
     #[ignore]
     fn big_tree() {
-        let config = CircuitConfig::standard_recursion_config();
-        let aux = AuxStateData::new(&config, 63);
+        let aux = AuxStateData::new(&CONFIG, 63);
         let mut state = State::new(&aux, 63);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;

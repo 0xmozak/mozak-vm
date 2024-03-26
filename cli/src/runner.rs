@@ -96,8 +96,26 @@ pub fn tapes_to_runtime_arguments(
         RuntimeArguments {
             self_prog_id: self_prog_id.inner().to_vec(),
             cast_list: serialise(&cast_list, "CAST_LIST"),
-            io_tape_public: vec![], // serialise(&sys_tapes.public_tape, "IO_TAPE_PUBLIC"),
-            io_tape_private: vec![], // serialise(&sys_tapes.private_tape, "IO_TAPE_PRIVATE"),
+            io_tape_public: length_prefixed_bytes(
+                sys_tapes
+                    .public_input_tape
+                    .writer
+                    .get(&self_prog_id)
+                    .cloned()
+                    .unwrap_or_default()
+                    .0,
+                "INPUT_PUBLIC",
+            ),
+            io_tape_private: length_prefixed_bytes(
+                sys_tapes
+                    .private_input_tape
+                    .writer
+                    .get(&self_prog_id)
+                    .cloned()
+                    .unwrap_or_default()
+                    .0,
+                "INPUT_PRIVATE",
+            ),
             call_tape: serialise(&sys_tapes.call_tape.writer, "CALL_TAPE"),
             event_tape: serialise(&canonical_order_temporal_hints, "EVENT_TAPE"),
         }

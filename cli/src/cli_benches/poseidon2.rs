@@ -3,7 +3,6 @@ use mozak_circuits::test_utils::{
 };
 use starky::config::StarkConfig;
 
-#[allow(clippy::pedantic)]
 pub fn poseidon2_bench(input_len: u32) -> Result<(), anyhow::Error> {
     let s: String = "dead_beef_feed_c0de".repeat(input_len as usize);
     let (program, record) = create_poseidon2_test(&[Poseidon2Test {
