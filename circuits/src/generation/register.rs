@@ -12,31 +12,6 @@ use crate::registerinit::columns::RegisterInit;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
 use crate::utils::pad_trace_with_default;
 
-// TODO: Can we do this as one lookup?
-//
-// init_zero
-// |          \
-// V           J
-// register    register_zero
-// L-------J
-// |
-// CPU / ecalls (memory, transcript, etc.)
-//
-// init_zero:
-// + init -
-//
-// register:
-// + read, write
-// - init -
-//
-// register_zero:
-// + read, write
-// - init -
-//
-// CPU / ecalls:
-// - read, write
-//
-
 /// Sort rows into blocks of ascending addresses, and then sort each block
 /// internally by `augmented_clk`
 #[must_use]
