@@ -148,6 +148,7 @@ where
             kind,
             &stark_proof_with_pis_target[kind].proof,
             &mozak_stark.cross_table_lookups,
+            &mozak_stark.make_rows_public,
             &ctl_challenges,
         );
 

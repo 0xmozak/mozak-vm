@@ -336,6 +336,7 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
         table: TableKind,
         proof: &StarkProofTarget<D>,
         cross_table_lookups: &'a [CrossTableLookup],
+        make_rows_public: &'a [MakeRowsPublic],
         ctl_challenges: &'a GrandProductChallengeSet<Target>,
     ) -> Vec<Self> {
         let ctl_zs = izip!(&proof.openings.ctl_zs, &proof.openings.ctl_zs_next);
@@ -346,15 +347,31 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
                  looked_table,
              }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
         );
-        zip_eq(ctl_zs, iproduct!(&ctl_challenges.challenges, ctl_chain))
-            .map(|((&local_z, &next_z), (&challenges, table))| Self {
-                local_z,
-                next_z,
-                challenges,
-                columns: &table.columns,
-                filter_column: &table.filter_column,
-            })
-            .collect()
+        let make_rows_public_chain =
+            make_rows_public.iter().filter_map(
+                |MakeRowsPublic(twc)| {
+                    if twc.kind == table {
+                        Some(twc)
+                    } else {
+                        None
+                    }
+                },
+            );
+        zip_eq(
+            ctl_zs,
+            chain!(
+                iproduct!(&ctl_challenges.challenges, ctl_chain),
+                iproduct!(&ctl_challenges.challenges, make_rows_public_chain)
+            ),
+        )
+        .map(|((&local_z, &next_z), (&challenges, table))| Self {
+            local_z,
+            next_z,
+            challenges,
+            columns: &table.columns,
+            filter_column: &table.filter_column,
+        })
+        .collect()
     }
 }
 
