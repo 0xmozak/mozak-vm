@@ -582,7 +582,7 @@ impl Lookups for RangecheckTable {
             register,
         ]
         .collect();
-        CrossTableLookupWithTypedOutput::new(looking, rangecheck::columns::lookup())
+        CrossTableLookupWithTypedOutput::new(looking, vec![rangecheck::columns::lookup()])
     }
 }
 
@@ -594,7 +594,7 @@ impl Lookups for XorCpuTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput {
             looking_tables: vec![cpu::columns::lookup_for_xor()],
-            looked_table: xor::columns::lookup_for_cpu(),
+            looked_tables: vec![xor::columns::lookup_for_cpu()],
         }
     }
 }
@@ -623,7 +623,7 @@ impl Lookups for IntoMemoryTable {
             tables.extend((0..8).map(poseidon2_sponge::columns::lookup_for_input_memory));
             tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
         }
-        CrossTableLookupWithTypedOutput::new(tables, memory::columns::lookup_for_cpu())
+        CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])
     }
 }
 
@@ -639,7 +639,7 @@ impl Lookups for MemoryInitMemoryTable {
                 memoryinit::columns::lookup_for_memory(MozakMemoryInitTable::new),
                 memory_zeroinit::columns::lookup_for_memory(),
             ],
-            memory::columns::lookup_for_memoryinit(),
+            vec![memory::columns::lookup_for_memoryinit()],
         )
     }
 }
@@ -650,10 +650,9 @@ impl Lookups for BitshiftCpuTable {
     type Row = Bitshift<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Bitshift<Column>> {
-        CrossTableLookupWithTypedOutput::new(
-            vec![cpu::columns::lookup_for_shift_amount()],
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_shift_amount()], vec![
             bitshift::columns::lookup_for_cpu(),
-        )
+        ])
     }
 }
 
@@ -663,10 +662,9 @@ impl Lookups for InnerCpuTable {
     type Row = InstructionRow<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(
-            vec![cpu::columns::lookup_for_inst()],
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_inst()], vec![
             cpu::columns::lookup_for_permuted_inst(),
-        )
+        ])
     }
 }
 
@@ -676,10 +674,9 @@ impl Lookups for ProgramCpuTable {
     type Row = InstructionRow<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(
-            vec![cpu::columns::lookup_for_program_rom()],
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_program_rom()], vec![
             program::columns::lookup_for_ctl(),
-        )
+        ])
     }
 }
 
@@ -693,7 +690,7 @@ impl Lookups for RangeCheckU8LookupTable {
             memory::columns::rangecheck_u8_looking(),
         ]
         .collect();
-        CrossTableLookupWithTypedOutput::new(looking, crate::rangecheck_u8::columns::lookup())
+        CrossTableLookupWithTypedOutput::new(looking, vec![crate::rangecheck_u8::columns::lookup()])
     }
 }
 
@@ -705,7 +702,7 @@ impl Lookups for HalfWordMemoryCpuTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<MemoryCtl<Column>> {
         CrossTableLookupWithTypedOutput::new(
             vec![cpu::columns::lookup_for_halfword_memory()],
-            memory_halfword::columns::lookup_for_cpu(),
+            vec![memory_halfword::columns::lookup_for_cpu()],
         )
     }
 }
@@ -718,7 +715,7 @@ impl Lookups for FullWordMemoryCpuTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             vec![cpu::columns::lookup_for_fullword_memory()],
-            memory_fullword::columns::lookup_for_cpu(),
+            vec![memory_fullword::columns::lookup_for_cpu()],
         )
     }
 }
@@ -733,7 +730,7 @@ impl Lookups for RegisterRegInitTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             vec![crate::register::columns::lookup_for_register_init()],
-            crate::registerinit::columns::lookup_for_register(),
+            vec![crate::registerinit::columns::lookup_for_register()],
         )
     }
 }
@@ -755,7 +752,7 @@ impl Lookups for IoMemoryToCpuTable {
             )
             .map(|(kind, i)| memory_io::columns::lookup_for_cpu(kind, i))
             .collect(),
-            cpu::columns::lookup_for_io_memory_tables(),
+            vec![cpu::columns::lookup_for_io_memory_tables()],
         )
     }
 }
@@ -769,7 +766,7 @@ impl Lookups for Poseidon2SpongeCpuTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             vec![crate::poseidon2_sponge::columns::lookup_for_cpu()],
-            crate::cpu::columns::lookup_for_poseidon2_sponge(),
+            vec![crate::cpu::columns::lookup_for_poseidon2_sponge()],
         )
     }
 }
@@ -783,7 +780,7 @@ impl Lookups for Poseidon2Poseidon2SpongeTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             vec![crate::poseidon2::columns::lookup_for_sponge()],
-            crate::poseidon2_sponge::columns::lookup_for_poseidon2(),
+            vec![crate::poseidon2_sponge::columns::lookup_for_poseidon2()],
         )
     }
 }
@@ -797,7 +794,7 @@ impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             vec![crate::poseidon2_output_bytes::columns::lookup_for_poseidon2_sponge()],
-            crate::poseidon2_sponge::columns::lookup_for_poseidon2_output_bytes(),
+            vec![crate::poseidon2_sponge::columns::lookup_for_poseidon2_output_bytes()],
         )
     }
 }
