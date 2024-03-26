@@ -211,19 +211,10 @@ impl Add for FinalizeOutcome {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        #[allow(clippy::match_same_arms)]
         match (self, rhs) {
+            (Self::Recalc, _) | (_, Self::Recalc) => Self::Recalc,
+            (Self::NoOp, _) | (_, Self::NoOp) => Self::NoOp,
             (Self::Prune, Self::Prune) => Self::Prune,
-            (Self::Prune, Self::Recalc) => Self::Recalc,
-            (Self::Prune, Self::NoOp) => Self::NoOp,
-
-            (Self::Recalc, Self::Prune) => Self::Recalc,
-            (Self::Recalc, Self::Recalc) => Self::Recalc,
-            (Self::Recalc, Self::NoOp) => Self::Recalc,
-
-            (Self::NoOp, Self::Prune) => Self::NoOp,
-            (Self::NoOp, Self::Recalc) => Self::Recalc,
-            (Self::NoOp, Self::NoOp) => Self::NoOp,
         }
     }
 }

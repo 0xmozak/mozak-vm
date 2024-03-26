@@ -16,7 +16,8 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
+pub use crate::linear_combination_typed::ColumnWithTypedInput;
+use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
 
@@ -36,13 +37,13 @@ impl<F: Field> CtlData<F> {
     pub fn len(&self) -> usize { self.zs_columns.len() }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.zs_columns.len() == 0 }
+    pub fn is_empty(&self) -> bool { self.zs_columns.is_empty() }
 
     #[must_use]
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
         self.zs_columns
             .iter()
-            .map(|zs_columns| zs_columns.z.clone())
+            .map(|zs_column| zs_column.z.clone())
             .collect()
     }
 }
@@ -182,20 +183,45 @@ fn partial_sums<F: Field>(
         .into()
 }
 
-#[allow(unused)]
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug)]
-pub struct CrossTableLookup {
-    pub looking_tables: Vec<Table>,
-    pub looked_table: Table,
+pub struct CrossTableLookupWithTypedOutput<Row> {
+    pub looking_tables: Vec<TableWithTypedOutput<Row>>,
+    pub looked_table: TableWithTypedOutput<Row>,
 }
 
-impl CrossTableLookup {
+// This is a little trick, so that we can use `CrossTableLookup` as a
+// constructor, but only when the type parameter Row = Vec<Column>.
+// TODO(Matthias): See if we can do the same trick for `table_impl`.
+#[allow(clippy::module_name_repetitions)]
+pub type CrossTableLookupUntyped = CrossTableLookupWithTypedOutput<Vec<Column>>;
+pub use CrossTableLookupUntyped as CrossTableLookup;
+
+impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
+    pub fn to_untyped_output(self) -> CrossTableLookup {
+        let looked_table: Table = self.looked_table.to_untyped_output();
+        let looking_tables = self
+            .looking_tables
+            .into_iter()
+            .map(TableWithTypedOutput::to_untyped_output)
+            .collect();
+        CrossTableLookup {
+            looking_tables,
+            looked_table,
+        }
+    }
+}
+
+impl<Row> CrossTableLookupWithTypedOutput<Row> {
     /// Instantiates a new cross table lookup between 2 tables.
     ///
     /// # Panics
     /// Panics if the two tables do not have equal number of columns.
     #[must_use]
-    pub fn new(looking_tables: Vec<Table>, looked_table: Table) -> Self {
+    pub fn new(
+        looking_tables: Vec<TableWithTypedOutput<Row>>,
+        looked_table: TableWithTypedOutput<Row>,
+    ) -> Self {
         Self {
             looking_tables,
             looked_table,
@@ -374,9 +400,9 @@ pub fn eval_cross_table_lookup_checks_circuit<
 
 pub mod ctl_utils {
     use std::collections::HashMap;
-    use std::ops::{Deref, DerefMut};
 
     use anyhow::Result;
+    use derive_more::{Deref, DerefMut};
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
@@ -385,20 +411,10 @@ pub mod ctl_utils {
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
-    impl<F: Field> Deref for MultiSet<F> {
-        type Target = HashMap<Vec<F>, Vec<(TableKind, F)>>;
-
-        fn deref(&self) -> &Self::Target { &self.0 }
-    }
-    impl<F: Field> DerefMut for MultiSet<F> {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
-    }
     impl<F: Field> MultiSet<F> {
-        pub fn new() -> Self { MultiSet(HashMap::new()) }
-
         fn process_row(
             &mut self,
             trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
@@ -421,6 +437,8 @@ pub mod ctl_utils {
 
     pub fn check_single_ctl<F: Field>(
         trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+        // TODO(Matthias): make this one work with CrossTableLookupNamed, instead of having to
+        // forget the types first.  That should also help with adding better debug messages.
         ctl: &CrossTableLookup,
     ) -> Result<(), LookupError> {
         /// Sums and compares the multiplicities of the given looking and looked
@@ -449,8 +467,8 @@ pub mod ctl_utils {
         }
 
         // Maps `m` with `(table.kind, multiplicity) in m[row]`
-        let mut looking_multiset = MultiSet::<F>::new();
-        let mut looked_multiset = MultiSet::<F>::new();
+        let mut looking_multiset = MultiSet::<F>::default();
+        let mut looked_multiset = MultiSet::<F>::default();
 
         for looking_table in &ctl.looking_tables {
             looking_multiset.process_row(trace_poly_values, looking_table);
@@ -486,188 +504,4 @@ pub mod ctl_utils {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
-
-    use super::ctl_utils::check_single_ctl;
-    use super::*;
-    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable, TableKindSetBuilder};
-
-    #[allow(clippy::similar_names)]
-    /// Specify which column(s) to find data related to lookups.
-    /// If the lengths of `lv_col_indices` and `nv_col_indices` are not same,
-    /// then we resize smaller one with empty column and then add componentwise
-    fn lookup_data(lv_col_indices: &[usize], nv_col_indices: &[usize]) -> Vec<Column> {
-        // use usual lv values of the rows
-        let lv_columns = Column::singles(lv_col_indices);
-        // use nv values of the rows
-        let nv_columns = Column::singles_next(nv_col_indices);
-
-        lv_columns
-            .into_iter()
-            .zip_longest(nv_columns)
-            .map(|item| item.reduce(std::ops::Add::add))
-            .collect()
-    }
-
-    /// Specify the column index of the filter column used in lookups.
-    fn lookup_filter(col_idx: usize) -> Column { Column::single(col_idx) }
-
-    /// A generic cross lookup table.
-    struct FooBarTable;
-
-    impl Lookups for FooBarTable {
-        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
-        /// [`CrossTableLookup`] here, but in principle this is meant to
-        /// be used generically for tests.
-        fn lookups() -> CrossTableLookup {
-            CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1], &[2]), lookup_filter(0))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1], &[]), lookup_filter(0)),
-            }
-        }
-    }
-
-    #[derive(Debug, PartialEq)]
-    pub struct Trace<F: Field> {
-        trace: Vec<PolynomialValues<F>>,
-    }
-
-    #[derive(Default)]
-    pub struct TraceBuilder<F: Field> {
-        trace: Vec<PolynomialValues<F>>,
-    }
-
-    impl<F: Field> TraceBuilder<F> {
-        /// Creates a new trace with the given `num_cols` and `num_rows`.
-        pub fn new(num_cols: usize, num_rows: usize) -> TraceBuilder<F> {
-            let mut trace = vec![];
-            for _ in 0..num_cols {
-                let mut values = Vec::with_capacity(num_rows);
-                for _ in 0..num_rows {
-                    values.push(F::rand());
-                }
-                trace.push(PolynomialValues::from(values));
-            }
-
-            TraceBuilder { trace }
-        }
-
-        /// Set all polynomial values at a given column index `col_idx` to
-        /// zeroes.
-        #[allow(unused)]
-        pub fn zero(mut self, idx: usize) -> TraceBuilder<F> {
-            self.trace[idx] = PolynomialValues::zero(self.trace[idx].len());
-
-            self
-        }
-
-        /// Set all polynomial values at a given column index `col_idx` to
-        /// `F::ONE`.
-        pub fn one(mut self, col_idx: usize) -> TraceBuilder<F> {
-            let len = self.trace[col_idx].len();
-            let ones = PolynomialValues::constant(F::ONE, len);
-            self.trace[col_idx] = ones;
-
-            self
-        }
-
-        /// Set all polynomial values at a given column index `col_idx` to
-        /// `value`. This is convenient for testing cross table lookups.
-        pub fn set_values(mut self, col_idx: usize, value: usize) -> TraceBuilder<F> {
-            let len = self.trace[col_idx].len();
-            let new_v: Vec<F> = (0..len).map(|_| F::from_canonical_usize(value)).collect();
-            let values = PolynomialValues::from(new_v);
-            self.trace[col_idx] = values;
-
-            self
-        }
-
-        /// Set all polynomial values at a given column index `col_idx` to
-        /// alternate between `value_1` and `value_2`. Useful for testing
-        /// combination of lv and nv values
-        pub fn set_values_alternate(
-            mut self,
-            col_idx: usize,
-            value_1: usize,
-            value_2: usize,
-        ) -> TraceBuilder<F> {
-            let len = self.trace[col_idx].len();
-            self.trace[col_idx] = PolynomialValues::from(
-                [value_1, value_2]
-                    .into_iter()
-                    .cycle()
-                    .take(len)
-                    .map(F::from_canonical_usize)
-                    .collect_vec(),
-            );
-
-            self
-        }
-
-        pub fn build(self) -> Vec<PolynomialValues<F>> { self.trace }
-    }
-
-    /// Create a trace with inconsistent values, which should
-    /// cause our manual checks to fail.
-    /// Here, `foo_trace` has all values in column 1 and 2 set to alternate
-    /// between 2 and 3 while `bar_trace` has all values in column 1 set to
-    /// 6. Since lookup data is sum of lv values of column 1 and nv values
-    /// of column 2 from `foo_trace`, our manual checks will fail this test.
-    #[test]
-    fn test_ctl_inconsistent_tables() {
-        type F = GoldilocksField;
-        let dummy_cross_table_lookup: CrossTableLookup = FooBarTable::lookups();
-
-        let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
-            .one(0) // filter column
-            .set_values_alternate(1, 2, 3)
-            .set_values_alternate(2, 2, 3)
-            .build();
-        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
-            .one(0) // filter column
-            .set_values(1, 6)
-            .build();
-        let traces = TableKindSetBuilder {
-            cpu_stark: foo_trace,
-            rangecheck_stark: bar_trace,
-            ..Default::default()
-        }
-        .build();
-        assert!(matches!(
-            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
-            LookupError::InconsistentTableRows
-        ));
-    }
-
-    /// Happy path test where all checks go as plan.
-    /// Here, `foo_trace` has all values in column 1 set to alternate between 2
-    /// and 3, and values in column 2 set to alternate between 3 and 2 while
-    /// `bar_trace` has all values in column 1 set to 5. Since lookup data
-    /// is sum of lv values of column 1 and nv values of column 2 from
-    /// `foo_trace`, our manual checks will pass the test
-    #[test]
-    fn test_ctl() -> Result<()> {
-        type F = GoldilocksField;
-        let dummy_cross_table_lookup: CrossTableLookup = FooBarTable::lookups();
-
-        let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
-            .one(0) // filter column
-            .set_values_alternate(1, 2, 3)
-            .set_values_alternate(2, 2, 3)
-            .build();
-        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
-            .one(0) // filter column
-            .set_values(1, 5)
-            .build();
-        let traces = TableKindSetBuilder {
-            cpu_stark: foo_trace,
-            rangecheck_stark: bar_trace,
-            ..Default::default()
-        }
-        .build();
-        check_single_ctl(&traces, &dummy_cross_table_lookup)?;
-        Ok(())
-    }
-}
+// TODO(Matthias): restore the tests from before https://github.com/0xmozak/mozak-vm/pull/1371

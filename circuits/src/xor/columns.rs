@@ -1,6 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::Column;
-use crate::stark::mozak_stark::{Table, XorTable};
+use crate::linear_combination::Column;
+use crate::stark::mozak_stark::{TableWithTypedOutput, XorTable};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -29,9 +29,6 @@ columns_view_impl!(XorView);
 
 /// Lookup between CPU table and Xor stark table.
 #[must_use]
-pub fn lookup_for_cpu() -> Table {
-    XorTable::new(
-        Column::singles(col_map().execution),
-        Column::single(col_map().is_execution_row),
-    )
+pub fn lookup_for_cpu() -> TableWithTypedOutput<XorView<Column>> {
+    XorTable::new(COL_MAP.execution, COL_MAP.is_execution_row)
 }
