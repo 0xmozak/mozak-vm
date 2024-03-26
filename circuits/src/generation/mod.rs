@@ -17,9 +17,7 @@ pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_u8;
-#[cfg(feature = "enable_register_starks")]
 pub mod register;
-#[cfg(feature = "enable_register_starks")]
 pub mod registerinit;
 pub mod xor;
 
@@ -49,9 +47,7 @@ use self::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_u8::generate_rangecheck_u8_trace;
-#[cfg(feature = "enable_register_starks")]
 use self::register::generate_register_trace;
-#[cfg(feature = "enable_register_starks")]
 use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
@@ -111,10 +107,10 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
-    #[cfg(feature = "enable_register_starks")]
+    // TODO: consider folding generate_register_init_trace into
+    // generate_register_trace, like we did for register_zero?
     let register_init_rows = generate_register_init_trace::<F>(record);
-    #[cfg(feature = "enable_register_starks")]
-    let register_rows = generate_register_trace(
+    let (register_zero_rows, register_rows) = generate_register_trace(
         &cpu_rows,
         &io_memory_private_rows,
         &io_memory_public_rows,
@@ -122,12 +118,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &register_init_rows,
     );
     // Generate rows for the looking values with their multiplicities.
-    let rangecheck_rows = generate_rangecheck_trace::<F>(
-        &cpu_rows,
-        &memory_rows,
-        #[cfg(feature = "enable_register_starks")]
-        &register_rows,
-    );
+    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
@@ -148,10 +139,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
         io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
         io_transcript_stark: trace_rows_to_poly_values(io_transcript_rows),
-        #[cfg(feature = "enable_register_starks")]
         register_init_stark: trace_rows_to_poly_values(register_init_rows),
-        #[cfg(feature = "enable_register_starks")]
         register_stark: trace_rows_to_poly_values(register_rows),
+        register_zero_stark: trace_rows_to_poly_values(register_zero_rows),
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
         #[cfg(feature = "enable_poseidon_starks")]

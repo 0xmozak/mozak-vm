@@ -4,11 +4,8 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
-#[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
-#[cfg(feature = "enable_register_starks")]
 use crate::rangecheck::columns::RangeCheckCtl;
-#[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
 
 columns_view_impl!(Ops);
@@ -129,7 +126,6 @@ impl<T: Add<Output = T> + Copy> Register<T> {
     pub fn augmented_clk(self) -> T { self.clk + self.clk + self.ops.is_write }
 }
 
-#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
     use crate::linear_combination_typed::ColumnWithTypedInput;
@@ -146,7 +142,6 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
     )
 }
 
-#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
     use crate::linear_combination_typed::ColumnWithTypedInput;

@@ -7,7 +7,6 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
-#[cfg(feature = "enable_register_starks")]
 use crate::register::columns::Register;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
@@ -49,7 +48,7 @@ where
 pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
-    #[cfg(feature = "enable_register_starks")] register_trace: &[Register<F>],
+    register_trace: &[Register<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
     let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
 
@@ -60,7 +59,6 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
             match looking_table.kind {
                 TableKind::Cpu => extract(cpu_trace, &looking_table),
                 TableKind::Memory => extract(memory_trace, &looking_table),
-                #[cfg(feature = "enable_register_starks")]
                 TableKind::Register => extract(register_trace, &looking_table),
                 other => unimplemented!("Can't range check {other:#?} tables"),
             }
@@ -94,18 +92,15 @@ mod tests {
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    #[cfg(feature = "enable_register_starks")]
-    use crate::generation::io_memory::generate_io_transcript_trace;
     use crate::generation::io_memory::{
         generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_io_transcript_trace,
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
-    #[cfg(feature = "enable_register_starks")]
     use crate::generation::register::generate_register_trace;
-    #[cfg(feature = "enable_register_starks")]
     use crate::generation::registerinit::generate_register_init_trace;
     use crate::generation::MIN_TRACE_LENGTH;
 
@@ -132,7 +127,6 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        #[cfg(feature = "enable_register_starks")]
         let io_transcript_rows = generate_io_transcript_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
@@ -146,22 +140,15 @@ mod tests {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
-        #[cfg(feature = "enable_register_starks")]
         let register_init = generate_register_init_trace(&record);
-        #[cfg(feature = "enable_register_starks")]
-        let register_rows = generate_register_trace(
+        let (_zero_register_rows, register_rows) = generate_register_trace(
             &cpu_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &io_transcript_rows,
             &register_init,
         );
-        let trace = generate_rangecheck_trace::<F>(
-            &cpu_rows,
-            &memory_rows,
-            #[cfg(feature = "enable_register_starks")]
-            &register_rows,
-        );
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
         assert_eq!(
             trace.len(),
             MIN_TRACE_LENGTH,

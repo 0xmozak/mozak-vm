@@ -14,7 +14,6 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::rangecheck::columns::RangeCheckCtl;
-#[cfg(feature = "enable_register_starks")]
 use crate::register::columns::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
 use crate::xor::columns::XorView;
@@ -84,11 +83,11 @@ pub struct Instruction<T> {
     pub is_op2_signed: T,
     pub is_dst_signed: T,
     /// Selects the register to use as source for `rs1`
-    pub rs1_select: [T; 32],
+    pub rs1_selected: T,
     /// Selects the register to use as source for `rs2`
-    pub rs2_select: [T; 32],
+    pub rs2_selected: T,
     /// Selects the register to use as destination for `rd`
-    pub rd_select: [T; 32],
+    pub rd_selected: T,
     /// Special immediate value used for code constants
     pub imm_value: T,
 }
@@ -123,9 +122,6 @@ pub struct CpuState<T> {
     /// table. These values are always unsigned by nature (as mem table does
     /// not differentiate between signed and unsigned values).
     pub mem_value_raw: T,
-
-    /// Values of the registers.
-    pub regs: [T; 32],
 
     // 0 means non-negative, 1 means negative.
     // (If number is unsigned, it is non-negative.)
@@ -205,15 +201,6 @@ impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    /// The value of the designated register in rs2.
-    pub fn rs2_value(&self) -> T {
-        // Note: we could skip 0, because r0 is always 0.
-        // But we keep it to make it easier to reason about the code.
-        (0..32)
-            .map(|reg| self.inst.rs2_select[reg] * self.regs[reg])
-            .sum()
-    }
-
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
@@ -230,18 +217,6 @@ impl<T: PackedField> CpuState<T> {
     /// Difference between first and second operands, which works for both pairs
     /// of signed or pairs of unsigned values.
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
-}
-
-pub fn rs2_value_extension_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    cpu: &CpuState<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let mut rs2_value = builder.zero_extension();
-    for reg in 0..32 {
-        let rs2_select = builder.mul_extension(cpu.inst.rs2_select[reg], cpu.regs[reg]);
-        rs2_value = builder.add_extension(rs2_value, rs2_select);
-    }
-    rs2_value
 }
 
 pub fn op1_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
@@ -364,39 +339,20 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     )
 }
 
-#[allow(clippy::large_types_passed_by_value)]
-fn lookup_for_io_memory_x(
-    filter: ColumnWithTypedInput<CpuColumnsExtended<i64>>,
-) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+/// Column containing the data to be matched against IO Memory starks.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
     CpuTable::new(
         InputOutputMemoryCtl {
+            // TODO: use ascending_sum?
+            op: CPU.is_io_store_private + CPU.is_io_store_public * 2 + CPU.is_io_transcript * 3,
             clk: CPU.clk,
             addr: CPU.io_addr,
             size: CPU.io_size,
         },
-        filter,
+        CPU.is_io_store_private + CPU.is_io_store_public + CPU.is_io_transcript,
     )
-}
-
-/// Column containing the data to be matched against IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-// TODO: unify all three variants into a single lookup, so we save on proving time.
-#[must_use]
-pub fn lookup_for_io_memory_private() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    lookup_for_io_memory_x(CPU.is_io_store_private)
-}
-
-// TODO: consolidate lookup_for_io_memory_private and
-// lookup_for_io_memory_public and lookup_for_io_transcript into a single lookup
-// to save implicit CPU lookups columns.
-#[must_use]
-pub fn lookup_for_io_memory_public() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    lookup_for_io_memory_x(CPU.is_io_store_public)
-}
-
-#[must_use]
-pub fn lookup_for_io_transcript() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    lookup_for_io_memory_x(CPU.is_io_transcript)
 }
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
@@ -453,9 +409,9 @@ pub fn lookup_for_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
                     ColumnWithTypedInput::ascending_sum(inst.ops),
                     inst.is_op1_signed,
                     inst.is_op2_signed,
-                    ColumnWithTypedInput::ascending_sum(inst.rs1_select),
-                    ColumnWithTypedInput::ascending_sum(inst.rs2_select),
-                    ColumnWithTypedInput::ascending_sum(inst.rd_select),
+                    inst.rs1_selected,
+                    inst.rs2_selected,
+                    inst.rd_selected,
                     inst.imm_value,
                 ],
                 1 << 5,
@@ -489,43 +445,38 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<
     )
 }
 
-#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
     let is_read = ColumnWithTypedInput::constant(1);
     let is_write = ColumnWithTypedInput::constant(2);
 
-    let ascending_sum = ColumnWithTypedInput::ascending_sum;
     vec![
         CpuTable::new(
             RegisterCtl {
                 clk: CPU.clk,
                 op: is_read,
-                addr: ascending_sum(CPU.inst.rs1_select),
+                addr: CPU.inst.rs1_selected,
                 value: CPU.op1_value,
             },
-            // skip register 0
-            CPU.inst.rs1_select[1..].iter().sum(),
+            CPU.is_running,
         ),
         CpuTable::new(
             RegisterCtl {
                 clk: CPU.clk,
                 op: is_read,
-                addr: ascending_sum(CPU.inst.rs2_select),
+                addr: CPU.inst.rs2_selected,
                 value: CPU.op2_value_raw,
             },
-            // skip register 0
-            CPU.inst.rs2_select[1..].iter().sum(),
+            CPU.is_running,
         ),
         CpuTable::new(
             RegisterCtl {
                 clk: CPU.clk,
                 op: is_write,
-                addr: ascending_sum(CPU.inst.rd_select),
+                addr: CPU.inst.rd_selected,
                 value: CPU.dst_value,
             },
-            // skip register 0
-            CPU.inst.rd_select[1..].iter().sum(),
+            CPU.is_running,
         ),
     ]
 }

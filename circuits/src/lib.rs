@@ -29,9 +29,8 @@ pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_u8;
 pub mod recproof;
-#[cfg(feature = "enable_register_starks")]
 pub mod register;
-#[cfg(feature = "enable_register_starks")]
+pub mod register_zero;
 pub mod registerinit;
 pub mod stark;
 #[cfg(any(feature = "test", test))]

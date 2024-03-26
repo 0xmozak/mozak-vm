@@ -7,8 +7,10 @@ use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::register::columns::{dummy, Ops, Register, RegisterCtl};
+use crate::register_zero::columns::RegisterZero;
 use crate::registerinit::columns::RegisterInit;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
+use crate::utils::pad_trace_with_default;
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
 /// internally by `augmented_clk`
@@ -93,7 +95,7 @@ pub fn generate_register_trace<F: RichField>(
     mem_public: &[InputOutputMemory<F>],
     mem_transcript: &[InputOutputMemory<F>],
     reg_init: &[RegisterInit<F>],
-) -> Vec<Register<F>> {
+) -> (Vec<RegisterZero<F>>, Vec<Register<F>>) {
     // TODO: handle multiplicities?
     let operations: Vec<Register<F>> = RegisterLookups::lookups()
         .looking_tables
@@ -104,13 +106,18 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
             TableKind::IoTranscript => extract(mem_transcript, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
+            // Flow of information in generation goes in the other direction.
+            TableKind::RegisterZero => vec![],
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
         .collect();
     let trace = sort_into_address_blocks(operations);
-    log::trace!("trace {:?}", trace);
+    let (zeros, rest): (Vec<_>, Vec<_>) = trace.into_iter().partition(|row| row.addr.is_zero());
+    log::trace!("trace {:?}", rest);
 
-    pad_trace(trace)
+    let zeros = zeros.into_iter().map(RegisterZero::from).collect();
+
+    (pad_trace_with_default(zeros), pad_trace(rest))
 }
 
 #[cfg(test)]
@@ -168,7 +175,7 @@ mod tests {
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let register_init = generate_register_init_trace(&record);
-        let trace = generate_register_trace(
+        let (_zero, trace) = generate_register_trace(
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,

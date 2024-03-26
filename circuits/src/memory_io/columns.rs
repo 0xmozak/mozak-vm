@@ -1,16 +1,14 @@
 use core::ops::Add;
 
-#[cfg(feature = "enable_register_starks")]
 use mozak_sdk::core::reg_abi::REG_A1;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-#[cfg(feature = "enable_register_starks")]
 use crate::register::columns::RegisterCtl;
-#[cfg(feature = "enable_register_starks")]
-use crate::stark::mozak_stark::{IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable};
-use crate::stark::mozak_stark::{TableKind, TableWithTypedOutput};
+use crate::stark::mozak_stark::{
+    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, TableKind, TableWithTypedOutput,
+};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -53,6 +51,7 @@ columns_view_impl!(InputOutputMemoryCtl);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct InputOutputMemoryCtl<T> {
+    pub op: T,
     pub clk: T,
     pub addr: T,
     pub size: T,
@@ -60,11 +59,15 @@ pub struct InputOutputMemoryCtl<T> {
 
 /// Lookup between CPU table and Memory stark table.
 #[must_use]
-pub fn lookup_for_cpu(kind: TableKind) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_cpu(
+    kind: TableKind,
+    op: i64,
+) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
     let mem = COL_MAP;
     TableWithTypedOutput {
         kind,
         columns: InputOutputMemoryCtl {
+            op: ColumnWithTypedInput::constant(op),
             clk: mem.clk,
             addr: mem.addr,
             size: mem.size,
@@ -97,7 +100,6 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Colu
     }
 }
 
-#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
     let mem = COL_MAP;
