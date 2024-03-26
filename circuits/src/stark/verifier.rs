@@ -80,7 +80,6 @@ where
     });
     verify_cross_table_lookups::<F, D>(
         &mozak_stark.cross_table_lookups,
-        &mozak_stark.make_rows_public,
         &reduced_public_inputs,
         &all_proof.all_ctl_zs_last(),
         config,
