@@ -59,13 +59,12 @@ pub(crate) struct CtlZData<F: Field> {
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
     cross_table_lookups: &[CrossTableLookup],
-    make_rows_pubilc: &[MakeRowsPublic],
     reduced_public_inputs: &TableKindArray<Option<Vec<F>>>,
     ctl_zs_lasts: &TableKindArray<Vec<F>>,
     config: &StarkConfig,
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
-    let mut reduced_public_input_openings = reduced_public_inputs
+    let reduced_public_input_openings = reduced_public_inputs
         .each_ref()
         .map(|v| v.iter().flat_map(IntoIterator::into_iter));
     for _ in 0..config.num_challenges {
