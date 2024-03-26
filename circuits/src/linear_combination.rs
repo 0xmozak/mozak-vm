@@ -24,6 +24,52 @@ pub struct ColumnSparse<F> {
     pub constant: F,
 }
 
+impl<T> ColumnSparse<T> {
+    pub fn map<F, U>(self, mut f: F) -> ColumnSparse<U>
+    where
+        F: FnMut(T) -> U, {
+        ColumnSparse {
+            lv_linear_combination: self
+                .lv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, f(c)))
+                .collect(),
+            nv_linear_combination: self
+                .nv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, f(c)))
+                .collect(),
+            constant: f(self.constant),
+        }
+    }
+}
+
+pub fn zip_with<T>(
+    left: ColumnSparse<T>,
+    right: ColumnSparse<T>,
+    mut f: impl FnMut(T, T) -> T,
+) -> ColumnSparse<T> {
+    let mut zip = |mut slc: Vec<(usize, T)>, mut rlc: Vec<(usize, T)>| {
+        slc.sort_by_key(|&(col_idx, _)| col_idx);
+        rlc.sort_by_key(|&(col_idx, _)| col_idx);
+        slc.into_iter()
+            .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
+            .map(|item| {
+                item.reduce(|(idx0, c0), (idx1, c1)| {
+                    assert_eq!(idx0, idx1);
+                    (idx0, f(c0, c1))
+                })
+            })
+            .collect()
+    };
+
+    ColumnSparse {
+        lv_linear_combination: zip(left.lv_linear_combination, right.lv_linear_combination),
+        nv_linear_combination: zip(left.nv_linear_combination, right.nv_linear_combination),
+        constant: f(left.constant, right.constant),
+    }
+}
+
 pub type ColumnI64 = ColumnSparse<i64>;
 pub use ColumnI64 as Column;
 
@@ -46,47 +92,13 @@ impl<I: IntoIterator<Item = i64>> From<ColumnWithTypedInput<I>> for Column {
 impl<F: Neg<Output = F>> Neg for ColumnSparse<F> {
     type Output = Self;
 
-    fn neg(self) -> Self::Output {
-        Self {
-            lv_linear_combination: self
-                .lv_linear_combination
-                .into_iter()
-                .map(|(idx, c)| (idx, -c))
-                .collect(),
-            nv_linear_combination: self
-                .nv_linear_combination
-                .into_iter()
-                .map(|(idx, c)| (idx, -c))
-                .collect(),
-            constant: -self.constant,
-        }
-    }
+    fn neg(self) -> Self::Output { self.map(Neg::neg) }
 }
 
 impl<F: Add<F, Output = F>> Add<Self> for ColumnSparse<F> {
     type Output = Self;
 
-    fn add(self, other: Self) -> Self {
-        let add_lc = |mut slc: Vec<(usize, F)>, mut rlc: Vec<(usize, F)>| {
-            slc.sort_by_key(|&(col_idx, _)| col_idx);
-            rlc.sort_by_key(|&(col_idx, _)| col_idx);
-            slc.into_iter()
-                .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
-                .map(|item| {
-                    item.reduce(|(idx0, c0), (idx1, c1)| {
-                        assert_eq!(idx0, idx1);
-                        (idx0, c0 + c1)
-                    })
-                })
-                .collect()
-        };
-
-        Self {
-            lv_linear_combination: add_lc(self.lv_linear_combination, other.lv_linear_combination),
-            nv_linear_combination: add_lc(self.nv_linear_combination, other.nv_linear_combination),
-            constant: self.constant + other.constant,
-        }
-    }
+    fn add(self, other: Self) -> Self { zip_with(self, other, Add::add) }
 }
 
 impl<F: Add<F, Output = F> + Copy> Add<Self> for &ColumnSparse<F> {
@@ -128,27 +140,13 @@ impl<F: Add<F, Output = F> + Neg<Output = F> + Copy> Sub<Self> for ColumnSparse<
     type Output = Self;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
-    fn sub(self, other: Self) -> Self::Output { self.clone() + other.neg() }
+    fn sub(self, other: Self) -> Self::Output { self + other.neg() }
 }
 
 impl<F: Copy + Mul<F, Output = F>> Mul<F> for ColumnSparse<F> {
     type Output = Self;
 
-    fn mul(self, factor: F) -> Self {
-        Self {
-            lv_linear_combination: self
-                .lv_linear_combination
-                .into_iter()
-                .map(|(idx, c)| (idx, factor * c))
-                .collect(),
-            nv_linear_combination: self
-                .nv_linear_combination
-                .into_iter()
-                .map(|(idx, c)| (idx, factor * c))
-                .collect(),
-            constant: factor * self.constant,
-        }
-    }
+    fn mul(self, factor: F) -> Self { self.map(|c| c * factor) }
 }
 
 impl<F: Copy + Mul<F, Output = F>> Mul<F> for &ColumnSparse<F> {

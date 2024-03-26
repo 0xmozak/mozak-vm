@@ -16,7 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-// use crate::linear_combination::ColumnSparse;
+use crate::linear_combination::ColumnSparse;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
