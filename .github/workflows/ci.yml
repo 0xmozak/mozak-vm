@@ -52,6 +52,25 @@ jobs:
       - name: Run all the tests from the archive
         run: nixdo MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
 
+  # TODO(Matthias): remove this when register starks are enabled by default.
+  cargo-test-register-starks:
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
+        with:
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compile and archive all the tests
+        run: nixdo nice cargo nextest archive --locked --features="enable_poseidon_starks,enable_register_starks" --all-targets --archive-file mozak-vm-tests.tar.zst
+
+      - name: Run all the tests from the archive
+        run: nixdo MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
+
   sdk-sanity:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
