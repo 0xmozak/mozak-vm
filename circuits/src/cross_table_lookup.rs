@@ -81,7 +81,7 @@ pub(crate) fn verify_cross_table_lookups_and_make_rows_public<
                 .sum::<F>();
             let looked_zs_sum = looked_tables
                 .iter()
-                .map(|table| *ctl_zs_openings[table.kind].next().unwrap())
+                .map(|table| ctl_zs_openings[table.kind].next().unwrap())
                 .sum::<F>();
 
             ensure!(

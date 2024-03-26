@@ -20,8 +20,3 @@ make_col_map!(RangeCheckU8);
 pub fn lookup() -> TableWithTypedOutput<RangeCheckCtl<Column>> {
     RangeCheckU8Table::new(RangeCheckCtl(COL_MAP.value), COL_MAP.multiplicity)
 }
-
-#[must_use]
-pub fn make_rows_public() -> Table {
-    RangeCheckU8Table::new(vec![Column::single(col_map().value)], Column::constant(1))
-}
