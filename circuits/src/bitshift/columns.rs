@@ -45,6 +45,7 @@ pub fn lookup_for_cpu() -> Table {
     )
 }
 
+#[must_use]
 pub fn make_rows_pubilc() -> MakeRowsPublic {
     MakeRowsPublic(BitshiftTable::new(
         Column::singles(col_map().executed),
