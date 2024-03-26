@@ -1,4 +1,4 @@
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 /// ! To make certain rows of columns (specified by a filter column), public, we
 /// use an idea similar to what we do in CTL ! We create a z polynomial for
 /// every such instance which is running sum of `filter_i/combine(columns_i)`
@@ -11,13 +11,23 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cross_table_lookup::{partial_sums, CtlData, CtlZData};
-use crate::stark::mozak_stark::{all_kind, Table, TableKindArray};
+use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
 use crate::stark::permutation::challenge::GrandProductChallengeSet;
 
 /// Specifies a table whose rows are to be made public, according to filter
 /// column
 #[derive(Clone, Debug)]
 pub struct MakeRowsPublic(pub Table);
+
+impl MakeRowsPublic {
+    pub fn num_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
+        ctls.iter()
+            .map(|Self(table)| table)
+            .filter(|twc| twc.kind == table)
+            .count()
+            * num_challenges
+    }
+}
 pub type RowPublicValues<F> = Vec<Vec<F>>;
 
 pub(crate) fn open_rows_public_data<F: RichField, const D: usize>(
