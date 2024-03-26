@@ -70,9 +70,9 @@ where
             } = value.into_iter().collect();
             let ops = Ops::from(op);
             Register {
-                clk,
                 addr,
                 value,
+                clk,
                 ops,
             }
         })
