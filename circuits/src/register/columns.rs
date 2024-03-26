@@ -65,8 +65,6 @@ make_col_map!(Register);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Register<T> {
-    pub clk: T,
-
     /// The register 'address' that indexes into 1 of our 32 registers.
     /// Should only take values 0-31, so this column should be a running sum
     /// from 0 to 31 (inclusive). Note that this isn't the same as memory
@@ -75,6 +73,8 @@ pub struct Register<T> {
 
     /// Value of the register at time (in clk) of access.
     pub value: T,
+
+    pub clk: T,
 
     /// Columns that indicate what action is taken on the register.
     pub ops: Ops<T>,
