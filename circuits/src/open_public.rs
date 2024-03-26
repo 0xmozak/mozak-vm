@@ -18,6 +18,7 @@ use crate::stark::permutation::challenge::GrandProductChallengeSet;
 /// column
 #[derive(Clone, Debug)]
 pub struct MakeRowsPublic(pub Table);
+pub type RowPublicValues<F> = Vec<Vec<F>>;
 
 pub(crate) fn open_rows_public_data<F: RichField, const D: usize>(
     trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
@@ -64,7 +65,7 @@ pub fn reduce_public_input_for_make_rows_public<F: Field>(
 pub fn get_public_row_values<F: Field>(
     trace: &TableKindArray<Vec<PolynomialValues<F>>>,
     make_row_public: &[MakeRowsPublic],
-) -> TableKindArray<Vec<Vec<F>>> {
+) -> TableKindArray<RowPublicValues<F>> {
     let mut public_row_values_per_table = all_kind!(|_kind| Vec::default());
     for MakeRowsPublic(table) in make_row_public {
         let trace_table = &trace[table.kind];

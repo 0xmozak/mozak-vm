@@ -130,7 +130,7 @@ where
     let public_row_values =
         get_public_row_values(&traces_poly_values, &mozak_stark.make_rows_public);
 
-    let open_rows_public_data_per_table = open_rows_public_data::<F, D>(
+    let make_rows_public_data_per_table = open_rows_public_data::<F, D>(
         traces_poly_values,
         &mozak_stark.make_rows_public,
         &ctl_challenges,
@@ -147,7 +147,7 @@ where
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
-            &open_rows_public_data_per_table,
+            &make_rows_public_data_per_table,
             &mut challenger,
             timing
         )?
