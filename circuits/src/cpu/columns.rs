@@ -176,6 +176,7 @@ pub struct CpuState<T> {
     // ecall-specific tables.
     // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
     // filter.
+    // TODO: implement the above.
     pub is_io_store_private: T,
     pub is_io_store_public: T,
     pub is_io_transcript: T,
