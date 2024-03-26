@@ -1,8 +1,10 @@
 use core::ops::Add;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::Column;
-use crate::stark::mozak_stark::{FullWordMemoryTable, Table};
+use crate::cross_table_lookup::ColumnWithTypedInput;
+use crate::linear_combination::Column;
+use crate::memory::columns::MemoryCtl;
+use crate::stark::mozak_stark::{FullWordMemoryTable, TableWithTypedOutput};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -33,9 +35,9 @@ pub struct FullWordMemory<T> {
 columns_view_impl!(FullWordMemory);
 make_col_map!(FullWordMemory);
 
-impl<T: Clone + Add<Output = T>> FullWordMemory<T> {
+impl<T: Copy + Add<Output = T>> FullWordMemory<T> {
     pub fn is_executed(&self) -> T {
-        let ops: Ops<T> = self.ops.clone();
+        let ops = self.ops;
         ops.is_load + ops.is_store
     }
 }
@@ -46,34 +48,34 @@ pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn lookup_for_cpu() -> Table {
-    let mem = col_map().map(Column::from);
+pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
+    let mem = COL_MAP;
     FullWordMemoryTable::new(
-        vec![
-            mem.clk,
-            mem.addrs[0].clone(),
-            Column::reduce_with_powers(&mem.limbs, 1 << 8),
-            mem.ops.is_store,
-            mem.ops.is_load,
-        ],
-        col_map().map(Column::from).is_executed(),
+        MemoryCtl {
+            clk: mem.clk,
+            is_store: mem.ops.is_store,
+            is_load: mem.ops.is_load,
+            value: ColumnWithTypedInput::reduce_with_powers(mem.limbs, 1 << 8),
+            addr: mem.addrs[0],
+        },
+        COL_MAP.is_executed(),
     )
 }
 
-/// Columns containing the data which are looked from the fullword memory table
-/// into Memory stark table.
+/// Lookup between fullword memory table
+/// and Memory stark table.
 #[must_use]
-pub fn lookup_for_memory_limb(limb_index: usize) -> Table {
+pub fn lookup_for_memory_limb(limb_index: usize) -> TableWithTypedOutput<MemoryCtl<Column>> {
     assert!(limb_index < 4, "limb-index can be 0..4");
-    let mem = col_map().map(Column::from);
+    let mem = COL_MAP;
     FullWordMemoryTable::new(
-        vec![
-            mem.clk,
-            mem.ops.is_store,
-            mem.ops.is_load,
-            mem.limbs[limb_index].clone(),
-            mem.addrs[limb_index].clone(),
-        ],
-        col_map().map(Column::from).is_executed(),
+        MemoryCtl {
+            clk: mem.clk,
+            is_store: mem.ops.is_store,
+            is_load: mem.ops.is_load,
+            value: mem.limbs[limb_index],
+            addr: mem.addrs[limb_index],
+        },
+        COL_MAP.is_executed(),
     )
 }

@@ -114,7 +114,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     #[allow(unused)]
-    let register_init_rows = generate_register_init_trace::<F>();
+    let register_init_rows = generate_register_init_trace::<F>(record);
     #[allow(unused)]
     let register_rows = generate_register_trace::<F>(record);
 
