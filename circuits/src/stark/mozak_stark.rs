@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use itertools::chain;
+use itertools::{chain, izip};
 use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -742,11 +742,16 @@ impl Lookups for IoMemoryToCpuTable {
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
-            vec![
-                memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate, 1),
-                memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPublic, 2),
-                memory_io::columns::lookup_for_cpu(TableKind::IoTranscript, 3),
-            ],
+            izip!(
+                [
+                    TableKind::IoMemoryPrivate,
+                    TableKind::IoMemoryPublic,
+                    TableKind::IoTranscript
+                ],
+                0..
+            )
+            .map(|(kind, i)| memory_io::columns::lookup_for_cpu(kind, i))
+            .collect(),
             cpu::columns::lookup_for_io_memory_tables(),
         )
     }
