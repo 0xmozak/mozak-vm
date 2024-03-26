@@ -67,7 +67,7 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
-    13 + cfg!(feature = "enable_register_starks") as usize
+    11 + cfg!(feature = "enable_register_starks") as usize
         + cfg!(feature = "enable_poseidon_starks") as usize * 3
 };
 
@@ -390,9 +390,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 FullWordMemoryCpuTable::lookups(),
                 #[cfg(feature = "enable_register_starks")]
                 RegisterRegInitTable::lookups(),
-                IoMemoryPrivateCpuTable::lookups(),
-                IoMemoryPublicCpuTable::lookups(),
-                IoTranscriptCpuTable::lookups(),
+                IoMemoryToCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2SpongeCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
@@ -740,42 +738,19 @@ impl Lookups for RegisterRegInitTable {
     }
 }
 
-pub struct IoMemoryPrivateCpuTable;
+pub struct IoMemoryToCpuTable;
 
-impl Lookups for IoMemoryPrivateCpuTable {
+impl Lookups for IoMemoryToCpuTable {
     type Row = InputOutputMemoryCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
-            vec![cpu::columns::lookup_for_io_memory_private()],
-            memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate),
-        )
-    }
-}
-
-pub struct IoMemoryPublicCpuTable;
-
-impl Lookups for IoMemoryPublicCpuTable {
-    type Row = InputOutputMemoryCtl<Column>;
-
-    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(
-            vec![cpu::columns::lookup_for_io_memory_public()],
-            memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPublic),
-        )
-    }
-}
-
-pub struct IoTranscriptCpuTable;
-
-impl Lookups for IoTranscriptCpuTable {
-    // TODO(Matthias): See about unifying these lookups?
-    type Row = InputOutputMemoryCtl<Column>;
-
-    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(
-            vec![cpu::columns::lookup_for_io_transcript()],
-            memory_io::columns::lookup_for_cpu(TableKind::IoTranscript),
+            vec![
+                memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPrivate, 1),
+                memory_io::columns::lookup_for_cpu(TableKind::IoMemoryPublic, 2),
+                memory_io::columns::lookup_for_cpu(TableKind::IoTranscript, 3),
+            ],
+            cpu::columns::lookup_for_io_memory_tables(),
         )
     }
 }
