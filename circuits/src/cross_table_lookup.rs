@@ -67,7 +67,7 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
     let mut reduced_public_input_openings = reduced_public_inputs
         .each_ref()
-        .map(|v| v.clone().unwrap_or_default().into_iter());
+        .map(|v| v.iter().flat_map(IntoIterator::into_iter));
     for _ in 0..config.num_challenges {
         for CrossTableLookup {
             looking_tables,
@@ -93,8 +93,8 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     for _ in 0..config.num_challenges {
         for MakeRowsPublic { table } in make_rows_pubilc {
             ensure!(
-                reduced_public_input_openings[table.kind].next().unwrap()
-                    == *ctl_zs_openings[table.kind].next().unwrap(),
+                reduced_public_input_openings[table.kind].next()
+                    == ctl_zs_openings[table.kind].next(),
                 "Open public verification failed for {:?} ",
                 table.kind,
             );
@@ -263,7 +263,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         );
         let make_rows_public_chain = make_rows_public
             .iter()
-            .flat_map(|MakeRowsPublic { table }| [table]);
+            .map(|MakeRowsPublic { table }| table);
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, chain!(ctl_chain)) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {
