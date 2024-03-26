@@ -1,7 +1,7 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::Column;
+use crate::linear_combination::Column;
 use crate::open_public::MakeRowsPublic;
-use crate::stark::mozak_stark::{BitshiftTable, Table};
+use crate::stark::mozak_stark::{BitshiftTable, TableWithTypedOutput};
 
 columns_view_impl!(Bitshift);
 #[repr(C)]
@@ -38,11 +38,17 @@ pub struct BitshiftView<T> {
 
 /// Lookup from the CPU table into Bitshift stark table.
 #[must_use]
-pub fn lookup_for_cpu() -> Table {
-    BitshiftTable::new(
-        Column::singles(col_map().executed),
-        col_map().multiplicity.into(),
-    )
+#[must_use]
+pub fn lookup_for_cpu() -> TableWithTypedOutput<Bitshift<Column>> {
+    BitshiftTable::new(COL_MAP.executed, COL_MAP.multiplicity)
+}
+
+#[must_use]
+pub fn make_rows_pubilc() -> MakeRowsPublic {
+    MakeRowsPublic(BitshiftTable::new(BitshiftTable::new(
+        COL_MAP.executed,
+        COL_MAP.multiplicity,
+    )));
 }
 
 #[must_use]

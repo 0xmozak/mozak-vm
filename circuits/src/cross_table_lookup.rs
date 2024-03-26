@@ -1,5 +1,5 @@
 use anyhow::{ensure, Result};
-use itertools::{chain, iproduct, izip, zip_eq, Itertools};
+use itertools::{chain, iproduct, izip, zip_eq};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -16,8 +16,9 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
+pub use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::open_public::MakeRowsPublic;
-use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
+use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
 
@@ -37,13 +38,13 @@ impl<F: Field> CtlData<F> {
     pub fn len(&self) -> usize { self.zs_columns.len() }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool { self.zs_columns.len() == 0 }
+    pub fn is_empty(&self) -> bool { self.zs_columns.is_empty() }
 
     #[must_use]
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
         self.zs_columns
             .iter()
-            .map(|zs_columns| zs_columns.z.clone())
+            .map(|zs_column| zs_column.z.clone())
             .collect()
     }
 }
@@ -71,22 +72,25 @@ pub(crate) fn verify_cross_table_lookups_and_make_rows_public<
     for _ in 0..config.num_challenges {
         for CrossTableLookup {
             looking_tables,
-            looked_table,
+            looked_tables,
         } in cross_table_lookups
         {
             let looking_zs_sum = looking_tables
                 .iter()
                 .map(|table| ctl_zs_openings[table.kind].next().unwrap())
                 .sum::<F>();
-            let looked_z = ctl_zs_openings[looked_table.kind].next().unwrap();
+            let looked_zs_sum = looked_tables
+                .iter()
+                .map(|table| *ctl_zs_openings[table.kind].next().unwrap())
+                .sum::<F>();
 
             ensure!(
-                looking_zs_sum == looked_z,
+                looking_zs_sum == looked_zs_sum,
                 "Cross-table lookup verification failed for {:?}->{:?} ({} != {})",
-                looking_tables[0].kind,
-                looked_table.kind,
+                looking_tables.iter().map(|table| table.kind),
+                looked_tables.iter().map(|table| table.kind),
                 looking_zs_sum,
-                looked_z
+                looked_zs_sum,
             );
         }
     }
@@ -112,10 +116,16 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     for &challenge in &ctl_challenges.challenges {
         for CrossTableLookup {
             looking_tables,
-            looked_table,
+            looked_tables,
         } in cross_table_lookups
         {
-            log::debug!("Processing CTL for {:?}", looked_table.kind);
+            log::debug!(
+                "Processing CTL for {:?}",
+                looked_tables
+                    .iter()
+                    .map(|table| table.kind)
+                    .collect::<Vec<_>>()
+            );
 
             let make_z = |table: &Table| {
                 partial_sums(
@@ -126,20 +136,23 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 )
             };
             let zs_looking = looking_tables.iter().map(make_z);
-            let z_looked = make_z(looked_table);
+            let zs_looked = looked_tables.iter().map(make_z);
 
             debug_assert_eq!(
                 zs_looking
                     .clone()
                     .map(|z| *z.values.last().unwrap())
                     .sum::<F>(),
-                *z_looked.values.last().unwrap()
+                zs_looked
+                    .clone()
+                    .map(|z| *z.values.last().unwrap())
+                    .sum::<F>(),
             );
 
-            for (table, z) in chain!(izip!(looking_tables, zs_looking), [(
-                looked_table,
-                z_looked
-            )]) {
+            for (table, z) in chain!(
+                izip!(looking_tables, zs_looking),
+                izip!(looked_tables, zs_looked)
+            ) {
                 ctl_data_per_table[table.kind].zs_columns.push(CtlZData {
                     z,
                     challenge,
@@ -171,55 +184,86 @@ pub fn partial_sums<F: Field>(
     // final value_local, its impossible to construct value_next from lv and nv
     // values of current row
 
-    // TODO(Kapil): inverse for all rows is expensive. Use batched division idea.
+    let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
 
-    let combine_and_inv_if_filter_at_i = |i| -> F {
-        let multiplicity = filter_column.eval_table(trace, i);
+    let get_combined = |&i| -> F {
         let evals = columns
             .iter()
             .map(|c| c.eval_table(trace, i))
             .collect::<Vec<_>>();
-        multiplicity * challenge.combine(evals.iter()).inverse()
+        challenge.combine(evals.iter())
     };
 
     let degree = trace[0].len();
     let mut degrees = (0..degree).collect::<Vec<_>>();
     degrees.rotate_right(1);
-    degrees
-        .into_iter()
-        .map(combine_and_inv_if_filter_at_i)
-        .scan(F::ZERO, |partial_sum: &mut F, combined| {
-            *partial_sum += combined;
+
+    let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
+    let data: Vec<F> = degrees.iter().map(get_combined).collect();
+    let inv_data = F::batch_multiplicative_inverse(&data);
+
+    izip!(multiplicities, inv_data)
+        .scan(F::ZERO, |partial_sum: &mut F, (multiplicity, inv)| {
+            *partial_sum += multiplicity * inv;
             Some(*partial_sum)
         })
-        .collect_vec()
+        .collect::<Vec<_>>()
         .into()
 }
 
-#[allow(unused)]
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug)]
-pub struct CrossTableLookup {
-    pub looking_tables: Vec<Table>,
-    pub looked_table: Table,
+pub struct CrossTableLookupWithTypedOutput<Row> {
+    pub looking_tables: Vec<TableWithTypedOutput<Row>>,
+    pub looked_tables: Vec<TableWithTypedOutput<Row>>,
 }
 
-impl CrossTableLookup {
+// This is a little trick, so that we can use `CrossTableLookup` as a
+// constructor, but only when the type parameter Row = Vec<Column>.
+// TODO(Matthias): See if we can do the same trick for `table_impl`.
+#[allow(clippy::module_name_repetitions)]
+pub type CrossTableLookupUntyped = CrossTableLookupWithTypedOutput<Vec<Column>>;
+pub use CrossTableLookupUntyped as CrossTableLookup;
+
+impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
+    pub fn to_untyped_output(self) -> CrossTableLookup {
+        let looked_tables = self
+            .looked_tables
+            .into_iter()
+            .map(TableWithTypedOutput::to_untyped_output)
+            .collect();
+        let looking_tables = self
+            .looking_tables
+            .into_iter()
+            .map(TableWithTypedOutput::to_untyped_output)
+            .collect();
+        CrossTableLookup {
+            looking_tables,
+            looked_tables,
+        }
+    }
+}
+
+impl<Row> CrossTableLookupWithTypedOutput<Row> {
     /// Instantiates a new cross table lookup between 2 tables.
     ///
     /// # Panics
     /// Panics if the two tables do not have equal number of columns.
     #[must_use]
-    pub fn new(looking_tables: Vec<Table>, looked_table: Table) -> Self {
+    pub fn new(
+        looking_tables: Vec<TableWithTypedOutput<Row>>,
+        looked_tables: Vec<TableWithTypedOutput<Row>>,
+    ) -> Self {
         Self {
             looking_tables,
-            looked_table,
+            looked_tables,
         }
     }
 
     #[must_use]
     pub fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
         ctls.iter()
-            .flat_map(|ctl| chain!([&ctl.looked_table], &ctl.looking_tables))
+            .flat_map(|ctl| chain!(&ctl.looked_tables, &ctl.looking_tables))
             .filter(|twc| twc.kind == table)
             .count()
             * num_challenges
@@ -256,8 +300,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
                  looking_tables,
-                 looked_table,
-             }| chain!(looking_tables, [looked_table]),
+                 looked_tables,
+             }| chain!(looking_tables, looked_tables),
         );
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
@@ -344,8 +388,8 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
                  looking_tables,
-                 looked_table,
-             }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
+                 looked_tables,
+             }| chain!(looking_tables, looked_tables).filter(|twc| twc.kind == table),
         );
         let make_rows_public_chain =
             make_rows_public.iter().filter_map(
@@ -418,9 +462,9 @@ pub fn eval_cross_table_lookup_checks_circuit<
 
 pub mod ctl_utils {
     use std::collections::HashMap;
-    use std::ops::{Deref, DerefMut};
 
     use anyhow::Result;
+    use derive_more::{Deref, DerefMut};
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
@@ -429,20 +473,10 @@ pub mod ctl_utils {
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
-    #[derive(Debug)]
+    #[derive(Clone, Debug, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
-    impl<F: Field> Deref for MultiSet<F> {
-        type Target = HashMap<Vec<F>, Vec<(TableKind, F)>>;
-
-        fn deref(&self) -> &Self::Target { &self.0 }
-    }
-    impl<F: Field> DerefMut for MultiSet<F> {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
-    }
     impl<F: Field> MultiSet<F> {
-        pub fn new() -> Self { MultiSet(HashMap::new()) }
-
         fn process_row(
             &mut self,
             trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
@@ -465,6 +499,8 @@ pub mod ctl_utils {
 
     pub fn check_single_ctl<F: Field>(
         trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+        // TODO(Matthias): make this one work with CrossTableLookupNamed, instead of having to
+        // forget the types first.  That should also help with adding better debug messages.
         ctl: &CrossTableLookup,
     ) -> Result<(), LookupError> {
         /// Sums and compares the multiplicities of the given looking and looked
@@ -493,14 +529,16 @@ pub mod ctl_utils {
         }
 
         // Maps `m` with `(table.kind, multiplicity) in m[row]`
-        let mut looking_multiset = MultiSet::<F>::new();
-        let mut looked_multiset = MultiSet::<F>::new();
+        let mut looking_multiset = MultiSet::<F>::default();
+        let mut looked_multiset = MultiSet::<F>::default();
 
         for looking_table in &ctl.looking_tables {
             looking_multiset.process_row(trace_poly_values, looking_table);
         }
 
-        looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
+        for looked_table in &ctl.looked_tables {
+            looked_multiset.process_row(trace_poly_values, looked_table);
+        }
 
         let empty = &vec![];
         // Check that every row in the looking tables appears in the looked table the
@@ -530,188 +568,4 @@ pub mod ctl_utils {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use plonky2::field::goldilocks_field::GoldilocksField;
-
-    use super::ctl_utils::check_single_ctl;
-    use super::*;
-    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable, TableKindSetBuilder};
-
-    #[allow(clippy::similar_names)]
-    /// Specify which column(s) to find data related to lookups.
-    /// If the lengths of `lv_col_indices` and `nv_col_indices` are not same,
-    /// then we resize smaller one with empty column and then add componentwise
-    fn lookup_data(lv_col_indices: &[usize], nv_col_indices: &[usize]) -> Vec<Column> {
-        // use usual lv values of the rows
-        let lv_columns = Column::singles(lv_col_indices);
-        // use nv values of the rows
-        let nv_columns = Column::singles_next(nv_col_indices);
-
-        lv_columns
-            .into_iter()
-            .zip_longest(nv_columns)
-            .map(|item| item.reduce(std::ops::Add::add))
-            .collect()
-    }
-
-    /// Specify the column index of the filter column used in lookups.
-    fn lookup_filter(col_idx: usize) -> Column { Column::single(col_idx) }
-
-    /// A generic cross lookup table.
-    struct FooBarTable;
-
-    impl Lookups for FooBarTable {
-        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
-        /// [`CrossTableLookup`] here, but in principle this is meant to
-        /// be used generically for tests.
-        fn lookups() -> CrossTableLookup {
-            CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1], &[2]), lookup_filter(0))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1], &[]), lookup_filter(0)),
-            }
-        }
-    }
-
-    #[derive(Debug, PartialEq)]
-    pub struct Trace<F: Field> {
-        trace: Vec<PolynomialValues<F>>,
-    }
-
-    #[derive(Default)]
-    pub struct TraceBuilder<F: Field> {
-        trace: Vec<PolynomialValues<F>>,
-    }
-
-    impl<F: Field> TraceBuilder<F> {
-        /// Creates a new trace with the given `num_cols` and `num_rows`.
-        pub fn new(num_cols: usize, num_rows: usize) -> TraceBuilder<F> {
-            let mut trace = vec![];
-            for _ in 0..num_cols {
-                let mut values = Vec::with_capacity(num_rows);
-                for _ in 0..num_rows {
-                    values.push(F::rand());
-                }
-                trace.push(PolynomialValues::from(values));
-            }
-
-            TraceBuilder { trace }
-        }
-
-        /// Set all polynomial values at a given column index `col_idx` to
-        /// zeroes.
-        #[allow(unused)]
-        pub fn zero(mut self, idx: usize) -> TraceBuilder<F> {
-            self.trace[idx] = PolynomialValues::zero(self.trace[idx].len());
-
-            self
-        }
-
-        /// Set all polynomial values at a given column index `col_idx` to
-        /// `F::ONE`.
-        pub fn one(mut self, col_idx: usize) -> TraceBuilder<F> {
-            let len = self.trace[col_idx].len();
-            let ones = PolynomialValues::constant(F::ONE, len);
-            self.trace[col_idx] = ones;
-
-            self
-        }
-
-        /// Set all polynomial values at a given column index `col_idx` to
-        /// `value`. This is convenient for testing cross table lookups.
-        pub fn set_values(mut self, col_idx: usize, value: usize) -> TraceBuilder<F> {
-            let len = self.trace[col_idx].len();
-            let new_v: Vec<F> = (0..len).map(|_| F::from_canonical_usize(value)).collect();
-            let values = PolynomialValues::from(new_v);
-            self.trace[col_idx] = values;
-
-            self
-        }
-
-        /// Set all polynomial values at a given column index `col_idx` to
-        /// alternate between `value_1` and `value_2`. Useful for testing
-        /// combination of lv and nv values
-        pub fn set_values_alternate(
-            mut self,
-            col_idx: usize,
-            value_1: usize,
-            value_2: usize,
-        ) -> TraceBuilder<F> {
-            let len = self.trace[col_idx].len();
-            self.trace[col_idx] = PolynomialValues::from(
-                [value_1, value_2]
-                    .into_iter()
-                    .cycle()
-                    .take(len)
-                    .map(F::from_canonical_usize)
-                    .collect_vec(),
-            );
-
-            self
-        }
-
-        pub fn build(self) -> Vec<PolynomialValues<F>> { self.trace }
-    }
-
-    /// Create a trace with inconsistent values, which should
-    /// cause our manual checks to fail.
-    /// Here, `foo_trace` has all values in column 1 and 2 set to alternate
-    /// between 2 and 3 while `bar_trace` has all values in column 1 set to
-    /// 6. Since lookup data is sum of lv values of column 1 and nv values
-    /// of column 2 from `foo_trace`, our manual checks will fail this test.
-    #[test]
-    fn test_ctl_inconsistent_tables() {
-        type F = GoldilocksField;
-        let dummy_cross_table_lookup: CrossTableLookup = FooBarTable::lookups();
-
-        let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
-            .one(0) // filter column
-            .set_values_alternate(1, 2, 3)
-            .set_values_alternate(2, 2, 3)
-            .build();
-        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
-            .one(0) // filter column
-            .set_values(1, 6)
-            .build();
-        let traces = TableKindSetBuilder {
-            cpu_stark: foo_trace,
-            rangecheck_stark: bar_trace,
-            ..Default::default()
-        }
-        .build();
-        assert!(matches!(
-            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
-            LookupError::InconsistentTableRows
-        ));
-    }
-
-    /// Happy path test where all checks go as plan.
-    /// Here, `foo_trace` has all values in column 1 set to alternate between 2
-    /// and 3, and values in column 2 set to alternate between 3 and 2 while
-    /// `bar_trace` has all values in column 1 set to 5. Since lookup data
-    /// is sum of lv values of column 1 and nv values of column 2 from
-    /// `foo_trace`, our manual checks will pass the test
-    #[test]
-    fn test_ctl() -> Result<()> {
-        type F = GoldilocksField;
-        let dummy_cross_table_lookup: CrossTableLookup = FooBarTable::lookups();
-
-        let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
-            .one(0) // filter column
-            .set_values_alternate(1, 2, 3)
-            .set_values_alternate(2, 2, 3)
-            .build();
-        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
-            .one(0) // filter column
-            .set_values(1, 5)
-            .build();
-        let traces = TableKindSetBuilder {
-            cpu_stark: foo_trace,
-            rangecheck_stark: bar_trace,
-            ..Default::default()
-        }
-        .build();
-        check_single_ctl(&traces, &dummy_cross_table_lookup)?;
-        Ok(())
-    }
-}
+// TODO(Matthias): restore the tests from before https://github.com/0xmozak/mozak-vm/pull/1371

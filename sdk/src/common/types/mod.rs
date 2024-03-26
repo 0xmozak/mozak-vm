@@ -14,4 +14,6 @@ pub use program_identifier::ProgramIdentifier;
 pub use raw_message::RawMessage;
 pub use state_address::StateAddress;
 pub use state_object::StateObject;
-pub use system_tape::{CallTapeType, EventTapeType, SystemTape};
+pub use system_tape::{
+    CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
+};
