@@ -263,7 +263,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         );
         let make_rows_public_chain = make_rows_public
             .iter()
-            .flat_map(|MakeRowsPublic { table }| [table]);
+            .map(|MakeRowsPublic { table }| table);
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, chain!(ctl_chain)) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {
