@@ -408,7 +408,7 @@ mod tests {
                 memoryinit::columns::lookup_for_memory(MozakMemoryInitTable::new),
                 memory_zeroinit::columns::lookup_for_memory(),
             ],
-            memory::columns::lookup_for_memoryinit(),
+            vec![memory::columns::lookup_for_memoryinit()],
         );
 
         let memory_trace = trace_rows_to_poly_values(memory_rows);
