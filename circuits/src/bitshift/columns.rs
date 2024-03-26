@@ -1,5 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
+use crate::open_public::MakeRowsPublic;
 use crate::stark::mozak_stark::{BitshiftTable, Table};
 
 columns_view_impl!(Bitshift);
@@ -42,4 +43,11 @@ pub fn lookup_for_cpu() -> Table {
         Column::singles(col_map().executed),
         col_map().multiplicity.into(),
     )
+}
+
+pub fn make_rows_pubilc() -> MakeRowsPublic {
+    MakeRowsPublic(BitshiftTable::new(
+        Column::singles(col_map().executed),
+        Column::always(),
+    ))
 }
