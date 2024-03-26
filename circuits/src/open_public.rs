@@ -22,13 +22,10 @@ pub(crate) fn open_rows_public_data<F: RichField, const D: usize>(
     trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     open_public: &[MakeRowsPublic],
     ctl_challenges: &GrandProductChallengeSet<F>,
-) -> TableKindArray<Option<CtlData<F>>> {
-    let mut open_public_data_per_table = all_kind!(|_kind| None);
+) -> TableKindArray<CtlData<F>> {
+    let mut open_public_data_per_table = all_kind!(|_kind| CtlData::default());
     for &challenge in &ctl_challenges.challenges {
         for MakeRowsPublic(table) in open_public {
-            if open_public_data_per_table[table.kind].is_none() {
-                open_public_data_per_table[table.kind] = Some(CtlData::default());
-            }
             log::debug!("Processing Open public for {:?}", table.kind);
 
             let make_z = |table: &Table| {
@@ -40,14 +37,14 @@ pub(crate) fn open_rows_public_data<F: RichField, const D: usize>(
                 )
             };
 
-            if let Some(ctl) = open_public_data_per_table[table.kind].as_mut() {
-                ctl.zs_columns.push(CtlZData {
+            open_public_data_per_table[table.kind]
+                .zs_columns
+                .push(CtlZData {
                     z: make_z(table),
                     challenge,
                     columns: table.columns.clone(),
                     filter_column: table.filter_column.clone(),
                 });
-            };
         }
     }
     open_public_data_per_table

@@ -179,7 +179,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    make_rows_public_data: &Option<CtlData<F>>,
+    make_rows_public_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
@@ -197,11 +197,7 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    let z_poly_open_public = if let Some(data) = make_rows_public_data {
-        data.z_polys()
-    } else {
-        vec![]
-    };
+    let z_poly_open_public = make_rows_public_data.z_polys();
 
     // commit to both z poly of ctl and open public
     let z_polys = vec![ctl_data.z_polys(), z_poly_open_public]
@@ -301,11 +297,7 @@ where
     // Make sure that we do not use Starky's lookups.
     assert!(!stark.requires_ctls());
     assert!(!stark.uses_lookups());
-    let num_make_rows_public_data = if let Some(data) = make_rows_public_data {
-        data.len()
-    } else {
-        0
-    };
+    let num_make_rows_public_data = make_rows_public_data.len();
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
@@ -350,7 +342,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
-    open_public_data_per_table: &TableKindArray<Option<CtlData<F>>>,
+    open_public_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
