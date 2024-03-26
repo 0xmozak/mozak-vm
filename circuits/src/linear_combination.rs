@@ -43,7 +43,7 @@ impl<I: IntoIterator<Item = i64>> From<ColumnWithTypedInput<I>> for Column {
     }
 }
 
-impl Neg for Column {
+impl<F: Neg<Output = F>> Neg for ColumnSparse<F> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -51,12 +51,12 @@ impl Neg for Column {
             lv_linear_combination: self
                 .lv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, c.checked_neg().unwrap()))
+                .map(|(idx, c)| (idx, -c))
                 .collect(),
             nv_linear_combination: self
                 .nv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, c.checked_neg().unwrap()))
+                .map(|(idx, c)| (idx, -c))
                 .collect(),
             constant: -self.constant,
         }
