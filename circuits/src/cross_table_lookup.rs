@@ -153,14 +153,12 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
 }
 
 pub fn prep_columns<F: Field>(
-    columns: &[Column],
+    columns: &[ColumnSparse<F>],
     challenge: GrandProductChallenge<F>,
 ) -> ColumnSparse<F> {
     columns
         .iter()
         .rev()
-        .cloned()
-        .map(|c| c.map(F::from_noncanonical_i64))
         .fold(ColumnSparse::default(), |acc, term| {
             acc * challenge.beta + term
         })
@@ -186,20 +184,11 @@ fn partial_sums<F: Field>(
     // final value_local, its impossible to construct value_next from lv and nv
     // values of current row
     let filter_column = filter_column.to_field();
+    let columns: Vec<ColumnSparse<F>> = columns.iter().map(Column::to_field).collect();
 
-    // let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
-
-    let prepped = prep_columns(columns, challenge);
-    // let get_combined = |&i| -> F { prepped.eval_table(trace, i) };
-
-    // let degree = trace[0].len();
-    // let mut degrees = (0..degree).collect::<Vec<_>>();
-    // degrees.rotate_right(1);
-
-    // let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
+    let prepped = prep_columns(&columns, challenge);
     let multiplicities = filter_column.eval_table_col(trace);
     let data = prepped.eval_table_col(trace);
-    // let data: Vec<F> = degrees.iter().map(get_combined).collect();
     let inv_data = F::batch_multiplicative_inverse(&data);
 
     izip!(multiplicities, inv_data)
