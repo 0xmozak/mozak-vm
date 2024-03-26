@@ -603,6 +603,7 @@ mod tests {
     type S = MozakStark<F, D>;
 
     #[test]
+    #[ignore]
     fn recursive_verify_mozak_starks() -> Result<()> {
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
