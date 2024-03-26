@@ -96,7 +96,7 @@ pub(crate) fn verify_cross_table_lookups_and_make_rows_public<
         for MakeRowsPublic(table) in make_rows_public {
             ensure!(
                 reduced_public_inputs_iter[table.kind].next() == ctl_zs_openings[table.kind].next()
-            )
+            );
         }
     }
 
