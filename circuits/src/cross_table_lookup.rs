@@ -57,17 +57,17 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) filter_column: Column,
 }
 
-pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
+pub(crate) fn verify_cross_table_lookups_and_make_rows_public<
+    F: RichField + Extendable<D>,
+    const D: usize,
+>(
     cross_table_lookups: &[CrossTableLookup],
-    make_rows_pubilc: &[MakeRowsPublic],
-    reduced_public_inputs: &TableKindArray<Option<Vec<F>>>,
+    make_rows_public: &[MakeRowsPublic],
+    reduced_public_inputs: &TableKindArray<Vec<F>>,
     ctl_zs_lasts: &TableKindArray<Vec<F>>,
     config: &StarkConfig,
 ) -> Result<()> {
-    let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
-    let mut reduced_public_input_openings = reduced_public_inputs
-        .each_ref()
-        .map(|v| v.iter().flat_map(IntoIterator::into_iter));
+    let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter().copied());
     for _ in 0..config.num_challenges {
         for CrossTableLookup {
             looking_tables,
@@ -76,9 +76,9 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
         {
             let looking_zs_sum = looking_tables
                 .iter()
-                .map(|table| *ctl_zs_openings[table.kind].next().unwrap())
+                .map(|table| ctl_zs_openings[table.kind].next().unwrap())
                 .sum::<F>();
-            let looked_z = *ctl_zs_openings[looked_table.kind].next().unwrap();
+            let looked_z = ctl_zs_openings[looked_table.kind].next().unwrap();
 
             ensure!(
                 looking_zs_sum == looked_z,
@@ -90,17 +90,15 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
             );
         }
     }
+    let mut reduced_public_inputs_iter =
+        reduced_public_inputs.each_ref().map(|v| v.iter().copied());
     for _ in 0..config.num_challenges {
-        for MakeRowsPublic { table } in make_rows_pubilc {
+        for MakeRowsPublic(table) in make_rows_public {
             ensure!(
-                reduced_public_input_openings[table.kind].next()
-                    == ctl_zs_openings[table.kind].next(),
-                "Open public verification failed for {:?} ",
-                table.kind,
-            );
+                reduced_public_inputs_iter[table.kind].next() == ctl_zs_openings[table.kind].next()
+            )
         }
     }
-    debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
 
     Ok(())
 }
@@ -261,10 +259,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                  looked_table,
              }| chain!(looking_tables, [looked_table]),
         );
-        let make_rows_public_chain = make_rows_public
-            .iter()
-            .map(|MakeRowsPublic { table }| table);
-        for (&challenges, table) in iproduct!(&ctl_challenges.challenges, chain!(ctl_chain)) {
+        for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {
                 local_z,
@@ -274,8 +269,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 filter_column: &table.filter_column,
             });
         }
-        for (&challenges, table) in
-            iproduct!(&ctl_challenges.challenges, chain!(make_rows_public_chain))
+        for (&challenges, MakeRowsPublic(table)) in
+            iproduct!(&ctl_challenges.challenges, make_rows_public)
         {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {

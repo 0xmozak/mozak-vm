@@ -28,7 +28,7 @@ use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
-use crate::open_public::open_rows_public_data;
+use crate::open_public::{get_public_row_values, open_rows_public_data};
 use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
@@ -127,7 +127,10 @@ where
         )
     );
 
-    let open_rows_public_data_per_table = open_rows_public_data::<F, D>(
+    let public_row_values =
+        get_public_row_values(&traces_poly_values, &mozak_stark.make_rows_public);
+
+    let make_rows_public_data_per_table = open_rows_public_data::<F, D>(
         traces_poly_values,
         &mozak_stark.make_rows_public,
         &ctl_challenges,
@@ -144,7 +147,7 @@ where
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
-            &open_rows_public_data_per_table,
+            &make_rows_public_data_per_table,
             &mut challenger,
             timing
         )?
@@ -162,6 +165,7 @@ where
         elf_memory_init_trace_cap,
         mozak_memory_init_trace_cap,
         public_inputs,
+        public_row_values,
     })
 }
 
@@ -179,7 +183,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    make_rows_public_data: &Option<CtlData<F>>,
+    make_rows_public_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
@@ -197,11 +201,7 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    let z_poly_open_public = if let Some(data) = make_rows_public_data {
-        data.z_polys()
-    } else {
-        vec![]
-    };
+    let z_poly_open_public = make_rows_public_data.z_polys();
 
     // commit to both z poly of ctl and open public
     let z_polys = vec![ctl_data.z_polys(), z_poly_open_public]
@@ -301,11 +301,7 @@ where
     // Make sure that we do not use Starky's lookups.
     assert!(!stark.requires_ctls());
     assert!(!stark.uses_lookups());
-    let num_make_rows_public_data = if let Some(data) = make_rows_public_data {
-        data.len()
-    } else {
-        0
-    };
+    let num_make_rows_public_data = make_rows_public_data.len();
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
@@ -350,7 +346,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
-    open_public_data_per_table: &TableKindArray<Option<CtlData<F>>>,
+    open_public_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
