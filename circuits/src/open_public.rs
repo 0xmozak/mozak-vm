@@ -11,7 +11,7 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cross_table_lookup::{partial_sums, CtlData, CtlZData};
-use crate::stark::mozak_stark::{all_kind, PublicInputs, Table, TableKindArray};
+use crate::stark::mozak_stark::{all_kind, Table, TableKindArray};
 use crate::stark::permutation::challenge::GrandProductChallengeSet;
 
 /// Specifies a table whose rows are to be made public, according to filter
@@ -56,10 +56,17 @@ pub(crate) fn open_rows_public_data<F: RichField, const D: usize>(
 /// matched against final row opening of z polynomial, for the corresponding
 /// instance of `MakeRowsPublic` for that table.
 pub fn reduce_public_input_for_make_rows_public<F: Field>(
-    _public_input: &PublicInputs<F>,
-    _challenges: &GrandProductChallengeSet<F>,
+    row_public_values: &TableKindArray<RowPublicValues<F>>,
+    challenges: &GrandProductChallengeSet<F>,
 ) -> TableKindArray<Vec<F>> {
-    all_kind!(|_kind| Vec::new())
+    all_kind!(|kind| challenges
+        .challenges
+        .iter()
+        .map(|&challenge| row_public_values[kind]
+            .iter()
+            .map(|row| challenge.combine(row).inverse())
+            .sum())
+        .collect_vec())
 }
 
 pub fn get_public_row_values<F: Field>(

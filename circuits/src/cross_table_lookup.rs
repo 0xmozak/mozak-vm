@@ -57,8 +57,12 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) filter_column: Column,
 }
 
-pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
+pub(crate) fn verify_cross_table_lookups_and_make_rows_public<
+    F: RichField + Extendable<D>,
+    const D: usize,
+>(
     cross_table_lookups: &[CrossTableLookup],
+    make_rows_public: &[MakeRowsPublic],
     reduced_public_inputs: &TableKindArray<Vec<F>>,
     ctl_zs_lasts: &TableKindArray<Vec<F>>,
     config: &StarkConfig,
@@ -86,8 +90,15 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
             );
         }
     }
-    let ctl_zs_openings = ctl_zs_openings.map(Iterator::collect::<Vec<_>>);
-    ensure!(reduced_public_inputs == &ctl_zs_openings);
+    let mut reduced_public_inputs_iter =
+        reduced_public_inputs.each_ref().map(|v| v.iter().copied());
+    for _ in 0..config.num_challenges {
+        for MakeRowsPublic(table) in make_rows_public {
+            ensure!(
+                reduced_public_inputs_iter[table.kind].next() == ctl_zs_openings[table.kind].next()
+            )
+        }
+    }
 
     Ok(())
 }
