@@ -356,39 +356,29 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     )
 }
 
-#[allow(clippy::large_types_passed_by_value)]
-fn lookup_for_io_memory_x(
-    filter: ColumnWithTypedInput<CpuColumnsExtended<i64>>,
-) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+/// Column containing the data to be matched against IO Memory starks.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
     CpuTable::new(
         InputOutputMemoryCtl {
+            op: ColumnWithTypedInput::ascending_sum([
+                CPU.is_io_store_private,
+                CPU.is_io_store_public,
+                CPU.is_io_transcript,
+            ]),
             clk: CPU.clk,
             addr: CPU.io_addr,
             size: CPU.io_size,
         },
-        filter,
+        [
+            CPU.is_io_store_private,
+            CPU.is_io_store_public,
+            CPU.is_io_transcript,
+        ]
+        .iter()
+        .sum(),
     )
-}
-
-/// Column containing the data to be matched against IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-// TODO: unify all three variants into a single lookup, so we save on proving time.
-#[must_use]
-pub fn lookup_for_io_memory_private() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    lookup_for_io_memory_x(CPU.is_io_store_private)
-}
-
-// TODO: consolidate lookup_for_io_memory_private and
-// lookup_for_io_memory_public and lookup_for_io_transcript into a single lookup
-// to save implicit CPU lookups columns.
-#[must_use]
-pub fn lookup_for_io_memory_public() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    lookup_for_io_memory_x(CPU.is_io_store_public)
-}
-
-#[must_use]
-pub fn lookup_for_io_transcript() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    lookup_for_io_memory_x(CPU.is_io_transcript)
 }
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
