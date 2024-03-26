@@ -162,8 +162,9 @@ fn main() -> Result<()> {
                 public_inputs,
                 &mut TimingTree::default(),
             )?;
-            let s = all_proof.serialize_proof_to_flexbuffer()?;
-            proof.write_all(s.view())?;
+
+            let serialized = serde_json::to_string(&all_proof).unwrap();
+            proof.write_all(serialized.as_bytes())?;
 
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
@@ -206,7 +207,7 @@ fn main() -> Result<()> {
             let stark = S::default();
             let mut buffer: Vec<u8> = vec![];
             proof.read_to_end(&mut buffer)?;
-            let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
+            let all_proof: AllProof<F, C, D> = serde_json::from_slice(&buffer)?;
             verify_proof(&stark, all_proof, &config)?;
             println!("proof verified successfully!");
         }
