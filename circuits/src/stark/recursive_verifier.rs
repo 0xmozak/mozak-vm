@@ -151,7 +151,7 @@ where
         &stark_proof_with_pis_target
             .clone()
             .map(|p| p.proof.openings.ctl_zs_last),
-        &inner_config,
+        inner_config,
     );
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
