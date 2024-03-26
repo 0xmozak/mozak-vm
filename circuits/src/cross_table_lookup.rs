@@ -152,14 +152,20 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_data_per_table
 }
 
-// pub fn prep_columns<F: Field>(columns: &[Column], challenge:
-// GrandProductChallenge<F>) -> ColumnSparse<F> {
-
-//     // let beta = F::from_noncanonical_i64(n)
-//     // reduce_with_powers(terms, FE::from_basefield(self.beta))
-//     // + FE::from_basefield(self.gamma)
-//     todo!()
-// }
+pub fn prep_columns<F: Field>(
+    columns: &[Column],
+    challenge: GrandProductChallenge<F>,
+) -> ColumnSparse<F> {
+    columns
+        .iter()
+        .rev()
+        .cloned()
+        .map(|c| c.map(F::from_noncanonical_i64))
+        .fold(ColumnSparse::default(), |acc, term| {
+            acc * challenge.beta + term
+        })
+        + challenge.gamma
+}
 
 fn partial_sums<F: Field>(
     trace: &[PolynomialValues<F>],
@@ -179,25 +185,21 @@ fn partial_sums<F: Field>(
     // In current design which uses lv and nv values from columns to construct the
     // final value_local, its impossible to construct value_next from lv and nv
     // values of current row
+    let filter_column = filter_column.to_field();
 
-    let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
+    // let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
 
-    let get_combined = |&i| -> F {
-        let evals = columns
-            .iter()
-            .map(|c| c.eval_table(trace, i))
-            .collect::<Vec<_>>();
-        challenge.combine(evals.iter())
-        // reduce_with_powers(terms, FE::from_basefield(self.beta))
-        // + FE::from_basefield(self.gamma)
-    };
+    let prepped = prep_columns(columns, challenge);
+    // let get_combined = |&i| -> F { prepped.eval_table(trace, i) };
 
-    let degree = trace[0].len();
-    let mut degrees = (0..degree).collect::<Vec<_>>();
-    degrees.rotate_right(1);
+    // let degree = trace[0].len();
+    // let mut degrees = (0..degree).collect::<Vec<_>>();
+    // degrees.rotate_right(1);
 
-    let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
-    let data: Vec<F> = degrees.iter().map(get_combined).collect();
+    // let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
+    let multiplicities = filter_column.eval_table_col(trace);
+    let data = prepped.eval_table_col(trace);
+    // let data: Vec<F> = degrees.iter().map(get_combined).collect();
     let inv_data = F::batch_multiplicative_inverse(&data);
 
     izip!(multiplicities, inv_data)
@@ -452,12 +454,12 @@ pub mod ctl_utils {
         ) {
             let trace = &trace_poly_values[table.kind];
             for i in 0..trace[0].len() {
-                let filter = table.filter_column.eval_table(trace, i);
+                let filter = table.filter_column.to_field().eval_table(trace, i);
                 if filter.is_nonzero() {
                     let row = table
                         .columns
                         .iter()
-                        .map(|c| c.eval_table(trace, i))
+                        .map(|c| c.to_field().eval_table(trace, i))
                         .collect::<Vec<_>>();
                     self.entry(row).or_default().push((table.kind, filter));
                 };
