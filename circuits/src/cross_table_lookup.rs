@@ -90,17 +90,10 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
             );
         }
     }
-    for _ in 0..config.num_challenges {
-        for MakeRowsPublic { table } in make_rows_pubilc {
-            ensure!(
-                reduced_public_input_openings[table.kind].next()
-                    == ctl_zs_openings[table.kind].next(),
-                "Open public verification failed for {:?} ",
-                table.kind,
-            );
-        }
-    }
-    debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
+    let reduced_public_input_openings =
+        reduced_public_input_openings.map(Iterator::collect::<Vec<_>>);
+    let ctl_zs_openings = ctl_zs_openings.map(Iterator::collect::<Vec<_>>);
+    ensure!(reduced_public_input_openings == ctl_zs_openings);
 
     Ok(())
 }
