@@ -97,29 +97,13 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Colu
     }
 }
 
-// Look up a read into register table with:
-//
-// read at augmented clk
-//
-// REG_A0 -> public input to ecall type (private or public io read, via)
-// (Actually, can be hard-coded from the point of view of the proof; doesn't
-// need to be PUBLIC_INPUT read REG_A1 -> addr
-// read REG_A2 -> size
-//
-// filter = is_memory_store
-/// TODO: at the moment weonly do addr; look up the rest, too.  Adjust trace
-/// generation.
-/// TODO: write a mechanism that generates register-read-traces automatically
-/// from the CTL data.  Similar to what we did for generating range-check traces
-/// automatically.
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
     let mem = COL_MAP;
     let data = RegisterCtl {
         clk: mem.clk,
-        // read
-        op: ColumnWithTypedInput::constant(1),
+        op: ColumnWithTypedInput::constant(1), // read
         addr: ColumnWithTypedInput::constant(i64::from(REG_A1)),
         value: mem.addr,
     };
