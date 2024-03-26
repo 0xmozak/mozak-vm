@@ -48,9 +48,6 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
             addr: ColumnWithTypedInput::constant(0),
             value: reg.value,
         },
-        // TODO: We can probably do the register init in the same lookup?
-        // NOTE: this is negative, because we only support a single looked table.
-        // TODO: support a vec of looked tables.
-        -reg.is_used,
+        reg.is_used,
     )
 }

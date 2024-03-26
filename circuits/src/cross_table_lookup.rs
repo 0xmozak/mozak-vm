@@ -66,22 +66,25 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     for _ in 0..config.num_challenges {
         for CrossTableLookup {
             looking_tables,
-            looked_table,
+            looked_tables,
         } in cross_table_lookups
         {
             let looking_zs_sum = looking_tables
                 .iter()
                 .map(|table| *ctl_zs_openings[table.kind].next().unwrap())
                 .sum::<F>();
-            let looked_z = *ctl_zs_openings[looked_table.kind].next().unwrap();
+            let looked_zs_sum = looked_tables
+                .iter()
+                .map(|table| *ctl_zs_openings[table.kind].next().unwrap())
+                .sum::<F>();
 
             ensure!(
-                looking_zs_sum == looked_z,
+                looking_zs_sum == looked_zs_sum,
                 "Cross-table lookup verification failed for {:?}->{:?} ({} != {})",
-                looking_tables[0].kind,
-                looked_table.kind,
+                looking_tables.iter().map(|table| table.kind),
+                looked_tables.iter().map(|table| table.kind),
                 looking_zs_sum,
-                looked_z
+                looked_zs_sum,
             );
         }
     }
@@ -99,10 +102,16 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     for &challenge in &ctl_challenges.challenges {
         for CrossTableLookup {
             looking_tables,
-            looked_table,
+            looked_tables,
         } in cross_table_lookups
         {
-            log::debug!("Processing CTL for {:?}", looked_table.kind);
+            log::debug!(
+                "Processing CTL for {:?}",
+                looked_tables
+                    .iter()
+                    .map(|table| table.kind)
+                    .collect::<Vec<_>>()
+            );
 
             let make_z = |table: &Table| {
                 partial_sums(
@@ -113,20 +122,23 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 )
             };
             let zs_looking = looking_tables.iter().map(make_z);
-            let z_looked = make_z(looked_table);
+            let zs_looked = looked_tables.iter().map(make_z);
 
             debug_assert_eq!(
                 zs_looking
                     .clone()
                     .map(|z| *z.values.last().unwrap())
                     .sum::<F>(),
-                *z_looked.values.last().unwrap()
+                zs_looked
+                    .clone()
+                    .map(|z| *z.values.last().unwrap())
+                    .sum::<F>(),
             );
 
-            for (table, z) in chain!(izip!(looking_tables, zs_looking), [(
-                looked_table,
-                z_looked
-            )]) {
+            for (table, z) in chain!(
+                izip!(looking_tables, zs_looking),
+                izip!(looked_tables, zs_looked)
+            ) {
                 ctl_data_per_table[table.kind].zs_columns.push(CtlZData {
                     z,
                     challenge,
@@ -187,7 +199,7 @@ fn partial_sums<F: Field>(
 #[derive(Clone, Debug)]
 pub struct CrossTableLookupWithTypedOutput<Row> {
     pub looking_tables: Vec<TableWithTypedOutput<Row>>,
-    pub looked_table: TableWithTypedOutput<Row>,
+    pub looked_tables: Vec<TableWithTypedOutput<Row>>,
 }
 
 // This is a little trick, so that we can use `CrossTableLookup` as a
@@ -199,7 +211,11 @@ pub use CrossTableLookupUntyped as CrossTableLookup;
 
 impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> CrossTableLookup {
-        let looked_table: Table = self.looked_table.to_untyped_output();
+        let looked_tables = self
+            .looked_tables
+            .into_iter()
+            .map(TableWithTypedOutput::to_untyped_output)
+            .collect();
         let looking_tables = self
             .looking_tables
             .into_iter()
@@ -207,7 +223,7 @@ impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
             .collect();
         CrossTableLookup {
             looking_tables,
-            looked_table,
+            looked_tables,
         }
     }
 }
@@ -220,18 +236,18 @@ impl<Row> CrossTableLookupWithTypedOutput<Row> {
     #[must_use]
     pub fn new(
         looking_tables: Vec<TableWithTypedOutput<Row>>,
-        looked_table: TableWithTypedOutput<Row>,
+        looked_tables: Vec<TableWithTypedOutput<Row>>,
     ) -> Self {
         Self {
             looking_tables,
-            looked_table,
+            looked_tables,
         }
     }
 
     #[must_use]
     pub fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
         ctls.iter()
-            .flat_map(|ctl| chain!([&ctl.looked_table], &ctl.looking_tables))
+            .flat_map(|ctl| chain!(&ctl.looked_tables, &ctl.looking_tables))
             .filter(|twc| twc.kind == table)
             .count()
             * num_challenges
@@ -267,8 +283,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
                  looking_tables,
-                 looked_table,
-             }| chain!(looking_tables, [looked_table]),
+                 looked_tables,
+             }| chain!(looking_tables, looked_tables),
         );
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
@@ -342,8 +358,8 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
                  looking_tables,
-                 looked_table,
-             }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
+                 looked_tables,
+             }| chain!(looking_tables, looked_tables).filter(|twc| twc.kind == table),
         );
         zip_eq(ctl_zs, iproduct!(&ctl_challenges.challenges, ctl_chain))
             .map(|((&local_z, &next_z), (&challenges, table))| Self {
@@ -486,7 +502,9 @@ pub mod ctl_utils {
             looking_multiset.process_row(trace_poly_values, looking_table);
         }
 
-        looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
+        for looked_table in &ctl.looked_tables {
+            looked_multiset.process_row(trace_poly_values, looked_table);
+        }
 
         let empty = &vec![];
         // Check that every row in the looking tables appears in the looked table the
