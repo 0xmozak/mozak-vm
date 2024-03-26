@@ -248,7 +248,6 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                  looked_table,
              }| chain!(looking_tables, [looked_table]),
         );
-        let make_rows_public_chain = make_rows_public.iter().map(|MakeRowsPublic(table)| table);
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, chain!(ctl_chain)) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {
@@ -259,9 +258,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 filter_column: &table.filter_column,
             });
         }
-        for (&challenges, table) in
-            iproduct!(&ctl_challenges.challenges, chain!(make_rows_public_chain))
-        {
+        for (&challenges, MakeRowsPublic(table)) in iproduct!(&ctl_challenges.challenges, make_rows_public) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {
                 local_z,
