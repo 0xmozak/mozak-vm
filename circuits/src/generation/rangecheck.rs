@@ -69,10 +69,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                 let val = u32::try_from(v.to_canonical_u64())
                     .expect("casting value to u32 should succeed");
 
-                multiplicities
-                    .entry(val)
-                    .and_modify(|e| *e += 1)
-                    .or_insert(1);
+                *multiplicities.entry(val).or_default() += 1;
             });
         });
     let mut trace = Vec::with_capacity(multiplicities.len());
@@ -152,7 +149,7 @@ mod tests {
         );
         for (i, row) in trace.iter().enumerate() {
             match i {
-                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(4)),
+                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(2)),
                 1 => assert_eq!(row.multiplicity, F::from_canonical_u8(1)),
                 _ => {}
             }

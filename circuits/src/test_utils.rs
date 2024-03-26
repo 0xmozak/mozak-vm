@@ -324,12 +324,12 @@ impl ProveAndVerify for BitshiftStark<F, D> {
 }
 
 impl ProveAndVerify for RegisterInitStark<F, D> {
-    fn prove_and_verify(_program: &Program, _record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterInitStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
-        let trace = generate_register_init_trace::<F>();
+        let trace = generate_register_init_trace::<F>(record);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,

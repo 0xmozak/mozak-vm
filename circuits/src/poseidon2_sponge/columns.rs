@@ -5,10 +5,16 @@ use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::cross_table_lookup::ColumnWithTypedInput;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
+use crate::memory::columns::MemoryCtl;
 #[cfg(feature = "enable_poseidon_starks")]
-use crate::stark::mozak_stark::{Poseidon2SpongeTable, Table};
+use crate::poseidon2::columns::Poseidon2StateCtl;
+#[cfg(feature = "enable_poseidon_starks")]
+use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
+#[cfg(feature = "enable_poseidon_starks")]
+use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableWithTypedOutput};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -35,57 +41,78 @@ make_col_map!(Poseidon2Sponge);
 
 pub const NUM_POSEIDON2_SPONGE_COLS: usize = Poseidon2Sponge::<()>::NUMBER_OF_COLUMNS;
 
-impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
-    pub fn is_executed(&self) -> T {
-        self.ops.is_init_permute.clone() + self.ops.is_permute.clone()
-    }
+impl<T: Copy + Add<Output = T>> Poseidon2Sponge<T> {
+    pub fn is_executed(&self) -> T { self.ops.is_init_permute + self.ops.is_permute }
+}
+
+columns_view_impl!(Poseidon2SpongeCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct Poseidon2SpongeCtl<T> {
+    pub clk: T,
+    pub input_addr: T,
+    pub input_len: T,
 }
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_cpu() -> Table {
-    let sponge = col_map().map(Column::from);
+pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
+    let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
-        vec![sponge.clk, sponge.input_addr, sponge.input_len],
-        sponge.ops.is_init_permute,
+        Poseidon2SpongeCtl {
+            clk: sponge.clk,
+            input_addr: sponge.input_addr,
+            input_len: sponge.input_len,
+        },
+        COL_MAP.ops.is_init_permute,
     )
 }
 
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn lookup_for_poseidon2() -> Table {
-    let sponge = col_map().map(Column::from);
-    let mut data = sponge.preimage.to_vec();
-    data.extend(sponge.output.to_vec());
-    Poseidon2SpongeTable::new(data, col_map().map(Column::from).is_executed())
-}
-
-#[cfg(feature = "enable_poseidon_starks")]
-#[must_use]
-pub fn lookup_for_poseidon2_output_bytes() -> Table {
-    let sponge = col_map().map(Column::from);
-    let mut data = vec![];
-    data.push(sponge.clk);
-    data.push(sponge.output_addr);
-    let mut outputs = sponge.output.to_vec();
-    outputs.truncate(NUM_HASH_OUT_ELTS);
-    data.extend(outputs);
-    Poseidon2SpongeTable::new(data, col_map().map(Column::from).gen_output)
-}
-
-#[cfg(feature = "enable_poseidon_starks")]
-#[must_use]
-pub fn lookup_for_input_memory(limb_index: u8) -> Table {
-    assert!(limb_index < 8, "limb_index can be 0..7");
-    let sponge = col_map().map(Column::from);
+pub fn lookup_for_poseidon2() -> TableWithTypedOutput<Poseidon2StateCtl<Column>> {
+    let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
-        vec![
-            sponge.clk,
-            Column::constant(0),                          // is_store
-            Column::constant(1),                          // is_load
-            sponge.preimage[limb_index as usize].clone(), // value
-            sponge.input_addr + i64::from(limb_index),    // address
-        ],
-        sponge.ops.is_init_permute + sponge.ops.is_permute,
+        Poseidon2StateCtl {
+            input: sponge.preimage,
+            output: sponge.output,
+        },
+        COL_MAP.is_executed(),
+    )
+    // let mut data = sponge.preimage.to_vec();
+    // data.extend(sponge.output.to_vec());
+    // data
+}
+
+#[cfg(feature = "enable_poseidon_starks")]
+#[must_use]
+pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2OutputBytesCtl<Column>>
+{
+    let sponge = COL_MAP;
+    Poseidon2SpongeTable::new(
+        Poseidon2OutputBytesCtl {
+            clk: sponge.clk,
+            output_addr: sponge.output_addr,
+            output_fields: sponge.output[..NUM_HASH_OUT_ELTS].try_into().unwrap(),
+        },
+        COL_MAP.gen_output,
+    )
+}
+
+#[cfg(feature = "enable_poseidon_starks")]
+#[must_use]
+pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
+    assert!(limb_index < 8, "limb_index can be 0..7");
+    let sponge = COL_MAP;
+    let ops = COL_MAP.ops;
+    Poseidon2SpongeTable::new(
+        MemoryCtl {
+            clk: sponge.clk,
+            is_store: ColumnWithTypedInput::constant(0),
+            is_load: ColumnWithTypedInput::constant(1),
+            value: sponge.preimage[limb_index as usize],
+            addr: sponge.input_addr + i64::from(limb_index),
+        },
+        ops.is_init_permute + ops.is_permute,
     )
 }

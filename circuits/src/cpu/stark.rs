@@ -109,13 +109,12 @@ fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut Constraint
     one_hot(inst.rd_select, yield_constr);
 }
 
-fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
+fn one_hot<P: PackedField, Selectors: Copy + IntoIterator<Item = P>>(
     selectors: Selectors,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // selectors have value 0 or 1.
     selectors
-        .clone()
         .into_iter()
         .for_each(|s| is_binary(yield_constr, s));
 
