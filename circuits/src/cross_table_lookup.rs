@@ -431,15 +431,6 @@ pub mod ctl_utils {
     #[derive(Clone, Debug, Default, Deref, DerefMut)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
-    #[allow(clippy::cast_possible_wrap)]
-    fn to_i64<F: RichField>(f: F) -> i64 {
-        if f.to_canonical_u64() > i32::MAX as u64 {
-            -((-f).to_canonical_u64() as i64)
-        } else {
-            f.to_canonical_u64() as i64
-        }
-    }
-
     impl<F: Field> MultiSet<F> {
         fn process_row(
             &mut self,
@@ -479,8 +470,8 @@ pub mod ctl_utils {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
-                let looking_multiplicity = to_i64(looking_multiplicity);
-                let looked_multiplicity = to_i64(looked_multiplicity);
+                let looking_multiplicity = looking_multiplicity.to_canonical_i64();
+                let looked_multiplicity = looked_multiplicity.to_canonical_i64();
                 let row: RegisterCtl<F> = row.iter().copied().collect();
                 println!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
