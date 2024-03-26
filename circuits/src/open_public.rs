@@ -1,4 +1,4 @@
-use itertools::{chain, Itertools};
+use itertools::Itertools;
 /// ! To make certain rows of columns (specified by a filter column), public, we
 /// use an idea similar to what we do in CTL ! We create a z polynomial for
 /// every such instance which is running sum of `filter_i/combine(columns_i)`
@@ -20,6 +20,7 @@ use crate::stark::permutation::challenge::GrandProductChallengeSet;
 pub struct MakeRowsPublic(pub Table);
 
 impl MakeRowsPublic {
+    #[must_use]
     pub fn num_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
         ctls.iter()
             .map(|Self(table)| table)
@@ -65,6 +66,7 @@ pub(crate) fn open_rows_public_data<F: RichField, const D: usize>(
 /// For each table, Creates the sum of inverses of public data which needs to be
 /// matched against final row opening of z polynomial, for the corresponding
 /// instance of `MakeRowsPublic` for that table.
+#[must_use]
 pub fn reduce_public_input_for_make_rows_public<F: Field>(
     row_public_values: &TableKindArray<RowPublicValues<F>>,
     challenges: &GrandProductChallengeSet<F>,
@@ -79,6 +81,7 @@ pub fn reduce_public_input_for_make_rows_public<F: Field>(
         .collect_vec())
 }
 
+#[must_use]
 pub fn get_public_row_values<F: Field>(
     trace: &TableKindArray<Vec<PolynomialValues<F>>>,
     make_row_public: &[MakeRowsPublic],
@@ -87,12 +90,12 @@ pub fn get_public_row_values<F: Field>(
     for MakeRowsPublic(table) in make_row_public {
         let trace_table = &trace[table.kind];
         let columns_if_filter_at_i = |i| -> Option<Vec<F>> {
-            if table.filter_column.eval_table(&trace_table, i).is_one() {
+            if table.filter_column.eval_table(trace_table, i).is_one() {
                 Some(
                     table
                         .columns
                         .iter()
-                        .map(|column| column.eval_table(&trace_table, i))
+                        .map(|column| column.eval_table(trace_table, i))
                         .collect_vec(),
                 )
             } else {
