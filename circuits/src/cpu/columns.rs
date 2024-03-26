@@ -362,13 +362,22 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
     CpuTable::new(
         InputOutputMemoryCtl {
-            // TODO: use ascending_sum?
-            op: CPU.is_io_store_private + CPU.is_io_store_public * 2 + CPU.is_io_transcript * 3,
+            op: ColumnWithTypedInput::ascending_sum([
+                CPU.is_io_store_private,
+                CPU.is_io_store_public,
+                CPU.is_io_transcript,
+            ]),
             clk: CPU.clk,
             addr: CPU.io_addr,
             size: CPU.io_size,
         },
-        CPU.is_io_store_private + CPU.is_io_store_public + CPU.is_io_transcript,
+        [
+            CPU.is_io_store_private,
+            CPU.is_io_store_public,
+            CPU.is_io_transcript,
+        ]
+        .iter()
+        .sum(),
     )
 }
 
