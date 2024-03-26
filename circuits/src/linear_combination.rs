@@ -63,11 +63,11 @@ impl<F: Neg<Output = F>> Neg for ColumnSparse<F> {
     }
 }
 
-impl Add<Self> for Column {
+impl<F: Add<F, Output = F>> Add<Self> for ColumnSparse<F> {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        let add_lc = |mut slc: Vec<(usize, i64)>, mut rlc: Vec<(usize, i64)>| {
+        let add_lc = |mut slc: Vec<(usize, F)>, mut rlc: Vec<(usize, F)>| {
             slc.sort_by_key(|&(col_idx, _)| col_idx);
             rlc.sort_by_key(|&(col_idx, _)| col_idx);
             slc.into_iter()
@@ -75,7 +75,7 @@ impl Add<Self> for Column {
                 .map(|item| {
                     item.reduce(|(idx0, c0), (idx1, c1)| {
                         assert_eq!(idx0, idx1);
-                        (idx0, c0.checked_add(c1).unwrap())
+                        (idx0, c0 + c1)
                     })
                 })
                 .collect()
@@ -89,75 +89,75 @@ impl Add<Self> for Column {
     }
 }
 
-impl Add<Self> for &Column {
-    type Output = Column;
+impl<F: Add<F, Output = F> + Copy> Add<Self> for &ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
     fn add(self, other: Self) -> Self::Output { self.clone() + other.clone() }
 }
 
-impl Add<Column> for &Column {
-    type Output = Column;
+impl<F: Add<F, Output = F> + Copy> Add<ColumnSparse<F>> for &ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
-    fn add(self, other: Column) -> Self::Output { self.clone() + other }
+    fn add(self, other: ColumnSparse<F>) -> Self::Output { self.clone() + other }
 }
 
-impl Add<&Self> for Column {
-    type Output = Column;
+impl<F: Add<F, Output = F> + Copy> Add<&Self> for ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
     fn add(self, other: &Self) -> Self::Output { self + other.clone() }
 }
 
-impl Add<i64> for Column {
+impl<F: Add<F, Output = F>> Add<F> for ColumnSparse<F> {
     type Output = Self;
 
-    fn add(self, constant: i64) -> Self {
+    fn add(self, constant: F) -> Self {
         Self {
-            constant: self.constant.checked_add(constant).unwrap(),
+            constant: self.constant + constant,
             ..self
         }
     }
 }
 
-impl Add<i64> for &Column {
-    type Output = Column;
+impl<F: Add<F, Output = F> + Copy> Add<F> for &ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
-    fn add(self, constant: i64) -> Column { self.clone() + constant }
+    fn add(self, constant: F) -> ColumnSparse<F> { self.clone() + constant }
 }
 
-impl Sub<Self> for Column {
+impl<F: Add<F, Output = F> + Neg<Output = F> + Copy> Sub<Self> for ColumnSparse<F> {
     type Output = Self;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn sub(self, other: Self) -> Self::Output { self.clone() + other.neg() }
 }
 
-impl Mul<i64> for Column {
+impl<F: Copy + Mul<F, Output = F>> Mul<F> for ColumnSparse<F> {
     type Output = Self;
 
-    fn mul(self, factor: i64) -> Self {
+    fn mul(self, factor: F) -> Self {
         Self {
             lv_linear_combination: self
                 .lv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, factor.checked_mul(c).unwrap()))
+                .map(|(idx, c)| (idx, factor * c))
                 .collect(),
             nv_linear_combination: self
                 .nv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, factor.checked_mul(c).unwrap()))
+                .map(|(idx, c)| (idx, factor * c))
                 .collect(),
-            constant: factor.checked_mul(self.constant).unwrap(),
+            constant: factor * self.constant,
         }
     }
 }
 
-impl Mul<i64> for &Column {
-    type Output = Column;
+impl<F: Copy + Mul<F, Output = F>> Mul<F> for &ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
-    fn mul(self, factor: i64) -> Column { self.clone() * factor }
+    fn mul(self, factor: F) -> ColumnSparse<F> { self.clone() * factor }
 }
 
-impl Sum<Column> for Column {
+impl<F: Add<F, Output = F> + Default> Sum<ColumnSparse<F>> for ColumnSparse<F> {
     #[inline]
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.reduce(|x, y| x + y).unwrap_or_default()
