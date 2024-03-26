@@ -1,3 +1,4 @@
+use itertools::Itertools;
 /// ! To make certain rows of columns (specified by a filter column), public, we
 /// use an idea similar to what we do in CTL ! We create a z polynomial for
 /// every such instance which is running sum of `filter_i/combine(columns_i)`
@@ -58,4 +59,32 @@ pub fn reduce_public_input_for_make_rows_public<F: Field>(
     _challenges: &GrandProductChallengeSet<F>,
 ) -> TableKindArray<Vec<F>> {
     all_kind!(|_kind| Vec::new())
+}
+
+pub fn get_public_row_values<F: Field>(
+    trace: &TableKindArray<Vec<PolynomialValues<F>>>,
+    make_row_public: &[MakeRowsPublic],
+) -> TableKindArray<Vec<Vec<F>>> {
+    let mut public_row_values_per_table = all_kind!(|_kind| Vec::default());
+    for MakeRowsPublic(table) in make_row_public {
+        let trace_table = &trace[table.kind];
+        let columns_if_filter_at_i = |i| -> Option<Vec<F>> {
+            if table.filter_column.eval_table(&trace_table, i).is_one() {
+                Some(
+                    table
+                        .columns
+                        .iter()
+                        .map(|column| column.eval_table(&trace_table, i))
+                        .collect_vec(),
+                )
+            } else {
+                None
+            }
+        };
+        let column_values = (0..trace_table[0].len())
+            .filter_map(columns_if_filter_at_i)
+            .collect_vec();
+        public_row_values_per_table[table.kind] = column_values;
+    }
+    public_row_values_per_table
 }

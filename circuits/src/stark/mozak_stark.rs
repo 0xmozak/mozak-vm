@@ -106,7 +106,6 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
     pub make_rows_public: [MakeRowsPublic; 0],
-
     pub debug: bool,
 }
 
