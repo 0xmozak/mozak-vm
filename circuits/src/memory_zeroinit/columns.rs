@@ -1,6 +1,8 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::Column;
-use crate::stark::mozak_stark::{MemoryZeroInitTable, Table};
+use crate::cross_table_lookup::ColumnWithTypedInput;
+use crate::linear_combination::Column;
+use crate::memoryinit::columns::MemoryInitCtl;
+use crate::stark::mozak_stark::{MemoryZeroInitTable, TableWithTypedOutput};
 
 columns_view_impl!(MemoryZeroInit);
 make_col_map!(MemoryZeroInit);
@@ -13,16 +15,17 @@ pub struct MemoryZeroInit<T> {
 
 pub const NUM_MEMORYINIT_COLS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 
-/// Columns containing the data which are looked up from the Memory Table
+/// Lookup into Memory Table
 #[must_use]
-pub fn lookup_for_memory() -> Table {
+pub fn lookup_for_memory() -> TableWithTypedOutput<MemoryInitCtl<Column>> {
+    let mem = COL_MAP;
     MemoryZeroInitTable::new(
-        vec![
-            Column::constant(1), // is_writable
-            Column::single(col_map().addr),
-            Column::constant(0), // clk
-            Column::constant(0), // value
-        ],
-        Column::single(col_map().filter),
+        MemoryInitCtl {
+            is_writable: ColumnWithTypedInput::constant(1),
+            address: mem.addr,
+            clk: ColumnWithTypedInput::constant(0),
+            value: ColumnWithTypedInput::constant(0),
+        },
+        COL_MAP.filter,
     )
 }
