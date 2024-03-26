@@ -26,6 +26,7 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
+use crate::open_public::MakeRowsPublic;
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
 use crate::stark::poly::eval_vanishing_poly_circuit;
@@ -124,12 +125,17 @@ where
             kind,
             inner_config.num_challenges,
         );
+        let num_make_row_public_zs = MakeRowsPublic::num_zs(
+            &mozak_stark.make_rows_public,
+            kind,
+            inner_config.num_challenges,
+        );
         add_virtual_stark_proof_with_pis(
             &mut builder,
             stark,
             inner_config,
             degree_bits[kind],
-            num_ctl_zs,
+            num_ctl_zs + num_make_row_public_zs,
         )
     });
 

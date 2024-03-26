@@ -219,7 +219,7 @@ impl CrossTableLookup {
     #[must_use]
     pub fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
         ctls.iter()
-            .flat_map(|ctl| chain!([&ctl.looked_table], &ctl.looking_tables))
+            .flat_map(|ctl| chain!([&ctl.looked_table], &ctl.looking_tables,))
             .filter(|twc| twc.kind == table)
             .count()
             * num_challenges
