@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
-use crate::register::columns::{dummy, Ops, Register, RegisterCtl};
+use crate::register::columns::{Ops, Register, RegisterCtl};
 use crate::register_zero::columns::RegisterZero;
 use crate::registerinit::columns::RegisterInit;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
@@ -29,7 +29,7 @@ pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Ve
 pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
     trace.resize(len, Register {
-        ops: dummy(),
+        ops: Ops::default(),
         // ..And fill other columns with duplicate of last real trace row.
         ..*trace.last().unwrap()
     });
@@ -70,9 +70,9 @@ where
             } = value.into_iter().collect();
             let ops = Ops::from(op);
             Register {
+                clk,
                 addr,
                 value,
-                clk,
                 ops,
             }
         })

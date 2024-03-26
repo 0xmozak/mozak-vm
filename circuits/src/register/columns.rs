@@ -1,6 +1,5 @@
 use core::ops::Add;
 
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
@@ -60,19 +59,14 @@ impl<T: RichField> Ops<T> {
     }
 }
 
-/// Create a dummy [`Ops`]
-///
-/// We want these 3 filter columns = 0,
-/// so we can constrain `is_used = is_init + is_read + is_write`.
-#[must_use]
-pub fn dummy<T: Field>() -> Ops<T> { Ops::default() }
-
 columns_view_impl!(Register);
 make_col_map!(Register);
 /// [`Design doc for RegisterSTARK`](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc)
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Register<T> {
+    pub clk: T,
+
     /// The register 'address' that indexes into 1 of our 32 registers.
     /// Should only take values 0-31, so this column should be a running sum
     /// from 0 to 31 (inclusive). Note that this isn't the same as memory
@@ -81,12 +75,6 @@ pub struct Register<T> {
 
     /// Value of the register at time (in clk) of access.
     pub value: T,
-
-    /// Augmented clock at register access. This is calculated as:
-    /// `augmented_clk` = clk * 2 for register reads, and
-    /// `augmented_clk` = clk * 2 + 1 for register writes,
-    /// to ensure that we do not write to the register before we read.
-    pub clk: T,
 
     /// Columns that indicate what action is taken on the register.
     pub ops: Ops<T>,
