@@ -1,3 +1,5 @@
+use core::iter::Sum;
+use core::ops::{Add, Mul, Neg, Sub};
 use std::ops::Index;
 
 use itertools::{chain, Itertools};
@@ -13,14 +15,17 @@ use crate::cross_table_lookup::ColumnWithTypedInput;
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
-pub struct Column {
+pub struct ColumnSparse<F> {
     /// Linear combination of the local row
-    pub lv_linear_combination: Vec<(usize, i64)>,
+    pub lv_linear_combination: Vec<(usize, F)>,
     /// Linear combination of the next row
-    pub nv_linear_combination: Vec<(usize, i64)>,
+    pub nv_linear_combination: Vec<(usize, F)>,
     /// Constant of linear combination
-    pub constant: i64,
+    pub constant: F,
 }
+
+pub type ColumnI64 = ColumnSparse<i64>;
+pub use ColumnI64 as Column;
 
 impl<I: IntoIterator<Item = i64>> From<ColumnWithTypedInput<I>> for Column {
     fn from(colx: ColumnWithTypedInput<I>) -> Self {
@@ -35,6 +40,127 @@ impl<I: IntoIterator<Item = i64>> From<ColumnWithTypedInput<I>> for Column {
             nv_linear_combination: to_sparse(colx.nv_linear_combination),
             constant: colx.constant,
         }
+    }
+}
+
+impl Neg for Column {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            lv_linear_combination: self
+                .lv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, c.checked_neg().unwrap()))
+                .collect(),
+            nv_linear_combination: self
+                .nv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, c.checked_neg().unwrap()))
+                .collect(),
+            constant: -self.constant,
+        }
+    }
+}
+
+impl Add<Self> for Column {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let add_lc = |mut slc: Vec<(usize, i64)>, mut rlc: Vec<(usize, i64)>| {
+            slc.sort_by_key(|&(col_idx, _)| col_idx);
+            rlc.sort_by_key(|&(col_idx, _)| col_idx);
+            slc.into_iter()
+                .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
+                .map(|item| {
+                    item.reduce(|(idx0, c0), (idx1, c1)| {
+                        assert_eq!(idx0, idx1);
+                        (idx0, c0.checked_add(c1).unwrap())
+                    })
+                })
+                .collect()
+        };
+
+        Self {
+            lv_linear_combination: add_lc(self.lv_linear_combination, other.lv_linear_combination),
+            nv_linear_combination: add_lc(self.nv_linear_combination, other.nv_linear_combination),
+            constant: self.constant + other.constant,
+        }
+    }
+}
+
+impl Add<Self> for &Column {
+    type Output = Column;
+
+    fn add(self, other: Self) -> Self::Output { self.clone() + other.clone() }
+}
+
+impl Add<Column> for &Column {
+    type Output = Column;
+
+    fn add(self, other: Column) -> Self::Output { self.clone() + other }
+}
+
+impl Add<&Self> for Column {
+    type Output = Column;
+
+    fn add(self, other: &Self) -> Self::Output { self + other.clone() }
+}
+
+impl Add<i64> for Column {
+    type Output = Self;
+
+    fn add(self, constant: i64) -> Self {
+        Self {
+            constant: self.constant.checked_add(constant).unwrap(),
+            ..self
+        }
+    }
+}
+
+impl Add<i64> for &Column {
+    type Output = Column;
+
+    fn add(self, constant: i64) -> Column { self.clone() + constant }
+}
+
+impl Sub<Self> for Column {
+    type Output = Self;
+
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn sub(self, other: Self) -> Self::Output { self.clone() + other.neg() }
+}
+
+impl Mul<i64> for Column {
+    type Output = Self;
+
+    fn mul(self, factor: i64) -> Self {
+        Self {
+            lv_linear_combination: self
+                .lv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, factor.checked_mul(c).unwrap()))
+                .collect(),
+            nv_linear_combination: self
+                .nv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, factor.checked_mul(c).unwrap()))
+                .collect(),
+            constant: factor.checked_mul(self.constant).unwrap(),
+        }
+    }
+}
+
+impl Mul<i64> for &Column {
+    type Output = Column;
+
+    fn mul(self, factor: i64) -> Column { self.clone() * factor }
+}
+
+impl Sum<Column> for Column {
+    #[inline]
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.reduce(|x, y| x + y).unwrap_or_default()
     }
 }
 

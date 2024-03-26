@@ -16,6 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
+// use crate::linear_combination::ColumnSparse;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
@@ -151,6 +152,15 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_data_per_table
 }
 
+// pub fn prep_columns<F: Field>(columns: &[Column], challenge:
+// GrandProductChallenge<F>) -> ColumnSparse<F> {
+
+//     // let beta = F::from_noncanonical_i64(n)
+//     // reduce_with_powers(terms, FE::from_basefield(self.beta))
+//     // + FE::from_basefield(self.gamma)
+//     todo!()
+// }
+
 fn partial_sums<F: Field>(
     trace: &[PolynomialValues<F>],
     columns: &[Column],
@@ -178,6 +188,8 @@ fn partial_sums<F: Field>(
             .map(|c| c.eval_table(trace, i))
             .collect::<Vec<_>>();
         challenge.combine(evals.iter())
+        // reduce_with_powers(terms, FE::from_basefield(self.beta))
+        // + FE::from_basefield(self.gamma)
     };
 
     let degree = trace[0].len();
