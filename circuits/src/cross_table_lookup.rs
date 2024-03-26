@@ -190,14 +190,18 @@ fn partial_sums<F: Field>(
     filter_column: &Column,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
-    // design of table looks like this
-    //       |  multiplicity  |   value   |  partial_sum                      |
-    //       |       1        |    x_1    |  1/combine(x_1)                   |
-    //       |       0        |    x_2    |  1/combine(x_1)                   |
-    //       |       2        |    x_3    |  1/combine(x_1) + 2/combine(x_3)  |
-    // (where combine(vals) = gamma + reduced_sum(vals, beta))
-    // transition constraint looks like
+    // design of table looks like  this
+    //       |  filter  |   value   |  partial_sum                       |
+    //       |    1     |    x_1    |  1/combine(x_3)                    |
+    //       |    0     |    x_2    |  1/combine(x_3)  + 1/combine(x_1)  |
+    //       |    1     |    x_3    |  1/combine(x_1)  + 1/combine(x_1)  |
+    // (where combine(vals) = gamma + reduced_sum(vals))
+    // this is done so that now transition constraint looks like
     //       z_next = z_local + filter_local/combine_local
+    // That is, there is no need for reconstruction of value_next.
+    // In current design which uses lv and nv values from columns to construct the
+    // final value_local, its impossible to construct value_next from lv and nv
+    // values of current row
 
     let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
 
