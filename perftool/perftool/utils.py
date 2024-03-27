@@ -8,12 +8,6 @@ import pandas as pd
 from path import get_actual_cli_repo, get_actual_commit_folder, get_elf_path
 
 
-def shuffled(iterable):
-    iterable = list(iterable)
-    random.shuffle(iterable)
-    return iterable
-
-
 def sample(min_value: int, max_value: int) -> int:
     return random.randrange(min_value, max_value)
 
@@ -70,8 +64,19 @@ def bench(bench_function: str, parameter: int, cli_repo: Path) -> float:
     return float(time_taken)
 
 
+def sample_and_bench(
+    cli_repo: Path,
+    bench_function: str,
+    min_value: int,
+    max_value: int,
+) -> Tuple[float, float]:
+    parameter = sample(min_value, max_value)
+    output = bench(bench_function, parameter, cli_repo)
+
+    return (parameter, output)
+
+
 def init_csv(csv_file_path: Path, bench_name: str):
-    """Initialise the csv file with headers if they do not exist."""
     headers = [
         get_parameter_name(bench_name),
         get_output_name(bench_name),
@@ -87,7 +92,6 @@ def init_csv(csv_file_path: Path, bench_name: str):
 
 
 def write_into_csv(data: dict, csv_file_path: Path):
-    """Write the data into the csv file."""
     df = pd.DataFrame(data)
-    with open(csv_file_path, "a", encoding="utf-8") as f:
+    with open(csv_file_path, "a") as f:
         df.to_csv(f, header=False, index=False)

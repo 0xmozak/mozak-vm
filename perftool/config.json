@@ -49,21 +49,6 @@
             }
         }
     },
-    "nop-compose-table": {
-        "description": "Checking whether composing tables is faster",
-        "parameter": "iterations",
-        "output": "time taken (in s)",
-        "benches": {
-            "main-before-compose": {
-                "commit": "aaa4addec66aa749cd3a8851257f3ada70d8da06",
-                "bench_function": "nop-bench"
-            },
-            "compose-real": {
-                "commit": "2c12ae1e395b1c2af19c6c82cdb96e721331407e",
-                "bench_function": "nop-bench"
-            }
-        }
-    },
     "poseidon2": {
         "description": "Benching Poseidon2 ECALL",
         "parameter": "input_len",
