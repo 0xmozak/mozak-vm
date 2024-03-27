@@ -15,8 +15,10 @@ from .utils import (
     build_repo,
     init_csv,
     maybe_build_ELF,
-    sample_and_bench,
+    sample,
+    bench as bench_it,
     write_into_csv,
+    shuffled,
 )
 
 app = typer.Typer()
@@ -47,24 +49,20 @@ def bench(bench_name: str, min_value: int, max_value: int):
         init_csv(data_csv_file, bench_name)
 
     while True:
-        try:
-            bench = random.choice(benches)
+        parameter = sample(min_value, max_value)
+        for bench in shuffled(benches):
             commit = bench["commit"]
             bench_function = bench["bench_function"]
             cli_repo = get_cli_repo(bench_name, commit)
-            parameter, output = sample_and_bench(
-                cli_repo, bench_function, min_value, max_value
+            output = bench_it(
+                bench_function,
+                parameter,
+                cli_repo,
             )
             data = {parameter_name: [parameter], output_name: [output]}
             data_csv_file = get_data_csv_file(bench_name, bench_function, commit)
             write_into_csv(data, data_csv_file)
             print(".", end="", flush=True)
-        except KeyboardInterrupt:
-            print("Exiting...")
-            break
-        except Exception as e:
-            print(e)
-            break
 
 
 @app.command()
