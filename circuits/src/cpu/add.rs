@@ -53,7 +53,7 @@ mod tests {
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{ProveAndVerify, D, F};
 
-    fn prove_add<Stark: ProveAndVerify>(a: u32, b: u32, rd: u8) {
+    fn prove_add<Stark: ProveAndVerify>(a: u32, b: u32, imm: u32, rd: u8) {
         let (program, record) = execute_code(
             [Instruction {
                 op: Op::ADD,
@@ -61,7 +61,7 @@ mod tests {
                     rd,
                     rs1: 6,
                     rs2: 7,
-                    ..Args::default()
+                    imm,
                 },
             }],
             &[],
@@ -70,7 +70,7 @@ mod tests {
         if rd != 0 {
             assert_eq!(
                 record.executed[1].state.get_register_value(rd),
-                a.wrapping_add(b)
+                a.wrapping_add(b).wrapping_add(imm)
             );
         }
         Stark::prove_and_verify(&program, &record).unwrap();
@@ -81,15 +81,15 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn prove_add_cpu(a in u32_extra(), b in u32_extra(), rd in reg()) {
-            prove_add::<CpuStark<F, D>>(a, b, rd);
+        fn prove_add_cpu(a in u32_extra(), b in u32_extra(), imm in u32_extra(), rd in reg()) {
+            prove_add::<CpuStark<F, D>>(a, b, imm, rd);
         }
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
-        fn prove_add_mozak(a in u32_extra(), b in u32_extra(), rd in reg()) {
-            prove_add::<MozakStark<F, D>>(a, b, rd);
+        fn prove_add_mozak(a in u32_extra(), b in u32_extra(), imm in u32_extra(), rd in reg()) {
+            prove_add::<MozakStark<F, D>>(a, b, imm, rd);
         }
     }
 }
