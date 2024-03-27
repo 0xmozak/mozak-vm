@@ -82,11 +82,14 @@ pub struct Register<T> {
 
 impl<F: RichField + core::fmt::Debug> From<RegisterCtl<F>> for Register<F> {
     fn from(ctl: RegisterCtl<F>) -> Self {
+        let aug_clk = ctl.aug_clk.to_noncanonical_u64();
+        let clk = F::from_canonical_u64(aug_clk / 3);
+        let ops = Ops::from(F::from_canonical_u64(aug_clk % 3));
         Register {
-            clk: ctl.clk,
+            clk,
             addr: ctl.addr,
             value: ctl.value,
-            ops: Ops::from(ctl.op),
+            ops,
         }
     }
 }
@@ -95,8 +98,9 @@ columns_view_impl!(RegisterCtl);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct RegisterCtl<T> {
-    pub clk: T,
-    pub op: T,
+    // We keep op and clock together, so that we can save a column in the RegisterZeroStark
+    pub aug_clk: T,
+    // pub op: T,
     pub addr: T,
     pub value: T,
 }
@@ -120,8 +124,7 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
     let reg = COL_MAP;
     RegisterTable::new(
         RegisterCtl {
-            clk: reg.clk,
-            op: ColumnWithTypedInput::ascending_sum(reg.ops),
+            aug_clk: reg.clk * 3 + ColumnWithTypedInput::ascending_sum(reg.ops),
             addr: reg.addr,
             value: reg.value,
         },

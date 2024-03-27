@@ -31,8 +31,7 @@ pub fn lookup_for_register() -> TableWithTypedOutput<RegisterCtl<Column>> {
     let reg = COL_MAP;
     RegisterInitTable::new(
         RegisterCtl {
-            clk: ColumnWithTypedInput::constant(0),
-            op: ColumnWithTypedInput::constant(0),
+            aug_clk: ColumnWithTypedInput::constant(0) * 3 + ColumnWithTypedInput::constant(0),
             addr: reg.reg_addr,
             value: reg.value,
         },

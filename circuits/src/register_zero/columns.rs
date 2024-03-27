@@ -15,24 +15,32 @@ make_col_map!(RegisterZero);
 /// Register 0 is a special register that is always 0.
 /// Thus we don't need neither a value column nor a register address column.
 pub struct RegisterZero<T> {
-    pub clk: T,
+    /// Combined column for the clock and the operation.
+    pub aug_clk: T,
 
     /// Value of the register at time (in clk) of access.
     /// We accept writes for any value, but reads and inits will always be 0.
     pub value: T,
 
-    /// Columns that indicate what action is taken on the register.
-    pub op: T,
-
     pub is_used: T,
 }
+
+// clk: 32 bit-ish;  Probably less, actually, do we care?
+// value: 32 bit;
+// op: 0,1,2 (or 3?) -> 2 bit.
+// 63 bit?
+//
+// 29 bit for clock, if we do this.
+// value + op can go together!
+//
+// is_used: 1 bit, but we could also pad extra reads into some other table?  Not
+// sure.  We probably need it.
 
 impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZero<F> {
     fn from(ctl: Register<F>) -> Self {
         RegisterZero {
-            clk: ctl.clk,
+            aug_clk: ctl.clk * F::from_canonical_u8(3) + ascending_sum(ctl.ops),
             value: ctl.value,
-            op: ascending_sum(ctl.ops),
             is_used: F::ONE,
         }
     }
@@ -43,8 +51,8 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
     let reg = COL_MAP;
     RegisterZeroTable::new(
         RegisterCtl {
-            clk: reg.clk,
-            op: reg.op,
+            // TODO: we can fix this.
+            aug_clk: reg.aug_clk,
             addr: ColumnWithTypedInput::constant(0),
             value: reg.value,
         },
