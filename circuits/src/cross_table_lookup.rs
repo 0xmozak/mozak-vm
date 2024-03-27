@@ -190,7 +190,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
 /// Logically, the CTL specifies a linear transformation, and so does the
 /// challenge. This function combines the two into a single linear
 /// transformation.
-pub fn compase_ctl_with_challenge<F: Field>(
+pub fn compose_ctl_with_challenge<F: Field>(
     columns: &[ColumnSparse<F>],
     challenge: GrandProductChallenge<F>,
 ) -> ColumnSparse<F> {
@@ -222,7 +222,7 @@ fn partial_sums<F: Field>(
     let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
 
     let columns: Vec<ColumnSparse<F>> = columns.iter().map(Column::to_field).collect();
-    let prepped = compase_ctl_with_challenge(&columns, challenge);
+    let prepped = compose_ctl_with_challenge(&columns, challenge);
     let get_data = |&i| -> F { prepped.eval_table(trace, i) };
 
     let degree = trace[0].len();
