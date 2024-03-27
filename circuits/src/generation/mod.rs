@@ -114,13 +114,14 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     // TODO: consider folding generate_register_init_trace into
     // generate_register_trace, like we did for register_zero?
     let register_init_rows = generate_register_init_trace::<F>(record);
-    let (register_zero_rows, register_rows) = generate_register_trace(
-        &cpu_rows,
-        &io_memory_private_rows,
-        &io_memory_public_rows,
-        &io_transcript_rows,
-        &register_init_rows,
-    );
+    let (register_zero_read_rows, register_zero_write_rows, register_rows) =
+        generate_register_trace(
+            &cpu_rows,
+            &io_memory_private_rows,
+            &io_memory_public_rows,
+            &io_transcript_rows,
+            &register_init_rows,
+        );
     // Generate rows for the looking values with their multiplicities.
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
@@ -145,7 +146,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         io_transcript_stark: trace_rows_to_poly_values(io_transcript_rows),
         register_init_stark: trace_rows_to_poly_values(register_init_rows),
         register_stark: trace_rows_to_poly_values(register_rows),
-        register_zero_stark: trace_rows_to_poly_values(register_zero_rows),
+        register_zero_read_stark: trace_rows_to_poly_values(register_zero_read_rows),
+        register_zero_write_stark: trace_rows_to_poly_values(register_zero_write_rows),
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
         #[cfg(feature = "enable_poseidon_starks")]

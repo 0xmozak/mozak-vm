@@ -54,8 +54,10 @@ use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
 use crate::register::columns::{Register, RegisterCtl};
 use crate::register::stark::RegisterStark;
-use crate::register_zero_write::columns::RegisterZero;
-use crate::register_zero_write::stark::RegisterZeroStark;
+use crate::register_zero_read::columns::RegisterZeroRead;
+use crate::register_zero_read::stark::RegisterZeroReadStark;
+use crate::register_zero_write::columns::RegisterZeroWrite;
+use crate::register_zero_write::stark::RegisterZeroWriteStark;
 use crate::registerinit::columns::RegisterInit;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::{XorColumnsView, XorView};
@@ -112,8 +114,10 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
-    #[StarkSet(stark_kind = "RegisterZero")]
-    pub register_zero_stark: RegisterZeroStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterZeroRead")]
+    pub register_zero_read_stark: RegisterZeroReadStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterZeroWrite")]
+    pub register_zero_write_stark: RegisterZeroWriteStark<F, D>,
     #[cfg_attr(feature = "enable_poseidon_starks", StarkSet(stark_kind = "Poseidon2"))]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     #[cfg_attr(
@@ -363,7 +367,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
-            register_zero_stark: RegisterZeroStark::default(),
+            register_zero_read_stark: RegisterZeroReadStark::default(),
+            register_zero_write_stark: RegisterZeroWriteStark::default(),
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
             io_transcript_stark: InputOutputMemoryStark::default(),
@@ -521,7 +526,16 @@ table_impl!(
 );
 table_impl!(RegisterInitTable, TableKind::RegisterInit, RegisterInit);
 table_impl!(RegisterTable, TableKind::Register, Register);
-table_impl!(RegisterZeroTable, TableKind::RegisterZero, RegisterZero);
+table_impl!(
+    RegisterZeroReadTable,
+    TableKind::RegisterZeroRead,
+    RegisterZeroRead
+);
+table_impl!(
+    RegisterZeroWriteTable,
+    TableKind::RegisterZeroWrite,
+    RegisterZeroWrite
+);
 table_impl!(
     IoMemoryPrivateTable,
     TableKind::IoMemoryPrivate,
