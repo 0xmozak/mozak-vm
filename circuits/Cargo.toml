@@ -45,6 +45,7 @@ enable_poseidon_starks = []
 enable_register_starks = []
 test = []
 timing = ["plonky2/timing", "starky/timing"]
+parallel = ["plonky2/parallel", "starky/parallel", "plonky2_maybe_rayon/parallel"]
 
 [[test]]
 name = "riscv_tests"
