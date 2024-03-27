@@ -7,7 +7,7 @@ use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::register::columns::{Ops, Register, RegisterCtl};
-use crate::register_zero::columns::RegisterZero;
+use crate::register_zero_write::columns::RegisterZero;
 use crate::registerinit::columns::RegisterInit;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
 use crate::utils::pad_trace_with_default;
