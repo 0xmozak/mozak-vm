@@ -1,5 +1,6 @@
 use std::ops::{Index, IndexMut};
 
+use cpu::columns::CpuState;
 use itertools::{chain, izip};
 use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
@@ -10,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use crate::bitshift::columns::{Bitshift, BitshiftView};
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
-use crate::cpu::columns::CpuColumnsExtended;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{
     Column, ColumnWithTypedInput, CrossTableLookup, CrossTableLookupWithTypedOutput,
@@ -506,7 +506,7 @@ table_impl!(
     TableKind::RangeCheck,
     RangeCheckColumnsView
 );
-table_impl!(CpuTable, TableKind::Cpu, CpuColumnsExtended);
+table_impl!(CpuTable, TableKind::Cpu, CpuState);
 table_impl!(XorTable, TableKind::Xor, XorColumnsView);
 table_impl!(BitshiftTable, TableKind::Bitshift, BitshiftView);
 table_impl!(ProgramTable, TableKind::Program, ProgramRom);

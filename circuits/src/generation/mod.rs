@@ -37,7 +37,7 @@ use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
 use self::bitshift::generate_shift_amount_trace;
-use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended, generate_program_mult_trace};
+use self::cpu::{generate_cpu_trace, generate_program_mult_trace};
 use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
 use self::io_memory::generate_io_transcript_trace;
@@ -63,7 +63,7 @@ use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
-use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
+use crate::stark::utils::trace_rows_to_poly_values;
 
 pub const MIN_TRACE_LENGTH: usize = 8;
 
@@ -120,7 +120,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let register_rows = generate_register_trace::<F>(record);
 
     TableKindSetBuilder {
-        cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows)),
+        cpu_stark: trace_rows_to_poly_values(cpu_rows),
         rangecheck_stark: trace_rows_to_poly_values(rangecheck_rows),
         xor_stark: trace_rows_to_poly_values(xor_rows),
         shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),

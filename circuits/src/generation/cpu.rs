@@ -10,29 +10,11 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
-use crate::cpu::columns::{CpuColumnsExtended, CpuState};
-use crate::generation::MIN_TRACE_LENGTH;
+use crate::cpu::columns::CpuState;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program_multiplicities::columns::ProgramMult;
-use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
+use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
 use crate::xor::columns::XorView;
-
-#[must_use]
-pub fn generate_cpu_trace_extended<F: RichField>(
-    cpu_trace: Vec<CpuState<F>>,
-    _program_rom: &[ProgramRom<F>],
-) -> CpuColumnsExtended<Vec<F>> {
-    // let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
-    let len = cpu_trace.len().max(MIN_TRACE_LENGTH).next_power_of_two();
-    // let ori_len = permuted.len();
-    // permuted = pad_trace_with_last_to_len(permuted, len);
-    // for entry in permuted.iter_mut().skip(ori_len) {
-    //     entry.filter = F::ZERO;
-    // }
-    let cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
-    transpose_trace(cpu_trace).into_iter().collect()
-}
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
 pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
@@ -123,7 +105,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     }
 
     log::trace!("trace {:?}", trace);
-    trace
+    pad_trace_with_last(trace)
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {

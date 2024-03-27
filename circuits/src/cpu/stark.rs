@@ -13,8 +13,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::{
-    is_mem_op_extention_target, rs2_value_extension_target, CpuColumnsExtended, CpuState,
-    Instruction, OpSelectors,
+    is_mem_op_extention_target, rs2_value_extension_target, CpuState, Instruction, OpSelectors,
 };
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
@@ -33,7 +32,7 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
-    type Columns = CpuColumnsExtended<F>;
+    type Columns = CpuState<F>;
 }
 
 impl<P: PackedField> OpSelectors<P> {
@@ -393,7 +392,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr.constraint(builder, constr);
 }
 
-const COLUMNS: usize = CpuColumnsExtended::<()>::NUMBER_OF_COLUMNS;
+const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
@@ -413,16 +412,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &CpuColumnsExtended<_> = vars.get_local_values().into();
-        let nv: &CpuColumnsExtended<_> = vars.get_next_values().into();
+        let lv: &CpuState<_> = vars.get_local_values().into();
+        let nv: &CpuState<_> = vars.get_next_values().into();
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
 
         // // Constrain the CPU transition between previous `lv` state and next `nv`
         // // state.
-        // check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
-
-        let lv = &lv.cpu;
-        let nv = &nv.cpu;
 
         yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
         clock_ticks(lv, nv, yield_constr);
@@ -466,15 +461,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &CpuColumnsExtended<_> = vars.get_local_values().into();
-        let nv: &CpuColumnsExtended<_> = vars.get_next_values().into();
+        let lv: &CpuState<_> = vars.get_local_values().into();
+        let nv: &CpuState<_> = vars.get_next_values().into();
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
-
-        // check_permuted_inst_cols_circuit(builder, &lv.permuted, &nv.permuted,
-        // yield_constr);
-
-        let lv = &lv.cpu;
-        let nv = &nv.cpu;
 
         let inst_pc_sub_public_inputs_entry_point =
             builder.sub_extension(lv.inst.pc, public_inputs.entry_point);

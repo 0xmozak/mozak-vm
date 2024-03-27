@@ -91,6 +91,7 @@ pub struct Instruction<T> {
     pub imm_value: T,
 }
 
+make_col_map!(CpuState);
 columns_view_impl!(CpuState);
 /// Represents the State of the CPU, which is also a row of the trace
 #[repr(C)]
@@ -182,15 +183,7 @@ pub struct CpuState<T> {
     pub poseidon2_input_addr: T,
     pub poseidon2_input_len: T,
 }
-pub(crate) const CPU: CpuState<ColumnWithTypedInput<CpuColumnsExtended<i64>>> = COL_MAP.cpu;
-
-make_col_map!(CpuColumnsExtended);
-columns_view_impl!(CpuColumnsExtended);
-#[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct CpuColumnsExtended<T> {
-    pub cpu: CpuState<T>,
-}
+pub(crate) const CPU: CpuState<ColumnWithTypedInput<CpuState<i64>>> = COL_MAP;
 
 impl<T: PackedField> CpuState<T> {
     #[must_use]
@@ -270,7 +263,7 @@ pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
     let ops = CPU.inst.ops;
     let divs = ops.div + ops.rem + ops.srl + ops.sra;
-    let muls: ColumnWithTypedInput<CpuColumnsExtended<i64>> = ops.mul + ops.mulh + ops.sll;
+    let muls: ColumnWithTypedInput<CpuState<i64>> = ops.mul + ops.mulh + ops.sll;
 
     [
         (CPU.quotient_value, divs),
