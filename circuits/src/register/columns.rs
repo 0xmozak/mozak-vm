@@ -1,15 +1,10 @@
 use core::ops::Add;
 
-use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
-#[cfg(feature = "enable_register_starks")]
 use crate::linear_combination::Column;
-#[cfg(feature = "enable_register_starks")]
 use crate::rangecheck::columns::RangeCheckCtl;
-#[cfg(feature = "enable_register_starks")]
-use crate::registerinit::columns::RegisterInitCtl;
-#[cfg(feature = "enable_register_starks")]
 use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
 
 columns_view_impl!(Ops);
@@ -27,36 +22,42 @@ pub struct Ops<T> {
     pub is_write: T,
 }
 
-#[must_use]
-pub fn init<T: Field>() -> Ops<T> {
-    Ops {
-        is_init: T::ONE,
-        ..Default::default()
+impl<F: RichField> From<F> for Ops<F> {
+    fn from(f: F) -> Self {
+        match f.to_noncanonical_u64() {
+            0 => Self::init(),
+            1 => Self::read(),
+            2 => Self::write(),
+            _ => panic!("Invalid ops value: {f:?}"),
+        }
     }
 }
 
-#[must_use]
-pub fn read<T: Field>() -> Ops<T> {
-    Ops {
-        is_read: T::ONE,
-        ..Default::default()
+impl<T: RichField> Ops<T> {
+    #[must_use]
+    pub fn init() -> Self {
+        Self {
+            is_init: T::ONE,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
+    pub fn read() -> Self {
+        Self {
+            is_read: T::ONE,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
+    pub fn write() -> Self {
+        Ops {
+            is_write: T::ONE,
+            ..Default::default()
+        }
     }
 }
-
-#[must_use]
-pub fn write<T: Field>() -> Ops<T> {
-    Ops {
-        is_write: T::ONE,
-        ..Default::default()
-    }
-}
-
-/// Create a dummy [`Ops`]
-///
-/// We want these 3 filter columns = 0,
-/// so we can constrain `is_used = is_init + is_read + is_write`.
-#[must_use]
-pub fn dummy<T: Field>() -> Ops<T> { Ops::default() }
 
 columns_view_impl!(Register);
 make_col_map!(Register);
@@ -73,53 +74,70 @@ pub struct Register<T> {
     /// Value of the register at time (in clk) of access.
     pub value: T,
 
-    /// Augmented clock at register access. This is calculated as:
-    /// `augmented_clk` = clk * 2 for register reads, and
-    /// `augmented_clk` = clk * 2 + 1 for register writes,
-    /// to ensure that we do not write to the register before we read.
-    pub augmented_clk: T,
-
-    // TODO: Could possibly be removed, once we are able to do CTL for
-    // a linear combination of lv and nv.
-    // See: https://github.com/0xmozak/mozak-vm/pull/534
-    /// Diff of augmented clock at register access. Note that this is the diff
-    /// of the local `augmented_clk` - previous `augmented_clk`, not next
-    /// `augmented_clk` - local `augmented_clk`.
-    ///
-    /// This column is range-checked to ensure the ordering of the rows based on
-    /// the `augmented_clk`.
-    pub diff_augmented_clk: T,
+    pub clk: T,
 
     /// Columns that indicate what action is taken on the register.
     pub ops: Ops<T>,
 }
 
-/// We create a virtual column known as `is_used`, which flags a row as
-/// being 'used' if it any one of the ops columns are turned on.
-/// This is to differentiate between real rows and padding rows.
-impl<T: Add<Output = T>> Register<T> {
-    pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
+impl<F: RichField + core::fmt::Debug> From<RegisterCtl<F>> for Register<F> {
+    fn from(ctl: RegisterCtl<F>) -> Self {
+        Register {
+            clk: ctl.clk,
+            addr: ctl.addr,
+            value: ctl.value,
+            ops: Ops::from(ctl.op),
+        }
+    }
 }
 
-#[cfg(feature = "enable_register_starks")]
+columns_view_impl!(RegisterCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct RegisterCtl<T> {
+    pub clk: T,
+    pub op: T,
+    pub addr: T,
+    pub value: T,
+}
+
+/// We create a virtual column known as `is_used`, which flags a row as
+/// being 'used' if any one of the ops columns are turned on.
+/// This is to differentiate between real rows and padding rows.
+impl<T: Add<Output = T> + Copy> Register<T> {
+    pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
+
+    pub fn is_rw(self) -> T { self.ops.is_read + self.ops.is_write }
+
+    // See, if we want to add a Mul constraint, we need to add a Mul trait bound?
+    // Or whether we want to keep manual addition and clone?
+    pub fn augmented_clk(self) -> T { self.clk + self.clk + self.ops.is_write }
+}
+
 #[must_use]
-pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column>> {
+pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
+    use crate::linear_combination_typed::ColumnWithTypedInput;
     let reg = COL_MAP;
     RegisterTable::new(
-        RegisterInitCtl {
+        RegisterCtl {
+            clk: reg.clk,
+            op: ColumnWithTypedInput::ascending_sum(reg.ops),
             addr: reg.addr,
             value: reg.value,
         },
-        reg.ops.is_init,
+        // TODO: We can probably do the register init in the same lookup?
+        reg.ops.is_read + reg.ops.is_write + reg.ops.is_init,
     )
 }
 
-#[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    let ops = COL_MAP.ops;
+    use crate::linear_combination_typed::ColumnWithTypedInput;
+
+    let lv = COL_MAP;
+    let nv = COL_MAP.map(ColumnWithTypedInput::flip);
     vec![RegisterTable::new(
-        RangeCheckCtl(COL_MAP.diff_augmented_clk),
-        ops.is_read + ops.is_write,
+        RangeCheckCtl(nv.augmented_clk() - lv.augmented_clk()),
+        nv.is_rw(),
     )]
 }

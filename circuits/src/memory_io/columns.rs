@@ -1,10 +1,14 @@
 use core::ops::Add;
 
+use mozak_sdk::core::reg_abi::REG_A1;
+
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::ColumnWithTypedInput;
-use crate::linear_combination::Column;
+use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-use crate::stark::mozak_stark::{TableKind, TableWithTypedOutput};
+use crate::register::columns::RegisterCtl;
+use crate::stark::mozak_stark::{
+    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, TableKind, TableWithTypedOutput,
+};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -94,4 +98,20 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Colu
         .collect(),
         filter_column: COL_MAP.ops.is_memory_store.into(),
     }
+}
+
+#[must_use]
+pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
+    let mem = COL_MAP;
+    let data = RegisterCtl {
+        clk: mem.clk,
+        op: ColumnWithTypedInput::constant(1), // read
+        addr: ColumnWithTypedInput::constant(i64::from(REG_A1)),
+        value: mem.addr,
+    };
+    vec![
+        IoMemoryPrivateTable::new(data, mem.ops.is_io_store),
+        IoMemoryPublicTable::new(data, mem.ops.is_io_store),
+        IoTranscriptTable::new(data, mem.ops.is_io_store),
+    ]
 }
