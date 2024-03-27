@@ -196,23 +196,6 @@ fn r0_always_0_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr.constraint(builder, lv.regs[0]);
 }
 
-// /// This function ensures that for each unique value present in
-// /// the instruction column the [`filter`] flag is `1`. This is done by
-// comparing /// the local row and the next row values.
-// /// As the result, `filter` marks all duplicated instructions with `0`.
-// fn check_permuted_inst_cols<P: PackedField>(
-//     lv: &ProgramRom<P>,
-//     nv: &ProgramRom<P>,
-//     yield_constr: &mut ConstraintConsumer<P>,
-// ) {
-//     yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
-//     yield_constr.constraint_first_row(lv.filter - P::ONES);
-
-//     for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
-//         yield_constr.constraint((nv.filter - P::ONES) * (lv_col - nv_col));
-//     }
-// }
-
 pub fn check_permuted_inst_cols_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &ProgramRom<ExtensionTarget<D>>,
@@ -415,9 +398,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let lv: &CpuState<_> = vars.get_local_values().into();
         let nv: &CpuState<_> = vars.get_next_values().into();
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
-
-        // // Constrain the CPU transition between previous `lv` state and next `nv`
-        // // state.
 
         yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
         clock_ticks(lv, nv, yield_constr);

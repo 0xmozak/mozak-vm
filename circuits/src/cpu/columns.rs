@@ -439,18 +439,6 @@ pub fn lookup_for_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
     )
 }
 
-// /// Lookup of permuted instructions.
-// #[must_use]
-// pub fn lookup_for_permuted_inst() ->
-// TableWithTypedOutput<InstructionRow<Column>> {     CpuTable::new(COL_MAP.
-// permuted.inst, COL_MAP.cpu.is_running) }
-
-// /// Lookup of permuted instructions.
-// #[must_use]
-// pub fn lookup_for_program_rom() ->
-// TableWithTypedOutput<InstructionRow<Column>> {     CpuTable::new(COL_MAP.
-// permuted.inst, COL_MAP.permuted.filter) }
-
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
     CpuTable::new(

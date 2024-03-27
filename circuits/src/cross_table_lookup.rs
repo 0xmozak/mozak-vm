@@ -131,8 +131,6 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     cross_table_lookups: &[CrossTableLookup],
     ctl_challenges: &GrandProductChallengeSet<F>,
 ) -> TableKindArray<CtlData<F>> {
-    // TODO(Matthias): here we could generate extra CTL data?
-    // No, we should already have it.
     let mut ctl_data_per_table = all_kind!(|_kind| CtlData::default());
     for &challenge in &ctl_challenges.challenges {
         for CrossTableLookup {
