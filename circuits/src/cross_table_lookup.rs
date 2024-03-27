@@ -94,6 +94,39 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     Ok(())
 }
 
+/// Circuit version of `verify_cross_table_lookups`. Verifies all cross-table
+/// lookups.
+pub(crate) fn verify_cross_table_lookups_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cross_table_lookups: &[CrossTableLookup],
+    ctl_zs_lasts: &TableKindArray<Vec<Target>>,
+    config: &StarkConfig,
+) {
+    let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
+    for _ in 0..config.num_challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_tables,
+        } in cross_table_lookups
+        {
+            let looking_zs_sum = builder.add_many(
+                looking_tables
+                    .iter()
+                    .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
+            );
+
+            let looked_zs_sum = builder.add_many(
+                looked_tables
+                    .iter()
+                    .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
+            );
+
+            builder.connect(looked_zs_sum, looking_zs_sum);
+        }
+    }
+    debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
+}
+
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     cross_table_lookups: &[CrossTableLookup],
@@ -171,24 +204,18 @@ fn partial_sums<F: Field>(
     filter_column: &Column,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
-    // design of table looks like  this
-    //       |  filter  |   value   |  partial_sum                       |
-    //       |    1     |    x_1    |  1/combine(x_3)                    |
-    //       |    0     |    x_2    |  1/combine(x_3)  + 1/combine(x_1)  |
-    //       |    1     |    x_3    |  1/combine(x_1)  + 1/combine(x_1)  |
-    // (where combine(vals) = gamma + reduced_sum(vals))
-    // this is done so that now transition constraint looks like
+    // design of table looks like this
+    //       |  multiplicity  |   value   |  partial_sum                      |
+    //       |       1        |    x_1    |  1/combine(x_1)                   |
+    //       |       0        |    x_2    |  1/combine(x_1)                   |
+    //       |       2        |    x_3    |  1/combine(x_1) + 2/combine(x_3)  |
+    // (where combine(vals) = gamma + reduced_sum(vals, beta))
+    // transition constraint looks like
     //       z_next = z_local + filter_local/combine_local
-    // That is, there is no need for reconstruction of value_next.
-    // In current design which uses lv and nv values from columns to construct the
-    // final value_local, its impossible to construct value_next from lv and nv
-    // values of current row
     let filter_column = filter_column.to_field();
     let columns: Vec<ColumnSparse<F>> = columns.iter().map(Column::to_field).collect();
 
     let prepped = prep_columns(&columns, challenge);
-    let multiplicities = filter_column.eval_table_col(trace);
-    let data = prepped.eval_table_col(trace);
     let inv_data = F::batch_multiplicative_inverse(&data);
 
     izip!(multiplicities, inv_data)
