@@ -1,5 +1,5 @@
 use anyhow::{ensure, Result};
-use itertools::{chain, iproduct, izip, zip_eq, Itertools};
+use itertools::{chain, iproduct, izip, zip_eq};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -93,6 +93,39 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     Ok(())
 }
 
+/// Circuit version of `verify_cross_table_lookups`. Verifies all cross-table
+/// lookups.
+pub(crate) fn verify_cross_table_lookups_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cross_table_lookups: &[CrossTableLookup],
+    ctl_zs_lasts: &TableKindArray<Vec<Target>>,
+    config: &StarkConfig,
+) {
+    let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
+    for _ in 0..config.num_challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_tables,
+        } in cross_table_lookups
+        {
+            let looking_zs_sum = builder.add_many(
+                looking_tables
+                    .iter()
+                    .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
+            );
+
+            let looked_zs_sum = builder.add_many(
+                looked_tables
+                    .iter()
+                    .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
+            );
+
+            builder.connect(looked_zs_sum, looking_zs_sum);
+        }
+    }
+    debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
+}
+
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     cross_table_lookups: &[CrossTableLookup],
@@ -157,41 +190,39 @@ fn partial_sums<F: Field>(
     filter_column: &Column,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
-    // design of table looks like  this
-    //       |  filter  |   value   |  partial_sum                       |
-    //       |    1     |    x_1    |  1/combine(x_3)                    |
-    //       |    0     |    x_2    |  1/combine(x_3)  + 1/combine(x_1)  |
-    //       |    1     |    x_3    |  1/combine(x_1)  + 1/combine(x_1)  |
-    // (where combine(vals) = gamma + reduced_sum(vals))
-    // this is done so that now transition constraint looks like
+    // design of table looks like this
+    //       |  multiplicity  |   value   |  partial_sum                      |
+    //       |       1        |    x_1    |  1/combine(x_1)                   |
+    //       |       0        |    x_2    |  1/combine(x_1)                   |
+    //       |       2        |    x_3    |  1/combine(x_1) + 2/combine(x_3)  |
+    // (where combine(vals) = gamma + reduced_sum(vals, beta))
+    // transition constraint looks like
     //       z_next = z_local + filter_local/combine_local
-    // That is, there is no need for reconstruction of value_next.
-    // In current design which uses lv and nv values from columns to construct the
-    // final value_local, its impossible to construct value_next from lv and nv
-    // values of current row
 
-    // TODO(Kapil): inverse for all rows is expensive. Use batched division idea.
+    let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
 
-    let combine_and_inv_if_filter_at_i = |i| -> F {
-        let multiplicity = filter_column.eval_table(trace, i);
+    let get_combined = |&i| -> F {
         let evals = columns
             .iter()
             .map(|c| c.eval_table(trace, i))
             .collect::<Vec<_>>();
-        multiplicity * challenge.combine(evals.iter()).inverse()
+        challenge.combine(evals.iter())
     };
 
     let degree = trace[0].len();
     let mut degrees = (0..degree).collect::<Vec<_>>();
     degrees.rotate_right(1);
-    degrees
-        .into_iter()
-        .map(combine_and_inv_if_filter_at_i)
-        .scan(F::ZERO, |partial_sum: &mut F, combined| {
-            *partial_sum += combined;
+
+    let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
+    let data: Vec<F> = degrees.iter().map(get_combined).collect();
+    let inv_data = F::batch_multiplicative_inverse(&data);
+
+    izip!(multiplicities, inv_data)
+        .scan(F::ZERO, |partial_sum: &mut F, (multiplicity, inv)| {
+            *partial_sum += multiplicity * inv;
             Some(*partial_sum)
         })
-        .collect_vec()
+        .collect::<Vec<_>>()
         .into()
 }
 
