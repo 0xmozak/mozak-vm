@@ -142,7 +142,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 
         // Constraint 4.
         {
-            let aint_init = builder.add_extension(lv.ops.is_read, lv.ops.is_write);
+            let aint_init = builder.add_extension(nv.ops.is_read, nv.ops.is_write);
             let disjunction = builder.mul_extension(aint_init, addr_diff);
             yield_constr.constraint_transition(builder, disjunction);
         }
@@ -183,7 +183,7 @@ mod tests {
     use mozak_runner::test_utils::{reg, u32_extra};
     use mozak_runner::util::execute_code;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-    use starky::stark_testing::test_stark_low_degree;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
 
     use super::*;
     use crate::test_utils::ProveAndVerify;
@@ -197,6 +197,12 @@ mod tests {
     fn test_degree() -> Result<()> {
         let stark = S::default();
         test_stark_low_degree(stark)
+    }
+
+    #[test]
+    fn test_circuit() -> Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)
     }
 
     fn prove_stark<Stark: ProveAndVerify>(a: u32, b: u32, imm: u32, rd: u8) {
