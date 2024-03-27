@@ -10,35 +10,8 @@ use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
 use crate::program::columns::ProgramRom;
-use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
 use crate::xor::columns::XorView;
-
-#[must_use]
-pub fn generate_program_mult_trace<F: RichField>(
-    trace: &[CpuState<F>],
-    program_rom: &[ProgramRom<F>],
-) -> Vec<ProgramMult<F>> {
-    let counts = trace
-        .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst.pc)
-        .counts();
-    program_rom
-        .iter()
-        .map(|row| {
-            ProgramMult {
-                // This assumes that row.filter is binary, and that we have no duplicates.
-                mult_in_cpu: row.filter
-                    * F::from_canonical_usize(
-                        counts.get(&row.inst.pc).copied().unwrap_or_default(),
-                    ),
-                mult_in_rom: row.filter,
-                inst: row.inst,
-            }
-        })
-        .collect()
-}
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
 pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {

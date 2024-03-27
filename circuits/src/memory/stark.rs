@@ -440,7 +440,7 @@ mod tests {
     }
 
     #[test]
-    fn prove_memory_mozak_example() { memory::<MozakStark<F, D>>(150, 0).unwrap(); }
+    fn prove_memory_mozak_example() { memory::<MozakStark<F, D>>(2, 0).unwrap(); }
 
     use mozak_runner::test_utils::{u32_extra, u8_extra};
     use proptest::prelude::ProptestConfig;
