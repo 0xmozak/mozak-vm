@@ -41,6 +41,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
     /// For sanity check, we can constrain the register address column to be in
     /// a running sum from 0..=31, but since this fixed table is known to
     /// both prover and verifier, we do not need to do so here.
+    // TODO(Matthias): add constraints to force registers to start at 0;
+    // but make it so we can turn them off for tests.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,

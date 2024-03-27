@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 
 use anyhow::Result;
 use itertools::izip;
+use mozak_runner::decode::ECALL;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::util::execute_code;
@@ -323,12 +324,12 @@ impl ProveAndVerify for BitshiftStark<F, D> {
 }
 
 impl ProveAndVerify for RegisterInitStark<F, D> {
-    fn prove_and_verify(_program: &Program, _record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterInitStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
-        let trace = generate_register_init_trace::<F>();
+        let trace = generate_register_init_trace::<F>(record);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -468,10 +469,7 @@ pub fn create_poseidon2_test(
                     ..Args::default()
                 },
             },
-            Instruction {
-                op: Op::ECALL,
-                args: Args::default(),
-            },
+            ECALL,
         ]);
     }
 

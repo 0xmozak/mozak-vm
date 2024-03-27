@@ -136,8 +136,6 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 
 /// Generates a bitshift row on a shift operation. This is used in the bitshift
 /// lookup table.
-#[allow(clippy::cast_possible_wrap)]
-#[allow(clippy::similar_names)]
 fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
     let shift_power = aux.op2;
     let shift_amount = if shift_power == 0 {
@@ -162,8 +160,6 @@ fn compute_full_range(is_signed: bool, value: u32) -> i64 {
     }
 }
 
-#[allow(clippy::cast_possible_wrap)]
-#[allow(clippy::similar_names)]
 #[allow(clippy::cast_possible_truncation)]
 fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
     // Helper function to determine sign and absolute value.
@@ -216,8 +212,6 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
         .unwrap_or_default();
 }
 
-#[allow(clippy::cast_possible_wrap)]
-#[allow(clippy::cast_lossless)]
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
 fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux<F>) {
@@ -270,8 +264,6 @@ fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction,
     });
 }
 
-#[allow(clippy::cast_possible_wrap)]
-#[allow(clippy::cast_lossless)]
 fn operands_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
     let op1_full_range = sign_extend(row.inst.is_op1_signed.is_nonzero(), aux.op1);
     let op2_full_range = sign_extend(row.inst.is_op2_signed.is_nonzero(), aux.op2);

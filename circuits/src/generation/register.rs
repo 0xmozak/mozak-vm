@@ -223,14 +223,17 @@ mod tests {
                 [    10,   0,             0,                 0,        1,      0,       0], // init
                 // This is one part of the instructions added in the setup fn `execute_code()`
                 [    10,   0,            17,                17,        0,      0,       1],
-                [    11,   0,             0,           neg(17),        1,      0,       0], // init
+                [    10,   0,            18,                 1,        0,      1,       0],
+                [    11,   0,             0,           neg(18),        1,      0,       0], // init
+                [    11,   0,            19,                19,        0,      1,       0],
+                [    12,   0,             0,           neg(19),        1,      0,       0], // init
             ],
         );
 
         // Finally, append the above trace with the extra init rows with unused
         // registers.
         let mut final_init_rows = prep_table(
-            (12..32).map(|i|
+            (13..32).map(|i|
                 // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
                 [     i,   0,             0,                 0,        1,      0,       0]
             ).collect(),

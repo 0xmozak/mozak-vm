@@ -55,7 +55,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 
         // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
         // This constraints ensures loop unrolling was done correctly
-        yield_constr.constraint(nv.is_io() * lv.size);
+        yield_constr.constraint(nv.ops.is_io_store * lv.size);
         // If lv.is_lv_and_nv_are_memory_rows == 1:
         //    nv.address == lv.address + 1 (wrapped)
         //    nv.size == lv.size - 1 (not-wrapped)
@@ -79,10 +79,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
         //      lv.addr == nv.addr       <-- next row address must be the same !!!
         //      lv.size === nv.size - 1  <-- next row size is decreased
         yield_constr.constraint_transition(
-            lv.is_io() * lv.size * (nv.addr - lv.addr),
+            lv.ops.is_io_store * lv.size * (nv.addr - lv.addr),
         );
         yield_constr.constraint_transition(
-            lv.is_io() * lv.size * (nv.size - (lv.size - P::ONES)),
+            lv.ops.is_io_store * lv.size * (nv.size - (lv.size - P::ONES)),
         );
         // If lv.is_io() == 1 && lv.size == 0:
         //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
@@ -92,7 +92,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 
         // If lv.is_io() == 1 && nv.size != 0:
         //      nv.is_lv_and_nv_are_memory_rows == 1
-        yield_constr.constraint(lv.is_io() * nv.size * (nv.is_lv_and_nv_are_memory_rows - P::ONES));
+        yield_constr.constraint(lv.ops.is_io_store * nv.size * (nv.is_lv_and_nv_are_memory_rows - P::ONES));
     }
 
     fn eval_ext_circuit(
@@ -154,8 +154,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 }
 
 #[cfg(test)]
-#[allow(clippy::cast_possible_wrap)]
 mod tests {
+    use mozak_runner::decode::ECALL;
     use mozak_runner::elf::RuntimeArguments;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
@@ -173,13 +173,8 @@ mod tests {
 
     pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
@@ -193,13 +188,8 @@ mod tests {
 
     pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PUBLIC),
@@ -213,13 +203,8 @@ mod tests {
 
     pub fn prove_io_read_call_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_TRANSCRIPT),
@@ -233,13 +218,8 @@ mod tests {
 
     pub fn prove_io_read_private<Stark: ProveAndVerify>(address: u32, io_tape_private: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
@@ -256,13 +236,8 @@ mod tests {
 
     pub fn prove_io_read_public<Stark: ProveAndVerify>(address: u32, io_tape_public: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_TRANSCRIPT),
@@ -279,13 +254,8 @@ mod tests {
 
     pub fn prove_io_read_call_tape<Stark: ProveAndVerify>(address: u32, call_tape: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
-            [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
-            ],
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_TRANSCRIPT),
@@ -302,12 +272,9 @@ mod tests {
 
     pub fn prove_io_read<Stark: ProveAndVerify>(address: u32, content: u8) {
         let (program, record) = execute_code_with_runtime_args(
+            // set sys-call IO_READ in x10(or a0)
             [
-                // set sys-call IO_READ in x10(or a0)
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
+                ECALL,
                 Instruction {
                     op: Op::ADD,
                     args: Args {
@@ -332,10 +299,7 @@ mod tests {
                         ..Args::default()
                     },
                 },
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
+                ECALL,
             ],
             &[(address, 0)],
             &[
@@ -384,10 +348,7 @@ mod tests {
                     },
                 },
                 // add ecall to io_read
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
+                ECALL,
                 Instruction {
                     op: Op::ADD,
                     args: Args {

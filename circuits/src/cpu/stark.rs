@@ -109,13 +109,12 @@ fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut Constraint
     one_hot(inst.rd_select, yield_constr);
 }
 
-fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
+fn one_hot<P: PackedField, Selectors: Copy + IntoIterator<Item = P>>(
     selectors: Selectors,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // selectors have value 0 or 1.
     selectors
-        .clone()
         .into_iter()
         .for_each(|s| is_binary(yield_constr, s));
 
@@ -215,7 +214,6 @@ fn check_permuted_inst_cols<P: PackedField>(
     }
 }
 
-#[allow(clippy::similar_names)]
 pub fn check_permuted_inst_cols_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &ProgramRom<ExtensionTarget<D>>,
@@ -408,7 +406,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    #[allow(clippy::similar_names)]
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,

@@ -42,7 +42,6 @@ pub fn u64_extra() -> impl Strategy<Value = u64> {
 }
 
 #[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
 pub fn i32_extra() -> impl Strategy<Value = i32> { u32_extra().prop_map(|x| x as i32) }
 
@@ -76,6 +75,8 @@ pub fn execute_code_with_ro_memory(
     regs: &[(u8, u32)],
     runtime_args: RuntimeArguments,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
+    use crate::decode::ECALL;
+
     let RuntimeArguments {
         self_prog_id,
         cast_list,
@@ -99,10 +100,7 @@ pub fn execute_code_with_ro_memory(
                     },
                 },
                 // add ECALL to halt the program
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
+                ECALL,
             ])
             .map(Ok),
         )
@@ -152,7 +150,6 @@ pub fn execute_code_with_runtime_args(
 }
 
 #[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_sign_loss)]
 pub fn u32_extra_except_mozak_ro_memory() -> impl Strategy<Value = u32> {
     u32_extra().prop_filter("filter out mozak-ro-memory addresses", |addr| {
         !MozakMemory::default().is_address_belongs_to_mozak_ro_memory(*addr)
