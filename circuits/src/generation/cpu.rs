@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use itertools::{chain, Itertools};
+use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
 use mozak_runner::vm::{ExecutionRecord, Row};
@@ -39,6 +40,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
 pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
+    debug!("Starting CPU Trace Generation");
     let mut trace: Vec<CpuState<F>> = vec![];
     let ExecutionRecord {
         executed,

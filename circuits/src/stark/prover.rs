@@ -54,7 +54,8 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     debug!("Starting Prove");
-    let traces_poly_values = generate_traces(program, record);
+    let traces_poly_values = generate_traces(program, record, timing);
+    debug!("Done with Trace Generation");
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);

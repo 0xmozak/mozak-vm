@@ -25,12 +25,14 @@ use std::borrow::Borrow;
 use std::fmt::Display;
 
 use itertools::Itertools;
+use log::debug;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
+use plonky2::util::timing::TimingTree;
 use plonky2::util::transpose;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
@@ -77,7 +79,9 @@ pub const MIN_TRACE_LENGTH: usize = 8;
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
     record: &ExecutionRecord<F>,
+    _timing: &mut TimingTree,
 ) -> TableKindArray<Vec<PolynomialValues<F>>> {
+    debug!("Starting Trace Generation");
     let cpu_rows = generate_cpu_trace::<F>(record);
     let register_rows = generate_register_trace::<F>(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
