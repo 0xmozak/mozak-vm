@@ -33,6 +33,9 @@ resolver = "2"
 [profile.dev.package."*"]
 # Set the default for dependencies in Development mode.
 opt-level = 3
+# Try these out:
+debug = false # when possible
+incremental = false
 
 [profile.dev]
 lto = "thin"

@@ -34,11 +34,15 @@ pub fn nop_bench(timing: &mut TimingTree, iterations: u32) -> Result<(), anyhow:
         execute_code(instructions, &[], &[(1, iterations)])
     );
 
-    prove_and_verify_mozak_stark_with_timing(
+    timed!(
         timing,
-        &program,
-        &record,
-        &StarkConfig::standard_fast_config(),
+        "nop bench prove_and_verify_mozak_stark_with_timing",
+        prove_and_verify_mozak_stark_with_timing(
+            timing,
+            &program,
+            &record,
+            &StarkConfig::standard_fast_config(),
+        )
     )
 }
 
