@@ -58,8 +58,8 @@
                 "commit": "aaa4addec66aa749cd3a8851257f3ada70d8da06",
                 "bench_function": "nop-bench"
             },
-            "compose": {
-                "commit": "latest",
+            "compose-real": {
+                "commit": "2c12ae1e395b1c2af19c6c82cdb96e721331407e",
                 "bench_function": "nop-bench"
             }
         }
