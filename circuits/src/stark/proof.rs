@@ -12,8 +12,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-// use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
-use plonky2_maybe_rayon::*;
+use plonky2_maybe_rayon::{MaybeParIter, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 

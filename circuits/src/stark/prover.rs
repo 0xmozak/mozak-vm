@@ -18,8 +18,9 @@ use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
-// use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-use plonky2_maybe_rayon::*;
+use plonky2_maybe_rayon::MaybeIntoParIter;
+#[cfg(feature = "parallel")]
+use plonky2_maybe_rayon::ParallelIterator;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 

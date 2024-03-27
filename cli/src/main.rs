@@ -4,7 +4,6 @@
 // and bitflags. TODO: remove once our dependencies no longer do that.
 #![allow(clippy::multiple_crate_versions)]
 use std::io::{Read, Write};
-use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -272,18 +271,12 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::Bench(bench) => {
-            /// Times a function and returns the `Duration`.
-            ///
-            /// # Errors
-            ///
-            /// This errors if the given function returns an `Err`.
-            pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
-                let start_time = std::time::Instant::now();
-                func()?;
-                Ok(start_time.elapsed())
-            }
+            let mut timing = TimingTree::new("Benchmarking", log::Level::Debug);
 
-            let time_taken = timeit(&|| bench.run())?.as_secs_f64();
+            let start_time = std::time::Instant::now();
+            bench.run(&mut timing)?;
+
+            let time_taken = start_time.elapsed().as_secs_f64();
             println!("{time_taken}");
         }
     }
