@@ -12,7 +12,7 @@ pub fn nop_bench(timing: &mut TimingTree, iterations: u32) -> Result<(), anyhow:
             op: Op::ADD,
             args: Args {
                 rd: 1,
-                rs1: 1,
+                rs2: 1,
                 imm: 1_u32.wrapping_neg(),
                 ..Args::default()
             },

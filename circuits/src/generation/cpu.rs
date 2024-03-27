@@ -70,6 +70,8 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             op1_value: from_u32(aux.op1),
             op2_value_raw: from_u32(aux.op2_raw),
             op2_value: from_u32(aux.op2),
+            // This seems reasonable-ish, but it's also suspicious?
+            // It seems too simple.
             op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
                 + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
