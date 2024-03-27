@@ -2,7 +2,7 @@ use core::iter::Sum;
 use core::ops::{Add, Mul, Neg, Sub};
 use std::ops::Index;
 
-use itertools::{chain, izip, Itertools};
+use itertools::{chain, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -183,28 +183,6 @@ impl<F: Field> ColumnSparse<F> {
                 .map(|&(c, f)| table[c].values[(row + 1) % table[c].values.len()] * f)
                 .sum::<F>()
             + self.constant
-    }
-
-    #[must_use]
-    pub fn eval_table_col(&self, table: &[PolynomialValues<F>]) -> Vec<F> {
-        let lvs = self
-            .lv_linear_combination
-            .iter()
-            .map(|&(c, f)| table[c].values.iter().map(|&x| x * f).collect::<Vec<_>>());
-        let nvs = self
-            .nv_linear_combination
-            .iter()
-            .map(|&(c, f)| table[c].values.iter().copied().map(move |x| x * f))
-            .map(|mut x| {
-                let first = x.next();
-                x.chain(std::iter::once(first.unwrap())).collect::<Vec<_>>()
-            });
-        chain!(lvs, nvs)
-            .reduce(|x, y| izip!(x, y).map(|(x, y)| x + y).collect::<Vec<_>>())
-            .unwrap()
-            .into_iter()
-            .map(|x| x + self.constant)
-            .collect()
     }
 }
 
