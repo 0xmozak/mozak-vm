@@ -33,6 +33,7 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
+use plonky2::timed;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
@@ -274,7 +275,7 @@ fn main() -> Result<()> {
             let mut timing = TimingTree::new("Benchmarking", log::Level::Debug);
 
             let start_time = std::time::Instant::now();
-            bench.run(&mut timing)?;
+            timed!(timing, "Benchmark", bench.run(&mut timing)?);
 
             let time_taken = start_time.elapsed().as_secs_f64();
             println!("{time_taken}");

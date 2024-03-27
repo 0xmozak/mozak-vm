@@ -1,6 +1,7 @@
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark_with_timing;
 use mozak_runner::instruction::{Args, Instruction, Op, NOP};
 use mozak_runner::util::execute_code;
+use plonky2::timed;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
@@ -27,7 +28,12 @@ pub fn nop_bench(timing: &mut TimingTree, iterations: u32) -> Result<(), anyhow:
             },
         },
     ];
-    let (program, record) = execute_code(instructions, &[], &[(1, iterations)]);
+    let (program, record) = timed!(
+        timing,
+        "nop_bench_execution",
+        execute_code(instructions, &[], &[(1, iterations)])
+    );
+
     prove_and_verify_mozak_stark_with_timing(
         timing,
         &program,

@@ -16,6 +16,7 @@ use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
+use plonky2::timed;
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -401,8 +402,12 @@ pub fn prove_and_verify_mozak_stark_with_timing(
         entry_point: from_u32(program.entry_point),
     };
 
-    let all_proof = prove::<F, C, D>(program, record, &stark, config, public_inputs, timing)?;
-    verify_proof(&stark, all_proof, config)
+    let all_proof = timed!(
+        timing,
+        "proving",
+        prove::<F, C, D>(program, record, &stark, config, public_inputs, timing)?
+    );
+    timed!(timing, "verifying", verify_proof(&stark, all_proof, config))
 }
 
 /// Interpret a u64 as a field element and try to invert it.
