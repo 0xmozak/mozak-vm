@@ -34,7 +34,11 @@ pub fn generate_cpu_trace_extended<F: RichField>(
         entry.filter = F::ZERO;
     }
     let cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
-    chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
+    let mut trace: CpuColumnsExtended<Vec<F>> =
+        chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect();
+    // Fix up `op2_value_inv` with a batch inversion.
+    trace.cpu.op2_value_inv = F::batch_multiplicative_inverse(&trace.cpu.op2_value_inv);
+    trace
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
@@ -251,7 +255,8 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
             F::from_noncanonical_u64(divisor_full_range.unsigned_abs() - 1 - remainder_abs);
         row.remainder_sign = F::from_bool(remainder.is_negative());
     }
-    row.op2_value_inv = from_u32::<F>(aux.op2).try_inverse().unwrap_or_default();
+    // Convert 0 into 1, so we can do the batch inversion later.
+    row.op2_value_inv = from_u32::<F>(aux.op2.max(1));
 }
 
 fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux<F>) {
