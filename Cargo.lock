@@ -911,14 +911,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mozak"
-version = "0.1.0"
-dependencies = [
- "clap",
- "mozak-node",
-]
-
-[[package]]
 name = "mozak-circuits"
 version = "0.1.0"
 dependencies = [
@@ -939,8 +931,8 @@ dependencies = [
  "mozak-runner",
  "mozak-sdk",
  "plonky2",
+ "plonky2_maybe_rayon 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "proptest",
- "rayon",
  "serde",
  "serde_json",
  "starky",
@@ -994,6 +986,14 @@ dependencies = [
  "mozak-circuits",
  "plonky2",
  "serde",
+]
+
+[[package]]
+name = "mozak-node-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "mozak-node",
 ]
 
 [[package]]
