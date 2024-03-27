@@ -65,14 +65,14 @@ where
             let RegisterCtl {
                 addr,
                 value,
-                aug_clk,
+                clk,
+                op,
             } = value.into_iter().collect();
-            let op = F::from_canonical_u64(aug_clk.to_noncanonical_u64() % 3);
             let ops = Ops::from(op);
             Register {
                 addr,
                 value,
-                clk: aug_clk,
+                clk,
                 ops,
             }
         })

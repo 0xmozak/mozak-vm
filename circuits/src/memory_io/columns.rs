@@ -104,7 +104,8 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Colu
 pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
     let mem = COL_MAP;
     let data = RegisterCtl {
-        aug_clk: mem.clk * 3 + ColumnWithTypedInput::constant(1), // read
+        clk: mem.clk,
+        op: ColumnWithTypedInput::constant(1), // read
         addr: ColumnWithTypedInput::constant(i64::from(REG_A1)),
         value: mem.addr,
     };

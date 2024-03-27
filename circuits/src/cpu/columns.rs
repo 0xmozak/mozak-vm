@@ -463,7 +463,8 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
     vec![
         CpuTable::new(
             RegisterCtl {
-                aug_clk: CPU.clk * 3 + is_read,
+                clk: CPU.clk,
+                op: is_read,
                 addr: CPU.inst.rs1_selected,
                 value: CPU.op1_value,
             },
@@ -471,7 +472,8 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         ),
         CpuTable::new(
             RegisterCtl {
-                aug_clk: CPU.clk * 3 + is_read,
+                clk: CPU.clk,
+                op: is_read,
                 addr: CPU.inst.rs2_selected,
                 value: CPU.op2_value_raw,
             },
@@ -479,7 +481,8 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         ),
         CpuTable::new(
             RegisterCtl {
-                aug_clk: CPU.clk * 3 + is_write,
+                clk: CPU.clk,
+                op: is_write,
                 addr: CPU.inst.rd_selected,
                 value: CPU.dst_value,
             },
