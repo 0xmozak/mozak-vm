@@ -25,7 +25,9 @@ use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
-use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
+use crate::cross_table_lookup::{
+    verify_cross_table_lookups_circuit, CrossTableLookup, CtlCheckVarsTarget,
+};
 use crate::open_public::MakeRowsPublic;
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
@@ -147,6 +149,15 @@ where
         &mut builder,
         &mut challenger,
         inner_config.num_challenges,
+    );
+
+    verify_cross_table_lookups_circuit(
+        &mut builder,
+        &mozak_stark.cross_table_lookups,
+        &stark_proof_with_pis_target
+            .clone()
+            .map(|p| p.proof.openings.ctl_zs_last),
+        inner_config,
     );
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
