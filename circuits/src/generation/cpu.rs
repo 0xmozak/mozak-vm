@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use itertools::{chain, Itertools};
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
@@ -11,7 +9,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
-use crate::program::columns::{InstructionRow, ProgramRom};
+use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
 use crate::xor::columns::XorView;
