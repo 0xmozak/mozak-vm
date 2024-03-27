@@ -12,7 +12,7 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
-use crate::program::columns::{InstructionRow, ProgramRom};
+use crate::program::columns::InstructionRow;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
 use crate::xor::columns::XorView;
@@ -190,7 +190,6 @@ columns_view_impl!(CpuColumnsExtended);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct CpuColumnsExtended<T> {
     pub cpu: CpuState<T>,
-    pub permuted: ProgramRom<T>,
 }
 
 impl<T: PackedField> CpuState<T> {
@@ -447,17 +446,17 @@ pub fn lookup_for_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
     )
 }
 
-/// Lookup of permuted instructions.
-#[must_use]
-pub fn lookup_for_permuted_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
-    CpuTable::new(COL_MAP.permuted.inst, COL_MAP.cpu.is_running)
-}
+// /// Lookup of permuted instructions.
+// #[must_use]
+// pub fn lookup_for_permuted_inst() ->
+// TableWithTypedOutput<InstructionRow<Column>> {     CpuTable::new(COL_MAP.
+// permuted.inst, COL_MAP.cpu.is_running) }
 
-/// Lookup of permuted instructions.
-#[must_use]
-pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
-    CpuTable::new(COL_MAP.permuted.inst, COL_MAP.permuted.filter)
-}
+// /// Lookup of permuted instructions.
+// #[must_use]
+// pub fn lookup_for_program_rom() ->
+// TableWithTypedOutput<InstructionRow<Column>> {     CpuTable::new(COL_MAP.
+// permuted.inst, COL_MAP.permuted.filter) }
 
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {

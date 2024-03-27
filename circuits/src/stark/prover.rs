@@ -74,6 +74,8 @@ pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
+    // Or we add another kind?
+    // traces_poly_values: &TableKindArray<Vec<Vec<PolynomialValues<F>>>>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
@@ -113,6 +115,9 @@ where
     for cap in &trace_caps {
         challenger.observe_cap(cap);
     }
+
+    // TODO(Matthias): auxiliary polynomials would go in here?
+    // Ish.
 
     let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
     let ctl_data_per_table = timed!(

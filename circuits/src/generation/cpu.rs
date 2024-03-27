@@ -13,6 +13,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::program::columns::{InstructionRow, ProgramRom};
+use crate::program_multiplicities::columns::ProgramMult;
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
 use crate::xor::columns::XorView;
@@ -20,21 +21,17 @@ use crate::xor::columns::XorView;
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
     cpu_trace: Vec<CpuState<F>>,
-    program_rom: &[ProgramRom<F>],
+    _program_rom: &[ProgramRom<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
-    let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
-    let len = cpu_trace
-        .len()
-        .max(permuted.len())
-        .max(MIN_TRACE_LENGTH)
-        .next_power_of_two();
-    let ori_len = permuted.len();
-    permuted = pad_trace_with_last_to_len(permuted, len);
-    for entry in permuted.iter_mut().skip(ori_len) {
-        entry.filter = F::ZERO;
-    }
+    // let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
+    let len = cpu_trace.len().max(MIN_TRACE_LENGTH).next_power_of_two();
+    // let ori_len = permuted.len();
+    // permuted = pad_trace_with_last_to_len(permuted, len);
+    // for entry in permuted.iter_mut().skip(ori_len) {
+    //     entry.filter = F::ZERO;
+    // }
     let cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
-    chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
+    transpose_trace(cpu_trace).into_iter().collect()
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
@@ -293,6 +290,32 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorVi
     XorView { a, b, out: a ^ b }.map(from_u32)
 }
 
+#[must_use]
+pub fn generate_program_mult_trace<F: RichField>(
+    trace: &[CpuState<F>],
+    program_rom: &[ProgramRom<F>],
+) -> Vec<ProgramMult<F>> {
+    let counts = trace
+        .iter()
+        .filter(|row| row.is_running == F::ONE)
+        .map(|row| row.inst.pc)
+        .counts();
+    program_rom
+        .iter()
+        .map(|row| {
+            ProgramMult {
+                // This assumes that row.filter is binary, and that we have no duplicates.
+                mult_in_cpu: row.filter
+                    * F::from_canonical_usize(
+                        counts.get(&row.inst.pc).copied().unwrap_or_default(),
+                    ),
+                mult_in_rom: row.filter,
+                inst: row.inst,
+            }
+        })
+        .collect()
+}
+
 // TODO:  a more elegant approach might be move them to the backend using logUp
 // or a similar method.
 #[must_use]
@@ -300,7 +323,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
     trace: &[CpuState<F>],
     program_rom: &[ProgramRom<F>],
 ) -> Vec<ProgramRom<F>> {
-    let mut cpu_trace: Vec<_> = trace
+    let mut cpu_trace: Vec<ProgramRom<F>> = trace
         .iter()
         .filter(|row| row.is_running == F::ONE)
         .map(|row| row.inst)

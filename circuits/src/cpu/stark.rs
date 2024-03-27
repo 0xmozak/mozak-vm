@@ -197,22 +197,22 @@ fn r0_always_0_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr.constraint(builder, lv.regs[0]);
 }
 
-/// This function ensures that for each unique value present in
-/// the instruction column the [`filter`] flag is `1`. This is done by comparing
-/// the local row and the next row values.
-/// As the result, `filter` marks all duplicated instructions with `0`.
-fn check_permuted_inst_cols<P: PackedField>(
-    lv: &ProgramRom<P>,
-    nv: &ProgramRom<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
-    yield_constr.constraint_first_row(lv.filter - P::ONES);
+// /// This function ensures that for each unique value present in
+// /// the instruction column the [`filter`] flag is `1`. This is done by
+// comparing /// the local row and the next row values.
+// /// As the result, `filter` marks all duplicated instructions with `0`.
+// fn check_permuted_inst_cols<P: PackedField>(
+//     lv: &ProgramRom<P>,
+//     nv: &ProgramRom<P>,
+//     yield_constr: &mut ConstraintConsumer<P>,
+// ) {
+//     yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
+//     yield_constr.constraint_first_row(lv.filter - P::ONES);
 
-    for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
-        yield_constr.constraint((nv.filter - P::ONES) * (lv_col - nv_col));
-    }
-}
+//     for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
+//         yield_constr.constraint((nv.filter - P::ONES) * (lv_col - nv_col));
+//     }
+// }
 
 pub fn check_permuted_inst_cols_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -417,9 +417,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let nv: &CpuColumnsExtended<_> = vars.get_next_values().into();
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
 
-        // Constrain the CPU transition between previous `lv` state and next `nv`
-        // state.
-        check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
+        // // Constrain the CPU transition between previous `lv` state and next `nv`
+        // // state.
+        // check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
 
         let lv = &lv.cpu;
         let nv = &nv.cpu;
@@ -470,7 +470,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let nv: &CpuColumnsExtended<_> = vars.get_next_values().into();
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
 
-        check_permuted_inst_cols_circuit(builder, &lv.permuted, &nv.permuted, yield_constr);
+        // check_permuted_inst_cols_circuit(builder, &lv.permuted, &nv.permuted,
+        // yield_constr);
 
         let lv = &lv.cpu;
         let nv = &nv.cpu;

@@ -45,6 +45,8 @@ use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
+use crate::program_multiplicities::columns::ProgramMult;
+use crate::program_multiplicities::stark::ProgramMultStark;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
@@ -63,7 +65,7 @@ use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, program, rangecheck, xor,
+    memoryinit, program, program_multiplicities, rangecheck, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
@@ -89,6 +91,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     #[StarkSet(stark_kind = "Program")]
     pub program_stark: ProgramStark<F, D>,
+    #[StarkSet(stark_kind = "ProgramMult")]
+    pub program_mult_stark: ProgramMultStark<F, D>,
     #[StarkSet(stark_kind = "Memory")]
     pub memory_stark: MemoryStark<F, D>,
     #[StarkSet(stark_kind = "ElfMemoryInit")]
@@ -359,6 +363,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             xor_stark: XorStark::default(),
             shift_amount_stark: BitshiftStark::default(),
             program_stark: ProgramStark::default(),
+            program_mult_stark: ProgramMultStark::default(),
             memory_stark: MemoryStark::default(),
             elf_memory_init_stark: MemoryInitStark::default(),
             mozak_memory_init_stark: MemoryInitStark::default(),
@@ -505,6 +510,7 @@ table_impl!(CpuTable, TableKind::Cpu, CpuColumnsExtended);
 table_impl!(XorTable, TableKind::Xor, XorColumnsView);
 table_impl!(BitshiftTable, TableKind::Bitshift, BitshiftView);
 table_impl!(ProgramTable, TableKind::Program, ProgramRom);
+table_impl!(ProgramMultTable, TableKind::ProgramMult, ProgramMult);
 table_impl!(MemoryTable, TableKind::Memory, Memory);
 table_impl!(ElfMemoryInitTable, TableKind::ElfMemoryInit, MemoryInit);
 table_impl!(MozakMemoryInitTable, TableKind::MozakMemoryInit, MemoryInit);
@@ -663,7 +669,7 @@ impl Lookups for InnerCpuTable {
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_inst()], vec![
-            cpu::columns::lookup_for_permuted_inst(),
+            program_multiplicities::columns::lookup_for_cpu(),
         ])
     }
 }
@@ -674,9 +680,10 @@ impl Lookups for ProgramCpuTable {
     type Row = InstructionRow<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_program_rom()], vec![
-            program::columns::lookup_for_ctl(),
-        ])
+        CrossTableLookupWithTypedOutput::new(
+            vec![program_multiplicities::columns::lookup_for_rom()],
+            vec![program::columns::lookup_for_ctl()],
+        )
     }
 }
 
