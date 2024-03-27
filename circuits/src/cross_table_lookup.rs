@@ -17,7 +17,7 @@ use thiserror::Error;
 
 pub use crate::linear_combination::Column;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
-use crate::open_public::MakeRowsPublic;
+use crate::public_sub_table::PublicSubTable;
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
@@ -58,13 +58,13 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) filter_column: Column,
 }
 
-pub(crate) fn verify_cross_table_lookups_and_make_rows_public<
+pub(crate) fn verify_cross_table_lookups_and_public_sub_tables<
     F: RichField + Extendable<D>,
     const D: usize,
 >(
     cross_table_lookups: &[CrossTableLookup],
-    make_rows_public: &[MakeRowsPublic],
-    reduced_public_inputs: &TableKindArray<Vec<F>>,
+    public_sub_tables: &[PublicSubTable],
+    reduced_public_sub_table_values: &TableKindArray<Vec<F>>,
     ctl_zs_lasts: &TableKindArray<Vec<F>>,
     config: &StarkConfig,
 ) -> Result<()> {
@@ -94,12 +94,14 @@ pub(crate) fn verify_cross_table_lookups_and_make_rows_public<
             );
         }
     }
-    let mut reduced_public_inputs_iter =
-        reduced_public_inputs.each_ref().map(|v| v.iter().copied());
+    let mut reduced_public_sub_table_values_iter = reduced_public_sub_table_values
+        .each_ref()
+        .map(|v| v.iter().copied());
     for _ in 0..config.num_challenges {
-        for MakeRowsPublic(table) in make_rows_public {
+        for public_sub_table in public_sub_tables {
             ensure!(
-                reduced_public_inputs_iter[table.kind].next() == ctl_zs_openings[table.kind].next()
+                reduced_public_sub_table_values_iter[public_sub_table.table.kind].next()
+                    == ctl_zs_openings[public_sub_table.table.kind].next()
             );
         }
     }
@@ -318,7 +320,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
         proofs: &TableKindArray<StarkProof<F, C, D>>,
         cross_table_lookups: &'a [CrossTableLookup],
-        make_rows_public: &'a [MakeRowsPublic],
+        public_sub_tables: &'a [PublicSubTable],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
     ) -> TableKindArray<Vec<Self>> {
         let mut ctl_zs = proofs
@@ -342,16 +344,16 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 filter_column: &table.filter_column,
             });
         }
-        for (&challenges, MakeRowsPublic(table)) in
-            iproduct!(&ctl_challenges.challenges, make_rows_public)
+        for (&challenges, public_sub_table) in
+            iproduct!(&ctl_challenges.challenges, public_sub_tables)
         {
-            let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
-            ctl_vars_per_table[table.kind].push(Self {
+            let (&local_z, &next_z) = ctl_zs[public_sub_table.table.kind].next().unwrap();
+            ctl_vars_per_table[public_sub_table.table.kind].push(Self {
                 local_z,
                 next_z,
                 challenges,
-                columns: &table.columns,
-                filter_column: &table.filter_column,
+                columns: &public_sub_table.table.columns,
+                filter_column: &public_sub_table.table.filter_column,
             });
         }
         ctl_vars_per_table
@@ -409,7 +411,7 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
         table: TableKind,
         proof: &StarkProofTarget<D>,
         cross_table_lookups: &'a [CrossTableLookup],
-        make_rows_public: &'a [MakeRowsPublic],
+        public_sub_tables: &'a [PublicSubTable],
         ctl_challenges: &'a GrandProductChallengeSet<Target>,
     ) -> Vec<Self> {
         let ctl_zs = izip!(&proof.openings.ctl_zs, &proof.openings.ctl_zs_next);
@@ -420,21 +422,18 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
                  looked_tables,
              }| chain!(looking_tables, looked_tables).filter(|twc| twc.kind == table),
         );
-        let make_rows_public_chain =
-            make_rows_public.iter().filter_map(
-                |MakeRowsPublic(twc)| {
-                    if twc.kind == table {
-                        Some(twc)
-                    } else {
-                        None
-                    }
-                },
-            );
+        let public_sub_table_chain = public_sub_tables.iter().filter_map(|twc| {
+            if twc.table.kind == table {
+                Some(&twc.table)
+            } else {
+                None
+            }
+        });
         zip_eq(
             ctl_zs,
             chain!(
                 iproduct!(&ctl_challenges.challenges, ctl_chain),
-                iproduct!(&ctl_challenges.challenges, make_rows_public_chain)
+                iproduct!(&ctl_challenges.challenges, public_sub_table_chain)
             ),
         )
         .map(|((&local_z, &next_z), (&challenges, table))| Self {

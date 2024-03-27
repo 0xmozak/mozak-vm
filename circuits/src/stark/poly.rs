@@ -28,7 +28,7 @@ pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    open_public_data: &CtlData<F>,
+    public_sub_table_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
     config: &StarkConfig,
@@ -97,7 +97,7 @@ where
                 &get_trace_values_packed(i_next_start),
                 public_inputs,
             );
-            let open_public_data_chain = open_public_data.zs_columns.as_slice();
+            let open_public_data_chain = public_sub_table_data.zs_columns.as_slice();
             let ctl_vars = ctl_data
                 .zs_columns
                 .iter()
