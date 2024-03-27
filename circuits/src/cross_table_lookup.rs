@@ -212,10 +212,20 @@ fn partial_sums<F: Field>(
     // (where combine(vals) = gamma + reduced_sum(vals, beta))
     // transition constraint looks like
     //       z_next = z_local + filter_local/combine_local
-    let filter_column = filter_column.to_field();
-    let columns: Vec<ColumnSparse<F>> = columns.iter().map(Column::to_field).collect();
 
+    let filter_column = filter_column.to_field();
+    let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
+
+    let columns: Vec<ColumnSparse<F>> = columns.iter().map(Column::to_field).collect();
     let prepped = prep_columns(&columns, challenge);
+    let get_data = |&i| -> F { prepped.eval_table(trace, i) };
+
+    let degree = trace[0].len();
+    let mut degrees = (0..degree).collect::<Vec<_>>();
+    degrees.rotate_right(1);
+
+    let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
+    let data: Vec<F> = degrees.iter().map(get_data).collect();
     let inv_data = F::batch_multiplicative_inverse(&data);
 
     izip!(multiplicities, inv_data)
@@ -457,6 +467,7 @@ pub mod ctl_utils {
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
+    use crate::linear_combination::ColumnSparse;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
     #[derive(Clone, Debug, Default, Deref, DerefMut)]
@@ -469,13 +480,18 @@ pub mod ctl_utils {
             table: &Table,
         ) {
             let trace = &trace_poly_values[table.kind];
+            let filter_column = table.filter_column.to_field();
+            let columns = table
+                .columns
+                .iter()
+                .map(ColumnSparse::to_field)
+                .collect::<Vec<_>>();
             for i in 0..trace[0].len() {
-                let filter = table.filter_column.to_field().eval_table(trace, i);
+                let filter = filter_column.eval_table(trace, i);
                 if filter.is_nonzero() {
-                    let row = table
-                        .columns
+                    let row = columns
                         .iter()
-                        .map(|c| c.to_field().eval_table(trace, i))
+                        .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
                     self.entry(row).or_default().push((table.kind, filter));
                 };

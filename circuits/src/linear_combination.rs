@@ -163,6 +163,7 @@ impl<F: Add<F, Output = F> + Default> Sum<ColumnSparse<F>> for ColumnSparse<F> {
 }
 
 impl Column {
+    // TODO(Matthias): add a `to_field` to `Table` as well.
     pub fn to_field<F: Field>(&self) -> ColumnSparse<F> {
         self.clone().map(F::from_noncanonical_i64)
     }
