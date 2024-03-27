@@ -340,7 +340,9 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     yield_constr.constraint(
         (P::ONES - is_branch_operation - is_shift_operation)
             * (lv.op2_value_overflowing - lv.op2_value)
-            * (lv.op2_value_overflowing - lv.op2_value - wrap_at * ops.is_mem_op()),
+            // TODO(Matthias): figure out why this used to be multiplied by `ops.is_mem_op()`:
+            // * (lv.op2_value_overflowing - lv.op2_value - wrap_at * ops.is_mem_op()),
+            * (lv.op2_value_overflowing - lv.op2_value - wrap_at),
     );
 }
 
