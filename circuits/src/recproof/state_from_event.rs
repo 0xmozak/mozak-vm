@@ -7,28 +7,10 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{find_target, find_targets, maybe_connect};
+use super::{find_target, find_targets, maybe_connect, Event, EventType};
 
 // Limit transfers to 2^40 credits to avoid overflow issues
 const MAX_LEAF_TRANSFER: usize = 40;
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum EventType {
-    Write = 0,
-    Ensure = 1,
-    Read = 2,
-    GiveOwner = 3,
-    TakeOwner = 4,
-    CreditDelta = 5,
-}
-
-impl EventType {
-    fn constant<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> Target
-    where
-        F: RichField + Extendable<D>, {
-        builder.constant(F::from_canonical_u64(self as u64))
-    }
-}
 
 #[bitflags]
 #[repr(u8)]
@@ -47,7 +29,7 @@ impl Flags {
     fn index(self) -> usize { (self as u8).trailing_zeros() as usize }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
     /// The index of the event/object address
     pub address: usize,
@@ -402,15 +384,10 @@ pub struct LeafWitnessValue<F> {
 }
 
 impl<F: RichField> LeafWitnessValue<F> {
-    pub fn from_event(
-        address: u64,
-        event_owner: [F; 4],
-        event_ty: EventType,
-        event_value: [F; 4],
-    ) -> Self {
+    pub fn from_event(event: Event<F>) -> Self {
         let zero = [F::ZERO; 4];
 
-        let (object_flags, credit_delta) = match event_ty {
+        let (object_flags, credit_delta) = match event.ty {
             EventType::Write => (Flags::WriteFlag.into(), 0),
             EventType::Read => (Flags::ReadFlag.into(), 0),
             EventType::Ensure => (Flags::EnsureFlag.into(), 0),
@@ -418,8 +395,8 @@ impl<F: RichField> LeafWitnessValue<F> {
             EventType::TakeOwner => (Flags::TakeOwnerFlag.into(), 0),
             EventType::CreditDelta => {
                 #[allow(clippy::cast_possible_wrap)]
-                let value = event_value[0].to_canonical_u64() as i64;
-                let value = match event_value[3] {
+                let value = event.value[0].to_canonical_u64() as i64;
+                let value = match event.value[3] {
                     sign if sign.is_zero() => value,
                     sign if sign.is_one() => -value,
                     _ => unreachable!(),
@@ -428,48 +405,38 @@ impl<F: RichField> LeafWitnessValue<F> {
             }
         };
 
-        let (old_owner, new_owner) = match event_ty {
-            EventType::Write | EventType::CreditDelta => (event_owner, zero),
+        let (old_owner, new_owner) = match event.ty {
+            EventType::Write | EventType::CreditDelta => (event.owner, zero),
             EventType::Read | EventType::Ensure => (zero, zero),
-            EventType::GiveOwner => (event_owner, event_value),
-            EventType::TakeOwner => (event_value, event_owner),
+            EventType::GiveOwner => (event.owner, event.value),
+            EventType::TakeOwner => (event.value, event.owner),
         };
 
-        let (old_data, new_data) = match event_ty {
-            EventType::Write | EventType::Ensure => (zero, event_value),
-            EventType::Read => (event_value, zero),
+        let (old_data, new_data) = match event.ty {
+            EventType::Write | EventType::Ensure => (zero, event.value),
+            EventType::Read => (event.value, zero),
             EventType::GiveOwner | EventType::TakeOwner | EventType::CreditDelta => (zero, zero),
         };
 
         Self {
-            address,
+            address: event.address,
             object_flags,
             old_owner,
             new_owner,
             old_data,
             new_data,
             credit_delta,
-            event_owner,
-            event_ty: F::from_canonical_u64(event_ty as u64),
-            event_value,
+            event_owner: event.owner,
+            event_ty: F::from_canonical_u64(event.ty as u64),
+            event_value: event.value,
         }
     }
 }
 
 impl LeafSubCircuit {
     /// Get ready to generate a proof
-    pub fn set_witness<F: RichField>(
-        &self,
-        witness: &mut PartialWitness<F>,
-        address: u64,
-        event_owner: [F; 4],
-        event_ty: EventType,
-        event_value: [F; 4],
-    ) {
-        self.set_witness_unsafe(
-            witness,
-            LeafWitnessValue::from_event(address, event_owner, event_ty, event_value),
-        );
+    pub fn set_witness<F: RichField>(&self, witness: &mut PartialWitness<F>, event: Event<F>) {
+        self.set_witness_unsafe(witness, LeafWitnessValue::from_event(event));
     }
 
     pub fn set_witness_unsafe<F: RichField>(
@@ -534,12 +501,17 @@ impl SubCircuitInputs {
         }
     }
 
-    fn build_helper<F: RichField + Extendable<D>, const D: usize>(
+    #[must_use]
+    pub fn build_branch<F: RichField + Extendable<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
-        left: SubCircuitInputs,
-        right: SubCircuitInputs,
+        indices: &PublicIndices,
+        left_proof: &ProofWithPublicInputsTarget<D>,
+        right_proof: &ProofWithPublicInputsTarget<D>,
     ) -> BranchTargets {
+        let left = Self::direction_from_node(left_proof, indices);
+        let right = Self::direction_from_node(right_proof, indices);
+
         builder.connect(self.address, left.address);
         builder.connect(self.address, right.address);
 
@@ -599,31 +571,6 @@ impl SubCircuitInputs {
             right,
         }
     }
-
-    #[must_use]
-    pub fn from_leaf<F: RichField + Extendable<D>, const D: usize>(
-        self,
-        builder: &mut CircuitBuilder<F, D>,
-        leaf: &LeafSubCircuit,
-        left_proof: &ProofWithPublicInputsTarget<D>,
-        right_proof: &ProofWithPublicInputsTarget<D>,
-    ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, &leaf.indices);
-        let right = Self::direction_from_node(right_proof, &leaf.indices);
-        self.build_helper(builder, left, right)
-    }
-
-    pub fn from_branch<F: RichField + Extendable<D>, const D: usize>(
-        self,
-        builder: &mut CircuitBuilder<F, D>,
-        branch: &BranchSubCircuit,
-        left_proof: &ProofWithPublicInputsTarget<D>,
-        right_proof: &ProofWithPublicInputsTarget<D>,
-    ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, &branch.indices);
-        let right = Self::direction_from_node(right_proof, &branch.indices);
-        self.build_helper(builder, left, right)
-    }
 }
 
 /// The branch subcircuit metadata. This subcircuit validates the merge of two
@@ -631,14 +578,13 @@ impl SubCircuitInputs {
 pub struct BranchSubCircuit {
     pub targets: BranchTargets,
     pub indices: PublicIndices,
-    /// The distance from the leaves (`0` being the lowest branch)
-    /// Used for debugging
-    pub dbg_height: usize,
 }
 
 impl BranchTargets {
-    fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices {
-        PublicIndices {
+    #[must_use]
+    pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit {
+        // Find the indicies
+        let indices = PublicIndices {
             address: find_target(public_inputs, self.inputs.address),
             object_flags: find_target(public_inputs, self.inputs.object_flags),
             old_owner: find_targets(public_inputs, self.inputs.old_owner),
@@ -646,28 +592,12 @@ impl BranchTargets {
             old_data: find_targets(public_inputs, self.inputs.old_data),
             new_data: find_targets(public_inputs, self.inputs.new_data),
             credit_delta: find_target(public_inputs, self.inputs.credit_delta),
-        }
-    }
+        };
+        debug_assert_eq!(indices, *child);
 
-    #[must_use]
-    pub fn from_leaf(self, public_inputs: &[Target]) -> BranchSubCircuit {
         BranchSubCircuit {
-            indices: self.get_indices(public_inputs),
+            indices,
             targets: self,
-            dbg_height: 0,
-        }
-    }
-
-    #[must_use]
-    pub fn from_branch(
-        self,
-        branch: &BranchSubCircuit,
-        public_inputs: &[Target],
-    ) -> BranchSubCircuit {
-        BranchSubCircuit {
-            indices: self.get_indices(public_inputs),
-            targets: self,
-            dbg_height: branch.dbg_height + 1,
         }
     }
 }
@@ -866,20 +796,22 @@ impl BranchSubCircuit {
 
 #[cfg(test)]
 mod test {
+    use std::cell::Cell;
     use std::panic::{catch_unwind, UnwindSafe};
 
     use anyhow::Result;
+    use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::recproof::unbounded;
-    use crate::test_utils::{C, D, F};
+    use crate::recproof::bounded;
+    use crate::test_utils::{fast_test_circuit_config, C, D, F};
 
     pub struct DummyLeafCircuit {
+        pub bounded: bounded::LeafSubCircuit,
         pub state_from_events: LeafSubCircuit,
-        pub unbounded: unbounded::LeafSubCircuit,
         pub circuit: CircuitData<F, C, D>,
     }
 
@@ -888,154 +820,141 @@ mod test {
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
+            let bounded_inputs = bounded::SubCircuitInputs::default(&mut builder);
             let state_from_events_inputs = SubCircuitInputs::default(&mut builder);
+
+            let bounded_targets = bounded_inputs.build_leaf(&mut builder);
             let state_from_events_targets = state_from_events_inputs.build_leaf(&mut builder);
-            let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
-            let state_from_events =
-                state_from_events_targets.build(&circuit.prover_only.public_inputs);
+
+            let circuit = builder.build();
+
+            let public_inputs = &circuit.prover_only.public_inputs;
+            let bounded = bounded_targets.build(public_inputs);
+            let state_from_events = state_from_events_targets.build(public_inputs);
 
             Self {
+                bounded,
                 state_from_events,
-                unbounded,
                 circuit,
             }
         }
 
-        pub fn prove(
-            &self,
-            branch: &DummyBranchCircuit,
-            address: u64,
-            event_owner: [F; 4],
-            event_ty: EventType,
-            event_value: [F; 4],
-        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        pub fn prove(&self, event: Event<F>) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.state_from_events.set_witness(
-                &mut inputs,
-                address,
-                event_owner,
-                event_ty,
-                event_value,
-            );
-            self.unbounded.set_witness(&mut inputs, &branch.circuit);
+            self.bounded.set_witness(&mut inputs);
+            self.state_from_events.set_witness(&mut inputs, event);
             self.circuit.prove(inputs)
         }
 
         #[allow(dead_code)]
-        fn prove_unsafe(
-            &self,
-            branch: &DummyBranchCircuit,
-            v: LeafWitnessValue<F>,
-        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        fn prove_unsafe(&self, v: LeafWitnessValue<F>) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
+            self.bounded.set_witness(&mut inputs);
             self.state_from_events.set_witness_unsafe(&mut inputs, v);
-            self.unbounded.set_witness(&mut inputs, &branch.circuit);
             self.circuit.prove(inputs)
         }
     }
 
     pub struct DummyBranchCircuit {
+        pub bounded: bounded::BranchSubCircuit<D>,
         pub state_from_events: BranchSubCircuit,
-        pub unbounded: unbounded::BranchSubCircuit,
         pub circuit: CircuitData<F, C, D>,
-        pub targets: DummyBranchTargets,
-    }
-
-    pub struct DummyBranchTargets {
-        pub left_is_leaf: BoolTarget,
-        pub right_is_leaf: BoolTarget,
-        pub left_proof: ProofWithPublicInputsTarget<D>,
-        pub right_proof: ProofWithPublicInputsTarget<D>,
     }
 
     impl DummyBranchCircuit {
         #[must_use]
-        pub fn new(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
+        pub fn new(
+            circuit_config: &CircuitConfig,
+            indicies: &PublicIndices,
+            child: &CircuitData<F, C, D>,
+        ) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-            let common = &leaf.circuit.common;
-            let left_proof = builder.add_virtual_proof_with_pis(common);
-            let right_proof = builder.add_virtual_proof_with_pis(common);
-            let left_is_leaf = builder.add_virtual_bool_target_safe();
-            let right_is_leaf = builder.add_virtual_bool_target_safe();
 
+            let bounded_inputs = bounded::SubCircuitInputs::default(&mut builder);
             let state_from_events_inputs = SubCircuitInputs::default(&mut builder);
 
-            let state_from_events_targets = state_from_events_inputs.from_leaf(
+            let bounded_targets = bounded_inputs.build_branch(&mut builder, child);
+            let state_from_events_targets = state_from_events_inputs.build_branch(
                 &mut builder,
-                &leaf.state_from_events,
-                &left_proof,
-                &right_proof,
-            );
-            let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
-                builder,
-                &leaf.circuit,
-                left_is_leaf,
-                right_is_leaf,
-                &left_proof,
-                &right_proof,
+                indicies,
+                &bounded_targets.left_proof,
+                &bounded_targets.right_proof,
             );
 
-            let targets = DummyBranchTargets {
-                left_is_leaf,
-                right_is_leaf,
-                left_proof,
-                right_proof,
-            };
-            let state_from_events =
-                state_from_events_targets.from_leaf(&circuit.prover_only.public_inputs);
+            let circuit = builder.build();
+
+            let public_inputs = &circuit.prover_only.public_inputs;
+            let bounded = bounded_targets.build(public_inputs);
+            let state_from_events = state_from_events_targets.build(indicies, public_inputs);
 
             Self {
+                bounded,
                 state_from_events,
-                unbounded,
                 circuit,
-                targets,
             }
+        }
+
+        #[must_use]
+        pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
+            Self::new(
+                circuit_config,
+                &leaf.state_from_events.indices,
+                &leaf.circuit,
+            )
+        }
+
+        #[must_use]
+        pub fn from_branch(circuit_config: &CircuitConfig, branch: &Self) -> Self {
+            Self::new(
+                circuit_config,
+                &branch.state_from_events.indices,
+                &branch.circuit,
+            )
         }
 
         pub fn prove(
             &self,
             v: BranchWitnessValue<F>,
-            left_is_leaf: bool,
             left_proof: &ProofWithPublicInputs<F, C, D>,
-            right_is_leaf: bool,
             right_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
+            self.bounded
+                .set_witness(&mut inputs, left_proof, right_proof);
             self.state_from_events.set_witness(&mut inputs, v);
-            inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
-            inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
-            inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
-            inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
             self.circuit.prove(inputs)
         }
 
         pub fn prove_implicit(
             &self,
-            left_is_leaf: bool,
             left_proof: &ProofWithPublicInputs<F, C, D>,
-            right_is_leaf: bool,
             right_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
+            self.bounded
+                .set_witness(&mut inputs, left_proof, right_proof);
             self.state_from_events.set_witness_from_proofs(
                 &mut inputs,
                 &left_proof.public_inputs,
                 &right_proof.public_inputs,
             );
-            inputs.set_bool_target(self.targets.left_is_leaf, left_is_leaf);
-            inputs.set_bool_target(self.targets.right_is_leaf, right_is_leaf);
-            inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
-            inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
             self.circuit.prove(inputs)
         }
     }
 
+    const CONFIG: CircuitConfig = fast_test_circuit_config();
+
+    lazy_static! {
+        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
+        static ref BRANCHES: [DummyBranchCircuit; 2] = {
+            let b0 = DummyBranchCircuit::from_leaf(&CONFIG, &LEAF);
+            let b1 = DummyBranchCircuit::from_branch(&CONFIG, &b0);
+            [b0, b1]
+        };
+    }
+
     #[test]
     fn verify_leaf() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
         let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
 
@@ -1043,92 +962,86 @@ mod test {
         let non_zero_val_2 = [42, 0, 0, 0].map(F::from_canonical_u64);
         let non_zero_val_3 = [42, 0, 0, 1].map(F::from_canonical_u64);
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Write,
-            non_zero_val_1,
-        )?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(Event {
+            owner: program_hash_1,
+            ty: EventType::Write,
+            address: 200,
+            value: non_zero_val_1,
+        })?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Read,
-            non_zero_val_1,
-        )?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(Event {
+            owner: program_hash_1,
+            ty: EventType::Read,
+            address: 200,
+            value: non_zero_val_1,
+        })?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Ensure,
-            non_zero_val_1,
-        )?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(Event {
+            owner: program_hash_1,
+            ty: EventType::Ensure,
+            address: 200,
+            value: non_zero_val_1,
+        })?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::GiveOwner,
-            program_hash_2,
-        )?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(Event {
+            owner: program_hash_1,
+            ty: EventType::GiveOwner,
+            address: 200,
+            value: program_hash_2,
+        })?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_2,
-            EventType::TakeOwner,
-            program_hash_1,
-        )?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(Event {
+            owner: program_hash_2,
+            ty: EventType::TakeOwner,
+            address: 200,
+            value: program_hash_1,
+        })?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::CreditDelta,
-            non_zero_val_2,
-        )?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(Event {
+            owner: program_hash_1,
+            ty: EventType::CreditDelta,
+            address: 200,
+            value: non_zero_val_2,
+        })?;
+        LEAF.circuit.verify(proof)?;
 
-        let proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::CreditDelta,
-            non_zero_val_3,
-        )?;
-        leaf.circuit.verify(proof)?;
+        let proof = LEAF.prove(Event {
+            owner: program_hash_1,
+            ty: EventType::CreditDelta,
+            address: 200,
+            value: non_zero_val_3,
+        })?;
+        LEAF.circuit.verify(proof)?;
 
         Ok(())
     }
 
-    fn leaf_test_helper<Fn>(owner: [u64; 4], event_ty: EventType, value: [u64; 4], f: Fn)
+    fn leaf_test_helper<Fn>(owner: [u64; 4], ty: EventType, value: [u64; 4], f: Fn)
     where
         Fn: FnOnce(&mut LeafWitnessValue<F>, [F; 4], [F; 4]) + UnwindSafe, {
-        let (leaf, branch, event) = catch_unwind(|| {
-            let circuit_config = CircuitConfig::standard_recursion_config();
-            let leaf = DummyLeafCircuit::new(&circuit_config);
-            let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
+        let event = catch_unwind(|| {
             let owner = owner.map(F::from_canonical_u64);
             let value = value.map(F::from_canonical_u64);
 
-            let mut event = LeafWitnessValue::from_event(200, owner, event_ty, value);
+            let mut event = LeafWitnessValue::from_event(Event {
+                owner,
+                ty,
+                address: 200,
+                value,
+            });
 
             f(&mut event, owner, value);
 
-            (leaf, branch, event)
+            event
         })
         .expect("shouldn't fail");
 
-        leaf.prove_unsafe(&branch, event).unwrap();
+        LEAF.prove_unsafe(event).unwrap();
     }
 
     #[test]
@@ -1248,92 +1161,151 @@ mod test {
         );
     }
 
-    struct NoFn;
-
-    trait MaybeBfn: Sized + UnwindSafe {
-        const PRESENT: bool;
-        fn apply(self, _event: &mut BranchWitnessValue<F>) { unimplemented!() }
+    struct EventData {
+        owner: [u64; 4],
+        ty: EventType,
+        value: [u64; 4],
     }
 
-    impl MaybeBfn for NoFn {
-        const PRESENT: bool = false;
-    }
-    impl<Fn: FnOnce(&mut BranchWitnessValue<F>) + UnwindSafe> MaybeBfn for Fn {
-        const PRESENT: bool = true;
-
-        fn apply(self, event: &mut BranchWitnessValue<F>) { self(event) }
+    struct EventProof<E> {
+        event: E,
+        proof: ProofWithPublicInputs<F, C, D>,
     }
 
-    fn branch_test_helper<Lfn, Bfn1, Bfn2>(
-        owners: [[u64; 4]; 3],
-        tys: [EventType; 3],
-        values: [[u64; 4]; 3],
-        lf: Lfn,
-        bf1: Bfn1,
-        bf2: Bfn2,
-    ) where
-        Lfn: FnOnce(&mut LeafWitnessValue<F>, &mut LeafWitnessValue<F>, &mut LeafWitnessValue<F>)
-            + UnwindSafe,
-        Bfn1: FnOnce(&mut BranchWitnessValue<F>) + UnwindSafe,
-        Bfn2: MaybeBfn, {
-        let (branch, left, right, branch_event) = catch_unwind(|| {
-            let circuit_config = CircuitConfig::standard_recursion_config();
-            let leaf = DummyLeafCircuit::new(&circuit_config);
-            let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
+    trait Constructable: UnwindSafe {
+        type Constructed;
+        fn construct(self, f: impl Fn(&mut LeafWitnessValue<F>)) -> Self::Constructed;
+    }
 
-            let owners = owners.map(|owner| owner.map(F::from_canonical_u64));
-            let values = values.map(|owner| owner.map(F::from_canonical_u64));
+    impl Constructable for EventData {
+        type Constructed = EventProof<LeafWitnessValue<F>>;
 
-            let mut event0 = LeafWitnessValue::from_event(200, owners[0], tys[0], values[0]);
-            let mut event1 = LeafWitnessValue::from_event(200, owners[1], tys[1], values[1]);
-            let mut event2 = LeafWitnessValue::from_event(200, owners[2], tys[2], values[2]);
-            lf(&mut event0, &mut event1, &mut event2);
+        fn construct(self, f: impl Fn(&mut LeafWitnessValue<F>)) -> Self::Constructed {
+            let mut event = LeafWitnessValue::from_event(Event {
+                address: 200,
+                owner: self.owner.map(F::from_canonical_u64),
+                ty: self.ty,
+                value: self.value.map(F::from_canonical_u64),
+            });
+            f(&mut event);
+            let proof = LEAF.prove_unsafe(event).unwrap();
+            EventProof { event, proof }
+        }
+    }
 
-            let mut branch_event_1 = BranchWitnessValue::from_branches(event0, event1);
-            bf1(&mut branch_event_1);
-            let mut branch_event_2 = BranchWitnessValue::from_branches(branch_event_1, event2);
-            if Bfn2::PRESENT {
-                bf2.apply(&mut branch_event_2);
-            };
+    impl<T: Constructable> Constructable for (T, T) {
+        type Constructed = (T::Constructed, T::Constructed);
 
-            let leaf_proof_array =
-                [event0, event1, event2].map(|event| leaf.prove_unsafe(&branch, event).unwrap());
-            let _ = leaf_proof_array
-                .clone()
-                .map(|proof| leaf.circuit.verify(proof).unwrap());
+        fn construct(self, f: impl Fn(&mut LeafWitnessValue<F>)) -> Self::Constructed {
+            (self.0.construct(&f), self.1.construct(f))
+        }
+    }
 
-            let [leaf_proof0, leaf_proof1, leaf_proof2] = leaf_proof_array;
+    trait Mergeable {
+        const HEIGHT: usize;
+        fn merge(
+            self,
+            f: impl Fn(&mut BranchWitnessValue<F>),
+        ) -> impl FnOnce() -> EventProof<BranchWitnessValue<F>>;
+    }
 
-            let (left, right, branch_event) = if Bfn2::PRESENT {
-                let branch_proof_1 = branch
-                    .prove(branch_event_1, true, &leaf_proof0, true, &leaf_proof1)
+    impl Mergeable
+        for (
+            EventProof<LeafWitnessValue<F>>,
+            EventProof<LeafWitnessValue<F>>,
+        )
+    {
+        const HEIGHT: usize = 0;
+
+        fn merge(
+            self,
+            f: impl Fn(&mut BranchWitnessValue<F>),
+        ) -> impl FnOnce() -> EventProof<BranchWitnessValue<F>> {
+            let mut event = BranchWitnessValue::from_branches(self.0.event, self.1.event);
+            f(&mut event);
+            move || {
+                let proof = BRANCHES[Self::HEIGHT]
+                    .prove(event, &self.0.proof, &self.1.proof)
                     .unwrap();
-                branch.circuit.verify(branch_proof_1.clone()).unwrap();
+                EventProof { event, proof }
+            }
+        }
+    }
 
-                ((false, branch_proof_1), (true, leaf_proof2), branch_event_2)
-            } else {
-                ((true, leaf_proof0), (true, leaf_proof1), branch_event_1)
-            };
-            (branch, left, right, branch_event)
+    impl<T: Mergeable> Mergeable for (T, T) {
+        const HEIGHT: usize = <T as Mergeable>::HEIGHT + 1;
+
+        fn merge(
+            self,
+            f: impl Fn(&mut BranchWitnessValue<F>),
+        ) -> impl FnOnce() -> EventProof<BranchWitnessValue<F>> {
+            let left = self.0.merge(&f)();
+            let right = self.1.merge(&f)();
+
+            let mut event = BranchWitnessValue::from_branches(left.event, right.event);
+            f(&mut event);
+            move || {
+                let proof = BRANCHES[Self::HEIGHT]
+                    .prove(event, &left.proof, &right.proof)
+                    .unwrap();
+                EventProof { event, proof }
+            }
+        }
+    }
+
+    fn branch_test_helper<V: Constructable>(
+        v: V,
+        leaf: impl Fn(&mut LeafWitnessValue<F>) + UnwindSafe,
+        branch: impl Fn(&mut BranchWitnessValue<F>) + UnwindSafe,
+    ) where
+        V::Constructed: Mergeable, {
+        let final_branch_merge = catch_unwind(|| {
+            let v = v.construct(leaf);
+            v.merge(branch)
         })
         .expect("shouldn't fail");
 
-        branch
-            .prove(branch_event, left.0, &left.1, right.0, &right.1)
-            .unwrap();
+        final_branch_merge();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_mismatch_address_1() {
+        let i = Cell::new(0);
         branch_test_helper(
-            [[4, 8, 15, 16], [2, 3, 4, 2], [2, 3, 4, 2]],
-            [EventType::Write, EventType::Read, EventType::Ensure],
-            [[3, 1, 4, 15], [1, 6, 180, 33], [3, 1, 4, 15]],
-            |_, _, event| {
-                event.address += 10;
+            (
+                (
+                    EventData {
+                        owner: [4, 8, 15, 16],
+                        ty: EventType::Write,
+                        value: [3, 1, 4, 15],
+                    },
+                    EventData {
+                        owner: [2, 3, 4, 2],
+                        ty: EventType::Read,
+                        value: [1, 6, 180, 33],
+                    },
+                ),
+                (
+                    EventData {
+                        owner: [2, 3, 4, 2],
+                        ty: EventType::Ensure,
+                        value: [3, 1, 4, 15],
+                    },
+                    EventData {
+                        owner: [2, 3, 4, 2],
+                        ty: EventType::Ensure,
+                        value: [3, 1, 4, 15],
+                    },
+                ),
+            ),
+            move |event| {
+                // Alter the address of the last two events
+                if matches!(i.get(), 2 | 3) {
+                    event.address += 10;
+                }
+                i.set(i.get() + 1);
             },
-            |_| {},
             |_: &mut _| {},
         );
     }
@@ -1341,14 +1313,41 @@ mod test {
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_mismatch_address_2() {
+        let i = Cell::new(0);
         branch_test_helper(
-            [[4, 8, 15, 16], [2, 3, 4, 2], [2, 3, 4, 2]],
-            [EventType::Write, EventType::Read, EventType::Ensure],
-            [[3, 1, 4, 15], [1, 6, 180, 33], [3, 1, 4, 15]],
-            |_, _, _| {},
+            (
+                (
+                    EventData {
+                        owner: [4, 8, 15, 16],
+                        ty: EventType::Write,
+                        value: [3, 1, 4, 15],
+                    },
+                    EventData {
+                        owner: [2, 3, 4, 2],
+                        ty: EventType::Read,
+                        value: [1, 6, 180, 33],
+                    },
+                ),
+                (
+                    EventData {
+                        owner: [2, 3, 4, 2],
+                        ty: EventType::Ensure,
+                        value: [3, 1, 4, 15],
+                    },
+                    EventData {
+                        owner: [2, 3, 4, 2],
+                        ty: EventType::Ensure,
+                        value: [3, 1, 4, 15],
+                    },
+                ),
+            ),
             |_| {},
-            |event: &mut BranchWitnessValue<F>| {
-                event.address += 10;
+            move |event| {
+                // Mess up the final address
+                if i.get() == 2 {
+                    event.address += 10;
+                }
+                i.set(i.get() + 1);
             },
         );
     }
@@ -1357,12 +1356,20 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_double_write() {
         branch_test_helper(
-            [[4, 8, 15, 16], [4, 8, 15, 16], [2, 3, 4, 2]],
-            [EventType::Write, EventType::Write, EventType::Ensure],
-            [[3, 1, 4, 15], [3, 1, 4, 15], [3, 1, 4, 15]],
-            |_, _, _| {},
+            (
+                EventData {
+                    owner: [4, 8, 15, 16],
+                    ty: EventType::Write,
+                    value: [3, 1, 4, 15],
+                },
+                EventData {
+                    owner: [4, 8, 15, 16],
+                    ty: EventType::Write,
+                    value: [3, 1, 4, 15],
+                },
+            ),
             |_| {},
-            NoFn,
+            |_| {},
         );
     }
 
@@ -1370,16 +1377,21 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_double_credit_sum() {
         branch_test_helper(
-            [[4, 8, 15, 16], [4, 8, 15, 16], [2, 3, 4, 2]],
-            [
-                EventType::CreditDelta,
-                EventType::CreditDelta,
-                EventType::Ensure,
-            ],
-            [[13, 0, 0, 0], [8, 0, 0, 1], [3, 1, 4, 15]],
-            |_, _, _| {},
+            (
+                EventData {
+                    owner: [4, 8, 15, 16],
+                    ty: EventType::CreditDelta,
+                    value: [13, 0, 0, 0],
+                },
+                EventData {
+                    owner: [4, 8, 15, 16],
+                    ty: EventType::CreditDelta,
+                    value: [8, 0, 0, 1],
+                },
+            ),
             |_| {},
-            |event: &mut BranchWitnessValue<F>| {
+            |event| {
+                assert_eq!(event.credit_delta, 5);
                 event.credit_delta += 10;
             },
         );
@@ -1387,44 +1399,37 @@ mod test {
 
     #[test]
     fn verify_branch() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf = DummyLeafCircuit::new(&circuit_config);
-        let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
-
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
 
         let zero_val = [F::ZERO; 4];
         let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
         let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
 
-        let read_proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Read,
-            non_zero_val_1,
-        )?;
-        leaf.circuit.verify(read_proof.clone())?;
+        let read_proof = LEAF.prove(Event {
+            owner: program_hash_1,
+            ty: EventType::Read,
+            address: 200,
+            value: non_zero_val_1,
+        })?;
+        LEAF.circuit.verify(read_proof.clone())?;
 
-        let write_proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Write,
-            non_zero_val_2,
-        )?;
-        leaf.circuit.verify(write_proof.clone())?;
+        let write_proof = LEAF.prove(Event {
+            owner: program_hash_1,
+            ty: EventType::Write,
+            address: 200,
+            value: non_zero_val_2,
+        })?;
+        LEAF.circuit.verify(write_proof.clone())?;
 
-        let ensure_proof = leaf.prove(
-            &branch,
-            200,
-            program_hash_1,
-            EventType::Ensure,
-            non_zero_val_2,
-        )?;
-        leaf.circuit.verify(ensure_proof.clone())?;
+        let ensure_proof = LEAF.prove(Event {
+            owner: program_hash_1,
+            ty: EventType::Ensure,
+            address: 200,
+            value: non_zero_val_2,
+        })?;
+        LEAF.circuit.verify(ensure_proof.clone())?;
 
-        let branch_proof_1 = branch.prove(
+        let branch_proof_1 = BRANCHES[0].prove(
             BranchWitnessValue {
                 address: 200,
                 object_flags: Flags::ReadFlag | Flags::WriteFlag,
@@ -1434,16 +1439,31 @@ mod test {
                 new_data: non_zero_val_2,
                 credit_delta: 0,
             },
-            true,
             &read_proof,
-            true,
             &write_proof,
         )?;
-        branch.circuit.verify(branch_proof_1.clone())?;
-        let branch_proof_1 = branch.prove_implicit(true, &read_proof, true, &write_proof)?;
-        branch.circuit.verify(branch_proof_1.clone())?;
+        BRANCHES[0].circuit.verify(branch_proof_1.clone())?;
+        let branch_proof_1 = BRANCHES[0].prove_implicit(&read_proof, &write_proof)?;
+        BRANCHES[0].circuit.verify(branch_proof_1.clone())?;
 
-        let branch_proof_2 = branch.prove(
+        let branch_proof_2 = BRANCHES[0].prove(
+            BranchWitnessValue {
+                address: 200,
+                object_flags: Flags::EnsureFlag.into(),
+                old_owner: zero_val,
+                new_owner: zero_val,
+                old_data: zero_val,
+                new_data: non_zero_val_2,
+                credit_delta: 0,
+            },
+            &ensure_proof,
+            &ensure_proof,
+        )?;
+        BRANCHES[0].circuit.verify(branch_proof_2.clone())?;
+        let branch_proof_2 = BRANCHES[0].prove_implicit(&ensure_proof, &ensure_proof)?;
+        BRANCHES[0].circuit.verify(branch_proof_2.clone())?;
+
+        let double_branch_proof = BRANCHES[1].prove(
             BranchWitnessValue {
                 address: 200,
                 object_flags: Flags::ReadFlag | Flags::WriteFlag | Flags::EnsureFlag,
@@ -1453,14 +1473,12 @@ mod test {
                 new_data: non_zero_val_2,
                 credit_delta: 0,
             },
-            false,
             &branch_proof_1,
-            true,
-            &ensure_proof,
+            &branch_proof_2,
         )?;
-        branch.circuit.verify(branch_proof_2)?;
-        let branch_proof_2 = branch.prove_implicit(false, &branch_proof_1, true, &ensure_proof)?;
-        branch.circuit.verify(branch_proof_2)?;
+        BRANCHES[1].circuit.verify(double_branch_proof)?;
+        let double_branch_proof = BRANCHES[1].prove_implicit(&branch_proof_1, &branch_proof_2)?;
+        BRANCHES[1].circuit.verify(double_branch_proof)?;
 
         Ok(())
     }

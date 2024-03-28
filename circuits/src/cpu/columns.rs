@@ -6,11 +6,15 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::bitshift::columns::Bitshift;
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cpu::stark::add_extension_vec;
-use crate::cross_table_lookup::Column;
-use crate::program::columns::ProgramRom;
-use crate::stark::mozak_stark::{CpuTable, Table};
+use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
+use crate::memory::columns::MemoryCtl;
+use crate::memory_io::columns::InputOutputMemoryCtl;
+use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
+use crate::program::columns::{InstructionRow, ProgramRom};
+use crate::rangecheck::columns::RangeCheckCtl;
+use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -68,7 +72,7 @@ columns_view_impl!(Instruction);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Instruction<T> {
-    /// The original instruction (+ imm_value) used for program
+    /// The original instruction (+ `imm_value`) used for program
     /// cross-table-lookup.
     pub pc: T,
 
@@ -132,8 +136,8 @@ pub struct CpuState<T> {
     pub cmp_diff_inv: T,
     /// If `op1` < `op2`
     pub less_than: T,
-    /// normalised_diff == 0 iff op1 == op2
-    /// normalised_diff == 1 iff op1 != op2
+    /// `normalised_diff` == 0 iff op1 == op2
+    /// `normalised_diff` == 1 iff op1 != op2
     /// We need this intermediate variable to keep the constraint degree <= 3.
     pub normalised_diff: T,
 
@@ -162,8 +166,8 @@ pub struct CpuState<T> {
     pub product_high_limb: T, // range check u32 required
     pub product_low_limb: T,  // range check u32 required
     /// Used as a helper column to check that `product_high_limb != u32::MAX`
-    /// when product_sign is 0 and `product_high_limb != 0` when
-    /// product_sign is 1
+    /// when `product_sign` is 0 and `product_high_limb != 0` when
+    /// `product_sign` is 1
     pub product_high_limb_inv_helper: T,
     pub mem_addr: T,
     pub io_addr: T,
@@ -173,9 +177,12 @@ pub struct CpuState<T> {
     pub is_io_transcript: T,
     pub is_halt: T,
     pub is_poseidon2: T,
+    // TODO: these two need constraints.
+    // (And/or should probably be removed.)
     pub poseidon2_input_addr: T,
     pub poseidon2_input_len: T,
 }
+pub(crate) const CPU: CpuState<ColumnWithTypedInput<CpuColumnsExtended<i64>>> = COL_MAP.cpu;
 
 make_col_map!(CpuColumnsExtended);
 columns_view_impl!(CpuColumnsExtended);
@@ -185,8 +192,6 @@ pub struct CpuColumnsExtended<T> {
     pub cpu: CpuState<T>,
     pub permuted: ProgramRom<T>,
 }
-
-pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 
 impl<T: PackedField> CpuState<T> {
     #[must_use]
@@ -263,136 +268,119 @@ pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize
 /// Currently, we only support expressions over the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn rangecheck_looking() -> Vec<Table> {
-    let cpu = col_map().cpu.map(Column::from);
-    let ops = &cpu.inst.ops;
-    let divs = &ops.div + &ops.rem + &ops.srl + &ops.sra;
-    let muls = &ops.mul + &ops.mulh + &ops.sll;
+pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+    let ops = CPU.inst.ops;
+    let divs = ops.div + ops.rem + ops.srl + ops.sra;
+    let muls: ColumnWithTypedInput<CpuColumnsExtended<i64>> = ops.mul + ops.mulh + ops.sll;
 
-    vec![
-        CpuTable::new(vec![cpu.quotient_value.clone()], divs.clone()),
-        CpuTable::new(vec![cpu.remainder_value.clone()], divs.clone()),
-        CpuTable::new(vec![cpu.remainder_slack], divs),
-        CpuTable::new(vec![cpu.dst_value.clone()], &ops.add + &ops.sub + &ops.jalr),
-        CpuTable::new(vec![cpu.inst.pc], ops.jalr.clone()),
-        CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
-        CpuTable::new(vec![cpu.product_high_limb], muls.clone()),
-        CpuTable::new(vec![cpu.product_low_limb], muls),
+    [
+        (CPU.quotient_value, divs),
+        (CPU.remainder_value, divs),
+        (CPU.remainder_slack, divs),
+        (CPU.dst_value, ops.add + ops.sub + ops.jalr),
+        (CPU.inst.pc, ops.jalr),
+        (CPU.abs_diff, ops.bge + ops.blt),
+        (CPU.product_high_limb, muls),
+        (CPU.product_low_limb, muls),
         // apply range constraints for the sign bits of each operand
-        CpuTable::new(
-            vec![
-                cpu.op1_value - cpu.op1_sign_bit * (1 << 32) + &cpu.inst.is_op1_signed * (1 << 31),
-            ],
-            cpu.inst.is_op1_signed,
+        // TODO(Matthias): these are a bit suspicious, because the filter also appears in the data.
+        // Carefully review!
+        (
+            CPU.op1_value - CPU.op1_sign_bit * (1 << 32) + CPU.inst.is_op1_signed * (1 << 31),
+            CPU.inst.is_op1_signed,
         ),
-        CpuTable::new(
-            vec![
-                cpu.op2_value - cpu.op2_sign_bit * (1 << 32) + &cpu.inst.is_op2_signed * (1 << 31),
-            ],
-            cpu.inst.is_op2_signed,
+        (
+            CPU.op2_value - CPU.op2_sign_bit * (1 << 32) + CPU.inst.is_op2_signed * (1 << 31),
+            CPU.inst.is_op2_signed,
         ),
-        CpuTable::new(
-            vec![cpu.dst_value.clone() - cpu.dst_sign_bit.clone() * 0xFFFF_FF00],
-            cpu.inst.ops.lb.clone(),
-        ),
-        CpuTable::new(
-            vec![cpu.dst_value - cpu.dst_sign_bit.clone() * 0xFFFF_0000],
-            cpu.inst.ops.lh.clone(),
-        ),
+        (CPU.dst_value - CPU.dst_sign_bit * 0xFFFF_FF00, ops.lb),
+        (CPU.dst_value - CPU.dst_sign_bit * 0xFFFF_0000, ops.lh),
     ]
+    .into_iter()
+    .map(|(columns, filter)| CpuTable::new(RangeCheckCtl(columns), filter))
+    .collect()
 }
 
 /// Lookup for Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_xor() -> Table {
-    CpuTable::new(
-        Column::singles(col_map().cpu.xor),
-        col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor(),
-    )
+pub fn lookup_for_xor() -> TableWithTypedOutput<XorView<Column>> {
+    CpuTable::new(CPU.xor, CPU.inst.ops.ops_that_use_xor())
 }
 
 /// Lookup into Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_memory() -> Table {
+pub fn lookup_for_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     CpuTable::new(
-        vec![
-            Column::single(col_map().cpu.clk),
-            Column::single(col_map().cpu.inst.ops.sb),
-            Column::single(col_map().cpu.inst.ops.lb), // For both `LB` and `LBU`
-            Column::single(col_map().cpu.mem_value_raw),
-            Column::single(col_map().cpu.mem_addr),
-        ],
-        col_map().cpu.map(Column::from).inst.ops.byte_mem_ops(),
+        MemoryCtl {
+            clk: CPU.clk,
+            is_store: CPU.inst.ops.sb,
+            is_load: CPU.inst.ops.lb, // For both `LB` and `LBU`
+            addr: CPU.mem_addr,
+            value: CPU.mem_value_raw,
+        },
+        CPU.inst.ops.byte_mem_ops(),
     )
 }
 
-/// Lookup for halfword memory table.
+/// Lookup into half word Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_halfword_memory() -> Table {
-    let cpu = col_map().cpu.map(Column::from);
+pub fn lookup_for_halfword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     CpuTable::new(
-        vec![
-            cpu.clk,
-            cpu.mem_addr,
-            cpu.mem_value_raw,
-            cpu.inst.ops.sh,
-            cpu.inst.ops.lh,
-        ],
-        col_map().cpu.map(Column::from).inst.ops.halfword_mem_ops(),
+        MemoryCtl {
+            clk: CPU.clk,
+            is_store: CPU.inst.ops.sh,
+            is_load: CPU.inst.ops.lh,
+            addr: CPU.mem_addr,
+            value: CPU.mem_value_raw,
+        },
+        CPU.inst.ops.halfword_mem_ops(),
     )
 }
 
-/// Lookup into fullword memory table.
+/// Lookup into fullword Memory table.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_fullword_memory() -> Table {
-    let cpu = col_map().cpu.map(Column::from);
+pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     CpuTable::new(
-        vec![
-            cpu.clk,
-            cpu.mem_addr,
-            cpu.dst_value,
-            cpu.inst.ops.sw,
-            cpu.inst.ops.lw,
-        ],
-        col_map().cpu.map(Column::from).inst.ops.fullword_mem_ops(),
+        MemoryCtl {
+            clk: CPU.clk,
+            is_store: CPU.inst.ops.sw,
+            is_load: CPU.inst.ops.lw,
+            addr: CPU.mem_addr,
+            value: CPU.mem_value_raw,
+        },
+        CPU.inst.ops.fullword_mem_ops(),
     )
 }
 
-/// Column containing the data to be matched against IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-// TODO: unify all three variants into a single lookup, so we save on proving time.
-#[must_use]
-pub fn lookup_for_io_memory_x(filter: Column) -> Table {
-    let cpu = col_map().cpu.map(Column::from);
-    CpuTable::new(vec![cpu.clk, cpu.io_addr, cpu.io_size], filter)
-}
-
-#[must_use]
-pub fn lookup_for_io_memory_private() -> Table {
-    lookup_for_io_memory_x(col_map().cpu.map(Column::from).is_io_store_private)
-}
-
-#[must_use]
-pub fn lookup_for_io_memory_public() -> Table {
-    lookup_for_io_memory_x(col_map().cpu.map(Column::from).is_io_store_public)
-}
-
-#[must_use]
-pub fn lookup_for_io_transcript() -> Table {
-    lookup_for_io_memory_x(col_map().cpu.map(Column::from).is_io_transcript)
-}
-
-/// Column for a binary filter for memory instruction in IO Memory stark.
+/// Column containing the data to be matched against IO Memory starks.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_io_transcript() -> Column {
-    let cpu = col_map().cpu.map(Column::from);
-    cpu.is_io_transcript
+pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+    CpuTable::new(
+        InputOutputMemoryCtl {
+            op: ColumnWithTypedInput::ascending_sum([
+                CPU.is_io_store_private,
+                CPU.is_io_store_public,
+                CPU.is_io_transcript,
+            ]),
+            clk: CPU.clk,
+            addr: CPU.io_addr,
+            size: CPU.io_size,
+        },
+        [
+            CPU.is_io_store_private,
+            CPU.is_io_store_public,
+            CPU.is_io_transcript,
+        ]
+        .iter()
+        .sum(),
+    )
 }
+
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
@@ -419,23 +407,19 @@ pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
     ])
 }
 
-/// Lookup against `Bitshift` stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+/// Lookup into `Bitshift` stark.
 #[must_use]
-pub fn lookup_for_shift_amount() -> Table {
-    CpuTable::new(
-        Column::singles(col_map().cpu.bitshift),
-        col_map().cpu.map(Column::from).inst.ops.ops_that_shift(),
-    )
+pub fn lookup_for_shift_amount() -> TableWithTypedOutput<Bitshift<Column>> {
+    CpuTable::new(CPU.bitshift, CPU.inst.ops.ops_that_shift())
 }
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn lookup_for_inst() -> Table {
-    let inst = col_map().cpu.inst;
+pub fn lookup_for_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
+    let inst = CPU.inst;
     CpuTable::new(
-        vec![
-            Column::single(inst.pc),
+        InstructionRow {
+            pc: inst.pc,
             // Combine columns into a single column.
             // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
             //   bits.
@@ -446,55 +430,43 @@ pub fn lookup_for_inst() -> Table {
             // size of the Goldilocks field.
             // Note: The imm_value field, having more than 5 bits, must be positioned as the last
             // column in the list to ensure the correct functioning of 'reduce_with_powers'.
-            Column::reduce_with_powers(
-                &[
-                    Column::ascending_sum(inst.ops),
-                    Column::single(inst.is_op1_signed),
-                    Column::single(inst.is_op2_signed),
-                    Column::ascending_sum(inst.rs1_select),
-                    Column::ascending_sum(inst.rs2_select),
-                    Column::ascending_sum(inst.rd_select),
-                    Column::single(inst.imm_value),
+            inst_data: ColumnWithTypedInput::reduce_with_powers(
+                [
+                    ColumnWithTypedInput::ascending_sum(inst.ops),
+                    inst.is_op1_signed,
+                    inst.is_op2_signed,
+                    ColumnWithTypedInput::ascending_sum(inst.rs1_select),
+                    ColumnWithTypedInput::ascending_sum(inst.rs2_select),
+                    ColumnWithTypedInput::ascending_sum(inst.rd_select),
+                    inst.imm_value,
                 ],
                 1 << 5,
             ),
-        ],
-        Column::single(col_map().cpu.is_running),
+        },
+        CPU.is_running,
     )
 }
 
-/// Lookup for permuted instructions.
+/// Lookup of permuted instructions.
 #[must_use]
-pub fn lookup_for_permuted_inst_inner() -> Table {
-    CpuTable::new(
-        Column::singles(col_map().permuted.inst),
-        Column::single(col_map().cpu.is_running),
-    )
+pub fn lookup_for_permuted_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
+    CpuTable::new(COL_MAP.permuted.inst, COL_MAP.cpu.is_running)
 }
 
-/// Lookup for permuted instructions.
+/// Lookup of permuted instructions.
 #[must_use]
-pub fn lookup_for_permuted_inst_outer() -> Table {
-    CpuTable::new(
-        Column::singles(col_map().permuted.inst),
-        Column::single(col_map().permuted.filter),
-    )
-}
-
-/// Lookup for permuted instructions into program ROM.
-#[must_use]
-pub fn lookup_for_program_rom() -> Table {
-    CpuTable::new(
-        Column::singles(col_map().permuted.inst),
-        Column::single(col_map().permuted.filter),
-    )
+pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
+    CpuTable::new(COL_MAP.permuted.inst, COL_MAP.permuted.filter)
 }
 
 #[must_use]
-pub fn lookup_for_poseidon2_sponge() -> Table {
-    let cpu = col_map().cpu.map(Column::from);
+pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
     CpuTable::new(
-        vec![cpu.clk, cpu.poseidon2_input_addr, cpu.poseidon2_input_len],
-        cpu.is_poseidon2,
+        Poseidon2SpongeCtl {
+            clk: CPU.clk,
+            input_addr: CPU.poseidon2_input_addr,
+            input_len: CPU.poseidon2_input_len,
+        },
+        CPU.is_poseidon2,
     )
 }

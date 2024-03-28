@@ -3,13 +3,17 @@ use std::iter::zip;
 use iter_fixed::IntoIteratorFixed;
 use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{
+    HashOut, HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS,
+};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::VerifierCircuitTarget;
+use plonky2::plonk::config::Hasher;
 
 pub mod accumulate_event;
+pub mod bounded;
 pub mod make_tree;
 pub mod merge;
 pub mod propagate;
@@ -19,6 +23,57 @@ pub mod summarized;
 pub mod unbounded;
 pub mod unpruned;
 pub mod verify_address;
+pub mod verify_event;
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum EventType {
+    Write = 0,
+    Ensure = 1,
+    Read = 2,
+    GiveOwner = 3,
+    TakeOwner = 4,
+    CreditDelta = 5,
+}
+
+impl EventType {
+    fn constant<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> Target
+    where
+        F: RichField + Extendable<D>, {
+        builder.constant(F::from_canonical_u64(self as u64))
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct Event<F> {
+    owner: [F; 4],
+    ty: EventType,
+    address: u64,
+    value: [F; 4],
+}
+
+impl<F: RichField> Event<F> {
+    pub fn bytes(self) -> impl Iterator<Item = F> {
+        chain!(
+            self.owner,
+            [self.ty as u64, self.address].map(F::from_canonical_u64),
+            self.value
+        )
+    }
+
+    pub fn hash(self) -> HashOut<F> {
+        let bytes = self.bytes().collect_vec();
+        Poseidon2Hash::hash_no_pad(&bytes)
+    }
+
+    pub fn byte_wise_hash(self) -> HashOut<F> {
+        let bytes = self
+            .bytes()
+            .flat_map(|v| v.to_canonical_u64().to_le_bytes())
+            .map(|v| F::from_canonical_u8(v))
+            .collect_vec();
+        Poseidon2Hash::hash_no_pad(&bytes)
+    }
+}
 
 /// Computes `if b { h0 } else { h1 }`.
 pub(crate) fn select_hash<F, const D: usize>(
@@ -264,6 +319,16 @@ fn hash_event<F: RichField + Extendable<D>, const D: usize>(
     value: [Target; 4],
 ) -> HashOutTarget {
     builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(chain!(owner, [ty, address], value,).collect())
+}
+
+fn byte_wise_hash_event<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    owner: [Target; 4],
+    ty: Target,
+    address: Target,
+    value: [Target; 4],
+) -> HashOutTarget {
+    byte_wise_hash(builder, chain!(owner, [ty, address], value).collect())
 }
 
 fn split_bytes<F: RichField + Extendable<D>, const D: usize>(

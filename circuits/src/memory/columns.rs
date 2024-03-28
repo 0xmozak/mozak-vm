@@ -13,10 +13,11 @@ use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
-use crate::memoryinit::columns::MemoryInit;
+use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-use crate::stark::mozak_stark::{MemoryTable, Table};
+use crate::rangecheck::columns::RangeCheckCtl;
+use crate::stark::mozak_stark::{MemoryTable, TableWithTypedOutput};
 
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
@@ -181,11 +182,8 @@ impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
     }
 }
 
-impl<T: Clone + Add<Output = T>> Memory<T> {
-    pub fn is_executed(&self) -> T {
-        let s: Memory<T> = self.clone();
-        s.is_store + s.is_load + s.is_init
-    }
+impl<T: Copy + Add<Output = T>> Memory<T> {
+    pub fn is_executed(&self) -> T { self.is_store + self.is_load + self.is_init }
 }
 
 pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
@@ -197,74 +195,65 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[must_use]
-pub fn rangecheck_looking() -> Vec<Table> {
-    let mem = col_map().map(Column::from);
-    vec![
-        MemoryTable::new(Column::singles([col_map().addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles([col_map().diff_clk]), mem.is_executed()),
-    ]
+pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+    let mem = COL_MAP;
+    [mem.addr, COL_MAP.addr, mem.diff_clk]
+        .into_iter()
+        .map(|addr| MemoryTable::new(RangeCheckCtl(addr), mem.is_executed()))
+        .collect()
 }
 
 #[must_use]
-pub fn rangecheck_u8_looking() -> Vec<Table> {
-    let mem = col_map().map(Column::from);
+pub fn rangecheck_u8_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+    let mem = COL_MAP;
     vec![MemoryTable::new(
-        Column::singles([col_map().value]),
+        RangeCheckCtl(mem.value),
         mem.is_executed(),
     )]
 }
 
-/// Lookup from the CPU table into Memory
+columns_view_impl!(MemoryCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct MemoryCtl<T> {
+    pub clk: T,
+    pub is_store: T,
+    pub is_load: T,
+    pub addr: T,
+    pub value: T,
+}
+
+/// Lookup between CPU table and Memory
 /// stark table.
 #[must_use]
-pub fn lookup_for_cpu() -> Table {
-    let mem = col_map().map(Column::from);
+pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
+    let mem = COL_MAP;
     MemoryTable::new(
-        vec![
-            mem.clk,
-            mem.is_store.clone(),
-            mem.is_load.clone(),
-            mem.value,
-            mem.addr,
-        ],
+        MemoryCtl {
+            clk: mem.clk,
+            is_store: mem.is_store,
+            is_load: mem.is_load,
+            addr: mem.addr,
+            value: mem.value,
+        },
         mem.is_store + mem.is_load,
     )
 }
 
-/// Lookup in the `MemoryInit` Table
+/// Lookup into `MemoryInit` Table
 #[must_use]
-pub fn lookup_for_memoryinit() -> Table {
+pub fn lookup_for_memoryinit() -> TableWithTypedOutput<MemoryInitCtl<Column>> {
+    let mem = COL_MAP;
+
     MemoryTable::new(
-        vec![
-            Column::single(col_map().is_writable),
-            Column::single(col_map().addr),
-            Column::single(col_map().clk),
-            Column::single(col_map().value),
-        ],
-        Column::single(col_map().is_init),
+        MemoryInitCtl {
+            is_writable: mem.is_writable,
+            address: mem.addr,
+            clk: mem.clk,
+            value: mem.value,
+        },
+        COL_MAP.is_init,
     )
 }
 
-// TODO(Matthias): consolidate with filter_for_halfword_memory and hook up to
-// CTL! Also check the other memory related tables for missing CTL!
-/// Columns containing the data which are looked from the CPU table into Memory
-/// stark table.
-#[must_use]
-pub fn data_for_halfword_memory() -> Vec<Column> {
-    vec![
-        Column::single(col_map().clk),
-        Column::single(col_map().addr),
-        Column::single(col_map().value),
-        Column::single(col_map().is_store),
-        Column::single(col_map().is_load),
-    ]
-}
-
-/// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
-#[must_use]
-pub fn filter_for_halfword_memory() -> Column {
-    let mem = col_map().map(Column::from);
-    mem.is_store + mem.is_load
-}
+// TODO(Matthias): add lookups for halfword and fullword memory table.

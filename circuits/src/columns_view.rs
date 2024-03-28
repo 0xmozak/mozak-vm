@@ -24,7 +24,7 @@ pub(crate) const unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T
 }
 pub(crate) const unsafe fn transmute_ref<T, U>(t: &T) -> &U {
     debug_assert!(size_of::<T>() == size_of::<U>());
-    &*((t as *const T).cast::<U>())
+    &*(std::ptr::from_ref::<T>(t).cast::<U>())
 }
 
 pub trait HasNamedColumns {
@@ -219,31 +219,34 @@ macro_rules! columns_view_impl {
 
 pub(crate) use columns_view_impl;
 
-#[must_use]
-pub const fn col_map<const NUMBER_OF_COLUMNS: usize>() -> [usize; NUMBER_OF_COLUMNS] {
-    let mut indices_arr = [0usize; NUMBER_OF_COLUMNS];
-    let mut i = 0;
-    while i < indices_arr.len() {
-        indices_arr[i] = i;
-        i += 1;
-    }
-    indices_arr
-}
-
-/// Implement a static `MAP` of the `ColumnsView` from an array with length
-/// [`NumberOfColumns`] of the `ColumnsView` that allows for indexing into an
-/// array with the column name rather than the column index.
+/// Implement a static `MAP` of the `ColumnsView` that allows for indexing for
+/// crosstable lookups
 macro_rules! make_col_map {
     ($s: ident) => {
+        // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
         #[allow(dead_code)]
-        pub(crate) const fn col_map() -> &'static $s<usize> {
-            const MAP: $s<usize> = {
-                use crate::columns_view::NumberOfColumns;
-                const NUMBER_OF_COLUMNS: usize = $s::<()>::NUMBER_OF_COLUMNS;
-                $s::from_array(crate::columns_view::col_map::<NUMBER_OF_COLUMNS>())
-            };
-            &MAP
-        }
+        #[allow(clippy::large_stack_arrays)]
+        pub(crate) const COL_MAP: $s<
+            crate::linear_combination_typed::ColumnWithTypedInput<$s<i64>>,
+        > = {
+            use crate::columns_view::NumberOfColumns;
+            use crate::linear_combination_typed::ColumnWithTypedInput;
+            const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
+
+            let mut indices_mat = [ColumnWithTypedInput {
+                lv_linear_combination: $s::from_array([0_i64; N]),
+                nv_linear_combination: $s::from_array([0_i64; N]),
+                constant: 0,
+            }; N];
+            let mut i = 0;
+            while i < N {
+                let mut lv_linear_combination = indices_mat[i].lv_linear_combination.into_array();
+                lv_linear_combination[i] = 1;
+                indices_mat[i].lv_linear_combination = $s::from_array(lv_linear_combination);
+                i += 1;
+            }
+            $s::from_array(indices_mat)
+        };
     };
 }
 pub(crate) use make_col_map;

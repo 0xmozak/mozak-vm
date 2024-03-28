@@ -9,6 +9,5 @@ pub mod poly;
 pub mod proof;
 pub mod prover;
 pub mod recursive_verifier;
-pub mod serde;
 pub mod utils;
 pub mod verifier;

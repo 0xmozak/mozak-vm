@@ -1,6 +1,7 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::Column;
-use crate::stark::mozak_stark::{Table, TableKind};
+use crate::cross_table_lookup::ColumnWithTypedInput;
+use crate::linear_combination::Column;
+use crate::stark::mozak_stark::TableWithTypedOutput;
 
 columns_view_impl!(MemElement);
 /// A Memory Slot that has an address and a value
@@ -25,18 +26,32 @@ pub struct MemoryInit<T> {
     pub is_writable: T,
 }
 
-/// Lookup from the Memory Table
+columns_view_impl!(MemoryInitCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct MemoryInitCtl<T> {
+    pub is_writable: T,
+    pub address: T,
+    pub clk: T,
+    pub value: T,
+}
+
+/// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn lookup_for_memory(kind: TableKind) -> Table {
-    Table {
-        kind,
-        columns: vec![
-            Column::single(col_map().is_writable),
-            Column::single(col_map().element.address),
-            // clk:
-            Column::constant(1),
-            Column::single(col_map().element.value),
-        ],
-        filter_column: Column::single(col_map().filter),
-    }
+pub fn lookup_for_memory<T>(new: T) -> TableWithTypedOutput<MemoryInitCtl<Column>>
+where
+    T: Fn(
+        MemoryInitCtl<ColumnWithTypedInput<MemoryInit<i64>>>,
+        ColumnWithTypedInput<MemoryInit<i64>>,
+    ) -> TableWithTypedOutput<MemoryInitCtl<Column>>, {
+    let mem = COL_MAP;
+    new(
+        MemoryInitCtl {
+            is_writable: mem.is_writable,
+            address: mem.element.address,
+            clk: ColumnWithTypedInput::constant(1),
+            value: mem.element.value,
+        },
+        COL_MAP.filter,
+    )
 }

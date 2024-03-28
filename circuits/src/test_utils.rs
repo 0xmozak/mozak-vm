@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 
 use anyhow::Result;
 use itertools::izip;
+use mozak_runner::decode::ECALL;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::poseidon2::MozakPoseidon2;
@@ -14,6 +15,7 @@ use plonky2::field::types::Field;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
+use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
@@ -78,6 +80,17 @@ pub fn fast_test_config() -> StarkConfig {
             ..config.fri_config
         },
     }
+}
+
+#[must_use]
+pub const fn fast_test_circuit_config() -> CircuitConfig {
+    let mut config = CircuitConfig::standard_recursion_config();
+    config.security_bits = 1;
+    config.num_challenges = 1;
+    config.fri_config.cap_height = 0;
+    config.fri_config.proof_of_work_bits = 0;
+    config.fri_config.num_query_rounds = 1;
+    config
 }
 
 /// Prepares a table of a trace. Useful for trace generation tests.
@@ -312,12 +325,12 @@ impl ProveAndVerify for BitshiftStark<F, D> {
 }
 
 impl ProveAndVerify for RegisterInitStark<F, D> {
-    fn prove_and_verify(_program: &Program, _record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterInitStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
-        let trace = generate_register_init_trace::<F>();
+        let trace = generate_register_init_trace::<F>(record);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -455,10 +468,7 @@ pub fn create_poseidon2_test(
                     ..Args::default()
                 },
             },
-            Instruction {
-                op: Op::ECALL,
-                args: Args::default(),
-            },
+            ECALL,
         ]);
     }
 
