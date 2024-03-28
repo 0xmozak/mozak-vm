@@ -27,6 +27,7 @@ pub struct PublicSubTable {
 }
 #[allow(clippy::module_name_repetitions)]
 pub type PublicSubTableValues<F> = Vec<Vec<F>>;
+#[allow(clippy::module_name_repetitions)]
 pub type PublicSubTableValuesTarget = Vec<Vec<Target>>;
 impl PublicSubTable {
     #[must_use]

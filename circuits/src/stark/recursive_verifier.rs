@@ -103,7 +103,7 @@ where
                     zip_eq(public_sub_table_values_target, public_sub_table_values)
                 {
                     for (&values_target, &values) in zip_eq(row_target, row) {
-                        inputs.set_target(values_target, values)
+                        inputs.set_target(values_target, values);
                     }
                 }
             }

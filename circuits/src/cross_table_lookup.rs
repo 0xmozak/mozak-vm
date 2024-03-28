@@ -133,8 +133,7 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_table_circuit<
             .map(|row| {
                 let mut combined = reduce_with_powers_circuit(builder, row, challenge.beta);
                 combined = builder.add(combined, challenge.gamma);
-                let combined_inv = builder.inverse(combined);
-                combined_inv
+                builder.inverse(combined)
             })
             .collect_vec();
         builder.add_many(all_targets)
@@ -457,7 +456,12 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
                  looked_tables,
              }| chain!(looking_tables, looked_tables).filter(|twc| twc.kind == table),
         );
-        let public_sub_table_chain = public_sub_tables.iter().filter(|twc| twc.table.kind == table).map(|twc| &twc.table)
+        let public_sub_table_chain = public_sub_tables.iter().filter_map(|twc| {
+            if twc.table.kind == table {
+                Some(&twc.table)
+            } else {
+                None
+            }
         });
         zip_eq(
             ctl_zs,
