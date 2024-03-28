@@ -45,18 +45,25 @@ impl PublicSubTable {
         trace: &TableKindArray<Vec<PolynomialValues<F>>>,
     ) -> PublicSubTableValues<F> {
         let trace_table = &trace[self.table.kind];
+        let columns = self
+            .table
+            .columns
+            .clone()
+            .into_iter()
+            .map(|col| col.map(F::from_noncanonical_i64))
+            .collect_vec();
+        let filter = self
+            .table
+            .filter_column
+            .clone()
+            .map(F::from_noncanonical_i64);
         let columns_if_filter_at_i = |i| -> Option<Vec<F>> {
-            self.table
-                .filter_column
-                .eval_table(trace_table, i)
-                .is_one()
-                .then_some(
-                    self.table
-                        .columns
-                        .iter()
-                        .map(|column| column.eval_table(trace_table, i))
-                        .collect_vec(),
-                )
+            filter.eval_table(trace_table, i).is_one().then_some(
+                columns
+                    .iter()
+                    .map(|column| column.eval_table(trace_table, i))
+                    .collect_vec(),
+            )
         };
         (0..trace_table[0].len())
             .filter_map(columns_if_filter_at_i)
