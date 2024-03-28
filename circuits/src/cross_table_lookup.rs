@@ -133,8 +133,7 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_table_circuit<
             .map(|row| {
                 let mut combined = reduce_with_powers_circuit(builder, row, challenge.beta);
                 combined = builder.add(combined, challenge.gamma);
-                let combined_inv = builder.inverse(combined);
-                combined_inv
+                builder.inverse(combined)
             })
             .collect_vec();
         builder.add_many(all_targets)
@@ -161,16 +160,24 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_table_circuit<
             builder.connect(looked_zs_sum, looking_zs_sum);
         }
     }
+
     let mut public_sub_table_targets = all_kind!(|_kind| Vec::default());
+    for public_sub_table in public_sub_tables {
+        let targets = public_sub_table.to_targets(builder);
+        public_sub_table_targets[public_sub_table.table.kind].push(targets);
+    }
+
+    let mut public_sub_table_targets_iter = all_kind!(|kind| public_sub_table_targets[kind].iter());
     for challenge in &ctl_challenges.challenges {
         for public_sub_table in public_sub_tables {
-            let targets = public_sub_table.to_targets(builder);
-            let reduced_target = reduce_public_sub_table_targets(builder, challenge, &targets);
+            let targets = public_sub_table_targets_iter[public_sub_table.table.kind]
+                .next()
+                .unwrap();
+            let reduced_target = reduce_public_sub_table_targets(builder, challenge, targets);
             builder.connect(
                 reduced_target,
                 *ctl_zs_openings[public_sub_table.table.kind].next().unwrap(),
             );
-            public_sub_table_targets[public_sub_table.table.kind].push(targets);
         }
     }
     debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));

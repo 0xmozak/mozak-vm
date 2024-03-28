@@ -1,12 +1,12 @@
+//! To make certain rows of columns (specified by a filter column), public, we
+//! use an idea similar to what we do in CTL. We create a z polynomial for
+//! every such instance which is running sum of `filter_i/combine(columns_i)`
+//! where `filter_i` = 1 if we want to make the ith row `columns_i` public.
+//! Now we let verifer compute the same sum, from public values to final
+//! proof. Then he compares it against ! the former sum (as opening of z
+//! polynomial at last row)
 use itertools::{iproduct, Itertools};
 use plonky2::field::extension::Extendable;
-/// ! To make certain rows of columns (specified by a filter column), public, we
-/// use an idea similar to what we do in CTL ! We create a z polynomial for
-/// every such instance which is running sum of `filter_i/combine(columns_i)`
-/// ! where `filter_i` = 1 if we want to make the ith row `columns_i` public.
-/// ! Now we let verifer compute the same sum, from public values to final
-/// proof. Then he compares it against ! the former sum (as opening of z
-/// polynomial at last row)
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -27,6 +27,7 @@ pub struct PublicSubTable {
 }
 #[allow(clippy::module_name_repetitions)]
 pub type PublicSubTableValues<F> = Vec<Vec<F>>;
+#[allow(clippy::module_name_repetitions)]
 pub type PublicSubTableValuesTarget = Vec<Vec<Target>>;
 impl PublicSubTable {
     #[must_use]
@@ -45,17 +46,17 @@ impl PublicSubTable {
     ) -> PublicSubTableValues<F> {
         let trace_table = &trace[self.table.kind];
         let columns_if_filter_at_i = |i| -> Option<Vec<F>> {
-            if self.table.filter_column.eval_table(trace_table, i).is_one() {
-                Some(
+            self.table
+                .filter_column
+                .eval_table(trace_table, i)
+                .is_one()
+                .then_some(
                     self.table
                         .columns
                         .iter()
                         .map(|column| column.eval_table(trace_table, i))
                         .collect_vec(),
                 )
-            } else {
-                None
-            }
         };
         (0..trace_table[0].len())
             .filter_map(columns_if_filter_at_i)
@@ -96,20 +97,26 @@ impl PublicSubTable {
 }
 pub type RowPublicValues<F> = Vec<Vec<F>>;
 
-#[allow(clippy::module_name_repetitions)]
 #[must_use]
-pub fn public_sub_table_data<F: RichField, const D: usize>(
+#[allow(clippy::module_name_repetitions)]
+pub fn public_sub_table_data_and_values<F: RichField, const D: usize>(
     trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     public_sub_tables: &[PublicSubTable],
     ctl_challenges: &GrandProductChallengeSet<F>,
-) -> TableKindArray<CtlData<F>> {
+) -> (
+    TableKindArray<CtlData<F>>,
+    TableKindArray<Vec<PublicSubTableValues<F>>>,
+) {
     let mut open_public_data_per_table = all_kind!(|_kind| CtlData::default());
+    let mut public_sub_values_data_per_table = all_kind!(|_kind| Vec::default());
     for (public_sub_table, &challenge) in iproduct!(public_sub_tables, &ctl_challenges.challenges) {
         open_public_data_per_table[public_sub_table.table.kind]
             .zs_columns
             .push(public_sub_table.get_ctlz_data(trace_poly_values, challenge));
+        public_sub_values_data_per_table[public_sub_table.table.kind]
+            .push(public_sub_table.get_values(trace_poly_values));
     }
-    open_public_data_per_table
+    (open_public_data_per_table, public_sub_values_data_per_table)
 }
 
 /// For each table, Creates the sum of inverses of public data which needs to be
@@ -138,18 +145,4 @@ pub fn reduce_public_sub_tables_values<F: Field>(
             })
             .collect_vec()
     })
-}
-
-#[allow(clippy::module_name_repetitions)]
-#[must_use]
-pub fn public_sub_table_values<F: Field>(
-    trace: &TableKindArray<Vec<PolynomialValues<F>>>,
-    public_sub_tables: &[PublicSubTable],
-) -> TableKindArray<Vec<PublicSubTableValues<F>>> {
-    let mut public_sub_values_data_per_table = all_kind!(|_kind| Vec::default());
-    for public_sub_table in public_sub_tables {
-        public_sub_values_data_per_table[public_sub_table.table.kind]
-            .push(public_sub_table.get_values(trace));
-    }
-    public_sub_values_data_per_table
 }

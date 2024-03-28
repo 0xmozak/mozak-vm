@@ -28,7 +28,7 @@ use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
-use crate::public_sub_table::{public_sub_table_data, public_sub_table_values};
+use crate::public_sub_table::public_sub_table_data_and_values;
 use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
@@ -127,14 +127,12 @@ where
         )
     );
 
-    let public_sub_table_data_per_table = public_sub_table_data::<F, D>(
-        traces_poly_values,
-        &mozak_stark.public_sub_tables,
-        &ctl_challenges,
-    );
-
-    let public_sub_table_values =
-        public_sub_table_values(traces_poly_values, &mozak_stark.public_sub_tables);
+    let (public_sub_table_data_per_table, public_sub_table_values) =
+        public_sub_table_data_and_values::<F, D>(
+            traces_poly_values,
+            &mozak_stark.public_sub_tables,
+            &ctl_challenges,
+        );
 
     // println!("{:?}", open_public_data_per_table);
     let proofs = timed!(

@@ -96,14 +96,14 @@ where
 
             // set public_sub_table_values targets
             for (public_sub_table_values_target, public_sub_table_values) in zip_eq(
-                self.public_sub_table_values_targets[kind].clone(),
+                &self.public_sub_table_values_targets[kind],
                 &all_proof.public_sub_table_values[kind],
             ) {
                 for (row_target, row) in
                     zip_eq(public_sub_table_values_target, public_sub_table_values)
                 {
-                    for (values_target, &values) in zip_eq(row_target, row) {
-                        inputs.set_target(values_target, values)
+                    for (&values_target, &values) in zip_eq(row_target, row) {
+                        inputs.set_target(values_target, values);
                     }
                 }
             }
