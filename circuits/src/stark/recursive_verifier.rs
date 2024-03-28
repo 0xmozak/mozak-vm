@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
+use itertools::zip_eq;
 use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -26,9 +27,9 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::cross_table_lookup::{
-    verify_cross_table_lookups_circuit, CrossTableLookup, CtlCheckVarsTarget,
+    verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
 };
-use crate::public_sub_table::PublicSubTable;
+use crate::public_sub_table::{PublicSubTable, PublicSubTableValuesTarget};
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
 use crate::stark::poly::eval_vanishing_poly_circuit;
@@ -51,6 +52,7 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
     pub targets: TableKindArray<StarkVerifierTargets<F, C, D>>,
+    pub public_sub_table_values_targets: TableKindArray<Vec<PublicSubTableValuesTarget>>,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -91,6 +93,20 @@ where
 
         all_kind!(|kind| {
             self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
+
+            // set public_sub_table_values targets
+            for (public_sub_table_values_target, public_sub_table_values) in zip_eq(
+                self.public_sub_table_values_targets[kind].clone(),
+                &all_proof.public_sub_table_values[kind],
+            ) {
+                for (row_target, row) in
+                    zip_eq(public_sub_table_values_target, public_sub_table_values)
+                {
+                    for (values_target, &values) in zip_eq(row_target, row) {
+                        inputs.set_target(values_target, values)
+                    }
+                }
+            }
         });
 
         // Set public inputs
@@ -151,13 +167,15 @@ where
         inner_config.num_challenges,
     );
 
-    verify_cross_table_lookups_circuit(
+    let public_sub_table_values_targets = verify_cross_table_lookups_and_public_sub_table_circuit(
         &mut builder,
         &mozak_stark.cross_table_lookups,
+        &mozak_stark.public_sub_tables,
         &stark_proof_with_pis_target
             .clone()
             .map(|p| p.proof.openings.ctl_zs_last),
         inner_config,
+        &ctl_challenges,
     );
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
@@ -208,7 +226,11 @@ where
     }
 
     let circuit = builder.build();
-    MozakStarkVerifierCircuit { circuit, targets }
+    MozakStarkVerifierCircuit {
+        circuit,
+        targets,
+        public_sub_table_values_targets,
+    }
 }
 
 /// Recursively verifies an inner proof.

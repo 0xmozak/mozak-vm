@@ -1,5 +1,5 @@
 use anyhow::{ensure, Result};
-use itertools::{chain, iproduct, izip, zip_eq};
+use itertools::{chain, iproduct, izip, zip_eq, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -9,6 +9,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::plonk_common::reduce_with_powers_circuit;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
@@ -17,7 +18,7 @@ use thiserror::Error;
 
 pub use crate::linear_combination::Column;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
-use crate::public_sub_table::PublicSubTable;
+use crate::public_sub_table::{PublicSubTable, PublicSubTableValuesTarget};
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
@@ -111,12 +112,33 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_tables<
 
 /// Circuit version of `verify_cross_table_lookups`. Verifies all cross-table
 /// lookups.
-pub(crate) fn verify_cross_table_lookups_circuit<F: RichField + Extendable<D>, const D: usize>(
+pub(crate) fn verify_cross_table_lookups_and_public_sub_table_circuit<
+    F: RichField + Extendable<D>,
+    const D: usize,
+>(
     builder: &mut CircuitBuilder<F, D>,
     cross_table_lookups: &[CrossTableLookup],
+    public_sub_tables: &[PublicSubTable],
     ctl_zs_lasts: &TableKindArray<Vec<Target>>,
     config: &StarkConfig,
-) {
+    ctl_challenges: &GrandProductChallengeSet<Target>,
+) -> TableKindArray<Vec<PublicSubTableValuesTarget>> {
+    fn reduce_public_sub_table_targets<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        challenge: &GrandProductChallenge<Target>,
+        targets: &PublicSubTableValuesTarget,
+    ) -> Target {
+        let all_targets = targets
+            .iter()
+            .map(|row| {
+                let mut combined = reduce_with_powers_circuit(builder, row, challenge.beta);
+                combined = builder.add(combined, challenge.gamma);
+                let combined_inv = builder.inverse(combined);
+                combined_inv
+            })
+            .collect_vec();
+        builder.add_many(all_targets)
+    }
     let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
     for _ in 0..config.num_challenges {
         for CrossTableLookup {
@@ -139,7 +161,20 @@ pub(crate) fn verify_cross_table_lookups_circuit<F: RichField + Extendable<D>, c
             builder.connect(looked_zs_sum, looking_zs_sum);
         }
     }
+    let mut public_sub_table_targets = all_kind!(|_kind| Vec::default());
+    for challenge in &ctl_challenges.challenges {
+        for public_sub_table in public_sub_tables {
+            let targets = public_sub_table.to_targets(builder);
+            let reduced_target = reduce_public_sub_table_targets(builder, challenge, &targets);
+            builder.connect(
+                reduced_target,
+                *ctl_zs_openings[public_sub_table.table.kind].next().unwrap(),
+            );
+            public_sub_table_targets[public_sub_table.table.kind].push(targets);
+        }
+    }
     debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
+    public_sub_table_targets
 }
 
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(

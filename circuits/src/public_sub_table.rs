@@ -1,4 +1,5 @@
 use itertools::{iproduct, Itertools};
+use plonky2::field::extension::Extendable;
 /// ! To make certain rows of columns (specified by a filter column), public, we
 /// use an idea similar to what we do in CTL ! We create a z polynomial for
 /// every such instance which is running sum of `filter_i/combine(columns_i)`
@@ -9,6 +10,8 @@ use itertools::{iproduct, Itertools};
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::target::Target;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::cross_table_lookup::{partial_sums, CtlData, CtlZData};
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
@@ -24,6 +27,7 @@ pub struct PublicSubTable {
 }
 #[allow(clippy::module_name_repetitions)]
 pub type PublicSubTableValues<F> = Vec<Vec<F>>;
+pub type PublicSubTableValuesTarget = Vec<Vec<Target>>;
 impl PublicSubTable {
     #[must_use]
     pub fn num_zs(public_sub_tables: &[Self], table: TableKind, num_challenges: usize) -> usize {
@@ -75,6 +79,19 @@ impl PublicSubTable {
             columns: self.table.columns.clone(),
             filter_column: self.table.filter_column.clone(),
         }
+    }
+
+    pub fn to_targets<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> PublicSubTableValuesTarget {
+        (0..self.num_rows)
+            .map(|_| {
+                (0..self.table.columns.len())
+                    .map(|_| builder.add_virtual_target())
+                    .collect_vec()
+            })
+            .collect_vec()
     }
 }
 pub type RowPublicValues<F> = Vec<Vec<F>>;
