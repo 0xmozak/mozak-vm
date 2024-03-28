@@ -27,7 +27,6 @@ use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::memoryinit::stark::MemoryInitStark;
-use crate::open_public::MakeRowsPublic;
 use crate::poseidon2::columns::Poseidon2State;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2StateCtl;
@@ -46,6 +45,7 @@ use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
+use crate::public_sub_table::PublicSubTable;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
@@ -133,7 +133,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     )]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-    pub make_rows_public: [MakeRowsPublic; 1],
+    pub public_sub_tables: [PublicSubTable; 0],
     pub debug: bool,
 }
 
@@ -399,7 +399,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
             ],
-            make_rows_public: [bitshift::columns::make_rows_pubilc()],
+            public_sub_tables: [],
             debug: false,
         }
     }

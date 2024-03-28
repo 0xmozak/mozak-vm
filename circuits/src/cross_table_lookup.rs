@@ -1,5 +1,5 @@
 use anyhow::{ensure, Result};
-use itertools::{chain, iproduct, izip, zip_eq};
+use itertools::{chain, iproduct, izip, zip_eq, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -9,6 +9,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::plonk_common::reduce_with_powers_circuit;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
@@ -17,7 +18,7 @@ use thiserror::Error;
 
 pub use crate::linear_combination::Column;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
-use crate::open_public::MakeRowsPublic;
+use crate::public_sub_table::{PublicSubTable, PublicSubTableValuesTarget};
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
@@ -58,13 +59,13 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) filter_column: Column,
 }
 
-pub(crate) fn verify_cross_table_lookups_and_make_rows_public<
+pub(crate) fn verify_cross_table_lookups_and_public_sub_tables<
     F: RichField + Extendable<D>,
     const D: usize,
 >(
     cross_table_lookups: &[CrossTableLookup],
-    make_rows_public: &[MakeRowsPublic],
-    reduced_public_inputs: &TableKindArray<Vec<F>>,
+    public_sub_tables: &[PublicSubTable],
+    reduced_public_sub_table_values: &TableKindArray<Vec<F>>,
     ctl_zs_lasts: &TableKindArray<Vec<F>>,
     config: &StarkConfig,
 ) -> Result<()> {
@@ -94,17 +95,86 @@ pub(crate) fn verify_cross_table_lookups_and_make_rows_public<
             );
         }
     }
-    let mut reduced_public_inputs_iter =
-        reduced_public_inputs.each_ref().map(|v| v.iter().copied());
+    let mut reduced_public_sub_table_values_iter = reduced_public_sub_table_values
+        .each_ref()
+        .map(|v| v.iter().copied());
     for _ in 0..config.num_challenges {
-        for MakeRowsPublic(table) in make_rows_public {
+        for public_sub_table in public_sub_tables {
             ensure!(
-                reduced_public_inputs_iter[table.kind].next() == ctl_zs_openings[table.kind].next()
+                reduced_public_sub_table_values_iter[public_sub_table.table.kind].next()
+                    == ctl_zs_openings[public_sub_table.table.kind].next()
             );
         }
     }
 
     Ok(())
+}
+
+/// Circuit version of `verify_cross_table_lookups`. Verifies all cross-table
+/// lookups.
+pub(crate) fn verify_cross_table_lookups_and_public_sub_table_circuit<
+    F: RichField + Extendable<D>,
+    const D: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    cross_table_lookups: &[CrossTableLookup],
+    public_sub_tables: &[PublicSubTable],
+    ctl_zs_lasts: &TableKindArray<Vec<Target>>,
+    config: &StarkConfig,
+    ctl_challenges: &GrandProductChallengeSet<Target>,
+) -> TableKindArray<Vec<PublicSubTableValuesTarget>> {
+    fn reduce_public_sub_table_targets<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        challenge: &GrandProductChallenge<Target>,
+        targets: &PublicSubTableValuesTarget,
+    ) -> Target {
+        let all_targets = targets
+            .iter()
+            .map(|row| {
+                let mut combined = reduce_with_powers_circuit(builder, row, challenge.beta);
+                combined = builder.add(combined, challenge.gamma);
+                let combined_inv = builder.inverse(combined);
+                combined_inv
+            })
+            .collect_vec();
+        builder.add_many(all_targets)
+    }
+    let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
+    for _ in 0..config.num_challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_tables,
+        } in cross_table_lookups
+        {
+            let looking_zs_sum = builder.add_many(
+                looking_tables
+                    .iter()
+                    .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
+            );
+
+            let looked_zs_sum = builder.add_many(
+                looked_tables
+                    .iter()
+                    .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
+            );
+
+            builder.connect(looked_zs_sum, looking_zs_sum);
+        }
+    }
+    let mut public_sub_table_targets = all_kind!(|_kind| Vec::default());
+    for challenge in &ctl_challenges.challenges {
+        for public_sub_table in public_sub_tables {
+            let targets = public_sub_table.to_targets(builder);
+            let reduced_target = reduce_public_sub_table_targets(builder, challenge, &targets);
+            builder.connect(
+                reduced_target,
+                *ctl_zs_openings[public_sub_table.table.kind].next().unwrap(),
+            );
+            public_sub_table_targets[public_sub_table.table.kind].push(targets);
+        }
+    }
+    debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
+    public_sub_table_targets
 }
 
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
@@ -171,18 +241,14 @@ pub fn partial_sums<F: Field>(
     filter_column: &Column,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
-    // design of table looks like  this
-    //       |  filter  |   value   |  partial_sum                       |
-    //       |    1     |    x_1    |  1/combine(x_3)                    |
-    //       |    0     |    x_2    |  1/combine(x_3)  + 1/combine(x_1)  |
-    //       |    1     |    x_3    |  1/combine(x_1)  + 1/combine(x_1)  |
-    // (where combine(vals) = gamma + reduced_sum(vals))
-    // this is done so that now transition constraint looks like
+    // design of table looks like this
+    //       |  multiplicity  |   value   |  partial_sum                      |
+    //       |       1        |    x_1    |  1/combine(x_1)                   |
+    //       |       0        |    x_2    |  1/combine(x_1)                   |
+    //       |       2        |    x_3    |  1/combine(x_1) + 2/combine(x_3)  |
+    // (where combine(vals) = gamma + reduced_sum(vals, beta))
+    // transition constraint looks like
     //       z_next = z_local + filter_local/combine_local
-    // That is, there is no need for reconstruction of value_next.
-    // In current design which uses lv and nv values from columns to construct the
-    // final value_local, its impossible to construct value_next from lv and nv
-    // values of current row
 
     let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
 
@@ -289,7 +355,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
         proofs: &TableKindArray<StarkProof<F, C, D>>,
         cross_table_lookups: &'a [CrossTableLookup],
-        make_rows_public: &'a [MakeRowsPublic],
+        public_sub_tables: &'a [PublicSubTable],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
     ) -> TableKindArray<Vec<Self>> {
         let mut ctl_zs = proofs
@@ -313,16 +379,16 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 filter_column: &table.filter_column,
             });
         }
-        for (&challenges, MakeRowsPublic(table)) in
-            iproduct!(&ctl_challenges.challenges, make_rows_public)
+        for (&challenges, public_sub_table) in
+            iproduct!(&ctl_challenges.challenges, public_sub_tables)
         {
-            let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
-            ctl_vars_per_table[table.kind].push(Self {
+            let (&local_z, &next_z) = ctl_zs[public_sub_table.table.kind].next().unwrap();
+            ctl_vars_per_table[public_sub_table.table.kind].push(Self {
                 local_z,
                 next_z,
                 challenges,
-                columns: &table.columns,
-                filter_column: &table.filter_column,
+                columns: &public_sub_table.table.columns,
+                filter_column: &public_sub_table.table.filter_column,
             });
         }
         ctl_vars_per_table
@@ -380,7 +446,7 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
         table: TableKind,
         proof: &StarkProofTarget<D>,
         cross_table_lookups: &'a [CrossTableLookup],
-        make_rows_public: &'a [MakeRowsPublic],
+        public_sub_tables: &'a [PublicSubTable],
         ctl_challenges: &'a GrandProductChallengeSet<Target>,
     ) -> Vec<Self> {
         let ctl_zs = izip!(&proof.openings.ctl_zs, &proof.openings.ctl_zs_next);
@@ -391,21 +457,18 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
                  looked_tables,
              }| chain!(looking_tables, looked_tables).filter(|twc| twc.kind == table),
         );
-        let make_rows_public_chain =
-            make_rows_public.iter().filter_map(
-                |MakeRowsPublic(twc)| {
-                    if twc.kind == table {
-                        Some(twc)
-                    } else {
-                        None
-                    }
-                },
-            );
+        let public_sub_table_chain = public_sub_tables.iter().filter_map(|twc| {
+            if twc.table.kind == table {
+                Some(&twc.table)
+            } else {
+                None
+            }
+        });
         zip_eq(
             ctl_zs,
             chain!(
                 iproduct!(&ctl_challenges.challenges, ctl_chain),
-                iproduct!(&ctl_challenges.challenges, make_rows_public_chain)
+                iproduct!(&ctl_challenges.challenges, public_sub_table_chain)
             ),
         )
         .map(|((&local_z, &next_z), (&challenges, table))| Self {
