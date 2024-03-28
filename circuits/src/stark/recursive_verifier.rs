@@ -618,10 +618,12 @@ mod tests {
     use std::panic::AssertUnwindSafe;
 
     use anyhow::Result;
+    use itertools::Itertools;
     use log::info;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
@@ -683,6 +685,15 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+        // verfier hardcodes bitshift public subtable
+        let bitshift_public = (0..32)
+            .flat_map(|i| vec![F::from_canonical_u64(i), F::from_canonical_u64(1 << i)])
+            .collect_vec();
+        // and checks if its indeed public in the final recursive proof
+        assert_eq!(
+            recursive_proof.public_inputs[25..].to_vec(),
+            bitshift_public
+        );
         mozak_stark_circuit.circuit.verify(recursive_proof)
     }
 
