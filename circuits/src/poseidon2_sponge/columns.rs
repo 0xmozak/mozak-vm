@@ -12,6 +12,7 @@ use crate::memory::columns::MemoryCtl;
 use crate::poseidon2::columns::Poseidon2StateCtl;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
+use crate::poseidon2_preimage_pack::columns::Poseidon2SpongePreimagePackCtl;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableWithTypedOutput};
 
@@ -118,15 +119,17 @@ pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl
 }
 
 #[must_use]
-pub fn lookup_for_preimage_pack(limb_index: u8) -> Table {
+pub fn lookup_for_preimage_pack(
+    limb_index: u8,
+) -> TableWithTypedOutput<Poseidon2SpongePreimagePackCtl<Column>> {
     assert!(limb_index < 8, "limb_index can be 0..7");
-    let sponge = col_map().map(Column::from);
+    let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
-        vec![
-            sponge.clk,
-            sponge.preimage[limb_index as usize].clone(), // value
-            sponge.input_addr + i64::from(limb_index),    // address
-        ],
+        Poseidon2SpongePreimagePackCtl {
+            clk: sponge.clk,
+            value: sponge.preimage[limb_index as usize], // value
+            fe_addr: sponge.input_addr + i64::from(limb_index), // address
+        },
         sponge.ops.is_init_permute + sponge.ops.is_permute,
     )
 }

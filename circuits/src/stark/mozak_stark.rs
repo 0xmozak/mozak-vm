@@ -38,14 +38,16 @@ use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
+use crate::poseidon2_preimage_pack::columns::{
+    Poseidon2PreimagePack, Poseidon2SpongePreimagePackCtl,
+};
 #[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_sponge;
+use crate::poseidon2_preimage_pack::stark::Poseidon2PreimagePackStark;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_preimage_pack::stark::Poseidon2PreimagePackStark;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
@@ -568,8 +570,11 @@ table_impl!(
     Poseidon2OutputBytes
 );
 #[cfg(feature = "enable_poseidon_starks")]
-table_impl!(Poseidon2PreimagePackTable, TableKind::Poseidon2PreimagePack);
-
+table_impl!(
+    Poseidon2PreimagePackTable,
+    TableKind::Poseidon2PreimagePack,
+    Poseidon2PreimagePack
+);
 
 pub trait Lookups {
     type Row: IntoIterator<Item = Column>;
@@ -821,12 +826,13 @@ impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
 pub struct Poseidon2Sponge2Poseidon2PreimagePackTable;
 #[cfg(feature = "enable_poseidon_starks")]
 impl Lookups for Poseidon2Sponge2Poseidon2PreimagePackTable {
-    fn lookups() -> CrossTableLookup {
+    type Row = Poseidon2SpongePreimagePackCtl<Column>;
+
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         let mut tables = vec![];
         tables.extend((0..8).map(crate::poseidon2_sponge::columns::lookup_for_preimage_pack));
-        CrossTableLookup::new(
-            tables,
+        CrossTableLookupWithTypedOutput::new(tables, vec![
             poseidon2_preimage_pack::columns::lookup_for_poseidon2_sponge(),
-        )
+        ])
     }
 }

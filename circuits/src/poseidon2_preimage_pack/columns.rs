@@ -4,9 +4,11 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
+use crate::linear_combination_typed::ColumnWithTypedInput;
+use crate::memory::columns::MemoryCtl;
 use crate::poseidon2::columns::STATE_SIZE;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-use crate::stark::mozak_stark::{Poseidon2PreimagePackTable, Table};
+use crate::stark::mozak_stark::{Poseidon2PreimagePackTable, TableWithTypedOutput};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -77,42 +79,52 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
     }
 }
 
-#[must_use]
-pub fn lookup_for_poseidon2_sponge() -> Table {
-    let data = col_map().map(Column::from);
-    Poseidon2PreimagePackTable::new(
-        vec![
-            data.clk,
-            Column::reduce_with_powers(
-                // FIXME: Check why does not work just reduce_with_power on &data.bytes
-                {
-                    let mut r = data.bytes.clone();
-                    r.reverse();
-                    &r.clone()
-                },
-                1 << 8,
-            ),
-            data.fe_addr,
-        ],
-        col_map().map(Column::from).is_executed,
-    )
+columns_view_impl!(Poseidon2SpongePreimagePackCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct Poseidon2SpongePreimagePackCtl<T> {
+    pub clk: T,
+    pub value: T,
+    pub fe_addr: T,
 }
 #[must_use]
-pub fn lookup_for_input_memory(index: u8) -> Table {
+pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongePreimagePackCtl<Column>>
+{
+    let data = COL_MAP;
+    Poseidon2PreimagePackTable::new(
+        Poseidon2SpongePreimagePackCtl {
+            clk: data.clk,
+            value: ColumnWithTypedInput::reduce_with_powers(
+                // FIXME: Check why does not work just reduce_with_power on &data.bytes
+                {
+                    let mut r = data.bytes;
+                    r.reverse();
+                    r
+                },
+                i64::from(1 << 8),
+            ),
+            fe_addr: data.fe_addr,
+        },
+        COL_MAP.is_executed,
+    )
+}
+
+#[must_use]
+pub fn lookup_for_input_memory(index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
     assert!(
         usize::from(index) < MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT,
         "poseidon2-preimage data_for_input_memory: index can be 0..{:?}",
         MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT
     );
-    let data = col_map().map(Column::from);
+    let data = COL_MAP;
     Poseidon2PreimagePackTable::new(
-        vec![
-            data.clk,
-            Column::constant(0),                // is_store
-            Column::constant(1),                // is_load
-            data.bytes[index as usize].clone(), // value
-            data.byte_addr + i64::from(index),  // address
-        ],
-        col_map().map(Column::from).is_executed,
+        MemoryCtl {
+            clk: data.clk,
+            is_store: ColumnWithTypedInput::constant(0), // is_store
+            is_load: ColumnWithTypedInput::constant(1),  // is_load
+            value: data.bytes[index as usize],           // value
+            addr: data.byte_addr + i64::from(index),     // address
+        },
+        COL_MAP.is_executed,
     )
 }
