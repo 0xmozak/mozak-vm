@@ -96,20 +96,26 @@ impl PublicSubTable {
 }
 pub type RowPublicValues<F> = Vec<Vec<F>>;
 
-#[allow(clippy::module_name_repetitions)]
 #[must_use]
-pub fn public_sub_table_data<F: RichField, const D: usize>(
+#[allow(clippy::module_name_repetitions)]
+pub fn public_sub_table_data_and_values<F: RichField, const D: usize>(
     trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     public_sub_tables: &[PublicSubTable],
     ctl_challenges: &GrandProductChallengeSet<F>,
-) -> TableKindArray<CtlData<F>> {
+) -> (
+    TableKindArray<CtlData<F>>,
+    TableKindArray<Vec<PublicSubTableValues<F>>>,
+) {
     let mut open_public_data_per_table = all_kind!(|_kind| CtlData::default());
+    let mut public_sub_values_data_per_table = all_kind!(|_kind| Vec::default());
     for (public_sub_table, &challenge) in iproduct!(public_sub_tables, &ctl_challenges.challenges) {
         open_public_data_per_table[public_sub_table.table.kind]
             .zs_columns
             .push(public_sub_table.get_ctlz_data(trace_poly_values, challenge));
+        public_sub_values_data_per_table[public_sub_table.table.kind]
+            .push(public_sub_table.get_values(trace_poly_values));
     }
-    open_public_data_per_table
+    (open_public_data_per_table, public_sub_values_data_per_table)
 }
 
 /// For each table, Creates the sum of inverses of public data which needs to be
@@ -138,18 +144,4 @@ pub fn reduce_public_sub_tables_values<F: Field>(
             })
             .collect_vec()
     })
-}
-
-#[allow(clippy::module_name_repetitions)]
-#[must_use]
-pub fn public_sub_table_values<F: Field>(
-    trace: &TableKindArray<Vec<PolynomialValues<F>>>,
-    public_sub_tables: &[PublicSubTable],
-) -> TableKindArray<Vec<PublicSubTableValues<F>>> {
-    let mut public_sub_values_data_per_table = all_kind!(|_kind| Vec::default());
-    for public_sub_table in public_sub_tables {
-        public_sub_values_data_per_table[public_sub_table.table.kind]
-            .push(public_sub_table.get_values(trace));
-    }
-    public_sub_values_data_per_table
 }
