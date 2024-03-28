@@ -462,13 +462,12 @@ pub fn eval_cross_table_lookup_checks_circuit<
 }
 
 pub mod ctl_utils {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use anyhow::Result;
     use derive_more::{Deref, DerefMut};
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
-    use plonky2::field::types::Field;
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
@@ -476,9 +475,9 @@ pub mod ctl_utils {
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
     #[derive(Clone, Debug, Default, Deref, DerefMut)]
-    struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
+    struct MultiSet<F>(pub BTreeMap<Vec<u64>, Vec<(TableKind, F)>>);
 
-    impl<F: Field> MultiSet<F> {
+    impl<F: RichField> MultiSet<F> {
         fn process_row(
             &mut self,
             trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
@@ -497,14 +496,14 @@ pub mod ctl_utils {
                     let row = columns
                         .iter()
                         .map(|c| c.eval_table(trace, i))
+                        .map(|f| f.to_canonical_u64())
                         .collect::<Vec<_>>();
                     self.entry(row).or_default().push((table.kind, filter));
                 };
             }
         }
     }
-
-    pub fn check_single_ctl<F: Field>(
+    pub fn check_single_ctl<F: RichField>(
         trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
         // TODO(Matthias): make this one work with CrossTableLookupNamed, instead of having to
         // forget the types first.  That should also help with adding better debug messages.
@@ -515,14 +514,16 @@ pub mod ctl_utils {
         ///
         /// The CTL check holds iff `looking_multiplicity ==
         /// looked_multiplicity`.
-        fn check_multiplicities<F: Field>(
-            row: &[F],
+        fn check_multiplicities<F: RichField>(
+            row: &[u64],
             looking_locations: &[(TableKind, F)],
             looked_locations: &[(TableKind, F)],
         ) -> Result<(), LookupError> {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
+                let looking_multiplicity = looking_multiplicity.to_canonical_i64();
+                let looked_multiplicity = looked_multiplicity.to_canonical_i64();
                 println!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\
