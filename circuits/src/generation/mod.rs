@@ -60,10 +60,11 @@ use crate::generation::memoryinit::{
 };
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
+use crate::memory::columns::Memory;
 use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
-use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
+use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values, transpose_trace};
 
 pub const MIN_TRACE_LENGTH: usize = 8;
 
@@ -118,13 +119,16 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     #[allow(unused)]
     let register_rows = generate_register_trace::<F>(record);
 
+    let mut memory_cols: Memory<Vec<F>> = transpose_trace(memory_rows).into_iter().collect();
+    memory_cols.diff_addr_inv = F::batch_multiplicative_inverse(&memory_cols.diff_addr_inv);
+
     TableKindSetBuilder {
         cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows)),
         rangecheck_stark: trace_rows_to_poly_values(rangecheck_rows),
         xor_stark: trace_rows_to_poly_values(xor_rows),
         shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),
         program_stark: trace_rows_to_poly_values(program_rows),
-        memory_stark: trace_rows_to_poly_values(memory_rows),
+        memory_stark: trace_to_poly_values(memory_cols),
         elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
         mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
         memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),

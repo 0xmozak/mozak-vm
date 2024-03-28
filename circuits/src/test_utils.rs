@@ -41,6 +41,7 @@ use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::generation::register::generate_register_trace;
 use crate::generation::registerinit::generate_register_init_trace;
 use crate::generation::xor::generate_xor_trace;
+use crate::memory::columns::Memory;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
@@ -50,7 +51,7 @@ use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
-use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
+use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values, transpose_trace};
 use crate::stark::verifier::verify_proof;
 use crate::utils::from_u32;
 use crate::xor::stark::XorStark;
@@ -220,7 +221,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
-        let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
+        let memory_rows = generate_memory_trace(
             &record.executed,
             &memory_init,
             &halfword_memory,
@@ -229,7 +230,10 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &io_memory_public,
             &poseidon2_trace,
             &poseidon2_output_bytes,
-        ));
+        );
+        let mut memory_cols: Memory<Vec<F>> = transpose_trace(memory_rows).into_iter().collect();
+        memory_cols.diff_addr_inv = F::batch_multiplicative_inverse(&memory_cols.diff_addr_inv);
+        let trace_poly_values = trace_to_poly_values(memory_cols);
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
