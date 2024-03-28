@@ -63,12 +63,11 @@ pub struct Poseidon2StateCtl<F> {
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_sponge() -> TableWithTypedOutput<Poseidon2StateCtl<Column>> {
-    let poseidon2 = COL_MAP;
     // Extend data with outputs which is basically state after last full round.
     Poseidon2Table::new(
         Poseidon2StateCtl {
-            input: poseidon2.input,
-            output: poseidon2.state_after_second_full_rounds
+            input: COL_MAP.input,
+            output: COL_MAP.state_after_second_full_rounds
                 [STATE_SIZE * (ROUNDS_F / 2 - 1)..STATE_SIZE * (ROUNDS_F / 2)]
                 .try_into()
                 .unwrap(),
