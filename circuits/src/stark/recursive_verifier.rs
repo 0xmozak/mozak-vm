@@ -224,6 +224,16 @@ where
                 .collect::<Vec<_>>(),
         );
     }
+    for public_sub_table in &mozak_stark.public_sub_tables {
+        builder.register_public_inputs(
+            &public_sub_table_values_targets[public_sub_table.table.kind]
+                .clone()
+                .into_iter()
+                .flatten()
+                .flatten()
+                .collect::<Vec<_>>(),
+        );
+    }
 
     let circuit = builder.build();
     MozakStarkVerifierCircuit {
