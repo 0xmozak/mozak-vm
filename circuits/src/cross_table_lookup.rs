@@ -16,6 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
+use crate::linear_combination::ColumnSparse;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
@@ -184,6 +185,24 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_data_per_table
 }
 
+/// Treat CTL and the challenge as a single entity.
+///
+/// Logically, the CTL specifies a linear transformation, and so does the
+/// challenge. This function combines the two into a single linear
+/// transformation.
+pub fn compose_ctl_with_challenge<F: Field>(
+    columns: &[ColumnSparse<F>],
+    challenge: GrandProductChallenge<F>,
+) -> ColumnSparse<F> {
+    columns
+        .iter()
+        .rev()
+        .fold(ColumnSparse::default(), |acc, term| {
+            acc * challenge.beta + term
+        })
+        + challenge.gamma
+}
+
 fn partial_sums<F: Field>(
     trace: &[PolynomialValues<F>],
     columns: &[Column],
@@ -199,22 +218,19 @@ fn partial_sums<F: Field>(
     // transition constraint looks like
     //       z_next = z_local + filter_local/combine_local
 
+    let filter_column = filter_column.to_field();
     let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
 
-    let get_combined = |&i| -> F {
-        let evals = columns
-            .iter()
-            .map(|c| c.eval_table(trace, i))
-            .collect::<Vec<_>>();
-        challenge.combine(evals.iter())
-    };
+    let columns: Vec<ColumnSparse<F>> = columns.iter().map(Column::to_field).collect();
+    let prepped = compose_ctl_with_challenge(&columns, challenge);
+    let get_data = |&i| -> F { prepped.eval_table(trace, i) };
 
     let degree = trace[0].len();
     let mut degrees = (0..degree).collect::<Vec<_>>();
     degrees.rotate_right(1);
 
     let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
-    let data: Vec<F> = degrees.iter().map(get_combined).collect();
+    let data: Vec<F> = degrees.iter().map(get_data).collect();
     let inv_data = F::batch_multiplicative_inverse(&data);
 
     izip!(multiplicities, inv_data)
@@ -455,6 +471,7 @@ pub mod ctl_utils {
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
+    use crate::linear_combination::ColumnSparse;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
     #[derive(Clone, Debug, Default, Deref, DerefMut)]
@@ -467,11 +484,16 @@ pub mod ctl_utils {
             table: &Table,
         ) {
             let trace = &trace_poly_values[table.kind];
+            let filter_column = table.filter_column.to_field();
+            let columns = table
+                .columns
+                .iter()
+                .map(ColumnSparse::to_field)
+                .collect::<Vec<_>>();
             for i in 0..trace[0].len() {
-                let filter = table.filter_column.eval_table(trace, i);
+                let filter = filter_column.eval_table(trace, i);
                 if filter.is_nonzero() {
-                    let row = table
-                        .columns
+                    let row = columns
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .map(|f| f.to_canonical_u64())
