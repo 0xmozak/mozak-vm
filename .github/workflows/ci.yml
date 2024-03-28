@@ -50,7 +50,7 @@ jobs:
         run: nixdo nice cargo nextest archive --cargo-profile="${{ matrix.profile }}" --locked --features="enable_poseidon_starks" --all-targets --archive-file mozak-vm-tests.tar.zst
 
       - name: Run all the tests from the archive
-        run: nixdo MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
+        run: nixdo RUST_MIN_STACK=16777216 MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
 
   sdk-sanity:
     needs: check-runner
