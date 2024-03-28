@@ -14,7 +14,7 @@ proc-macro = true
 
 [dependencies]
 itertools = "0.12"
-proc-macro-error = "1.0"
+proc-macro-error = { git = "https://github.com/staratlasmeta/proc-macro-error.git" }
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["full", "extra-traits"] }
