@@ -1,7 +1,7 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
-use crate::open_public::MakeRowsPublic;
+use crate::public_sub_table::PublicSubTable;
 use crate::stark::mozak_stark::{BitshiftTable, TableWithTypedOutput};
 
 columns_view_impl!(Bitshift);
@@ -44,9 +44,9 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<Bitshift<Column>> {
 }
 
 #[must_use]
-pub fn make_rows_pubilc() -> MakeRowsPublic {
-    MakeRowsPublic(BitshiftTable::new(
-        COL_MAP.executed,
-        ColumnWithTypedInput::constant(1),
-    ))
+pub fn public_sub_table() -> PublicSubTable {
+    PublicSubTable {
+        table: BitshiftTable::new(COL_MAP.executed, ColumnWithTypedInput::constant(1)),
+        num_rows: 32,
+    }
 }
