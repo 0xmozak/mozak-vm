@@ -167,8 +167,9 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_table_circuit<
         public_sub_table_targets[public_sub_table.table.kind].push(targets);
     }
 
-    let mut public_sub_table_targets_iter = all_kind!(|kind| public_sub_table_targets[kind].iter());
     for challenge in &ctl_challenges.challenges {
+        let mut public_sub_table_targets_iter =
+            all_kind!(|kind| public_sub_table_targets[kind].iter());
         for public_sub_table in public_sub_tables {
             let targets = public_sub_table_targets_iter[public_sub_table.table.kind]
                 .next()
