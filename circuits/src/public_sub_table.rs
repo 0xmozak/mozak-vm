@@ -1,12 +1,12 @@
+//! To make certain rows of columns (specified by a filter column), public, we
+//! use an idea similar to what we do in CTL. We create a z polynomial for
+//! every such instance which is running sum of `filter_i/combine(columns_i)`
+//! where `filter_i` = 1 if we want to make the ith row `columns_i` public.
+//! Now we let verifer compute the same sum, from public values to final
+//! proof. Then he compares it against ! the former sum (as opening of z
+//! polynomial at last row)
 use itertools::{iproduct, Itertools};
 use plonky2::field::extension::Extendable;
-/// ! To make certain rows of columns (specified by a filter column), public, we
-/// use an idea similar to what we do in CTL ! We create a z polynomial for
-/// every such instance which is running sum of `filter_i/combine(columns_i)`
-/// ! where `filter_i` = 1 if we want to make the ith row `columns_i` public.
-/// ! Now we let verifer compute the same sum, from public values to final
-/// proof. Then he compares it against ! the former sum (as opening of z
-/// polynomial at last row)
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
