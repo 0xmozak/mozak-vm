@@ -6,9 +6,11 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::plonk::config::GenericConfig;
+use serde::{Deserialize, Serialize};
 
 /// Attestation provided opaquely.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct OpaqueAttestation<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -19,7 +21,8 @@ pub struct OpaqueAttestation<
 }
 
 /// Attestation provided in the clear.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct TransparentAttestation {
     // TODO(bing): Attest to its commitment
     /// Public inputs to the execution of a `MozakVM` program, provided in the
@@ -33,7 +36,8 @@ pub struct TransparentAttestation {
 
 /// An attestion to the correct execution of a `MozakVM` program, denoted by its
 /// [`ProgramIdentifier`](mozak_sdk::coretypes::ProgramIdentifier).
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct Attestation<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     /// The ID of the program that this attestation is associated with.
     pub id: ProgramIdentifier,
@@ -42,7 +46,8 @@ pub struct Attestation<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>,
 }
 
 /// The transaction sent across to sequencer
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct Transaction<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     // TODO(bing): Attest to its commitment
     /// The cast list that declares all of the actors involved in this

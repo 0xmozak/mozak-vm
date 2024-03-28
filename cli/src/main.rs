@@ -98,6 +98,8 @@ enum Command {
         bundle_plan: Vec<Input>,
         #[arg(long, required = true)]
         cast_list: Vec<String>,
+        #[arg(long, required = true)]
+        bundle: Output,
     },
     /// Compute the Program Rom Hash of the given ELF.
     ProgramRomHash { elf: Input },
@@ -221,6 +223,7 @@ fn main() -> Result<()> {
         Command::BundleTransaction {
             bundle_plan,
             cast_list,
+            bundle,
         } => {
             println!("Bundling transaction...");
             let mut call_tape_hashes = Vec::with_capacity(cast_list.len());
@@ -312,6 +315,7 @@ fn main() -> Result<()> {
                 constituent_zs,
             };
 
+            serde_json::to_writer(bundle, &transaction)?;
             println!("Transaction bundled: {transaction:?}");
         }
 
