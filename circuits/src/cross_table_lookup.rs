@@ -457,12 +457,7 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
                  looked_tables,
              }| chain!(looking_tables, looked_tables).filter(|twc| twc.kind == table),
         );
-        let public_sub_table_chain = public_sub_tables.iter().filter_map(|twc| {
-            if twc.table.kind == table {
-                Some(&twc.table)
-            } else {
-                None
-            }
+        let public_sub_table_chain = public_sub_tables.iter().filter(|twc| twc.table.kind == table).map(|twc| &twc.table)
         });
         zip_eq(
             ctl_zs,

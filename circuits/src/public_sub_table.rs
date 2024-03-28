@@ -45,17 +45,17 @@ impl PublicSubTable {
     ) -> PublicSubTableValues<F> {
         let trace_table = &trace[self.table.kind];
         let columns_if_filter_at_i = |i| -> Option<Vec<F>> {
-            if self.table.filter_column.eval_table(trace_table, i).is_one() {
-                Some(
+            self.table
+                .filter_column
+                .eval_table(trace_table, i)
+                .is_one()
+                .then_some(
                     self.table
                         .columns
                         .iter()
                         .map(|column| column.eval_table(trace_table, i))
                         .collect_vec(),
                 )
-            } else {
-                None
-            }
         };
         (0..trace_table[0].len())
             .filter_map(columns_if_filter_at_i)
