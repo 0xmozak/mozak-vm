@@ -21,8 +21,6 @@ pub fn generate_program_rom_trace<F: RichField>(program: &Program) -> Vec<Progra
         })
         .collect::<Vec<_>>();
 
-    roms.sort_by_key(|entry| entry.inst.pc.to_canonical_u64());
-
     let trace = pad_trace_with_default(roms);
     log::trace!("ROM trace {:?}", trace);
     trace

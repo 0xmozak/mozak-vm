@@ -26,6 +26,7 @@ pub struct ProgramRom<T> {
     pub inst: InstructionRow<T>,
     /// Filters out instructions that are duplicates, i.e., appear more than
     /// once in the trace.
+    /// TODO: remove this column since it is not used.
     pub filter: T,
 }
 

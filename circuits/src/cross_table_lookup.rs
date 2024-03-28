@@ -1,5 +1,9 @@
+use core::option::Option;
+use std::collections::HashMap;
+
 use anyhow::{ensure, Result};
 use itertools::{chain, iproduct, izip, zip_eq};
+use log::info;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -146,24 +150,45 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                     .collect::<Vec<_>>()
             );
 
-            let make_z = |table: &Table| {
-                partial_sums(
-                    &trace_poly_values[table.kind],
-                    &table.columns,
-                    &table.filter_column,
-                    challenge,
-                )
-            };
-            let zs_looking = looking_tables.iter().map(make_z);
-            let zs_looked = looked_tables.iter().map(make_z);
+            let mut looking_values: Option<(Vec<F>, Vec<F>)> = None;
+            let output_looking_values = looked_tables[0].kind == TableKind::Program;
+
+            let zs_looking: Vec<_> = looking_tables
+                .iter()
+                .map(|table: &Table| {
+                    partial_sums(
+                        &trace_poly_values[table.kind],
+                        &table.columns,
+                        &table.filter_column,
+                        challenge,
+                        output_looking_values,
+                        &mut looking_values,
+                    )
+                })
+                .collect();
+            let zs_looked: Vec<_> = looked_tables
+                .iter()
+                .map(|table: &Table| {
+                    partial_sums(
+                        &trace_poly_values[table.kind],
+                        &table.columns,
+                        &table.filter_column,
+                        challenge,
+                        false,
+                        &mut looking_values,
+                    )
+                })
+                .collect();
 
             debug_assert_eq!(
                 zs_looking
                     .clone()
+                    .into_iter()
                     .map(|z| *z.values.last().unwrap())
                     .sum::<F>(),
                 zs_looked
                     .clone()
+                    .into_iter()
                     .map(|z| *z.values.last().unwrap())
                     .sum::<F>(),
             );
@@ -184,21 +209,12 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_data_per_table
 }
 
-fn partial_sums<F: Field>(
+fn get_values<F: Field>(
     trace: &[PolynomialValues<F>],
     columns: &[Column],
     filter_column: &Column,
     challenge: GrandProductChallenge<F>,
-) -> PolynomialValues<F> {
-    // design of table looks like this
-    //       |  multiplicity  |   value   |  partial_sum                      |
-    //       |       1        |    x_1    |  1/combine(x_1)                   |
-    //       |       0        |    x_2    |  1/combine(x_1)                   |
-    //       |       2        |    x_3    |  1/combine(x_1) + 2/combine(x_3)  |
-    // (where combine(vals) = gamma + reduced_sum(vals, beta))
-    // transition constraint looks like
-    //       z_next = z_local + filter_local/combine_local
-
+) -> (Vec<F>, Vec<F>) {
     let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
 
     let get_combined = |&i| -> F {
@@ -215,6 +231,68 @@ fn partial_sums<F: Field>(
 
     let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
     let data: Vec<F> = degrees.iter().map(get_combined).collect();
+
+    (data, multiplicities)
+}
+
+fn partial_sums<F: Field>(
+    trace: &[PolynomialValues<F>],
+    columns: &[Column],
+    filter_column: &Column,
+    challenge: GrandProductChallenge<F>,
+    output_looking_values: bool,
+    looking_values: &mut Option<(Vec<F>, Vec<F>)>,
+) -> PolynomialValues<F> {
+    // design of table looks like this
+    //       |  multiplicity  |   value   |  partial_sum                      |
+    //       |       1        |    x_1    |  1/combine(x_1)                   |
+    //       |       0        |    x_2    |  1/combine(x_1)                   |
+    //       |       2        |    x_3    |  1/combine(x_1) + 2/combine(x_3)  |
+    // (where combine(vals) = gamma + reduced_sum(vals, beta))
+    // transition constraint looks like
+    //       z_next = z_local + filter_local/combine_local
+
+    let mut data_map = HashMap::new();
+    if let Some(ref values) = looking_values {
+        log::trace!("CTL Looking values {:?}", values);
+        for (&value, &mult) in values.0.iter().zip(values.1.iter()) {
+            *data_map.entry(value).or_insert(F::ZERO) += mult;
+        }
+    }
+    let get_multiplicity = |&i| -> F {
+        if let Some(_) = looking_values {
+            let evals = columns
+                .iter()
+                .map(|c| c.eval_table(trace, i))
+                .collect::<Vec<_>>();
+            data_map
+                .get(&challenge.combine(evals.iter()))
+                .copied()
+                .unwrap_or(F::ZERO)
+        } else {
+            filter_column.eval_table(trace, i)
+        }
+    };
+
+    let get_combined = |&i| -> F {
+        let evals = columns
+            .iter()
+            .map(|c| c.eval_table(trace, i))
+            .collect::<Vec<_>>();
+        challenge.combine(evals.iter())
+    };
+
+    let degree = trace[0].len();
+    let mut degrees = (0..degree).collect::<Vec<_>>();
+    degrees.rotate_right(1);
+
+    let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
+    let data: Vec<F> = degrees.iter().map(get_combined).collect();
+    log::trace!("CTL data {:?}", data);
+    log::trace!("CTL data {:?}", multiplicities);
+    if output_looking_values {
+        *looking_values = Some((data.clone(), multiplicities.clone()));
+    }
     let inv_data = F::batch_multiplicative_inverse(&data);
 
     izip!(multiplicities, inv_data)
