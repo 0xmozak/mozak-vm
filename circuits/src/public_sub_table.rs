@@ -109,10 +109,12 @@ pub fn public_sub_table_data_and_values<F: RichField, const D: usize>(
 ) {
     let mut open_public_data_per_table = all_kind!(|_kind| CtlData::default());
     let mut public_sub_values_data_per_table = all_kind!(|_kind| Vec::default());
-    for (public_sub_table, &challenge) in iproduct!(public_sub_tables, &ctl_challenges.challenges) {
+    for (&challenge, public_sub_table) in iproduct!(&ctl_challenges.challenges, public_sub_tables) {
         open_public_data_per_table[public_sub_table.table.kind]
             .zs_columns
             .push(public_sub_table.get_ctlz_data(trace_poly_values, challenge));
+    }
+    for public_sub_table in public_sub_tables {
         public_sub_values_data_per_table[public_sub_table.table.kind]
             .push(public_sub_table.get_values(trace_poly_values));
     }
