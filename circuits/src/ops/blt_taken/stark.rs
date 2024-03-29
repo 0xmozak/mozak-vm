@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::Blt;
+use super::columns::BltTaken;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -20,10 +20,10 @@ pub struct BltStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> HasNamedColumns for BltStark<F, D> {
-    type Columns = Blt<F>;
+    type Columns = BltTaken<F>;
 }
 
-const COLUMNS: usize = Blt::<()>::NUMBER_OF_COLUMNS;
+const COLUMNS: usize = BltTaken::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BltStark<F, D> {

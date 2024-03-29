@@ -8,7 +8,7 @@ pub mod columns {
     use crate::linear_combination_typed::ColumnWithTypedInput;
     use crate::rangecheck::columns::RangeCheckCtl;
     use crate::register::columns::RegisterCtl;
-    use crate::stark::mozak_stark::{AddTable, TableWithTypedOutput};
+    use crate::stark::mozak_stark::{AddTable, BltTakenTable, TableWithTypedOutput};
 
     columns_view_impl!(Instruction);
     #[repr(C)]
@@ -27,11 +27,11 @@ pub mod columns {
         pub imm_value: T,
     }
 
-    make_col_map!(Blt);
-    columns_view_impl!(Blt);
+    make_col_map!(BltTaken);
+    columns_view_impl!(BltTaken);
     #[repr(C)]
     #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-    pub struct Blt<T> {
+    pub struct BltTaken<T> {
         pub inst: Instruction<T>,
         // TODO(Matthias): could we get rid of the clk here?
         pub clk: T,
@@ -42,41 +42,31 @@ pub mod columns {
         pub is_running: T,
     }
 
-    // #[must_use]
-    // pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
-    //     let is_read = ColumnWithTypedInput::constant(1);
-    //     let is_write = ColumnWithTypedInput::constant(2);
+    #[must_use]
+    pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
+        let is_read = ColumnWithTypedInput::constant(1);
 
-    //     vec![
-    //         AddTable::new(
-    //             RegisterCtl {
-    //                 clk: COL_MAP.clk,
-    //                 op: is_read,
-    //                 addr: COL_MAP.inst.rs1_selected,
-    //                 value: COL_MAP.op1_value,
-    //             },
-    //             COL_MAP.is_running,
-    //         ),
-    //         AddTable::new(
-    //             RegisterCtl {
-    //                 clk: COL_MAP.clk,
-    //                 op: is_read,
-    //                 addr: COL_MAP.inst.rs2_selected,
-    //                 value: COL_MAP.op2_value,
-    //             },
-    //             COL_MAP.is_running,
-    //         ),
-    //         AddTable::new(
-    //             RegisterCtl {
-    //                 clk: COL_MAP.clk,
-    //                 op: is_write,
-    //                 addr: COL_MAP.inst.rd_selected,
-    //                 value: COL_MAP.dst_value,
-    //             },
-    //             COL_MAP.is_running,
-    //         ),
-    //     ]
-    // }
+        vec![
+            BltTakenTable::new(
+                RegisterCtl {
+                    clk: COL_MAP.clk,
+                    op: is_read,
+                    addr: COL_MAP.inst.rs1_selected,
+                    value: COL_MAP.op1_value,
+                },
+                COL_MAP.is_running,
+            ),
+            BltTakenTable::new(
+                RegisterCtl {
+                    clk: COL_MAP.clk,
+                    op: is_read,
+                    addr: COL_MAP.inst.rs2_selected,
+                    value: COL_MAP.op2_value,
+                },
+                COL_MAP.is_running,
+            ),
+        ]
+    }
 
     // // We explicitly range check our output here, so we have the option of not doing
     // // it for other operations that don't need it.
@@ -99,7 +89,7 @@ pub mod columns {
     // }
 }
 
-use columns::{Blt, Instruction};
+use columns::{BltTaken, Instruction};
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
@@ -107,8 +97,8 @@ use plonky2::hash::hash_types::RichField;
 use crate::utils::pad_trace_with_default;
 
 #[must_use]
-pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<Blt<F>> {
-    let mut trace: Vec<Blt<F>> = vec![];
+pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<BltTaken<F>> {
+    let mut trace: Vec<BltTaken<F>> = vec![];
     // let ExecutionRecord { executed, .. } = record;
     // for Row {
     //     state,

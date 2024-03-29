@@ -87,6 +87,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let cpu_rows = generate_cpu_trace::<F>(record);
     let skeleton_rows = generate_cpu_skeleton_trace(record);
     let add_rows = ops::add::generate(record);
+    let blt_rows = ops::blt_taken::generate(record);
     // dbg!(&skeleton_rows);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
@@ -124,6 +125,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         generate_register_trace(
             &cpu_rows,
             &add_rows,
+            &blt_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &io_transcript_rows,
@@ -136,6 +138,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     let add_trace = ops::add::generate(record);
+    let blt_trace = ops::blt_taken::generate(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
@@ -166,6 +169,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
         cpu_skeleton_stark: trace_rows_to_poly_values(skeleton_rows),
         add_stark: trace_rows_to_poly_values(add_trace),
+        blt_taken_stark: trace_rows_to_poly_values(blt_trace),
     }
     .build()
 }

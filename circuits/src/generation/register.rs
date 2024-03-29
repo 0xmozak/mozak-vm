@@ -95,6 +95,7 @@ where
 pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     add_trace: &[ops::add::columns::Add<F>],
+    blt_trace: &[ops::blt_taken::columns::BltTaken<F>],
     mem_private: &[InputOutputMemory<F>],
     mem_public: &[InputOutputMemory<F>],
     mem_transcript: &[InputOutputMemory<F>],
@@ -111,6 +112,7 @@ pub fn generate_register_trace<F: RichField>(
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::Cpu => extract(cpu_trace, &looking_table),
             TableKind::Add => extract(add_trace, &looking_table),
+            TableKind::BltTaken => extract(blt_trace, &looking_table),
             TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
             TableKind::IoTranscript => extract(mem_transcript, &looking_table),
@@ -193,6 +195,7 @@ mod tests {
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
         let add_rows = ops::add::generate(&record);
+        let blt_rows = ops::blt_taken::generate(&record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
@@ -200,6 +203,7 @@ mod tests {
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
             &add_rows,
+            &blt_rows,
             &io_memory_private,
             &io_memory_public,
             &io_transcript,

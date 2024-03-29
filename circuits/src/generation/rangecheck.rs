@@ -106,7 +106,7 @@ mod tests {
     use crate::generation::register::generate_register_trace;
     use crate::generation::registerinit::generate_register_init_trace;
     use crate::generation::MIN_TRACE_LENGTH;
-    use crate::ops;
+    use crate::ops::{self, blt_taken};
 
     #[test]
     fn test_generate_trace() {
@@ -127,6 +127,7 @@ mod tests {
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
         let add_rows = ops::add::generate(&record);
+        let blt_rows = blt_taken::generate(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
@@ -149,6 +150,7 @@ mod tests {
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
             &add_rows,
+            &blt_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &io_transcript_rows,
