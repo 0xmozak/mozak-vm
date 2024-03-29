@@ -10,6 +10,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
+use crate::cpu_skeleton::columns::CpuSkeleton;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
@@ -42,7 +43,9 @@ pub fn generate_program_mult_trace<F: RichField>(
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
-pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
+pub fn generate_cpu_trace<F: RichField>(
+    record: &ExecutionRecord<F>,
+) -> (Vec<CpuSkeleton<F>>, Vec<CpuState<F>>) {
     debug!("Starting CPU Trace Generation");
     let mut trace: Vec<CpuState<F>> = vec![];
     let ExecutionRecord {
@@ -131,7 +134,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     }
 
     log::trace!("trace {:?}", trace);
-    pad_trace_with_last(trace)
+    (vec![], pad_trace_with_last(trace))
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {

@@ -188,7 +188,7 @@ mod tests {
     fn generate_reg_trace() {
         let record = setup();
 
-        let cpu_rows = generate_cpu_trace::<F>(&record);
+        let (_, cpu_rows) = generate_cpu_trace::<F>(&record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);

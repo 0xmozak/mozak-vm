@@ -82,7 +82,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     _timing: &mut TimingTree,
 ) -> TableKindArray<Vec<PolynomialValues<F>>> {
     debug!("Starting Trace Generation");
-    let cpu_rows = generate_cpu_trace::<F>(record);
+    let (skeleton_rows, cpu_rows) = generate_cpu_trace::<F>(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
@@ -156,6 +156,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
+        cpu_skeleton_stark: trace_rows_to_poly_values(skeleton_rows),
     }
     .build()
 }

@@ -124,7 +124,7 @@ impl ProveAndVerify for CpuStark<F, D> {
         let config = fast_test_config();
 
         let stark = S::default();
-        let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(record));
+        let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(record).1);
         let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
@@ -147,7 +147,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let config = fast_test_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(record);
+        let (_, cpu_trace) = generate_cpu_trace(record);
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
@@ -198,7 +198,7 @@ impl ProveAndVerify for XorStark<F, D> {
         let config = fast_test_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(record);
+        let (_, cpu_trace) = generate_cpu_trace(record);
         let trace_poly_values = trace_rows_to_poly_values(generate_xor_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -313,7 +313,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
         let config = fast_test_config();
 
         let stark = S::default();
-        let cpu_rows = generate_cpu_trace::<F>(record);
+        let (_, cpu_rows) = generate_cpu_trace::<F>(record);
         let trace = generate_shift_amount_trace(&cpu_rows);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
@@ -354,7 +354,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let config = fast_test_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(record);
+        let (_, cpu_trace) = generate_cpu_trace(record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);

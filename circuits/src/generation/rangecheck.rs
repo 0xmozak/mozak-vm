@@ -121,7 +121,7 @@ mod tests {
             &[(1, u32::MAX)],
         );
 
-        let cpu_rows = generate_cpu_trace::<F>(&record);
+        let (_skeleton_rows, cpu_rows) = generate_cpu_trace::<F>(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
