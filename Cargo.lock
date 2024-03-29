@@ -911,14 +911,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mozak"
-version = "0.1.0"
-dependencies = [
- "clap",
- "mozak-node",
-]
-
-[[package]]
 name = "mozak-circuits"
 version = "0.1.0"
 dependencies = [
@@ -939,8 +931,8 @@ dependencies = [
  "mozak-runner",
  "mozak-sdk",
  "plonky2",
+ "plonky2_maybe_rayon 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "proptest",
- "rayon",
  "serde",
  "serde_json",
  "starky",
@@ -994,6 +986,14 @@ dependencies = [
  "mozak-circuits",
  "plonky2",
  "serde",
+]
+
+[[package]]
+name = "mozak-node-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "mozak-node",
 ]
 
 [[package]]
@@ -1202,6 +1202,9 @@ name = "plonky2_maybe_rayon"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92ff44a90aaca13e10e7ddf8fab815ba1b404c3f7c3ca82aaf11c46beabaa923"
+dependencies = [
+ "rayon",
+]
 
 [[package]]
 name = "plonky2_maybe_rayon"
@@ -1460,9 +1463,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
+checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
 
 [[package]]
 name = "rend"

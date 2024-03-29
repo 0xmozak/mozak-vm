@@ -18,7 +18,9 @@ use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+use plonky2_maybe_rayon::MaybeIntoParIter;
+#[cfg(feature = "parallel")]
+use plonky2_maybe_rayon::ParallelIterator;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
@@ -52,17 +54,27 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     debug!("Starting Prove");
-    let traces_poly_values = generate_traces(program, record);
+
+    let traces_poly_values = timed!(
+        timing,
+        "Generate Traces",
+        generate_traces(program, record, timing)
+    );
+    debug!("Done with Trace Generation");
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);
     }
-    prove_with_traces(
-        mozak_stark,
-        config,
-        public_inputs,
-        &traces_poly_values,
+    timed!(
         timing,
+        "Prove with Traces",
+        prove_with_traces(
+            mozak_stark,
+            config,
+            public_inputs,
+            &traces_poly_values,
+            timing,
+        )
     )
 }
 

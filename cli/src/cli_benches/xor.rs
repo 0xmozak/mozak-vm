@@ -1,10 +1,11 @@
-use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
+use mozak_circuits::test_utils::prove_and_verify_mozak_stark_with_timing;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::util::execute_code;
+use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
 #[allow(clippy::module_name_repetitions)]
-pub fn xor_bench(iterations: u32) -> Result<(), anyhow::Error> {
+pub fn xor_bench(timing: &mut TimingTree, iterations: u32) -> Result<(), anyhow::Error> {
     let instructions = [
         Instruction {
             op: Op::ADD,
@@ -35,17 +36,24 @@ pub fn xor_bench(iterations: u32) -> Result<(), anyhow::Error> {
         },
     ];
     let (program, record) = execute_code(instructions, &[], &[(1, iterations)]);
-    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+    prove_and_verify_mozak_stark_with_timing(
+        timing,
+        &program,
+        &record,
+        &StarkConfig::standard_fast_config(),
+    )
 }
 
 #[cfg(test)]
 mod tests {
+    use plonky2::util::timing::TimingTree;
+
     use crate::cli_benches::benches::{BenchArgs, BenchFunction};
 
     #[test]
     fn test_xor_bench() {
         let iterations = 10;
-        super::xor_bench(iterations).unwrap();
+        super::xor_bench(&mut TimingTree::default(), iterations).unwrap();
     }
 
     #[test]
@@ -53,6 +61,6 @@ mod tests {
         let iterations = 10;
         let function = BenchFunction::XorBench { iterations };
         let bench = BenchArgs { function };
-        bench.run().unwrap();
+        bench.run_with_default_timing().unwrap();
     }
 }

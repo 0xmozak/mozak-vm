@@ -16,6 +16,7 @@ use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
+use plonky2::timed;
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -170,7 +171,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &poseidon2_output_bytes,
         );
         let register_init = generate_register_init_trace(record);
-        let (_zero_register_trace, register_trace) = generate_register_trace(
+        let (_, _, register_trace) = generate_register_trace(
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,
@@ -362,7 +363,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let register_init = generate_register_init_trace(record);
-        let (_zero_trace, trace) = generate_register_trace(
+        let (_, _, trace) = generate_register_trace(
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,
@@ -399,7 +400,18 @@ impl ProveAndVerify for MozakStark<F, D> {
     }
 }
 
+// timing: &mut TimingTree,
+
 pub fn prove_and_verify_mozak_stark(
+    program: &Program,
+    record: &ExecutionRecord<F>,
+    config: &StarkConfig,
+) -> Result<()> {
+    prove_and_verify_mozak_stark_with_timing(&mut TimingTree::default(), program, record, config)
+}
+
+pub fn prove_and_verify_mozak_stark_with_timing(
+    timing: &mut TimingTree,
     program: &Program,
     record: &ExecutionRecord<F>,
     config: &StarkConfig,
@@ -409,15 +421,12 @@ pub fn prove_and_verify_mozak_stark(
         entry_point: from_u32(program.entry_point),
     };
 
-    let all_proof = prove::<F, C, D>(
-        program,
-        record,
-        &stark,
-        config,
-        public_inputs,
-        &mut TimingTree::default(),
-    )?;
-    verify_proof(&stark, all_proof, config)
+    let all_proof = timed!(
+        timing,
+        "proving",
+        prove::<F, C, D>(program, record, &stark, config, public_inputs, timing)?
+    );
+    timed!(timing, "verifying", verify_proof(&stark, all_proof, config))
 }
 
 /// Interpret a u64 as a field element and try to invert it.
