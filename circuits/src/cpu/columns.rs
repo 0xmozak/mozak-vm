@@ -8,6 +8,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cpu::stark::add_extension_vec;
+use crate::cpu_skeleton::columns::CpuSkeletonCtl;
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::InputOutputMemoryCtl;
@@ -472,4 +473,17 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
             CPU.is_running,
         ),
     ]
+}
+
+#[must_use]
+pub fn lookup_for_skeleton() -> TableWithTypedOutput<CpuSkeletonCtl<Column>> {
+    CpuTable::new(
+        CpuSkeletonCtl {
+            clk: CPU.clk,
+            pc: CPU.inst.pc,
+            new_pc: CPU.new_pc,
+            will_halt: CPU.is_halt,
+        },
+        CPU.is_running,
+    )
 }

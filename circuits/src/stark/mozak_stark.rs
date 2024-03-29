@@ -12,7 +12,7 @@ use crate::bitshift::columns::{Bitshift, BitshiftView};
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
-use crate::cpu_skeleton::columns::CpuSkeleton;
+use crate::cpu_skeleton::columns::{CpuSkeleton, CpuSkeletonCtl};
 use crate::cpu_skeleton::stark::CpuSkeletonStark;
 use crate::cross_table_lookup::{
     Column, ColumnWithTypedInput, CrossTableLookup, CrossTableLookupWithTypedOutput,
@@ -67,11 +67,11 @@ use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, program, program_multiplicities, rangecheck, register, xor,
+    bitshift, cpu, cpu_skeleton, memory, memory_fullword, memory_halfword, memory_io,
+    memory_zeroinit, memoryinit, program, program_multiplicities, rangecheck, register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 12 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
+const NUM_CROSS_TABLE_LOOKUP: usize = 13 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -407,6 +407,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2Poseidon2SpongeTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
+                CpuToSkeletonTable::lookups(),
             ],
             debug: false,
         }
@@ -576,13 +577,25 @@ table_impl!(
     TableKind::Poseidon2OutputBytes,
     Poseidon2OutputBytes
 );
-table_impl!(CpuSkeletonTable, TableKind::CpuSkeleton, CpuSkeleton);
+table_impl!(SkeletonTable, TableKind::CpuSkeleton, CpuSkeleton);
 
 pub trait Lookups {
     type Row: IntoIterator<Item = Column>;
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row>;
     #[must_use]
     fn lookups() -> CrossTableLookup { Self::lookups_with_typed_output().to_untyped_output() }
+}
+
+pub struct CpuToSkeletonTable;
+
+impl Lookups for CpuToSkeletonTable {
+    type Row = CpuSkeletonCtl<Column>;
+
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_skeleton()], vec![
+            cpu_skeleton::columns::lookup_for_cpu(),
+        ])
+    }
 }
 
 pub struct RangecheckTable;
