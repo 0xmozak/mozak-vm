@@ -1,6 +1,7 @@
 use slice_group_by::GroupBy;
 
 use super::types::Poseidon2Hash;
+/// TODO(Kapil): Make this logic less heavy for mozakvm.
 /// Takes leaves of the form `Poseidon2Hash` and returns the merkle root
 /// of the tree, where nodes are hashed according to common prefix of `addr`:
 /// `u64` field. NOTE: Assumes sorted order wrt `addr`
