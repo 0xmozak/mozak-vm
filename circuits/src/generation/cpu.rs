@@ -10,7 +10,6 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
-use crate::cpu_skeleton::columns::CpuSkeleton;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
@@ -42,40 +41,8 @@ pub fn generate_program_mult_trace<F: RichField>(
         .collect()
 }
 
-#[must_use]
-pub fn generate_cpu_skeleton_trace<F: RichField>(
-    record: &ExecutionRecord<F>,
-) -> Vec<CpuSkeleton<F>> {
-    let mut trace: Vec<CpuSkeleton<F>> = vec![];
-    let ExecutionRecord {
-        executed,
-        last_state,
-    } = record;
-    let last_row = &[Row {
-        state: last_state.clone(),
-        // `Aux` has auxiliary information about an executed CPU cycle.
-        // The last state is the final state after the last execution.  Thus naturally it has no
-        // associated auxiliary execution information. We use a dummy aux to make the row
-        // generation work, but we could refactor to make this unnecessary.
-        ..executed.last().unwrap().clone()
-    }];
-
-    for Row { state, .. } in chain![executed, last_row] {
-        let row = CpuSkeleton {
-            clk: F::from_noncanonical_u64(state.clk),
-            pc: F::from_canonical_u32(state.get_pc()),
-            is_running: F::from_bool(!state.halted),
-        };
-        trace.push(row);
-    }
-    log::trace!("trace {:?}", trace);
-    pad_trace_with_last(trace)
-}
-
 /// Converting each row of the `record` to a row represented by [`CpuState`]
-pub fn generate_cpu_trace<F: RichField>(
-    record: &ExecutionRecord<F>,
-) -> (Vec<CpuSkeleton<F>>, Vec<CpuState<F>>) {
+pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
     debug!("Starting CPU Trace Generation");
     let mut trace: Vec<CpuState<F>> = vec![];
     let ExecutionRecord {
@@ -99,6 +66,9 @@ pub fn generate_cpu_trace<F: RichField>(
     } in chain![executed, last_row]
     {
         let inst = *instruction;
+        if let Op::ADD = inst.op {
+            continue;
+        }
         let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
@@ -164,10 +134,8 @@ pub fn generate_cpu_trace<F: RichField>(
     }
 
     log::trace!("trace {:?}", trace);
-    (
-        generate_cpu_skeleton_trace(record),
-        pad_trace_with_last(trace),
-    )
+
+    pad_trace_with_last(trace)
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {

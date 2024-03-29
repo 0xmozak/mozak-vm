@@ -150,17 +150,6 @@ pub(crate) fn is_binary_transition<P: PackedField>(yield_constr: &mut Constraint
     yield_constr.constraint_transition(x * (P::ONES - x));
 }
 
-/// Ensure clock is ticking up, iff CPU is still running.
-fn clock_ticks<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    let clock_diff = nv.clk - lv.clk;
-    is_binary_transition(yield_constr, clock_diff);
-    yield_constr.constraint_transition(clock_diff - lv.is_running);
-}
-
 fn clock_ticks_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &CpuState<ExtensionTarget<D>>,
@@ -249,8 +238,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
-// Public inputs: [PC of the first row]
-const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
@@ -270,10 +258,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         P: PackedField<Scalar = FE>, {
         let lv: &CpuState<_> = vars.get_local_values().into();
         let nv: &CpuState<_> = vars.get_next_values().into();
-        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
 
-        yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
-        clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, yield_constr);
         new_pc_to_pc(lv, nv, yield_constr);
 
@@ -295,12 +280,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, yield_constr);
         ecall::constraints(lv, yield_constr);
-
-        // Clock starts at 2. This is to differentiate
-        // execution clocks (2 and above) from
-        // clk values `0` and `1` which are reserved for
-        // elf initialisation and zero initialisation respectively.
-        yield_constr.constraint_first_row(P::ONES + P::ONES - lv.clk);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

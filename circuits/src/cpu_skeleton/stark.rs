@@ -13,6 +13,7 @@ use starky::stark::Stark;
 use super::columns::CpuSkeleton;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::stark::is_binary_transition;
+use crate::stark::mozak_stark::PublicInputs;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -24,8 +25,13 @@ impl<F, const D: usize> HasNamedColumns for CpuSkeletonStark<F, D> {
     type Columns = CpuSkeleton<F>;
 }
 
+// let public_inputs = PublicInputs {
+//     entry_point: from_u32(program.entry_point),
+// };
+
 const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;
-const PUBLIC_INPUTS: usize = 0;
+// Public inputs: [PC of the first row]
+const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
@@ -45,6 +51,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
         P: PackedField<Scalar = FE>, {
         let lv: &CpuSkeleton<_> = vars.get_local_values().into();
         let nv: &CpuSkeleton<_> = vars.get_next_values().into();
+
+        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
+        yield_constr.constraint_first_row(lv.pc - public_inputs.entry_point);
+        // Clock starts at 2. This is to differentiate
+        // execution clocks (2 and above) from
+        // clk values `0` and `1` which are reserved for
+        // elf initialisation and zero initialisation respectively.
+        yield_constr.constraint_first_row(P::ONES + P::ONES - lv.clk);
+
         let clock_diff = nv.clk - lv.clk;
         is_binary_transition(yield_constr, clock_diff);
 

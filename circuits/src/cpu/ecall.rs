@@ -42,6 +42,8 @@ pub(crate) fn halt_constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    // TODO(Matthias): probably remove all of this?
+
     // Thus we can equate ecall with halt in the next row.
     // Crucially, this prevents a malicious prover from just halting the program
     // anywhere else.
@@ -58,10 +60,6 @@ pub(crate) fn halt_constraints<P: PackedField>(
 
     let is_halted = P::ONES - lv.is_running;
     is_binary(yield_constr, lv.is_running);
-
-    // TODO: change this when we support segmented proving.
-    // Last row must be 'halted', ie no longer is_running.
-    yield_constr.constraint_last_row(lv.is_running);
 
     // Once we stop running, no subsequent row starts running again:
     yield_constr.constraint_transition(is_halted * (lv.new_is_running - lv.is_running));

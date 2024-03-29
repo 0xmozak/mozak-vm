@@ -80,6 +80,7 @@ mod tests {
     use crate::generation::rangecheck::generate_rangecheck_trace;
     use crate::generation::register::generate_register_trace;
     use crate::generation::registerinit::generate_register_init_trace;
+    use crate::ops;
 
     #[test]
     fn test_generate_trace() {
@@ -98,7 +99,8 @@ mod tests {
             &[(1, u32::MAX)],
         );
 
-        let (_skeleton_rows, cpu_rows) = generate_cpu_trace::<F>(&record);
+        let cpu_rows = generate_cpu_trace::<F>(&record);
+        let add_rows = ops::add::columns::generate(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
@@ -120,13 +122,14 @@ mod tests {
         let register_init = generate_register_init_trace(&record);
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
+            &add_rows,
             &io_memory_private,
             &io_memory_public,
             &io_transcript,
             &register_init,
         );
         let rangecheck_rows =
-            generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+            generate_rangecheck_trace::<F>(&cpu_rows, &add_rows, &memory_rows, &register_rows);
 
         let trace = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
 

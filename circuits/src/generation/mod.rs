@@ -53,6 +53,7 @@ use self::register::generate_register_trace;
 use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
+use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
 use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
@@ -62,6 +63,7 @@ use crate::generation::memoryinit::{
 };
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
+use crate::ops;
 use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
@@ -82,7 +84,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     _timing: &mut TimingTree,
 ) -> TableKindArray<Vec<PolynomialValues<F>>> {
     debug!("Starting Trace Generation");
-    let (skeleton_rows, cpu_rows) = generate_cpu_trace::<F>(record);
+    let cpu_rows = generate_cpu_trace::<F>(record);
+    let skeleton_rows = generate_cpu_skeleton_trace(record);
+    let add_rows = ops::add::columns::generate(record);
     dbg!(&skeleton_rows);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
@@ -119,16 +123,19 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let (register_zero_read_rows, register_zero_write_rows, register_rows) =
         generate_register_trace(
             &cpu_rows,
+            &add_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &io_transcript_rows,
             &register_init_rows,
         );
     // Generate rows for the looking values with their multiplicities.
-    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+    let rangecheck_rows =
+        generate_rangecheck_trace::<F>(&cpu_rows, &add_rows, &memory_rows, &register_rows);
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
+    let add_trace = ops::add::columns::generate(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
@@ -158,6 +165,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
         cpu_skeleton_stark: trace_rows_to_poly_values(skeleton_rows),
+        add_stark: trace_rows_to_poly_values(add_trace),
     }
     .build()
 }
@@ -186,7 +194,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     public_inputs: &PublicInputs<F>,
 ) {
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: public_inputs.borrow(),
+        add_stark: public_inputs.borrow(),
         ..Default::default()
     }
     .build();

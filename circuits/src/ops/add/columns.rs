@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
 use mozak_circuits_derive::StarkNameDisplay;
+use mozak_runner::instruction::Op;
+use mozak_runner::vm::{ExecutionRecord, Row};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -10,7 +12,13 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use crate::columns_view::{columns_view_impl, HasNamedColumns, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map, HasNamedColumns, NumberOfColumns};
+use crate::cpu_skeleton::columns::CpuSkeletonCtl;
+use crate::linear_combination::Column;
+use crate::linear_combination_typed::ColumnWithTypedInput;
+use crate::rangecheck::columns::RangeCheckCtl;
+use crate::register::columns::RegisterCtl;
+use crate::stark::mozak_stark::{AddTable, TableWithTypedOutput};
 
 columns_view_impl!(Instruction);
 #[repr(C)]
@@ -19,12 +27,6 @@ pub struct Instruction<T> {
     /// The original instruction (+ `imm_value`) used for program
     /// cross-table-lookup.
     pub pc: T,
-
-    /// Selects the current operation type
-    // pub ops: OpSelectors<T>,
-    pub is_op1_signed: T,
-    pub is_op2_signed: T,
-    pub is_dst_signed: T,
     /// Selects the register to use as source for `rs1`
     pub rs1_selected: T,
     /// Selects the register to use as source for `rs2`
@@ -35,14 +37,19 @@ pub struct Instruction<T> {
     pub imm_value: T,
 }
 
+make_col_map!(Add);
 columns_view_impl!(Add);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Add<T> {
     pub inst: Instruction<T>,
+    // TODO(Matthias): could we get rid of the clk here?
+    pub clk: T,
     pub op1_value: T,
     pub op2_value: T,
     pub dst_value: T,
+
+    pub is_running: T,
 }
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -84,13 +91,106 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for AddStark<F, D
         // even for a malicious prover.
         yield_constr.constraint((lv.dst_value - added) * (lv.dst_value - wrapped));
     }
+
     fn eval_ext_circuit(
-      &self,
-      _builder: &mut CircuitBuilder<F, D>,
-      _vars: &Self::EvaluationFrameTarget,
-      _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-  ) {
-    todo!()
-  }
-  fn constraint_degree(&self) -> usize { 3 }
+        &self,
+        _builder: &mut CircuitBuilder<F, D>,
+        _vars: &Self::EvaluationFrameTarget,
+        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+    ) {
+        todo!()
+    }
+
+    fn constraint_degree(&self) -> usize { 3 }
+}
+
+const ADD: Add<ColumnWithTypedInput<Add<i64>>> = COL_MAP;
+
+#[must_use]
+pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
+    let is_read = ColumnWithTypedInput::constant(1);
+    let is_write = ColumnWithTypedInput::constant(2);
+
+    vec![
+        AddTable::new(
+            RegisterCtl {
+                clk: ADD.clk,
+                op: is_read,
+                addr: ADD.inst.rs1_selected,
+                value: ADD.op1_value,
+            },
+            ADD.is_running,
+        ),
+        AddTable::new(
+            RegisterCtl {
+                clk: ADD.clk,
+                op: is_read,
+                addr: ADD.inst.rs2_selected,
+                value: ADD.op2_value,
+            },
+            ADD.is_running,
+        ),
+        AddTable::new(
+            RegisterCtl {
+                clk: ADD.clk,
+                op: is_write,
+                addr: ADD.inst.rd_selected,
+                value: ADD.dst_value,
+            },
+            ADD.is_running,
+        ),
+    ]
+}
+
+// We explicitly range check our output here, so we have the option of not doing
+// it for other operations that don't need it.
+#[must_use]
+pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+    vec![AddTable::new(RangeCheckCtl(ADD.dst_value), ADD.is_running)]
+}
+
+#[must_use]
+pub fn lookup_for_skeleton() -> TableWithTypedOutput<CpuSkeletonCtl<Column>> {
+    AddTable::new(
+        CpuSkeletonCtl {
+            clk: ADD.clk,
+            pc: ADD.inst.pc,
+            new_pc: ADD.inst.pc + 4,
+            will_halt: ColumnWithTypedInput::constant(0),
+        },
+        ADD.is_running,
+    )
+}
+
+#[must_use]
+pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<Add<F>> {
+    let mut trace: Vec<Add<F>> = vec![];
+    let ExecutionRecord { executed, .. } = record;
+    for Row {
+        state,
+        instruction: inst,
+        aux,
+    } in executed
+    {
+        if let Op::ADD = inst.op {
+            let row = Add {
+                inst: Instruction {
+                    pc: state.get_pc(),
+                    rs1_selected: u32::from(inst.args.rs1),
+                    rs2_selected: u32::from(inst.args.rs2),
+                    rd_selected: u32::from(inst.args.rd),
+                    imm_value: inst.args.imm,
+                },
+                // TODO: fix this, or change clk to u32?
+                clk: u32::try_from(state.clk).unwrap(),
+                op1_value: state.get_register_value(inst.args.rs1),
+                op2_value: state.get_register_value(inst.args.rs2),
+                dst_value: aux.dst_val,
+                is_running: 1,
+            }
+            .map(F::from_canonical_u32);
+            trace.push(row);
+        }
+    }
+    trace
 }

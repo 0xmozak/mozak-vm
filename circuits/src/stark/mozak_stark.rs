@@ -29,6 +29,7 @@ use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::memoryinit::stark::MemoryInitStark;
+use crate::ops::add::columns::AddStark;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2State;
 #[cfg(feature = "enable_poseidon_starks")]
@@ -68,7 +69,7 @@ use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, cpu_skeleton, memory, memory_fullword, memory_halfword, memory_io,
-    memory_zeroinit, memoryinit, program, program_multiplicities, rangecheck, register, xor,
+    memory_zeroinit, memoryinit, ops, program, program_multiplicities, rangecheck, register, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = 13 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
@@ -138,6 +139,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     #[StarkSet(stark_kind = "CpuSkeleton")]
     pub cpu_skeleton_stark: CpuSkeletonStark<F, D>,
+    #[StarkSet(stark_kind = "Add")]
+    pub add_stark: AddStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
 
     pub debug: bool,
@@ -385,6 +388,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
             cpu_skeleton_stark: CpuSkeletonStark::default(),
+            add_stark: AddStark::default(),
 
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.
@@ -577,7 +581,9 @@ table_impl!(
     TableKind::Poseidon2OutputBytes,
     Poseidon2OutputBytes
 );
+use crate::ops::add::columns::Add;
 table_impl!(SkeletonTable, TableKind::CpuSkeleton, CpuSkeleton);
+table_impl!(AddTable, TableKind::Add, Add);
 
 pub trait Lookups {
     type Row: IntoIterator<Item = Column>;
@@ -592,9 +598,13 @@ impl Lookups for CpuToSkeletonTable {
     type Row = CpuSkeletonCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_skeleton()], vec![
-            cpu_skeleton::columns::lookup_for_cpu(),
-        ])
+        CrossTableLookupWithTypedOutput::new(
+            vec![
+                ops::add::columns::lookup_for_skeleton(),
+                cpu::columns::lookup_for_skeleton(),
+            ],
+            vec![cpu_skeleton::columns::lookup_for_cpu()],
+        )
     }
 }
 
@@ -609,6 +619,7 @@ impl Lookups for RangecheckTable {
         let looking: Vec<TableWithTypedOutput<_>> = chain![
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
+            ops::add::columns::rangecheck_looking(),
             register,
         ]
         .collect();
@@ -760,6 +771,7 @@ impl Lookups for RegisterLookups {
         CrossTableLookupWithTypedOutput::new(
             chain![
                 crate::cpu::columns::register_looking(),
+                ops::add::columns::register_looking(),
                 crate::memory_io::columns::register_looking(),
                 vec![crate::registerinit::columns::lookup_for_register()],
             ]

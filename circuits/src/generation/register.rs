@@ -6,6 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
+use crate::ops;
 use crate::register::columns::{Ops, Register, RegisterCtl};
 use crate::register_zero_read::columns::RegisterZeroRead;
 use crate::register_zero_write::columns::RegisterZeroWrite;
@@ -93,6 +94,7 @@ where
 #[allow(clippy::type_complexity)]
 pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
+    add_trace: &[ops::add::columns::Add<F>],
     mem_private: &[InputOutputMemory<F>],
     mem_public: &[InputOutputMemory<F>],
     mem_transcript: &[InputOutputMemory<F>],
@@ -108,6 +110,7 @@ pub fn generate_register_trace<F: RichField>(
         .into_iter()
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::Cpu => extract(cpu_trace, &looking_table),
+            TableKind::Add => extract(add_trace, &looking_table),
             TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
             TableKind::IoTranscript => extract(mem_transcript, &looking_table),
@@ -188,13 +191,15 @@ mod tests {
     fn generate_reg_trace() {
         let record = setup();
 
-        let (_, cpu_rows) = generate_cpu_trace::<F>(&record);
+        let cpu_rows = generate_cpu_trace::<F>(&record);
+        let add_rows = ops::add::columns::generate(&record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let register_init = generate_register_init_trace(&record);
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
+            &add_rows,
             &io_memory_private,
             &io_memory_public,
             &io_transcript,

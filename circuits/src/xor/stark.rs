@@ -163,7 +163,7 @@ mod tests {
         );
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let mut timing = TimingTree::new("xor", log::Level::Debug);
-        let (_, cpu_trace) = generate_cpu_trace(&record);
+        let cpu_trace = generate_cpu_trace(&record);
         let trace = timed!(timing, "generate_xor_trace", generate_xor_trace(&cpu_trace));
         let trace_poly_values = timed!(timing, "trace to poly", trace_rows_to_poly_values(trace));
         let stark = S::default();
