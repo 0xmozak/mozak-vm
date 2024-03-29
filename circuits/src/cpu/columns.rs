@@ -99,6 +99,7 @@ columns_view_impl!(CpuState);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct CpuState<T> {
     pub clk: T,
+    pub new_pc: T,
     pub inst: Instruction<T>,
 
     // Represents the end of the program. Also used as the filter column for cross checking Program

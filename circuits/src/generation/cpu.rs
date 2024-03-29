@@ -69,6 +69,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
+            new_pc: F::from_canonical_u32(aux.new_pc),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
             op1_value: from_u32(aux.op1),
             op2_value_raw: from_u32(aux.op2_raw),
