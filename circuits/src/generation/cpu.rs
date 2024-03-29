@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use itertools::{chain, Itertools};
 use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
@@ -11,31 +9,36 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
-use crate::cpu::columns::{CpuColumnsExtended, CpuState};
-use crate::generation::MIN_TRACE_LENGTH;
-use crate::program::columns::{InstructionRow, ProgramRom};
-use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
+use crate::cpu::columns::CpuState;
+use crate::program::columns::ProgramRom;
+use crate::program_multiplicities::columns::ProgramMult;
+use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
 use crate::xor::columns::XorView;
 
 #[must_use]
-pub fn generate_cpu_trace_extended<F: RichField>(
-    cpu_trace: Vec<CpuState<F>>,
+pub fn generate_program_mult_trace<F: RichField>(
+    trace: &[CpuState<F>],
     program_rom: &[ProgramRom<F>],
-) -> CpuColumnsExtended<Vec<F>> {
-    let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
-    let len = cpu_trace
-        .len()
-        .max(permuted.len())
-        .max(MIN_TRACE_LENGTH)
-        .next_power_of_two();
-    let ori_len = permuted.len();
-    permuted = pad_trace_with_last_to_len(permuted, len);
-    for entry in permuted.iter_mut().skip(ori_len) {
-        entry.filter = F::ZERO;
-    }
-    let cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
-    chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
+) -> Vec<ProgramMult<F>> {
+    let counts = trace
+        .iter()
+        .filter(|row| row.is_running == F::ONE)
+        .map(|row| row.inst.pc)
+        .counts();
+    program_rom
+        .iter()
+        .map(|row| {
+            ProgramMult {
+                // This assumes that row.filter is binary, and that we have no duplicates.
+                mult_in_cpu: row.filter
+                    * F::from_canonical_usize(
+                        counts.get(&row.inst.pc).copied().unwrap_or_default(),
+                    ),
+                mult_in_rom: row.filter,
+                inst: row.inst,
+            }
+        })
+        .collect()
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
@@ -127,7 +130,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     }
 
     log::trace!("trace {:?}", trace);
-    trace
+    pad_trace_with_last(trace)
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
@@ -292,205 +295,4 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorVi
         _ => 0,
     };
     XorView { a, b, out: a ^ b }.map(from_u32)
-}
-
-// TODO:  a more elegant approach might be move them to the backend using logUp
-// or a similar method.
-#[must_use]
-pub fn generate_permuted_inst_trace<F: RichField>(
-    trace: &[CpuState<F>],
-    program_rom: &[ProgramRom<F>],
-) -> Vec<ProgramRom<F>> {
-    let mut cpu_trace: Vec<_> = trace
-        .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst)
-        .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
-        .scan(None, |previous_pc, inst| {
-            Some(ProgramRom {
-                filter: F::from_bool(Some(inst.pc) != previous_pc.replace(inst.pc)),
-                inst: InstructionRow::from(inst),
-            })
-        })
-        .collect();
-
-    let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
-
-    // Filter program_rom to contain only instructions with the pc that are not in
-    // used_pcs
-    let unused_instructions: Vec<_> = program_rom
-        .iter()
-        .filter(|row| !used_pcs.contains(&row.inst.pc) && row.filter.is_nonzero())
-        .copied()
-        .collect();
-
-    cpu_trace.extend(unused_instructions);
-    cpu_trace
-}
-
-#[cfg(test)]
-mod tests {
-    use plonky2::field::types::Field;
-    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-
-    use crate::columns_view::selection;
-    use crate::cpu::columns::{CpuState, Instruction};
-    use crate::generation::cpu::generate_permuted_inst_trace;
-    use crate::program::columns::{InstructionRow, ProgramRom};
-    use crate::utils::from_u32;
-
-    #[test]
-    #[allow(clippy::too_many_lines)]
-    fn test_permuted_inst_trace() {
-        const D: usize = 2;
-        type C = Poseidon2GoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
-        let cpu_trace: Vec<CpuState<F>> = [
-            CpuState {
-                inst: Instruction {
-                    pc: 1,
-                    ops: selection(3),
-                    rs1_selected: 2,
-                    rs2_selected: 1,
-                    rd_selected: 1,
-                    imm_value: 3,
-                    ..Default::default()
-                },
-                is_running: 1,
-                ..Default::default()
-            },
-            CpuState {
-                inst: Instruction {
-                    pc: 2,
-                    ops: selection(1),
-                    rs1_selected: 3,
-                    rs2_selected: 3,
-                    rd_selected: 2,
-                    imm_value: 2,
-                    ..Default::default()
-                },
-                is_running: 1,
-                ..Default::default()
-            },
-            CpuState {
-                inst: Instruction {
-                    pc: 1,
-                    ops: selection(3),
-                    rs1_selected: 2,
-                    rs2_selected: 1,
-                    rd_selected: 1,
-                    imm_value: 3,
-                    ..Default::default()
-                },
-                is_running: 1,
-                ..Default::default()
-            },
-            CpuState {
-                inst: Instruction {
-                    pc: 1,
-                    ops: selection(3),
-                    rs1_selected: 2,
-                    rs2_selected: 1,
-                    rd_selected: 1,
-                    imm_value: 4,
-                    ..Default::default()
-                },
-                is_running: 0,
-                ..Default::default()
-            },
-        ]
-        .into_iter()
-        .map(|row| CpuState {
-            inst: row.inst.map(from_u32),
-            is_running: from_u32(row.is_running),
-            ..Default::default()
-        })
-        .collect();
-
-        let reduce_with_powers = |values: Vec<u64>| {
-            values
-                .into_iter()
-                .enumerate()
-                .map(|(i, x)| (1 << (i * 5)) * x)
-                .sum::<u64>()
-        };
-
-        let program_trace: Vec<ProgramRom<F>> = [
-            ProgramRom {
-                inst: InstructionRow {
-                    pc: 1,
-                    // opcode: 3,
-                    // is_op1_signed: 0,
-                    // is_op2_signed: 0,
-                    // rs1_select: 2,
-                    // rs2_select: 1,
-                    // rd_select: 1,
-                    // imm_value: 3,
-                    inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
-                },
-                filter: 1,
-            },
-            ProgramRom {
-                inst: InstructionRow {
-                    pc: 2,
-                    inst_data: reduce_with_powers(vec![1, 0, 0, 3, 3, 2, 2]),
-                },
-                filter: 1,
-            },
-            ProgramRom {
-                inst: InstructionRow {
-                    pc: 3,
-                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
-                },
-                filter: 1,
-            },
-            ProgramRom {
-                inst: InstructionRow {
-                    pc: 3,
-                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
-                },
-                filter: 0,
-            },
-        ]
-        .into_iter()
-        .map(|row| row.map(F::from_canonical_u64))
-        .collect();
-
-        let permuted = generate_permuted_inst_trace(&cpu_trace, &program_trace);
-        let expected_permuted: Vec<ProgramRom<F>> = [
-            ProgramRom {
-                inst: InstructionRow {
-                    pc: 1,
-                    inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
-                },
-                filter: 1,
-            },
-            ProgramRom {
-                inst: InstructionRow {
-                    pc: 1,
-                    inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
-                },
-                filter: 0,
-            },
-            ProgramRom {
-                inst: InstructionRow {
-                    pc: 2,
-                    inst_data: reduce_with_powers(vec![1, 0, 0, 3, 3, 2, 2]),
-                },
-                filter: 1,
-            },
-            ProgramRom {
-                inst: InstructionRow {
-                    pc: 3,
-                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
-                },
-                filter: 1,
-            },
-        ]
-        .into_iter()
-        .map(|row| row.map(F::from_canonical_u64))
-        .collect();
-        assert_eq!(permuted, expected_permuted);
-    }
 }

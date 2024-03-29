@@ -78,10 +78,11 @@ mod tests {
 
     #[test]
     fn prove_add_mozak_example() {
-        let a = 1;
-        let b = 2;
+        let a = 5;
+        let b = 17;
+        let imm = u32::MAX;
         let rd = 3;
-        prove_add::<MozakStark<F, D>>(a, b, rd);
+        prove_add::<MozakStark<F, D>>(a, b, imm, rd);
     }
 
     use proptest::prelude::ProptestConfig;
