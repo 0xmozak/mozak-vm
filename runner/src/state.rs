@@ -399,13 +399,15 @@ impl<F: RichField> State<F> {
     /// This function returns an error, if you try to load from an invalid
     /// address.
     #[must_use]
-    pub fn load_u32(&self, addr: u32) -> u32 {
+    pub fn load_u32(&self, addr: u32) -> (u32, bool) {
         const WORD_SIZE: usize = 4;
         let mut bytes = [0_u8; WORD_SIZE];
+        // We are going by whether the last byte is read only.  It's a bit annoying, but ok.
+        let mut is_read_only = false;
         for (i, byte) in (0_u32..).zip(bytes.iter_mut()) {
-            *byte = self.load_u8(addr + i);
+            (*byte, is_read_only) = self.load_u8(addr + i);
         }
-        u32::from_le_bytes(bytes)
+        (u32::from_le_bytes(bytes), is_read_only)
     }
 
     /// Load a byte from memory
@@ -414,8 +416,9 @@ impl<F: RichField> State<F> {
     /// address space you can get with 32 bits.
     /// So no u32 address is out of bounds.
     #[must_use]
-    pub fn load_u8(&self, addr: u32) -> u8 {
-        self.memory.data.get(&addr).copied().unwrap_or_default()
+    pub fn load_u8(&self, addr: u32) -> (u8, bool) {
+        (self.memory.data.get(&addr).copied().unwrap_or_default(),
+        self.memory.is_read_only.contains(&addr))
     }
 
     /// Store a byte to memory

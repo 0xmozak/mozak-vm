@@ -181,6 +181,9 @@ pub struct CpuState<T> {
     // (And/or should probably be removed.)
     pub poseidon2_input_addr: T,
     pub poseidon2_input_len: T,
+
+    // To unify the memory CTL between access and init.
+    pub mem_is_writeable: T,
 }
 pub(crate) const CPU: CpuState<ColumnWithTypedInput<CpuColumnsExtended<i64>>> = COL_MAP.cpu;
 

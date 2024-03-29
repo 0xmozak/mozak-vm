@@ -687,6 +687,7 @@ impl Lookups for RangeCheckU8LookupTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         let looking: Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> = chain![
             rangecheck_looking(),
+            // This one is ok.
             memory::columns::rangecheck_u8_looking(),
         ]
         .collect();
