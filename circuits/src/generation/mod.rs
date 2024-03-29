@@ -83,6 +83,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
 ) -> TableKindArray<Vec<PolynomialValues<F>>> {
     debug!("Starting Trace Generation");
     let (skeleton_rows, cpu_rows) = generate_cpu_trace::<F>(record);
+    dbg!(&skeleton_rows);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);

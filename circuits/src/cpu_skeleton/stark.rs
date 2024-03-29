@@ -58,7 +58,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
         yield_constr.constraint_transition(nv.is_running * (nv.is_running - lv.is_running));
 
         // We end in a non-running state.
-        yield_constr.constraint_last_row(nv.is_running);
+        yield_constr.constraint_last_row(lv.is_running);
     }
 
     fn eval_ext_circuit(

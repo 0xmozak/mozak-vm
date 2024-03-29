@@ -30,7 +30,7 @@ pub(crate) fn lookup_for_cpu() -> TableWithTypedOutput<CpuSkeletonCtl<Column>> {
             pc: COL_MAP.pc,
             // The `flip`s here mean that we need at least one row of padding at the end.
             new_pc: COL_MAP.pc.flip(),
-            will_halt: COL_MAP.is_running.flip(),
+            will_halt: !COL_MAP.is_running.flip(),
         },
         COL_MAP.is_running,
     )

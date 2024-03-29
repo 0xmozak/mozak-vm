@@ -1,5 +1,5 @@
 use core::iter::Sum;
-use core::ops::{Add, Mul, Neg, Sub};
+use core::ops::{Add, Mul, Neg, Not, Sub};
 
 use itertools::izip;
 
@@ -47,6 +47,16 @@ where
     }
 }
 
+// This only really makes sense for binary columns.
+impl<C> Not for ColumnWithTypedInput<C>
+where
+    ColumnWithTypedInput<C>: Neg<Output = ColumnWithTypedInput<C>>,
+{
+    type Output = Self;
+
+    fn not(self) -> Self::Output { -self + 1 }
+}
+
 impl<C> Add<Self> for ColumnWithTypedInput<C>
 where
     C: Add<Output = C>,
@@ -65,10 +75,7 @@ where
     }
 }
 
-impl<C> Add<i64> for ColumnWithTypedInput<C>
-where
-    C: Add<Output = C>,
-{
+impl<C> Add<i64> for ColumnWithTypedInput<C> {
     type Output = Self;
 
     fn add(self, other: i64) -> Self {
