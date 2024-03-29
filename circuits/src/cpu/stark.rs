@@ -146,7 +146,7 @@ fn one_hot_circuit<F: RichField + Extendable<D>, const D: usize>(
 ///
 /// That's useful for differences between `local_values` and `next_values`, like
 /// a clock tick.
-fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
+pub(crate) fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
     yield_constr.constraint_transition(x * (P::ONES - x));
 }
 
