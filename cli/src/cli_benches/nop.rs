@@ -5,6 +5,8 @@ use plonky2::timed;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
+// TODO: do for BLT what we did for ADD.
+
 #[allow(clippy::module_name_repetitions)]
 pub fn nop_bench(timing: &mut TimingTree, iterations: u32) -> Result<(), anyhow::Error> {
     let instructions = [
