@@ -58,14 +58,6 @@ pub fn add_extension_vec<F: RichField + Extendable<D>, const D: usize>(
     result
 }
 
-fn new_pc_to_pc<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    yield_constr.constraint_transition(nv.inst.pc - lv.new_pc);
-}
-
 /// Ensure that if opcode is straight line, then program counter is incremented
 /// by 4.
 fn pc_ticks_up<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
@@ -257,10 +249,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &CpuState<_> = vars.get_local_values().into();
-        let nv: &CpuState<_> = vars.get_next_values().into();
 
         pc_ticks_up(lv, yield_constr);
-        new_pc_to_pc(lv, nv, yield_constr);
 
         one_hots(&lv.inst, yield_constr);
 
@@ -271,7 +261,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         sub::constraints(lv, yield_constr);
         bitwise::constraints(lv, yield_constr);
         branches::comparison_constraints(lv, yield_constr);
-        branches::constraints(lv, nv, yield_constr);
+        branches::constraints(lv, yield_constr);
         memory::constraints(lv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
         signed_comparison::slt_constraints(lv, yield_constr);

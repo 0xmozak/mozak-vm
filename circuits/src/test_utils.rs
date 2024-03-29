@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use anyhow::Result;
 use itertools::izip;
 use mozak_runner::decode::ECALL;
@@ -119,21 +117,18 @@ pub trait ProveAndVerify {
 }
 
 impl ProveAndVerify for CpuStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = CpuStark<F, D>;
 
         let config = fast_test_config();
 
         let stark = S::default();
         let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(record));
-        let public_inputs: PublicInputs<F> = PublicInputs {
-            entry_point: from_u32(program.entry_point),
-        };
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            public_inputs.borrow(),
+            &[],
             &mut TimingTree::default(),
         )?;
 

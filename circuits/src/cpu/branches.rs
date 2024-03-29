@@ -85,7 +85,6 @@ pub(crate) fn comparison_constraints_circuit<F: RichField + Extendable<D>, const
 /// Constraints for conditional branch operations
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
-    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let ops = &lv.inst.ops;
@@ -94,7 +93,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     let bumped_pc = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
     let branched_pc = lv.inst.imm_value;
-    let next_pc = nv.inst.pc;
+    let next_pc = lv.new_pc;
 
     let lt = lv.less_than;
 
