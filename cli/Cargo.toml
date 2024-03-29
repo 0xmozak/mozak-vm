@@ -41,6 +41,7 @@ tempfile = "3"
 
 [features]
 parallel = ["plonky2/parallel", "starky/parallel", "mozak-circuits/parallel"]
+default = ["parallel"]
 
 [dev-dependencies]
 mozak-circuits = { path = "../circuits", features = ["test"] }
