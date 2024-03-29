@@ -194,7 +194,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     public_inputs: &PublicInputs<F>,
 ) {
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        add_stark: public_inputs.borrow(),
+        cpu_skeleton_stark: public_inputs.borrow(),
         ..Default::default()
     }
     .build();

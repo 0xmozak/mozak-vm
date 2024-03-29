@@ -341,9 +341,9 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    let cpu_stark = [public_inputs.entry_point];
+    let cpu_skeleton_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: &cpu_stark,
+        cpu_skeleton_stark: &cpu_skeleton_stark,
         ..Default::default()
     }
     .build();
