@@ -38,7 +38,7 @@ pub fn generate_program_mult_trace<F: RichField>(
                 // This assumes that row.filter is binary, and that we have no duplicates.
                 mult_in_cpu: row.filter
                     * F::from_canonical_usize(
-                        counts.get(&row.inst.pc).copied().unwrap_or_default()
+                        counts.get(&row.inst.pc).copied().unwrap_or_default(),
                     ),
                 mult_in_rom: row.filter,
                 inst: row.inst,
@@ -72,8 +72,18 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     } in chain![executed, last_row]
     {
         let inst = *instruction;
-        if let Op::ADD = inst.op {
-            continue;
+        // Skip instruction handled by their own tables.
+        // TODO: refactor, so we don't repeat logic.
+        {
+            if let Op::ADD = inst.op {
+                continue;
+            }
+
+            let op1_value = state.get_register_value(inst.args.rs1);
+            let op2_value = state.get_register_value(inst.args.rs2);
+            if op1_value < op2_value && Op::BLTU == inst.op {
+                continue;
+            }
         }
         let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {

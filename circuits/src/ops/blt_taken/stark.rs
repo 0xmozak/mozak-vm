@@ -7,7 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use super::columns::BltTaken;
@@ -37,20 +37,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BltStark<F, D
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        _vars: &Self::EvaluationFrame<FE, P, D2>,
+        _yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        // let lv: &Blt<P> = vars.get_local_values().into();
-        // let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        // let added = lv.op1_value + lv.op2_value + lv.inst.imm_value;
-        // let wrapped = added - wrap_at;
-
-        // // Check: the resulting sum is wrapped if necessary.
-        // // As the result is range checked, this make the choice deterministic,
-        // // even for a malicious prover.
-        // yield_constr.constraint((lv.dst_value - added) * (lv.dst_value - wrapped));
     }
 
     fn eval_ext_circuit(

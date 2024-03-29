@@ -607,8 +607,9 @@ impl Lookups for CpuToSkeletonTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             vec![
-                ops::add::columns::lookup_for_skeleton(),
                 cpu::columns::lookup_for_skeleton(),
+                ops::add::columns::lookup_for_skeleton(),
+                ops::blt_taken::columns::lookup_for_skeleton(),
             ],
             vec![cpu_skeleton::columns::lookup_for_cpu()],
         )

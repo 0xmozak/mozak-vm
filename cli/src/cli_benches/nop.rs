@@ -21,7 +21,7 @@ pub fn nop_bench(timing: &mut TimingTree, iterations: u32) -> Result<(), anyhow:
         },
         NOP,
         Instruction {
-            op: Op::BLT,
+            op: Op::BLTU,
             args: Args {
                 rs1: 0,
                 rs2: 1,
