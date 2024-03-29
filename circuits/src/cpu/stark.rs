@@ -58,28 +58,31 @@ pub fn add_extension_vec<F: RichField + Extendable<D>, const D: usize>(
     result
 }
 
-/// Ensure that if opcode is straight line, then program counter is incremented
-/// by 4.
-fn pc_ticks_up<P: PackedField>(
+fn new_pc_to_pc<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    yield_constr.constraint_transition(nv.inst.pc - lv.new_pc);
+}
+
+/// Ensure that if opcode is straight line, then program counter is incremented
+/// by 4.
+fn pc_ticks_up<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint_transition(
         lv.inst.ops.is_straightline()
-            * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
+            * (lv.new_pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
 fn pc_ticks_up_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     let four = builder.constant_extension(F::Extension::from_noncanonical_u64(4));
     let lv_inst_pc_add_four = builder.add_extension(lv.inst.pc, four);
-    let nv_inst_pc_sub_lv_inst_pc_add_four = builder.sub_extension(nv.inst.pc, lv_inst_pc_add_four);
+    let nv_inst_pc_sub_lv_inst_pc_add_four = builder.sub_extension(lv.new_pc, lv_inst_pc_add_four);
     let is_jumping = add_extension_vec(builder, vec![
         lv.inst.ops.beq,
         lv.inst.ops.bge,
@@ -271,7 +274,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
         clock_ticks(lv, nv, yield_constr);
-        pc_ticks_up(lv, nv, yield_constr);
+        pc_ticks_up(lv, yield_constr);
+        new_pc_to_pc(lv, nv, yield_constr);
 
         one_hots(&lv.inst, yield_constr);
 
@@ -289,8 +293,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         shift::constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
-        jalr::constraints(lv, nv, yield_constr);
-        ecall::constraints(lv, nv, yield_constr);
+        jalr::constraints(lv, yield_constr);
+        ecall::constraints(lv, yield_constr);
 
         // Clock starts at 2. This is to differentiate
         // execution clocks (2 and above) from
@@ -315,7 +319,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
             builder.sub_extension(lv.inst.pc, public_inputs.entry_point);
         yield_constr.constraint_first_row(builder, inst_pc_sub_public_inputs_entry_point);
         clock_ticks_circuit(builder, lv, nv, yield_constr);
-        pc_ticks_up_circuit(builder, lv, nv, yield_constr);
+        pc_ticks_up_circuit(builder, lv, yield_constr);
 
         one_hots_circuit(builder, &lv.inst, yield_constr);
 
@@ -332,8 +336,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         shift::constraints_circuit(builder, lv, yield_constr);
         div::constraints_circuit(builder, lv, yield_constr);
         mul::constraints_circuit(builder, lv, yield_constr);
-        jalr::constraints_circuit(builder, lv, nv, yield_constr);
-        ecall::constraints_circuit(builder, lv, nv, yield_constr);
+        jalr::constraints_circuit(builder, lv, yield_constr);
+        ecall::constraints_circuit(builder, lv, yield_constr);
 
         let two = builder.two_extension();
         let two_sub_lv_clk = builder.sub_extension(two, lv.clk);

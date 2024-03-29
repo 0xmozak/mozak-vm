@@ -14,7 +14,6 @@ use super::columns::CpuState;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
-    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
@@ -32,7 +31,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     let jump_target = lv.op1_value + lv.op2_value;
     let wrapped_jump_target = jump_target - wrap_at;
-    let new_pc = nv.inst.pc;
+    let new_pc = lv.new_pc;
 
     // Check: the wrapped op1, op2 sum is set as new `pc`.
     // As values are u32 range checked, this makes the value choice deterministic.
@@ -44,7 +43,6 @@ pub(crate) fn constraints<P: PackedField>(
 pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     let wrap_at = builder.constant_extension(F::Extension::from_noncanonical_u64(1 << 32));
@@ -69,7 +67,7 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 
     let jump_target = builder.add_extension(lv.op1_value, lv.op2_value);
     let wrapped_jump_target = builder.sub_extension(jump_target, wrap_at);
-    let new_pc = nv.inst.pc;
+    let new_pc = lv.new_pc;
     let new_pc_sub_jump_target = builder.sub_extension(new_pc, jump_target);
     let new_pc_sub_wrapped_jump_target = builder.sub_extension(new_pc, wrapped_jump_target);
 

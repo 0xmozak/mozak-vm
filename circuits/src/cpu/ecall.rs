@@ -1,7 +1,6 @@
 //! This module implements the constraints for the environment call operation
 //! 'ECALL'.
 
-use itertools::izip;
 use mozak_sdk::core::ecall;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
@@ -17,7 +16,6 @@ use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
-    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // ECALL is used for HALT, IO_READ_PRIVATE/IO_READ_PUBLIC or POSEIDON2 system
@@ -35,29 +33,28 @@ pub(crate) fn constraints<P: PackedField>(
                 + lv.is_io_transcript
                 + lv.is_poseidon2),
     );
-    halt_constraints(lv, nv, yield_constr);
+    halt_constraints(lv, yield_constr);
     io_constraints(lv, yield_constr);
     poseidon2_constraints(lv, yield_constr);
 }
 
 pub(crate) fn halt_constraints<P: PackedField>(
     lv: &CpuState<P>,
-    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // Thus we can equate ecall with halt in the next row.
     // Crucially, this prevents a malicious prover from just halting the program
     // anywhere else.
     // Enable only for halt !!!
-    yield_constr.constraint_transition(lv.is_halt * (lv.inst.ops.ecall + nv.is_running - P::ONES));
+    yield_constr
+        .constraint_transition(lv.is_halt * (lv.inst.ops.ecall + lv.new_is_running - P::ONES));
     yield_constr
         .constraint(lv.is_halt * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::HALT)));
 
     // We also need to make sure that the program counter is not changed by the
     // 'halt' system call.
     // Enable only for halt !!!
-    yield_constr
-        .constraint_transition(lv.is_halt * (lv.inst.ops.ecall * (nv.inst.pc - lv.inst.pc)));
+    yield_constr.constraint_transition(lv.is_halt * (lv.inst.ops.ecall * (lv.new_pc - lv.inst.pc)));
 
     let is_halted = P::ONES - lv.is_running;
     is_binary(yield_constr, lv.is_running);
@@ -67,11 +64,14 @@ pub(crate) fn halt_constraints<P: PackedField>(
     yield_constr.constraint_last_row(lv.is_running);
 
     // Once we stop running, no subsequent row starts running again:
-    yield_constr.constraint_transition(is_halted * (nv.is_running - lv.is_running));
-    // Halted means that nothing changes anymore:
-    for (&lv_entry, &nv_entry) in izip!(lv, nv) {
-        yield_constr.constraint_transition(is_halted * (lv_entry - nv_entry));
-    }
+    yield_constr.constraint_transition(is_halted * (lv.new_is_running - lv.is_running));
+
+    // TODO: move an equivalent of this to skeleton table:
+
+    // // Halted means that nothing changes anymore:
+    // for (&lv_entry, &nv_entry) in izip!(lv, nv) {
+    //     yield_constr.constraint_transition(is_halted * (lv_entry -
+    // nv_entry)); }
 }
 
 pub(crate) fn io_constraints<P: PackedField>(
@@ -104,7 +104,6 @@ pub(crate) fn poseidon2_constraints<P: PackedField>(
 pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     is_binary_ext_circuit(builder, lv.is_poseidon2, yield_constr);
@@ -123,7 +122,7 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     let ecall_constraint = builder.sub_extension(lv.inst.ops.ecall, is_ecall_ops);
     yield_constr.constraint(builder, ecall_constraint);
 
-    halt_constraints_circuit(builder, lv, nv, yield_constr);
+    halt_constraints_circuit(builder, lv, yield_constr);
     io_constraints_circuit(builder, lv, yield_constr);
     poseidon2_constraints_circuit(builder, lv, yield_constr);
 }
@@ -131,11 +130,10 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 pub(crate) fn halt_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     let one = builder.one_extension();
-    let halt_ecall_plus_running = builder.add_extension(lv.inst.ops.ecall, nv.is_running);
+    let halt_ecall_plus_running = builder.add_extension(lv.inst.ops.ecall, lv.new_is_running);
     let halt_ecall_plus_running_sub_one = builder.sub_extension(halt_ecall_plus_running, one);
     let constraint1 = builder.mul_extension(lv.is_halt, halt_ecall_plus_running_sub_one);
     yield_constr.constraint_transition(builder, constraint1);
@@ -145,7 +143,7 @@ pub(crate) fn halt_constraints_circuit<F: RichField + Extendable<D>, const D: us
     let constraint2 = builder.mul_extension(lv.is_halt, halt_reg_a0_sub);
     yield_constr.constraint(builder, constraint2);
 
-    let nv_pc_sub_lv_pc = builder.sub_extension(nv.inst.pc, lv.inst.pc);
+    let nv_pc_sub_lv_pc = builder.sub_extension(lv.new_pc, lv.inst.pc);
     let ecall_mul_nv_pc_sub_lv_pc = builder.mul_extension(lv.inst.ops.ecall, nv_pc_sub_lv_pc);
     let pc_constraint = builder.mul_extension(lv.is_halt, ecall_mul_nv_pc_sub_lv_pc);
     yield_constr.constraint_transition(builder, pc_constraint);
@@ -154,16 +152,18 @@ pub(crate) fn halt_constraints_circuit<F: RichField + Extendable<D>, const D: us
     is_binary_ext_circuit(builder, lv.is_running, yield_constr);
     yield_constr.constraint_last_row(builder, lv.is_running);
 
-    let nv_is_running_sub_lv_is_running = builder.sub_extension(nv.is_running, lv.is_running);
+    let nv_is_running_sub_lv_is_running = builder.sub_extension(lv.new_is_running, lv.is_running);
     let transition_constraint = builder.mul_extension(is_halted, nv_is_running_sub_lv_is_running);
     yield_constr.constraint_transition(builder, transition_constraint);
 
-    for (index, &lv_entry) in lv.iter().enumerate() {
-        let nv_entry = nv[index];
-        let lv_nv_entry_sub = builder.sub_extension(lv_entry, nv_entry);
-        let transition_constraint = builder.mul_extension(is_halted, lv_nv_entry_sub);
-        yield_constr.constraint_transition(builder, transition_constraint);
-    }
+    // TODO: move to skeleton table.
+
+    // for (index, &lv_entry) in lv.iter().enumerate() {
+    //     let nv_entry = nv[index];
+    //     let lv_nv_entry_sub = builder.sub_extension(lv_entry, nv_entry);
+    //     let transition_constraint = builder.mul_extension(is_halted,
+    // lv_nv_entry_sub);     yield_constr.constraint_transition(builder,
+    // transition_constraint); }
 }
 
 pub(crate) fn io_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
