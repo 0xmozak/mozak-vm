@@ -19,6 +19,7 @@ use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::register::columns::RegisterCtl;
 use crate::stark::mozak_stark::{AddTable, TableWithTypedOutput};
+use crate::utils::pad_trace_with_default;
 
 columns_view_impl!(Instruction);
 #[repr(C)]
@@ -83,7 +84,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for AddStark<F, D
         P: PackedField<Scalar = FE>, {
         let lv: &Add<P> = vars.get_local_values().into();
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        let added = lv.op1_value + lv.op2_value;
+        let added = lv.op1_value + lv.op2_value + lv.inst.imm_value;
         let wrapped = added - wrap_at;
 
         // Check: the resulting sum is wrapped if necessary.
@@ -192,5 +193,5 @@ pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<Add<F>> {
             trace.push(row);
         }
     }
-    trace
+    pad_trace_with_default(trace)
 }

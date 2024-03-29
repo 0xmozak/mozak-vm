@@ -59,7 +59,7 @@ where
     );
 
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: all_proof.public_inputs.borrow(),
+        cpu_skeleton_stark: all_proof.public_inputs.borrow(),
         ..Default::default()
     }
     .build();
