@@ -6,6 +6,7 @@ pub mod columns {
     use crate::cpu_skeleton::columns::CpuSkeletonCtl;
     use crate::linear_combination::Column;
     use crate::linear_combination_typed::ColumnWithTypedInput;
+    use crate::program::columns::InstructionRow;
     use crate::rangecheck::columns::RangeCheckCtl;
     use crate::register::columns::RegisterCtl;
     use crate::stark::mozak_stark::{AddTable, TableWithTypedOutput};
@@ -99,6 +100,45 @@ pub mod columns {
             ADD.is_running,
         )
     }
+
+    #[must_use]
+    pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
+        let inst = ADD.inst;
+        AddTable::new(
+            InstructionRow {
+                pc: inst.pc,
+                // Combine columns into a single column.
+                // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within
+                //   5 bits.
+                // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
+                // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
+                // - imm_value: This field requires 32 bits.
+                // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than
+                // the size of the Goldilocks field.
+                // Note: The imm_value field, having more than 5 bits, must be positioned as the
+                // last column in the list to ensure the correct functioning of
+                // 'reduce_with_powers'.
+                inst_data: ColumnWithTypedInput::reduce_with_powers(
+                    [
+                        // TODO: don't hard-code ADD like this.
+                        ColumnWithTypedInput::constant(0),
+                        // TODO: use a struct here to name the components, and make IntoIterator,
+                        // like we do with our stark tables.
+                        ColumnWithTypedInput::constant(0),
+                        ColumnWithTypedInput::constant(0),
+                        inst.rs1_selected,
+                        inst.rs2_selected,
+                        inst.rd_selected,
+                        inst.imm_value,
+                    ],
+                    1 << 5,
+                ),
+            },
+            ADD.is_running,
+        )
+    }
+
+    // TODO: add lookup for program rom.
 }
 
 use columns::{Add, Instruction};
