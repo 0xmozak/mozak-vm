@@ -100,7 +100,7 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
-        let add_rows = ops::add::columns::generate(&record);
+        let add_rows = ops::add::generate(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);

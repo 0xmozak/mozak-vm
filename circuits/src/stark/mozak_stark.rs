@@ -29,7 +29,7 @@ use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::memoryinit::stark::MemoryInitStark;
-use crate::ops::add::columns::AddStark;
+use crate::ops::add::stark::AddStark;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2State;
 #[cfg(feature = "enable_poseidon_starks")]

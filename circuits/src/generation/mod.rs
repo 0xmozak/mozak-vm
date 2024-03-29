@@ -86,7 +86,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     debug!("Starting Trace Generation");
     let cpu_rows = generate_cpu_trace::<F>(record);
     let skeleton_rows = generate_cpu_skeleton_trace(record);
-    let add_rows = ops::add::columns::generate(record);
+    let add_rows = ops::add::generate(record);
     // dbg!(&skeleton_rows);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
@@ -135,7 +135,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
-    let add_trace = ops::add::columns::generate(record);
+    let add_trace = ops::add::generate(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
