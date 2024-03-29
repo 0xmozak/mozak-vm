@@ -44,13 +44,12 @@ where
         MemoryInitCtl<ColumnWithTypedInput<MemoryInit<i64>>>,
         ColumnWithTypedInput<MemoryInit<i64>>,
     ) -> TableWithTypedOutput<MemoryInitCtl<Column>>, {
-    let mem = COL_MAP;
     new(
         MemoryInitCtl {
-            is_writable: mem.is_writable,
-            address: mem.element.address,
+            is_writable: COL_MAP.is_writable,
+            address: COL_MAP.element.address,
             clk: ColumnWithTypedInput::constant(1),
-            value: mem.element.value,
+            value: COL_MAP.element.value,
         },
         COL_MAP.filter,
     )

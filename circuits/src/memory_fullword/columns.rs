@@ -49,14 +49,13 @@ pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// stark table.
 #[must_use]
 pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
-    let mem = COL_MAP;
     FullWordMemoryTable::new(
         MemoryCtl {
-            clk: mem.clk,
-            is_store: mem.ops.is_store,
-            is_load: mem.ops.is_load,
-            value: ColumnWithTypedInput::reduce_with_powers(mem.limbs, 1 << 8),
-            addr: mem.addrs[0],
+            clk: COL_MAP.clk,
+            is_store: COL_MAP.ops.is_store,
+            is_load: COL_MAP.ops.is_load,
+            value: ColumnWithTypedInput::reduce_with_powers(COL_MAP.limbs, 1 << 8),
+            addr: COL_MAP.addrs[0],
         },
         COL_MAP.is_executed(),
     )
@@ -67,14 +66,13 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
 #[must_use]
 pub fn lookup_for_memory_limb(limb_index: usize) -> TableWithTypedOutput<MemoryCtl<Column>> {
     assert!(limb_index < 4, "limb-index can be 0..4");
-    let mem = COL_MAP;
     FullWordMemoryTable::new(
         MemoryCtl {
-            clk: mem.clk,
-            is_store: mem.ops.is_store,
-            is_load: mem.ops.is_load,
-            value: mem.limbs[limb_index],
-            addr: mem.addrs[limb_index],
+            clk: COL_MAP.clk,
+            is_store: COL_MAP.ops.is_store,
+            is_load: COL_MAP.ops.is_load,
+            value: COL_MAP.limbs[limb_index],
+            addr: COL_MAP.addrs[limb_index],
         },
         COL_MAP.is_executed(),
     )

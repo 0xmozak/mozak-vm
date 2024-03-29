@@ -104,22 +104,20 @@ impl<T: Add<Output = T>> Register<T> {
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column>> {
-    let reg = COL_MAP;
     RegisterTable::new(
         RegisterInitCtl {
-            addr: reg.addr,
-            value: reg.value,
+            addr: COL_MAP.addr,
+            value: COL_MAP.value,
         },
-        reg.ops.is_init,
+        COL_MAP.ops.is_init,
     )
 }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    let ops = COL_MAP.ops;
     vec![RegisterTable::new(
         RangeCheckCtl(COL_MAP.diff_augmented_clk),
-        ops.is_read + ops.is_write,
+        COL_MAP.ops.is_read + COL_MAP.ops.is_write,
     )]
 }
