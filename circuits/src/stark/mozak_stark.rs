@@ -576,11 +576,7 @@ table_impl!(
     TableKind::Poseidon2OutputBytes,
     Poseidon2OutputBytes
 );
-table_impl!(
-    CpuSkeletonTable,
-    TableKind::CpuSkeleton,
-    CpuSkeleton
-);
+table_impl!(CpuSkeletonTable, TableKind::CpuSkeleton, CpuSkeleton);
 
 pub trait Lookups {
     type Row: IntoIterator<Item = Column>;
