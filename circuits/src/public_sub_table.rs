@@ -17,6 +17,7 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::plonk_common::reduce_with_powers_circuit;
 
 use crate::cross_table_lookup::{partial_sums, CtlData, CtlZData};
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
@@ -168,4 +169,20 @@ pub fn reduce_public_sub_tables_values<F: Field>(
             })
             .collect_vec()
     })
+}
+
+pub fn reduce_public_sub_table_targets<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    challenge: &GrandProductChallenge<Target>,
+    targets: &PublicSubTableValuesTarget,
+) -> Target {
+    let all_targets = targets
+        .iter()
+        .map(|row| {
+            let mut combined = reduce_with_powers_circuit(builder, row, challenge.beta);
+            combined = builder.add(combined, challenge.gamma);
+            builder.inverse(combined)
+        })
+        .collect_vec();
+    builder.add_many(all_targets)
 }
