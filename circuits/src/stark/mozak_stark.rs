@@ -12,6 +12,7 @@ use crate::bitshift::columns::{Bitshift, BitshiftView};
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
+use crate::cpu_skeleton::columns::CpuSkeleton;
 use crate::cpu_skeleton::stark::CpuSkeletonStark;
 use crate::cross_table_lookup::{
     Column, ColumnWithTypedInput, CrossTableLookup, CrossTableLookupWithTypedOutput,
@@ -574,6 +575,11 @@ table_impl!(
     Poseidon2OutputBytesTable,
     TableKind::Poseidon2OutputBytes,
     Poseidon2OutputBytes
+);
+table_impl!(
+    CpuSkeletonTable,
+    TableKind::CpuSkeleton,
+    CpuSkeleton
 );
 
 pub trait Lookups {

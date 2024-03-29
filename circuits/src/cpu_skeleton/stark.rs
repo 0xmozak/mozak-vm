@@ -45,7 +45,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
         P: PackedField<Scalar = FE>, {
         let lv: &CpuSkeleton<_> = vars.get_local_values().into();
         let nv: &CpuSkeleton<_> = vars.get_next_values().into();
-        let clock_diff = nv.clk - lv.clk;
+        let clock_diff = nv.ctl.clk - lv.ctl.clk;
         is_binary_transition(yield_constr, clock_diff);
         yield_constr.constraint_transition(clock_diff - lv.is_running);
     }
