@@ -9,7 +9,6 @@ make_col_map!(CpuSkeleton);
 pub struct CpuSkeleton<T> {
     pub clk: T,
     pub pc: T,
-    // TODO: whether we can unify is_running and aint_padding.
     pub is_running: T,
 }
 

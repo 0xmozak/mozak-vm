@@ -47,7 +47,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
         let nv: &CpuSkeleton<_> = vars.get_next_values().into();
         let clock_diff = nv.clk - lv.clk;
         is_binary_transition(yield_constr, clock_diff);
+
+        // clock only counts up when we are still running.
         yield_constr.constraint_transition(clock_diff - lv.is_running);
+
+        // We start in running state.
+        yield_constr.constraint_first_row(lv.is_running - P::ONES);
+
+        // We may transition to a non-running state.
+        yield_constr.constraint_transition(nv.is_running * (nv.is_running - lv.is_running));
+
+        // We end in a non-running state.
+        yield_constr.constraint_last_row(nv.is_running);
     }
 
     fn eval_ext_circuit(

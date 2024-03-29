@@ -42,6 +42,36 @@ pub fn generate_program_mult_trace<F: RichField>(
         .collect()
 }
 
+#[must_use]
+pub fn generate_cpu_skeleton_trace<F: RichField>(
+    record: &ExecutionRecord<F>,
+) -> Vec<CpuSkeleton<F>> {
+    let mut trace: Vec<CpuSkeleton<F>> = vec![];
+    let ExecutionRecord {
+        executed,
+        last_state,
+    } = record;
+    let last_row = &[Row {
+        state: last_state.clone(),
+        // `Aux` has auxiliary information about an executed CPU cycle.
+        // The last state is the final state after the last execution.  Thus naturally it has no
+        // associated auxiliary execution information. We use a dummy aux to make the row
+        // generation work, but we could refactor to make this unnecessary.
+        ..executed.last().unwrap().clone()
+    }];
+
+    for Row { state, .. } in chain![executed, last_row] {
+        let row = CpuSkeleton {
+            clk: F::from_noncanonical_u64(state.clk),
+            pc: F::from_canonical_u32(state.get_pc()),
+            is_running: F::from_bool(!state.halted),
+        };
+        trace.push(row);
+    }
+    log::trace!("trace {:?}", trace);
+    pad_trace_with_last(trace)
+}
+
 /// Converting each row of the `record` to a row represented by [`CpuState`]
 pub fn generate_cpu_trace<F: RichField>(
     record: &ExecutionRecord<F>,
@@ -134,7 +164,10 @@ pub fn generate_cpu_trace<F: RichField>(
     }
 
     log::trace!("trace {:?}", trace);
-    (vec![], pad_trace_with_last(trace))
+    (
+        generate_cpu_skeleton_trace(record),
+        pad_trace_with_last(trace),
+    )
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
