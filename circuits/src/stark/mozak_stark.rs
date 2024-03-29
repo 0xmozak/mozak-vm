@@ -33,7 +33,7 @@ use crate::ops::add;
 use crate::ops::add::columns::Add;
 use crate::ops::add::stark::AddStark;
 use crate::ops::blt_taken::columns::BltTaken;
-use crate::ops::blt_taken::stark::BltStark;
+use crate::ops::blt_taken::stark::BltTakenStark;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2State;
 #[cfg(feature = "enable_poseidon_starks")]
@@ -146,7 +146,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "Add")]
     pub add_stark: AddStark<F, D>,
     #[StarkSet(stark_kind = "BltTaken")]
-    pub blt_taken_stark: BltStark<F, D>,
+    pub blt_taken_stark: BltTakenStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
 
     pub debug: bool,
@@ -395,7 +395,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
             cpu_skeleton_stark: CpuSkeletonStark::default(),
             add_stark: AddStark::default(),
-            blt_taken_stark: BltStark::default(),
+            blt_taken_stark: BltTakenStark::default(),
 
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.

@@ -15,18 +15,18 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct BltStark<F, const D: usize> {
+pub struct BltTakenStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> HasNamedColumns for BltStark<F, D> {
+impl<F, const D: usize> HasNamedColumns for BltTakenStark<F, D> {
     type Columns = BltTaken<F>;
 }
 
 const COLUMNS: usize = BltTaken::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BltStark<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BltTakenStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
   where
