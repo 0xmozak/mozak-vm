@@ -7,7 +7,7 @@ use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::columns_view::{columns_view_impl, make_col_map};
+use crate::columns_view::{columns_view_impl, make_col_map, make_col_map_ref};
 use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
@@ -56,6 +56,7 @@ pub struct Memory<T> {
 }
 columns_view_impl!(Memory);
 make_col_map!(Memory);
+make_col_map_ref!(Memory);
 
 impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
     /// All other fields are intentionally set to defaults, and clk is

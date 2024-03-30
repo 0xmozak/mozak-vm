@@ -251,6 +251,59 @@ macro_rules! make_col_map {
 }
 pub(crate) use make_col_map;
 
+macro_rules! make_col_map_ref {
+    ($s: ident) => {
+        pub(crate) mod col_map_hider_module {
+            type View<T> = super::$s<T>;
+            use crate::columns_view::NumberOfColumns;
+            use crate::linear_combination_typed::ColumnWithTypedInput;
+            // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
+            #[allow(dead_code)]
+            #[allow(clippy::large_stack_arrays)]
+            pub(crate) const COL_MAP: View<ColumnWithTypedInput<View<i64>>> = {
+                const N: usize = View::<()>::NUMBER_OF_COLUMNS;
+
+                let mut indices_mat = [ColumnWithTypedInput {
+                    lv_linear_combination: View::from_array([0_i64; N]),
+                    nv_linear_combination: View::from_array([0_i64; N]),
+                    constant: 0,
+                }; N];
+                let mut i = 0;
+                while i < N {
+                    let mut lv_linear_combination =
+                        indices_mat[i].lv_linear_combination.into_array();
+                    lv_linear_combination[i] = 1;
+                    indices_mat[i].lv_linear_combination = View::from_array(lv_linear_combination);
+                    i += 1;
+                }
+                View::from_array(indices_mat)
+            };
+
+            //     pub(crate) const COL_MAP: View<&ColumnWithTypedInput<View<i64>>,
+            // > = { const N: usize = View::<()>::NUMBER_OF_COLUMNS;
+
+            //     let mut indices_mat = [&ColumnWithTypedInput {
+            //         lv_linear_combination: View::from_array([0_i64; N]),
+            //         nv_linear_combination: View::from_array([0_i64; N]),
+            //         constant: 0,
+            //     }; N];
+            //     let mut i = 0;
+            //     while i < N {
+            //         let mut lv_linear_combination =
+            // indices_mat[i].lv_linear_combination.into_array();
+            //         lv_linear_combination[i] = 1;
+            //         indices_mat[i] = &View::from_array(lv_linear_combination);
+            //         i += 1;
+            //     }
+            //     View::from_array(indices_mat)
+            // };
+        }
+        #[allow(unused_imports)]
+        pub(crate) use col_map_hider_module::COL_MAP as C;
+    };
+}
+pub(crate) use make_col_map_ref;
+
 /// Return a selector that is only active at index `which`
 #[must_use]
 pub fn selection<T, const NUMBER_OF_COLUMNS: usize>(which: usize) -> T
