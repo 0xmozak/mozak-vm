@@ -2,8 +2,8 @@
 # This script tests transaction bundling.
 
 # Run natives and build mozakvm binaries
-cd examples/token && cargo run --release --features="native" --bin token-native --target aarch64-apple-darwin && cargo build --bin tokenbin --release
-cd ../wallet && cargo run --release --features="native" --bin wallet-native --target aarch64-apple-darwin && cargo build --bin walletbin --release
+cd examples/token && cargo run --release --features="native" --bin token-native --target "$(rustc -vV | grep host | awk '{ print $2; }')" && cargo build --bin tokenbin --release
+cd ../wallet && cargo run --release --features="native" --bin wallet-native --target "$(rustc -vV | grep host | awk '{ print $2; }')" && cargo build --bin walletbin --release
 
 # Run CLI
 cd ../../
