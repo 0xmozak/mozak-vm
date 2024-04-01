@@ -51,13 +51,6 @@ pub fn write<T: Field>() -> Ops<T> {
     }
 }
 
-/// Create a dummy [`Ops`]
-///
-/// We want these 3 filter columns = 0,
-/// so we can constrain `is_used = is_init + is_read + is_write`.
-#[must_use]
-pub fn dummy<T: Field>() -> Ops<T> { Ops::default() }
-
 columns_view_impl!(Register);
 make_col_map!(Register);
 /// [`Design doc for RegisterSTARK`](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc)
@@ -104,22 +97,20 @@ impl<T: Add<Output = T>> Register<T> {
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn lookup_for_register_init() -> TableWithTypedOutput<RegisterInitCtl<Column>> {
-    let reg = COL_MAP;
     RegisterTable::new(
         RegisterInitCtl {
-            addr: reg.addr,
-            value: reg.value,
+            addr: COL_MAP.addr,
+            value: COL_MAP.value,
         },
-        reg.ops.is_init,
+        COL_MAP.ops.is_init,
     )
 }
 
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    let ops = COL_MAP.ops;
     vec![RegisterTable::new(
         RangeCheckCtl(COL_MAP.diff_augmented_clk),
-        ops.is_read + ops.is_write,
+        COL_MAP.ops.is_read + COL_MAP.ops.is_write,
     )]
 }
