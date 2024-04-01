@@ -5,7 +5,7 @@ use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::generation::MIN_TRACE_LENGTH;
-use crate::register::columns::{dummy, init, read, write, Ops, Register};
+use crate::register::columns::{init, read, write, Ops, Register};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
 /// internally by `augmented_clk`
@@ -35,7 +35,7 @@ fn init_register_trace<F: RichField>(state: &State<F>) -> Vec<Register<F>> {
 pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
     trace.resize(len, Register {
-        ops: dummy(),
+        ops: Ops::default(),
         // ..And fill other columns with duplicate of last real trace row.
         ..*trace.last().unwrap()
     });
