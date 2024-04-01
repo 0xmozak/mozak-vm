@@ -37,12 +37,11 @@ pub struct RegisterInitCtl<T> {
 #[cfg(feature = "enable_register_starks")]
 #[must_use]
 pub fn lookup_for_register() -> TableWithTypedOutput<RegisterInitCtl<Column>> {
-    let reg = COL_MAP;
     RegisterInitTable::new(
         RegisterInitCtl {
-            addr: reg.reg_addr,
-            value: reg.value,
+            addr: COL_MAP.reg_addr,
+            value: COL_MAP.value,
         },
-        reg.is_looked_up,
+        COL_MAP.is_looked_up,
     )
 }
