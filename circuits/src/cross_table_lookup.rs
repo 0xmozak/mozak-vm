@@ -1,5 +1,5 @@
 use anyhow::{ensure, Result};
-use itertools::{chain, iproduct, izip, zip_eq, Itertools};
+use itertools::{chain, iproduct, izip, zip_eq};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -16,6 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
+use crate::linear_combination::ColumnSparse;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
@@ -66,28 +67,64 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     for _ in 0..config.num_challenges {
         for CrossTableLookup {
             looking_tables,
-            looked_table,
+            looked_tables,
         } in cross_table_lookups
         {
             let looking_zs_sum = looking_tables
                 .iter()
                 .map(|table| *ctl_zs_openings[table.kind].next().unwrap())
                 .sum::<F>();
-            let looked_z = *ctl_zs_openings[looked_table.kind].next().unwrap();
+            let looked_zs_sum = looked_tables
+                .iter()
+                .map(|table| *ctl_zs_openings[table.kind].next().unwrap())
+                .sum::<F>();
 
             ensure!(
-                looking_zs_sum == looked_z,
+                looking_zs_sum == looked_zs_sum,
                 "Cross-table lookup verification failed for {:?}->{:?} ({} != {})",
-                looking_tables[0].kind,
-                looked_table.kind,
+                looking_tables.iter().map(|table| table.kind),
+                looked_tables.iter().map(|table| table.kind),
                 looking_zs_sum,
-                looked_z
+                looked_zs_sum,
             );
         }
     }
     debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
 
     Ok(())
+}
+
+/// Circuit version of `verify_cross_table_lookups`. Verifies all cross-table
+/// lookups.
+pub(crate) fn verify_cross_table_lookups_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cross_table_lookups: &[CrossTableLookup],
+    ctl_zs_lasts: &TableKindArray<Vec<Target>>,
+    config: &StarkConfig,
+) {
+    let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
+    for _ in 0..config.num_challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_tables,
+        } in cross_table_lookups
+        {
+            let looking_zs_sum = builder.add_many(
+                looking_tables
+                    .iter()
+                    .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
+            );
+
+            let looked_zs_sum = builder.add_many(
+                looked_tables
+                    .iter()
+                    .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
+            );
+
+            builder.connect(looked_zs_sum, looking_zs_sum);
+        }
+    }
+    debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
 }
 
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
@@ -99,10 +136,16 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     for &challenge in &ctl_challenges.challenges {
         for CrossTableLookup {
             looking_tables,
-            looked_table,
+            looked_tables,
         } in cross_table_lookups
         {
-            log::debug!("Processing CTL for {:?}", looked_table.kind);
+            log::debug!(
+                "Processing CTL for {:?}",
+                looked_tables
+                    .iter()
+                    .map(|table| table.kind)
+                    .collect::<Vec<_>>()
+            );
 
             let make_z = |table: &Table| {
                 partial_sums(
@@ -113,20 +156,23 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 )
             };
             let zs_looking = looking_tables.iter().map(make_z);
-            let z_looked = make_z(looked_table);
+            let zs_looked = looked_tables.iter().map(make_z);
 
             debug_assert_eq!(
                 zs_looking
                     .clone()
                     .map(|z| *z.values.last().unwrap())
                     .sum::<F>(),
-                *z_looked.values.last().unwrap()
+                zs_looked
+                    .clone()
+                    .map(|z| *z.values.last().unwrap())
+                    .sum::<F>(),
             );
 
-            for (table, z) in chain!(izip!(looking_tables, zs_looking), [(
-                looked_table,
-                z_looked
-            )]) {
+            for (table, z) in chain!(
+                izip!(looking_tables, zs_looking),
+                izip!(looked_tables, zs_looked)
+            ) {
                 ctl_data_per_table[table.kind].zs_columns.push(CtlZData {
                     z,
                     challenge,
@@ -139,47 +185,60 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_data_per_table
 }
 
+/// Treat CTL and the challenge as a single entity.
+///
+/// Logically, the CTL specifies a linear transformation, and so does the
+/// challenge. This function combines the two into a single linear
+/// transformation.
+pub fn compose_ctl_with_challenge<F: Field>(
+    columns: &[ColumnSparse<F>],
+    challenge: GrandProductChallenge<F>,
+) -> ColumnSparse<F> {
+    columns
+        .iter()
+        .rev()
+        .fold(ColumnSparse::default(), |acc, term| {
+            acc * challenge.beta + term
+        })
+        + challenge.gamma
+}
+
 fn partial_sums<F: Field>(
     trace: &[PolynomialValues<F>],
     columns: &[Column],
     filter_column: &Column,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
-    // design of table looks like  this
-    //       |  filter  |   value   |  partial_sum                       |
-    //       |    1     |    x_1    |  1/combine(x_3)                    |
-    //       |    0     |    x_2    |  1/combine(x_3)  + 1/combine(x_1)  |
-    //       |    1     |    x_3    |  1/combine(x_1)  + 1/combine(x_1)  |
-    // (where combine(vals) = gamma + reduced_sum(vals))
-    // this is done so that now transition constraint looks like
+    // design of table looks like this
+    //       |  multiplicity  |   value   |  partial_sum                      |
+    //       |       1        |    x_1    |  1/combine(x_1)                   |
+    //       |       0        |    x_2    |  1/combine(x_1)                   |
+    //       |       2        |    x_3    |  1/combine(x_1) + 2/combine(x_3)  |
+    // (where combine(vals) = gamma + reduced_sum(vals, beta))
+    // transition constraint looks like
     //       z_next = z_local + filter_local/combine_local
-    // That is, there is no need for reconstruction of value_next.
-    // In current design which uses lv and nv values from columns to construct the
-    // final value_local, its impossible to construct value_next from lv and nv
-    // values of current row
 
-    // TODO(Kapil): inverse for all rows is expensive. Use batched division idea.
+    let filter_column = filter_column.to_field();
+    let get_multiplicity = |&i| -> F { filter_column.eval_table(trace, i) };
 
-    let combine_and_inv_if_filter_at_i = |i| -> F {
-        let multiplicity = filter_column.eval_table(trace, i);
-        let evals = columns
-            .iter()
-            .map(|c| c.eval_table(trace, i))
-            .collect::<Vec<_>>();
-        multiplicity * challenge.combine(evals.iter()).inverse()
-    };
+    let columns: Vec<ColumnSparse<F>> = columns.iter().map(Column::to_field).collect();
+    let prepped = compose_ctl_with_challenge(&columns, challenge);
+    let get_data = |&i| -> F { prepped.eval_table(trace, i) };
 
     let degree = trace[0].len();
     let mut degrees = (0..degree).collect::<Vec<_>>();
     degrees.rotate_right(1);
-    degrees
-        .into_iter()
-        .map(combine_and_inv_if_filter_at_i)
-        .scan(F::ZERO, |partial_sum: &mut F, combined| {
-            *partial_sum += combined;
+
+    let multiplicities: Vec<F> = degrees.iter().map(get_multiplicity).collect();
+    let data: Vec<F> = degrees.iter().map(get_data).collect();
+    let inv_data = F::batch_multiplicative_inverse(&data);
+
+    izip!(multiplicities, inv_data)
+        .scan(F::ZERO, |partial_sum: &mut F, (multiplicity, inv)| {
+            *partial_sum += multiplicity * inv;
             Some(*partial_sum)
         })
-        .collect_vec()
+        .collect::<Vec<_>>()
         .into()
 }
 
@@ -187,7 +246,7 @@ fn partial_sums<F: Field>(
 #[derive(Clone, Debug)]
 pub struct CrossTableLookupWithTypedOutput<Row> {
     pub looking_tables: Vec<TableWithTypedOutput<Row>>,
-    pub looked_table: TableWithTypedOutput<Row>,
+    pub looked_tables: Vec<TableWithTypedOutput<Row>>,
 }
 
 // This is a little trick, so that we can use `CrossTableLookup` as a
@@ -199,7 +258,11 @@ pub use CrossTableLookupUntyped as CrossTableLookup;
 
 impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> CrossTableLookup {
-        let looked_table: Table = self.looked_table.to_untyped_output();
+        let looked_tables = self
+            .looked_tables
+            .into_iter()
+            .map(TableWithTypedOutput::to_untyped_output)
+            .collect();
         let looking_tables = self
             .looking_tables
             .into_iter()
@@ -207,7 +270,7 @@ impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
             .collect();
         CrossTableLookup {
             looking_tables,
-            looked_table,
+            looked_tables,
         }
     }
 }
@@ -220,18 +283,18 @@ impl<Row> CrossTableLookupWithTypedOutput<Row> {
     #[must_use]
     pub fn new(
         looking_tables: Vec<TableWithTypedOutput<Row>>,
-        looked_table: TableWithTypedOutput<Row>,
+        looked_tables: Vec<TableWithTypedOutput<Row>>,
     ) -> Self {
         Self {
             looking_tables,
-            looked_table,
+            looked_tables,
         }
     }
 
     #[must_use]
     pub fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
         ctls.iter()
-            .flat_map(|ctl| chain!([&ctl.looked_table], &ctl.looking_tables))
+            .flat_map(|ctl| chain!(&ctl.looked_tables, &ctl.looking_tables))
             .filter(|twc| twc.kind == table)
             .count()
             * num_challenges
@@ -267,8 +330,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
                  looking_tables,
-                 looked_table,
-             }| chain!(looking_tables, [looked_table]),
+                 looked_tables,
+             }| chain!(looking_tables, looked_tables),
         );
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
@@ -342,8 +405,8 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
                  looking_tables,
-                 looked_table,
-             }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
+                 looked_tables,
+             }| chain!(looking_tables, looked_tables).filter(|twc| twc.kind == table),
         );
         zip_eq(ctl_zs, iproduct!(&ctl_challenges.challenges, ctl_chain))
             .map(|((&local_z, &next_z), (&challenges, table))| Self {
@@ -409,6 +472,7 @@ pub mod ctl_utils {
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
+    use crate::linear_combination::ColumnSparse;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
     #[derive(Clone, Debug, Default, Deref, DerefMut)]
@@ -421,11 +485,16 @@ pub mod ctl_utils {
             table: &Table,
         ) {
             let trace = &trace_poly_values[table.kind];
+            let filter_column = table.filter_column.to_field();
+            let columns = table
+                .columns
+                .iter()
+                .map(ColumnSparse::to_field)
+                .collect::<Vec<_>>();
             for i in 0..trace[0].len() {
-                let filter = table.filter_column.eval_table(trace, i);
+                let filter = filter_column.eval_table(trace, i);
                 if filter.is_nonzero() {
-                    let row = table
-                        .columns
+                    let row = columns
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
@@ -474,7 +543,9 @@ pub mod ctl_utils {
             looking_multiset.process_row(trace_poly_values, looking_table);
         }
 
-        looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
+        for looked_table in &ctl.looked_tables {
+            looked_multiset.process_row(trace_poly_values, looked_table);
+        }
 
         let empty = &vec![];
         // Check that every row in the looking tables appears in the looked table the

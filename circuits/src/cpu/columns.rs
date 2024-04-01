@@ -12,7 +12,7 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
-use crate::program::columns::{InstructionRow, ProgramRom};
+use crate::program::columns::InstructionRow;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
 use crate::xor::columns::XorView;
@@ -91,6 +91,7 @@ pub struct Instruction<T> {
     pub imm_value: T,
 }
 
+make_col_map!(CpuState);
 columns_view_impl!(CpuState);
 /// Represents the State of the CPU, which is also a row of the trace
 #[repr(C)]
@@ -182,16 +183,7 @@ pub struct CpuState<T> {
     pub poseidon2_input_addr: T,
     pub poseidon2_input_len: T,
 }
-pub(crate) const CPU: CpuState<ColumnWithTypedInput<CpuColumnsExtended<i64>>> = COL_MAP.cpu;
-
-make_col_map!(CpuColumnsExtended);
-columns_view_impl!(CpuColumnsExtended);
-#[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct CpuColumnsExtended<T> {
-    pub cpu: CpuState<T>,
-    pub permuted: ProgramRom<T>,
-}
+pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
 impl<T: PackedField> CpuState<T> {
     #[must_use]
@@ -269,9 +261,9 @@ pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    let ops = CPU.inst.ops;
+    let ops = &CPU.inst.ops;
     let divs = ops.div + ops.rem + ops.srl + ops.sra;
-    let muls: ColumnWithTypedInput<CpuColumnsExtended<i64>> = ops.mul + ops.mulh + ops.sll;
+    let muls: ColumnWithTypedInput<CpuState<i64>> = ops.mul + ops.mulh + ops.sll;
 
     [
         (CPU.quotient_value, divs),
@@ -356,39 +348,29 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     )
 }
 
-#[allow(clippy::large_types_passed_by_value)]
-fn lookup_for_io_memory_x(
-    filter: ColumnWithTypedInput<CpuColumnsExtended<i64>>,
-) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+/// Column containing the data to be matched against IO Memory starks.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
     CpuTable::new(
         InputOutputMemoryCtl {
+            op: ColumnWithTypedInput::ascending_sum([
+                CPU.is_io_store_private,
+                CPU.is_io_store_public,
+                CPU.is_io_transcript,
+            ]),
             clk: CPU.clk,
             addr: CPU.io_addr,
             size: CPU.io_size,
         },
-        filter,
+        [
+            CPU.is_io_store_private,
+            CPU.is_io_store_public,
+            CPU.is_io_transcript,
+        ]
+        .iter()
+        .sum(),
     )
-}
-
-/// Column containing the data to be matched against IO Memory stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-// TODO: unify all three variants into a single lookup, so we save on proving time.
-#[must_use]
-pub fn lookup_for_io_memory_private() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    lookup_for_io_memory_x(CPU.is_io_store_private)
-}
-
-// TODO: consolidate lookup_for_io_memory_private and
-// lookup_for_io_memory_public and lookup_for_io_transcript into a single lookup
-// to save implicit CPU lookups columns.
-#[must_use]
-pub fn lookup_for_io_memory_public() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    lookup_for_io_memory_x(CPU.is_io_store_public)
-}
-
-#[must_use]
-pub fn lookup_for_io_transcript() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    lookup_for_io_memory_x(CPU.is_io_transcript)
 }
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
@@ -455,18 +437,6 @@ pub fn lookup_for_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
         },
         CPU.is_running,
     )
-}
-
-/// Lookup of permuted instructions.
-#[must_use]
-pub fn lookup_for_permuted_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
-    CpuTable::new(COL_MAP.permuted.inst, COL_MAP.cpu.is_running)
-}
-
-/// Lookup of permuted instructions.
-#[must_use]
-pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
-    CpuTable::new(COL_MAP.permuted.inst, COL_MAP.permuted.filter)
 }
 
 #[must_use]
