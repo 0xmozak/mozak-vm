@@ -9,7 +9,8 @@
 //! opening of this z polynomial would be the "compressed" value, and can
 //! be reproduced on verifer's end. We can also reuse the challenges used for
 //! CTL to `combine`, since the procedure is preceded by commitment to trace
-//! polynomials already.
+//! polynomials already
+#![allow(clippy::module_name_repetitions)]
 use itertools::{iproduct, Itertools};
 use plonky2::field::extension::Extendable;
 use plonky2::field::polynomial::PolynomialValues;
@@ -26,7 +27,6 @@ use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductCh
 /// Specifies a Subtable with `table.columns` and `table.filter_column`
 /// which the prover wants to make public. We include `num_rows` since
 /// it cannot be computed from `table` alone.
-#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug)]
 pub struct PublicSubTable {
     pub table: Table,
@@ -34,10 +34,8 @@ pub struct PublicSubTable {
 }
 /// Actual values, as field elements, of the entries
 /// of `PublicSubTable`
-#[allow(clippy::module_name_repetitions)]
 pub type PublicSubTableValues<F> = Vec<Vec<F>>;
 /// Plonky2 target version of `PublicSubTableValuesTarget`
-#[allow(clippy::module_name_repetitions)]
 pub type PublicSubTableValuesTarget = Vec<Vec<Target>>;
 impl PublicSubTable {
     #[must_use]
