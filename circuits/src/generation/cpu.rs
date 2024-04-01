@@ -69,6 +69,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
             op1_value: from_u32(aux.op1),
+            op2_value_raw: from_u32(aux.op2_raw),
             op2_value: from_u32(aux.op2),
             op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
                 + from_u32(inst.args.imm),
@@ -114,10 +115,6 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             )),
             ..CpuState::default()
         };
-
-        for j in 0..32 {
-            row.regs[j as usize] = from_u32(state.get_register_value(j));
-        }
 
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);
