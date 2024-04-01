@@ -23,6 +23,7 @@ pub mod poseidon2;
 pub mod poseidon2_output_bytes;
 pub mod poseidon2_sponge;
 pub mod program;
+pub mod program_multiplicities;
 pub mod rangecheck;
 pub mod rangecheck_u8;
 pub mod recproof;
