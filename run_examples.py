@@ -11,6 +11,7 @@ import unittest
 
 import toml
 from colorama import Fore, Style
+import shlex, subprocess
 
 
 class ReadTomlError(Exception):
@@ -79,7 +80,9 @@ class ExamplesTester(unittest.TestCase):
 
                 build_command = f"cd examples && cargo build --release --bin {folder}"
                 print(f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}")
-                self.assertEqual(os.system(build_command), 0)
+
+                execution = subprocess.run(args=shlex.split(build_command), capture_output=True, timeout=120) # should take max 2 minutes
+                self.assertEqual(execution.returncode, 0)
 
                 if folder in prove_and_verify_exceptions:
                     print(
@@ -92,7 +95,8 @@ class ExamplesTester(unittest.TestCase):
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
                     )
-                    self.assertEqual(os.system(prove_and_verify_command), 0)
+                    execution = subprocess.run(args=shlex.split(prove_and_verify_command), capture_output=True, timeout=120) # should take max 2 minutes
+                    self.assertEqual(execution.returncode, 0)
 
                 print("\n")
 
@@ -115,7 +119,9 @@ class ExamplesTester(unittest.TestCase):
                 print(
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
-                self.assertEqual(os.system(build_command), 0)
+
+                execution = subprocess.run(args=shlex.split(build_command), capture_output=True, timeout=120) # should take max 2 minutes
+                self.assertEqual(execution.returncode, 0)
                 print("\n")
 
         for folder in set(list_cargo_projects("examples")):
@@ -150,7 +156,10 @@ class ExamplesTester(unittest.TestCase):
                     print(
                         f"System tape generation: {Fore.BLUE}{system_tape_generation_command}{Style.RESET_ALL}",
                     )
-                    self.assertEqual(os.system(system_tape_generation_command), 0)
+
+                    execution = subprocess.run(args=shlex.split(system_tape_generation_command), capture_output=True, timeout=120) # should take max 2 minutes
+                    self.assertEqual(execution.returncode, 0)
+                    
                     print()
 
                     system_tape = f"examples/{folder}.tape.json"
@@ -181,7 +190,8 @@ class ExamplesTester(unittest.TestCase):
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )
-                        self.assertEqual(os.system(system_tape_generation_command), 0)
+                        execution = subprocess.run(args=shlex.split(execution_command), capture_output=True, timeout=120) # should take max 2 minutes
+                        self.assertEqual(execution.returncode, 0)
 
                 print()
 
