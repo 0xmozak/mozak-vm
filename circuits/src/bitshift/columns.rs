@@ -43,6 +43,14 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<Bitshift<Column>> {
     BitshiftTable::new(COL_MAP.executed, COL_MAP.multiplicity)
 }
 
+/// As an example, we make `amount, multiplier` colmns of
+/// Bitshift table, public. That is, the subtable getting
+/// public is
+/// [0 ,1]
+/// [1, 2]
+/// [2, 4]
+/// ....
+/// [31, 2^31]
 #[must_use]
 pub fn public_sub_table() -> PublicSubTable {
     PublicSubTable {
