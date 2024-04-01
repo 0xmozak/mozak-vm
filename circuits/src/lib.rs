@@ -9,8 +9,6 @@
 // and bitflags. TODO: remove once our dependencies no longer do that.
 #![allow(clippy::multiple_crate_versions)]
 
-extern crate core;
-
 pub mod bitshift;
 pub mod columns_view;
 pub mod cpu;

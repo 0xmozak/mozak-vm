@@ -29,7 +29,9 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
     // To make it safe for user to change constants
     #[allow(clippy::assertions_on_constants)]
     fn from(value: &Poseidon2Sponge<F>) -> Self {
-        if (value.ops.is_init_permute + value.ops.is_permute).is_one() {
+        if (value.ops.is_init_permute + value.ops.is_permute).is_zero() {
+            vec![]
+        } else {
             assert!(
                 MozakPoseidon2::FIELD_ELEMENTS_RATE < STATE_SIZE,
                 "Packing RATE should be less than STATE_SIZE"
@@ -41,11 +43,9 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
             let mut byte_base_address = value.input_addr_padded;
             let mut fe_base_addr = value.input_addr;
             // For each FE of preimage we have BYTES_COUNT bytes
-            let result = preimage
+            preimage
                 .iter()
                 .map(|fe| {
-                    let bytes = MozakPoseidon2::unpack_to_field_elements(fe);
-
                     // specific byte address
                     let byte_addr = byte_base_address;
                     // increase by DATA_CAP the byte base address after each iteration
@@ -60,16 +60,14 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                         byte_addr,
                         fe_addr,
                         bytes: <[F; MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT]>::try_from(
-                            bytes,
+                            MozakPoseidon2::unpack_to_field_elements(fe),
                         )
                         .unwrap(),
                         is_executed: F::ONE,
                     }
                 })
-                .collect_vec();
-            return result;
+                .collect_vec()
         }
-        vec![]
     }
 }
 

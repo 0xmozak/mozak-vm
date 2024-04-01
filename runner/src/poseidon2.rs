@@ -28,9 +28,20 @@ impl MozakPoseidon2 {
     pub fn data_capacity_fe<F: RichField>() -> F {
         F::from_canonical_u64(
             u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect(
-                "Cast from usize to u64 for MozakPoseidon2::BYTES_PER_FIELD_ELEMENT should succeed",
+                "Cast from usize to u64 for MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT should succeed",
             ),
         )
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `MozakPoseidon2::DATA_PADDING` is not
+    /// convertable to u64
+    #[must_use]
+    pub fn data_padding_fe<F: RichField>() -> F {
+        F::from_canonical_u64(u64::try_from(MozakPoseidon2::DATA_PADDING).expect(
+            "Cast from usize to u64 for MozakPoseidon2::BYTES_PER_FIELD_ELEMENT should succeed",
+        ))
     }
 
     /// Byte padding
@@ -64,10 +75,10 @@ impl MozakPoseidon2 {
         // assert different from expected RATE values
         assert_eq!(
             Poseidon2Permutation::<F>::RATE,
-            MozakPoseidon2::FIELD_ELEMENTS_RATE,
+            Self::FIELD_ELEMENTS_RATE,
             "Poseidon2Permutation::<F>::RATE: {:?} that differs from MozakPoseidon2::FIELD_ELEMENTS_RATE: {:?} - is not supported",
             Poseidon2Permutation::<F>::RATE,
-            MozakPoseidon2::FIELD_ELEMENTS_RATE
+            Self::FIELD_ELEMENTS_RATE
         );
         assert!(
             Self::DATA_CAPACITY_PER_FIELD_ELEMENT < Self::MAX_BYTES_PER_FIELD_ELEMENT,
@@ -108,11 +119,11 @@ impl MozakPoseidon2 {
     }
 
     pub fn unpack_to_bytes<F: RichField>(fe: &F) -> Vec<u8> {
-        fe.to_canonical_u64().to_be_bytes()[MozakPoseidon2::LEADING_ZEROS..].to_vec()
+        fe.to_canonical_u64().to_be_bytes()[Self::LEADING_ZEROS..].to_vec()
     }
 
     pub fn unpack_to_field_elements<F: RichField>(fe: &F) -> Vec<F> {
-        MozakPoseidon2::unpack_to_bytes(fe)
+        Self::unpack_to_bytes(fe)
             .iter()
             .map(|e| F::from_canonical_u8(*e))
             .collect_vec()

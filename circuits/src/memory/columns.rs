@@ -113,7 +113,9 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
 
 impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
     fn from(value: &Poseidon2Sponge<F>) -> Self {
-        if (value.ops.is_permute + value.ops.is_init_permute).is_one() {
+        if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {
+            vec![]
+        } else {
             // each Field element in preimage represents packed data (packed bytes)
             (0..Poseidon2Permutation::<F>::RATE)
                 .flat_map(|fe_index_inside_preimage| {
@@ -140,8 +142,6 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
                         .collect::<Vec<_>>()
                 })
                 .collect()
-        } else {
-            vec![]
         }
     }
 }
