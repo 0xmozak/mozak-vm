@@ -86,12 +86,14 @@ class ExamplesTester(unittest.TestCase):
                 build_command = f"cargo build --release --bin {folder}"
                 print(f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}")
 
+                # should take max 2 minutes
                 execution = subprocess.run(
                     args=shlex.split(build_command),
                     cwd="examples",
                     capture_output=True,
                     timeout=120,
-                )  # should take max 2 minutes
+                    check=True,
+                )
                 self.assertEqual(execution.returncode, 0)
 
                 if folder in prove_and_verify_exceptions:
