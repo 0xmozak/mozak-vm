@@ -18,11 +18,10 @@ pub const NUM_MEMORYINIT_COLS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 /// Lookup into Memory Table
 #[must_use]
 pub fn lookup_for_memory() -> TableWithTypedOutput<MemoryInitCtl<Column>> {
-    let mem = COL_MAP;
     MemoryZeroInitTable::new(
         MemoryInitCtl {
             is_writable: ColumnWithTypedInput::constant(1),
-            address: mem.addr,
+            address: COL_MAP.addr,
             clk: ColumnWithTypedInput::constant(0),
             value: ColumnWithTypedInput::constant(0),
         },
