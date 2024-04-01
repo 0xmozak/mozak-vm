@@ -20,6 +20,19 @@ impl MozakPoseidon2 {
         Self::MAX_BYTES_PER_FIELD_ELEMENT - Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
     pub const MAX_BYTES_PER_FIELD_ELEMENT: usize = 8;
 
+    /// # Panics
+    ///
+    /// Panics if `MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT` is not
+    /// convertable to u64
+    #[must_use]
+    pub fn data_capacity_fe<F: RichField>() -> F {
+        F::from_canonical_u64(
+            u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect(
+                "Cast from usize to u64 for MozakPoseidon2::BYTES_PER_FIELD_ELEMENT should succeed",
+            ),
+        )
+    }
+
     /// Byte padding
     /// Bit-Padding schema is used to pad input data
     /// Case-A - data length % `DATA_PADDING` != 0
@@ -66,30 +79,29 @@ impl MozakPoseidon2 {
             "Allow only padded byte-data"
         );
         data.chunks(Self::DATA_CAPACITY_PER_FIELD_ELEMENT)
-            .map(|x| {
-                // Padding (prefixing) with leading zeros, since `from_be_bytes` is used later
-                // on
-                let mut leading_zeros_x: Vec<u8> = vec![0; Self::LEADING_ZEROS];
-                leading_zeros_x.extend(x);
-                Self::pack_to_field_element(&leading_zeros_x)
-            })
+            .map(|x| Self::pack_to_field_element(x))
             .collect::<Vec<_>>()
     }
 
     /// # Panics
     ///
-    /// Panics if `Self::DATA_CAPACITY_PER_FIELD_ELEMENT <
-    /// Self::BYTES_PER_FIELD_ELEMENT`
+    /// Panics if `leading-zeros + data` isn't convertable to u64 (length >
+    /// eight bytes)
     #[must_use]
-    pub fn pack_to_field_element<F: RichField>(data: &Vec<u8>) -> F {
+    pub fn pack_to_field_element<F: RichField>(data: &[u8]) -> F {
+        // Padding (prefixing) with leading zeros, since `from_be_bytes` is used later
+        // on
+        let mut data_extended_with_leading_zeros: Vec<u8> = vec![0; Self::LEADING_ZEROS];
+        data_extended_with_leading_zeros.extend(data);
         assert!(
-            data.len() <= 8,
-            "data.len {:?} can't be packed to u64::bytes (8)",
-            data.len()
+            data_extended_with_leading_zeros.len() <= 8,
+            "data_extended_with_leading_zeros.len {:?} can't be packed to u64::bytes (8)",
+            data_extended_with_leading_zeros.len()
         );
 
         F::from_canonical_u64(u64::from_be_bytes(
-            data.as_slice()
+            data_extended_with_leading_zeros
+                .as_slice()
                 .try_into()
                 .expect("pack bytes to singe u64 should succeed"),
         ))
@@ -148,14 +160,13 @@ pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
     // `perm` defined in such a way that this statement will be ALWAYS true:
     // Some(F::ZERO) == perm.next()
     let mut perm = P::new(repeat(F::ZERO));
-    // input length is expected to be multiple of P::RATE
-    // R::RATE is 8
+
     assert_eq!(
         inputs.len() % P::RATE,
         0,
-        "RATE: {:?}, input_len: {:?}",
+        "input_len: {:?} is expected to be multiple of P::RATE {:?}",
+        inputs.len(),
         P::RATE,
-        inputs.len()
     );
     let mut sponge_data = Vec::new();
 

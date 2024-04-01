@@ -45,11 +45,11 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                 .iter()
                 .map(|fe| {
                     let bytes = MozakPoseidon2::unpack_to_field_elements(fe);
-                    
+
                     // specific byte address
                     let byte_addr = byte_base_address;
                     // increase by DATA_CAP the byte base address after each iteration
-                    byte_base_address += F::from_canonical_u64(u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect("Cast from usize to u64 for MozakPoseidon2::BYTES_PER_FIELD_ELEMENT should succeed"));
+                    byte_base_address += MozakPoseidon2::data_capacity_fe();
                     // specific field-el address
                     let fe_addr = fe_base_addr;
                     // increase by 1 after each iteration

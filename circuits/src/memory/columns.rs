@@ -118,12 +118,10 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
             (0..Poseidon2Permutation::<F>::RATE)
                 .flat_map(|fe_index_inside_preimage| {
                     let base_address = value.input_addr_padded
-                        + F::from_canonical_u64(
-                            u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
-                                .expect("MozakPoseidon2::DATA_PADDING should be cast-able to u64"),
-                        ) * F::from_canonical_u8(
-                            u8::try_from(fe_index_inside_preimage).expect("i > 255"),
-                        );
+                        + MozakPoseidon2::data_capacity_fe::<F>()
+                            * F::from_canonical_u8(
+                                u8::try_from(fe_index_inside_preimage).expect("i > 255"),
+                            );
                     let unpacked = MozakPoseidon2::unpack_to_field_elements(
                         &value.preimage[fe_index_inside_preimage],
                     );
