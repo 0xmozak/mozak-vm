@@ -15,9 +15,10 @@ impl MozakPoseidon2 {
     pub const DATA_CAPACITY_PER_FIELD_ELEMENT: usize = 7;
     pub const DATA_PADDING: usize =
         Self::DATA_CAPACITY_PER_FIELD_ELEMENT * Self::FIELD_ELEMENTS_RATE;
-    pub const FIELD_ELEMENTS_RATE: usize = 8;
-    pub const LEADING_ZEROS: usize =
+    pub const EMPTY_BYTES: usize =
         Self::MAX_BYTES_PER_FIELD_ELEMENT - Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
+    pub const FIELD_ELEMENTS_RATE: usize = 8;
+    pub const IS_BIG_ENDIAN_ENCODING: bool = false;
     pub const MAX_BYTES_PER_FIELD_ELEMENT: usize = 8;
 
     /// # Panics
@@ -100,26 +101,53 @@ impl MozakPoseidon2 {
     /// eight bytes)
     #[must_use]
     pub fn pack_to_field_element<F: RichField>(data: &[u8]) -> F {
-        // Padding (prefixing) with leading zeros, since `from_be_bytes` is used later
-        // on
-        let mut data_extended_with_leading_zeros: Vec<u8> = vec![0; Self::LEADING_ZEROS];
-        data_extended_with_leading_zeros.extend(data);
+        // Note: prefix with zeros for BE case and postfix with zeros for LE case
+        let zeros = vec![0_u8; Self::EMPTY_BYTES];
+        let mut data_extended_with_zeros: Vec<u8> = {
+            if Self::IS_BIG_ENDIAN_ENCODING {
+                zeros.clone() // Prefix - BE case
+            } else {
+                data.to_vec() // Data - LE case
+            }
+        };
+        data_extended_with_zeros.extend({
+            if Self::IS_BIG_ENDIAN_ENCODING {
+                data // Data - BE case
+            } else {
+                zeros.as_slice() // Postfix - LE case
+            }
+        });
         assert!(
-            data_extended_with_leading_zeros.len() <= 8,
-            "data_extended_with_leading_zeros.len {:?} can't be packed to u64::bytes (8)",
-            data_extended_with_leading_zeros.len()
+            data_extended_with_zeros.len() <= 8,
+            "data_extended_with_zeros.len {:?} can't be packed to u64::bytes (8)",
+            data_extended_with_zeros.len()
         );
 
-        F::from_canonical_u64(u64::from_be_bytes(
-            data_extended_with_leading_zeros
-                .as_slice()
-                .try_into()
-                .expect("pack bytes to singe u64 should succeed"),
-        ))
+        F::from_canonical_u64({
+            if Self::IS_BIG_ENDIAN_ENCODING {
+                u64::from_be_bytes(
+                    data_extended_with_zeros
+                        .as_slice()
+                        .try_into()
+                        .expect("pack bytes to singe u64 should succeed"),
+                )
+            } else {
+                u64::from_le_bytes(
+                    data_extended_with_zeros
+                        .as_slice()
+                        .try_into()
+                        .expect("pack bytes to singe u64 should succeed"),
+                )
+            }
+        })
     }
 
     pub fn unpack_to_bytes<F: RichField>(fe: &F) -> Vec<u8> {
-        fe.to_canonical_u64().to_be_bytes()[Self::LEADING_ZEROS..].to_vec()
+        if Self::IS_BIG_ENDIAN_ENCODING {
+            fe.to_canonical_u64().to_be_bytes()[Self::EMPTY_BYTES..].to_vec()
+        } else {
+            fe.to_canonical_u64().to_le_bytes()[..Self::DATA_CAPACITY_PER_FIELD_ELEMENT].to_vec()
+        }
     }
 
     pub fn unpack_to_field_elements<F: RichField>(fe: &F) -> Vec<F> {

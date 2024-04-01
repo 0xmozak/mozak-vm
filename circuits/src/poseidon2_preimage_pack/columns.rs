@@ -87,11 +87,15 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongePrei
         Poseidon2SpongePreimagePackCtl {
             clk: data.clk,
             value: ColumnWithTypedInput::reduce_with_powers(
-                // FIXME: Check why does not work just reduce_with_power on &data.bytes
                 {
-                    let mut r = data.bytes;
-                    r.reverse();
-                    r
+                    if MozakPoseidon2::IS_BIG_ENDIAN_ENCODING {
+                        // Note: a big-endian case should be reversed
+                        let mut r = data.bytes;
+                        r.reverse();
+                        r
+                    } else {
+                        data.bytes
+                    }
                 },
                 i64::from(1 << 8),
             ),
