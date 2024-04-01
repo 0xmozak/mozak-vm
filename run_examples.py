@@ -141,13 +141,14 @@ class ExamplesTester(unittest.TestCase):
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
 
-                execution = subprocess.run(
+                # should take max 2 minutes
+                subprocess.run(
                     args=shlex.split(build_command),
                     cwd="examples",
                     capture_output=True,
                     timeout=120,
-                )  # should take max 2 minutes
-                self.assertEqual(execution.returncode, 0)
+                    check=True,
+                )
                 print()
 
         for folder in set(list_cargo_projects("examples")):
@@ -182,13 +183,14 @@ class ExamplesTester(unittest.TestCase):
                         f"System tape generation: {Fore.BLUE}{system_tape_generation_command}{Style.RESET_ALL}",
                     )
 
-                    execution = subprocess.run(
+                    # should take max 2 minutes
+                    subprocess.run(
                         args=shlex.split(system_tape_generation_command),
                         cwd="examples",
                         capture_output=True,
                         timeout=120,
-                    )  # should take max 2 minutes
-                    self.assertEqual(execution.returncode, 0)
+                        check=True,
+                    )
 
                     print()
 
@@ -220,12 +222,13 @@ class ExamplesTester(unittest.TestCase):
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )
-                        execution = subprocess.run(
+                        # should take max 2 minutes
+                        subprocess.run(
                             args=shlex.split(execution_command),
                             capture_output=True,
                             timeout=120,
-                        )  # should take max 2 minutes
-                        self.assertEqual(execution.returncode, 0)
+                            check=True,
+                        )
 
                 print()
 
