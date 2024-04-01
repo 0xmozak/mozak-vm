@@ -51,13 +51,6 @@ pub fn write<T: Field>() -> Ops<T> {
     }
 }
 
-/// Create a dummy [`Ops`]
-///
-/// We want these 3 filter columns = 0,
-/// so we can constrain `is_used = is_init + is_read + is_write`.
-#[must_use]
-pub fn dummy<T: Field>() -> Ops<T> { Ops::default() }
-
 columns_view_impl!(Register);
 make_col_map!(Register);
 /// [`Design doc for RegisterSTARK`](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc)
