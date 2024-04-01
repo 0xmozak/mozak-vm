@@ -36,7 +36,7 @@ impl<F: RichField> From<F> for Ops<F> {
 
 impl<F: RichField> Ops<F> {
     #[must_use]
-    pub fn to_field(&self) -> F { ascending_sum(*self) }
+    pub fn to_field(self) -> F { ascending_sum(self) }
 
     #[must_use]
     pub fn init() -> Self {
