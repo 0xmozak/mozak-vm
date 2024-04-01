@@ -25,8 +25,8 @@ def read_toml_file(file_path: str):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return toml.load(f)
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"Error: File '{file_path}' not found.") from e
+    except FileNotFoundError:
+        raise
     except Exception as e:
         raise ReadTomlError(f"Error reading TOML file: {e}") from e
 
