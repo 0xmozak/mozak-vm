@@ -28,19 +28,14 @@ def read_toml_file(file_path: str):
         raise ReadTomlError(f"Error reading TOML file: {e}") from e
 
 
-def list_directories(directory: str):
-    """Lists the different sub-directories (one level) at a given root directory"""
-    skip_directories = {".cargo", "target"}
+def list_cargo_projects(directory: str):
+    """Lists all cargo projects down one level at a given root directory"""
     try:
-        dirs = [
+        return [
             dir
             for dir in os.listdir(directory)
-            if (
-                dir not in skip_directories
-                and os.path.isdir(os.path.join(directory, dir))
-            )
+            if os.path.exists(os.path.join(directory, dir, "Cargo.toml"))
         ]
-        return dirs
     except OSError as e:
         raise OSError(f"Error while listing directory: {e}") from e
 
