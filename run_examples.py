@@ -8,11 +8,12 @@ tests for examples on cross-program-calls among other things.
 # TODO: set up formatting and linting for Python files in CI.
 import os
 import re
+import shlex
+import subprocess
 import unittest
 
 import toml
 from colorama import Fore, Style
-import shlex, subprocess
 
 
 class ReadTomlError(Exception):
@@ -86,10 +87,10 @@ class ExamplesTester(unittest.TestCase):
                 print(f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}")
 
                 execution = subprocess.run(
-                    args=shlex.split(build_command), 
+                    args=shlex.split(build_command),
                     cwd="examples",
-                    capture_output=True, 
-                    timeout=120
+                    capture_output=True,
+                    timeout=120,
                 )  # should take max 2 minutes
                 self.assertEqual(execution.returncode, 0)
 
@@ -134,18 +135,16 @@ class ExamplesTester(unittest.TestCase):
                     f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected fully-featured example, building",
                 )
 
-                build_command = (
-                    f"cargo build --release --bin {folder}bin"
-                )
+                build_command = f"cargo build --release --bin {folder}bin"
                 print(
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
 
                 execution = subprocess.run(
-                    args=shlex.split(build_command), 
+                    args=shlex.split(build_command),
                     cwd="examples",
-                    capture_output=True, 
-                    timeout=120
+                    capture_output=True,
+                    timeout=120,
                 )  # should take max 2 minutes
                 self.assertEqual(execution.returncode, 0)
                 print("\n")
