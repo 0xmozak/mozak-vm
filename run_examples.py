@@ -103,7 +103,7 @@ class ExamplesTester(unittest.TestCase):
         """
         prove_and_verify_exceptions = {}
 
-        for folder in set(list_directories("examples")):
+        for folder in set(list_cargo_projects("examples")):
             if has_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
                 print(
                     f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected fully-featured example, building",
@@ -118,7 +118,7 @@ class ExamplesTester(unittest.TestCase):
                 self.assertEqual(os.system(build_command), 0)
                 print("\n")
 
-        for folder in set(list_directories("examples")):
+        for folder in set(list_cargo_projects("examples")):
             if has_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
                 print(
                     f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected fully-featured example, ZK prove and verify",
