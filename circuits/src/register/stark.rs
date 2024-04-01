@@ -47,8 +47,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     /// 3) Only rd changes.
     /// 4) Address changes only when `nv.is_init` == 1.
     /// 5) Address either stays the same or increments by 1.
-    /// 6) `clk` is 0 for all `is_init` rows.
-    /// 7) Addresses go from 1 to 31.  Address 0 is handled by `RegisterZeroStark`.
+    /// 6) Addresses go from 1 to 31.  Address 0 is handled by
+    ///    `RegisterZeroStark`.
     ///
     /// For more details, refer to the [Notion
     /// document](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2).
@@ -91,10 +91,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         // Constraint 5: Address either stays the same or increments by 1.
         yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
 
-        // Constraint 6: clk is 0 for all `is_init` rows.
-        yield_constr.constraint(lv.ops.is_init * lv.clk);
-
-        // Constraint 7: addresses go from 1 to 31.
+        // Constraint 6: addresses go from 1 to 31.
         yield_constr.constraint_first_row(lv.addr - P::ONES);
         yield_constr.constraint_last_row(lv.addr - P::Scalar::from_canonical_u8(31));
     }
@@ -159,12 +156,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         }
 
         // Constraint 6.
-        {
-            let disjunction = builder.mul_extension(lv.ops.is_init, lv.clk);
-            yield_constr.constraint(builder, disjunction);
-        }
-
-        // Constraint 7.
         {
             let lv_addr_sub_one = builder.sub_extension(lv.addr, one);
             yield_constr.constraint_first_row(builder, lv_addr_sub_one);
