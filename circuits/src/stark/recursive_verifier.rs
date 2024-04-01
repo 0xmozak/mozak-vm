@@ -41,7 +41,7 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 /// Public inputs (number of Goldilocks elements) using
 /// `standard_recursion_config`:
 ///   `entry_point`: 1
-///   `Program trace cap`: 16 (hash count with 'cap_height' = 4) * 4 (size of a
+///   `Program trace cap`: 16 (hash count with `cap_height` = 4) * 4 (size of a
 ///                          hash) = 64
 ///   `ElfMemoryInit trace cap`: 64
 ///   `MozakMemoryInit trace cap`: 64
