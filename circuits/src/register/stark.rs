@@ -48,7 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     /// 4) Address changes only when `nv.is_init` == 1.
     /// 5) Address either stays the same or increments by 1.
     /// 6) `clk` is 0 for all `is_init` rows.
-    /// 7) Addresses go from 1 to 31.  Adress 0 is handled by `RegisterZeroStark`.
+    /// 7) Addresses go from 1 to 31.  Address 0 is handled by `RegisterZeroStark`.
     ///
     /// For more details, refer to the [Notion
     /// document](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2).
