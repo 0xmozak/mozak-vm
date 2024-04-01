@@ -44,12 +44,7 @@ def has_sdk_dependency_beyond_core_features(cargo_file: str) -> bool:
     """Reads a `Cargo.toml` file and analyses whether the dependency on
     `mozak-sdk` is only on "core" features."""
     sdk_dependency = read_toml_file(cargo_file)["dependencies"]["mozak-sdk"]
-    if "default-features" in sdk_dependency:
-        return sdk_dependency["default-features"]
-    elif "features" in sdk_dependency:
-        return len(sdk_dependency["features"]) > 0
-    else:
-        return True
+    return sdk_dependency.get("default-features", True) or len(sdk_dependency.get("features", [])) > 0
 
 
 class ExamplesTester(unittest.TestCase):
