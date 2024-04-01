@@ -38,7 +38,7 @@ use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
 use self::bitshift::generate_shift_amount_trace;
-use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+use self::cpu::{generate_cpu_trace, generate_program_mult_trace};
 use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
 use self::io_memory::generate_io_transcript_trace;
@@ -65,7 +65,7 @@ use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
-use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
+use crate::stark::utils::trace_rows_to_poly_values;
 
 pub const MIN_TRACE_LENGTH: usize = 8;
 
@@ -81,10 +81,10 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     record: &ExecutionRecord<F>,
 ) -> TableKindArray<Vec<PolynomialValues<F>>> {
     let cpu_rows = generate_cpu_trace::<F>(record);
-    let register_rows = generate_register_trace::<F>(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
+    let program_mult_rows = generate_program_mult_trace(&cpu_rows, &program_rows);
     let memory_init_rows = generate_elf_memory_init_trace(program);
     let mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
@@ -119,22 +119,29 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
+    // TODO: consider folding generate_register_init_trace into
+    // generate_register_trace, like we did for register_zero?
+    let register_init_rows = generate_register_init_trace::<F>(record);
+    let (register_zero_rows, register_rows) = generate_register_trace(
+        &cpu_rows,
+        &io_memory_private_rows,
+        &io_memory_public_rows,
+        &io_transcript_rows,
+        &register_init_rows,
+    );
     // Generate rows for the looking values with their multiplicities.
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
-    #[allow(unused)]
-    let register_init_rows = generate_register_init_trace::<F>(record);
-    #[allow(unused)]
-    let register_rows = generate_register_trace::<F>(record);
 
     TableKindSetBuilder {
-        cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows)),
+        cpu_stark: trace_rows_to_poly_values(cpu_rows),
         rangecheck_stark: trace_rows_to_poly_values(rangecheck_rows),
         xor_stark: trace_rows_to_poly_values(xor_rows),
         shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),
         program_stark: trace_rows_to_poly_values(program_rows),
+        program_mult_stark: trace_rows_to_poly_values(program_mult_rows),
         memory_stark: trace_rows_to_poly_values(memory_rows),
         elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
         mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
@@ -145,10 +152,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
         io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
         io_transcript_stark: trace_rows_to_poly_values(io_transcript_rows),
-        #[cfg(feature = "enable_register_starks")]
         register_init_stark: trace_rows_to_poly_values(register_init_rows),
-        #[cfg(feature = "enable_register_starks")]
         register_stark: trace_rows_to_poly_values(register_rows),
+        register_zero_stark: trace_rows_to_poly_values(register_zero_rows),
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
         #[cfg(feature = "enable_poseidon_starks")]

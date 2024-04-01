@@ -234,10 +234,9 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::cpu::stark::CpuStark;
-    use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
-    use crate::generation::program::generate_program_rom_trace;
+    use crate::generation::cpu::generate_cpu_trace;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
-    use crate::stark::utils::trace_to_poly_values;
+    use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify, C, D, F};
     use crate::utils::from_u32;
     #[allow(clippy::cast_sign_loss)]
@@ -267,10 +266,7 @@ mod tests {
         let trace_poly_values = timed!(
             timing,
             "trace to poly",
-            trace_to_poly_values(generate_cpu_trace_extended(
-                cpu_trace,
-                &generate_program_rom_trace(&program)
-            ))
+            trace_rows_to_poly_values(cpu_trace)
         );
         let stark = S::default();
         let public_inputs = PublicInputs {

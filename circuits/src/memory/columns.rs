@@ -196,19 +196,17 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    let mem = COL_MAP;
-    [mem.addr, COL_MAP.addr, mem.diff_clk]
+    [COL_MAP.addr, COL_MAP.addr, COL_MAP.diff_clk]
         .into_iter()
-        .map(|addr| MemoryTable::new(RangeCheckCtl(addr), mem.is_executed()))
+        .map(|addr| MemoryTable::new(RangeCheckCtl(addr), COL_MAP.is_executed()))
         .collect()
 }
 
 #[must_use]
 pub fn rangecheck_u8_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    let mem = COL_MAP;
     vec![MemoryTable::new(
-        RangeCheckCtl(mem.value),
-        mem.is_executed(),
+        RangeCheckCtl(COL_MAP.value),
+        COL_MAP.is_executed(),
     )]
 }
 
@@ -227,30 +225,27 @@ pub struct MemoryCtl<T> {
 /// stark table.
 #[must_use]
 pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
-    let mem = COL_MAP;
     MemoryTable::new(
         MemoryCtl {
-            clk: mem.clk,
-            is_store: mem.is_store,
-            is_load: mem.is_load,
-            addr: mem.addr,
-            value: mem.value,
+            clk: COL_MAP.clk,
+            is_store: COL_MAP.is_store,
+            is_load: COL_MAP.is_load,
+            addr: COL_MAP.addr,
+            value: COL_MAP.value,
         },
-        mem.is_store + mem.is_load,
+        COL_MAP.is_store + COL_MAP.is_load,
     )
 }
 
 /// Lookup into `MemoryInit` Table
 #[must_use]
 pub fn lookup_for_memoryinit() -> TableWithTypedOutput<MemoryInitCtl<Column>> {
-    let mem = COL_MAP;
-
     MemoryTable::new(
         MemoryInitCtl {
-            is_writable: mem.is_writable,
-            address: mem.addr,
-            clk: mem.clk,
-            value: mem.value,
+            is_writable: COL_MAP.is_writable,
+            address: COL_MAP.addr,
+            clk: COL_MAP.clk,
+            value: COL_MAP.value,
         },
         COL_MAP.is_init,
     )
