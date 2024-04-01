@@ -40,10 +40,10 @@ use crate::stark::proof::{
 pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 /// Public inputs (number of Goldilocks elements) using
 /// standard_recursion_config:
-///   entry_point: 1
-///   Program trace cap: 64
-///   ElfMemoryInit trace cap: 64
-///   MozakMemoryInit trace cap: 64
+///   `entry_point`: 1
+///   `Program trace cap`: 64
+///   `ElfMemoryInit trace cap`: 64
+///   `MozakMemoryInit trace cap`: 64
 pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
