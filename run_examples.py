@@ -94,7 +94,6 @@ class ExamplesTester(unittest.TestCase):
                     timeout=120,
                     check=True,
                 )
-                self.assertEqual(execution.returncode, 0)
 
                 if folder in prove_and_verify_exceptions:
                     print(
