@@ -5,7 +5,7 @@
 //! such situation. We use its equivalent, Logarithmic derivative approach
 //! instead, especially because it lets us combine it with CTL proof system
 //! which we have already. Essentially, given a subtable, we `combine` its rows
-//! and maintain its running sum of inverses as values of z polynomial. The'
+//! and maintain its running sum of inverses as values of z polynomial. The
 //! opening of this z polynomial would be the "compressed" value, and can
 //! be reproduced on verifer's end. We can also reuse the challenges used for
 //! CTL to `combine`, since the procedure is preceded by commitment to trace
