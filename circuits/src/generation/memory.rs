@@ -255,7 +255,7 @@ mod tests {
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::stark::utils::trace_rows_to_poly_values;
-    use crate::test_utils::{fast_test_config, inv, prep_table};
+    use crate::test_utils::{fast_test_config, prep_table};
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;

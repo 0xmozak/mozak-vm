@@ -81,7 +81,6 @@ mod tests {
     use crate::memory_fullword::test_utils::fullword_memory_trace_test_case;
     use crate::test_utils::prep_table;
 
-    type F = GoldilocksField;
     // This test simulates the scenario of a set of instructions
     // which perform store byte (SB) and load byte unsigned (LBU) operations
     // to memory and then checks if the memory trace is generated correctly.

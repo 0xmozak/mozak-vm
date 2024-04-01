@@ -26,7 +26,7 @@ use starky::verifier::verify_stark_proof;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
-use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+use crate::generation::cpu::generate_cpu_trace;
 use crate::generation::fullword_memory::generate_fullword_memory_trace;
 use crate::generation::halfword_memory::generate_halfword_memory_trace;
 use crate::generation::io_memory::{
@@ -36,7 +36,6 @@ use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
 use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
-use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::generation::register::generate_register_trace;
 use crate::generation::registerinit::generate_register_init_trace;
@@ -125,10 +124,7 @@ impl ProveAndVerify for CpuStark<F, D> {
         let config = fast_test_config();
 
         let stark = S::default();
-        let trace_poly_values = trace_to_poly_values(generate_cpu_trace_extended(
-            generate_cpu_trace(record),
-            &generate_program_rom_trace(program),
-        ));
+        let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(record));
         let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
