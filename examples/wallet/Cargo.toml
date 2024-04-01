@@ -30,5 +30,4 @@ path = "core_logic.rs"
 
 # The following is read by `run_examples.py`
 [package.metadata.mozak]
-example_dependents = []
 example_program_id = "MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb"

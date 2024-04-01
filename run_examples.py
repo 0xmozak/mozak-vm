@@ -171,7 +171,9 @@ class ExamplesTester(unittest.TestCase):
                     extra_info = read_toml_file(f"examples/{folder}/Cargo.toml")[
                         "package"
                     ]["metadata"]["mozak"]
-                    dependents = extra_info["example_dependents"]
+                    dependents = []
+                    if "example_dependents" in extra_info.keys():
+                        dependents = extra_info["example_dependents"]
                     # We assume this to be different from all dependents
                     prog_id = extra_info["example_program_id"]
 
