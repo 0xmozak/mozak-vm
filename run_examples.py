@@ -135,14 +135,17 @@ class ExamplesTester(unittest.TestCase):
                 )
 
                 build_command = (
-                    f"cd examples && cargo build --release --bin {folder}bin"
+                    f"cargo build --release --bin {folder}bin"
                 )
                 print(
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
 
                 execution = subprocess.run(
-                    args=shlex.split(build_command), capture_output=True, timeout=120
+                    args=shlex.split(build_command), 
+                    cwd="examples",
+                    capture_output=True, 
+                    timeout=120
                 )  # should take max 2 minutes
                 self.assertEqual(execution.returncode, 0)
                 print("\n")
