@@ -87,7 +87,7 @@ class ExamplesTester(unittest.TestCase):
                 print(f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}")
 
                 # should take max 2 minutes
-                execution = subprocess.run(
+                subprocess.run(
                     args=shlex.split(build_command),
                     cwd="examples",
                     capture_output=True,
