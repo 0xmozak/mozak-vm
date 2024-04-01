@@ -54,7 +54,7 @@ class ExamplesTester(unittest.TestCase):
         """This test ensures that all the workspace members are accounted
         for and no dangling examples directory exists.
         """
-        actual_directories = set(list_directories("examples"))
+        actual_directories = set(list_cargo_projects("examples"))
         listed_workspace_members = set(
             read_toml_file("examples/Cargo.toml")["workspace"]["members"]
         )
@@ -69,7 +69,7 @@ class ExamplesTester(unittest.TestCase):
             "MZK-0000000000000000000000000000000000000000000000000000000000000001"
         )
 
-        for folder in set(list_directories("examples")):
+        for folder in set(list_cargo_projects("examples")):
             if not has_sdk_dependency_beyond_core_features(
                 f"examples/{folder}/Cargo.toml"
             ):
