@@ -107,7 +107,7 @@ class ExamplesTester(unittest.TestCase):
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
                     )
                     # should take max 2 minutes
-                    execution = subprocess.run(
+                    subprocess.run(
                         args=shlex.split(prove_and_verify_command),
                         capture_output=True,
                         timeout=120,
