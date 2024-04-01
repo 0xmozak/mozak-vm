@@ -12,7 +12,6 @@ use starky::stark::Stark;
 
 use super::columns::RegisterZero;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::generation::instruction::ascending_sum;
 use crate::register::columns::Ops;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
@@ -46,9 +45,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroS
         let lv: &RegisterZero<P> = vars.get_local_values().into();
         // If `value` ain't zero, then `op` must be a write.
         // Ie we accept writes of any value, but reads and inits are always 0.
-        yield_constr.constraint(
-            lv.value * (lv.op - P::Scalar::from_basefield(ascending_sum(Ops::write()))),
-        );
+        yield_constr
+            .constraint(lv.value * (lv.op - P::Scalar::from_basefield(Ops::write().to_field())));
     }
 
     fn eval_ext_circuit(
@@ -59,7 +57,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroS
     ) {
         let lv: &RegisterZero<_> = vars.get_local_values().into();
         let write =
-            builder.constant_extension(F::Extension::from_basefield(ascending_sum(Ops::write())));
+            builder.constant_extension(F::Extension::from_basefield(Ops::write().to_field()));
         let op_is_write = builder.sub_extension(lv.op, write);
         let disjunction = builder.mul_extension(lv.value, op_is_write);
         yield_constr.constraint(builder, disjunction);

@@ -3,6 +3,7 @@ use core::ops::Add;
 use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
+use crate::generation::instruction::ascending_sum;
 use crate::linear_combination::Column;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
@@ -34,6 +35,9 @@ impl<F: RichField> From<F> for Ops<F> {
 }
 
 impl<F: RichField> Ops<F> {
+    #[must_use]
+    pub fn to_field(&self) -> F { ascending_sum(*self) }
+
     #[must_use]
     pub fn init() -> Self {
         Self {
