@@ -124,11 +124,10 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
                         ) * F::from_canonical_u8(
                             u8::try_from(fe_index_inside_preimage).expect("i > 255"),
                         );
-                    // Throw away leading byte since "be"
-                    let packed = &value.preimage[fe_index_inside_preimage]
-                        .clone()
-                        .to_canonical_u64()
-                        .to_be_bytes()[MozakPoseidon2::LEADING_ZEROS..];
+                    let unpacked = MozakPoseidon2::unpack_to_field_elements(
+                        &value.preimage[fe_index_inside_preimage],
+                    );
+
                     (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
                         .map(|byte_index_inside_fe| Memory {
                             clk: value.clk,
@@ -137,7 +136,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
                                     u8::try_from(byte_index_inside_fe).expect("j > 255"),
                                 ),
                             is_load: F::ONE,
-                            value: F::from_canonical_u8(packed[byte_index_inside_fe]),
+                            value: unpacked[byte_index_inside_fe],
                             ..Default::default()
                         })
                         .collect::<Vec<_>>()

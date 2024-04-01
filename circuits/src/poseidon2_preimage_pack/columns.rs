@@ -44,14 +44,8 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
             let result = preimage
                 .iter()
                 .map(|fe| {
-                    // Note: assumed `to_be_bytes`, otherwise another side of the array should be
-                    // taken
-                    // TODO(Roman): consider implementing un-pack function
-                    let bytes: Vec<_> = fe.clone().to_canonical_u64().to_be_bytes()
-                        [MozakPoseidon2::LEADING_ZEROS..]
-                        .iter()
-                        .map(|e| F::from_canonical_u8(*e))
-                        .collect();
+                    let bytes = MozakPoseidon2::unpack_to_field_elements(fe);
+                    
                     // specific byte address
                     let byte_addr = byte_base_address;
                     // increase by DATA_CAP the byte base address after each iteration

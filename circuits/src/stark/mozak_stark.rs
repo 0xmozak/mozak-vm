@@ -46,8 +46,6 @@ use crate::poseidon2_preimage_pack::columns::{
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_preimage_pack::stark::Poseidon2PreimagePackStark;
 #[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_sponge;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
@@ -70,7 +68,8 @@ use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, poseidon2_preimage_pack, program, program_multiplicities, rangecheck, register, xor,
+    memoryinit, poseidon2_preimage_pack, program, program_multiplicities, rangecheck, register,
+    xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = 12 + cfg!(feature = "enable_poseidon_starks") as usize * 4;

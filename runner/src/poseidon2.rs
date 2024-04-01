@@ -48,6 +48,14 @@ impl MozakPoseidon2 {
     // To make it safe for user to change constants
     #[allow(clippy::assertions_on_constants)]
     pub fn pack_padded_input<F: RichField>(data: &[u8]) -> Vec<F> {
+        // assert different from expected RATE values
+        assert_eq!(
+            Poseidon2Permutation::<F>::RATE,
+            MozakPoseidon2::FIELD_ELEMENTS_RATE,
+            "Poseidon2Permutation::<F>::RATE: {:?} that differs from MozakPoseidon2::FIELD_ELEMENTS_RATE: {:?} - is not supported",
+            Poseidon2Permutation::<F>::RATE,
+            MozakPoseidon2::FIELD_ELEMENTS_RATE
+        );
         assert!(
             Self::DATA_CAPACITY_PER_FIELD_ELEMENT < Self::MAX_BYTES_PER_FIELD_ELEMENT,
             "For 64 bit field maximum supported packing is 7 bytes"
@@ -59,18 +67,43 @@ impl MozakPoseidon2 {
         );
         data.chunks(Self::DATA_CAPACITY_PER_FIELD_ELEMENT)
             .map(|x| {
-                // Padding with leading zeros, since `from_be_bytes` is used later on
+                // Padding (prefixing) with leading zeros, since `from_be_bytes` is used later
+                // on
                 let mut leading_zeros_x: Vec<u8> = vec![0; Self::LEADING_ZEROS];
                 leading_zeros_x.extend(x);
-
-                F::from_canonical_u64(u64::from_be_bytes(
-                    leading_zeros_x
-                        .as_slice()
-                        .try_into()
-                        .expect("should succeed"),
-                ))
+                Self::pack_to_field_element(&leading_zeros_x)
             })
             .collect::<Vec<_>>()
+    }
+
+    /// # Panics
+    ///
+    /// Panics if `Self::DATA_CAPACITY_PER_FIELD_ELEMENT <
+    /// Self::BYTES_PER_FIELD_ELEMENT`
+    #[must_use]
+    pub fn pack_to_field_element<F: RichField>(data: &Vec<u8>) -> F {
+        assert!(
+            data.len() <= 8,
+            "data.len {:?} can't be packed to u64::bytes (8)",
+            data.len()
+        );
+
+        F::from_canonical_u64(u64::from_be_bytes(
+            data.as_slice()
+                .try_into()
+                .expect("pack bytes to singe u64 should succeed"),
+        ))
+    }
+
+    pub fn unpack_to_bytes<F: RichField>(fe: &F) -> Vec<u8> {
+        fe.to_canonical_u64().to_be_bytes()[MozakPoseidon2::LEADING_ZEROS..].to_vec()
+    }
+
+    pub fn unpack_to_field_elements<F: RichField>(fe: &F) -> Vec<F> {
+        MozakPoseidon2::unpack_to_bytes(fe)
+            .iter()
+            .map(|e| F::from_canonical_u8(*e))
+            .collect_vec()
     }
 }
 
@@ -184,14 +217,6 @@ impl<F: RichField> State<F> {
                 .map(|i| self.load_u8(input_ptr + i))
                 .collect_vec()
                 .as_slice(),
-        );
-        // assert different from expected RATE values
-        assert_eq!(
-            Poseidon2Permutation::<F>::RATE,
-            MozakPoseidon2::FIELD_ELEMENTS_RATE,
-            "Poseidon2Permutation::<F>::RATE: {:?} that differs from MozakPoseidon2::FIELD_ELEMENTS_RATE: {:?} - is not supported",
-            Poseidon2Permutation::<F>::RATE,
-            MozakPoseidon2::FIELD_ELEMENTS_RATE
         );
         // This is the most important step, since here the actual `poseidon2` hash
         // computation's taken place. This function returns `computed` hash-value and
