@@ -7,6 +7,7 @@ tests for examples on cross-program-calls among other things.
 
 # TODO: set up formatting and linting for Python files in CI.
 import os
+import re
 import unittest
 
 import toml
@@ -45,7 +46,10 @@ def has_sdk_dependency_beyond_core_features(cargo_file: str) -> bool:
     """Reads a `Cargo.toml` file and analyses whether the dependency on
     `mozak-sdk` is only on "core" features."""
     sdk_dependency = read_toml_file(cargo_file)["dependencies"]["mozak-sdk"]
-    return sdk_dependency.get("default-features", True) or len(sdk_dependency.get("features", [])) > 0
+    return (
+        sdk_dependency.get("default-features", True)
+        or len(sdk_dependency.get("features", [])) > 0
+    )
 
 
 class ExamplesTester(unittest.TestCase):
@@ -81,7 +85,9 @@ class ExamplesTester(unittest.TestCase):
                 build_command = f"cd examples && cargo build --release --bin {folder}"
                 print(f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}")
 
-                execution = subprocess.run(args=shlex.split(build_command), capture_output=True, timeout=120) # should take max 2 minutes
+                execution = subprocess.run(
+                    args=shlex.split(build_command), capture_output=True, timeout=120
+                )  # should take max 2 minutes
                 self.assertEqual(execution.returncode, 0)
 
                 if folder in prove_and_verify_exceptions:
@@ -95,7 +101,11 @@ class ExamplesTester(unittest.TestCase):
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
                     )
-                    execution = subprocess.run(args=shlex.split(prove_and_verify_command), capture_output=True, timeout=120) # should take max 2 minutes
+                    execution = subprocess.run(
+                        args=shlex.split(prove_and_verify_command),
+                        capture_output=True,
+                        timeout=120,
+                    )  # should take max 2 minutes
                     self.assertEqual(execution.returncode, 0)
 
                 print("\n")
@@ -106,6 +116,14 @@ class ExamplesTester(unittest.TestCase):
         tape etc
         """
         prove_and_verify_exceptions = {}
+
+        arch_triple = re.search(
+            r"host: (.*)",
+            subprocess.check_output(["rustc", "--verbose", "--version"], text=True),
+        ).group(1)
+        print(
+            f"{Style.BRIGHT}{Fore.GREEN}Detected arch triple for host{Style.RESET_ALL}: {arch_triple}",
+        )
 
         for folder in set(list_cargo_projects("examples")):
             if has_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
@@ -120,7 +138,9 @@ class ExamplesTester(unittest.TestCase):
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
 
-                execution = subprocess.run(args=shlex.split(build_command), capture_output=True, timeout=120) # should take max 2 minutes
+                execution = subprocess.run(
+                    args=shlex.split(build_command), capture_output=True, timeout=120
+                )  # should take max 2 minutes
                 self.assertEqual(execution.returncode, 0)
                 print("\n")
 
@@ -149,17 +169,19 @@ class ExamplesTester(unittest.TestCase):
                     # We assume this to be different from all dependents
                     prog_id = extra_info["example_program_id"]
 
-                    system_tape_generation_command = f"""
-                        ARCH_TRIPLE="$(rustc --verbose --version | grep host | awk '{{ print $2; }}')";
-                        cd examples && cargo run --release --features="native" --bin {folder}-native --target $ARCH_TRIPLE
-                        """
+                    system_tape_generation_command = f"""cargo run --release --features="native" --bin {folder}-native --target {arch_triple}"""
                     print(
                         f"System tape generation: {Fore.BLUE}{system_tape_generation_command}{Style.RESET_ALL}",
                     )
 
-                    execution = subprocess.run(args=shlex.split(system_tape_generation_command), capture_output=True, timeout=120) # should take max 2 minutes
+                    execution = subprocess.run(
+                        args=shlex.split(system_tape_generation_command),
+                        cwd="examples",
+                        capture_output=True,
+                        timeout=120,
+                    )  # should take max 2 minutes
                     self.assertEqual(execution.returncode, 0)
-                    
+
                     print()
 
                     system_tape = f"examples/{folder}.tape.json"
@@ -190,7 +212,11 @@ class ExamplesTester(unittest.TestCase):
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )
-                        execution = subprocess.run(args=shlex.split(execution_command), capture_output=True, timeout=120) # should take max 2 minutes
+                        execution = subprocess.run(
+                            args=shlex.split(execution_command),
+                            capture_output=True,
+                            timeout=120,
+                        )  # should take max 2 minutes
                         self.assertEqual(execution.returncode, 0)
 
                 print()
