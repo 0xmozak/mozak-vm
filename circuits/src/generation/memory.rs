@@ -159,12 +159,14 @@ pub fn generate_memory_trace<F: RichField>(
         transform_io(io_memory_public_rows),
     )
     .collect();
+
     #[cfg(feature = "enable_poseidon_starks")]
     merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
     #[cfg(feature = "enable_poseidon_starks")]
     merged_trace.extend(transform_poseidon2_output_bytes(
         poseidon2_output_bytes_rows,
     ));
+
     merged_trace.sort_by_key(key);
     let mut merged_trace: Vec<_> = merged_trace
         .into_iter()

@@ -42,7 +42,6 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             .sponge_data
             .get(i as usize)
             .expect("unroll_count not consistent with number of permutations");
-
         unroll.push(Poseidon2Sponge {
             clk: F::from_canonical_u64(row.state.clk),
             ops,

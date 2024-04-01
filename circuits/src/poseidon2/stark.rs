@@ -333,7 +333,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state[0] = lv.state0_after_partial_rounds[i];
         }
 
-        // the state before the last full rounds
+        // the state before last full rounds
         for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
             yield_constr.constraint(*state_i - lv.state_after_partial_rounds[i]);
             *state_i = lv.state_after_partial_rounds[i];

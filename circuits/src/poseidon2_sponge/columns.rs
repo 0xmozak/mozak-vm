@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+#[cfg(feature = "enable_poseidon_starks")]
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
