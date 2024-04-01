@@ -99,16 +99,15 @@ pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Colu
 
 #[must_use]
 pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
-    let mem = COL_MAP;
     let data = RegisterCtl {
-        clk: mem.clk,
+        clk: COL_MAP.clk,
         op: ColumnWithTypedInput::constant(1), // read
         addr: ColumnWithTypedInput::constant(i64::from(REG_A1)),
-        value: mem.addr,
+        value: COL_MAP.addr,
     };
     vec![
-        IoMemoryPrivateTable::new(data, mem.ops.is_io_store),
-        IoMemoryPublicTable::new(data, mem.ops.is_io_store),
-        IoTranscriptTable::new(data, mem.ops.is_io_store),
+        IoMemoryPrivateTable::new(data, COL_MAP.ops.is_io_store),
+        IoMemoryPublicTable::new(data, COL_MAP.ops.is_io_store),
+        IoTranscriptTable::new(data, COL_MAP.ops.is_io_store),
     ]
 }
