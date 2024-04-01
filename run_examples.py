@@ -106,14 +106,14 @@ class ExamplesTester(unittest.TestCase):
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
                     )
+                    # should take max 2 minutes
                     execution = subprocess.run(
                         args=shlex.split(prove_and_verify_command),
                         capture_output=True,
                         timeout=120,
-                    )  # should take max 2 minutes
-                    self.assertEqual(execution.returncode, 0)
-
-                print("\n")
+                        check=True,
+                    )
+                print()
 
     def test_full_featured_examples(self):
         """This test runs examples that depend on more than just the core
@@ -148,7 +148,7 @@ class ExamplesTester(unittest.TestCase):
                     timeout=120,
                 )  # should take max 2 minutes
                 self.assertEqual(execution.returncode, 0)
-                print("\n")
+                print()
 
         for folder in set(list_cargo_projects("examples")):
             if has_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
