@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use itertools::izip;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -12,13 +11,10 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::{
-    is_mem_op_extention_target, CpuColumnsExtended, CpuState, Instruction, OpSelectors,
-};
+use super::columns::{is_mem_op_extention_target, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
-use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
@@ -32,7 +28,7 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
-    type Columns = CpuColumnsExtended<F>;
+    type Columns = CpuState<F>;
 }
 
 impl<P: PackedField> OpSelectors<P> {
@@ -177,44 +173,6 @@ fn clock_ticks_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr.constraint_transition(builder, clock_diff_sub_lv_is_running);
 }
 
-/// This function ensures that for each unique value present in
-/// the instruction column the [`filter`] flag is `1`. This is done by comparing
-/// the local row and the next row values.
-/// As the result, `filter` marks all duplicated instructions with `0`.
-fn check_permuted_inst_cols<P: PackedField>(
-    lv: &ProgramRom<P>,
-    nv: &ProgramRom<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
-    yield_constr.constraint_first_row(lv.filter - P::ONES);
-
-    for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
-        yield_constr.constraint((nv.filter - P::ONES) * (lv_col - nv_col));
-    }
-}
-
-pub fn check_permuted_inst_cols_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &ProgramRom<ExtensionTarget<D>>,
-    nv: &ProgramRom<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let one = builder.one_extension();
-    let lv_filter_sub_one = builder.sub_extension(lv.filter, one);
-    let lv_filter_mul_lv_filter_sub_one = builder.mul_extension(lv.filter, lv_filter_sub_one);
-    yield_constr.constraint(builder, lv_filter_mul_lv_filter_sub_one);
-    yield_constr.constraint_first_row(builder, lv_filter_sub_one);
-
-    for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
-        let nv_filter_sub_one = builder.sub_extension(nv.filter, one);
-        let lv_col_sub_nv_col = builder.sub_extension(lv_col, nv_col);
-        let nv_filter_sub_one_mul_lv_col_sub_nv_col =
-            builder.mul_extension(nv_filter_sub_one, lv_col_sub_nv_col);
-        yield_constr.constraint(builder, nv_filter_sub_one_mul_lv_col_sub_nv_col);
-    }
-}
-
 /// Constraints for values in op2, which is the sum of the value of the second
 /// operand register and the immediate value (except for branch instructions).
 /// This may overflow.
@@ -285,7 +243,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr.constraint(builder, constr);
 }
 
-const COLUMNS: usize = CpuColumnsExtended::<()>::NUMBER_OF_COLUMNS;
+const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
@@ -305,16 +263,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &CpuColumnsExtended<_> = vars.get_local_values().into();
-        let nv: &CpuColumnsExtended<_> = vars.get_next_values().into();
+        let lv: &CpuState<_> = vars.get_local_values().into();
+        let nv: &CpuState<_> = vars.get_next_values().into();
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
-
-        // Constrain the CPU transition between previous `lv` state and next `nv`
-        // state.
-        check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
-
-        let lv = &lv.cpu;
-        let nv = &nv.cpu;
 
         yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
         clock_ticks(lv, nv, yield_constr);
@@ -354,14 +305,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &CpuColumnsExtended<_> = vars.get_local_values().into();
-        let nv: &CpuColumnsExtended<_> = vars.get_next_values().into();
+        let lv: &CpuState<_> = vars.get_local_values().into();
+        let nv: &CpuState<_> = vars.get_next_values().into();
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
-
-        check_permuted_inst_cols_circuit(builder, &lv.permuted, &nv.permuted, yield_constr);
-
-        let lv = &lv.cpu;
-        let nv = &nv.cpu;
 
         let inst_pc_sub_public_inputs_entry_point =
             builder.sub_extension(lv.inst.pc, public_inputs.entry_point);

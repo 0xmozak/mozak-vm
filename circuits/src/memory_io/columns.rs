@@ -63,14 +63,13 @@ pub fn lookup_for_cpu(
     kind: TableKind,
     op: i64,
 ) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    let mem = COL_MAP;
     TableWithTypedOutput {
         kind,
         columns: InputOutputMemoryCtl {
             op: ColumnWithTypedInput::constant(op),
-            clk: mem.clk,
-            addr: mem.addr,
-            size: mem.size,
+            clk: COL_MAP.clk,
+            addr: COL_MAP.addr,
+            size: COL_MAP.size,
         }
         .into_iter()
         .map(Column::from)
@@ -82,16 +81,14 @@ pub fn lookup_for_cpu(
 /// Lookup into Memory stark table.
 #[must_use]
 pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Column>> {
-    let mem = COL_MAP;
-
     TableWithTypedOutput {
         kind,
         columns: MemoryCtl {
-            clk: mem.clk,
-            is_store: mem.ops.is_memory_store,
+            clk: COL_MAP.clk,
+            is_store: COL_MAP.ops.is_memory_store,
             is_load: ColumnWithTypedInput::constant(0),
-            value: mem.value,
-            addr: mem.addr,
+            value: COL_MAP.value,
+            addr: COL_MAP.addr,
         }
         .into_iter()
         .map(Column::from)

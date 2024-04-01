@@ -117,27 +117,21 @@ impl<T: Add<Output = T> + Copy> Register<T> {
 #[must_use]
 pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
     use crate::linear_combination_typed::ColumnWithTypedInput;
-    let reg = COL_MAP;
     RegisterTable::new(
         RegisterCtl {
-            clk: reg.clk,
-            op: ColumnWithTypedInput::ascending_sum(reg.ops),
-            addr: reg.addr,
-            value: reg.value,
+            clk: COL_MAP.clk,
+            op: ColumnWithTypedInput::ascending_sum(COL_MAP.ops),
+            addr: COL_MAP.addr,
+            value: COL_MAP.value,
         },
-        // TODO: We can probably do the register init in the same lookup?
-        reg.ops.is_read + reg.ops.is_write + reg.ops.is_init,
+        COL_MAP.ops.is_read + COL_MAP.ops.is_write + COL_MAP.ops.is_init,
     )
 }
 
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    use crate::linear_combination_typed::ColumnWithTypedInput;
-
-    let lv = COL_MAP;
-    let nv = COL_MAP.map(ColumnWithTypedInput::flip);
     vec![RegisterTable::new(
-        RangeCheckCtl(nv.augmented_clk() - lv.augmented_clk()),
-        nv.is_rw(),
+        RangeCheckCtl(COL_MAP.augmented_clk().flip() - COL_MAP.augmented_clk()),
+        COL_MAP.is_rw().flip(),
     )]
 }
