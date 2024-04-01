@@ -44,6 +44,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroS
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &RegisterZero<P> = vars.get_local_values().into();
+        // If `value` ain't zero, then `op` must be a write.
+        // Ie we accept writes of any value, but reads and inits are always 0.
         yield_constr.constraint(
             lv.value * (lv.op - P::Scalar::from_basefield(ascending_sum(Ops::write()))),
         );
