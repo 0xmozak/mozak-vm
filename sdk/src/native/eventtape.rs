@@ -24,6 +24,7 @@ pub struct OrderedEvents {
 }
 
 impl OrderedEvents {
+    #[must_use]
     pub fn new(emitter: ProgramIdentifier, events: Vec<Event>) -> Self {
         Self {
             temporal_ordering: events
@@ -61,6 +62,7 @@ impl OrderedEvents {
     /// Temporal Order: [`Read_400`, `Read_200`, `Read_100`, `Read_300`]
     /// Canonical Hint: [   2,          1,           3,        0]
     #[allow(dead_code)]
+    #[must_use]
     pub fn get_temporal_order_canonical_hints(&self) -> Vec<(Event, u32)> {
         self.temporal_ordering
             .iter()
@@ -75,6 +77,7 @@ impl OrderedEvents {
     /// Canonical Order: [`Read_100`, `Read_200`, `Read_300`, `Read_400`]
     /// Temporal Hints:  [   3,          1,           0,           2]
     #[allow(dead_code)]
+    #[must_use]
     pub fn get_canonical_order_temporal_hints(&self) -> Vec<CanonicalOrderedTemporalHints> {
         fn reverse_ordering(original_ordering: &[u32]) -> Vec<u32> {
             let mut reversed_ordering = vec![0; original_ordering.len()];

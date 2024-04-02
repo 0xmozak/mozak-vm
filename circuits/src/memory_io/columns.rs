@@ -1,10 +1,14 @@
 use core::ops::Add;
 
+use mozak_sdk::core::reg_abi::REG_A1;
+
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::ColumnWithTypedInput;
-use crate::linear_combination::Column;
+use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-use crate::stark::mozak_stark::{TableKind, TableWithTypedOutput};
+use crate::register::columns::RegisterCtl;
+use crate::stark::mozak_stark::{
+    IoMemoryPrivateTable, IoMemoryPublicTable, IoTranscriptTable, TableKind, TableWithTypedOutput,
+};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -59,14 +63,13 @@ pub fn lookup_for_cpu(
     kind: TableKind,
     op: i64,
 ) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
-    let mem = COL_MAP;
     TableWithTypedOutput {
         kind,
         columns: InputOutputMemoryCtl {
             op: ColumnWithTypedInput::constant(op),
-            clk: mem.clk,
-            addr: mem.addr,
-            size: mem.size,
+            clk: COL_MAP.clk,
+            addr: COL_MAP.addr,
+            size: COL_MAP.size,
         }
         .into_iter()
         .map(Column::from)
@@ -78,20 +81,33 @@ pub fn lookup_for_cpu(
 /// Lookup into Memory stark table.
 #[must_use]
 pub fn lookup_for_memory(kind: TableKind) -> TableWithTypedOutput<MemoryCtl<Column>> {
-    let mem = COL_MAP;
-
     TableWithTypedOutput {
         kind,
         columns: MemoryCtl {
-            clk: mem.clk,
-            is_store: mem.ops.is_memory_store,
+            clk: COL_MAP.clk,
+            is_store: COL_MAP.ops.is_memory_store,
             is_load: ColumnWithTypedInput::constant(0),
-            value: mem.value,
-            addr: mem.addr,
+            value: COL_MAP.value,
+            addr: COL_MAP.addr,
         }
         .into_iter()
         .map(Column::from)
         .collect(),
         filter_column: COL_MAP.ops.is_memory_store.into(),
     }
+}
+
+#[must_use]
+pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
+    let data = RegisterCtl {
+        clk: COL_MAP.clk,
+        op: ColumnWithTypedInput::constant(1), // read
+        addr: ColumnWithTypedInput::constant(i64::from(REG_A1)),
+        value: COL_MAP.addr,
+    };
+    vec![
+        IoMemoryPrivateTable::new(data, COL_MAP.ops.is_io_store),
+        IoMemoryPublicTable::new(data, COL_MAP.ops.is_io_store),
+        IoTranscriptTable::new(data, COL_MAP.ops.is_io_store),
+    ]
 }

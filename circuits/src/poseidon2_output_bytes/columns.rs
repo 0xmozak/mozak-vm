@@ -66,12 +66,11 @@ pub struct Poseidon2OutputBytesCtl<F> {
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2OutputBytesCtl<Column>> {
-    let data = COL_MAP;
     Poseidon2OutputBytesTable::new(
         Poseidon2OutputBytesCtl {
-            clk: data.clk,
-            output_addr: data.output_addr,
-            output_fields: data.output_fields,
+            clk: COL_MAP.clk,
+            output_addr: COL_MAP.output_addr,
+            output_fields: COL_MAP.output_fields,
         },
         COL_MAP.is_executed,
     )
@@ -81,14 +80,13 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2OutputByte
 #[must_use]
 pub fn lookup_for_output_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
     assert!(limb_index < 32, "limb_index can be 0..31");
-    let data = COL_MAP;
     Poseidon2OutputBytesTable::new(
         MemoryCtl {
-            clk: data.clk,
+            clk: COL_MAP.clk,
             is_store: ColumnWithTypedInput::constant(1),
             is_load: ColumnWithTypedInput::constant(0),
-            value: data.output_bytes[limb_index as usize],
-            addr: data.output_addr + i64::from(limb_index),
+            value: COL_MAP.output_bytes[limb_index as usize],
+            addr: COL_MAP.output_addr + i64::from(limb_index),
         },
         COL_MAP.is_executed,
     )
