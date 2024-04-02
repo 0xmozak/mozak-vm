@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     #[rustfmt::skip] 
-    fn merkelize_test() {
+    fn merkleize_test() {
         let hashes_with_addr = vec![
             (0x010, Poseidon2Hash([1u8; 32])),// ------------|
                                               //             |--h_2---|  
