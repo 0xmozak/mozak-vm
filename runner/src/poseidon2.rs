@@ -71,7 +71,7 @@ impl MozakPoseidon2 {
         assert_eq!(
             Poseidon2Permutation::<F>::RATE,
             Self::FIELD_ELEMENTS_RATE,
-            "Poseidon2Permutation::<F>::RATE: {:?} that differs from MozakPoseidon2::FIELD_ELEMENTS_RATE: {:?} - is not supported",
+            "Poseidon2Permutation::<F>::RATE: {:?} differs from MozakPoseidon2::FIELD_ELEMENTS_RATE: {:?} - is not supported",
             Poseidon2Permutation::<F>::RATE,
             Self::FIELD_ELEMENTS_RATE
         );
