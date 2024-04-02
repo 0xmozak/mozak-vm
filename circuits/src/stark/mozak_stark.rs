@@ -50,6 +50,7 @@ use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::program_multiplicities::stark::ProgramMultStark;
+use crate::public_sub_table::PublicSubTable;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
@@ -93,6 +94,14 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     #[StarkSet(stark_kind = "ElfMemoryInit")]
     pub elf_memory_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "CallTapeInit")]
+    pub call_tape_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "PrivateTapeInit")]
+    pub private_tape_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "PublicTapeInit")]
+    pub public_tape_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "EventTapeInit")]
+    pub event_tape_init_stark: MemoryInitStark<F, D>,
     #[StarkSet(stark_kind = "MozakMemoryInit")]
     pub mozak_memory_init_stark: MemoryInitStark<F, D>,
     // TODO(Bing): find a way to natively constrain zero initializations within
@@ -131,7 +140,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     )]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-
+    pub public_sub_tables: [PublicSubTable; 0],
     pub debug: bool,
 }
 
@@ -361,6 +370,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             program_mult_stark: ProgramMultStark::default(),
             memory_stark: MemoryStark::default(),
             elf_memory_init_stark: MemoryInitStark::default(),
+            call_tape_init_stark: MemoryInitStark::default(),
+            private_tape_init_stark: MemoryInitStark::default(),
+            public_tape_init_stark: MemoryInitStark::default(),
+            event_tape_init_stark: MemoryInitStark::default(),
             mozak_memory_init_stark: MemoryInitStark::default(),
             memory_zeroinit_stark: MemoryZeroInitStark::default(),
             rangecheck_u8_stark: RangeCheckU8Stark::default(),
@@ -398,6 +411,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
             ],
+            public_sub_tables: [],
             debug: false,
         }
     }
@@ -508,6 +522,10 @@ table_impl!(ProgramTable, TableKind::Program, ProgramRom);
 table_impl!(ProgramMultTable, TableKind::ProgramMult, ProgramMult);
 table_impl!(MemoryTable, TableKind::Memory, Memory);
 table_impl!(ElfMemoryInitTable, TableKind::ElfMemoryInit, MemoryInit);
+table_impl!(CallTapeInitTable, TableKind::CallTapeInit, MemoryInit);
+table_impl!(PrivateTapeInitTable, TableKind::PrivateTapeInit, MemoryInit);
+table_impl!(PublicTapeInitTable, TableKind::PublicTapeInit, MemoryInit);
+table_impl!(EventTapeInitTable, TableKind::EventTapeInit, MemoryInit);
 table_impl!(MozakMemoryInitTable, TableKind::MozakMemoryInit, MemoryInit);
 table_impl!(
     MemoryZeroInitTable,
@@ -634,6 +652,10 @@ impl Lookups for MemoryInitMemoryTable {
             vec![
                 memoryinit::columns::lookup_for_memory(ElfMemoryInitTable::new),
                 memoryinit::columns::lookup_for_memory(MozakMemoryInitTable::new),
+                memoryinit::columns::lookup_for_memory(CallTapeInitTable::new),
+                memoryinit::columns::lookup_for_memory(PrivateTapeInitTable::new),
+                memoryinit::columns::lookup_for_memory(PublicTapeInitTable::new),
+                memoryinit::columns::lookup_for_memory(EventTapeInitTable::new),
                 memory_zeroinit::columns::lookup_for_memory(),
             ],
             vec![memory::columns::lookup_for_memoryinit()],
