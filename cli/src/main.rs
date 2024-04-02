@@ -1,7 +1,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// Some of our dependencies transitively depend on different versions of the same crates, like syn
-// and bitflags. TODO: remove once our dependencies no longer do that.
+// TODO(bing): `clio` uses an older `windows-sys` vs other dependencies.
+// Remove when `clio` updates, or if `clio` is no longer needed.
 #![allow(clippy::multiple_crate_versions)]
 use std::io::{Read, Write};
 use std::time::Duration;
