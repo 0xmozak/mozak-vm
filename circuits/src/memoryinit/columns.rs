@@ -1,3 +1,5 @@
+use plonky2::hash::hash_types::RichField;
+
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::ColumnWithTypedInput;
 use crate::linear_combination::Column;
@@ -24,6 +26,21 @@ pub struct MemoryInit<T> {
     pub filter: T,
     /// 1 if this row is a read-write, 0 if this row is read-only
     pub is_writable: T,
+}
+
+impl<F: RichField> MemoryInit<F> {
+    /// Create a new `MemoryInit` row that is not writable. Useful
+    /// for memory traces that are initialized once and never written over.
+    pub fn new_nonwritable(addr_value: (&u32, &u8)) -> Self {
+        Self {
+            filter: F::ONE,
+            is_writable: F::ZERO,
+            element: MemElement {
+                address: F::from_canonical_u32(*addr_value.0),
+                value: F::from_canonical_u8(*addr_value.1),
+            },
+        }
+    }
 }
 
 columns_view_impl!(MemoryInitCtl);
