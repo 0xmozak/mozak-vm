@@ -306,7 +306,7 @@ pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
 #[derive(
-    Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, PartialEq, IntoIterator,
+    Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, IntoIterator, PartialEq,
 )]
 pub struct Data(pub HashMap<u32, u8>);
 
