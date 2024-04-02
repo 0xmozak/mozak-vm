@@ -18,7 +18,6 @@ impl MozakPoseidon2 {
     pub const EMPTY_BYTES: usize =
         Self::MAX_BYTES_PER_FIELD_ELEMENT - Self::DATA_CAPACITY_PER_FIELD_ELEMENT;
     pub const FIELD_ELEMENTS_RATE: usize = 8;
-    pub const IS_BIG_ENDIAN_ENCODING: bool = false;
     pub const MAX_BYTES_PER_FIELD_ELEMENT: usize = 8;
 
     /// # Panics
@@ -48,20 +47,16 @@ impl MozakPoseidon2 {
     /// Byte padding
     /// Bit-Padding schema is used to pad input data
     /// Case-A - data length % `DATA_PADDING` != 0
-    /// --> Make first bit of the first padded byte to be 1 - `0b1000_0000`
+    /// --> Make first bit of the first padded byte to be 1 - `0b0000_0001`
     /// Case-B - data length % `DATA_PADDING` == 0
     /// --> Extend padding to next-multiple of `DATA_PADDING` while first bit of
     /// the first padded byte will be 1 (same as for Case-A)
     #[must_use]
     pub fn do_padding(data: &[u8]) -> Vec<u8> {
-        let bit_padding_schema = 0b1000_0000_u8;
+        let bit_padding_schema = 0b0000_0001_u8;
         let mut padded = data.to_vec();
-        padded.extend({
-            let extend_size = Self::DATA_PADDING - padded.len() % Self::DATA_PADDING;
-            let mut padding = vec![0_u8; extend_size];
-            padding[0] = bit_padding_schema;
-            padding
-        });
+        padded.push(bit_padding_schema);
+        padded.resize(padded.len().next_multiple_of(Self::DATA_PADDING), 0_u8);
         padded
     }
 
@@ -73,7 +68,6 @@ impl MozakPoseidon2 {
     // To make it safe for user to change constants
     #[allow(clippy::assertions_on_constants)]
     pub fn pack_padded_input<F: RichField>(data: &[u8]) -> Vec<F> {
-        // assert different from expected RATE values
         assert_eq!(
             Poseidon2Permutation::<F>::RATE,
             Self::FIELD_ELEMENTS_RATE,
@@ -101,53 +95,25 @@ impl MozakPoseidon2 {
     /// eight bytes)
     #[must_use]
     pub fn pack_to_field_element<F: RichField>(data: &[u8]) -> F {
-        // Note: prefix with zeros for BE case and postfix with zeros for LE case
-        let zeros = vec![0_u8; Self::EMPTY_BYTES];
-        let mut data_extended_with_zeros: Vec<u8> = {
-            if Self::IS_BIG_ENDIAN_ENCODING {
-                zeros.clone() // Prefix - BE case
-            } else {
-                data.to_vec() // Data - LE case
-            }
-        };
-        data_extended_with_zeros.extend({
-            if Self::IS_BIG_ENDIAN_ENCODING {
-                data // Data - BE case
-            } else {
-                zeros.as_slice() // Postfix - LE case
-            }
-        });
+        // Note: postfix with zeros for LE case
+        let mut data_extended_with_zeros: Vec<u8> = data.to_vec();
+        data_extended_with_zeros.extend([0_u8; Self::EMPTY_BYTES]);
         assert!(
             data_extended_with_zeros.len() <= 8,
             "data_extended_with_zeros.len {:?} can't be packed to u64::bytes (8)",
             data_extended_with_zeros.len()
         );
 
-        F::from_canonical_u64({
-            if Self::IS_BIG_ENDIAN_ENCODING {
-                u64::from_be_bytes(
-                    data_extended_with_zeros
-                        .as_slice()
-                        .try_into()
-                        .expect("pack bytes to singe u64 should succeed"),
-                )
-            } else {
-                u64::from_le_bytes(
-                    data_extended_with_zeros
-                        .as_slice()
-                        .try_into()
-                        .expect("pack bytes to singe u64 should succeed"),
-                )
-            }
-        })
+        F::from_canonical_u64(u64::from_le_bytes(
+            data_extended_with_zeros
+                .as_slice()
+                .try_into()
+                .expect("pack bytes to singe u64 should succeed"),
+        ))
     }
 
     pub fn unpack_to_bytes<F: RichField>(fe: &F) -> Vec<u8> {
-        if Self::IS_BIG_ENDIAN_ENCODING {
-            fe.to_canonical_u64().to_be_bytes()[Self::EMPTY_BYTES..].to_vec()
-        } else {
-            fe.to_canonical_u64().to_le_bytes()[..Self::DATA_CAPACITY_PER_FIELD_ELEMENT].to_vec()
-        }
+        fe.to_canonical_u64().to_le_bytes()[..Self::DATA_CAPACITY_PER_FIELD_ELEMENT].to_vec()
     }
 
     pub fn unpack_to_field_elements<F: RichField>(fe: &F) -> Vec<F> {

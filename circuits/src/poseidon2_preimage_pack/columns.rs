@@ -86,19 +86,7 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongePrei
     Poseidon2PreimagePackTable::new(
         Poseidon2SpongePreimagePackCtl {
             clk: data.clk,
-            value: ColumnWithTypedInput::reduce_with_powers(
-                {
-                    if MozakPoseidon2::IS_BIG_ENDIAN_ENCODING {
-                        // Note: a big-endian case should be reversed
-                        let mut r = data.bytes;
-                        r.reverse();
-                        r
-                    } else {
-                        data.bytes
-                    }
-                },
-                i64::from(1 << 8),
-            ),
+            value: ColumnWithTypedInput::reduce_with_powers(data.bytes, i64::from(1 << 8)),
             fe_addr: data.fe_addr,
         },
         COL_MAP.is_executed,
