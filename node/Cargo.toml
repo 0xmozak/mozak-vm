@@ -15,8 +15,13 @@ repository = "https://github.com/0xmozak/mozak-node"
 [dependencies]
 itertools = "0.12.1"
 mozak-circuits = { path = '../circuits' }
+mozak-sdk = { path = '../sdk' }
 plonky2 = "0"
 serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 mozak-circuits = { path = '../circuits', features = ["test"] }
+
+[features]
+default = ["std"]
+std = ["plonky2/std"]
