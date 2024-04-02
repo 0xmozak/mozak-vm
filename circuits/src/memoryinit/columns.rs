@@ -31,6 +31,7 @@ pub struct MemoryInit<T> {
 impl<F: RichField> MemoryInit<F> {
     /// Create a new `MemoryInit` row that is not writable. Useful
     /// for memory traces that are initialized once and never written over.
+    #[must_use]
     pub fn new_nonwritable(addr_value: (&u32, &u8)) -> Self {
         Self {
             filter: F::ONE,
