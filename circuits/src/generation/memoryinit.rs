@@ -101,8 +101,7 @@ pub fn public_tape_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     program
         .mozak_ro_memory
         .iter()
-        .cloned()
-        .flat_map(|mozak_ro_memory| mozak_ro_memory.io_tape_public.data)
+        .flat_map(|mozak_ro_memory| mozak_ro_memory.io_tape_public.data.clone())
         .map(MemoryInit::new_readonly)
         .collect_vec()
 }
