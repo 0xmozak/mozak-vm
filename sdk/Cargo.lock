@@ -237,8 +237,8 @@ dependencies = [
  "serde",
  "serde-hex",
  "serde_json",
- "toml",
  "slice-group-by",
+ "toml",
 ]
 
 [[package]]

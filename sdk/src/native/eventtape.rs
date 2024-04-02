@@ -107,6 +107,7 @@ impl OrderedEvents {
             .collect::<Vec<CanonicalOrderedTemporalHints>>()
     }
 
+    #[must_use]
     pub fn canonical_hash(&self) -> Poseidon2Hash {
         let canonical_ordered_events = self.get_canonical_ordering();
         let hashes_with_addr = canonical_ordered_events
