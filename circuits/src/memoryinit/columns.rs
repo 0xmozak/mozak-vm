@@ -32,13 +32,13 @@ impl<F: RichField> MemoryInit<F> {
     /// Create a new `MemoryInit` row that is not writable. Useful
     /// for memory traces that are initialized once and never written over.
     #[must_use]
-    pub fn new_nonwritable(addr_value: (&u32, &u8)) -> Self {
+    pub fn new_readonly((addr, value): (u32, u8)) -> Self {
         Self {
             filter: F::ONE,
             is_writable: F::ZERO,
             element: MemElement {
-                address: F::from_canonical_u32(*addr_value.0),
-                value: F::from_canonical_u8(*addr_value.1),
+                address: F::from_canonical_u32(addr),
+                value: F::from_canonical_u8(value),
             },
         }
     }

@@ -52,11 +52,11 @@ pub fn mozak_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> 
         .iter()
         .flat_map(|mozak_ro_memory| {
             chain! {
-                mozak_ro_memory.self_prog_id.data.iter(),
-                mozak_ro_memory.cast_list.data.iter(),
+                mozak_ro_memory.self_prog_id.data.clone(),
+                mozak_ro_memory.cast_list.data.clone(),
             }
         })
-        .map(MemoryInit::new_nonwritable)
+        .map(MemoryInit::new_readonly)
         .collect_vec()
 }
 
@@ -65,8 +65,8 @@ pub fn call_tape_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     program
         .mozak_ro_memory
         .iter()
-        .flat_map(|mozak_ro_memory| mozak_ro_memory.call_tape.data.iter())
-        .map(MemoryInit::new_nonwritable)
+        .flat_map(|mozak_ro_memory| mozak_ro_memory.call_tape.data.clone())
+        .map(MemoryInit::new_readonly)
         .collect_vec()
 }
 
@@ -83,8 +83,8 @@ pub fn private_tape_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> 
     program
         .mozak_ro_memory
         .iter()
-        .flat_map(|mozak_ro_memory| mozak_ro_memory.io_tape_private.data.iter())
-        .map(MemoryInit::new_nonwritable)
+        .flat_map(|mozak_ro_memory| mozak_ro_memory.io_tape_private.data.clone())
+        .map(MemoryInit::new_readonly)
         .collect_vec()
 }
 
@@ -101,8 +101,8 @@ pub fn public_tape_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     program
         .mozak_ro_memory
         .iter()
-        .flat_map(|mozak_ro_memory| mozak_ro_memory.io_tape_public.data.iter())
-        .map(MemoryInit::new_nonwritable)
+        .flat_map(|mozak_ro_memory| mozak_ro_memory.io_tape_public.data.clone())
+        .map(MemoryInit::new_readonly)
         .collect_vec()
 }
 
@@ -119,8 +119,8 @@ pub fn event_tape_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     program
         .mozak_ro_memory
         .iter()
-        .flat_map(|mozak_ro_memory| mozak_ro_memory.event_tape.data.iter())
-        .map(MemoryInit::new_nonwritable)
+        .flat_map(|mozak_ro_memory| mozak_ro_memory.event_tape.data.clone())
+        .map(MemoryInit::new_readonly)
         .collect_vec()
 }
 
