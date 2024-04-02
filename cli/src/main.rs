@@ -12,10 +12,9 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
-use mozak_circuits::generation::io_memory::{
-    generate_io_memory_private_trace, generate_io_transcript_trace,
+use mozak_circuits::generation::memoryinit::{
+    generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_private_tape_init_trace,
 };
-use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
@@ -40,7 +39,9 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
+use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
+use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -226,12 +227,11 @@ fn main() -> Result<()> {
             bundle,
         } => {
             println!("Bundling transaction...");
-            let mut call_tape_hashes = Vec::with_capacity(cast_list.len());
+            let mut call_tape_hash: Option<MerkleCap<F, <C as GenericConfig<D>>::Hasher>> = None;
             let mut constituent_zs = Vec::with_capacity(cast_list.len());
-            for mut plan in bundle_plan {
+            for (i, mut plan) in bundle_plan.into_iter().enumerate() {
                 let mut bundle_plan_bytes = Vec::new();
                 let _ = plan.read_to_end(&mut bundle_plan_bytes)?;
-
                 let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes).unwrap();
 
                 let sys_tapes: SystemTape =
@@ -258,10 +258,6 @@ fn main() -> Result<()> {
                     }),
                     &args,
                 )?;
-                let state =
-                    State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.clone());
-                let record = step(&program, state)?;
-
                 let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
                     let rate_bits = config.fri_config.rate_bits;
                     let cap_height = config.fri_config.cap_height;
@@ -280,10 +276,12 @@ fn main() -> Result<()> {
                 // rely on the old ecall API. We need new init tables for this, and
                 // the hashes should be generated based on the new init tables.
                 // See: https://github.com/0xmozak/mozak-vm/pull/1335#issuecomment-2029402128
-                let trace = generate_io_memory_private_trace(&record.executed);
+                let trace = generate_private_tape_init_trace(&program);
                 let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-                let trace = generate_io_transcript_trace(&record.executed);
-                let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
+                if i == 0 {
+                    let trace = generate_call_tape_init_trace(&program);
+                    call_tape_hash = Some(hash_from_poly_values(trace_rows_to_poly_values(trace)));
+                }
 
                 let transparent_attestation = TransparentAttestation {
                     public_tape: args.io_tape_public,
@@ -293,8 +291,6 @@ fn main() -> Result<()> {
                 let opaque_attestation: OpaqueAttestation<F, C, D> =
                     OpaqueAttestation { private_tape_hash };
 
-                call_tape_hashes.push(call_tape_hash);
-
                 let attestation = Attestation {
                     id: plan.self_prog_id.into(),
                     opaque: opaque_attestation,
@@ -303,13 +299,8 @@ fn main() -> Result<()> {
                 constituent_zs.push(attestation);
             }
 
-            assert!(
-                call_tape_hashes.iter().all_equal(),
-                "Some call tape hashes are not the same"
-            );
-
             let transaction = Transaction {
-                call_tape_hash: call_tape_hashes[0].clone(),
+                call_tape_hash: call_tape_hash.unwrap(),
                 cast_list: cast_list
                     .clone()
                     .into_iter()
@@ -319,7 +310,7 @@ fn main() -> Result<()> {
                 constituent_zs,
             };
 
-            serde_json::to_writer(bundle, &transaction)?;
+            serde_json::to_writer_pretty(bundle, &transaction)?;
             println!("Transaction bundled: {transaction:?}");
         }
 
