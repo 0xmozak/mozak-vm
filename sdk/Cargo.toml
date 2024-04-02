@@ -13,6 +13,8 @@ version = "0.2.0"
 itertools = { version = "0.12.1", default-features = false }
 once_cell = { version = "1.19.0", default-features = false, features = ["race"] }
 rkyv = { version = "0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
+# TODO(Kapil): Use simpler way to merkleize so that we can `group_by`, and hence the crate
+# as dependency.
 slice-group-by = { version = "0.3.1", default-features = false, features = ["nightly"] }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies]
