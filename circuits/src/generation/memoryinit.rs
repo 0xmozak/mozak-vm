@@ -25,6 +25,9 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
     trace
 }
 
+/// Generates a generic memory init trace sorted by address. Useful for memory
+/// represented as
+/// [`MozakMemoryRegion`](mozak_runner::elf::MozakMemoryRegion) traces.
 pub fn generate_init_trace<F: RichField, Fn>(program: &Program, f: Fn) -> Vec<MemoryInit<F>>
 where
     Fn: FnOnce(&Program) -> Vec<MemoryInit<F>>, {
