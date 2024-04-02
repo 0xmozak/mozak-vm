@@ -4,7 +4,7 @@ use std::iter::repeat;
 use std::ops::Range;
 
 use anyhow::{anyhow, ensure, Result};
-use derive_more::{Deref, DerefMut};
+use derive_more::{Deref, DerefMut, IntoIterator};
 use elf::endian::LittleEndian;
 use elf::file::Class;
 use elf::segment::{ProgramHeader, SegmentTable};
@@ -305,7 +305,9 @@ pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 /// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, PartialEq)]
+#[derive(
+    Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, PartialEq, IntoIterator,
+)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
