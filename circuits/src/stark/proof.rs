@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{all_kind, PublicInputs, TableKindArray};
+use crate::public_sub_table::PublicSubTableValues;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
 #[allow(clippy::module_name_repetitions)]
@@ -31,6 +32,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(bound = "")]
+// TODO: we return a StarkProof, so we need to check that.
 pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     /// Merkle cap of LDEs of trace values.
     pub trace_cap: MerkleCap<F, C::Hasher>,
@@ -324,6 +326,7 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
     pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub mozak_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
+    pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
@@ -346,6 +349,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
+                let mut challenger = challenger.clone();
                 challenger.compact();
                 self.proofs[kind].get_challenges(&mut challenger, config)
             }),

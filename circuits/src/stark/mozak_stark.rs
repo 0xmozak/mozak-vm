@@ -6,6 +6,8 @@ use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use plonky2_maybe_rayon::rayon::prelude::ParallelIterator;
+use plonky2_maybe_rayon::MaybeIntoParIter;
 use serde::{Deserialize, Serialize};
 
 use crate::bitshift::columns::{Bitshift, BitshiftView};
@@ -57,6 +59,7 @@ use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::program_multiplicities::stark::ProgramMultStark;
+use crate::public_sub_table::PublicSubTable;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
@@ -102,6 +105,14 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     #[StarkSet(stark_kind = "ElfMemoryInit")]
     pub elf_memory_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "CallTapeInit")]
+    pub call_tape_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "PrivateTapeInit")]
+    pub private_tape_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "PublicTapeInit")]
+    pub public_tape_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "EventTapeInit")]
+    pub event_tape_init_stark: MemoryInitStark<F, D>,
     #[StarkSet(stark_kind = "MozakMemoryInit")]
     pub mozak_memory_init_stark: MemoryInitStark<F, D>,
     // TODO(Bing): find a way to natively constrain zero initializations within
@@ -148,7 +159,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "BltTaken")]
     pub blt_taken_stark: BltTakenStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-
+    pub public_sub_tables: [PublicSubTable; 0],
     pub debug: bool,
 }
 
@@ -309,6 +320,23 @@ macro_rules! mozak_stark_helpers {
         }
         pub(crate) use all_starks;
 
+        macro_rules! all_starks_par {
+            ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
+                use core::borrow::Borrow;
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
+                let all_stark = $all_stark.borrow();
+                TableKindArray([$(
+                    {
+                        let $stark = &all_stark.$fields;
+                        let $kind = $kind_names;
+                        let f: Box<dyn Fn() -> _ + Send + Sync> = Box::new(move || $val);
+                        f
+                    },)*
+                ]).par_map(|f| f())
+            }};
+        }
+        pub(crate) use all_starks_par;
+
     };
 }
 
@@ -338,6 +366,22 @@ impl<'a, T> IntoIterator for &'a TableKindArray<T> {
     type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+}
+
+impl<T: Send> TableKindArray<T> {
+    pub fn par_map<F, U>(self, f: F) -> TableKindArray<U>
+    where
+        F: Fn(T) -> U + Send + Sync,
+        U: Send + core::fmt::Debug, {
+        TableKindArray(
+            self.0
+                .into_par_iter()
+                .map(f)
+                .collect::<Vec<U>>()
+                .try_into()
+                .unwrap(),
+        )
+    }
 }
 
 impl<T> TableKindArray<T> {
@@ -378,6 +422,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             program_mult_stark: ProgramMultStark::default(),
             memory_stark: MemoryStark::default(),
             elf_memory_init_stark: MemoryInitStark::default(),
+            call_tape_init_stark: MemoryInitStark::default(),
+            private_tape_init_stark: MemoryInitStark::default(),
+            public_tape_init_stark: MemoryInitStark::default(),
+            event_tape_init_stark: MemoryInitStark::default(),
             mozak_memory_init_stark: MemoryInitStark::default(),
             memory_zeroinit_stark: MemoryZeroInitStark::default(),
             rangecheck_u8_stark: RangeCheckU8Stark::default(),
@@ -420,6 +468,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
                 CpuToSkeletonTable::lookups(),
             ],
+            public_sub_tables: [],
             debug: false,
         }
     }
@@ -530,6 +579,10 @@ table_impl!(ProgramTable, TableKind::Program, ProgramRom);
 table_impl!(ProgramMultTable, TableKind::ProgramMult, ProgramMult);
 table_impl!(MemoryTable, TableKind::Memory, Memory);
 table_impl!(ElfMemoryInitTable, TableKind::ElfMemoryInit, MemoryInit);
+table_impl!(CallTapeInitTable, TableKind::CallTapeInit, MemoryInit);
+table_impl!(PrivateTapeInitTable, TableKind::PrivateTapeInit, MemoryInit);
+table_impl!(PublicTapeInitTable, TableKind::PublicTapeInit, MemoryInit);
+table_impl!(EventTapeInitTable, TableKind::EventTapeInit, MemoryInit);
 table_impl!(MozakMemoryInitTable, TableKind::MozakMemoryInit, MemoryInit);
 table_impl!(
     MemoryZeroInitTable,
@@ -686,6 +739,10 @@ impl Lookups for MemoryInitMemoryTable {
             vec![
                 memoryinit::columns::lookup_for_memory(ElfMemoryInitTable::new),
                 memoryinit::columns::lookup_for_memory(MozakMemoryInitTable::new),
+                memoryinit::columns::lookup_for_memory(CallTapeInitTable::new),
+                memoryinit::columns::lookup_for_memory(PrivateTapeInitTable::new),
+                memoryinit::columns::lookup_for_memory(PublicTapeInitTable::new),
+                memoryinit::columns::lookup_for_memory(EventTapeInitTable::new),
                 memory_zeroinit::columns::lookup_for_memory(),
             ],
             vec![memory::columns::lookup_for_memoryinit()],
