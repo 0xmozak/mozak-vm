@@ -178,18 +178,7 @@ where
     );
 
     let mut reduced_public_sub_table_targets = all_kind!(|_kind| Vec::default());
-    let mut public_sub_table_values_targets =
-        verify_cross_table_lookups_and_public_sub_table_circuit(
-            &mut builder,
-            &mozak_stark.cross_table_lookups,
-            &mozak_stark.public_sub_tables,
-            &reduced_public_sub_table_targets,
-            &stark_proof_with_pis_target
-                .clone()
-                .map(|p| p.proof.openings.ctl_zs_last),
-            inner_config,
-            &ctl_challenges,
-        );
+    let mut public_sub_table_values_targets = all_kind!(|_kind| Vec::default());
     for (challenge, public_sub_table) in
         iproduct!(&ctl_challenges.challenges, &mozak_stark.public_sub_tables)
     {
@@ -199,6 +188,17 @@ where
         );
         public_sub_table_values_targets[public_sub_table.table.kind].push(targets);
     }
+    verify_cross_table_lookups_and_public_sub_table_circuit(
+        &mut builder,
+        &mozak_stark.cross_table_lookups,
+        &mozak_stark.public_sub_tables,
+        &reduced_public_sub_table_targets,
+        &stark_proof_with_pis_target
+            .clone()
+            .map(|p| p.proof.openings.ctl_zs_last),
+        inner_config,
+        &ctl_challenges,
+    );
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
         let ctl_vars = CtlCheckVarsTarget::from_proof(
@@ -666,7 +666,6 @@ mod tests {
     type S = MozakStark<F, D>;
 
     #[test]
-    #[ignore]
     fn recursive_verify_mozak_starks() -> Result<()> {
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
