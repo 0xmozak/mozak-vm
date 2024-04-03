@@ -117,8 +117,8 @@ where
     C: GenericConfig<D, F = F>, {
     pub bounded: bounded::BranchSubCircuit<D>,
     pub summarized: summarized::BranchSubCircuit,
-    pub old: unpruned::BranchSubCircuit<{ PartialPermit::Full }>,
-    pub new: unpruned::BranchSubCircuit<{ PartialPermit::Full }>,
+    pub old: unpruned::BranchSubCircuit<{ PartialPermit::FullOnly }>,
+    pub new: unpruned::BranchSubCircuit<{ PartialPermit::FullOnly }>,
     pub address: verify_address::BranchSubCircuit,
     pub circuit: CircuitData<F, C, D>,
 }

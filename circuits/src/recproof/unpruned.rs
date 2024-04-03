@@ -20,7 +20,7 @@ use super::{byte_wise_hash, find_hash, select_hash};
 #[derive(ConstParamTy, PartialEq, Eq)]
 pub enum PartialPermit {
     /// The right target is present
-    Full,
+    FullOnly,
     /// The right target is absent
     Partial,
 }
@@ -32,7 +32,7 @@ pub trait Extended {
     type BranchTargets;
 }
 
-impl Extended for Extension<{ PartialPermit::Full }> {
+impl Extended for Extension<{ PartialPermit::FullOnly }> {
     type BranchTargets = ();
 }
 
@@ -204,7 +204,7 @@ impl SubCircuitInputs {
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
         vm_hashing: bool,
-    ) -> BranchTargets<{ PartialPermit::Full }> {
+    ) -> BranchTargets<{ PartialPermit::FullOnly }> {
         self.helper(
             builder,
             indices,
@@ -274,7 +274,7 @@ where
     }
 }
 
-impl BranchSubCircuit<{ PartialPermit::Full }> {
+impl BranchSubCircuit<{ PartialPermit::FullOnly }> {
     /// Get ready to generate a proof
     pub fn set_witness<F: RichField>(
         &self,
@@ -408,7 +408,7 @@ mod test {
         }
     }
 
-    impl DummyBranchCircuit<{ PartialPermit::Full }> {
+    impl DummyBranchCircuit<{ PartialPermit::FullOnly }> {
         #[must_use]
         pub fn from_leaf(
             circuit_config: &CircuitConfig,
@@ -495,14 +495,20 @@ mod test {
 
     lazy_static! {
         static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
-        static ref BRANCH_1: DummyBranchCircuit<{ PartialPermit::Full }> =
-            DummyBranchCircuit::<{ PartialPermit::Full }>::from_leaf(&CONFIG, &LEAF, false);
-        static ref BRANCH_2: DummyBranchCircuit<{ PartialPermit::Full }> =
-            DummyBranchCircuit::<{ PartialPermit::Full }>::from_branch(&CONFIG, &BRANCH_1, false);
-        static ref VM_BRANCH_1: DummyBranchCircuit<{ PartialPermit::Full }> =
-            DummyBranchCircuit::<{ PartialPermit::Full }>::from_leaf(&CONFIG, &LEAF, true);
-        static ref VM_BRANCH_2: DummyBranchCircuit<{ PartialPermit::Full }> =
-            DummyBranchCircuit::<{ PartialPermit::Full }>::from_branch(&CONFIG, &VM_BRANCH_1, true);
+        static ref BRANCH_1: DummyBranchCircuit<{ PartialPermit::FullOnly }> =
+            DummyBranchCircuit::<{ PartialPermit::FullOnly }>::from_leaf(&CONFIG, &LEAF, false);
+        static ref BRANCH_2: DummyBranchCircuit<{ PartialPermit::FullOnly }> =
+            DummyBranchCircuit::<{ PartialPermit::FullOnly }>::from_branch(
+                &CONFIG, &BRANCH_1, false
+            );
+        static ref VM_BRANCH_1: DummyBranchCircuit<{ PartialPermit::FullOnly }> =
+            DummyBranchCircuit::<{ PartialPermit::FullOnly }>::from_leaf(&CONFIG, &LEAF, true);
+        static ref VM_BRANCH_2: DummyBranchCircuit<{ PartialPermit::FullOnly }> =
+            DummyBranchCircuit::<{ PartialPermit::FullOnly }>::from_branch(
+                &CONFIG,
+                &VM_BRANCH_1,
+                true
+            );
         static ref PAR_BRANCH_1: DummyBranchCircuit<{ PartialPermit::Partial }> =
             DummyBranchCircuit::<{ PartialPermit::Partial }>::from_leaf(&CONFIG, &LEAF, false);
         static ref PAR_BRANCH_2: DummyBranchCircuit<{ PartialPermit::Partial }> =
