@@ -379,8 +379,8 @@ mod test {
         pub fn prove(
             &self,
             left_is_leaf: bool,
-            right_is_leaf: bool,
             left_proof: &ProofWithPublicInputs<F, C, D>,
+            right_is_leaf: bool,
             right_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
@@ -415,13 +415,13 @@ mod test {
         let leaf_proof = LEAF.prove(&BRANCH)?;
         LEAF.circuit.verify(leaf_proof.clone())?;
 
-        let branch_proof_1 = BRANCH.prove(true, true, &leaf_proof, &leaf_proof)?;
+        let branch_proof_1 = BRANCH.prove(true, &leaf_proof, true, &leaf_proof)?;
         BRANCH.circuit.verify(branch_proof_1.clone())?;
 
-        let branch_proof_2 = BRANCH.prove(true, false, &leaf_proof, &branch_proof_1)?;
+        let branch_proof_2 = BRANCH.prove(true, &leaf_proof, false, &branch_proof_1)?;
         BRANCH.circuit.verify(branch_proof_2.clone())?;
 
-        let branch_proof_3 = BRANCH.prove(false, false, &branch_proof_1, &branch_proof_2)?;
+        let branch_proof_3 = BRANCH.prove(false, &branch_proof_1, false, &branch_proof_2)?;
         BRANCH.circuit.verify(branch_proof_3)?;
 
         Ok(())

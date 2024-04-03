@@ -1,3 +1,5 @@
+//! Subcircuits for proving events can be accumulated to a partial object.
+
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -13,9 +15,15 @@ pub struct LeafCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    /// The recursion subcircuit
     pub unbounded: unbounded::LeafSubCircuit,
+
+    /// The rp-style merkle hash of all event fields
     pub event_hash: unpruned::LeafSubCircuit,
+
+    /// The event-to-state/partial-object translator
     pub partial_state: state_from_event::LeafSubCircuit,
+
     pub circuit: CircuitData<F, C, D>,
 }
 
@@ -85,9 +93,15 @@ pub struct BranchCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    /// The recursion subcircuit
     pub unbounded: unbounded::BranchSubCircuit<D>,
+
+    /// The rp-style merkle hash of all event fields
     pub event_hash: unpruned::BranchSubCircuit,
+
+    /// The event-to-state/partial-object translator
     pub partial_state: state_from_event::BranchSubCircuit,
+
     pub circuit: CircuitData<F, C, D>,
 }
 

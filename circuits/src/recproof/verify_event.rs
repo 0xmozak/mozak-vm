@@ -1,4 +1,4 @@
-//! Subcircuits for proving events can be summarized as a partial object.
+//! Subcircuits for proving events can be summarized to a commitment.
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
@@ -30,7 +30,7 @@ where
     /// The recursion subcircuit
     pub unbounded: unbounded::LeafSubCircuit,
 
-    /// The rc-style merkle hash of all event fields
+    /// The rp-style merkle hash of all event fields
     pub hash: unpruned::LeafSubCircuit,
 
     /// The vm-style merkle hash of all event fields
@@ -140,6 +140,7 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     pub unbounded: unbounded::BranchSubCircuit<D>,
+
     /// The merkle hash of all events
     pub hash: unpruned::BranchSubCircuit,
 
@@ -216,8 +217,8 @@ where
         vm_hash: Option<HashOut<F>>,
         event_owner: Option<[F; 4]>,
         left_is_leaf: bool,
-        right_is_leaf: bool,
         left_proof: &ProofWithPublicInputs<F, C, D>,
+        right_is_leaf: bool,
         right_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
@@ -357,42 +358,23 @@ mod test {
         let write_2_byte_hash = write_2.byte_wise_hash();
 
         // Read zero
-        let read_proof = LEAF.prove(
-            Event {
-                address: 42,
-                ty: EventType::Read,
-                owner: program_hash_1,
-                value: zero_val,
-            },
-            Some(read_0_hash),
-            Some(read_0_byte_hash),
-            &BRANCH,
-        )?;
+        let read_proof = LEAF.prove(read_0, Some(read_0_hash), Some(read_0_byte_hash), &BRANCH)?;
         LEAF.circuit.verify(read_proof.clone())?;
 
         // Write pi
         let write_proof_1 = LEAF.prove(
-            Event {
-                address: 42,
-                ty: EventType::Write,
-                owner: program_hash_1,
-                value: non_zero_val_1,
-            },
+            write_1,
             Some(write_1_hash),
             Some(write_1_byte_hash),
             &BRANCH,
         )?;
         LEAF.circuit.verify(write_proof_1.clone())?;
 
-        // Write phi (this is legal for this stage, but illegal generally as a double
-        // write)
+        // Write phi
+        // This illegal at the protocol level as a double write, but legal for this
+        // stage
         let write_proof_2 = LEAF.prove(
-            Event {
-                address: 42,
-                ty: EventType::Write,
-                owner: program_hash_1,
-                value: non_zero_val_2,
-            },
+            write_2,
             Some(write_2_hash),
             Some(write_2_byte_hash),
             &BRANCH,
@@ -410,8 +392,8 @@ mod test {
             Some(branch_1_bytes_hash),
             Some(program_hash_1),
             true,
-            true,
             &write_proof_1,
+            true,
             &write_proof_2,
         )?;
         BRANCH.circuit.verify(branch_proof_1.clone())?;
@@ -422,8 +404,8 @@ mod test {
             Some(branch_2_bytes_hash),
             Some(program_hash_1),
             true,
-            false,
             &read_proof,
+            false,
             &branch_proof_1,
         )?;
         BRANCH.circuit.verify(branch_proof_2)?;
@@ -533,8 +515,8 @@ mod test {
                 Some(branch_1_bytes_hash),
                 Some(program_hash_1),
                 true,
-                true,
                 &read_proof_1,
+                true,
                 &read_proof_2,
             )
             .unwrap();
