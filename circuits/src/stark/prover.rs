@@ -145,7 +145,7 @@ where
             &trace_commitments,
             &ctl_data_per_table,
             &public_sub_table_data_per_table,
-            &mut challenger,
+            &challenger,
             timing
         )?
     );
@@ -181,7 +181,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
     public_sub_table_data: &CtlData<F>,
-    challenger: &mut Challenger<F, C::Hasher>,
+    mut challenger: Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
 where
@@ -315,7 +315,7 @@ where
                 })
             ),
             &initial_merkle_trees,
-            challenger,
+            &mut challenger,
             &fri_params,
             timing,
         )
@@ -344,7 +344,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
-    challenger: &mut Challenger<F, C::Hasher>,
+    challenger: &Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
@@ -366,7 +366,7 @@ where
             public_inputs[kind],
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
-            challenger,
+            challenger.clone(),
             timing,
         )?
     }))
