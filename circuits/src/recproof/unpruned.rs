@@ -337,7 +337,7 @@ mod test {
         #[must_use]
         pub fn new(
             circuit_config: &CircuitConfig,
-            indicies: &PublicIndices,
+            indices: &PublicIndices,
             child: &CircuitData<F, C, D>,
             vm_hash: bool,
             build_unpruned: impl FnOnce(
@@ -358,7 +358,7 @@ mod test {
             let unpruned_targets = build_unpruned(
                 unpruned_inputs,
                 &mut builder,
-                indicies,
+                indices,
                 &bounded_targets.left_proof,
                 &bounded_targets.right_proof,
                 vm_hash,
@@ -368,7 +368,7 @@ mod test {
 
             let public_inputs = &circuit.prover_only.public_inputs;
             let bounded = bounded_targets.build(public_inputs);
-            let unpruned = unpruned_targets.build(indicies, public_inputs);
+            let unpruned = unpruned_targets.build(indices, public_inputs);
 
             Self {
                 bounded,
