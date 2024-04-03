@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{all_kind, PublicInputs, TableKindArray};
+use crate::public_sub_table::PublicSubTableValues;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
 #[allow(clippy::module_name_repetitions)]
@@ -322,6 +323,7 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
     pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub mozak_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
+    pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {

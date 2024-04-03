@@ -50,6 +50,7 @@ use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::program_multiplicities::stark::ProgramMultStark;
+use crate::public_sub_table::PublicSubTable;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
@@ -139,7 +140,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     )]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-
+    pub public_sub_tables: [PublicSubTable; 0],
     pub debug: bool,
 }
 
@@ -410,6 +411,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
             ],
+            public_sub_tables: [],
             debug: false,
         }
     }
