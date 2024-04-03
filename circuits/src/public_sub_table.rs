@@ -185,7 +185,7 @@ pub fn reduce_public_sub_table_targets<F: RichField + Extendable<D>, const D: us
     builder.add_many(all_targets)
 }
 
-pub fn public_sub_table_data_and_values_target<F: RichField + Extendable<D>, const D: usize>(
+pub fn public_sub_table_values_and_reduced_targets<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     public_sub_tables: &[PublicSubTable],
     ctl_challenges: &GrandProductChallengeSet<Target>,

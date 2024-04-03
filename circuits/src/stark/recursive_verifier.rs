@@ -30,7 +30,7 @@ use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
 };
 use crate::public_sub_table::{
-    public_sub_table_data_and_values_target, PublicSubTable, PublicSubTableValuesTarget,
+    public_sub_table_values_and_reduced_targets, PublicSubTable, PublicSubTableValuesTarget,
 };
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
@@ -179,7 +179,7 @@ where
     );
 
     let (public_sub_table_values_targets, reduced_public_sub_table_targets) =
-        public_sub_table_data_and_values_target(
+        public_sub_table_values_and_reduced_targets(
             &mut builder,
             &mozak_stark.public_sub_tables,
             &ctl_challenges,
