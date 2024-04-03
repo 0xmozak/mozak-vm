@@ -159,11 +159,7 @@ where
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
         let partial = right_proof.is_none();
-        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
-            right_proof
-        } else {
-            (left_is_leaf, left_proof)
-        };
+        let (right_is_leaf, right_proof) = right_proof.unwrap_or((left_is_leaf, left_proof));
         self.unbounded.set_witness(
             &mut inputs,
             left_is_leaf,
