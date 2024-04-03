@@ -50,7 +50,7 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///   `ElfMemoryInit trace cap`: 64
 ///   `MozakMemoryInit trace cap`: 64
 ///   `bitshift public sub table`: 2 rows * 32 columns = 64
-pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64;
+pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64 + 64;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
