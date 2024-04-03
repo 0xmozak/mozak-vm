@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
-use itertools::zip_eq;
+use itertools::{iproduct, zip_eq};
 use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -29,7 +29,9 @@ use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
 };
-use crate::public_sub_table::{PublicSubTable, PublicSubTableValuesTarget};
+use crate::public_sub_table::{
+    reduce_public_sub_table_targets, PublicSubTable, PublicSubTableValuesTarget,
+};
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
 use crate::stark::poly::eval_vanishing_poly_circuit;
@@ -40,8 +42,14 @@ use crate::stark::proof::{
 
 /// Plonky2's recursion threshold is 2^12 gates.
 pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
-/// 32*2 is number of extra values made public through bitshift subtable
-pub const VM_PUBLIC_INPUT_SIZE: usize = 193 + 32 * 2;
+/// Public inputs (number of Goldilocks elements) using
+/// `standard_recursion_config`:
+///   `entry_point`: 1
+///   `Program trace cap`: 16 (hash count with `cap_height` = 4) * 4 (size of a
+///                          hash) = 64
+///   `ElfMemoryInit trace cap`: 64
+///   `MozakMemoryInit trace cap`: 64
+pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
@@ -122,6 +130,7 @@ where
 }
 
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn recursive_mozak_stark_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -168,16 +177,28 @@ where
         inner_config.num_challenges,
     );
 
-    let public_sub_table_values_targets = verify_cross_table_lookups_and_public_sub_table_circuit(
-        &mut builder,
-        &mozak_stark.cross_table_lookups,
-        &mozak_stark.public_sub_tables,
-        &stark_proof_with_pis_target
-            .clone()
-            .map(|p| p.proof.openings.ctl_zs_last),
-        inner_config,
-        &ctl_challenges,
-    );
+    let mut reduced_public_sub_table_targets = all_kind!(|_kind| Vec::default());
+    let mut public_sub_table_values_targets =
+        verify_cross_table_lookups_and_public_sub_table_circuit(
+            &mut builder,
+            &mozak_stark.cross_table_lookups,
+            &mozak_stark.public_sub_tables,
+            &reduced_public_sub_table_targets,
+            &stark_proof_with_pis_target
+                .clone()
+                .map(|p| p.proof.openings.ctl_zs_last),
+            inner_config,
+            &ctl_challenges,
+        );
+    for (challenge, public_sub_table) in
+        iproduct!(&ctl_challenges.challenges, &mozak_stark.public_sub_tables)
+    {
+        let targets = public_sub_table.to_targets(&mut builder);
+        reduced_public_sub_table_targets[public_sub_table.table.kind].push(
+            reduce_public_sub_table_targets(&mut builder, challenge, &targets),
+        );
+        public_sub_table_values_targets[public_sub_table.table.kind].push(targets);
+    }
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
         let ctl_vars = CtlCheckVarsTarget::from_proof(

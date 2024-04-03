@@ -134,7 +134,6 @@ where
             &ctl_challenges,
         );
 
-    // println!("{:?}", open_public_data_per_table);
     let proofs = timed!(
         timing,
         "compute all proofs given commitments",

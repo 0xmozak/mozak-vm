@@ -97,11 +97,11 @@ where
                 &get_trace_values_packed(i_next_start),
                 public_inputs,
             );
-            let open_public_data_chain = public_sub_table_data.zs_columns.as_slice();
+            let public_sub_table_data_chain = public_sub_table_data.zs_columns.as_slice();
             let ctl_vars = ctl_data
                 .zs_columns
                 .iter()
-                .chain(open_public_data_chain.iter())
+                .chain(public_sub_table_data_chain.iter())
                 .enumerate()
                 .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1> {
                     local_z: ctl_zs_commitment.get_lde_values_packed(i_start, step)[i],

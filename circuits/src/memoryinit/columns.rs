@@ -1,3 +1,5 @@
+use plonky2::hash::hash_types::RichField;
+
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::ColumnWithTypedInput;
 use crate::linear_combination::Column;
@@ -26,6 +28,22 @@ pub struct MemoryInit<T> {
     pub is_writable: T,
 }
 
+impl<F: RichField> MemoryInit<F> {
+    /// Create a new `MemoryInit` row that is not writable. Useful
+    /// for memory traces that are initialized once and never written over.
+    #[must_use]
+    pub fn new_readonly((addr, value): (u32, u8)) -> Self {
+        Self {
+            filter: F::ONE,
+            is_writable: F::ZERO,
+            element: MemElement {
+                address: F::from_canonical_u32(addr),
+                value: F::from_canonical_u8(value),
+            },
+        }
+    }
+}
+
 columns_view_impl!(MemoryInitCtl);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -44,13 +62,12 @@ where
         MemoryInitCtl<ColumnWithTypedInput<MemoryInit<i64>>>,
         ColumnWithTypedInput<MemoryInit<i64>>,
     ) -> TableWithTypedOutput<MemoryInitCtl<Column>>, {
-    let mem = COL_MAP;
     new(
         MemoryInitCtl {
-            is_writable: mem.is_writable,
-            address: mem.element.address,
+            is_writable: COL_MAP.is_writable,
+            address: COL_MAP.element.address,
             clk: ColumnWithTypedInput::constant(1),
-            value: mem.element.value,
+            value: COL_MAP.element.value,
         },
         COL_MAP.filter,
     )

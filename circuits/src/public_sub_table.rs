@@ -1,10 +1,16 @@
-//! To make certain rows of columns (specified by a filter column), public, we
-//! use an idea similar to what we do in CTL. We create a z polynomial for
-//! every such instance which is running sum of `filter_i/combine(columns_i)`
-//! where `filter_i` = 1 if we want to make the ith row `columns_i` public.
-//! Now we let verifer compute the same sum, from public values to final
-//! proof. Then he compares it against ! the former sum (as opening of z
-//! polynomial at last row)
+//! To make a Subtable of given stark table public, we follow similar idea
+//! used in CTL. The basic idea is to "compress" the subtable into a single
+//! value which the verifier can construct on its own, and compare against.
+//! Grand product argument, combined with randomness is a good option in
+//! such situation. We use its equivalent, Logarithmic derivative approach
+//! instead, especially because it lets us combine it with CTL proof system
+//! which we have already. Essentially, given a subtable, we `combine` its rows
+//! and maintain its running sum of inverses as values of z polynomial. The
+//! opening of this z polynomial would be the "compressed" value, and can
+//! be reproduced on verifer's end. We can also reuse the challenges used for
+//! CTL to `combine`, since the procedure is preceded by commitment to trace
+//! polynomials already
+#![allow(clippy::module_name_repetitions)]
 use itertools::{iproduct, Itertools};
 use plonky2::field::extension::Extendable;
 use plonky2::field::polynomial::PolynomialValues;
@@ -12,22 +18,24 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::plonk_common::reduce_with_powers_circuit;
 
 use crate::cross_table_lookup::{partial_sums, CtlData, CtlZData};
 use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 
-/// Specifies a table whose rows are to be made public, according to filter
-/// column
-#[allow(clippy::module_name_repetitions)]
+/// Specifies a Subtable with `table.columns` and `table.filter_column`
+/// which the prover wants to make public. We include `num_rows` since
+/// it cannot be computed from `table` alone.
 #[derive(Clone, Debug)]
 pub struct PublicSubTable {
     pub table: Table,
     pub num_rows: usize,
 }
-#[allow(clippy::module_name_repetitions)]
+/// Actual values, as field elements, of the entries
+/// of `PublicSubTable`
 pub type PublicSubTableValues<F> = Vec<Vec<F>>;
-#[allow(clippy::module_name_repetitions)]
+/// Plonky2 target version of `PublicSubTableValuesTarget`
 pub type PublicSubTableValuesTarget = Vec<Vec<Target>>;
 impl PublicSubTable {
     #[must_use]
@@ -39,6 +47,7 @@ impl PublicSubTable {
             * num_challenges
     }
 
+    /// Get `PublicSubTableValues` corresponding to `self`
     #[must_use]
     pub fn get_values<F: Field>(
         &self,
@@ -70,6 +79,8 @@ impl PublicSubTable {
             .collect_vec()
     }
 
+    /// Create the z polynomial, and fill up the data required to prove
+    /// in `CtlZdata`
     pub(crate) fn get_ctlz_data<F: Field>(
         &self,
         trace: &TableKindArray<Vec<PolynomialValues<F>>>,
@@ -89,6 +100,7 @@ impl PublicSubTable {
         }
     }
 
+    /// Returns virtual targets corresponding to `PublicSubTableValues`
     pub fn to_targets<F: RichField + Extendable<D>, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
@@ -114,23 +126,25 @@ pub fn public_sub_table_data_and_values<F: RichField, const D: usize>(
     TableKindArray<CtlData<F>>,
     TableKindArray<Vec<PublicSubTableValues<F>>>,
 ) {
-    let mut open_public_data_per_table = all_kind!(|_kind| CtlData::default());
-    let mut public_sub_values_data_per_table = all_kind!(|_kind| Vec::default());
+    let mut public_sub_table_data_per_table = all_kind!(|_kind| CtlData::default());
+    let mut public_sub_table_values_per_table = all_kind!(|_kind| Vec::default());
     for (&challenge, public_sub_table) in iproduct!(&ctl_challenges.challenges, public_sub_tables) {
-        open_public_data_per_table[public_sub_table.table.kind]
+        public_sub_table_data_per_table[public_sub_table.table.kind]
             .zs_columns
             .push(public_sub_table.get_ctlz_data(trace_poly_values, challenge));
     }
     for public_sub_table in public_sub_tables {
-        public_sub_values_data_per_table[public_sub_table.table.kind]
+        public_sub_table_values_per_table[public_sub_table.table.kind]
             .push(public_sub_table.get_values(trace_poly_values));
     }
-    (open_public_data_per_table, public_sub_values_data_per_table)
+    (
+        public_sub_table_data_per_table,
+        public_sub_table_values_per_table,
+    )
 }
 
-/// For each table, Creates the sum of inverses of public data which needs to be
-/// matched against final row opening of z polynomial, for the corresponding
-/// instance of `MakeRowsPublic` for that table.
+/// For each `PublicSubTableValues`, returns the compressed value
+/// created according to each `challenge`
 #[must_use]
 pub fn reduce_public_sub_tables_values<F: Field>(
     public_sub_table_values: &TableKindArray<Vec<PublicSubTableValues<F>>>,
@@ -154,4 +168,20 @@ pub fn reduce_public_sub_tables_values<F: Field>(
             })
             .collect_vec()
     })
+}
+
+pub fn reduce_public_sub_table_targets<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    challenge: &GrandProductChallenge<Target>,
+    targets: &PublicSubTableValuesTarget,
+) -> Target {
+    let all_targets = targets
+        .iter()
+        .map(|row| {
+            let mut combined = reduce_with_powers_circuit(builder, row, challenge.beta);
+            combined = builder.add(combined, challenge.gamma);
+            builder.inverse(combined)
+        })
+        .collect_vec();
+    builder.add_many(all_targets)
 }

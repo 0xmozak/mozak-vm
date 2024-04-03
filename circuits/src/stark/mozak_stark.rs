@@ -1,5 +1,6 @@
 use std::ops::{Index, IndexMut};
 
+use cpu::columns::CpuState;
 use itertools::{chain, izip};
 use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
@@ -10,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use crate::bitshift::columns::{Bitshift, BitshiftView};
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
-use crate::cpu::columns::CpuColumnsExtended;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{
     Column, ColumnWithTypedInput, CrossTableLookup, CrossTableLookupWithTypedOutput,
@@ -27,50 +27,48 @@ use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::memoryinit::stark::MemoryInitStark;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2State;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2StateCtl;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
+use crate::program_multiplicities::columns::ProgramMult;
+use crate::program_multiplicities::stark::ProgramMultStark;
 use crate::public_sub_table::PublicSubTable;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
-#[cfg(feature = "enable_register_starks")]
-use crate::register;
-#[cfg(feature = "enable_register_starks")]
-use crate::register::columns::Register;
+use crate::register::columns::{Register, RegisterCtl};
 use crate::register::stark::RegisterStark;
-#[cfg(feature = "enable_register_starks")]
+use crate::register_zero::columns::RegisterZero;
+use crate::register_zero::stark::RegisterZeroStark;
 use crate::registerinit::columns::RegisterInit;
-#[cfg(feature = "enable_register_starks")]
-use crate::registerinit::columns::RegisterInitCtl;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, program, rangecheck, xor,
+    memoryinit, program, program_multiplicities, rangecheck, register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = {
-    11 + cfg!(feature = "enable_register_starks") as usize
-        + cfg!(feature = "enable_poseidon_starks") as usize * 3
-};
+const NUM_CROSS_TABLE_LOOKUP: usize = 12 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -90,10 +88,20 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     #[StarkSet(stark_kind = "Program")]
     pub program_stark: ProgramStark<F, D>,
+    #[StarkSet(stark_kind = "ProgramMult")]
+    pub program_mult_stark: ProgramMultStark<F, D>,
     #[StarkSet(stark_kind = "Memory")]
     pub memory_stark: MemoryStark<F, D>,
     #[StarkSet(stark_kind = "ElfMemoryInit")]
     pub elf_memory_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "CallTapeInit")]
+    pub call_tape_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "PrivateTapeInit")]
+    pub private_tape_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "PublicTapeInit")]
+    pub public_tape_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "EventTapeInit")]
+    pub event_tape_init_stark: MemoryInitStark<F, D>,
     #[StarkSet(stark_kind = "MozakMemoryInit")]
     pub mozak_memory_init_stark: MemoryInitStark<F, D>,
     // TODO(Bing): find a way to natively constrain zero initializations within
@@ -113,13 +121,12 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoTranscript")]
     pub io_transcript_stark: InputOutputMemoryStark<F, D>,
-    #[cfg_attr(
-        feature = "enable_register_starks",
-        StarkSet(stark_kind = "RegisterInit")
-    )]
+    #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
-    #[cfg_attr(feature = "enable_register_starks", StarkSet(stark_kind = "Register"))]
+    #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterZero")]
+    pub register_zero_stark: RegisterZeroStark<F, D>,
     #[cfg_attr(feature = "enable_poseidon_starks", StarkSet(stark_kind = "Poseidon2"))]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     #[cfg_attr(
@@ -360,8 +367,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             xor_stark: XorStark::default(),
             shift_amount_stark: BitshiftStark::default(),
             program_stark: ProgramStark::default(),
+            program_mult_stark: ProgramMultStark::default(),
             memory_stark: MemoryStark::default(),
             elf_memory_init_stark: MemoryInitStark::default(),
+            call_tape_init_stark: MemoryInitStark::default(),
+            private_tape_init_stark: MemoryInitStark::default(),
+            public_tape_init_stark: MemoryInitStark::default(),
+            event_tape_init_stark: MemoryInitStark::default(),
             mozak_memory_init_stark: MemoryInitStark::default(),
             memory_zeroinit_stark: MemoryZeroInitStark::default(),
             rangecheck_u8_stark: RangeCheckU8Stark::default(),
@@ -369,6 +381,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
+            register_zero_stark: RegisterZeroStark::default(),
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
             io_transcript_stark: InputOutputMemoryStark::default(),
@@ -389,8 +402,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 RangeCheckU8LookupTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
-                #[cfg(feature = "enable_register_starks")]
-                RegisterRegInitTable::lookups(),
+                RegisterLookups::lookups(),
                 IoMemoryToCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2SpongeCpuTable::lookups(),
@@ -503,12 +515,17 @@ table_impl!(
     TableKind::RangeCheck,
     RangeCheckColumnsView
 );
-table_impl!(CpuTable, TableKind::Cpu, CpuColumnsExtended);
+table_impl!(CpuTable, TableKind::Cpu, CpuState);
 table_impl!(XorTable, TableKind::Xor, XorColumnsView);
 table_impl!(BitshiftTable, TableKind::Bitshift, BitshiftView);
 table_impl!(ProgramTable, TableKind::Program, ProgramRom);
+table_impl!(ProgramMultTable, TableKind::ProgramMult, ProgramMult);
 table_impl!(MemoryTable, TableKind::Memory, Memory);
 table_impl!(ElfMemoryInitTable, TableKind::ElfMemoryInit, MemoryInit);
+table_impl!(CallTapeInitTable, TableKind::CallTapeInit, MemoryInit);
+table_impl!(PrivateTapeInitTable, TableKind::PrivateTapeInit, MemoryInit);
+table_impl!(PublicTapeInitTable, TableKind::PublicTapeInit, MemoryInit);
+table_impl!(EventTapeInitTable, TableKind::EventTapeInit, MemoryInit);
 table_impl!(MozakMemoryInitTable, TableKind::MozakMemoryInit, MemoryInit);
 table_impl!(
     MemoryZeroInitTable,
@@ -526,10 +543,9 @@ table_impl!(
     TableKind::FullWordMemory,
     FullWordMemory
 );
-#[cfg(feature = "enable_register_starks")]
 table_impl!(RegisterInitTable, TableKind::RegisterInit, RegisterInit);
-#[cfg(feature = "enable_register_starks")]
 table_impl!(RegisterTable, TableKind::Register, Register);
+table_impl!(RegisterZeroTable, TableKind::RegisterZero, RegisterZero);
 table_impl!(
     IoMemoryPrivateTable,
     TableKind::IoMemoryPrivate,
@@ -573,10 +589,7 @@ impl Lookups for RangecheckTable {
     type Row = RangeCheckCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        #[cfg(feature = "enable_register_starks")]
         let register = register::columns::rangecheck_looking();
-        #[cfg(not(feature = "enable_register_starks"))]
-        let register: Vec<TableWithTypedOutput<_>> = vec![];
 
         let looking: Vec<TableWithTypedOutput<_>> = chain![
             memory::columns::rangecheck_looking(),
@@ -639,6 +652,10 @@ impl Lookups for MemoryInitMemoryTable {
             vec![
                 memoryinit::columns::lookup_for_memory(ElfMemoryInitTable::new),
                 memoryinit::columns::lookup_for_memory(MozakMemoryInitTable::new),
+                memoryinit::columns::lookup_for_memory(CallTapeInitTable::new),
+                memoryinit::columns::lookup_for_memory(PrivateTapeInitTable::new),
+                memoryinit::columns::lookup_for_memory(PublicTapeInitTable::new),
+                memoryinit::columns::lookup_for_memory(EventTapeInitTable::new),
                 memory_zeroinit::columns::lookup_for_memory(),
             ],
             vec![memory::columns::lookup_for_memoryinit()],
@@ -665,7 +682,7 @@ impl Lookups for InnerCpuTable {
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_inst()], vec![
-            cpu::columns::lookup_for_permuted_inst(),
+            program_multiplicities::columns::lookup_for_cpu(),
         ])
     }
 }
@@ -676,9 +693,10 @@ impl Lookups for ProgramCpuTable {
     type Row = InstructionRow<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_program_rom()], vec![
-            program::columns::lookup_for_ctl(),
-        ])
+        CrossTableLookupWithTypedOutput::new(
+            vec![program_multiplicities::columns::lookup_for_rom()],
+            vec![program::columns::lookup_for_ctl()],
+        )
     }
 }
 
@@ -722,17 +740,23 @@ impl Lookups for FullWordMemoryCpuTable {
     }
 }
 
-#[cfg(feature = "enable_register_starks")]
-pub struct RegisterRegInitTable;
+pub struct RegisterLookups;
 
-#[cfg(feature = "enable_register_starks")]
-impl Lookups for RegisterRegInitTable {
-    type Row = RegisterInitCtl<Column>;
+impl Lookups for RegisterLookups {
+    type Row = RegisterCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
-            vec![crate::register::columns::lookup_for_register_init()],
-            vec![crate::registerinit::columns::lookup_for_register()],
+            chain![
+                crate::cpu::columns::register_looking(),
+                crate::memory_io::columns::register_looking(),
+                vec![crate::registerinit::columns::lookup_for_register()],
+            ]
+            .collect(),
+            vec![
+                crate::register::columns::register_looked(),
+                crate::register_zero::columns::register_looked(),
+            ],
         )
     }
 }
