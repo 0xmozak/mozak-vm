@@ -95,6 +95,8 @@ enum Command {
     VerifyRecursiveProof { proof: Input, verifier_key: Input },
     /// Builds a transaction bundle.
     BundleTransaction {
+        /// List of bundle plan(s) generated from native execution(s).
+        /// The first plan's call tape is used as the global call tape.
         #[arg(long)]
         bundle_plan: Vec<Input>,
         #[arg(long, required = true)]
