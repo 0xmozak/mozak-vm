@@ -114,7 +114,6 @@ impl PublicSubTable {
             .collect_vec()
     }
 }
-pub type RowPublicValues<F> = Vec<Vec<F>>;
 
 #[must_use]
 #[allow(clippy::module_name_repetitions)]

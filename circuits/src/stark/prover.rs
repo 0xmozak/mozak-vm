@@ -198,10 +198,10 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    let z_poly_open_public = public_sub_table_data.z_polys();
+    let z_poly_public_sub_table = public_sub_table_data.z_polys();
 
     // commit to both z poly of ctl and open public
-    let z_polys = vec![ctl_data.z_polys(), z_poly_open_public]
+    let z_polys = vec![ctl_data.z_polys(), z_poly_public_sub_table]
         .into_iter()
         .flatten()
         .collect_vec();
