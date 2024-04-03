@@ -112,7 +112,7 @@ pub struct BranchSubCircuit<const D: usize> {
 impl<const D: usize> BranchTargets<D> {
     #[must_use]
     pub fn build(self, _public_inputs: &[Target]) -> BranchSubCircuit<D> {
-        // Find the indicies
+        // Find the indices
         let indices = PublicIndices;
 
         BranchSubCircuit {
