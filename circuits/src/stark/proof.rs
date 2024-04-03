@@ -44,9 +44,6 @@ pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, 
     pub opening_proof: FriProof<F, C::Hasher, D>,
 }
 
-// unsafe impl<F: RichField + Extendable<D> + Send, C: GenericConfig<D, F = F> +
-// Send, const D: usize> Send for StarkProof<F, C, D> {}
-
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> StarkProof<F, C, D> {
     /// Recover the length of the trace from a STARK proof and a STARK config.
     pub fn recover_degree_bits(&self, config: &StarkConfig) -> usize {

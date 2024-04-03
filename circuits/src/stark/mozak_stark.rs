@@ -316,19 +316,6 @@ macro_rules! mozak_stark_helpers {
                     },)*
                 ]).par_map(|f| f())
             }};
-            // TODO: fix mutable stuff.
-            // ($all_stark:expr, |mut $stark:ident, $kind:ident| $val:expr) => {{
-            //     use core::borrow::BorrowMut;
-            //     use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
-            //     let all_stark = $all_stark.borrow_mut();
-            //     TableKindArray([$(
-            //         {
-            //             let $stark = &mut all_stark.$fields;
-            //             let $kind = $kind_names;
-            //             $val
-            //         },)*
-            //     ])
-            // }};
         }
         pub(crate) use all_starks_par;
 
@@ -370,8 +357,6 @@ impl<T: Send> TableKindArray<T> {
         U: Send + core::fmt::Debug, {
         TableKindArray(
             self.0
-                // .into_iter()
-                // .collect::<Vec<_>>()
                 .into_par_iter()
                 .map(f)
                 .collect::<Vec<U>>()
