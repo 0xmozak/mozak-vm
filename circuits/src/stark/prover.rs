@@ -23,15 +23,23 @@ use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
+use super::mozak_stark::{
+    all_starks_par, MozakStark, TableKind, TableKindArray, TableKindSetBuilder,
+};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::public_sub_table::public_sub_table_data_and_values;
-use crate::stark::mozak_stark::{all_starks, PublicInputs};
+use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
+
+// use plonky2::plonk::config::Hasher;
+// pub fn join<F: RichField, H: Hasher<F>>(c1: Challenger<F, H>, c2:
+// Challenger<F, H>) -> Challenger<F, H> {     Hasher::two_to_one(c1.compact(),
+// c2.compact());     todo!()
+// }
 
 /// Prove the execution of a given [Program]
 ///
@@ -183,6 +191,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     public_sub_table_data: &CtlData<F>,
     mut challenger: Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
+    // TODO: we return a StarkProof, so we need to check that.
 ) -> Result<StarkProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
@@ -220,6 +229,10 @@ where
             None,
         )
     );
+    // We could move this observation to before we split via clone?
+    // Doesn't matter too much, or does it?
+    // What are we actually observing here, and what do the challenges do?
+    // Why couldn't we do those before?
     let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
 
@@ -345,19 +358,22 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &Challenger<F, C::Hasher>,
-    timing: &mut TimingTree,
+    _timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     let cpu_stark = [public_inputs.entry_point];
-    let public_inputs = TableKindSetBuilder::<&[_]> {
+    let public_inputs = &TableKindSetBuilder::<&[_]> {
         cpu_stark: &cpu_stark,
         ..Default::default()
     }
     .build();
 
-    Ok(all_starks!(mozak_stark, |stark, kind| {
+    // TableKindArray<StarkProof<F, C, D>>
+    Ok(all_starks_par!(mozak_stark, |stark, kind| {
+        // TODO: fix timing to work in parallel.
+        let mut timing = TimingTree::new(&format!("{stark} Stark Prove"), log::Level::Debug);
         prove_single_table(
             stark,
             config,
@@ -367,8 +383,9 @@ where
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
             challenger.clone(),
-            timing,
-        )?
+            &mut timing,
+        )
+        .unwrap()
     }))
 }
 

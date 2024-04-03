@@ -30,6 +30,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(bound = "")]
+// TODO: we return a StarkProof, so we need to check that.
 pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     /// Merkle cap of LDEs of trace values.
     pub trace_cap: MerkleCap<F, C::Hasher>,
@@ -42,6 +43,9 @@ pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, 
     /// A batch FRI argument for all openings.
     pub opening_proof: FriProof<F, C::Hasher, D>,
 }
+
+// unsafe impl<F: RichField + Extendable<D> + Send, C: GenericConfig<D, F = F> +
+// Send, const D: usize> Send for StarkProof<F, C, D> {}
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> StarkProof<F, C, D> {
     /// Recover the length of the trace from a STARK proof and a STARK config.
