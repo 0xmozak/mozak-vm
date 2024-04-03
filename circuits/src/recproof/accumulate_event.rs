@@ -9,6 +9,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
+use super::unpruned::PartialAllowed;
 use super::{hash_event, state_from_event, unbounded, unpruned, Event, EventType};
 
 pub struct LeafCircuit<F, C, const D: usize>
@@ -97,7 +98,7 @@ where
     pub unbounded: unbounded::BranchSubCircuit<D>,
 
     /// The rp-style merkle hash of all event fields
-    pub event_hash: unpruned::BranchSubCircuit<true>,
+    pub event_hash: unpruned::BranchSubCircuit<PartialAllowed>,
 
     /// The event-to-state/partial-object translator
     pub partial_state: state_from_event::BranchSubCircuit,

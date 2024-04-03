@@ -14,29 +14,27 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::{byte_wise_hash, find_hash, select_hash};
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub struct Extension<const PARTIAL_ALLOWED: bool>;
-
 pub trait Extended {
     type BranchTargets;
 }
+pub type ExtendedBranchTargets<E> = <E as Extended>::BranchTargets;
 
-impl Extended for Extension<false> {
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub struct OnlyFull;
+impl Extended for OnlyFull {
     type BranchTargets = ();
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub struct PartialAllowed;
+impl Extended for PartialAllowed {
+    type BranchTargets = BranchTargetsExtension;
 }
 
 pub struct BranchTargetsExtension {
     /// Whether or not the right target is present
     pub partial: BoolTarget,
 }
-
-impl Extended for Extension<true> {
-    type BranchTargets = BranchTargetsExtension;
-}
-
-pub type ExtendedBranchTargets<const PARTIAL_ALLOWED: bool> =
-    <Extension<PARTIAL_ALLOWED> as Extended>::BranchTargets;
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
@@ -121,9 +119,7 @@ impl LeafSubCircuit {
     }
 }
 
-pub struct BranchTargets<const PARTIAL_ALLOWED: bool>
-where
-    Extension<PARTIAL_ALLOWED>: Extended, {
+pub struct BranchTargets<E: Extended> {
     /// The public inputs
     pub inputs: SubCircuitInputs,
 
@@ -134,12 +130,12 @@ where
     pub right: SubCircuitInputs,
 
     /// The extended targets
-    pub extension: ExtendedBranchTargets<PARTIAL_ALLOWED>,
+    pub extension: ExtendedBranchTargets<E>,
 }
 
 impl SubCircuitInputs {
     #[must_use]
-    fn helper<F: RichField + Extendable<D>, const D: usize, const PARTIAL_ALLOWED: bool>(
+    fn helper<F: RichField + Extendable<D>, const D: usize, E: Extended>(
         self,
         builder: &mut CircuitBuilder<F, D>,
         indices: &PublicIndices,
@@ -150,10 +146,8 @@ impl SubCircuitInputs {
             &mut CircuitBuilder<F, D>,
             HashOutTarget,
             HashOutTarget,
-        ) -> (HashOutTarget, ExtendedBranchTargets<PARTIAL_ALLOWED>),
-    ) -> BranchTargets<PARTIAL_ALLOWED>
-    where
-        Extension<PARTIAL_ALLOWED>: Extended, {
+        ) -> (HashOutTarget, ExtendedBranchTargets<E>),
+    ) -> BranchTargets<E> {
         let hasher = if vm_hashing {
             byte_wise_hash
         } else {
@@ -194,7 +188,7 @@ impl SubCircuitInputs {
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
         vm_hashing: bool,
-    ) -> BranchTargets<false> {
+    ) -> BranchTargets<OnlyFull> {
         self.helper(
             builder,
             indices,
@@ -213,7 +207,7 @@ impl SubCircuitInputs {
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
         vm_hashing: bool,
-    ) -> BranchTargets<true> {
+    ) -> BranchTargets<PartialAllowed> {
         let partial = builder.add_virtual_bool_target_safe();
         self.helper(
             builder,
@@ -235,23 +229,14 @@ impl SubCircuitInputs {
 /// private subcircuit proofs, and that the public `unpruned_hash` values of
 /// those circuits hash together to the public `unpruned_hash` value of this
 /// circuit.
-pub struct BranchSubCircuit<const PARTIAL_ALLOWED: bool>
-where
-    Extension<PARTIAL_ALLOWED>: Extended, {
-    pub targets: BranchTargets<PARTIAL_ALLOWED>,
+pub struct BranchSubCircuit<E: Extended = OnlyFull> {
+    pub targets: BranchTargets<E>,
     pub indices: PublicIndices,
 }
 
-impl<const PARTIAL_ALLOWED: bool> BranchTargets<PARTIAL_ALLOWED>
-where
-    Extension<PARTIAL_ALLOWED>: Extended,
-{
+impl<E: Extended> BranchTargets<E> {
     #[must_use]
-    pub fn build(
-        self,
-        child: &PublicIndices,
-        public_inputs: &[Target],
-    ) -> BranchSubCircuit<PARTIAL_ALLOWED> {
+    pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit<E> {
         let indices = PublicIndices {
             unpruned_hash: find_hash(public_inputs, self.inputs.unpruned_hash),
         };
@@ -264,7 +249,7 @@ where
     }
 }
 
-impl BranchSubCircuit<false> {
+impl BranchSubCircuit<OnlyFull> {
     /// Get ready to generate a proof
     pub fn set_witness<F: RichField>(
         &self,
@@ -275,7 +260,7 @@ impl BranchSubCircuit<false> {
     }
 }
 
-impl BranchSubCircuit<true> {
+impl BranchSubCircuit<PartialAllowed> {
     /// Get ready to generate a proof
     pub fn set_witness<F: RichField>(
         &self,
@@ -342,18 +327,13 @@ mod test {
         }
     }
 
-    pub struct DummyBranchCircuit<const PARTIAL_ALLOWED: bool>
-    where
-        Extension<PARTIAL_ALLOWED>: Extended, {
+    pub struct DummyBranchCircuit<E: Extended> {
         pub bounded: bounded::BranchSubCircuit<D>,
-        pub unpruned: BranchSubCircuit<PARTIAL_ALLOWED>,
+        pub unpruned: BranchSubCircuit<E>,
         pub circuit: CircuitData<F, C, D>,
     }
 
-    impl<const PARTIAL_ALLOWED: bool> DummyBranchCircuit<PARTIAL_ALLOWED>
-    where
-        Extension<PARTIAL_ALLOWED>: Extended,
-    {
+    impl<E: Extended> DummyBranchCircuit<E> {
         #[must_use]
         pub fn new(
             circuit_config: &CircuitConfig,
@@ -367,7 +347,7 @@ mod test {
                 &ProofWithPublicInputsTarget<D>,
                 &ProofWithPublicInputsTarget<D>,
                 bool,
-            ) -> BranchTargets<PARTIAL_ALLOWED>,
+            ) -> BranchTargets<E>,
         ) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
@@ -398,7 +378,7 @@ mod test {
         }
     }
 
-    impl DummyBranchCircuit<false> {
+    impl DummyBranchCircuit<OnlyFull> {
         #[must_use]
         pub fn from_leaf(
             circuit_config: &CircuitConfig,
@@ -439,7 +419,7 @@ mod test {
         }
     }
 
-    impl DummyBranchCircuit<true> {
+    impl DummyBranchCircuit<PartialAllowed> {
         #[must_use]
         pub fn from_leaf(
             circuit_config: &CircuitConfig,
@@ -485,18 +465,18 @@ mod test {
 
     lazy_static! {
         static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
-        static ref BRANCH_1: DummyBranchCircuit<false> =
-            DummyBranchCircuit::<false>::from_leaf(&CONFIG, &LEAF, false);
-        static ref BRANCH_2: DummyBranchCircuit<false> =
-            DummyBranchCircuit::<false>::from_branch(&CONFIG, &BRANCH_1, false);
-        static ref VM_BRANCH_1: DummyBranchCircuit<false> =
-            DummyBranchCircuit::<false>::from_leaf(&CONFIG, &LEAF, true);
-        static ref VM_BRANCH_2: DummyBranchCircuit<false> =
-            DummyBranchCircuit::<false>::from_branch(&CONFIG, &VM_BRANCH_1, true);
-        static ref PAR_BRANCH_1: DummyBranchCircuit<true> =
-            DummyBranchCircuit::<true>::from_leaf(&CONFIG, &LEAF, false);
-        static ref PAR_BRANCH_2: DummyBranchCircuit<true> =
-            DummyBranchCircuit::<true>::from_branch(&CONFIG, &PAR_BRANCH_1, false);
+        static ref BRANCH_1: DummyBranchCircuit<OnlyFull> =
+            DummyBranchCircuit::<OnlyFull>::from_leaf(&CONFIG, &LEAF, false);
+        static ref BRANCH_2: DummyBranchCircuit<OnlyFull> =
+            DummyBranchCircuit::<OnlyFull>::from_branch(&CONFIG, &BRANCH_1, false);
+        static ref VM_BRANCH_1: DummyBranchCircuit<OnlyFull> =
+            DummyBranchCircuit::<OnlyFull>::from_leaf(&CONFIG, &LEAF, true);
+        static ref VM_BRANCH_2: DummyBranchCircuit<OnlyFull> =
+            DummyBranchCircuit::<OnlyFull>::from_branch(&CONFIG, &VM_BRANCH_1, true);
+        static ref PAR_BRANCH_1: DummyBranchCircuit<PartialAllowed> =
+            DummyBranchCircuit::<PartialAllowed>::from_leaf(&CONFIG, &LEAF, false);
+        static ref PAR_BRANCH_2: DummyBranchCircuit<PartialAllowed> =
+            DummyBranchCircuit::<PartialAllowed>::from_branch(&CONFIG, &PAR_BRANCH_1, false);
     }
 
     #[test]
