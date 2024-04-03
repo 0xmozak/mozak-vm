@@ -138,7 +138,7 @@ pub struct BranchSubCircuit<const V: usize> {
 impl<const V: usize> BranchTargets<V> {
     #[must_use]
     pub fn build(self, child: &PublicIndices<V>, public_inputs: &[Target]) -> BranchSubCircuit<V> {
-        // Find the indicies
+        // Find the indices
         let indices = PublicIndices {
             values: find_targets(public_inputs, self.inputs.values),
         };
@@ -218,7 +218,7 @@ mod test {
         #[must_use]
         pub fn new(
             circuit_config: &CircuitConfig,
-            indicies: &PublicIndices<3>,
+            indices: &PublicIndices<3>,
             child: &CircuitData<F, C, D>,
         ) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
@@ -229,7 +229,7 @@ mod test {
             let bounded_targets = bounded_inputs.build_branch(&mut builder, child);
             let propagate_targets = propagate_inputs.build_branch(
                 &mut builder,
-                indicies,
+                indices,
                 &bounded_targets.left_proof,
                 &bounded_targets.right_proof,
             );
@@ -238,7 +238,7 @@ mod test {
 
             let public_inputs = &circuit.prover_only.public_inputs;
             let bounded = bounded_targets.build(public_inputs);
-            let propagate = propagate_targets.build(indicies, public_inputs);
+            let propagate = propagate_targets.build(indices, public_inputs);
 
             Self {
                 bounded,

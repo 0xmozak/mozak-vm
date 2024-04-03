@@ -1682,7 +1682,7 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.3.0"
-source = "git+https://github.com/0xmozak/plonky2.git#4312ef9d53297d0bbb3ef844c0db916d4b3cdf95"
+source = "git+https://github.com/0xmozak/plonky2.git#0671307ccb9e75da4b0e7b7377836d039e952683"
 dependencies = [
  "ahash",
  "anyhow",
