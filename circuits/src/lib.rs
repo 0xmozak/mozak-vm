@@ -5,6 +5,8 @@
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
 #![feature(const_trait_impl)]
+#![allow(incomplete_features)]
+#![feature(adt_const_params)]
 
 pub mod bitshift;
 pub mod columns_view;

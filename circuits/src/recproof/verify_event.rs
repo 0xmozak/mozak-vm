@@ -10,6 +10,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
+use super::unpruned::PartialPermit;
 use super::{byte_wise_hash_event, hash_event, propagate, unbounded, unpruned, Event};
 
 pub struct LeafTargets {
@@ -142,10 +143,10 @@ where
     pub unbounded: unbounded::BranchSubCircuit<D>,
 
     /// The merkle hash of all events
-    pub hash: unpruned::BranchSubCircuit<true>,
+    pub hash: unpruned::BranchSubCircuit<{ PartialPermit::Partial }>,
 
     /// The vm-style merkle hash of all events
-    pub vm_hash: unpruned::BranchSubCircuit<true>,
+    pub vm_hash: unpruned::BranchSubCircuit<{ PartialPermit::Partial }>,
 
     /// The owner of the events propagated throughout this tree
     pub event_owner: propagate::BranchSubCircuit<4>,

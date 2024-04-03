@@ -9,6 +9,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
+use super::unpruned::PartialPermit;
 use super::{hash_event, state_from_event, unbounded, unpruned, Event, EventType};
 
 pub struct LeafCircuit<F, C, const D: usize>
@@ -97,7 +98,7 @@ where
     pub unbounded: unbounded::BranchSubCircuit<D>,
 
     /// The rp-style merkle hash of all event fields
-    pub event_hash: unpruned::BranchSubCircuit<true>,
+    pub event_hash: unpruned::BranchSubCircuit<{ PartialPermit::Partial }>,
 
     /// The event-to-state/partial-object translator
     pub partial_state: state_from_event::BranchSubCircuit,
@@ -158,11 +159,7 @@ where
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
         let partial = right_proof.is_none();
-        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
-            right_proof
-        } else {
-            (left_is_leaf, left_proof)
-        };
+        let (right_is_leaf, right_proof) = right_proof.unwrap_or((left_is_leaf, left_proof));
         self.unbounded.set_witness(
             &mut inputs,
             left_is_leaf,

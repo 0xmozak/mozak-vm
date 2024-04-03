@@ -8,6 +8,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
+use super::unpruned::PartialPermit;
 use super::{at_least_one_true, bounded, hashes_equal, summarized, unpruned, verify_address};
 pub struct LeafCircuit<F, C, const D: usize>
 where
@@ -116,8 +117,8 @@ where
     C: GenericConfig<D, F = F>, {
     pub bounded: bounded::BranchSubCircuit<D>,
     pub summarized: summarized::BranchSubCircuit,
-    pub old: unpruned::BranchSubCircuit<false>,
-    pub new: unpruned::BranchSubCircuit<false>,
+    pub old: unpruned::BranchSubCircuit<{ PartialPermit::Full }>,
+    pub new: unpruned::BranchSubCircuit<{ PartialPermit::Full }>,
     pub address: verify_address::BranchSubCircuit,
     pub circuit: CircuitData<F, C, D>,
 }
