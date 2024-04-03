@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+use mozak_runner::poseidon2::MozakPoseidon2;
 #[cfg(feature = "enable_poseidon_starks")]
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
@@ -127,6 +128,12 @@ pub fn lookup_for_preimage_pack(
             clk: sponge.clk,
             value: sponge.preimage[limb_index as usize], // value
             fe_addr: sponge.input_addr + i64::from(limb_index), // address
+            byte_addr: sponge.input_addr_padded
+                + i64::from(
+                    limb_index
+                        * u8::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                            .expect("Should be < 255"),
+                ),
         },
         sponge.ops.is_init_permute + sponge.ops.is_permute,
     )

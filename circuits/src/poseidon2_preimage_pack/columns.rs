@@ -78,6 +78,7 @@ pub struct Poseidon2SpongePreimagePackCtl<T> {
     pub clk: T,
     pub value: T,
     pub fe_addr: T,
+    pub byte_addr: T,
 }
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongePreimagePackCtl<Column>>
@@ -88,6 +89,7 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongePrei
             clk: data.clk,
             value: ColumnWithTypedInput::reduce_with_powers(data.bytes, i64::from(1 << 8)),
             fe_addr: data.fe_addr,
+            byte_addr: data.byte_addr,
         },
         COL_MAP.is_executed,
     )
