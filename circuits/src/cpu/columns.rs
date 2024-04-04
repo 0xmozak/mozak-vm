@@ -14,6 +14,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::InstructionRow;
 use crate::rangecheck::columns::RangeCheckCtl;
+use crate::register::columns::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
 use crate::xor::columns::XorView;
 
@@ -82,11 +83,11 @@ pub struct Instruction<T> {
     pub is_op2_signed: T,
     pub is_dst_signed: T,
     /// Selects the register to use as source for `rs1`
-    pub rs1_select: [T; 32],
+    pub rs1_selected: T,
     /// Selects the register to use as source for `rs2`
-    pub rs2_select: [T; 32],
+    pub rs2_selected: T,
     /// Selects the register to use as destination for `rd`
-    pub rd_select: [T; 32],
+    pub rd_selected: T,
     /// Special immediate value used for code constants
     pub imm_value: T,
 }
@@ -105,6 +106,7 @@ pub struct CpuState<T> {
     pub is_running: T,
 
     pub op1_value: T,
+    pub op2_value_raw: T,
     /// The sum of the value of the second operand register and the
     /// immediate value. Wrapped around to fit in a `u32`.
     pub op2_value: T,
@@ -121,9 +123,6 @@ pub struct CpuState<T> {
     /// table. These values are always unsigned by nature (as mem table does
     /// not differentiate between signed and unsigned values).
     pub mem_value_raw: T,
-
-    /// Values of the registers.
-    pub regs: [T; 32],
 
     // 0 means non-negative, 1 means negative.
     // (If number is unsigned, it is non-negative.)
@@ -173,6 +172,12 @@ pub struct CpuState<T> {
     pub mem_addr: T,
     pub io_addr: T,
     pub io_size: T,
+    // We don't need all of these 'is_<some-ecall>' columns.  Because our CPU table (by itself)
+    // doesn't need to be deterministic. We can assert these things in the CTL-ed
+    // ecall-specific tables.
+    // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
+    // filter.
+    // TODO: implement the above.
     pub is_io_store_private: T,
     pub is_io_store_public: T,
     pub is_io_transcript: T,
@@ -188,15 +193,6 @@ pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
-
-    /// The value of the designated register in rs2.
-    pub fn rs2_value(&self) -> T {
-        // Note: we could skip 0, because r0 is always 0.
-        // But we keep it to make it easier to reason about the code.
-        (0..32)
-            .map(|reg| self.inst.rs2_select[reg] * self.regs[reg])
-            .sum()
-    }
 
     /// Value of the first operand, as if converted to i64.
     ///
@@ -214,18 +210,6 @@ impl<T: PackedField> CpuState<T> {
     /// Difference between first and second operands, which works for both pairs
     /// of signed or pairs of unsigned values.
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
-}
-
-pub fn rs2_value_extension_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    cpu: &CpuState<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let mut rs2_value = builder.zero_extension();
-    for reg in 0..32 {
-        let rs2_select = builder.mul_extension(cpu.inst.rs2_select[reg], cpu.regs[reg]);
-        rs2_value = builder.add_extension(rs2_value, rs2_select);
-    }
-    rs2_value
 }
 
 pub fn op1_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
@@ -427,9 +411,9 @@ pub fn lookup_for_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
                     ColumnWithTypedInput::ascending_sum(inst.ops),
                     inst.is_op1_signed,
                     inst.is_op2_signed,
-                    ColumnWithTypedInput::ascending_sum(inst.rs1_select),
-                    ColumnWithTypedInput::ascending_sum(inst.rs2_select),
-                    ColumnWithTypedInput::ascending_sum(inst.rd_select),
+                    inst.rs1_selected,
+                    inst.rs2_selected,
+                    inst.rd_selected,
                     inst.imm_value,
                 ],
                 1 << 5,
@@ -449,4 +433,40 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<
         },
         CPU.is_poseidon2,
     )
+}
+
+#[must_use]
+pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
+    let is_read = ColumnWithTypedInput::constant(1);
+    let is_write = ColumnWithTypedInput::constant(2);
+
+    vec![
+        CpuTable::new(
+            RegisterCtl {
+                clk: CPU.clk,
+                op: is_read,
+                addr: CPU.inst.rs1_selected,
+                value: CPU.op1_value,
+            },
+            CPU.is_running,
+        ),
+        CpuTable::new(
+            RegisterCtl {
+                clk: CPU.clk,
+                op: is_read,
+                addr: CPU.inst.rs2_selected,
+                value: CPU.op2_value_raw,
+            },
+            CPU.is_running,
+        ),
+        CpuTable::new(
+            RegisterCtl {
+                clk: CPU.clk,
+                op: is_write,
+                addr: CPU.inst.rd_selected,
+                value: CPU.dst_value,
+            },
+            CPU.is_running,
+        ),
+    ]
 }

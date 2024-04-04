@@ -5,9 +5,11 @@ use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::cross_table_lookup::ColumnWithTypedInput;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::memory::columns::MemoryCtl;
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2StateCtl;

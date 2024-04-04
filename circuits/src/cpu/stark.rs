@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use itertools::izip;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -12,13 +11,10 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::{
-    is_mem_op_extention_target, rs2_value_extension_target, CpuState, Instruction, OpSelectors,
-};
+use super::columns::{is_mem_op_extention_target, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
-use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
@@ -103,9 +99,6 @@ fn pc_ticks_up_circuit<F: RichField + Extendable<D>, const D: usize>(
 /// See <https://en.wikipedia.org/wiki/One-hot>
 fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut ConstraintConsumer<P>) {
     one_hot(inst.ops, yield_constr);
-    one_hot(inst.rs1_select, yield_constr);
-    one_hot(inst.rs2_select, yield_constr);
-    one_hot(inst.rd_select, yield_constr);
 }
 
 fn one_hot<P: PackedField, Selectors: Copy + IntoIterator<Item = P>>(
@@ -128,9 +121,6 @@ fn one_hots_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     one_hot_circuit(builder, &inst.ops.iter().as_slice().to_vec(), yield_constr);
-    one_hot_circuit(builder, &inst.rs1_select.to_vec(), yield_constr);
-    one_hot_circuit(builder, &inst.rs2_select.to_vec(), yield_constr);
-    one_hot_circuit(builder, &inst.rd_select.to_vec(), yield_constr);
 }
 
 fn one_hot_circuit<F: RichField + Extendable<D>, const D: usize>(
@@ -183,127 +173,6 @@ fn clock_ticks_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr.constraint_transition(builder, clock_diff_sub_lv_is_running);
 }
 
-/// Register 0 is always 0
-fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    yield_constr.constraint(lv.regs[0]);
-}
-
-fn r0_always_0_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    yield_constr.constraint(builder, lv.regs[0]);
-}
-
-pub fn check_permuted_inst_cols_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &ProgramRom<ExtensionTarget<D>>,
-    nv: &ProgramRom<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let one = builder.one_extension();
-    let lv_filter_sub_one = builder.sub_extension(lv.filter, one);
-    let lv_filter_mul_lv_filter_sub_one = builder.mul_extension(lv.filter, lv_filter_sub_one);
-    yield_constr.constraint(builder, lv_filter_mul_lv_filter_sub_one);
-    yield_constr.constraint_first_row(builder, lv_filter_sub_one);
-
-    for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
-        let nv_filter_sub_one = builder.sub_extension(nv.filter, one);
-        let lv_col_sub_nv_col = builder.sub_extension(lv_col, nv_col);
-        let nv_filter_sub_one_mul_lv_col_sub_nv_col =
-            builder.mul_extension(nv_filter_sub_one, lv_col_sub_nv_col);
-        yield_constr.constraint(builder, nv_filter_sub_one_mul_lv_col_sub_nv_col);
-    }
-}
-
-/// Only the destination register can change its value.
-/// All other registers must keep the same value as in the previous row.
-fn only_rd_changes<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    // Note: we could skip 0, because r0 is always 0.
-    // But we keep it to make it easier to reason about the code.
-    (0..32).for_each(|reg| {
-        yield_constr.constraint_transition(
-            (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
-        );
-    });
-}
-
-fn only_rd_changes_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let one = builder.one_extension();
-    for reg in 0..32 {
-        let lv_regs_sub_nv_regs = builder.sub_extension(lv.regs[reg], nv.regs[reg]);
-        let one_sub_lv_inst_rd_select = builder.sub_extension(one, lv.inst.rd_select[reg]);
-        let constr = builder.mul_extension(one_sub_lv_inst_rd_select, lv_regs_sub_nv_regs);
-        yield_constr.constraint_transition(builder, constr);
-    }
-}
-
-/// The destination register should change to `dst_value`.
-fn rd_assigned_correctly<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    // Note: we skip 0 here, because it's already forced to 0 permanently by
-    // `r0_always_0`
-    (1..32).for_each(|reg| {
-        yield_constr
-            .constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
-    });
-}
-
-fn rd_assigned_correctly_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    for reg in 1..32 {
-        let lv_inst_rd_select = lv.inst.rd_select[reg];
-        let lv_dst_value_sub_nv_regs = builder.sub_extension(lv.dst_value, nv.regs[reg]);
-        let constr = builder.mul_extension(lv_inst_rd_select, lv_dst_value_sub_nv_regs);
-        yield_constr.constraint_transition(builder, constr);
-    }
-}
-
-/// First operand should be assigned with the value of the designated register.
-fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    yield_constr.constraint(
-        lv.op1_value
-            // Note: we could skip 0, because r0 is always 0.
-            // But we keep it to make it easier to reason about the code.
-            - (0..32)
-            .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
-            .sum::<P>(),
-    );
-}
-
-fn populate_op1_value_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let mut op1_value = builder.zero_extension();
-    for reg in 0..32 {
-        let lv_inst_rs1_select = lv.inst.rs1_select[reg];
-        let lv_regs = lv.regs[reg];
-        let lv_inst_rs1_select_mul_lv_regs = builder.mul_extension(lv_inst_rs1_select, lv_regs);
-        op1_value = builder.add_extension(op1_value, lv_inst_rs1_select_mul_lv_regs);
-    }
-    let lv_op1_value_sub_op1_value = builder.sub_extension(lv.op1_value, op1_value);
-    yield_constr.constraint(builder, lv_op1_value_sub_op1_value);
-}
-
 /// Constraints for values in op2, which is the sum of the value of the second
 /// operand register and the immediate value (except for branch instructions).
 /// This may overflow.
@@ -313,11 +182,11 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
     let is_shift_operation = ops.sll + ops.srl + ops.sra;
 
-    yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.rs2_value()));
+    yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.op2_value_raw));
     yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
     yield_constr.constraint(
         (P::ONES - is_branch_operation - is_shift_operation)
-            * (lv.op2_value_overflowing - lv.inst.imm_value - lv.rs2_value()),
+            * (lv.op2_value_overflowing - lv.inst.imm_value - lv.op2_value_raw),
     );
     yield_constr.constraint(
         (P::ONES - is_branch_operation - is_shift_operation)
@@ -336,8 +205,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
     let is_branch_operation = add_extension_vec(builder, vec![ops.beq, ops.bne, ops.blt, ops.bge]);
     let is_shift_operation = add_extension_vec(builder, vec![ops.sll, ops.srl, ops.sra]);
 
-    let rs2_value = rs2_value_extension_target(builder, lv);
-    let lv_op2_value_sub_rs2_value = builder.sub_extension(lv.op2_value, rs2_value);
+    let lv_op2_value_sub_rs2_value = builder.sub_extension(lv.op2_value, lv.op2_value_raw);
     let is_branch_op_mul_lv_op2_value_sub_rs2_value =
         builder.mul_extension(is_branch_operation, lv_op2_value_sub_rs2_value);
     yield_constr.constraint(builder, is_branch_op_mul_lv_op2_value_sub_rs2_value);
@@ -354,7 +222,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
     let op2_value_overflowing_sub_inst_imm_value =
         builder.sub_extension(lv.op2_value_overflowing, lv.inst.imm_value);
     let op2_value_overflowing_sub_inst_imm_value_sub_rs2_value =
-        builder.sub_extension(op2_value_overflowing_sub_inst_imm_value, rs2_value);
+        builder.sub_extension(op2_value_overflowing_sub_inst_imm_value, lv.op2_value_raw);
     let constr = builder.mul_extension(
         one_sub_is_branch_operation_sub_is_shift_operation,
         op2_value_overflowing_sub_inst_imm_value_sub_rs2_value,
@@ -406,10 +274,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         one_hots(&lv.inst, yield_constr);
 
         // Registers
-        r0_always_0(lv, yield_constr);
-        only_rd_changes(lv, nv, yield_constr);
-        rd_assigned_correctly(lv, nv, yield_constr);
-        populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 
         add::constraints(lv, yield_constr);
@@ -452,11 +316,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         pc_ticks_up_circuit(builder, lv, nv, yield_constr);
 
         one_hots_circuit(builder, &lv.inst, yield_constr);
-        r0_always_0_circuit(builder, lv, yield_constr);
-        only_rd_changes_circuit(builder, lv, nv, yield_constr);
-        rd_assigned_correctly_circuit(builder, lv, nv, yield_constr);
 
-        populate_op1_value_circuit(builder, lv, yield_constr);
         populate_op2_value_circuit(builder, lv, yield_constr);
 
         add::constraints_circuit(builder, lv, yield_constr);

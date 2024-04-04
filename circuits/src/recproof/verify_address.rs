@@ -314,7 +314,7 @@ mod test {
         #[must_use]
         pub fn new(
             circuit_config: &CircuitConfig,
-            indicies: &PublicIndices,
+            indices: &PublicIndices,
             child: &CircuitData<F, C, D>,
         ) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
@@ -325,7 +325,7 @@ mod test {
             let bounded_targets = bounded_inputs.build_branch(&mut builder, child);
             let address_targets = address_inputs.build_branch(
                 &mut builder,
-                indicies,
+                indices,
                 &bounded_targets.left_proof,
                 &bounded_targets.right_proof,
             );
@@ -334,7 +334,7 @@ mod test {
 
             let public_inputs = &circuit.prover_only.public_inputs;
             let bounded = bounded_targets.build(public_inputs);
-            let address = address_targets.build(indicies, public_inputs);
+            let address = address_targets.build(indices, public_inputs);
 
             Self {
                 bounded,

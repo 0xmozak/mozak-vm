@@ -17,6 +17,7 @@ clap = { version = "4.5", features = [
   "unicode",
 ] }
 mozak-circuits = { path = "../circuits", features = ["test", "enable_poseidon_starks"] }
+mozak-node = { path = "../node", features = ["std"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 mozak-sdk = { path = "../sdk", features = ["std"] }
 # TODO(Matthias): implement shell completion for CLI via clap_complete
@@ -28,13 +29,16 @@ clio = { version = "0.3", features = ["clap-parse"] }
 env_logger = "0.11"
 itertools = "0.12"
 log = "0.4"
-plonky2 = "0"
+plonky2 = { version = "0", default-features = false }
 rkyv = { version = "0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 serde_json = "1.0"
-starky = "0"
+starky = { version = "0", default-features = false }
 tempfile = "3"
 
 [dev-dependencies]
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
+
+[features]
+default = ["starky/default", "plonky2/default"]

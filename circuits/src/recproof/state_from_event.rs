@@ -352,7 +352,7 @@ pub struct LeafSubCircuit {
 impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
-        // Find the indicies
+        // Find the indices
         let indices = PublicIndices {
             address: find_target(public_inputs, self.inputs.address),
             object_flags: find_target(public_inputs, self.inputs.object_flags),
@@ -583,7 +583,7 @@ pub struct BranchSubCircuit {
 impl BranchTargets {
     #[must_use]
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit {
-        // Find the indicies
+        // Find the indices
         let indices = PublicIndices {
             address: find_target(public_inputs, self.inputs.address),
             object_flags: find_target(public_inputs, self.inputs.object_flags),
@@ -865,7 +865,7 @@ mod test {
         #[must_use]
         pub fn new(
             circuit_config: &CircuitConfig,
-            indicies: &PublicIndices,
+            indices: &PublicIndices,
             child: &CircuitData<F, C, D>,
         ) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
@@ -876,7 +876,7 @@ mod test {
             let bounded_targets = bounded_inputs.build_branch(&mut builder, child);
             let state_from_events_targets = state_from_events_inputs.build_branch(
                 &mut builder,
-                indicies,
+                indices,
                 &bounded_targets.left_proof,
                 &bounded_targets.right_proof,
             );
@@ -885,7 +885,7 @@ mod test {
 
             let public_inputs = &circuit.prover_only.public_inputs;
             let bounded = bounded_targets.build(public_inputs);
-            let state_from_events = state_from_events_targets.build(indicies, public_inputs);
+            let state_from_events = state_from_events_targets.build(indices, public_inputs);
 
             Self {
                 bounded,

@@ -45,7 +45,6 @@ where
 /// 2. trace width does not match the number of columns,
 /// 3. attempting to range check tuples instead of single values.
 #[must_use]
-#[allow(unused)]
 pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
@@ -60,7 +59,6 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
             match looking_table.kind {
                 TableKind::Cpu => extract(cpu_trace, &looking_table),
                 TableKind::Memory => extract(memory_trace, &looking_table),
-                #[cfg(feature = "enable_register_starks")]
                 TableKind::Register => extract(register_trace, &looking_table),
                 other => unimplemented!("Can't range check {other:#?} tables"),
             }
@@ -96,12 +94,14 @@ mod tests {
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
         generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_io_transcript_trace,
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::register::generate_register_trace;
+    use crate::generation::registerinit::generate_register_init_trace;
     use crate::generation::MIN_TRACE_LENGTH;
 
     #[test]
@@ -122,12 +122,12 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
-        let register_rows = generate_register_trace::<F>(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+        let io_transcript_rows = generate_io_transcript_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let memory_rows = generate_memory_trace::<F>(
@@ -139,6 +139,14 @@ mod tests {
             &io_memory_public_rows,
             &poseidon2_trace,
             &poseidon2_output_bytes,
+        );
+        let register_init = generate_register_init_trace(&record);
+        let (_zero_register_rows, register_rows) = generate_register_trace(
+            &cpu_rows,
+            &io_memory_private_rows,
+            &io_memory_public_rows,
+            &io_transcript_rows,
+            &register_init,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
         assert_eq!(
