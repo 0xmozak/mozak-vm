@@ -708,18 +708,14 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
-        #[cfg(feature = "test_public_table")]
-        {
-            // verfier hardcodes bitshift public subtable
-            let bitshift_public = (0..32)
-                .flat_map(|i| vec![F::from_canonical_u64(i), F::from_canonical_u64(1 << i)])
-                .collect_vec();
-            // and checks if its indeed public in the final recursive proof
-            assert_eq!(
-                recursive_proof.public_inputs[25..].to_vec(),
-                bitshift_public
-            );
-        }
+        let expected_bitshift_subtable = (0..32)
+            .flat_map(|i| vec![F::from_canonical_u64(i), F::from_canonical_u64(1 << i)])
+            .collect_vec();
+        assert_eq!(
+            recursive_proof.public_inputs[25..].to_vec(),
+            expected_bitshift_subtable,
+            "Could not find bitshift subtable in recursive proof's public inputs"
+        );
 
         mozak_stark_circuit.circuit.verify(recursive_proof)
     }

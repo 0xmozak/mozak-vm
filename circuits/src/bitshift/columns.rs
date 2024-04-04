@@ -1,7 +1,5 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
-use crate::linear_combination_typed::ColumnWithTypedInput;
-use crate::public_sub_table::PublicSubTable;
 use crate::stark::mozak_stark::{BitshiftTable, TableWithTypedOutput};
 
 columns_view_impl!(Bitshift);
@@ -43,16 +41,19 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<Bitshift<Column>> {
     BitshiftTable::new(COL_MAP.executed, COL_MAP.multiplicity)
 }
 
-/// As an example, we make `amount, multiplier` colmns of
-/// Bitshift table, public. That is, the subtable getting
-/// public is
-/// [0 ,1]
+/// This function makes `amount, multiplier` columns of
+/// Bitshift table, public. It looks something like this:
+/// [0, 1]
 /// [1, 2]
 /// [2, 4]
 /// ....
 /// [31, 2^31]
 #[must_use]
+#[cfg(feature = "test_public_table")]
 pub fn public_sub_table() -> PublicSubTable {
+    use crate::linear_combination_typed::ColumnWithTypedInput;
+    use crate::public_sub_table::PublicSubTable;
+
     PublicSubTable {
         table: BitshiftTable::new(COL_MAP.executed, ColumnWithTypedInput::constant(1)),
         num_rows: 32,
