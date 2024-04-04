@@ -224,10 +224,6 @@ where
             None,
         )
     );
-    // We could move this observation to before we split via clone?
-    // Doesn't matter too much, or does it?
-    // What are we actually observing here, and what do the challenges do?
-    // Why couldn't we do those before?
     let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
 
@@ -365,7 +361,6 @@ where
     }
     .build();
 
-    // TableKindArray<StarkProof<F, C, D>>
     Ok(all_starks_par!(mozak_stark, |stark, kind| {
         // TODO: fix timing to work in parallel.
         let mut timing = TimingTree::new(&format!("{stark} Stark Prove"), log::Level::Debug);
