@@ -1,4 +1,4 @@
-//! Subcircuits for proving events can be summarized as a partial object.
+//! Subcircuits for proving events can be summarized to a commitment.
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
@@ -10,6 +10,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
+use super::unpruned::PartialAllowed;
 use super::{byte_wise_hash_event, hash_event, propagate, unbounded, unpruned, Event};
 
 pub struct LeafTargets {
@@ -30,7 +31,7 @@ where
     /// The recursion subcircuit
     pub unbounded: unbounded::LeafSubCircuit,
 
-    /// The rc-style merkle hash of all event fields
+    /// The rp-style merkle hash of all event fields
     pub hash: unpruned::LeafSubCircuit,
 
     /// The vm-style merkle hash of all event fields
@@ -140,11 +141,12 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     pub unbounded: unbounded::BranchSubCircuit<D>,
+
     /// The merkle hash of all events
-    pub hash: unpruned::BranchSubCircuit,
+    pub hash: unpruned::BranchSubCircuit<PartialAllowed>,
 
     /// The vm-style merkle hash of all events
-    pub vm_hash: unpruned::BranchSubCircuit,
+    pub vm_hash: unpruned::BranchSubCircuit<PartialAllowed>,
 
     /// The owner of the events propagated throughout this tree
     pub event_owner: propagate::BranchSubCircuit<4>,
@@ -169,14 +171,14 @@ where
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
-        let hash_targets = hash_inputs.build_branch(
+        let hash_targets = hash_inputs.build_extended_branch(
             &mut builder,
             &leaf.hash.indices,
             &unbounded_targets.left_proof,
             &unbounded_targets.right_proof,
             false,
         );
-        let vm_hash_targets = vm_hash_inputs.build_branch(
+        let vm_hash_targets = vm_hash_inputs.build_extended_branch(
             &mut builder,
             &leaf.vm_hash.indices,
             &unbounded_targets.left_proof,
@@ -188,6 +190,11 @@ where
             &leaf.event_owner.indices,
             &unbounded_targets.left_proof,
             &unbounded_targets.right_proof,
+        );
+
+        builder.connect(
+            hash_targets.extension.partial.target,
+            vm_hash_targets.extension.partial.target,
         );
 
         let circuit = builder.build();
@@ -216,24 +223,25 @@ where
         vm_hash: Option<HashOut<F>>,
         event_owner: Option<[F; 4]>,
         left_is_leaf: bool,
-        right_is_leaf: bool,
         left_proof: &ProofWithPublicInputs<F, C, D>,
-        right_proof: &ProofWithPublicInputs<F, C, D>,
+        right_proof: Option<(bool, &ProofWithPublicInputs<F, C, D>)>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
+        let partial = right_proof.is_none();
+        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
+            right_proof
+        } else {
+            (left_is_leaf, left_proof)
+        };
         self.unbounded.set_witness(
             &mut inputs,
             left_is_leaf,
-            right_is_leaf,
             left_proof,
+            right_is_leaf,
             right_proof,
         );
-        if let Some(hash) = hash {
-            self.hash.set_witness(&mut inputs, hash);
-        }
-        if let Some(vm_hash) = vm_hash {
-            self.vm_hash.set_witness(&mut inputs, vm_hash);
-        }
+        self.hash.set_witness(&mut inputs, hash, partial);
+        self.vm_hash.set_witness(&mut inputs, vm_hash, partial);
         if let Some(event_owner) = event_owner {
             self.event_owner.set_witness(&mut inputs, event_owner);
         }
@@ -357,42 +365,23 @@ mod test {
         let write_2_byte_hash = write_2.byte_wise_hash();
 
         // Read zero
-        let read_proof = LEAF.prove(
-            Event {
-                address: 42,
-                ty: EventType::Read,
-                owner: program_hash_1,
-                value: zero_val,
-            },
-            Some(read_0_hash),
-            Some(read_0_byte_hash),
-            &BRANCH,
-        )?;
+        let read_proof = LEAF.prove(read_0, Some(read_0_hash), Some(read_0_byte_hash), &BRANCH)?;
         LEAF.circuit.verify(read_proof.clone())?;
 
         // Write pi
         let write_proof_1 = LEAF.prove(
-            Event {
-                address: 42,
-                ty: EventType::Write,
-                owner: program_hash_1,
-                value: non_zero_val_1,
-            },
+            write_1,
             Some(write_1_hash),
             Some(write_1_byte_hash),
             &BRANCH,
         )?;
         LEAF.circuit.verify(write_proof_1.clone())?;
 
-        // Write phi (this is legal for this stage, but illegal generally as a double
-        // write)
+        // Write phi
+        // This illegal at the protocol level as a double write, but legal for this
+        // stage
         let write_proof_2 = LEAF.prove(
-            Event {
-                address: 42,
-                ty: EventType::Write,
-                owner: program_hash_1,
-                value: non_zero_val_2,
-            },
+            write_2,
             Some(write_2_hash),
             Some(write_2_byte_hash),
             &BRANCH,
@@ -410,9 +399,8 @@ mod test {
             Some(branch_1_bytes_hash),
             Some(program_hash_1),
             true,
-            true,
             &write_proof_1,
-            &write_proof_2,
+            Some((true, &write_proof_2)),
         )?;
         BRANCH.circuit.verify(branch_proof_1.clone())?;
 
@@ -422,11 +410,10 @@ mod test {
             Some(branch_2_bytes_hash),
             Some(program_hash_1),
             true,
-            false,
             &read_proof,
-            &branch_proof_1,
+            Some((false, &branch_proof_1)),
         )?;
-        BRANCH.circuit.verify(branch_proof_2)?;
+        BRANCH.circuit.verify(branch_proof_2.clone())?;
 
         verify_simple_hashes(
             read_0_byte_hash,
@@ -435,6 +422,27 @@ mod test {
             branch_1_bytes_hash,
             branch_2_bytes_hash,
         );
+
+        // Single-sided proof
+        let branch_proof_1 = BRANCH.prove(
+            Some(write_1_hash),
+            Some(write_1_byte_hash),
+            Some(program_hash_1),
+            true,
+            &write_proof_1,
+            None,
+        )?;
+        BRANCH.circuit.verify(branch_proof_1.clone())?;
+
+        let branch_proof_3 = BRANCH.prove(
+            Some(branch_2_hash),
+            Some(branch_2_bytes_hash),
+            Some(program_hash_1),
+            false,
+            &branch_proof_2,
+            None,
+        )?;
+        BRANCH.circuit.verify(branch_proof_3)?;
 
         Ok(())
     }
@@ -533,9 +541,8 @@ mod test {
                 Some(branch_1_bytes_hash),
                 Some(program_hash_1),
                 true,
-                true,
                 &read_proof_1,
-                &read_proof_2,
+                Some((true, &read_proof_2)),
             )
             .unwrap();
     }

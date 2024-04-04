@@ -44,6 +44,49 @@ download the latest version of `rust-analyzer`:
   `rust-analyzer` binary downloaded from the [GitHub Releases
   Page](https://github.com/rust-lang/rust-analyzer/releases).
 
+#### Working with Code Targetting MozakVM
+
+Please use `rust-analyzer` released _after_ `2024-04-01`.
+
+In order for `rust-analyzer` to work with code that targets `mozakvm` we need to
+
+- start it with the right configuration, and
+- prevent it from building `test` crate.
+
+Rust does not provide prebuilt `std` for neither for MozakVM, nor for
+`riscv32-im` which MozakVM is based on, therefore we need to build our version
+of `std` by using `-Zbuild-std` feature.  However, that also requires that we
+specify `restricted_std` in crates that we build, which will break `test` crate,
+as it it not marked by `restricted_std`.
+
+In Visual Studio Code:
+
+- instead of opening the whole project, use `Open Folder...` to open the
+  directory containing `.cargo` directory that specifies a `mozakvm` taget in
+  `.cargo/config.toml`.
+- in the same directory containing `.cargo`, create `.vscode` directory and put
+  the following in `.vscode/settings.json`:
+
+  ```json
+  {
+    "rust-analyzer.cargo.allTargets": false,
+  }
+  ```
+
+By opening the directory containing `.cargo` directly, we ensure that
+`rust-analyzer` will pick the configuration from it.  By setting
+`rust-analyzer.cargo.allTargets` to false, we prevent `rust-analyzer` from
+passing `--all-targets` to `cargo`, which will prevent building the `test`
+crate.
+
+For example, to open `mozak-vm/sdk` directory in Visual Studio Code, we
+
+- open `mozak-vm/sdk` directory directly,
+- add `rust-analyzer.cargo.allTargets: false` to
+  `mozak-vm/sdk/.vscode/settings.json`, and
+- reload Visual Studio Code window to reload the configuration.
+
+#### Diagnosing Issues
 
 If you are experiencing issues with Rust analyzer you can check if it
 can correctly analyse our codebase from the command line.  Remember to

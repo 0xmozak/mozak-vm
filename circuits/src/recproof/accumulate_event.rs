@@ -1,3 +1,5 @@
+//! Subcircuits for proving events can be accumulated to a partial object.
+
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -7,15 +9,22 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
+use super::unpruned::PartialAllowed;
 use super::{hash_event, state_from_event, unbounded, unpruned, Event, EventType};
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    /// The recursion subcircuit
     pub unbounded: unbounded::LeafSubCircuit,
+
+    /// The rp-style merkle hash of all event fields
     pub event_hash: unpruned::LeafSubCircuit,
+
+    /// The event-to-state/partial-object translator
     pub partial_state: state_from_event::LeafSubCircuit,
+
     pub circuit: CircuitData<F, C, D>,
 }
 
@@ -85,9 +94,15 @@ pub struct BranchCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    /// The recursion subcircuit
     pub unbounded: unbounded::BranchSubCircuit<D>,
-    pub event_hash: unpruned::BranchSubCircuit,
+
+    /// The rp-style merkle hash of all event fields
+    pub event_hash: unpruned::BranchSubCircuit<PartialAllowed>,
+
+    /// The event-to-state/partial-object translator
     pub partial_state: state_from_event::BranchSubCircuit,
+
     pub circuit: CircuitData<F, C, D>,
 }
 
@@ -107,7 +122,7 @@ where
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
-        let event_hash_targets = event_hash_inputs.build_branch(
+        let event_hash_targets = event_hash_inputs.build_extended_branch(
             &mut builder,
             &leaf.event_hash.indices,
             &unbounded_targets.left_proof,
@@ -140,17 +155,19 @@ where
         &self,
         left_is_leaf: bool,
         left_proof: &ProofWithPublicInputs<F, C, D>,
-        right_is_leaf: bool,
-        right_proof: &ProofWithPublicInputs<F, C, D>,
+        right_proof: Option<(bool, &ProofWithPublicInputs<F, C, D>)>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
+        let partial = right_proof.is_none();
+        let (right_is_leaf, right_proof) = right_proof.unwrap_or((left_is_leaf, left_proof));
         self.unbounded.set_witness(
             &mut inputs,
             left_is_leaf,
-            right_is_leaf,
             left_proof,
+            right_is_leaf,
             right_proof,
         );
+        self.event_hash.set_witness(&mut inputs, None, partial);
         self.partial_state.set_witness_from_proofs(
             &mut inputs,
             &left_proof.public_inputs,
@@ -284,10 +301,10 @@ mod test {
         )?;
         LEAF.circuit.verify(ensure_proof.clone())?;
 
-        let branch_proof_1 = BRANCH.prove(true, &read_proof, true, &write_proof)?;
+        let branch_proof_1 = BRANCH.prove(true, &read_proof, Some((true, &write_proof)))?;
         BRANCH.circuit.verify(branch_proof_1.clone())?;
 
-        let branch_proof_2 = BRANCH.prove(false, &branch_proof_1, true, &ensure_proof)?;
+        let branch_proof_2 = BRANCH.prove(false, &branch_proof_1, Some((true, &ensure_proof)))?;
         BRANCH.circuit.verify(branch_proof_2)?;
 
         Ok(())

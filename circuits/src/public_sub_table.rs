@@ -193,13 +193,13 @@ pub fn public_sub_table_values_and_reduced_targets<F: RichField + Extendable<D>,
     TableKindArray<Vec<PublicSubTableValuesTarget>>,
     TableKindArray<Vec<Target>>,
 ) {
-    let mut public_sub_table_values_targets = all_kind!(|_kind| Vec::default());
+    let mut public_sub_table_values_targets = TableKindArray::<Vec<_>>::default();
     for public_sub_table in public_sub_tables {
         let targets = public_sub_table.to_targets(builder);
         public_sub_table_values_targets[public_sub_table.table.kind].push(targets);
     }
 
-    let mut reduced_public_sub_table_targets = all_kind!(|_kind| Vec::default());
+    let mut reduced_public_sub_table_targets = TableKindArray::<Vec<_>>::default();
 
     for challenge in &ctl_challenges.challenges {
         let mut public_sub_table_values_targets_iter = public_sub_table_values_targets
