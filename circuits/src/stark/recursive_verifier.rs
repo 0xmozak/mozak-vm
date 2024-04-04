@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
-use itertools::{iproduct, zip_eq};
+use itertools::zip_eq;
 use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -30,7 +30,7 @@ use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
 };
 use crate::public_sub_table::{
-    reduce_public_sub_table_targets, PublicSubTable, PublicSubTableValuesTarget,
+    public_sub_table_values_and_reduced_targets, PublicSubTable, PublicSubTableValuesTarget,
 };
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
@@ -177,17 +177,12 @@ where
         inner_config.num_challenges,
     );
 
-    let mut public_sub_table_values_targets = all_kind!(|_kind| Vec::default());
-    let mut reduced_public_sub_table_targets = all_kind!(|_kind| Vec::default());
-    for (challenge, public_sub_table) in
-        iproduct!(&ctl_challenges.challenges, &mozak_stark.public_sub_tables)
-    {
-        let targets = public_sub_table.to_targets(&mut builder);
-        reduced_public_sub_table_targets[public_sub_table.table.kind].push(
-            reduce_public_sub_table_targets(&mut builder, challenge, &targets),
+    let (public_sub_table_values_targets, reduced_public_sub_table_targets) =
+        public_sub_table_values_and_reduced_targets(
+            &mut builder,
+            &mozak_stark.public_sub_tables,
+            &ctl_challenges,
         );
-        public_sub_table_values_targets[public_sub_table.table.kind].push(targets);
-    }
 
     verify_cross_table_lookups_and_public_sub_table_circuit(
         &mut builder,
