@@ -25,6 +25,7 @@ pub struct Poseidon2OutputBytes<F> {
     pub output_addr: F,
     pub output_fields: [F; FIELDS_COUNT],
     pub output_bytes: [F; BYTES_COUNT],
+    pub gap_invs: [F; FIELDS_COUNT],
 }
 
 pub const NUM_POSEIDON2_OUTPUT_BYTES_COLS: usize = Poseidon2OutputBytes::<()>::NUMBER_OF_COLUMNS;
@@ -36,6 +37,13 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2OutputBytes<F>> {
                 .try_into()
                 .expect("Must have at least 4 Fields");
             let hash_bytes = HashOut::from(output_fields).to_bytes();
+            let hash_high_limbs = output_fields.map(|limb| (limb.to_canonical_u64() >> 32) as u32);
+            let gap_invs = hash_high_limbs.map(|limb| {
+                F::from_canonical_u32(u32::MAX - limb)
+                    .try_inverse()
+                    .unwrap_or_default()
+            });
+
             let output_bytes = hash_bytes
                 .iter()
                 .map(|x| F::from_canonical_u8(*x))
@@ -48,6 +56,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2OutputBytes<F>> {
                 output_addr: value.output_addr,
                 output_fields,
                 output_bytes,
+                gap_invs,
             }];
         }
         vec![]
