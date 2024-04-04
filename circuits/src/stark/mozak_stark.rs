@@ -311,7 +311,7 @@ tt_call::tt_call! {
     ~~> mozak_stark_helpers
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct TableKindArray<T>(pub [T; TableKind::COUNT]);
 
