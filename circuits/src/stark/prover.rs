@@ -186,7 +186,6 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     public_sub_table_data: &CtlData<F>,
     mut challenger: Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-    // TODO: we return a StarkProof, so we need to check that.
 ) -> Result<StarkProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
