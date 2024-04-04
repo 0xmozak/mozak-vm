@@ -19,6 +19,7 @@ use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
+#[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};

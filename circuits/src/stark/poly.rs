@@ -9,6 +9,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::util::{log2_ceil, transpose};
+#[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
