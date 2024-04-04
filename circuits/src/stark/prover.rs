@@ -36,12 +36,6 @@ use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 
-// use plonky2::plonk::config::Hasher;
-// pub fn join<F: RichField, H: Hasher<F>>(c1: Challenger<F, H>, c2:
-// Challenger<F, H>) -> Challenger<F, H> {     Hasher::two_to_one(c1.compact(),
-// c2.compact());     todo!()
-// }
-
 /// Prove the execution of a given [Program]
 ///
 /// ## Parameters
