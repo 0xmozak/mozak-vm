@@ -6,7 +6,8 @@ use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+#[allow(clippy::wildcard_imports)]
+use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
 
 use crate::bitshift::columns::{Bitshift, BitshiftView};
