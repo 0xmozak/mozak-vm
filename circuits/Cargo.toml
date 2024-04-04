@@ -40,6 +40,7 @@ proptest = "1.4"
 
 [features]
 enable_poseidon_starks = []
+test_public_table = []
 test = []
 timing = ["plonky2/timing", "starky/timing"]
 
