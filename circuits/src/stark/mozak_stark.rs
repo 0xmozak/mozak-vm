@@ -303,6 +303,7 @@ macro_rules! mozak_stark_helpers {
         }
         pub(crate) use all_starks;
 
+        #[allow(unused_macros)]
         macro_rules! all_starks_par {
             ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
                 use core::borrow::Borrow;
@@ -318,6 +319,7 @@ macro_rules! mozak_stark_helpers {
                 ]).par_map(|f| f())
             }};
         }
+        #[allow(unused_imports)]
         pub(crate) use all_starks_par;
 
     };
