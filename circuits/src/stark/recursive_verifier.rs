@@ -709,7 +709,7 @@ mod tests {
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
         let expected_bitshift_subtable = (0..32)
-            .flat_map(|i| vec![F::from_canonical_u64(i), F::from_canonical_u64(1 << i)])
+            .flat_map(|i| [F::from_canonical_u64(i), F::from_canonical_u64(1 << i)])
             .collect_vec();
         assert_eq!(
             recursive_proof.public_inputs[25..].to_vec(),
