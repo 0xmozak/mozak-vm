@@ -306,16 +306,19 @@ macro_rules! mozak_stark_helpers {
         macro_rules! all_starks_par {
             ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
                 use core::borrow::Borrow;
+                use std::thread;
                 use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
                 let all_stark = $all_stark.borrow();
-                TableKindArray([$(
-                    {
-                        let $stark = &all_stark.$fields;
-                        let $kind = $kind_names;
-                        let f: Box<dyn Fn() -> _ + Send + Sync> = Box::new(move || $val);
-                        f
-                    },)*
-                ]).par_map(|f| f())
+                thread::scope(|s| {
+                    let t = TableKindArray([$(
+                        {
+                            let $stark = &all_stark.$fields;
+                            let $kind = $kind_names;
+                            s.spawn(move || {$val})
+                        },)*
+                    ]);
+                    t.map(|handle| handle.join().unwrap())
+                })
             }};
         }
         pub(crate) use all_starks_par;
