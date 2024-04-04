@@ -40,9 +40,9 @@ proptest = "1.4"
 
 [features]
 enable_poseidon_starks = []
-test_public_table = []
 parallel = ["plonky2_maybe_rayon/parallel"]
 test = []
+test_public_table = []
 timing = ["plonky2/timing", "starky/timing"]
 
 [[test]]
