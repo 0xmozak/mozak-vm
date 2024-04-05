@@ -140,15 +140,6 @@ pub(crate) fn halt_constraints_circuit<F: RichField + Extendable<D>, const D: us
     let nv_is_running_sub_lv_is_running = builder.sub_extension(lv.new_is_running, lv.is_running);
     let transition_constraint = builder.mul_extension(is_halted, nv_is_running_sub_lv_is_running);
     yield_constr.constraint_transition(builder, transition_constraint);
-
-    // TODO: move to skeleton table.
-
-    // for (index, &lv_entry) in lv.iter().enumerate() {
-    //     let nv_entry = nv[index];
-    //     let lv_nv_entry_sub = builder.sub_extension(lv_entry, nv_entry);
-    //     let transition_constraint = builder.mul_extension(is_halted,
-    // lv_nv_entry_sub);     yield_constr.constraint_transition(builder,
-    // transition_constraint); }
 }
 
 pub(crate) fn io_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
