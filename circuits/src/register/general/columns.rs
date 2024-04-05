@@ -4,6 +4,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
+use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
@@ -107,7 +108,6 @@ impl<T: Add<Output = T> + Copy> Register<T> {
 
 #[must_use]
 pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
-    use crate::linear_combination_typed::ColumnWithTypedInput;
     RegisterTable::new(
         RegisterCtl {
             clk: COL_MAP.clk,

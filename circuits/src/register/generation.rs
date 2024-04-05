@@ -123,8 +123,7 @@ pub fn generate_register_trace<F: RichField>(
         })
         .collect();
     let trace = sort_into_address_blocks(operations);
-    let (zeros, rest): (Vec<_>, Vec<_>) = trace.into_iter().partition(|row| row.addr.is_zero());
-    log::trace!("trace {:?}", rest);
+    let (zeros, general): (Vec<_>, Vec<_>) = trace.into_iter().partition(|row| row.addr.is_zero());
     let (zeros_read, zeros_write): (Vec<_>, Vec<_>) = zeros
         .into_iter()
         .partition(|row| row.ops.is_write.is_zero());
@@ -135,10 +134,11 @@ pub fn generate_register_trace<F: RichField>(
         .map(RegisterZeroWrite::from)
         .collect();
 
+    log::trace!("trace for general registers {:?}", general);
     (
         pad_trace_with_default(zeros_read),
         pad_trace_with_default(zeros_write),
-        pad_trace(rest),
+        pad_trace(general),
     )
 }
 

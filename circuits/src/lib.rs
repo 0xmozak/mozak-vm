@@ -34,5 +34,6 @@ pub mod register;
 pub mod stark;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;
+pub mod unstark;
 pub mod utils;
 pub mod xor;
