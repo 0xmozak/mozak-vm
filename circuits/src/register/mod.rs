@@ -5,9 +5,19 @@
 //!
 //! This implementation is very similar to that of the
 //! [Memory STARK](crate::memory)
-pub mod columns;
-pub mod stark;
+
+use crate::columns_view::columns_view_impl;
 pub mod general;
+pub mod init;
 pub mod zero_read;
 pub mod zero_write;
-pub mod init;
+
+columns_view_impl!(RegisterCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct RegisterCtl<T> {
+    pub clk: T,
+    pub op: T,
+    pub addr: T,
+    pub value: T,
+}

@@ -12,7 +12,7 @@ use starky::stark::Stark;
 
 use super::columns::RegisterZero;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::register::columns::Ops;
+use crate::register::general::columns::Ops;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]

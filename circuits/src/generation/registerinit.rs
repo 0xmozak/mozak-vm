@@ -1,7 +1,7 @@
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
-use crate::registerinit::columns::RegisterInit;
+use crate::register::init::columns::RegisterInit;
 use crate::utils::pad_trace_with_default;
 
 /// Generates a register init ROM trace

@@ -7,7 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
-use crate::register::columns::Register;
+use crate::register::general::columns::Register;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
 

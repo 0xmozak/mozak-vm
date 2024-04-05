@@ -55,12 +55,13 @@ use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, Rang
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
-use crate::register::columns::{Register, RegisterCtl};
-use crate::register::stark::RegisterStark;
-use crate::register_zero_read::columns::RegisterZero;
-use crate::register_zero_read::stark::RegisterZeroStark;
-use crate::registerinit::columns::RegisterInit;
-use crate::registerinit::stark::RegisterInitStark;
+use crate::register::general::columns::Register;
+use crate::register::general::stark::RegisterStark;
+use crate::register::init::columns::RegisterInit;
+use crate::register::init::stark::RegisterInitStark;
+use crate::register::zero_read::columns::RegisterZero;
+use crate::register::zero_read::stark::RegisterZeroStark;
+use crate::register::RegisterCtl;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
@@ -595,7 +596,7 @@ impl Lookups for RangecheckTable {
     type Row = RangeCheckCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let register = register::columns::rangecheck_looking();
+        let register = register::general::columns::rangecheck_looking();
 
         let looking: Vec<TableWithTypedOutput<_>> = chain![
             memory::columns::rangecheck_looking(),
@@ -756,12 +757,12 @@ impl Lookups for RegisterLookups {
             chain![
                 crate::cpu::columns::register_looking(),
                 crate::memory_io::columns::register_looking(),
-                vec![crate::registerinit::columns::lookup_for_register()],
+                vec![crate::register::init::columns::lookup_for_register()],
             ]
             .collect(),
             vec![
-                crate::register::columns::register_looked(),
-                crate::register_zero_read::columns::register_looked(),
+                crate::register::general::columns::register_looked(),
+                crate::register::zero_read::columns::register_looked(),
             ],
         )
     }
