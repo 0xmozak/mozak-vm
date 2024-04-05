@@ -7,3 +7,7 @@
 //! [Memory STARK](crate::memory)
 pub mod columns;
 pub mod stark;
+pub mod general;
+pub mod zero_read;
+pub mod zero_write;
+pub mod init;

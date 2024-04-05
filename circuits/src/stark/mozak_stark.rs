@@ -57,8 +57,8 @@ use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
 use crate::register::columns::{Register, RegisterCtl};
 use crate::register::stark::RegisterStark;
-use crate::register_zero::columns::RegisterZero;
-use crate::register_zero::stark::RegisterZeroStark;
+use crate::register_zero_read::columns::RegisterZero;
+use crate::register_zero_read::stark::RegisterZeroStark;
 use crate::registerinit::columns::RegisterInit;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::columns::{XorColumnsView, XorView};
@@ -761,7 +761,7 @@ impl Lookups for RegisterLookups {
             .collect(),
             vec![
                 crate::register::columns::register_looked(),
-                crate::register_zero::columns::register_looked(),
+                crate::register_zero_read::columns::register_looked(),
             ],
         )
     }
