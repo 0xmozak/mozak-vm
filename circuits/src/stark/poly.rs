@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use itertools::{chain, izip};
+use itertools::izip;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
@@ -41,7 +41,7 @@ where
     F: RichField + Extendable<D>,
     P: PackedField<Scalar = F>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D> + HasConjunctiveChallenge<F>, {
+    S: Stark<F, D> + HasConjunctiveChallenge<F> + Copy, {
     let degree = 1 << degree_bits;
     let rate_bits = config.fri_config.rate_bits;
 
@@ -106,7 +106,7 @@ where
                 .collect::<Vec<_>>();
             let mut constraints_evals: Vec<_> = {
                 izip![alphas, stark_conjunction_challenges]
-                    .flat_map(|(&alpha, conj)| {
+                    .flat_map(|(&alpha, &conj)| {
                         let vars = StarkEvaluationFrame::from_values(
                             &get_trace_values_packed(i_start),
                             &get_trace_values_packed(i_next_start),

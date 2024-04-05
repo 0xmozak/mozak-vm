@@ -189,7 +189,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D> + Display + HasConjunctiveChallenge<F>, {
+    S: Stark<F, D> + Display + HasConjunctiveChallenge<F> + Copy, {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);

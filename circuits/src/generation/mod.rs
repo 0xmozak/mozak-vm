@@ -199,7 +199,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 pub fn debug_single_trace<
     F: RichField + Extendable<D> + Debug,
     const D: usize,
-    S: Stark<F, D> + Display + HasNamedColumns + HasConjunctiveChallenge<F>,
+    S: Stark<F, D> + Display + HasNamedColumns + HasConjunctiveChallenge<F> + Copy,
 >(
     stark: &S,
     trace_rows: &[PolynomialValues<F>],

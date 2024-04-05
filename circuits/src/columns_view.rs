@@ -38,7 +38,7 @@ pub trait NumberOfColumns {
 pub trait HasConjunctiveChallenge<F> {
     fn get_conjunctive_challenge(&self) -> F;
     #[must_use]
-    fn with_conjunctive_challenge(&self, conjunctive_challenge: F) -> Self;
+    fn with_conjunctive_challenge(self, conjunctive_challenge: F) -> Self;
 }
 
 pub trait Zip<Item> {
@@ -55,10 +55,9 @@ macro_rules! stark_impl {
         {
             fn get_conjunctive_challenge(&self) -> F { self.conjunctive_challenge }
 
-            fn with_conjunctive_challenge(&self, conjunctive_challenge: F) -> Self {
-                let mut new_self = *self;
-                new_self.conjunctive_challenge = conjunctive_challenge;
-                new_self
+            fn with_conjunctive_challenge(mut self, conjunctive_challenge: F) -> Self {
+                self.conjunctive_challenge = conjunctive_challenge;
+                self
             }
         }
     };
