@@ -134,14 +134,6 @@ fn one_hot_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr.constraint(builder, one_sub_sum_s_op);
 }
 
-/// Ensure an expression only takes on values 0 or 1 for transition rows.
-///
-/// That's useful for differences between `local_values` and `next_values`, like
-/// a clock tick.
-pub(crate) fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
-    yield_constr.constraint_transition(x * (P::ONES - x));
-}
-
 fn clock_ticks_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &CpuState<ExtensionTarget<D>>,

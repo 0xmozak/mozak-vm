@@ -12,7 +12,6 @@ use starky::stark::Stark;
 
 use super::columns::CpuSkeleton;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::cpu::stark::is_binary_transition;
 use crate::stark::mozak_stark::PublicInputs;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
@@ -86,4 +85,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
     }
 
     fn constraint_degree(&self) -> usize { 3 }
+}
+
+/// Ensure an expression only takes on values 0 or 1 for transition rows.
+///
+/// That's useful for differences between `local_values` and `next_values`, like
+/// a clock tick.
+pub(crate) fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
+    yield_constr.constraint_transition(x * (P::ONES - x));
 }
