@@ -28,14 +28,13 @@ pub struct RegisterInit<T> {
 
 #[must_use]
 pub fn lookup_for_register() -> TableWithTypedOutput<RegisterCtl<Column>> {
-    let reg = COL_MAP;
     RegisterInitTable::new(
         RegisterCtl {
             clk: ColumnWithTypedInput::constant(0),
             op: ColumnWithTypedInput::constant(0),
-            addr: reg.reg_addr,
-            value: reg.value,
+            addr: COL_MAP.reg_addr,
+            value: COL_MAP.value,
         },
-        reg.is_looked_up,
+        COL_MAP.is_looked_up,
     )
 }
