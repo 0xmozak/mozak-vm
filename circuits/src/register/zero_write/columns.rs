@@ -5,24 +5,30 @@ use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::register::general::columns::Register;
 use crate::register::RegisterCtl;
-use crate::stark::mozak_stark::{RegisterZeroReadTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{RegisterZeroWriteTable, TableWithTypedOutput};
 
-columns_view_impl!(RegisterZeroRead);
-make_col_map!(RegisterZeroRead);
+columns_view_impl!(RegisterZeroWrite);
+make_col_map!(RegisterZeroWrite);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 /// The columns of the register 0 table.
 /// Register 0 is a special register that is always 0.
 /// Thus we don't need neither a value column nor a register address column.
-pub struct RegisterZeroRead<T> {
+pub struct RegisterZeroWrite<T> {
     pub clk: T,
+
+    /// Value of the register at time (in clk) of access.
+    /// We accept writes for any value, but reads and inits will always be 0.
+    pub value: T,
+
     pub is_used: T,
 }
 
-impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZeroRead<F> {
+impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZeroWrite<F> {
     fn from(ctl: Register<F>) -> Self {
-        RegisterZeroRead {
+        RegisterZeroWrite {
             clk: ctl.clk,
+            value: ctl.value,
             is_used: F::ONE,
         }
     }
@@ -31,12 +37,12 @@ impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZeroRead<F> 
 #[must_use]
 pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
     let reg = COL_MAP;
-    RegisterZeroReadTable::new(
+    RegisterZeroWriteTable::new(
         RegisterCtl {
             clk: reg.clk,
-            op: ColumnWithTypedInput::constant(1),
+            op: ColumnWithTypedInput::constant(2), // write
             addr: ColumnWithTypedInput::constant(0),
-            value: ColumnWithTypedInput::constant(0),
+            value: reg.value,
         },
         reg.is_used,
     )

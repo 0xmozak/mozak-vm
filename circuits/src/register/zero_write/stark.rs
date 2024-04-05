@@ -10,21 +10,21 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
-use super::columns::RegisterZeroRead;
+use super::columns::RegisterZeroWrite;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct RegisterZeroReadStark<F, const D: usize>(PhantomData<F>);
+pub struct RegisterZeroWriteStark<F, const D: usize>(PhantomData<F>);
 
-impl<F, const D: usize> HasNamedColumns for RegisterZeroReadStark<F, D> {
-    type Columns = RegisterZeroRead<F>;
+impl<F, const D: usize> HasNamedColumns for RegisterZeroWriteStark<F, D> {
+    type Columns = RegisterZeroWrite<F>;
 }
 
-const COLUMNS: usize = RegisterZeroRead::<()>::NUMBER_OF_COLUMNS;
+const COLUMNS: usize = RegisterZeroWrite::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroReadStark<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroWriteStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
     where
@@ -33,7 +33,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroR
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    /// Constraints for the [`RegisterZeroStark`]
+    /// Constraints for the [`RegisterZeroWriteStark`]
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         _vars: &Self::EvaluationFrame<FE, P, D2>,
@@ -52,30 +52,4 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterZeroR
     }
 
     fn constraint_degree(&self) -> usize { 3 }
-}
-
-#[cfg(test)]
-mod tests {
-    use anyhow::Result;
-    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
-
-    use super::RegisterZeroReadStark;
-
-    const D: usize = 2;
-    type C = Poseidon2GoldilocksConfig;
-    type F = <C as GenericConfig<D>>::F;
-    type S = RegisterZeroReadStark<F, D>;
-
-    #[test]
-    fn test_degree() -> Result<()> {
-        let stark = S::default();
-        test_stark_low_degree(stark)
-    }
-
-    #[test]
-    fn test_circuit() -> Result<()> {
-        let stark = S::default();
-        test_stark_circuit_constraints::<F, C, S, D>(stark)
-    }
 }
