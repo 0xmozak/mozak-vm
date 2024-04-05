@@ -64,37 +64,6 @@
             }
         }
     },
-    "nop-compose-table-2": {
-        "description": "Checking whether composing tables is faster",
-        "parameter": "iterations",
-        "output": "time taken (in s)",
-        "benches": {
-            "main-before-compose": {
-                "commit": "aaa4addec66aa749cd3a8851257f3ada70d8da06",
-                "bench_function": "nop-bench"
-            },
-            "compose-real": {
-                "commit": "2c12ae1e395b1c2af19c6c82cdb96e721331407e",
-                "bench_function": "nop-bench"
-            }
-        }
-    },
-    "nop-split-cpu": {
-        "description": "Benchmarking main vs split CPU table",
-        "parameter": "iterations",
-        "output": "time taken (in s)",
-        "benches": {
-            "main at compose": {
-                "commit": "5219649aa6cf8f6e38659f8fb05150fedbd635a7",
-                "bench_function": "nop-bench"
-            },
-            "split (parallel)": {
-                "commit": "a74d4148bcd5eb8390c14095aab6abd2f82d6ac7",
-                "bench_function": "nop-bench"
-            }
-        }
-    },
-
     "poseidon2": {
         "description": "Benching Poseidon2 ECALL",
         "parameter": "input_len",
