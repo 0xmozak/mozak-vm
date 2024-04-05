@@ -777,7 +777,7 @@ impl Lookups for RegisterLookups {
             vec![
                 crate::register::general::columns::register_looked(),
                 crate::register::zero_read::columns::register_looked(),
-                crate::register_zero_write::columns::register_looked(),
+                crate::register::zero_write::columns::register_looked(),
             ],
         )
     }

@@ -1,6 +1,7 @@
 use std::ops::Index;
 
 use itertools::Itertools;
+use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
@@ -139,11 +140,35 @@ pub fn generate_register_trace<F: RichField>(
     )
 }
 
+/// Generates a register init ROM trace
+#[must_use]
+// TODO: For tests, we don't always start at 0.
+// TODO: unify with `init_register_trace` in `generation/register.rs`
+pub fn generate_register_init_trace<F: RichField>(
+    record: &ExecutionRecord<F>,
+) -> Vec<RegisterInit<F>> {
+    let first_state = record
+        .executed
+        .first()
+        .map_or(&record.last_state, |row| &row.state);
+
+    pad_trace_with_default(
+        (0..32)
+            .map(|i| RegisterInit {
+                reg_addr: F::from_canonical_u8(i),
+                value: F::from_canonical_u32(first_state.get_register_value(i)),
+                is_looked_up: F::from_bool(i != 0),
+            })
+            .collect(),
+    )
+}
+
+// TODO(Matthias): restore the tests from before https://github.com/0xmozak/mozak-vm/pull/1371
+
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;
-    use mozak_runner::vm::ExecutionRecord;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
@@ -153,7 +178,6 @@ mod tests {
         generate_io_memory_private_trace, generate_io_memory_public_trace,
         generate_io_transcript_trace,
     };
-    use crate::generation::registerinit::generate_register_init_trace;
     use crate::test_utils::prep_table;
 
     type F = GoldilocksField;

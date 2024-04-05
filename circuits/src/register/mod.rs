@@ -8,6 +8,7 @@
 
 use crate::columns_view::columns_view_impl;
 pub mod general;
+pub mod generation;
 pub mod init;
 pub mod zero_read;
 pub mod zero_write;
