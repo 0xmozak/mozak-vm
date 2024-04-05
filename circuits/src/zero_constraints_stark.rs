@@ -15,7 +15,7 @@ macro_rules! zero_constraints_stark {
         use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
         use starky::evaluation_frame::StarkFrame;
         use starky::stark::Stark;
-        use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+        use $crate::columns_view::{HasNamedColumns, NumberOfColumns};
 
         impl<F, const D: usize> HasNamedColumns for $s<F, D> {
             type Columns = $c<F>;
