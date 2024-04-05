@@ -101,3 +101,15 @@ test_elf!(mulhsu, "rv32um-p-mulhsu");
 test_elf!(mulhu, "rv32um-p-mulhu");
 test_elf!(rem, "rv32um-p-rem");
 test_elf!(remu, "rv32um-p-remu");
+
+// A extension
+test_elf!(amoadd_w, "rv32ua-p-amoadd_w");
+test_elf!(amoand_w, "rv32ua-p-amoand_w");
+test_elf!(amomax_w, "rv32ua-p-amomax_w");
+test_elf!(amomaxu_w, "rv32ua-p-amomaxu_w");
+test_elf!(amomin_w, "rv32ua-p-amomin_w");
+test_elf!(amominu_w, "rv32ua-p-amominu_w");
+test_elf!(amoor_w, "rv32ua-p-amoor_w");
+test_elf!(amoswap_w, "rv32ua-p-amoswap_w");
+test_elf!(amoxor_w, "rv32ua-p-amoxor_w");
+test_elf!(lrsc, "rv32ua-p-lrsc");
