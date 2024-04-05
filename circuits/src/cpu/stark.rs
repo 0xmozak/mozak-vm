@@ -265,7 +265,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         P: PackedField<Scalar = FE>, {
         let lv: &CpuState<_> = vars.get_local_values().into();
         let nv: &CpuState<_> = vars.get_next_values().into();
-        // TODO: only one alpha at a time!
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs()[1..].into();
         let _alphas = &vars.get_public_inputs()[..1];
 
