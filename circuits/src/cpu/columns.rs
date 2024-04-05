@@ -192,7 +192,7 @@ pub struct CpuState<T> {
     pub poseidon2_input_addr: T,
     pub poseidon2_input_len: T,
 }
-pub(crate) const CPU: CpuState<ColumnWithTypedInput<CpuState<i64>>> = COL_MAP;
+pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
 impl<T: PackedField> CpuState<T> {
     #[must_use]
@@ -249,7 +249,7 @@ pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    let ops = CPU.inst.ops;
+    let ops = &CPU.inst.ops;
     let divs = ops.div + ops.rem + ops.srl + ops.sra;
     let muls: ColumnWithTypedInput<CpuState<i64>> = ops.mul + ops.mulh + ops.sll;
 
