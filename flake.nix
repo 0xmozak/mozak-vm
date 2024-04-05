@@ -50,6 +50,7 @@
               nodejs_20
               wasmtime
               cargo-nextest
+              cargo-udeps
               config.packages.rust-toolchain
             ]
             ++ lib.lists.optional (stdenv.isDarwin) pkgs.darwin.libiconv;
