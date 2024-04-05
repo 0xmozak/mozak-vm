@@ -6,6 +6,8 @@ use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+#[allow(clippy::wildcard_imports)]
+use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
 
 use crate::bitshift::columns::{Bitshift, BitshiftView};
@@ -322,6 +324,25 @@ macro_rules! mozak_stark_helpers {
         }
         pub(crate) use all_starks;
 
+        #[allow(unused_macros)]
+        macro_rules! all_starks_par {
+            ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
+                use core::borrow::Borrow;
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
+                let all_stark = $all_stark.borrow();
+                TableKindArray([$(
+                    {
+                        let $stark = &all_stark.$fields;
+                        let $kind = $kind_names;
+                        let f: Box<dyn Fn() -> _ + Send + Sync> = Box::new(move || $val);
+                        f
+                    },)*
+                ]).par_map(|f| f())
+            }};
+        }
+        #[allow(unused_imports)]
+        pub(crate) use all_starks_par;
+
     };
 }
 
@@ -351,6 +372,22 @@ impl<'a, T> IntoIterator for &'a TableKindArray<T> {
     type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+}
+
+impl<T: Send> TableKindArray<T> {
+    pub fn par_map<F, U>(self, f: F) -> TableKindArray<U>
+    where
+        F: Fn(T) -> U + Send + Sync,
+        U: Send + core::fmt::Debug, {
+        TableKindArray(
+            self.0
+                .into_par_iter()
+                .map(f)
+                .collect::<Vec<U>>()
+                .try_into()
+                .unwrap(),
+        )
+    }
 }
 
 impl<T> TableKindArray<T> {
