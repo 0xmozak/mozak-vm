@@ -401,18 +401,7 @@ impl ProveAndVerify for MozakStark<F, D> {
     }
 }
 
-// timing: &mut TimingTree,
-
 pub fn prove_and_verify_mozak_stark(
-    program: &Program,
-    record: &ExecutionRecord<F>,
-    config: &StarkConfig,
-) -> Result<()> {
-    prove_and_verify_mozak_stark_with_timing(&mut TimingTree::default(), program, record, config)
-}
-
-pub fn prove_and_verify_mozak_stark_with_timing(
-    timing: &mut TimingTree,
     program: &Program,
     record: &ExecutionRecord<F>,
     config: &StarkConfig,
@@ -422,12 +411,15 @@ pub fn prove_and_verify_mozak_stark_with_timing(
         entry_point: from_u32(program.entry_point),
     };
 
-    let all_proof = timed!(
-        timing,
-        "proving",
-        prove::<F, C, D>(program, record, &stark, config, public_inputs, timing)?
-    );
-    timed!(timing, "verifying", verify_proof(&stark, all_proof, config))
+    let all_proof = prove::<F, C, D>(
+        program,
+        record,
+        &stark,
+        config,
+        public_inputs,
+        &mut TimingTree::default(),
+    )?;
+    verify_proof(&stark, all_proof, config)
 }
 
 /// Interpret a u64 as a field element and try to invert it.
