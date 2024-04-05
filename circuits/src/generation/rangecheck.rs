@@ -100,8 +100,8 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
-    use crate::register::generation::{generate_register_trace, generate_register_init_trace};
     use crate::generation::MIN_TRACE_LENGTH;
+    use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 
     #[test]
     fn test_generate_trace() {
