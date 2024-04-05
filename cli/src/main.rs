@@ -4,6 +4,7 @@
 // Remove when `clio` updates, or if `clio` is no longer needed.
 #![allow(clippy::multiple_crate_versions)]
 use std::io::{Read, Write};
+use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -41,7 +42,6 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::timed;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
@@ -392,12 +392,18 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::Bench(bench) => {
-            let mut timing = TimingTree::new("Benchmarking", log::Level::Debug);
+            /// Times a function and returns the `Duration`.
+            ///
+            /// # Errors
+            ///
+            /// This errors if the given function returns an `Err`.
+            pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
+                let start_time = std::time::Instant::now();
+                func()?;
+                Ok(start_time.elapsed())
+            }
 
-            let start_time = std::time::Instant::now();
-            timed!(timing, "Benchmark", bench.run(&mut timing)?);
-
-            let time_taken = start_time.elapsed().as_secs_f64();
+            let time_taken = timeit(&|| bench.run())?.as_secs_f64();
             println!("{time_taken}");
         }
     }

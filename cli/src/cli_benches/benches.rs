@@ -1,5 +1,4 @@
 use clap::{Args as Args_, Subcommand};
-use plonky2::util::timing::TimingTree;
 
 use super::nop::nop_bench;
 use super::poseidon2::poseidon2_bench;
@@ -20,15 +19,11 @@ pub enum BenchFunction {
 }
 
 impl BenchArgs {
-    pub fn run_with_default_timing(&self) -> Result<(), anyhow::Error> {
-        self.run(&mut TimingTree::default())
-    }
-
-    pub fn run(&self, timing: &mut TimingTree) -> Result<(), anyhow::Error> {
+    pub fn run(&self) -> Result<(), anyhow::Error> {
         match self.function {
-            BenchFunction::XorBench { iterations } => xor_bench(timing, iterations),
-            BenchFunction::NopBench { iterations } => nop_bench(timing, iterations),
-            BenchFunction::Poseidon2Bench { input_len } => poseidon2_bench(timing, input_len),
+            BenchFunction::XorBench { iterations } => xor_bench(iterations),
+            BenchFunction::NopBench { iterations } => nop_bench(iterations),
+            BenchFunction::Poseidon2Bench { input_len } => poseidon2_bench(input_len),
         }
     }
 }
