@@ -51,19 +51,15 @@ pub fn generate_program_mult_trace<F: RichField>(
 pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
     debug!("Starting CPU Trace Generation");
     let mut trace: Vec<CpuState<F>> = vec![];
-    let ExecutionRecord {
-        executed,
-        last_state,
-    } = record;
 
     let default_io_entry = IoEntry::default();
     for Row {
         state,
         instruction,
         aux,
-    } in executed
+    } in &record.executed
     {
-        let inst = *instruction;
+        let inst = instruction;
         // Skip instruction handled by their own tables.
         // TODO: refactor, so we don't repeat logic.
         {
