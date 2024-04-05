@@ -1,0 +1,20 @@
+[package]
+categories = ["proc-macros"]
+description = "MozakVM circuits"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "mozak-circuits-derive"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+itertools = "0.12"
+proc-macro-error = { git = "https://github.com/staratlasmeta/proc-macro-error.git", version = "2.0.0" }
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "extra-traits"] }
