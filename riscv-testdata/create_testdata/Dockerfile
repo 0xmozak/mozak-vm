@@ -36,7 +36,7 @@ RUN git submodule update --init --depth=1 --recursive && \
 RUN autoconf && \
     ./configure --prefix=/root/riscv-tests && \
     cd isa && \
-    make rv32ui rv32um XLEN=32 RISCV_GCC_OPTS="-save-temps -frandom-seed=1 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles"
+    make rv32ui rv32um rv32ua XLEN=32 RISCV_GCC_OPTS="-save-temps -frandom-seed=1 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles"
 
 RUN rm -f /root/riscv-tests/isa/.gitignore
 
