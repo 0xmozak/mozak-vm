@@ -44,7 +44,10 @@ use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
 use self::io_memory::generate_io_transcript_trace;
 use self::memory::generate_memory_trace;
-use self::memoryinit::generate_memory_init_trace;
+use self::memoryinit::{
+    generate_call_tape_init_trace, generate_event_tape_init_trace, generate_memory_init_trace,
+    generate_private_tape_init_trace, generate_public_tape_init_trace,
+};
 use self::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
@@ -95,6 +98,10 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let program_mult_rows = generate_program_mult_trace(&cpu_rows, &add_rows, &program_rows);
     let memory_init_rows = generate_elf_memory_init_trace(program);
     let mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
+    let call_tape_init_rows = generate_call_tape_init_trace(program);
+    let private_tape_init_rows = generate_private_tape_init_trace(program);
+    let public_tape_init_rows = generate_public_tape_init_trace(program);
+    let event_tape_init_rows = generate_event_tape_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
@@ -150,6 +157,10 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         memory_stark: trace_rows_to_poly_values(memory_rows),
         elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
         mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
+        call_tape_init_stark: trace_rows_to_poly_values(call_tape_init_rows),
+        private_tape_init_stark: trace_rows_to_poly_values(private_tape_init_rows),
+        public_tape_init_stark: trace_rows_to_poly_values(public_tape_init_rows),
+        event_tape_init_stark: trace_rows_to_poly_values(event_tape_init_rows),
         memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
         rangecheck_u8_stark: trace_rows_to_poly_values(rangecheck_u8_rows),
         halfword_memory_stark: trace_rows_to_poly_values(halfword_memory_rows),

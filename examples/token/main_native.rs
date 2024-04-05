@@ -38,5 +38,5 @@ fn main() {
         dispatch,
     );
 
-    mozak_sdk::native::dump_system_tape("token_tfr", true);
+    mozak_sdk::native::dump_proving_files("token_tfr", token_program);
 }

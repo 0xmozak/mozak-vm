@@ -89,7 +89,7 @@ pub struct LeafSubCircuit {
 impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
-        // Find the indicies
+        // Find the indices
         let indices = PublicIndices {
             summary_hash_present: find_bool(public_inputs, self.inputs.summary_hash_present),
             summary_hash: find_hash(public_inputs, self.inputs.summary_hash),
@@ -300,7 +300,7 @@ mod test {
         #[must_use]
         pub fn new(
             circuit_config: &CircuitConfig,
-            indicies: &PublicIndices,
+            indices: &PublicIndices,
             child: &CircuitData<F, C, D>,
         ) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
@@ -311,7 +311,7 @@ mod test {
             let bounded_targets = bounded_inputs.build_branch(&mut builder, child);
             let summarized_targets = summarized_inputs.build_branch(
                 &mut builder,
-                indicies,
+                indices,
                 &bounded_targets.left_proof,
                 &bounded_targets.right_proof,
             );
@@ -320,7 +320,7 @@ mod test {
 
             let public_inputs = &circuit.prover_only.public_inputs;
             let bounded = bounded_targets.build(public_inputs);
-            let summarized = summarized_targets.build(indicies, public_inputs);
+            let summarized = summarized_targets.build(indices, public_inputs);
 
             Self {
                 bounded,
