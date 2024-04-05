@@ -24,15 +24,14 @@ jobs:
         # Main branch is default branch
         # with:
         #   ref: main
-
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
-
-      - name: Install cargo-udeps
-        run: nice cargo install --features vendored-openssl --locked cargo-udeps
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
+        with:
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check for unused dependencies
-        run: nice cargo udeps --workspace --all-targets --all-features
+        run: nixdo nice cargo udeps --workspace --all-targets --all-features
 
       - name: Create github issue for failed action
         uses: imjohnbo/issue-bot@v3

@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "memory-access-mozak-guest"
+name = "memory-access"
 version = "0.1.0"
 
 [dependencies]
