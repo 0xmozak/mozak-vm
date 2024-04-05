@@ -26,7 +26,7 @@ impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
 }
 
 const COLUMNS: usize = NUM_HW_MEM_COLS;
-const PUBLIC_INPUTS: usize = 0;
+const PUBLIC_INPUTS: usize = 2;
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemoryStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 

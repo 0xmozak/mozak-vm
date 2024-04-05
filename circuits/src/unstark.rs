@@ -28,7 +28,7 @@ impl<F, const D: usize, Columns, const COLUMNS: usize> HasNamedColumns
     type Columns = Columns;
 }
 
-const PUBLIC_INPUTS: usize = 0;
+const PUBLIC_INPUTS: usize = 2;
 
 impl<
         F: RichField + Extendable<D>,

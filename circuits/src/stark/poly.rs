@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
+use itertools::chain;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
@@ -93,11 +94,6 @@ where
                 lagrange_basis_first,
                 lagrange_basis_last,
             );
-            let vars = StarkEvaluationFrame::from_values(
-                &get_trace_values_packed(i_start),
-                &get_trace_values_packed(i_next_start),
-                public_inputs,
-            );
             let public_sub_table_data_chain = public_sub_table_data.zs_columns.as_slice();
             let ctl_vars = ctl_data
                 .zs_columns
@@ -112,6 +108,12 @@ where
                     filter_column: &zs_columns.filter_column,
                 })
                 .collect::<Vec<_>>();
+            let public_inputs = chain![alphas, public_inputs].copied().collect::<Vec<_>>();
+            let vars = StarkEvaluationFrame::from_values(
+                &get_trace_values_packed(i_start),
+                &get_trace_values_packed(i_next_start),
+                &public_inputs,
+            );
             eval_vanishing_poly::<F, F, P, S, D, 1>(stark, &vars, &ctl_vars, &mut consumer);
             let mut constraints_evals = consumer.accumulators();
             // We divide the constraints evaluations by `Z_H(x)`.

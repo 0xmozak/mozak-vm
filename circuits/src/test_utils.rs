@@ -1,7 +1,5 @@
-use std::borrow::Borrow;
-
 use anyhow::Result;
-use itertools::izip;
+use itertools::{chain, izip};
 use mozak_runner::decode::ECALL;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
@@ -126,11 +124,13 @@ impl ProveAndVerify for CpuStark<F, D> {
         let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
+        let alphas = [F::from_canonical_u64(0xDEAD_BEEF), F::from_canonical_u64(1)];
+        let public_inputs = chain![alphas, public_inputs].collect::<Vec<_>>();
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            public_inputs.borrow(),
+            &public_inputs,
             &mut TimingTree::default(),
         )?;
 
@@ -402,6 +402,7 @@ pub fn prove_and_verify_mozak_stark(
     let stark = MozakStark::default();
     let public_inputs = PublicInputs {
         entry_point: from_u32(program.entry_point),
+        ..Default::default()
     };
 
     let all_proof = prove::<F, C, D>(

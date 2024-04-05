@@ -22,7 +22,7 @@ pub mod xor;
 use std::borrow::Borrow;
 use std::fmt::Display;
 
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -212,8 +212,10 @@ pub fn debug_single_trace<
         .circular_tuple_windows()
         .for_each(|((lv_row, lv), (nv_row, nv))| {
             let mut consumer = ConstraintConsumer::new_debug_api(lv_row == 0, nv_row == 0);
+            let alphas = &[F::from_canonical_u64(0xDEAD_BEEF), F::from_canonical_u64(1)];
+            let public_inputs = chain![alphas, public_inputs].copied().collect::<Vec<_>>();
             let vars =
-                StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), public_inputs);
+                StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), &public_inputs);
             stark.eval_packed_generic(&vars, &mut consumer);
             if consumer.debug_api_has_constraint_failed() {
                 let lv: S::Columns = lv.iter().copied().collect();

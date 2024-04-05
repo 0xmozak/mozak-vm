@@ -25,7 +25,7 @@ impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
 }
 
 const COLUMNS: usize = RangeCheckU8::<()>::NUMBER_OF_COLUMNS;
-const PUBLIC_INPUTS: usize = 0;
+const PUBLIC_INPUTS: usize = 2;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU8Stark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>

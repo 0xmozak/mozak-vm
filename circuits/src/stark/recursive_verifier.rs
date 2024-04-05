@@ -738,6 +738,7 @@ mod tests {
         let (program0, record0) = execute_code([inst], &[], &[(6, 100), (7, 200)]);
         let public_inputs = PublicInputs {
             entry_point: from_u32(program0.entry_point),
+            ..Default::default()
         };
         let stark_config0 = StarkConfig::standard_fast_config();
         let mozak_proof0 = prove::<F, C, D>(
@@ -752,6 +753,7 @@ mod tests {
         let (program1, record1) = execute_code(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
         let public_inputs = PublicInputs {
             entry_point: from_u32(program1.entry_point),
+            ..Default::default()
         };
         let stark_config1 = StarkConfig::standard_fast_config();
         let mozak_proof1 = prove::<F, C, D>(

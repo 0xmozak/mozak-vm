@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use log::debug;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
@@ -113,15 +113,6 @@ where
         quotient_polys,
     } = &proof.openings;
 
-    let vars = S::EvaluationFrame::from_values(
-        local_values,
-        next_values,
-        &public_inputs
-            .iter()
-            .map(|pi| F::Extension::from_basefield(*pi))
-            .collect_vec(),
-    );
-
     let degree_bits = proof.recover_degree_bits(config);
     let (l_0, l_last) = eval_l_0_and_l_last(degree_bits, challenges.stark_zeta);
     let last = F::primitive_root_of_unity(degree_bits).inverse();
@@ -135,6 +126,17 @@ where
         z_last,
         l_0,
         l_last,
+    );
+    let public_inputs = chain![&challenges.stark_alphas, public_inputs]
+        .copied()
+        .collect::<Vec<_>>();
+    let vars = S::EvaluationFrame::from_values(
+        local_values,
+        next_values,
+        &public_inputs
+            .iter()
+            .map(|pi| F::Extension::from_basefield(*pi))
+            .collect_vec(),
     );
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
