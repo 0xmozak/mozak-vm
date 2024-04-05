@@ -18,6 +18,7 @@
 exclude = ["sdk"]
 members = [
   "cli",
+  "derive",
   "examples-builder",
   "runner",
   "circuits",
