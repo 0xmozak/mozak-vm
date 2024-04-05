@@ -25,10 +25,6 @@ impl<F, const D: usize> HasNamedColumns for CpuSkeletonStark<F, D> {
     type Columns = CpuSkeleton<F>;
 }
 
-// let public_inputs = PublicInputs {
-//     entry_point: from_u32(program.entry_point),
-// };
-
 const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
@@ -75,8 +71,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
         // We end in a non-running state.
         yield_constr.constraint_last_row(lv.is_running);
 
-        // TODO: add a constraint that nothing changes anymore, once we are
-        // halted.
+        // NOTE: in our old CPU table we had constraints that made sure nothing changes anymore, once we are halted.
+        // We don't need those anymore: the only thing that can change are memory or registers.  And our CTLs make sure,
+        // that after we are halted, no more memory or register changes are allowed.
     }
 
     fn eval_ext_circuit(

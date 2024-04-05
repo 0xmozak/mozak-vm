@@ -42,8 +42,6 @@ pub(crate) fn halt_constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // TODO(Matthias): probably remove all of this?
-
     // Thus we can equate ecall with halt in the next row.
     // Crucially, this prevents a malicious prover from just halting the program
     // anywhere else.
