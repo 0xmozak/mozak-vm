@@ -47,7 +47,7 @@ pub(crate) fn halt_constraints<P: PackedField>(
     // anywhere else.
     // Enable only for halt !!!
     yield_constr
-        .constraint_transition(lv.is_halt * (lv.inst.ops.ecall + lv.new_is_running - P::ONES));
+        .constraint_transition(lv.is_halt * (lv.inst.ops.ecall + lv.next_is_running - P::ONES));
     yield_constr
         .constraint(lv.is_halt * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::HALT)));
 
@@ -118,7 +118,7 @@ pub(crate) fn halt_constraints_circuit<F: RichField + Extendable<D>, const D: us
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     let one = builder.one_extension();
-    let halt_ecall_plus_running = builder.add_extension(lv.inst.ops.ecall, lv.new_is_running);
+    let halt_ecall_plus_running = builder.add_extension(lv.inst.ops.ecall, lv.next_is_running);
     let halt_ecall_plus_running_sub_one = builder.sub_extension(halt_ecall_plus_running, one);
     let constraint1 = builder.mul_extension(lv.is_halt, halt_ecall_plus_running_sub_one);
     yield_constr.constraint_transition(builder, constraint1);
@@ -137,7 +137,7 @@ pub(crate) fn halt_constraints_circuit<F: RichField + Extendable<D>, const D: us
     is_binary_ext_circuit(builder, lv.is_running, yield_constr);
     yield_constr.constraint_last_row(builder, lv.is_running);
 
-    let nv_is_running_sub_lv_is_running = builder.sub_extension(lv.new_is_running, lv.is_running);
+    let nv_is_running_sub_lv_is_running = builder.sub_extension(lv.next_is_running, lv.is_running);
     let transition_constraint = builder.mul_extension(is_halted, nv_is_running_sub_lv_is_running);
     yield_constr.constraint_transition(builder, transition_constraint);
 }

@@ -107,7 +107,7 @@ pub struct CpuState<T> {
     // ROM instructions.
     pub is_running: T,
     // TODO(Matthias): we can remove this, once our 'halt' instruction is in its own table.
-    pub new_is_running: T,
+    pub next_is_running: T,
 
     pub op1_value: T,
     pub op2_value_raw: T,
