@@ -55,21 +55,13 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         executed,
         last_state,
     } = record;
-    let last_row = &[Row {
-        state: last_state.clone(),
-        // `Aux` has auxiliary information about an executed CPU cycle.
-        // The last state is the final state after the last execution.  Thus naturally it has no
-        // associated auxiliary execution information. We use a dummy aux to make the row
-        // generation work, but we could refactor to make this unnecessary.
-        ..executed.last().unwrap().clone()
-    }];
 
     let default_io_entry = IoEntry::default();
     for Row {
         state,
         instruction,
         aux,
-    } in chain![executed, last_row]
+    } in executed
     {
         let inst = *instruction;
         // Skip instruction handled by their own tables.
