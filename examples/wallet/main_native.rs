@@ -30,5 +30,5 @@ fn main() {
         dispatch,
     );
 
-    mozak_sdk::native::dump_proving_files("wallet_approve", wallet_program);
+    mozak_sdk::native::dump_proving_files("wallet", wallet_program);
 }

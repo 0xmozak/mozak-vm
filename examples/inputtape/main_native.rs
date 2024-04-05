@@ -19,5 +19,5 @@ fn main() {
 
     mozak_sdk::call_send(token_program, MethodArgs::RawTapesTest, dispatch);
 
-    mozak_sdk::native::dump_system_tape("inputtape", true);
+    mozak_sdk::native::dump_proving_files("inputtape", token_program);
 }
