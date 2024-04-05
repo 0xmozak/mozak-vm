@@ -59,12 +59,11 @@ pub struct Poseidon2SpongeCtl<T> {
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
-    let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
         Poseidon2SpongeCtl {
-            clk: sponge.clk,
-            input_addr: sponge.input_addr,
-            input_len: sponge.input_len,
+            clk: COL_MAP.clk,
+            input_addr: COL_MAP.input_addr,
+            input_len: COL_MAP.input_len,
         },
         COL_MAP.ops.is_init_permute,
     )
@@ -73,11 +72,10 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
 #[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2() -> TableWithTypedOutput<Poseidon2StateCtl<Column>> {
-    let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
         Poseidon2StateCtl {
-            input: sponge.preimage,
-            output: sponge.output,
+            input: COL_MAP.preimage,
+            output: COL_MAP.output,
         },
         COL_MAP.is_executed(),
     )
@@ -90,12 +88,11 @@ pub fn lookup_for_poseidon2() -> TableWithTypedOutput<Poseidon2StateCtl<Column>>
 #[must_use]
 pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2OutputBytesCtl<Column>>
 {
-    let sponge = COL_MAP;
     Poseidon2SpongeTable::new(
         Poseidon2OutputBytesCtl {
-            clk: sponge.clk,
-            output_addr: sponge.output_addr,
-            output_fields: sponge.output[..NUM_HASH_OUT_ELTS].try_into().unwrap(),
+            clk: COL_MAP.clk,
+            output_addr: COL_MAP.output_addr,
+            output_fields: COL_MAP.output[..NUM_HASH_OUT_ELTS].try_into().unwrap(),
         },
         COL_MAP.gen_output,
     )
@@ -105,16 +102,14 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2Outp
 #[must_use]
 pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
     assert!(limb_index < 8, "limb_index can be 0..7");
-    let sponge = COL_MAP;
-    let ops = COL_MAP.ops;
     Poseidon2SpongeTable::new(
         MemoryCtl {
-            clk: sponge.clk,
+            clk: COL_MAP.clk,
             is_store: ColumnWithTypedInput::constant(0),
             is_load: ColumnWithTypedInput::constant(1),
-            value: sponge.preimage[limb_index as usize],
-            addr: sponge.input_addr + i64::from(limb_index),
+            value: COL_MAP.preimage[limb_index as usize],
+            addr: COL_MAP.input_addr + i64::from(limb_index),
         },
-        ops.is_init_permute + ops.is_permute,
+        COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
     )
 }
