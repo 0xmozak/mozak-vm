@@ -3,12 +3,8 @@ use plonky2::hash::hash_types::RichField;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
-<<<<<<<< HEAD:circuits/src/register_zero_write/columns.rs
-use crate::register::columns::{Register, RegisterCtl};
-========
 use crate::register::general::columns::Register;
 use crate::register::RegisterCtl;
->>>>>>>> matthias/split-zero-register:circuits/src/register/zero_write/columns.rs
 use crate::stark::mozak_stark::{RegisterZeroWriteTable, TableWithTypedOutput};
 
 columns_view_impl!(RegisterZeroWrite);

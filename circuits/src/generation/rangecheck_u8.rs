@@ -78,9 +78,8 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::rangecheck::generate_rangecheck_trace;
-    use crate::generation::register::generate_register_trace;
-    use crate::generation::registerinit::generate_register_init_trace;
     use crate::ops;
+    use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 
     #[test]
     fn test_generate_trace() {

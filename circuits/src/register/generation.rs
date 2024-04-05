@@ -1,16 +1,18 @@
 use std::ops::Index;
 
 use itertools::Itertools;
+use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::ops;
-use crate::register::columns::{Ops, Register, RegisterCtl};
-use crate::register_zero_read::columns::RegisterZeroRead;
-use crate::register_zero_write::columns::RegisterZeroWrite;
-use crate::registerinit::columns::RegisterInit;
+use crate::register::general::columns::{Ops, Register};
+use crate::register::init::columns::RegisterInit;
+use crate::register::zero_read::columns::RegisterZeroRead;
+use crate::register::zero_write::columns::RegisterZeroWrite;
+use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
 use crate::utils::pad_trace_with_default;
 
@@ -117,9 +119,6 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
             TableKind::IoTranscript => extract(mem_transcript, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
-            // TODO: review whether these cases actually happen?
-            // Flow of information in generation goes in the other direction.
-            TableKind::RegisterZeroRead | TableKind::RegisterZeroWrite => vec![],
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
         .collect();
@@ -143,11 +142,31 @@ pub fn generate_register_trace<F: RichField>(
     )
 }
 
+/// Generates a register init trace
+#[must_use]
+pub fn generate_register_init_trace<F: RichField>(
+    record: &ExecutionRecord<F>,
+) -> Vec<RegisterInit<F>> {
+    let first_state = record
+        .executed
+        .first()
+        .map_or(&record.last_state, |row| &row.state);
+
+    pad_trace_with_default(
+        (0..32)
+            .map(|i| RegisterInit {
+                reg_addr: F::from_canonical_u8(i),
+                value: F::from_canonical_u32(first_state.get_register_value(i)),
+                is_looked_up: F::from_bool(i != 0),
+            })
+            .collect(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;
-    use mozak_runner::vm::ExecutionRecord;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
@@ -157,7 +176,6 @@ mod tests {
         generate_io_memory_private_trace, generate_io_memory_public_trace,
         generate_io_transcript_trace,
     };
-    use crate::generation::registerinit::generate_register_init_trace;
     use crate::test_utils::prep_table;
 
     type F = GoldilocksField;

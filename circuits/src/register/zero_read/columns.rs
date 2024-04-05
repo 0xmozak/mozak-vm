@@ -3,36 +3,26 @@ use plonky2::hash::hash_types::RichField;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
-<<<<<<<< HEAD:circuits/src/register_zero_write/columns.rs
-use crate::register::columns::{Register, RegisterCtl};
-========
 use crate::register::general::columns::Register;
 use crate::register::RegisterCtl;
->>>>>>>> matthias/split-zero-register:circuits/src/register/zero_write/columns.rs
-use crate::stark::mozak_stark::{RegisterZeroWriteTable, TableWithTypedOutput};
+use crate::stark::mozak_stark::{RegisterZeroReadTable, TableWithTypedOutput};
 
-columns_view_impl!(RegisterZeroWrite);
-make_col_map!(RegisterZeroWrite);
+columns_view_impl!(RegisterZeroRead);
+make_col_map!(RegisterZeroRead);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 /// The columns of the register 0 table.
 /// Register 0 is a special register that is always 0.
 /// Thus we don't need neither a value column nor a register address column.
-pub struct RegisterZeroWrite<T> {
+pub struct RegisterZeroRead<T> {
     pub clk: T,
-
-    /// Value of the register at time (in clk) of access.
-    /// We accept writes for any value, but reads and inits will always be 0.
-    pub value: T,
-
     pub is_used: T,
 }
 
-impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZeroWrite<F> {
+impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZeroRead<F> {
     fn from(ctl: Register<F>) -> Self {
-        RegisterZeroWrite {
+        RegisterZeroRead {
             clk: ctl.clk,
-            value: ctl.value,
             is_used: F::ONE,
         }
     }
@@ -41,12 +31,12 @@ impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZeroWrite<F>
 #[must_use]
 pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
     let reg = COL_MAP;
-    RegisterZeroWriteTable::new(
+    RegisterZeroReadTable::new(
         RegisterCtl {
             clk: reg.clk,
-            op: ColumnWithTypedInput::constant(2), // write
+            op: ColumnWithTypedInput::constant(1),
             addr: ColumnWithTypedInput::constant(0),
-            value: reg.value,
+            value: ColumnWithTypedInput::constant(0),
         },
         reg.is_used,
     )

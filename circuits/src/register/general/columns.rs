@@ -5,6 +5,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 use crate::rangecheck::columns::RangeCheckCtl;
+use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
 
 columns_view_impl!(Ops);
@@ -89,16 +90,6 @@ impl<F: RichField + core::fmt::Debug> From<RegisterCtl<F>> for Register<F> {
             ops: Ops::from(ctl.op),
         }
     }
-}
-
-columns_view_impl!(RegisterCtl);
-#[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct RegisterCtl<T> {
-    pub clk: T,
-    pub op: T,
-    pub addr: T,
-    pub value: T,
 }
 
 /// We create a virtual column known as `is_used`, which flags a row as

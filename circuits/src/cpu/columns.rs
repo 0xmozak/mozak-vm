@@ -15,7 +15,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::InstructionRow;
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::register::columns::RegisterCtl;
+use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
 use crate::xor::columns::XorView;
 

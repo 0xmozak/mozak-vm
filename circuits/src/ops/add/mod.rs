@@ -8,7 +8,7 @@ pub mod columns {
     use crate::linear_combination_typed::ColumnWithTypedInput;
     use crate::program::columns::InstructionRow;
     use crate::rangecheck::columns::RangeCheckCtl;
-    use crate::register::columns::RegisterCtl;
+    use crate::register::RegisterCtl;
     use crate::stark::mozak_stark::{AddTable, TableWithTypedOutput};
 
     columns_view_impl!(Instruction);

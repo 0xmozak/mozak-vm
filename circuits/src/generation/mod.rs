@@ -17,8 +17,6 @@ pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_u8;
-pub mod register;
-pub mod registerinit;
 pub mod xor;
 
 use std::borrow::Borrow;
@@ -52,8 +50,6 @@ use self::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_u8::generate_rangecheck_u8_trace;
-use self::register::generate_register_trace;
-use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
@@ -67,6 +63,7 @@ use crate::generation::memoryinit::{
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::ops;
+use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
@@ -125,8 +122,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
 
-    // TODO: consider folding generate_register_init_trace into
-    // generate_register_trace, like we did for register_zero?
     let register_init_rows = generate_register_init_trace::<F>(record);
     let (register_zero_read_rows, register_zero_write_rows, register_rows) =
         generate_register_trace(
