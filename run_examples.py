@@ -186,7 +186,7 @@ class ExamplesTester(unittest.TestCase):
                     # should take max 2 minutes
                     subprocess.run(
                         args=shlex.split(system_tape_generation_command),
-                        cwd="examples",
+                        cwd=f"examples/{folder}",
                         capture_output=True,
                         timeout=600,
                         check=True,
@@ -194,7 +194,7 @@ class ExamplesTester(unittest.TestCase):
 
                     print()
 
-                    system_tape = f"examples/{folder}.tape.json"
+                    system_tape = f"examples/{folder}/{folder}.tape.json"
 
                     programs_to_run = [
                         (
