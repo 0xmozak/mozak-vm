@@ -56,18 +56,7 @@ pub(crate) fn halt_constraints<P: PackedField>(
     // Enable only for halt !!!
     yield_constr.constraint_transition(lv.is_halt * (lv.inst.ops.ecall * (lv.new_pc - lv.inst.pc)));
 
-    let is_halted = P::ONES - lv.is_running;
     is_binary(yield_constr, lv.is_running);
-
-    // Once we stop running, no subsequent row starts running again:
-    yield_constr.constraint_transition(is_halted * (lv.new_is_running - lv.is_running));
-
-    // TODO: move an equivalent of this to skeleton table:
-
-    // // Halted means that nothing changes anymore:
-    // for (&lv_entry, &nv_entry) in izip!(lv, nv) {
-    //     yield_constr.constraint_transition(is_halted * (lv_entry -
-    // nv_entry)); }
 }
 
 pub(crate) fn io_constraints<P: PackedField>(
