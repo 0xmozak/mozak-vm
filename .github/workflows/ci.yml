@@ -117,10 +117,9 @@ jobs:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and run examples
+      - name: Run examples
         run: |
-          cd examples && nixdo nice cargo build --release
-          cd .. && nixdo nice ./run_examples.sh
+          nixdo python3 run_examples.py
 
   cargo-clippy:
     needs: check-runner
