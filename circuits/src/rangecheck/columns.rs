@@ -1,4 +1,4 @@
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::stark::mozak_stark::{RangeCheckTable, TableWithTypedOutput};
 
@@ -12,9 +12,6 @@ pub struct RangeCheckColumnsView<T> {
 }
 columns_view_impl!(RangeCheckColumnsView);
 make_col_map!(RangeCheckColumnsView);
-
-/// Total number of columns for the range check table.
-pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS;
 
 /// Lookup for columns be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).

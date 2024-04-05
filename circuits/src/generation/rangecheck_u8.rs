@@ -78,8 +78,7 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::rangecheck::generate_rangecheck_trace;
-    use crate::generation::register::generate_register_trace;
-    use crate::generation::registerinit::generate_register_init_trace;
+    use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 
     #[test]
     fn test_generate_trace() {
@@ -118,7 +117,7 @@ mod tests {
             &poseidon2_output_bytes,
         );
         let register_init = generate_register_init_trace(&record);
-        let (_zero_register_rows, register_rows) = generate_register_trace(
+        let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,
