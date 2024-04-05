@@ -110,7 +110,7 @@ where
                         let vars = StarkEvaluationFrame::from_values(
                             &get_trace_values_packed(i_start),
                             &get_trace_values_packed(i_next_start),
-                            &public_inputs,
+                            public_inputs,
                         );
 
                         let mut consumer = ConstraintConsumer::new(
