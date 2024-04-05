@@ -99,11 +99,14 @@ columns_view_impl!(CpuState);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct CpuState<T> {
     pub clk: T,
+    pub new_pc: T,
     pub inst: Instruction<T>,
 
     // Represents the end of the program. Also used as the filter column for cross checking Program
     // ROM instructions.
     pub is_running: T,
+    // TODO(Matthias): we can remove this, once our 'halt' instruction is in its own table.
+    pub next_is_running: T,
 
     pub op1_value: T,
     pub op2_value_raw: T,

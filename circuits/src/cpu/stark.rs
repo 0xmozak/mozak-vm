@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use itertools::izip;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -60,26 +61,21 @@ pub fn add_extension_vec<F: RichField + Extendable<D>, const D: usize>(
 
 /// Ensure that if opcode is straight line, then program counter is incremented
 /// by 4.
-fn pc_ticks_up<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
+fn pc_ticks_up<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint_transition(
         lv.inst.ops.is_straightline()
-            * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
+            * (lv.new_pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
 fn pc_ticks_up_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     let four = builder.constant_extension(F::Extension::from_noncanonical_u64(4));
     let lv_inst_pc_add_four = builder.add_extension(lv.inst.pc, four);
-    let nv_inst_pc_sub_lv_inst_pc_add_four = builder.sub_extension(nv.inst.pc, lv_inst_pc_add_four);
+    let nv_inst_pc_sub_lv_inst_pc_add_four = builder.sub_extension(lv.new_pc, lv_inst_pc_add_four);
     let is_jumping = add_extension_vec(builder, vec![
         lv.inst.ops.beq,
         lv.inst.ops.bge,
@@ -264,12 +260,22 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &CpuState<_> = vars.get_local_values().into();
-        let nv: &CpuState<_> = vars.get_next_values().into();
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
 
+        {
+            let nv: &CpuState<_> = vars.get_next_values().into();
+            clock_ticks(lv, nv, yield_constr);
+            yield_constr.constraint_transition(lv.new_pc - nv.inst.pc);
+
+            let is_halted = P::ONES - lv.is_running;
+            // Halted means that nothing changes anymore:
+            for (&lv_entry, &nv_entry) in izip!(lv, nv) {
+                yield_constr.constraint_transition(is_halted * (lv_entry - nv_entry));
+            }
+        }
+
         yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
-        clock_ticks(lv, nv, yield_constr);
-        pc_ticks_up(lv, nv, yield_constr);
+        pc_ticks_up(lv, yield_constr);
 
         one_hots(&lv.inst, yield_constr);
 
@@ -280,15 +286,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         sub::constraints(lv, yield_constr);
         bitwise::constraints(lv, yield_constr);
         branches::comparison_constraints(lv, yield_constr);
-        branches::constraints(lv, nv, yield_constr);
+        branches::constraints(lv, yield_constr);
         memory::constraints(lv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
         signed_comparison::slt_constraints(lv, yield_constr);
         shift::constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
-        jalr::constraints(lv, nv, yield_constr);
-        ecall::constraints(lv, nv, yield_constr);
+        jalr::constraints(lv, yield_constr);
+        ecall::constraints(lv, yield_constr);
 
         // Clock starts at 2. This is to differentiate
         // execution clocks (2 and above) from
@@ -306,14 +312,32 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let lv: &CpuState<_> = vars.get_local_values().into();
-        let nv: &CpuState<_> = vars.get_next_values().into();
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
+
+        {
+            let nv: &CpuState<_> = vars.get_next_values().into();
+            clock_ticks_circuit(builder, lv, nv, yield_constr);
+
+            {
+                let pc_to_next_pc = builder.sub_extension(lv.new_pc, nv.inst.pc);
+                yield_constr.constraint_transition(builder, pc_to_next_pc);
+            }
+            {
+                let one = builder.one_extension();
+                let is_halted = builder.sub_extension(one, lv.is_running);
+                for (index, &lv_entry) in lv.iter().enumerate() {
+                    let nv_entry = nv[index];
+                    let lv_nv_entry_sub = builder.sub_extension(lv_entry, nv_entry);
+                    let transition_constraint = builder.mul_extension(is_halted, lv_nv_entry_sub);
+                    yield_constr.constraint_transition(builder, transition_constraint);
+                }
+            }
+        }
 
         let inst_pc_sub_public_inputs_entry_point =
             builder.sub_extension(lv.inst.pc, public_inputs.entry_point);
         yield_constr.constraint_first_row(builder, inst_pc_sub_public_inputs_entry_point);
-        clock_ticks_circuit(builder, lv, nv, yield_constr);
-        pc_ticks_up_circuit(builder, lv, nv, yield_constr);
+        pc_ticks_up_circuit(builder, lv, yield_constr);
 
         one_hots_circuit(builder, &lv.inst, yield_constr);
 
@@ -323,15 +347,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         sub::constraints_circuit(builder, lv, yield_constr);
         bitwise::constraints_circuit(builder, lv, yield_constr);
         branches::comparison_constraints_circuit(builder, lv, yield_constr);
-        branches::constraints_circuit(builder, lv, nv, yield_constr);
+        branches::constraints_circuit(builder, lv, yield_constr);
         memory::constraints_circuit(builder, lv, yield_constr);
         signed_comparison::signed_constraints_circuit(builder, lv, yield_constr);
         signed_comparison::slt_constraints_circuit(builder, lv, yield_constr);
         shift::constraints_circuit(builder, lv, yield_constr);
         div::constraints_circuit(builder, lv, yield_constr);
         mul::constraints_circuit(builder, lv, yield_constr);
-        jalr::constraints_circuit(builder, lv, nv, yield_constr);
-        ecall::constraints_circuit(builder, lv, nv, yield_constr);
+        jalr::constraints_circuit(builder, lv, yield_constr);
+        ecall::constraints_circuit(builder, lv, yield_constr);
 
         let two = builder.two_extension();
         let two_sub_lv_clk = builder.sub_extension(two, lv.clk);
