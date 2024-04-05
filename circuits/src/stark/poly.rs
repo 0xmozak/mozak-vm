@@ -107,8 +107,6 @@ where
             let mut constraints_evals: Vec<_> = {
                 izip![alphas, stark_conjunction_challenges]
                     .flat_map(|(&alpha, conj)| {
-                        let public_inputs =
-                            chain![[conj], public_inputs].copied().collect::<Vec<_>>();
                         let vars = StarkEvaluationFrame::from_values(
                             &get_trace_values_packed(i_start),
                             &get_trace_values_packed(i_next_start),
@@ -122,7 +120,7 @@ where
                             lagrange_basis_last,
                         );
                         eval_vanishing_poly::<F, F, P, S, D, 1>(
-                            stark,
+                            &stark.with_conjunctive_challenge(conj),
                             &vars,
                             &ctl_vars,
                             &mut consumer,
