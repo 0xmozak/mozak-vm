@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
-use itertools::{chain, izip, Itertools};
+use itertools::{izip, Itertools};
 use log::debug;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
@@ -16,6 +16,7 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindSetBuilder};
 use super::proof::AllProof;
+use crate::columns_view::HasConjunctiveChallenge;
 use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
 use crate::public_sub_table::reduce_public_sub_tables_values;
 use crate::stark::poly::eval_vanishing_poly;
@@ -93,7 +94,7 @@ where
 pub(crate) fn verify_stark_proof_with_challenges<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D>,
+    S: Stark<F, D> + HasConjunctiveChallenge<F> + Copy,
     const D: usize,
 >(
     stark: &S,
@@ -103,9 +104,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
     public_inputs: &[F],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
     config: &StarkConfig,
-) -> Result<()>
-where
-{
+) -> Result<()> {
     validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let StarkOpeningSet {
         local_values,
@@ -122,14 +121,13 @@ where
     let z_last = challenges.stark_zeta - last.into();
     let vanishing_polys_zeta: Vec<_> = {
         izip![&challenges.stark_alphas, stark_conjunction_challenges]
-            .flat_map(|(&alpha, conj)| {
+            .flat_map(|(&alpha, &conj)| {
                 let mut consumer = ConstraintConsumer::<F::Extension>::new(
                     vec![F::Extension::from_basefield(alpha)],
                     z_last,
                     l_0,
                     l_last,
                 );
-                let public_inputs = chain![[conj], public_inputs].copied().collect::<Vec<_>>();
                 let vars = S::EvaluationFrame::from_values(
                     local_values,
                     next_values,
@@ -139,7 +137,7 @@ where
                         .collect_vec(),
                 );
                 eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
-                    stark,
+                    &stark.with_conjunctive_challenge(conj),
                     &vars,
                     ctl_vars,
                     &mut consumer,
