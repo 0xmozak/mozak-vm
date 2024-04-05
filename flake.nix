@@ -52,6 +52,10 @@
               cargo-nextest
               cargo-udeps
               config.packages.rust-toolchain
+              (python312.withPackages (python-pkgs: [
+                python-pkgs.colorama
+                python-pkgs.toml
+              ]))
             ]
             ++ lib.lists.optional (stdenv.isDarwin) pkgs.darwin.libiconv;
         };

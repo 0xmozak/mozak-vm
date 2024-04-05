@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "inputtape-mozak-guest"
+name = "inputtape"
 version = "0.1.0"
 
 [features]
@@ -25,3 +25,7 @@ required-features = ["native"]
 [lib]
 name = "inputtape"
 path = "core_logic.rs"
+
+# The following is read by `run_examples.py`
+[package.metadata.mozak]
+example_program_id = "MZK-5de9bc1bb4cb7a9f9cf991a32230d014b44274ea5464a352f089a8cccc486915"

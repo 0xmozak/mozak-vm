@@ -7,7 +7,7 @@ use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier};
 use crate::core_logic::{dispatch, MethodArgs};
 
 fn main() {
-    let token_program = ProgramIdentifier::new_from_rand_seed(1);
+    let token_program = ProgramIdentifier::new_from_rand_seed(3);
 
     let buf1 = Poseidon2Hash::new_from_rand_seed(2).inner();
     let buf2 = buf1.iter().map(|x| x.wrapping_add(1)).collect::<Vec<u8>>();
@@ -19,5 +19,5 @@ fn main() {
 
     mozak_sdk::call_send(token_program, MethodArgs::RawTapesTest, dispatch);
 
-    mozak_sdk::native::dump_system_tape("inputtape", true);
+    mozak_sdk::native::dump_proving_files("inputtape", token_program);
 }
