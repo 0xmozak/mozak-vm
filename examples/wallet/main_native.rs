@@ -8,9 +8,9 @@ use mozak_sdk::common::types::ProgramIdentifier;
 use crate::core_logic::{dispatch, BlackBox, MethodArgs, PublicKey, TokenObject};
 
 fn main() {
-    let wallet_program = ProgramIdentifier::new_from_rand_seed(1);
-    let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
-    let remittee_program = ProgramIdentifier::new_from_rand_seed(3);
+    let wallet_program = ProgramIdentifier::new_from_rand_seed(2);
+    let remitter_program = ProgramIdentifier::new_from_rand_seed(20);
+    let remittee_program = ProgramIdentifier::new_from_rand_seed(21);
     let public_key = PublicKey::new_from_rand_seed(4);
 
     let token_object = TokenObject {
@@ -30,5 +30,5 @@ fn main() {
         dispatch,
     );
 
-    mozak_sdk::native::dump_proving_files("wallet_approve", wallet_program);
+    mozak_sdk::native::dump_proving_files("wallet", wallet_program);
 }
