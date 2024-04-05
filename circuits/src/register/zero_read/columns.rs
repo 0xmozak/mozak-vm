@@ -30,14 +30,13 @@ impl<F: RichField + core::fmt::Debug> From<Register<F>> for RegisterZeroRead<F> 
 
 #[must_use]
 pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
-    let reg = COL_MAP;
     RegisterZeroReadTable::new(
         RegisterCtl {
-            clk: reg.clk,
+            clk: COL_MAP.clk,
             op: ColumnWithTypedInput::constant(1),
             addr: ColumnWithTypedInput::constant(0),
             value: ColumnWithTypedInput::constant(0),
         },
-        reg.is_used,
+        COL_MAP.is_used,
     )
 }
