@@ -190,8 +190,6 @@ mod tests {
         let record = setup();
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
-        let add_rows = ops::add::generate(&record);
-        let blt_rows = ops::blt_taken::generate(&record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
