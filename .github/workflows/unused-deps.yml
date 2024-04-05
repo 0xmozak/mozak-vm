@@ -30,10 +30,6 @@ jobs:
           runner-label: ${{ needs.check-runner.outputs.runner-label }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
-
       - name: Check for unused dependencies
         run: nixdo nice cargo udeps --workspace --all-targets --all-features
 
