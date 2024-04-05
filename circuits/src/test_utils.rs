@@ -1,5 +1,7 @@
+use std::borrow::Borrow;
+
 use anyhow::Result;
-use itertools::{chain, izip};
+use itertools::izip;
 use mozak_runner::decode::ECALL;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
@@ -124,13 +126,11 @@ impl ProveAndVerify for CpuStark<F, D> {
         let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
-        let conjunction_challenge = [F::from_canonical_u64(0xDEAD_BEEF)];
-        let public_inputs = chain![conjunction_challenge, public_inputs].collect::<Vec<_>>();
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            &public_inputs,
+            public_inputs.borrow(),
             &mut TimingTree::default(),
         )?;
 
@@ -181,7 +181,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[F::from_canonical_u64(0xDEAD_BEEF)],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -202,7 +202,7 @@ impl ProveAndVerify for XorStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[F::from_canonical_u64(0xDEAD_BEEF)],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -237,7 +237,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[F::from_canonical_u64(0xDEAD_BEEF)],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -257,7 +257,7 @@ impl ProveAndVerify for HalfWordMemoryStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[F::from_canonical_u64(0xDEAD_BEEF)],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -277,7 +277,7 @@ impl ProveAndVerify for FullWordMemoryStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[F::from_canonical_u64(0xDEAD_BEEF)],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -297,7 +297,7 @@ impl ProveAndVerify for InputOutputMemoryStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[F::from_canonical_u64(0xDEAD_BEEF)],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -318,7 +318,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[F::from_canonical_u64(0xDEAD_BEEF)],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -338,7 +338,7 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[F::from_canonical_u64(0xDEAD_BEEF)],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -369,7 +369,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[F::from_canonical_u64(0xDEAD_BEEF)],
+            &[],
             &mut TimingTree::default(),
         )?;
 

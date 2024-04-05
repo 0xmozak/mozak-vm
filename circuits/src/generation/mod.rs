@@ -22,7 +22,7 @@ pub mod xor;
 use std::borrow::Borrow;
 use std::fmt::Display;
 
-use itertools::{chain, Itertools};
+use itertools::Itertools;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -49,7 +49,7 @@ use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_u8::generate_rangecheck_u8_trace;
 use self::xor::generate_xor_trace;
-use crate::columns_view::HasNamedColumns;
+use crate::columns_view::{HasConjunctiveChallenge, HasNamedColumns};
 use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
@@ -199,23 +199,22 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 pub fn debug_single_trace<
     F: RichField + Extendable<D> + Debug,
     const D: usize,
-    S: Stark<F, D> + Display + HasNamedColumns,
+    S: Stark<F, D> + Display + HasNamedColumns + HasConjunctiveChallenge<F>,
 >(
     stark: &S,
     trace_rows: &[PolynomialValues<F>],
     public_inputs: &[F],
 ) where
     S::Columns: FromIterator<F> + Debug, {
+    let stark = stark.with_conjunctive_challenge(F::from_canonical_u64(0xDEAD_BEEF));
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
         .circular_tuple_windows()
         .for_each(|((lv_row, lv), (nv_row, nv))| {
             let mut consumer = ConstraintConsumer::new_debug_api(lv_row == 0, nv_row == 0);
-            let conj = [F::from_canonical_u64(0xDEAD_BEEF)];
-            let public_inputs = chain![&conj, public_inputs].copied().collect::<Vec<_>>();
             let vars =
-                StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), &public_inputs);
+                StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), public_inputs);
             stark.eval_packed_generic(&vars, &mut consumer);
             if consumer.debug_api_has_constraint_failed() {
                 let lv: S::Columns = lv.iter().copied().collect();
