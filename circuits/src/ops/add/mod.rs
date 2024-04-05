@@ -149,12 +149,11 @@ use crate::utils::pad_trace_with_default;
 #[must_use]
 pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<Add<F>> {
     let mut trace: Vec<Add<F>> = vec![];
-    let ExecutionRecord { executed, .. } = record;
     for Row {
         state,
         instruction: inst,
         aux,
-    } in executed
+    } in &record.executed
     {
         if let Op::ADD = inst.op {
             let row = Add {
