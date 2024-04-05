@@ -739,7 +739,7 @@ impl Lookups for InnerCpuTable {
     type Row = InstructionRow<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_inst()], vec![
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_propgram_rom()], vec![
             program_multiplicities::columns::lookup_for_cpu(),
         ])
     }
