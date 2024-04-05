@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::{HasConjunctiveChallenge, HasNamedColumns, NumberOfColumns};
 
 /// Template for a STARK with zero internal constraints. Use this if the STARK
 /// itself does not need any built-in constraints, but rely on cross table
@@ -18,8 +18,20 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct Unstark<F, const D: usize, Columns, const COLUMNS: usize> {
-    pub _f: PhantomData<F>,
+    pub conjunctive_challenge: F,
     pub _d: PhantomData<Columns>,
+}
+
+impl<F: Copy, const D: usize, Columns: Copy, const COLUMNS: usize> HasConjunctiveChallenge<F>
+    for Unstark<F, D, Columns, { COLUMNS }>
+{
+    fn get_conjunctive_challenge(&self) -> F { self.conjunctive_challenge }
+
+    fn with_conjunctive_challenge(&self, conjunctive_challenge: F) -> Self {
+        let mut new_self = *self;
+        new_self.conjunctive_challenge = conjunctive_challenge;
+        new_self
+    }
 }
 
 impl<F, const D: usize, Columns, const COLUMNS: usize> HasNamedColumns
@@ -28,7 +40,7 @@ impl<F, const D: usize, Columns, const COLUMNS: usize> HasNamedColumns
     type Columns = Columns;
 }
 
-const PUBLIC_INPUTS: usize = 1;
+const PUBLIC_INPUTS: usize = 0;
 
 impl<
         F: RichField + Extendable<D>,

@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -12,13 +10,14 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::RangeCheckU8;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::{stark_impl, HasNamedColumns, NumberOfColumns};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckU8Stark<F, const D: usize> {
-    pub _f: PhantomData<F>,
+    pub conjunctive_challenge: F,
 }
+stark_impl!(RangeCheckU8Stark);
 
 impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
     type Columns = RangeCheckU8<F>;

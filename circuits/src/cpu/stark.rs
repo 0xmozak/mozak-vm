@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -13,7 +11,7 @@ use starky::stark::Stark;
 
 use super::columns::{is_mem_op_extention_target, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::{stark_impl, HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
@@ -24,8 +22,9 @@ use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
+    pub conjunctive_challenge: F,
 }
+stark_impl!(CpuStark);
 
 impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
     type Columns = CpuState<F>;
@@ -245,7 +244,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
-const PUBLIC_INPUTS: usize = 1 + PublicInputs::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
@@ -266,8 +265,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let lv: &CpuState<_> = vars.get_local_values().into();
         let nv: &CpuState<_> = vars.get_next_values().into();
         // TODO: only one alpha at a time!
-        let public_inputs: &PublicInputs<_> = vars.get_public_inputs()[1..].into();
-        let _alphas = &vars.get_public_inputs()[..1];
+        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
+        let _challenge = self.conjunctive_challenge;
 
         yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
         clock_ticks(lv, nv, yield_constr);

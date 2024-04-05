@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -13,7 +11,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::Poseidon2State;
-use crate::columns_view::HasNamedColumns;
+use crate::columns_view::{stark_impl, HasNamedColumns};
 use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
@@ -275,15 +273,16 @@ fn matmul_internal12_circuit<
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2_12Stark<F, const D: usize> {
-    pub _f: PhantomData<F>,
+    pub conjunctive_challenge: F,
 }
+stark_impl!(Poseidon2_12Stark);
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2_12Stark<F, D> {
     type Columns = Poseidon2State<F>;
 }
 
 const COLUMNS: usize = NUM_POSEIDON2_COLS;
-const PUBLIC_INPUTS: usize = 1;
+const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12Stark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>

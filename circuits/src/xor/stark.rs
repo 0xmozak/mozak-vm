@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use itertools::{chain, izip};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -13,21 +11,22 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::XorColumnsView;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::{stark_impl, HasNamedColumns, NumberOfColumns};
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct XorStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
+    pub conjunctive_challenge: F,
 }
+stark_impl!(XorStark);
 
 impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
     type Columns = XorColumnsView<F>;
 }
 
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
-const PUBLIC_INPUTS: usize = 1;
+const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>

@@ -26,6 +26,7 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
+use crate::columns_view::HasConjunctiveChallenge;
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
@@ -188,7 +189,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D> + Display, {
+    S: Stark<F, D> + Display + HasConjunctiveChallenge<F>, {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);

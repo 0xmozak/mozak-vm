@@ -17,6 +17,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
+use crate::columns_view::HasConjunctiveChallenge;
 use crate::cross_table_lookup::{
     eval_cross_table_lookup_checks, eval_cross_table_lookup_checks_circuit, CtlCheckVars,
     CtlCheckVarsTarget, CtlData,
@@ -40,7 +41,7 @@ where
     F: RichField + Extendable<D>,
     P: PackedField<Scalar = F>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D>, {
+    S: Stark<F, D> + HasConjunctiveChallenge<F>, {
     let degree = 1 << degree_bits;
     let rate_bits = config.fri_config.rate_bits;
 

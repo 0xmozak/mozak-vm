@@ -35,12 +35,35 @@ pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
 }
 
+pub trait HasConjunctiveChallenge<F> {
+    fn get_conjunctive_challenge(&self) -> F;
+    #[must_use]
+    fn with_conjunctive_challenge(&self, conjunctive_challenge: F) -> Self;
+}
+
 pub trait Zip<Item> {
     #[must_use]
     fn zip_with<F>(self, other: Self, f: F) -> Self
     where
         F: FnMut(Item, Item) -> Item;
 }
+
+macro_rules! stark_impl {
+    ($s: ident) => {
+        impl<F: Copy, const D: usize> $crate::columns_view::HasConjunctiveChallenge<F>
+            for $s<F, D>
+        {
+            fn get_conjunctive_challenge(&self) -> F { self.conjunctive_challenge }
+
+            fn with_conjunctive_challenge(&self, conjunctive_challenge: F) -> Self {
+                let mut new_self = *self;
+                new_self.conjunctive_challenge = conjunctive_challenge;
+                new_self
+            }
+        }
+    };
+}
+pub(crate) use stark_impl;
 
 /// This structure only exists to improve macro impl hiding
 #[doc(hidden)]
