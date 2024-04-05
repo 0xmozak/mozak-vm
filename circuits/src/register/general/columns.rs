@@ -122,8 +122,6 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
 
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    use crate::linear_combination_typed::ColumnWithTypedInput;
-
     let lv = COL_MAP;
     let nv = COL_MAP.map(ColumnWithTypedInput::flip);
     vec![RegisterTable::new(
