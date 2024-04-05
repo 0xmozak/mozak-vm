@@ -129,7 +129,7 @@ mod tests {
             stark,
             &config,
             trace_poly_values,
-            &[],
+            &[F::from_canonical_u64(0xDEAD_BEEF)],
             &mut TimingTree::default(),
         )?;
         verify_stark_proof(stark, proof, &config)

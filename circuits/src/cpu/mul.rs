@@ -218,13 +218,12 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 #[cfg(test)]
 mod tests {
-
-    use std::borrow::Borrow;
-
     use anyhow::Result;
+    use itertools::chain;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{i32_extra, u32_extra};
     use mozak_runner::util::execute_code;
+    use plonky2::field::types::Field;
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use proptest::prelude::ProptestConfig;
@@ -272,6 +271,8 @@ mod tests {
         let public_inputs = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
+        let conjunction_challenge = [F::from_canonical_u64(0xDEAD_BEEF)];
+        let public_inputs = chain![conjunction_challenge, public_inputs].collect::<Vec<_>>();
 
         let proof = timed!(
             timing,
@@ -280,7 +281,7 @@ mod tests {
                 stark,
                 &config,
                 trace_poly_values,
-                public_inputs.borrow(),
+                &public_inputs,
                 &mut timing,
             )
         );

@@ -106,6 +106,7 @@ mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;
+    use plonky2::field::types::Field;
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use starky::prover::prove as prove_table;
@@ -171,7 +172,13 @@ mod tests {
         let proof = timed!(
             timing,
             "xor proof",
-            prove_table::<F, C, S, D>(stark, &config, trace_poly_values, &[], &mut timing,)
+            prove_table::<F, C, S, D>(
+                stark,
+                &config,
+                trace_poly_values,
+                &[F::from_canonical_u64(0xDEAD_BEEF)],
+                &mut timing,
+            )
         );
         let proof = proof.unwrap();
         let verification_res = timed!(

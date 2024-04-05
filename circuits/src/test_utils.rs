@@ -124,8 +124,8 @@ impl ProveAndVerify for CpuStark<F, D> {
         let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
-        let alphas = [F::from_canonical_u64(0xDEAD_BEEF)];
-        let public_inputs = chain![alphas, public_inputs].collect::<Vec<_>>();
+        let conjunction_challenge = [F::from_canonical_u64(0xDEAD_BEEF)];
+        let public_inputs = chain![conjunction_challenge, public_inputs].collect::<Vec<_>>();
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,

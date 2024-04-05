@@ -444,6 +444,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
@@ -483,7 +484,7 @@ mod tests {
             stark,
             &config,
             trace_poly_values,
-            &[],
+            &[F::from_canonical_u64(0xDEAD_BEEF)],
             &mut TimingTree::default(),
         )?;
         verify_stark_proof(stark, proof, &config)

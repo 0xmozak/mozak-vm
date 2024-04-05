@@ -431,7 +431,7 @@ mod tests {
             stark,
             &config,
             memory_trace,
-            &[],
+            &[F::from_canonical_u64(0xDEAD_BEEF)],
             &mut TimingTree::default(),
         )
         .unwrap();
