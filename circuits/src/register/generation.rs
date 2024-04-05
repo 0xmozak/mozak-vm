@@ -140,9 +140,8 @@ pub fn generate_register_trace<F: RichField>(
     )
 }
 
-/// Generates a register init ROM trace
+/// Generates a register init trace
 #[must_use]
-// TODO: For tests, we don't always start at 0.
 pub fn generate_register_init_trace<F: RichField>(
     record: &ExecutionRecord<F>,
 ) -> Vec<RegisterInit<F>> {
@@ -161,8 +160,6 @@ pub fn generate_register_init_trace<F: RichField>(
             .collect(),
     )
 }
-
-// TODO(Matthias): restore the tests from before https://github.com/0xmozak/mozak-vm/pull/1371
 
 #[cfg(test)]
 mod tests {
