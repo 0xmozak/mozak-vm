@@ -1,6 +1,6 @@
 use super::columns::RangeCheckColumnsView;
 use crate::columns_view::NumberOfColumns;
-use crate::zero_constraints_stark::Unstark;
+use crate::unstark::Unstark;
 
 #[allow(clippy::module_name_repetitions)]
 pub type RangeCheckStark<F, const D: usize> =
