@@ -1,8 +1,7 @@
 use super::columns::RegisterZeroWrite;
-use crate::zero_constraints_stark;
+use crate::columns_view::NumberOfColumns;
+use crate::zero_constraints_stark::Unstark;
 
-#[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct RegisterZeroWriteStark<F, const D: usize>(PhantomData<F>);
-
-zero_constraints_stark!(RegisterZeroWrite, RegisterZeroWriteStark);
+pub type RegisterZeroWriteStark<F, const D: usize> =
+    Unstark<F, D, RegisterZeroWrite<F>, { RegisterZeroWrite::<()>::NUMBER_OF_COLUMNS }>;

@@ -1,8 +1,7 @@
 use super::columns::RegisterZeroRead;
-use crate::zero_constraints_stark;
+use crate::columns_view::NumberOfColumns;
+use crate::zero_constraints_stark::Unstark;
 
-#[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct RegisterZeroReadStark<F, const D: usize>(PhantomData<F>);
-
-zero_constraints_stark!(RegisterZeroRead, RegisterZeroReadStark);
+pub type RegisterZeroReadStark<F, const D: usize> =
+    Unstark<F, D, RegisterZeroRead<F>, { RegisterZeroRead::<()>::NUMBER_OF_COLUMNS }>;

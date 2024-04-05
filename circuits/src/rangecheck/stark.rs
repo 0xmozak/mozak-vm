@@ -1,11 +1,10 @@
 use super::columns::RangeCheckColumnsView;
-use crate::zero_constraints_stark;
+use crate::columns_view::NumberOfColumns;
+use crate::zero_constraints_stark::Unstark;
 
-#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct RangeCheckStark<F, const D: usize>(PhantomData<F>);
-
-zero_constraints_stark!(RangeCheckColumnsView, RangeCheckStark);
+pub type RangeCheckStark<F, const D: usize> =
+    Unstark<F, D, RangeCheckColumnsView<F>, { RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS }>;
 
 #[cfg(test)]
 mod tests {
