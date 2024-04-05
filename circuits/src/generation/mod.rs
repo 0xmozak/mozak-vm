@@ -212,8 +212,8 @@ pub fn debug_single_trace<
         .circular_tuple_windows()
         .for_each(|((lv_row, lv), (nv_row, nv))| {
             let mut consumer = ConstraintConsumer::new_debug_api(lv_row == 0, nv_row == 0);
-            let alphas = &[F::from_canonical_u64(0xDEAD_BEEF), F::from_canonical_u64(1)];
-            let public_inputs = chain![alphas, public_inputs].copied().collect::<Vec<_>>();
+            let conj = [F::from_canonical_u64(0xDEAD_BEEF)];
+            let public_inputs = chain![&conj, public_inputs].copied().collect::<Vec<_>>();
             let vars =
                 StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), &public_inputs);
             stark.eval_packed_generic(&vars, &mut consumer);

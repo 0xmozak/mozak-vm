@@ -224,22 +224,27 @@ where
     let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
 
-    let alphas = challenger.get_n_challenges(config.num_challenges);
-    let quotient_polys = timed!(
-        timing,
-        format!("{stark}: compute quotient polynomial").as_str(),
-        compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
-            stark,
-            trace_commitment,
-            &ctl_zs_commitment,
-            public_inputs,
-            ctl_data,
-            public_sub_table_data,
-            &alphas,
-            degree_bits,
-            config,
+    let quotient_polys = {
+        // Just to double check that we are only using `alphas` in this scope.
+        let alphas = challenger.get_n_challenges(config.num_challenges);
+        let stark_conjunction_challenges = challenger.get_n_challenges(config.num_challenges);
+        timed!(
+            timing,
+            format!("{stark}: compute quotient polynomial").as_str(),
+            compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
+                stark,
+                trace_commitment,
+                &ctl_zs_commitment,
+                public_inputs,
+                ctl_data,
+                public_sub_table_data,
+                &alphas,
+                &stark_conjunction_challenges,
+                degree_bits,
+                config,
+            )
         )
-    );
+    };
 
     let all_quotient_chunks = timed!(
         timing,

@@ -311,6 +311,7 @@ fn verify_stark_proof_with_challenges_circuit<
         builder.constant_extension(F::Extension::primitive_root_of_unity(degree_bits).inverse());
     let z_last = builder.sub_extension(challenges.stark_zeta, last);
 
+    // TODO: one at a time.
     let mut consumer = RecursiveConstraintConsumer::<F, D>::new(
         builder.zero_extension(),
         challenges.stark_alphas.clone(),
@@ -738,7 +739,6 @@ mod tests {
         let (program0, record0) = execute_code([inst], &[], &[(6, 100), (7, 200)]);
         let public_inputs = PublicInputs {
             entry_point: from_u32(program0.entry_point),
-            ..Default::default()
         };
         let stark_config0 = StarkConfig::standard_fast_config();
         let mozak_proof0 = prove::<F, C, D>(
@@ -753,7 +753,6 @@ mod tests {
         let (program1, record1) = execute_code(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
         let public_inputs = PublicInputs {
             entry_point: from_u32(program1.entry_point),
-            ..Default::default()
         };
         let stark_config1 = StarkConfig::standard_fast_config();
         let mozak_proof1 = prove::<F, C, D>(

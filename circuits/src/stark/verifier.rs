@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
-use itertools::{chain, Itertools};
+use itertools::{chain, izip, Itertools};
 use log::debug;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
@@ -35,6 +35,7 @@ where
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
+        stark_conjunction_challenges,
     } = all_proof.get_challenges(config);
 
     ensure!(
@@ -71,6 +72,7 @@ where
     all_starks!(mozak_stark, |stark, kind| {
         verify_stark_proof_with_challenges(
             stark,
+            &stark_conjunction_challenges,
             &all_proof.proofs[kind],
             &stark_challenges[kind],
             public_inputs[kind],
@@ -95,6 +97,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
     const D: usize,
 >(
     stark: &S,
+    stark_conjunction_challenges: &[F],
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
     public_inputs: &[F],
@@ -117,34 +120,34 @@ where
     let (l_0, l_last) = eval_l_0_and_l_last(degree_bits, challenges.stark_zeta);
     let last = F::primitive_root_of_unity(degree_bits).inverse();
     let z_last = challenges.stark_zeta - last.into();
-    let mut consumer = ConstraintConsumer::<F::Extension>::new(
-        challenges
-            .stark_alphas
-            .iter()
-            .map(|&alpha| F::Extension::from_basefield(alpha))
-            .collect::<Vec<_>>(),
-        z_last,
-        l_0,
-        l_last,
-    );
-    let public_inputs = chain![&challenges.stark_alphas, public_inputs]
-        .copied()
-        .collect::<Vec<_>>();
-    let vars = S::EvaluationFrame::from_values(
-        local_values,
-        next_values,
-        &public_inputs
-            .iter()
-            .map(|pi| F::Extension::from_basefield(*pi))
-            .collect_vec(),
-    );
-    eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
-        stark,
-        &vars,
-        ctl_vars,
-        &mut consumer,
-    );
-    let vanishing_polys_zeta = consumer.accumulators();
+    let vanishing_polys_zeta: Vec<_> = {
+        izip![&challenges.stark_alphas, stark_conjunction_challenges]
+            .flat_map(|(&alpha, conj)| {
+                let mut consumer = ConstraintConsumer::<F::Extension>::new(
+                    vec![F::Extension::from_basefield(alpha)],
+                    z_last,
+                    l_0,
+                    l_last,
+                );
+                let public_inputs = chain![[conj], public_inputs].copied().collect::<Vec<_>>();
+                let vars = S::EvaluationFrame::from_values(
+                    local_values,
+                    next_values,
+                    &public_inputs
+                        .iter()
+                        .map(|pi| F::Extension::from_basefield(*pi))
+                        .collect_vec(),
+                );
+                eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
+                    stark,
+                    &vars,
+                    ctl_vars,
+                    &mut consumer,
+                );
+                consumer.accumulators()
+            })
+            .collect()
+    };
 
     // Check each polynomial identity, of the form `vanishing(x) = Z_H(x)
     // quotient(x)`, at zeta.

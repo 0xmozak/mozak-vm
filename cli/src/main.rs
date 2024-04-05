@@ -170,7 +170,6 @@ fn main() -> Result<()> {
             };
             let public_inputs = PublicInputs {
                 entry_point: F::from_canonical_u32(program.entry_point),
-                ..Default::default()
             };
             let all_proof = prove::<F, C, D>(
                 &program,

@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use itertools::chain;
+use itertools::{chain, izip};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
@@ -32,6 +32,7 @@ pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     ctl_data: &CtlData<F>,
     public_sub_table_data: &CtlData<F>,
     alphas: &[F],
+    stark_conjunction_challenges: &[F],
     degree_bits: usize,
     config: &StarkConfig,
 ) -> Vec<PolynomialCoeffs<F>>
@@ -88,12 +89,6 @@ where
             let lagrange_basis_first = *P::from_slice(&lagrange_first.values[i_range.clone()]);
             let lagrange_basis_last = *P::from_slice(&lagrange_last.values[i_range]);
 
-            let mut consumer = ConstraintConsumer::new(
-                alphas.to_vec(),
-                z_last,
-                lagrange_basis_first,
-                lagrange_basis_last,
-            );
             let public_sub_table_data_chain = public_sub_table_data.zs_columns.as_slice();
             let ctl_vars = ctl_data
                 .zs_columns
@@ -108,14 +103,33 @@ where
                     filter_column: &zs_columns.filter_column,
                 })
                 .collect::<Vec<_>>();
-            let public_inputs = chain![alphas, public_inputs].copied().collect::<Vec<_>>();
-            let vars = StarkEvaluationFrame::from_values(
-                &get_trace_values_packed(i_start),
-                &get_trace_values_packed(i_next_start),
-                &public_inputs,
-            );
-            eval_vanishing_poly::<F, F, P, S, D, 1>(stark, &vars, &ctl_vars, &mut consumer);
-            let mut constraints_evals = consumer.accumulators();
+            let mut constraints_evals: Vec<_> = {
+                izip![alphas, stark_conjunction_challenges]
+                    .flat_map(|(&alpha, conj)| {
+                        let public_inputs =
+                            chain![[conj], public_inputs].copied().collect::<Vec<_>>();
+                        let vars = StarkEvaluationFrame::from_values(
+                            &get_trace_values_packed(i_start),
+                            &get_trace_values_packed(i_next_start),
+                            &public_inputs,
+                        );
+
+                        let mut consumer = ConstraintConsumer::new(
+                            vec![alpha],
+                            z_last,
+                            lagrange_basis_first,
+                            lagrange_basis_last,
+                        );
+                        eval_vanishing_poly::<F, F, P, S, D, 1>(
+                            stark,
+                            &vars,
+                            &ctl_vars,
+                            &mut consumer,
+                        );
+                        consumer.accumulators()
+                    })
+                    .collect()
+            };
             // We divide the constraints evaluations by `Z_H(x)`.
             let denominator_inv: P = z_h_on_coset.eval_inverse_packed(i_start);
             for eval in &mut constraints_evals {

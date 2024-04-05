@@ -26,7 +26,7 @@ impl<F, const D: usize> HasNamedColumns for InputOutputMemoryStark<F, D> {
 }
 
 const COLUMNS: usize = NUM_IO_MEM_COLS;
-const PUBLIC_INPUTS: usize = 2;
+const PUBLIC_INPUTS: usize = 1;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMemoryStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>

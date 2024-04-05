@@ -283,7 +283,7 @@ impl<F, const D: usize> HasNamedColumns for Poseidon2_12Stark<F, D> {
 }
 
 const COLUMNS: usize = NUM_POSEIDON2_COLS;
-const PUBLIC_INPUTS: usize = 2;
+const PUBLIC_INPUTS: usize = 1;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12Stark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>

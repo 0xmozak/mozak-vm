@@ -154,6 +154,7 @@ impl<const D: usize> StarkProofTarget<D> {
         challenger.observe_cap(ctl_zs_cap);
 
         let stark_alphas = challenger.get_n_challenges(builder, num_challenges);
+        let stark_conjunction_challenge = challenger.get_n_challenges(builder, num_challenges);
 
         challenger.observe_cap(quotient_polys_cap);
         let stark_zeta = challenger.get_extension_challenge(builder);
@@ -162,6 +163,7 @@ impl<const D: usize> StarkProofTarget<D> {
 
         StarkProofChallengesTarget {
             stark_alphas,
+            stark_conjunction_challenge,
             stark_zeta,
             fri_challenges: challenger.fri_challenges(
                 builder,
@@ -192,6 +194,7 @@ pub struct StarkProofChallenges<F: RichField + Extendable<D>, const D: usize> {
 
 pub struct StarkProofChallengesTarget<const D: usize> {
     pub stark_alphas: Vec<Target>,
+    pub stark_conjunction_challenge: Vec<Target>,
     pub stark_zeta: ExtensionTarget<D>,
     pub fri_challenges: FriChallengesTarget<D>,
 }
@@ -327,9 +330,14 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
     pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
 }
 
+#[allow(clippy::struct_field_names)]
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
     pub stark_challenges: TableKindArray<StarkProofChallenges<F, D>>,
     pub ctl_challenges: GrandProductChallengeSet<F>,
+    /// Random values used to combine STARK constraints with logical-and.
+    /// (Internally, not externaly.)
+    /// TODO: explain more.
+    pub stark_conjunction_challenges: Vec<F>,
 }
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
@@ -344,13 +352,14 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         // TODO: Observe public values.
 
         let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
-
+        let stark_conjunction_challenges = challenger.get_n_challenges(config.num_challenges);
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
                 challenger.compact();
                 self.proofs[kind].get_challenges(&mut challenger, config)
             }),
             ctl_challenges,
+            stark_conjunction_challenges,
         }
     }
 

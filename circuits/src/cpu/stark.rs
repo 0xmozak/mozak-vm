@@ -245,7 +245,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
-const PUBLIC_INPUTS: usize = 2 + PublicInputs::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 1 + PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
@@ -265,8 +265,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         P: PackedField<Scalar = FE>, {
         let lv: &CpuState<_> = vars.get_local_values().into();
         let nv: &CpuState<_> = vars.get_next_values().into();
-        let public_inputs: &PublicInputs<_> = vars.get_public_inputs()[2..].into();
-        let _alphas = &vars.get_public_inputs()[..2];
+        // TODO: only one alpha at a time!
+        let public_inputs: &PublicInputs<_> = vars.get_public_inputs()[1..].into();
+        let _alphas = &vars.get_public_inputs()[..1];
 
         yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
         clock_ticks(lv, nv, yield_constr);
@@ -308,7 +309,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) {
         let lv: &CpuState<_> = vars.get_local_values().into();
         let nv: &CpuState<_> = vars.get_next_values().into();
-        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
+        let public_inputs: &PublicInputs<_> = vars.get_public_inputs()[1..].into();
+        let _alphas = &vars.get_public_inputs()[..1];
 
         let inst_pc_sub_public_inputs_entry_point =
             builder.sub_extension(lv.inst.pc, public_inputs.entry_point);
