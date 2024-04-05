@@ -143,7 +143,6 @@ pub fn generate_register_trace<F: RichField>(
 /// Generates a register init ROM trace
 #[must_use]
 // TODO: For tests, we don't always start at 0.
-// TODO: unify with `init_register_trace` in `generation/register.rs`
 pub fn generate_register_init_trace<F: RichField>(
     record: &ExecutionRecord<F>,
 ) -> Vec<RegisterInit<F>> {
