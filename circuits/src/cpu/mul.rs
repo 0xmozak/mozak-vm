@@ -218,6 +218,7 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 #[cfg(test)]
 mod tests {
+
     use std::borrow::Borrow;
 
     use anyhow::Result;

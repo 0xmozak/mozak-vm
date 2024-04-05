@@ -308,8 +308,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) {
         let lv: &CpuState<_> = vars.get_local_values().into();
         let nv: &CpuState<_> = vars.get_next_values().into();
-        let public_inputs: &PublicInputs<_> = vars.get_public_inputs()[1..].into();
-        let _alphas = &vars.get_public_inputs()[..1];
+        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
+        let _alphas = self.conjunctive_challenge;
 
         let inst_pc_sub_public_inputs_entry_point =
             builder.sub_extension(lv.inst.pc, public_inputs.entry_point);
