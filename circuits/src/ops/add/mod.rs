@@ -137,8 +137,6 @@ pub mod columns {
             ADD.is_running,
         )
     }
-
-    // TODO: add lookup for program rom.
 }
 
 use columns::{Add, Instruction};
