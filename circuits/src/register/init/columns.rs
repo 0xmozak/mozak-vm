@@ -1,7 +1,7 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
-use crate::register::columns::RegisterCtl;
+use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{RegisterInitTable, TableWithTypedOutput};
 
 columns_view_impl!(RegisterInit);
