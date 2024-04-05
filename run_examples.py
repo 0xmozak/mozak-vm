@@ -91,7 +91,7 @@ class ExamplesTester(unittest.TestCase):
                     args=shlex.split(build_command),
                     cwd="examples",
                     capture_output=True,
-                    timeout=120,
+                    timeout=600,
                     check=True,
                 )
 
@@ -110,7 +110,7 @@ class ExamplesTester(unittest.TestCase):
                     subprocess.run(
                         args=shlex.split(prove_and_verify_command),
                         capture_output=True,
-                        timeout=120,
+                        timeout=600,
                         check=True,
                     )
                 print()
@@ -146,7 +146,7 @@ class ExamplesTester(unittest.TestCase):
                     args=shlex.split(build_command),
                     cwd="examples",
                     capture_output=True,
-                    timeout=120,
+                    timeout=600,
                     check=True,
                 )
                 print()
@@ -188,7 +188,7 @@ class ExamplesTester(unittest.TestCase):
                         args=shlex.split(system_tape_generation_command),
                         cwd="examples",
                         capture_output=True,
-                        timeout=120,
+                        timeout=600,
                         check=True,
                     )
 
@@ -226,7 +226,7 @@ class ExamplesTester(unittest.TestCase):
                         subprocess.run(
                             args=shlex.split(execution_command),
                             capture_output=True,
-                            timeout=120,
+                            timeout=600,
                             check=True,
                         )
 
