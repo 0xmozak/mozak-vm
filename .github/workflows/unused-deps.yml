@@ -2,10 +2,8 @@ name: Unused dependencies
 
 on:
   # Triggers the workflow every sunday
-  # schedule:
-  #  - cron: "0 18 * * 0"
-  push:
-    branches: ["bing/nix-udeps"]
+  schedule:
+    - cron: "0 18 * * 0"
 
 env:
   CARGO_TERM_COLOR: always
