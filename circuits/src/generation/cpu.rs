@@ -77,7 +77,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
             new_pc: F::from_canonical_u32(aux.new_pc),
-            inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
+            inst: cpu_cols::Instruction::from((state.get_pc(), *inst)).map(from_u32),
             op1_value: from_u32(aux.op1),
             op2_value_raw: from_u32(aux.op2_raw),
             op2_value: from_u32(aux.op2),
@@ -93,7 +93,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
             bitshift: Bitshift::from(0).map(F::from_canonical_u32),
-            xor: generate_xor_row(&inst, state),
+            xor: generate_xor_row(inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             #[cfg(feature = "enable_poseidon_starks")]
@@ -130,9 +130,9 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);
-        generate_div_row(&mut row, &inst, aux);
+        generate_div_row(&mut row, inst, aux);
         operands_sign_handling(&mut row, aux);
-        memory_sign_handling(&mut row, &inst, aux);
+        memory_sign_handling(&mut row, inst, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
