@@ -33,11 +33,11 @@ impl<F: RichField> From<F> for Ops<F> {
     }
 }
 
-impl<T: RichField> Ops<T> {
+impl<F: RichField> Ops<F> {
     #[must_use]
     pub fn init() -> Self {
         Self {
-            is_init: T::ONE,
+            is_init: F::ONE,
             ..Default::default()
         }
     }
@@ -45,7 +45,7 @@ impl<T: RichField> Ops<T> {
     #[must_use]
     pub fn read() -> Self {
         Self {
-            is_read: T::ONE,
+            is_read: F::ONE,
             ..Default::default()
         }
     }
@@ -53,7 +53,7 @@ impl<T: RichField> Ops<T> {
     #[must_use]
     pub fn write() -> Self {
         Ops {
-            is_write: T::ONE,
+            is_write: F::ONE,
             ..Default::default()
         }
     }
