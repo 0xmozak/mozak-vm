@@ -140,6 +140,9 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     )]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
+    #[cfg(feature = "test_public_table")]
+    pub public_sub_tables: [PublicSubTable; 1],
+    #[cfg(not(feature = "test_public_table"))]
     pub public_sub_tables: [PublicSubTable; 0],
     pub debug: bool,
 }
@@ -411,7 +414,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
             ],
+            #[cfg(not(feature = "test_public_table"))]
             public_sub_tables: [],
+            #[cfg(feature = "test_public_table")]
+            public_sub_tables: [crate::bitshift::columns::public_sub_table()],
             debug: false,
         }
     }
