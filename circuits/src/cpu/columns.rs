@@ -391,7 +391,7 @@ pub fn lookup_for_shift_amount() -> TableWithTypedOutput<Bitshift<Column>> {
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn lookup_for_propgram_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
     let inst = CPU.inst;
     CpuTable::new(
         InstructionRow {
