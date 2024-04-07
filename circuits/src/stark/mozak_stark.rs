@@ -31,11 +31,11 @@ use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::memoryinit::stark::MemoryInitStark;
-use crate::ops::add;
 use crate::ops::add::columns::Add;
 use crate::ops::add::stark::AddStark;
 use crate::ops::blt_taken::columns::BltTaken;
 use crate::ops::blt_taken::stark::BltTakenStark;
+use crate::ops::{add, blt_taken};
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2State;
 #[cfg(feature = "enable_poseidon_starks")]
@@ -780,6 +780,7 @@ impl Lookups for InnerCpuTable {
         CrossTableLookupWithTypedOutput::new(
             vec![
                 add::columns::lookup_for_program_rom(),
+                blt_taken::columns::lookup_for_program_rom(),
                 cpu::columns::lookup_for_program_rom(),
             ],
             vec![program_multiplicities::columns::lookup_for_cpu()],
