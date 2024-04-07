@@ -70,7 +70,7 @@ pub mod columns {
         ]
     }
 
-    // #[must_use]
+    #[must_use]
     pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
         vec![StoreWordTable::new(
             RangeCheckCtl(COL_MAP.address),

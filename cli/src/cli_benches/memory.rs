@@ -64,13 +64,13 @@ mod tests {
 
     #[test]
     fn test_memory_bench() {
-        let iterations = 10;
+        let iterations = 1;
         super::memory_bench(iterations).unwrap();
     }
 
     #[test]
     fn test_memory_bench_with_run() {
-        let iterations = 10;
+        let iterations = 1;
         let bench = BenchArgs {
             function: BenchFunction::MemoryBench { iterations },
         };

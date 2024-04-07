@@ -94,6 +94,8 @@ where
 /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
 ///    2.
 #[allow(clippy::type_complexity)]
+// TODO(Matthias): rework the args, perhaps pass table kind with Option or so?
+#[allow(clippy::too_many_arguments)]
 pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     add_trace: &[ops::add::columns::Add<F>],

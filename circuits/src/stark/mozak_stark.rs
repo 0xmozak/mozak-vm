@@ -684,6 +684,7 @@ impl Lookups for CpuToSkeletonTable {
                 ops::add::columns::lookup_for_skeleton(),
                 ops::blt_taken::columns::lookup_for_skeleton(),
                 ops::sw::columns::lookup_for_skeleton(),
+                ops::lw::columns::lookup_for_skeleton(),
             ],
             vec![cpu_skeleton::columns::lookup_for_cpu()],
         )
@@ -855,6 +856,7 @@ impl Lookups for FullWordMemoryCpuTable {
             vec![
                 cpu::columns::lookup_for_fullword_memory(),
                 ops::sw::columns::lookup_for_fullword_memory(),
+                ops::lw::columns::lookup_for_fullword_memory(),
             ],
             vec![memory_fullword::columns::lookup_for_cpu()],
         )
