@@ -1,5 +1,6 @@
 use clap::{Args as Args_, Subcommand};
 
+use super::memory::memory_bench;
 use super::nop::nop_bench;
 use super::poseidon2::poseidon2_bench;
 use super::xor::xor_bench;
@@ -13,17 +14,19 @@ pub struct BenchArgs {
 
 #[derive(PartialEq, Debug, Subcommand, Clone)]
 pub enum BenchFunction {
-    XorBench { iterations: u32 },
+    MemoryBench { iterations: u32 },
     NopBench { iterations: u32 },
     Poseidon2Bench { input_len: u32 },
+    XorBench { iterations: u32 },
 }
 
 impl BenchArgs {
     pub fn run(&self) -> Result<(), anyhow::Error> {
         match self.function {
-            BenchFunction::XorBench { iterations } => xor_bench(iterations),
+            BenchFunction::MemoryBench { iterations } => memory_bench(iterations),
             BenchFunction::NopBench { iterations } => nop_bench(iterations),
             BenchFunction::Poseidon2Bench { input_len } => poseidon2_bench(input_len),
+            BenchFunction::XorBench { iterations } => xor_bench(iterations),
         }
     }
 }

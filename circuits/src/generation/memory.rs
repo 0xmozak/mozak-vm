@@ -224,6 +224,7 @@ pub fn generate_memory_trace<F: RichField>(
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
+    dbg!(merged_trace.len());
     let trace = pad_mem_trace(merged_trace);
     log::trace!("trace {:?}", trace);
     trace
