@@ -58,16 +58,6 @@ pub fn generate_program_mult_trace<F: RichField>(
         .iter()
         .filter(|row| row.is_running == F::ONE)
         .map(|row| row.inst.pc);
-    {
-        dbg!(load_word_trace.len());
-        // dbg!(load_word_trace);
-        // let load_word_counts_ = load_word_trace
-        // .iter()
-        // .filter(|row| row.is_running == F::ONE)
-        // .map(|row| row.inst.pc);
-        // let hmap = &load_word_counts.cloned().collect();
-        // dbg!(hmap);
-    }
     let counts = chain![
         cpu_counts,
         add_counts,

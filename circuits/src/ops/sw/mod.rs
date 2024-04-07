@@ -1,3 +1,6 @@
+// TODO(Matthias): unify with Fullword memory.
+// Same for `lw`.
+
 pub mod stark;
 
 pub mod columns {
