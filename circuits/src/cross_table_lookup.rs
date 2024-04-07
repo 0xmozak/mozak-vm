@@ -534,7 +534,6 @@ pub mod ctl_utils {
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::RichField;
 
-    use crate::cpu_skeleton::columns::CpuSkeletonCtl;
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::linear_combination::ColumnSparse;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
@@ -589,7 +588,7 @@ pub mod ctl_utils {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
-                let row: CpuSkeletonCtl<_> = row.iter().copied().collect();
+                // let row: CpuSkeletonCtl<_> = row.iter().copied().collect();
                 println!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\

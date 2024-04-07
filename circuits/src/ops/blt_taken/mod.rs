@@ -94,7 +94,8 @@ pub mod columns {
     #[must_use]
     pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
         let inst = COL_MAP.inst;
-        let blt = 15;
+        // TODO: don't hardcode this.
+        let blt = 22;
         BltTakenTable::new(
             InstructionRow {
                 pc: inst.pc,
