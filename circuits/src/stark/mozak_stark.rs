@@ -797,6 +797,7 @@ impl Lookups for InnerCpuTable {
                 ops::add::columns::lookup_for_program_rom(),
                 ops::blt_taken::columns::lookup_for_program_rom(),
                 ops::sw::columns::lookup_for_program_rom(),
+                ops::lw::columns::lookup_for_program_rom(),
                 cpu::columns::lookup_for_program_rom(),
             ],
             vec![program_multiplicities::columns::lookup_for_cpu()],
