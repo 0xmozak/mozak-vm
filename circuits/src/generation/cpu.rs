@@ -7,6 +7,7 @@ use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::REG_A0;
 use plonky2::hash::hash_types::RichField;
 
+use super::MIN_TRACE_LENGTH;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
@@ -14,8 +15,17 @@ use crate::ops::add::columns::Add;
 use crate::ops::blt_taken::columns::BltTaken;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
-use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
+use crate::utils::{from_u32, sign_extend};
 use crate::xor::columns::XorView;
+
+#[must_use]
+pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
+    let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
+    let mut last = trace.last().cloned().unwrap();
+    last.is_running = F::ZERO;
+    trace.resize(len, last);
+    trace
+}
 
 #[must_use]
 pub fn generate_program_mult_trace<F: RichField>(
@@ -145,7 +155,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 
     log::trace!("trace {:?}", trace);
 
-    pad_trace_with_last(trace)
+    pad_trace(trace)
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
