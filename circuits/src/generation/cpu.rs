@@ -11,6 +11,7 @@ use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
 use crate::ops::add::columns::Add;
+use crate::ops::blt_taken::columns::BltTaken;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
@@ -20,6 +21,7 @@ use crate::xor::columns::XorView;
 pub fn generate_program_mult_trace<F: RichField>(
     trace: &[CpuState<F>],
     add_trace: &[Add<F>],
+    blt_taken_trace: &[BltTaken<F>],
     program_rom: &[ProgramRom<F>],
 ) -> Vec<ProgramMult<F>> {
     let cpu_counts = trace
@@ -30,7 +32,11 @@ pub fn generate_program_mult_trace<F: RichField>(
         .iter()
         .filter(|row| row.is_running == F::ONE)
         .map(|row| row.inst.pc);
-    let counts = chain![cpu_counts, add_counts].counts();
+    let blt_taken_counts = blt_taken_trace
+        .iter()
+        .filter(|row| row.is_running == F::ONE)
+        .map(|row| row.inst.pc);
+    let counts = chain![cpu_counts, add_counts, blt_taken_counts].counts();
     program_rom
         .iter()
         .map(|row| {
