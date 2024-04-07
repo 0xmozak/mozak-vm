@@ -872,6 +872,8 @@ impl Lookups for RegisterLookups {
                 crate::cpu::columns::register_looking(),
                 ops::add::columns::register_looking(),
                 ops::blt_taken::columns::register_looking(),
+                ops::sw::columns::register_looking(),
+                ops::lw::columns::register_looking(),
                 crate::memory_io::columns::register_looking(),
                 vec![crate::register::init::columns::lookup_for_register()],
             ]
