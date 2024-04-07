@@ -51,6 +51,12 @@ bitfield! {
     pub shamt, _: 24, 20;
     /// Get `funct7` of an [Instruction]
     pub funct7, _: 31, 25;
+    /// Get `funct5` of an [Instruction]
+    pub funct5, _: 31, 27;
+    /// Get `aq` of an [Instruction]
+    pub aq, _: 26;
+    /// Get `rl` of an [Instruction]
+    pub rl, _: 25;
     u16;
     /// Get `funct12` of an [Instruction]
     pub funct12, _: 31, 20;
@@ -272,6 +278,22 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
         // For RISC-V this would be (Op::FENCE, itype)
         // but so far we implemented it as a no-op.
         0b000_1111 => nop,
+        // RV32A Extension
+        // NOTE: Do we need to match on funct3 == 0x2?
+        0b010_1111 => match (bf.funct3(), bf.funct5()) {
+            (0x2, 0x02) => (Op::LRW, rtype),
+            (0x2, 0x03) => (Op::SCW, rtype),
+            (0x2, 0x01) => (Op::AMOSWAPW, rtype),
+            (0x2, 0x00) => (Op::AMOADDW, rtype),
+            (0x2, 0x04) => (Op::AMOXORW, rtype),
+            (0x2, 0x0C) => (Op::AMOANDW, rtype),
+            (0x2, 0x08) => (Op::AMOORW, rtype),
+            (0x2, 0x10) => (Op::AMOMINW, rtype),
+            (0x2, 0x14) => (Op::AMOMAXW, rtype),
+            (0x2, 0x18) => (Op::AMOMINUW, rtype),
+            (0x2, 0x1C) => (Op::AMOMAXUW, rtype),
+            _ => return default(),
+        },
         _ => return default(),
     };
 

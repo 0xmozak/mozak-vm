@@ -212,6 +212,18 @@ impl<F: RichField> State<F> {
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
             Op::REMU => rop!(remu),
+            // atomic extensions
+            Op::LRW => todo!(),
+            Op::SCW => todo!(),
+            Op::AMOSWAPW => todo!(),
+            Op::AMOADDW => todo!(),
+            Op::AMOANDW => todo!(),
+            Op::AMOORW => todo!(),
+            Op::AMOXORW => todo!(),
+            Op::AMOMINW => todo!(),
+            Op::AMOMAXW => todo!(),
+            Op::AMOMINUW => todo!(),
+            Op::AMOMAXUW => todo!(),
         };
         Ok((
             Aux {

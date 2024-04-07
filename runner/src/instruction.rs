@@ -96,6 +96,30 @@ pub enum Op {
     REM,
     /// Remainder (U): rd = unsigned rs1 % unsigned rs2
     REMU,
+
+    // RV32A Atomic Extension
+    /// Load Reserved
+    LRW,
+    /// Store Conditional
+    SCW,
+    /// Atomic Swap
+    AMOSWAPW,
+    /// Atomic ADD
+    AMOADDW,
+    /// Atomic AND
+    AMOANDW,
+    /// Atomic OR
+    AMOORW,
+    /// Atomic XOR
+    AMOXORW,
+    /// Atomic MIN
+    AMOMINW,
+    /// Atomic MAX
+    AMOMAXW,
+    /// Atomic MINU
+    AMOMINUW,
+    /// Atomic MAXU
+    AMOMAXUW,
 }
 
 /// NOP Instruction in RISC-V is encoded as ADDI x0, x0, 0.

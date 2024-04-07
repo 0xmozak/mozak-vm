@@ -49,6 +49,18 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             Op::XOR => &mut cols.ops.xor,
             Op::OR => &mut cols.ops.or,
             Op::AND => &mut cols.ops.and,
+            // RV32A
+            Op::LRW => todo!(),
+            Op::SCW => todo!(),
+            Op::AMOSWAPW => todo!(),
+            Op::AMOADDW => todo!(),
+            Op::AMOANDW => todo!(),
+            Op::AMOORW => todo!(),
+            Op::AMOXORW => todo!(),
+            Op::AMOMINW => todo!(),
+            Op::AMOMAXW => todo!(),
+            Op::AMOMINUW => todo!(),
+            Op::AMOMAXUW => todo!(),
         } = 1;
         cols.rs1_selected = u32::from(inst.args.rs1);
         cols.rs2_selected = u32::from(inst.args.rs2);
