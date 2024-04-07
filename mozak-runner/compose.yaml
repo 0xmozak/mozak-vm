@@ -1,4 +1,3 @@
-version: "3.4"
 name: mozak
 services:
   runner:
@@ -8,7 +7,7 @@ services:
       resources:
         # Default to no limits.
         limits:
-          cpus: ${MOZAK_RUNNER_CPU_LIMIT:-}
+          cpus: ${MOZAK_RUNNER_CPU_LIMIT:-0}
           memory: ${MOZAK_RUNNER_MEMORY_LIMIT:-0}
     # Ensure nix daemon is working before starting build agents
     depends_on:
