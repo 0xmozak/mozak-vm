@@ -37,7 +37,6 @@ use crate::ops::blt_taken::columns::BltTaken;
 use crate::ops::blt_taken::stark::BltTakenStark;
 use crate::ops::sw::columns::StoreWord;
 use crate::ops::sw::stark::StoreWordStark;
-use crate::ops::{add, blt_taken};
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2State;
 #[cfg(feature = "enable_poseidon_starks")]
@@ -678,6 +677,7 @@ impl Lookups for CpuToSkeletonTable {
                 cpu::columns::lookup_for_skeleton(),
                 ops::add::columns::lookup_for_skeleton(),
                 ops::blt_taken::columns::lookup_for_skeleton(),
+                ops::sw::columns::lookup_for_skeleton(),
             ],
             vec![cpu_skeleton::columns::lookup_for_cpu()],
         )
@@ -785,8 +785,9 @@ impl Lookups for InnerCpuTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             vec![
-                add::columns::lookup_for_program_rom(),
-                blt_taken::columns::lookup_for_program_rom(),
+                ops::add::columns::lookup_for_program_rom(),
+                ops::blt_taken::columns::lookup_for_program_rom(),
+                ops::sw::columns::lookup_for_program_rom(),
                 cpu::columns::lookup_for_program_rom(),
             ],
             vec![program_multiplicities::columns::lookup_for_cpu()],
@@ -841,7 +842,10 @@ impl Lookups for FullWordMemoryCpuTable {
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
-            vec![cpu::columns::lookup_for_fullword_memory()],
+            vec![
+                cpu::columns::lookup_for_fullword_memory(),
+                ops::sw::columns::lookup_for_fullword_memory(),
+            ],
             vec![memory_fullword::columns::lookup_for_cpu()],
         )
     }

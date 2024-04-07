@@ -88,12 +88,18 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let skeleton_rows = generate_cpu_skeleton_trace(record);
     let add_rows = ops::add::generate(record);
     let blt_taken_rows = ops::blt_taken::generate(record);
+    let store_word_rows = ops::sw::generate(record);
     // dbg!(&skeleton_rows);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
-    let program_mult_rows =
-        generate_program_mult_trace(&cpu_rows, &add_rows, &blt_taken_rows, &program_rows);
+    let program_mult_rows = generate_program_mult_trace(
+        &cpu_rows,
+        &add_rows,
+        &blt_taken_rows,
+        &store_word_rows,
+        &program_rows,
+    );
     let memory_init_rows = generate_elf_memory_init_trace(program);
     let mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
     let call_tape_init_rows = generate_call_tape_init_trace(program);

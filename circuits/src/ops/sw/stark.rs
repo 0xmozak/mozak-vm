@@ -44,13 +44,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for StoreWordStar
         P: PackedField<Scalar = FE>, {
         let lv: &StoreWord<P> = vars.get_local_values().into();
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        let added = lv.op2_value + lv.inst.imm_value;
-        let wrapped = added - wrap_at;
+        let address_overflowing = lv.op2_value + lv.inst.imm_value;
+        let wrapped = address_overflowing - wrap_at;
 
         // Check: the resulting sum is wrapped if necessary.
         // As the result is range checked, this make the choice deterministic,
         // even for a malicious prover.
-        yield_constr.constraint((lv.address - added) * (lv.address - wrapped));
+        yield_constr.constraint((lv.address - address_overflowing) * (lv.address - wrapped));
     }
 
     fn eval_ext_circuit(

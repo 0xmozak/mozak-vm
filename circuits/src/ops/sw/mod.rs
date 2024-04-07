@@ -6,6 +6,7 @@ pub mod columns {
     use crate::cpu_skeleton::columns::CpuSkeletonCtl;
     use crate::linear_combination::Column;
     use crate::linear_combination_typed::ColumnWithTypedInput;
+    use crate::memory::columns::MemoryCtl;
     use crate::program::columns::InstructionRow;
     // use crate::rangecheck::columns::RangeCheckCtl;
     use crate::register::RegisterCtl;
@@ -110,8 +111,7 @@ pub mod columns {
                 inst_data: ColumnWithTypedInput::reduce_with_powers(
                     [
                         // TODO: don't hard-code COL_MAP like this.
-                        // TODO: find right number.
-                        ColumnWithTypedInput::constant(0),
+                        ColumnWithTypedInput::constant(18),
                         // TODO: use a struct here to name the components, and make IntoIterator,
                         // like we do with our stark tables.
                         ColumnWithTypedInput::constant(0),
@@ -123,6 +123,22 @@ pub mod columns {
                     ],
                     1 << 5,
                 ),
+            },
+            COL_MAP.is_running,
+        )
+    }
+
+    /// Lookup into fullword Memory table.
+    /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+    #[must_use]
+    pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
+        StoreWordTable::new(
+            MemoryCtl {
+                clk: COL_MAP.clk,
+                is_store: ColumnWithTypedInput::constant(1),
+                is_load: ColumnWithTypedInput::constant(0),
+                addr: COL_MAP.address,
+                value: COL_MAP.op1_value,
             },
             COL_MAP.is_running,
         )
@@ -142,24 +158,28 @@ pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<StoreWord<F>> 
     for Row {
         state,
         instruction: inst,
-        ..
+        aux,
     } in &record.executed
     {
         if let Op::SW = inst.op {
+            let rs1_selected = inst.args.rs1;
+            let rs2_selected = inst.args.rs2;
+            let op1_value = state.get_register_value(rs1_selected);
+            let op2_value = state.get_register_value(rs2_selected);
+            let imm_value = inst.args.imm;
+            let address = aux.mem.unwrap().addr;
+            assert_eq!(address, op2_value.wrapping_add(imm_value));
             let row = StoreWord {
                 inst: Instruction {
                     pc: state.get_pc(),
-                    rs1_selected: u32::from(inst.args.rs1),
-                    rs2_selected: u32::from(inst.args.rs2),
-                    imm_value: inst.args.imm,
+                    rs1_selected: u32::from(rs1_selected),
+                    rs2_selected: u32::from(rs2_selected),
+                    imm_value,
                 },
-                // TODO: fix this, or change clk to u32?
                 clk: u32::try_from(state.clk).unwrap(),
-                op1_value: state.get_register_value(inst.args.rs1),
-                op2_value: state.get_register_value(inst.args.rs2),
-                address: state
-                    .get_register_value(inst.args.rs1)
-                    .wrapping_add(inst.args.imm),
+                op1_value,
+                op2_value,
+                address,
                 is_running: 1,
             }
             .map(F::from_canonical_u32);
