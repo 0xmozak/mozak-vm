@@ -38,16 +38,15 @@ use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
 use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
-use crate::generation::register::generate_register_trace;
-use crate::generation::registerinit::generate_register_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::register::stark::RegisterStark;
-use crate::registerinit::stark::RegisterInitStark;
+use crate::register::general::stark::RegisterStark;
+use crate::register::generation::{generate_register_init_trace, generate_register_trace};
+use crate::register::init::stark::RegisterInitStark;
 use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
 use crate::stark::utils::trace_rows_to_poly_values;
@@ -167,7 +166,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &poseidon2_output_bytes,
         );
         let register_init = generate_register_init_trace(record);
-        let (_zero_register_trace, register_trace) = generate_register_trace(
+        let (_, _, register_trace) = generate_register_trace(
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,
@@ -359,7 +358,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let register_init = generate_register_init_trace(record);
-        let (_zero_trace, trace) = generate_register_trace(
+        let (_, _, trace) = generate_register_trace(
             &cpu_trace,
             &io_memory_private,
             &io_memory_public,

@@ -5,7 +5,9 @@ use plonky2::hash::hash_types::RichField;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::generation::instruction::ascending_sum;
 use crate::linear_combination::Column;
+use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::rangecheck::columns::RangeCheckCtl;
+use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
 
 columns_view_impl!(Ops);
@@ -95,16 +97,6 @@ impl<F: RichField + core::fmt::Debug> From<RegisterCtl<F>> for Register<F> {
     }
 }
 
-columns_view_impl!(RegisterCtl);
-#[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct RegisterCtl<T> {
-    pub clk: T,
-    pub op: T,
-    pub addr: T,
-    pub value: T,
-}
-
 /// We create a virtual column known as `is_used`, which flags a row as
 /// being 'used' if any one of the ops columns are turned on.
 /// This is to differentiate between real rows and padding rows.
@@ -120,7 +112,6 @@ impl<T: Add<Output = T> + Copy> Register<T> {
 
 #[must_use]
 pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
-    use crate::linear_combination_typed::ColumnWithTypedInput;
     RegisterTable::new(
         RegisterCtl {
             clk: COL_MAP.clk,

@@ -1,14 +1,17 @@
 use std::ops::Index;
 
 use itertools::Itertools;
+use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
-use crate::register::columns::{Ops, Register, RegisterCtl};
-use crate::register_zero::columns::RegisterZero;
-use crate::registerinit::columns::RegisterInit;
+use crate::register::general::columns::{Ops, Register};
+use crate::register::init::columns::RegisterInit;
+use crate::register::zero_read::columns::RegisterZeroRead;
+use crate::register::zero_write::columns::RegisterZeroWrite;
+use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
 use crate::utils::pad_trace_with_default;
 
@@ -89,13 +92,18 @@ where
 /// filling up this table,
 /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
 ///    2.
+#[allow(clippy::type_complexity)]
 pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     mem_private: &[InputOutputMemory<F>],
     mem_public: &[InputOutputMemory<F>],
     mem_transcript: &[InputOutputMemory<F>],
     reg_init: &[RegisterInit<F>],
-) -> (Vec<RegisterZero<F>>, Vec<Register<F>>) {
+) -> (
+    Vec<RegisterZeroRead<F>>,
+    Vec<RegisterZeroWrite<F>>,
+    Vec<Register<F>>,
+) {
     // TODO: handle multiplicities?
     let operations: Vec<Register<F>> = RegisterLookups::lookups()
         .looking_tables
@@ -106,25 +114,54 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
             TableKind::IoTranscript => extract(mem_transcript, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
-            // Flow of information in generation goes in the other direction.
-            TableKind::RegisterZero => vec![],
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
         .collect();
     let trace = sort_into_address_blocks(operations);
-    let (zeros, rest): (Vec<_>, Vec<_>) = trace.into_iter().partition(|row| row.addr.is_zero());
-    log::trace!("trace {:?}", rest);
+    let (zeros, general): (Vec<_>, Vec<_>) = trace.into_iter().partition(|row| row.addr.is_zero());
+    let (zeros_read, zeros_write): (Vec<_>, Vec<_>) = zeros
+        .into_iter()
+        .partition(|row| row.ops.is_write.is_zero());
 
-    let zeros = zeros.into_iter().map(RegisterZero::from).collect();
+    let zeros_read = zeros_read.into_iter().map(RegisterZeroRead::from).collect();
+    let zeros_write = zeros_write
+        .into_iter()
+        .map(RegisterZeroWrite::from)
+        .collect();
 
-    (pad_trace_with_default(zeros), pad_trace(rest))
+    log::trace!("trace for general registers {:?}", general);
+    (
+        pad_trace_with_default(zeros_read),
+        pad_trace_with_default(zeros_write),
+        pad_trace(general),
+    )
+}
+
+/// Generates a register init trace
+#[must_use]
+pub fn generate_register_init_trace<F: RichField>(
+    record: &ExecutionRecord<F>,
+) -> Vec<RegisterInit<F>> {
+    let first_state = record
+        .executed
+        .first()
+        .map_or(&record.last_state, |row| &row.state);
+
+    pad_trace_with_default(
+        (0..32)
+            .map(|i| RegisterInit {
+                reg_addr: F::from_canonical_u8(i),
+                value: F::from_canonical_u32(first_state.get_register_value(i)),
+                is_looked_up: F::from_bool(i != 0),
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;
-    use mozak_runner::vm::ExecutionRecord;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
@@ -134,7 +171,6 @@ mod tests {
         generate_io_memory_private_trace, generate_io_memory_public_trace,
         generate_io_transcript_trace,
     };
-    use crate::generation::registerinit::generate_register_init_trace;
     use crate::test_utils::prep_table;
 
     type F = GoldilocksField;
@@ -175,7 +211,7 @@ mod tests {
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let io_transcript = generate_io_transcript_trace(&record.executed);
         let register_init = generate_register_init_trace(&record);
-        let (_zero, trace) = generate_register_trace(
+        let (_, _, trace) = generate_register_trace(
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,

@@ -14,7 +14,7 @@ use crate::memory_io::columns::InputOutputMemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::InstructionRow;
 use crate::rangecheck::columns::RangeCheckCtl;
-use crate::register::columns::RegisterCtl;
+use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
 use crate::xor::columns::XorView;
 
@@ -391,7 +391,7 @@ pub fn lookup_for_shift_amount() -> TableWithTypedOutput<Bitshift<Column>> {
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn lookup_for_inst() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_propgram_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
     let inst = CPU.inst;
     CpuTable::new(
         InstructionRow {

@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
-use itertools::{iproduct, zip_eq};
+use itertools::zip_eq;
 use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -30,7 +30,7 @@ use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
 };
 use crate::public_sub_table::{
-    reduce_public_sub_table_targets, PublicSubTable, PublicSubTableValuesTarget,
+    public_sub_table_values_and_reduced_targets, PublicSubTable, PublicSubTableValuesTarget,
 };
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
@@ -49,7 +49,11 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///                          hash) = 64
 ///   `ElfMemoryInit trace cap`: 64
 ///   `MozakMemoryInit trace cap`: 64
+///   `bitshift public sub table`: 2 rows * 32 columns = 64
+#[cfg(not(feature = "test_public_table"))]
 pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64;
+#[cfg(feature = "test_public_table")]
+pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64 + 64;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
@@ -177,17 +181,12 @@ where
         inner_config.num_challenges,
     );
 
-    let mut public_sub_table_values_targets = all_kind!(|_kind| Vec::default());
-    let mut reduced_public_sub_table_targets = all_kind!(|_kind| Vec::default());
-    for (challenge, public_sub_table) in
-        iproduct!(&ctl_challenges.challenges, &mozak_stark.public_sub_tables)
-    {
-        let targets = public_sub_table.to_targets(&mut builder);
-        reduced_public_sub_table_targets[public_sub_table.table.kind].push(
-            reduce_public_sub_table_targets(&mut builder, challenge, &targets),
+    let (public_sub_table_values_targets, reduced_public_sub_table_targets) =
+        public_sub_table_values_and_reduced_targets(
+            &mut builder,
+            &mozak_stark.public_sub_tables,
+            &ctl_challenges,
         );
-        public_sub_table_values_targets[public_sub_table.table.kind].push(targets);
-    }
 
     verify_cross_table_lookups_and_public_sub_table_circuit(
         &mut builder,
@@ -657,15 +656,19 @@ mod tests {
         verify_recursive_vm_proof, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
         VM_RECURSION_THRESHOLD_DEGREE_BITS,
     };
-    use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
 
     type S = MozakStark<F, D>;
 
     #[test]
-    #[ignore]
+    #[cfg(feature = "test_public_table")]
     fn recursive_verify_mozak_starks() -> Result<()> {
+        use itertools::Itertools;
+        use plonky2::field::types::Field;
+
+        use crate::stark::verifier::verify_proof;
+
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 1;
@@ -705,6 +708,15 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+        let expected_bitshift_subtable = (0..32)
+            .flat_map(|i| [F::from_canonical_u64(i), F::from_canonical_u64(1 << i)])
+            .collect_vec();
+        assert_eq!(
+            recursive_proof.public_inputs[25..].to_vec(),
+            expected_bitshift_subtable,
+            "Could not find bitshift subtable in recursive proof's public inputs"
+        );
+
         mozak_stark_circuit.circuit.verify(recursive_proof)
     }
 

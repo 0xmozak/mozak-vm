@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "wallet-mozak-guest"
+name = "wallet"
 version = "0.1.0"
 
 [features]
@@ -27,3 +27,7 @@ required-features = ["native"]
 [lib]
 name = "wallet"
 path = "core_logic.rs"
+
+# The following is read by `run_examples.py`
+[package.metadata.mozak]
+example_program_id = "MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb"

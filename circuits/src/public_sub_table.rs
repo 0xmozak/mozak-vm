@@ -184,3 +184,37 @@ pub fn reduce_public_sub_table_targets<F: RichField + Extendable<D>, const D: us
         .collect_vec();
     builder.add_many(all_targets)
 }
+
+pub fn public_sub_table_values_and_reduced_targets<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    public_sub_tables: &[PublicSubTable],
+    ctl_challenges: &GrandProductChallengeSet<Target>,
+) -> (
+    TableKindArray<Vec<PublicSubTableValuesTarget>>,
+    TableKindArray<Vec<Target>>,
+) {
+    let mut public_sub_table_values_targets = TableKindArray::<Vec<_>>::default();
+    for public_sub_table in public_sub_tables {
+        let targets = public_sub_table.to_targets(builder);
+        public_sub_table_values_targets[public_sub_table.table.kind].push(targets);
+    }
+
+    let mut reduced_public_sub_table_targets = TableKindArray::<Vec<_>>::default();
+
+    for challenge in &ctl_challenges.challenges {
+        let mut public_sub_table_values_targets_iter = public_sub_table_values_targets
+            .each_ref()
+            .map(|targets| targets.iter());
+        for public_sub_table in public_sub_tables {
+            let targets = public_sub_table_values_targets_iter[public_sub_table.table.kind]
+                .next()
+                .unwrap();
+            reduced_public_sub_table_targets[public_sub_table.table.kind]
+                .push(reduce_public_sub_table_targets(builder, challenge, targets));
+        }
+    }
+    (
+        public_sub_table_values_targets,
+        reduced_public_sub_table_targets,
+    )
+}

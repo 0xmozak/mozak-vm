@@ -7,6 +7,8 @@ use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+#[allow(clippy::wildcard_imports)]
+use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
 
 use crate::bitshift::columns::{Bitshift, BitshiftView};
@@ -59,12 +61,15 @@ use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, Rang
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
-use crate::register::columns::{Register, RegisterCtl};
-use crate::register::stark::RegisterStark;
-use crate::register_zero::columns::RegisterZero;
-use crate::register_zero::stark::RegisterZeroStark;
-use crate::registerinit::columns::RegisterInit;
-use crate::registerinit::stark::RegisterInitStark;
+use crate::register::general::columns::Register;
+use crate::register::general::stark::RegisterStark;
+use crate::register::init::columns::RegisterInit;
+use crate::register::init::stark::RegisterInitStark;
+use crate::register::zero_read::columns::RegisterZeroRead;
+use crate::register::zero_read::stark::RegisterZeroReadStark;
+use crate::register::zero_write::columns::RegisterZeroWrite;
+use crate::register::zero_write::stark::RegisterZeroWriteStark;
+use crate::register::RegisterCtl;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
@@ -130,8 +135,10 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
-    #[StarkSet(stark_kind = "RegisterZero")]
-    pub register_zero_stark: RegisterZeroStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterZeroRead")]
+    pub register_zero_read_stark: RegisterZeroReadStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterZeroWrite")]
+    pub register_zero_write_stark: RegisterZeroWriteStark<F, D>,
     #[cfg_attr(feature = "enable_poseidon_starks", StarkSet(stark_kind = "Poseidon2"))]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     #[cfg_attr(
@@ -150,6 +157,9 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     )]
     pub poseidon2_preimage_pack: Poseidon2PreimagePackStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
+    #[cfg(feature = "test_public_table")]
+    pub public_sub_tables: [PublicSubTable; 1],
+    #[cfg(not(feature = "test_public_table"))]
     pub public_sub_tables: [PublicSubTable; 0],
     pub debug: bool,
 }
@@ -311,6 +321,25 @@ macro_rules! mozak_stark_helpers {
         }
         pub(crate) use all_starks;
 
+        #[allow(unused_macros)]
+        macro_rules! all_starks_par {
+            ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
+                use core::borrow::Borrow;
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
+                let all_stark = $all_stark.borrow();
+                TableKindArray([$(
+                    {
+                        let $stark = &all_stark.$fields;
+                        let $kind = $kind_names;
+                        let f: Box<dyn Fn() -> _ + Send + Sync> = Box::new(move || $val);
+                        f
+                    },)*
+                ]).par_map(|f| f())
+            }};
+        }
+        #[allow(unused_imports)]
+        pub(crate) use all_starks_par;
+
     };
 }
 
@@ -321,7 +350,7 @@ tt_call::tt_call! {
     ~~> mozak_stark_helpers
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct TableKindArray<T>(pub [T; TableKind::COUNT]);
 
@@ -340,6 +369,22 @@ impl<'a, T> IntoIterator for &'a TableKindArray<T> {
     type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+}
+
+impl<T: Send> TableKindArray<T> {
+    pub fn par_map<F, U>(self, f: F) -> TableKindArray<U>
+    where
+        F: Fn(T) -> U + Send + Sync,
+        U: Send + core::fmt::Debug, {
+        TableKindArray(
+            self.0
+                .into_par_iter()
+                .map(f)
+                .collect::<Vec<U>>()
+                .try_into()
+                .unwrap(),
+        )
+    }
 }
 
 impl<T> TableKindArray<T> {
@@ -391,7 +436,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
-            register_zero_stark: RegisterZeroStark::default(),
+            register_zero_read_stark: RegisterZeroReadStark::default(),
+            register_zero_write_stark: RegisterZeroWriteStark::default(),
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
             io_transcript_stark: InputOutputMemoryStark::default(),
@@ -423,7 +469,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2Sponge2Poseidon2PreimagePackTable::lookups(),
             ],
+            #[cfg(not(feature = "test_public_table"))]
             public_sub_tables: [],
+            #[cfg(feature = "test_public_table")]
+            public_sub_tables: [crate::bitshift::columns::public_sub_table()],
             debug: false,
         }
     }
@@ -557,7 +606,16 @@ table_impl!(
 );
 table_impl!(RegisterInitTable, TableKind::RegisterInit, RegisterInit);
 table_impl!(RegisterTable, TableKind::Register, Register);
-table_impl!(RegisterZeroTable, TableKind::RegisterZero, RegisterZero);
+table_impl!(
+    RegisterZeroReadTable,
+    TableKind::RegisterZeroRead,
+    RegisterZeroRead
+);
+table_impl!(
+    RegisterZeroWriteTable,
+    TableKind::RegisterZeroWrite,
+    RegisterZeroWrite
+);
 table_impl!(
     IoMemoryPrivateTable,
     TableKind::IoMemoryPrivate,
@@ -607,7 +665,7 @@ impl Lookups for RangecheckTable {
     type Row = RangeCheckCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let register = register::columns::rangecheck_looking();
+        let register = register::general::columns::rangecheck_looking();
 
         let looking: Vec<TableWithTypedOutput<_>> = chain![
             memory::columns::rangecheck_looking(),
@@ -705,7 +763,7 @@ impl Lookups for InnerCpuTable {
     type Row = InstructionRow<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_inst()], vec![
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_propgram_rom()], vec![
             program_multiplicities::columns::lookup_for_cpu(),
         ])
     }
@@ -774,12 +832,13 @@ impl Lookups for RegisterLookups {
             chain![
                 crate::cpu::columns::register_looking(),
                 crate::memory_io::columns::register_looking(),
-                vec![crate::registerinit::columns::lookup_for_register()],
+                vec![crate::register::init::columns::lookup_for_register()],
             ]
             .collect(),
             vec![
-                crate::register::columns::register_looked(),
-                crate::register_zero::columns::register_looked(),
+                crate::register::general::columns::register_looked(),
+                crate::register::zero_read::columns::register_looked(),
+                crate::register::zero_write::columns::register_looked(),
             ],
         )
     }
