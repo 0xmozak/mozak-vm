@@ -125,6 +125,8 @@ mod tests {
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
             &add_rows,
+            &store_word_rows,
+            &load_word_rows,
             &blt_rows,
             &io_memory_private,
             &io_memory_public,

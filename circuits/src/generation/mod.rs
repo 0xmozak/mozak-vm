@@ -135,6 +135,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         generate_register_trace(
             &cpu_rows,
             &add_rows,
+            &store_word_rows,
+            &load_word_rows,
             &blt_taken_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,

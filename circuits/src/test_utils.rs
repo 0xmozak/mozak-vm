@@ -168,6 +168,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let (_, _, register_trace) = generate_register_trace(
             &cpu_trace,
             &add_trace,
+            &store_word_rows,
+            &load_word_rows,
             &blt_trace,
             &io_memory_private,
             &io_memory_public,
@@ -359,6 +361,8 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
         let add_trace = ops::add::generate(record);
+        let store_word_rows = ops::sw::generate(&record);
+        let load_word_rows = ops::lw::generate(&record);
         let blt_trace = ops::blt_taken::generate(record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
@@ -367,6 +371,8 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let (_, _, trace) = generate_register_trace(
             &cpu_trace,
             &add_trace,
+            &store_word_rows,
+            &load_word_rows,
             &blt_trace,
             &io_memory_private,
             &io_memory_public,
