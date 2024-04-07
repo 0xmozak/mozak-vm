@@ -143,6 +143,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
         let add_trace = ops::add::generate(record);
+        let store_word_rows = ops::sw::generate(&record);
+        let load_word_rows = ops::lw::generate(&record);
         let blt_trace = ops::blt_taken::generate(record);
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
@@ -175,6 +177,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
             &cpu_trace,
             &add_trace,
+            &store_word_rows,
+            &load_word_rows,
             &memory_trace,
             &register_trace,
         ));

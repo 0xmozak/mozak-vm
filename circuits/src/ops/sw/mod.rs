@@ -8,6 +8,7 @@ pub mod columns {
     use crate::linear_combination_typed::ColumnWithTypedInput;
     use crate::memory::columns::MemoryCtl;
     use crate::program::columns::InstructionRow;
+    use crate::rangecheck::columns::RangeCheckCtl;
     // use crate::rangecheck::columns::RangeCheckCtl;
     use crate::register::RegisterCtl;
     use crate::stark::mozak_stark::{StoreWordTable, TableWithTypedOutput};
@@ -69,14 +70,13 @@ pub mod columns {
         ]
     }
 
-    // TODO: check what range-checks we need.
-    // // We explicitly range check our output here, so we have the option of not
-    // doing // it for other operations that don't need it.
     // #[must_use]
-    // pub fn rangecheck_looking() ->
-    // Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    //     vec![StoreWordTable::new(RangeCheckCtl(COL_MAP.dst_value),
-    // COL_MAP.is_running)] }
+    pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+        vec![StoreWordTable::new(
+            RangeCheckCtl(COL_MAP.address),
+            COL_MAP.is_running,
+        )]
+    }
 
     #[must_use]
     pub fn lookup_for_skeleton() -> TableWithTypedOutput<CpuSkeletonCtl<Column>> {

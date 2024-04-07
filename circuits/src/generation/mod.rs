@@ -89,7 +89,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let add_rows = ops::add::generate(record);
     let blt_taken_rows = ops::blt_taken::generate(record);
     let store_word_rows = ops::sw::generate(record);
-    // dbg!(&skeleton_rows);
+    let load_word_rows = ops::lw::generate(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
@@ -98,6 +98,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &add_rows,
         &blt_taken_rows,
         &store_word_rows,
+        &load_word_rows,
         &program_rows,
     );
     let memory_init_rows = generate_elf_memory_init_trace(program);
@@ -141,14 +142,21 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
             &register_init_rows,
         );
     // Generate rows for the looking values with their multiplicities.
-    let rangecheck_rows =
-        generate_rangecheck_trace::<F>(&cpu_rows, &add_rows, &memory_rows, &register_rows);
+    let rangecheck_rows = generate_rangecheck_trace::<F>(
+        &cpu_rows,
+        &add_rows,
+        &store_word_rows,
+        &load_word_rows,
+        &memory_rows,
+        &register_rows,
+    );
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     let add_trace = ops::add::generate(record);
     let blt_trace = ops::blt_taken::generate(record);
     let store_word_trace = ops::sw::generate(record);
+    let load_word_trace = ops::lw::generate(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
@@ -185,6 +193,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         add_stark: trace_rows_to_poly_values(add_trace),
         blt_taken_stark: trace_rows_to_poly_values(blt_trace),
         store_word_stark: trace_rows_to_poly_values(store_word_trace),
+        load_word_stark: trace_rows_to_poly_values(load_word_trace),
     }
     .build()
 }

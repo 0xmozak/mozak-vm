@@ -100,6 +100,8 @@ mod tests {
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
         let add_rows = ops::add::generate(&record);
+        let store_word_rows = ops::sw::generate(&record);
+        let load_word_rows = ops::lw::generate(&record);
         let blt_rows = ops::blt_taken::generate(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
@@ -129,8 +131,14 @@ mod tests {
             &io_transcript,
             &register_init,
         );
-        let rangecheck_rows =
-            generate_rangecheck_trace::<F>(&cpu_rows, &add_rows, &memory_rows, &register_rows);
+        let rangecheck_rows = generate_rangecheck_trace::<F>(
+            &cpu_rows,
+            &add_rows,
+            &store_word_rows,
+            &load_word_rows,
+            &memory_rows,
+            &register_rows,
+        );
 
         let trace = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
 

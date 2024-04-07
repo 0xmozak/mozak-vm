@@ -35,6 +35,8 @@ use crate::ops::add::columns::Add;
 use crate::ops::add::stark::AddStark;
 use crate::ops::blt_taken::columns::BltTaken;
 use crate::ops::blt_taken::stark::BltTakenStark;
+use crate::ops::lw::columns::LoadWord;
+use crate::ops::lw::stark::LoadWordStark;
 use crate::ops::sw::columns::StoreWord;
 use crate::ops::sw::stark::StoreWordStark;
 #[cfg(feature = "enable_poseidon_starks")]
@@ -162,6 +164,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub blt_taken_stark: BltTakenStark<F, D>,
     #[StarkSet(stark_kind = "StoreWord")]
     pub store_word_stark: StoreWordStark<F, D>,
+    #[StarkSet(stark_kind = "LoadWord")]
+    pub load_word_stark: LoadWordStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
     #[cfg(feature = "test_public_table")]
     pub public_sub_tables: [PublicSubTable; 1],
@@ -454,6 +458,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             add_stark: AddStark::default(),
             blt_taken_stark: BltTakenStark::default(),
             store_word_stark: StoreWordStark::default(),
+            load_word_stark: LoadWordStark::default(),
 
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.
@@ -658,6 +663,7 @@ table_impl!(SkeletonTable, TableKind::CpuSkeleton, CpuSkeleton);
 table_impl!(AddTable, TableKind::Add, Add);
 table_impl!(BltTakenTable, TableKind::BltTaken, BltTaken);
 table_impl!(StoreWordTable, TableKind::StoreWord, StoreWord);
+table_impl!(LoadWordTable, TableKind::LoadWord, LoadWord);
 
 pub trait Lookups {
     type Row: IntoIterator<Item = Column>;
@@ -696,6 +702,9 @@ impl Lookups for RangecheckTable {
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
             ops::add::columns::rangecheck_looking(),
+            ops::sw::columns::rangecheck_looking(),
+            // TODO(Matthias):
+            ops::lw::columns::rangecheck_looking(),
             register,
         ]
         .collect();

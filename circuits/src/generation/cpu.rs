@@ -13,6 +13,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
 use crate::ops::add::columns::Add;
 use crate::ops::blt_taken::columns::BltTaken;
+use crate::ops::lw::columns::LoadWord;
 use crate::ops::sw::columns::StoreWord;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
@@ -34,6 +35,7 @@ pub fn generate_program_mult_trace<F: RichField>(
     add_trace: &[Add<F>],
     blt_taken_trace: &[BltTaken<F>],
     store_word_trace: &[StoreWord<F>],
+    load_word_trace: &[LoadWord<F>],
     program_rom: &[ProgramRom<F>],
 ) -> Vec<ProgramMult<F>> {
     let cpu_counts = trace
@@ -52,7 +54,18 @@ pub fn generate_program_mult_trace<F: RichField>(
         .iter()
         .filter(|row| row.is_running == F::ONE)
         .map(|row| row.inst.pc);
-    let counts = chain![cpu_counts, add_counts, blt_taken_counts, store_word_counts].counts();
+    let load_word_counts = load_word_trace
+        .iter()
+        .filter(|row| row.is_running == F::ONE)
+        .map(|row| row.inst.pc);
+    let counts = chain![
+        cpu_counts,
+        add_counts,
+        blt_taken_counts,
+        store_word_counts,
+        load_word_counts
+    ]
+    .counts();
     program_rom
         .iter()
         .map(|row| {
@@ -85,7 +98,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         // Skip instruction handled by their own tables.
         // TODO: refactor, so we don't repeat logic.
         {
-            if let Op::ADD | Op::SW = inst.op {
+            if let Op::ADD | Op::SW | Op::LW = inst.op {
                 continue;
             }
 

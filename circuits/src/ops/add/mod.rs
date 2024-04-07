@@ -15,16 +15,10 @@ pub mod columns {
     #[repr(C)]
     #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
     pub struct Instruction<T> {
-        /// The original instruction (+ `imm_value`) used for program
-        /// cross-table-lookup.
         pub pc: T,
-        /// Selects the register to use as source for `rs1`
         pub rs1_selected: T,
-        /// Selects the register to use as source for `rs2`
         pub rs2_selected: T,
-        /// Selects the register to use as destination for `rd`
         pub rd_selected: T,
-        /// Special immediate value used for code constants
         pub imm_value: T,
     }
 
