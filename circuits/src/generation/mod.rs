@@ -142,6 +142,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     let add_trace = ops::add::generate(record);
     let blt_trace = ops::blt_taken::generate(record);
+    let store_word_trace = ops::sw::generate(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
@@ -177,6 +178,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         cpu_skeleton_stark: trace_rows_to_poly_values(skeleton_rows),
         add_stark: trace_rows_to_poly_values(add_trace),
         blt_taken_stark: trace_rows_to_poly_values(blt_trace),
+        store_word_stark: trace_rows_to_poly_values(store_word_trace),
     }
     .build()
 }

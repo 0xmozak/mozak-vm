@@ -35,6 +35,8 @@ use crate::ops::add::columns::Add;
 use crate::ops::add::stark::AddStark;
 use crate::ops::blt_taken::columns::BltTaken;
 use crate::ops::blt_taken::stark::BltTakenStark;
+use crate::ops::sw::columns::StoreWord;
+use crate::ops::sw::stark::StoreWordStark;
 use crate::ops::{add, blt_taken};
 #[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2State;
@@ -159,6 +161,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub add_stark: AddStark<F, D>,
     #[StarkSet(stark_kind = "BltTaken")]
     pub blt_taken_stark: BltTakenStark<F, D>,
+    #[StarkSet(stark_kind = "StoreWord")]
+    pub store_word_stark: StoreWordStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
     #[cfg(feature = "test_public_table")]
     pub public_sub_tables: [PublicSubTable; 1],
@@ -450,6 +454,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             cpu_skeleton_stark: CpuSkeletonStark::default(),
             add_stark: AddStark::default(),
             blt_taken_stark: BltTakenStark::default(),
+            store_word_stark: StoreWordStark::default(),
 
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.
@@ -653,6 +658,7 @@ table_impl!(
 table_impl!(SkeletonTable, TableKind::CpuSkeleton, CpuSkeleton);
 table_impl!(AddTable, TableKind::Add, Add);
 table_impl!(BltTakenTable, TableKind::BltTaken, BltTaken);
+table_impl!(StoreWordTable, TableKind::StoreWord, StoreWord);
 
 pub trait Lookups {
     type Row: IntoIterator<Item = Column>;
