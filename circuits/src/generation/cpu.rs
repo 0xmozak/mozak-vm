@@ -21,7 +21,7 @@ use crate::xor::columns::XorView;
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
-    let mut last = trace.last().cloned().unwrap();
+    let mut last = trace.last().copied().unwrap();
     last.is_running = F::ZERO;
     trace.resize(len, last);
     trace
