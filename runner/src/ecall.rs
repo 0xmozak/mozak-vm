@@ -128,6 +128,10 @@ impl<F: RichField> State<F> {
             ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
             ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
             ecall::IO_READ_CALL_TAPE => self.ecall_io_read(IoOpcode::StoreCallTape),
+            ecall::IO_READ_EVENTS_COMMITMENT_TAPE =>
+                self.ecall_io_read(IoOpcode::StoreEventsCommitmentTape),
+            ecall::IO_READ_CAST_LIST_COMMITMENT_TAPE =>
+                self.ecall_io_read(IoOpcode::StoreCastListCommitmentTape),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             ecall::VM_TRACE_LOG => self.ecall_trace_log(),
