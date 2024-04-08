@@ -250,8 +250,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use itertools::{chain, izip};
+    use mozak_runner::decode::ECALL;
+    use mozak_runner::elf::{Code, Program, RuntimeArguments};
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::util::execute_code;
+    use mozak_sdk::core::ecall;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
@@ -308,6 +312,48 @@ mod tests {
             MemoryStark::prove_and_verify(&program, &executed)?;
         }
         Ok(())
+    }
+
+    #[test]
+    #[should_panic = "Mismatch between evaluation and opening of quotient polynomial"]
+    pub fn prove_memory_mozak_fail() {
+        type Stark = MozakStark<F, D>;
+        let code = [Instruction {
+            op: Op::SB,
+            args: Args {
+                rs1: 0,
+                rs2: 0,
+                imm: 0,
+                ..Args::default()
+            },
+        }];
+        let fake_program = {
+            let ro_code = Code(
+                izip!(
+                    (0..).step_by(4),
+                    chain!(code, [
+                        // set sys-call HALT in x10(or a0)
+                        Instruction {
+                            op: Op::ADD,
+                            args: Args {
+                                rd: 10,
+                                imm: ecall::HALT,
+                                ..Args::default()
+                            },
+                        },
+                        // add ECALL to halt the program
+                        ECALL,
+                    ])
+                    .map(Ok),
+                )
+                .collect(),
+            );
+            // // Making this change would be ok, and should pass.
+            // Program::create(&[], &[(0, 10)], &ro_code, &RuntimeArguments::default())
+            Program::create(&[(0, 0)], &[], &ro_code, &RuntimeArguments::default())
+        };
+        let (_program, record) = execute_code(code, &[], &[]);
+        Stark::prove_and_verify(&fake_program, &record).unwrap();
     }
 
     pub fn memory<Stark: ProveAndVerify>(

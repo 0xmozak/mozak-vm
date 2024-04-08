@@ -184,7 +184,8 @@ pub fn generate_memory_trace<F: RichField>(
                         );
                     }
                     Some(prev_mem_unwrapped) => {
-                        current_mem.is_writable = prev_mem_unwrapped.is_writable;
+                        // current_mem.is_writable = prev_mem_unwrapped.is_writable;
+                        current_mem.is_writable = F::ONE;
                         current_mem.diff_clk = current_mem.clk - prev_mem_unwrapped.clk;
                     }
                 }
