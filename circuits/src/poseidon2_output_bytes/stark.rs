@@ -100,8 +100,8 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use super::Poseidon2OutputBytesStark;
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
 
