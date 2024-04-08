@@ -97,7 +97,7 @@ pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     mem_private: &[InputOutputMemory<F>],
     mem_public: &[InputOutputMemory<F>],
-    mem_transcript: &[InputOutputMemory<F>],
+    mem_call_tape: &[InputOutputMemory<F>],
     reg_init: &[RegisterInit<F>],
 ) -> (
     Vec<RegisterZeroRead<F>>,
@@ -112,7 +112,7 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::Cpu => extract(cpu_trace, &looking_table),
             TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
-            TableKind::CallTape => extract(mem_transcript, &looking_table),
+            TableKind::CallTape => extract(mem_call_tape, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
