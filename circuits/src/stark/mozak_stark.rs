@@ -57,12 +57,15 @@ use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, Rang
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
-use crate::register::columns::{Register, RegisterCtl};
-use crate::register::stark::RegisterStark;
-use crate::register_zero::columns::RegisterZero;
-use crate::register_zero::stark::RegisterZeroStark;
-use crate::registerinit::columns::RegisterInit;
-use crate::registerinit::stark::RegisterInitStark;
+use crate::register::general::columns::Register;
+use crate::register::general::stark::RegisterStark;
+use crate::register::init::columns::RegisterInit;
+use crate::register::init::stark::RegisterInitStark;
+use crate::register::zero_read::columns::RegisterZeroRead;
+use crate::register::zero_read::stark::RegisterZeroReadStark;
+use crate::register::zero_write::columns::RegisterZeroWrite;
+use crate::register::zero_write::stark::RegisterZeroWriteStark;
+use crate::register::RegisterCtl;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
@@ -127,8 +130,10 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
-    #[StarkSet(stark_kind = "RegisterZero")]
-    pub register_zero_stark: RegisterZeroStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterZeroRead")]
+    pub register_zero_read_stark: RegisterZeroReadStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterZeroWrite")]
+    pub register_zero_write_stark: RegisterZeroWriteStark<F, D>,
     #[cfg_attr(feature = "enable_poseidon_starks", StarkSet(stark_kind = "Poseidon2"))]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     #[cfg_attr(
@@ -418,7 +423,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
-            register_zero_stark: RegisterZeroStark::default(),
+            register_zero_read_stark: RegisterZeroReadStark::default(),
+            register_zero_write_stark: RegisterZeroWriteStark::default(),
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
             io_transcript_stark: InputOutputMemoryStark::default(),
@@ -585,7 +591,16 @@ table_impl!(
 );
 table_impl!(RegisterInitTable, TableKind::RegisterInit, RegisterInit);
 table_impl!(RegisterTable, TableKind::Register, Register);
-table_impl!(RegisterZeroTable, TableKind::RegisterZero, RegisterZero);
+table_impl!(
+    RegisterZeroReadTable,
+    TableKind::RegisterZeroRead,
+    RegisterZeroRead
+);
+table_impl!(
+    RegisterZeroWriteTable,
+    TableKind::RegisterZeroWrite,
+    RegisterZeroWrite
+);
 table_impl!(
     IoMemoryPrivateTable,
     TableKind::IoMemoryPrivate,
@@ -629,7 +644,7 @@ impl Lookups for RangecheckTable {
     type Row = RangeCheckCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let register = register::columns::rangecheck_looking();
+        let register = register::general::columns::rangecheck_looking();
 
         let looking: Vec<TableWithTypedOutput<_>> = chain![
             memory::columns::rangecheck_looking(),
@@ -721,7 +736,7 @@ impl Lookups for InnerCpuTable {
     type Row = InstructionRow<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_inst()], vec![
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_program_rom()], vec![
             program_multiplicities::columns::lookup_for_cpu(),
         ])
     }
@@ -790,12 +805,13 @@ impl Lookups for RegisterLookups {
             chain![
                 crate::cpu::columns::register_looking(),
                 crate::memory_io::columns::register_looking(),
-                vec![crate::registerinit::columns::lookup_for_register()],
+                vec![crate::register::init::columns::lookup_for_register()],
             ]
             .collect(),
             vec![
-                crate::register::columns::register_looked(),
-                crate::register_zero::columns::register_looked(),
+                crate::register::general::columns::register_looked(),
+                crate::register::zero_read::columns::register_looked(),
+                crate::register::zero_write::columns::register_looked(),
             ],
         )
     }

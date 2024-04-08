@@ -29,10 +29,9 @@ pub mod rangecheck;
 pub mod rangecheck_u8;
 pub mod recproof;
 pub mod register;
-pub mod register_zero;
-pub mod registerinit;
 pub mod stark;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;
+pub mod unstark;
 pub mod utils;
 pub mod xor;
