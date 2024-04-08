@@ -12,4 +12,4 @@ repository = "https://github.com/0xmozak/mozak-node"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
-mozak-node = { path = "../node" }
+mozak-node = { path = "../node", default-features = false }

@@ -28,6 +28,7 @@ members = [
   "signatures",
   "wasm-demo",
 ]
+default-members = ["cli"]
 resolver = "2"
 
 [profile.dev.package."*"]

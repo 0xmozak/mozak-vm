@@ -23,5 +23,5 @@ serde = { version = "1.0", features = ["derive"] }
 mozak-circuits = { path = '../circuits', features = ["test"] }
 
 [features]
-default = ["std", "plonky2/default"]
+default = ["std"]
 std = ["plonky2/std"]
