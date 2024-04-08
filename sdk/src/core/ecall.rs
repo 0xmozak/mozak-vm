@@ -107,9 +107,6 @@ pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[allow(clippy::ptr_as_ptr)]
 #[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn events_commitment_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
@@ -127,9 +124,6 @@ pub fn events_commitment_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[allow(clippy::ptr_as_ptr)]
 #[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
