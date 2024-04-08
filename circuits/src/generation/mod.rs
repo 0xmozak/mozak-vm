@@ -4,7 +4,7 @@
 use std::fmt::Debug;
 pub mod bitshift;
 pub mod cpu;
-pub mod fullword_memory;
+// pub mod fullword_memory;
 pub mod halfword_memory;
 pub mod instruction;
 pub mod io_memory;
@@ -38,7 +38,6 @@ use starky::stark::Stark;
 
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_program_mult_trace};
-use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
 use self::io_memory::generate_io_transcript_trace;
 use self::memory::generate_memory_trace;
@@ -90,8 +89,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let skeleton_rows = generate_cpu_skeleton_trace(record);
     let add_rows = ops::add::generate(record);
     let blt_taken_rows = ops::blt_taken::generate(record);
-    let store_word_rows = ops::sw::generate(record);
-    let load_word_rows = ops::lw::generate(record);
+    let store_word_rows = ops::sw::generate(&record.executed);
+    let load_word_rows = ops::lw::generate(&record.executed);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
@@ -110,7 +109,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let public_tape_init_rows = generate_public_tape_init_trace(program);
     let event_tape_init_rows = generate_event_tape_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
-    let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
     let io_transcript_rows = generate_io_transcript_trace(&record.executed);
@@ -123,7 +121,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &record.executed,
         &generate_memory_init_trace(program),
         &halfword_memory_rows,
-        &fullword_memory_rows,
+        &store_word_rows,
+        &load_word_rows,
         &io_memory_private_rows,
         &io_memory_public_rows,
         &poseiden2_sponge_rows,
@@ -159,8 +158,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     let add_trace = ops::add::generate(record);
     let blt_trace = ops::blt_taken::generate(record);
-    let store_word_trace = ops::sw::generate(record);
-    let load_word_trace = ops::lw::generate(record);
+    let store_word_trace = ops::sw::generate(&record.executed);
+    let load_word_trace = ops::lw::generate(&record.executed);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
@@ -179,7 +178,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
         rangecheck_u8_stark: trace_rows_to_poly_values(rangecheck_u8_rows),
         halfword_memory_stark: trace_rows_to_poly_values(halfword_memory_rows),
-        fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),
         io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
         io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
         io_transcript_stark: trace_rows_to_poly_values(io_transcript_rows),

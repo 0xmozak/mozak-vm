@@ -39,7 +39,7 @@ pub mod columns {
         pub inst: Instruction<T>,
         // TODO(Matthias): could we get rid of the clk here?
         pub clk: T,
-        pub op1_value: T,
+        pub op1_limbs: [T; 4],
         pub op2_value: T,
         // Extra column, so we can do CTL, like range check and memory.
         pub address: T,
@@ -57,7 +57,7 @@ pub mod columns {
                     clk: COL_MAP.clk,
                     op: is_read,
                     addr: COL_MAP.inst.rs1_selected,
-                    value: COL_MAP.op1_value,
+                    value: ColumnWithTypedInput::reduce_with_powers(COL_MAP.op1_limbs, 1 << 8),
                 },
                 COL_MAP.is_running,
             ),
@@ -131,38 +131,42 @@ pub mod columns {
         )
     }
 
-    /// Lookup into fullword Memory table.
-    /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+    /// Lookup between Store Word memory table
+    /// and Memory stark table.
     #[must_use]
-    pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
-        StoreWordTable::new(
-            MemoryCtl {
-                clk: COL_MAP.clk,
-                is_store: ColumnWithTypedInput::constant(1),
-                is_load: ColumnWithTypedInput::constant(0),
-                addr: COL_MAP.address,
-                value: COL_MAP.op1_value,
-            },
-            COL_MAP.is_running,
-        )
+    pub fn lookup_for_memory_limb() -> Vec<TableWithTypedOutput<MemoryCtl<Column>>> {
+        (0..4)
+            .map(|limb_index| {
+                StoreWordTable::new(
+                    MemoryCtl {
+                        clk: COL_MAP.clk,
+                        is_store: ColumnWithTypedInput::constant(1),
+                        is_load: ColumnWithTypedInput::constant(0),
+                        value: COL_MAP.op1_limbs[limb_index],
+                        addr: COL_MAP.address + i64::try_from(limb_index).unwrap(),
+                    },
+                    COL_MAP.is_running,
+                )
+            })
+            .collect()
     }
 }
 
 use columns::{Instruction, StoreWord};
 use mozak_runner::instruction::Op;
-use mozak_runner::vm::{ExecutionRecord, Row};
+use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::utils::pad_trace_with_default;
 
 #[must_use]
-pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<StoreWord<F>> {
+pub fn generate<F: RichField>(executed: &[Row<F>]) -> Vec<StoreWord<F>> {
     let mut trace: Vec<StoreWord<F>> = vec![];
     for Row {
         state,
         instruction: inst,
         aux,
-    } in &record.executed
+    } in executed
     {
         if let Op::SW = inst.op {
             let rs1_selected = inst.args.rs1;
@@ -172,6 +176,7 @@ pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<StoreWord<F>> 
             let imm_value = inst.args.imm;
             let address = aux.mem.unwrap().addr;
             assert_eq!(address, op2_value.wrapping_add(imm_value));
+            let op1_limbs = op1_value.to_le_bytes().map(u32::from);
             let row = StoreWord {
                 inst: Instruction {
                     pc: state.get_pc(),
@@ -180,7 +185,7 @@ pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<StoreWord<F>> 
                     imm_value,
                 },
                 clk: u32::try_from(state.clk).unwrap(),
-                op1_value,
+                op1_limbs,
                 op2_value,
                 address,
                 is_running: 1,

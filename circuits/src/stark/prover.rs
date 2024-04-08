@@ -24,9 +24,7 @@ use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{
-    all_starks, MozakStark, TableKind, TableKindArray, TableKindSetBuilder
-};
+use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -372,7 +370,8 @@ where
 
     Ok(all_starks!(mozak_stark, |stark, kind| {
         // TODO: fix timing to work in parallel.
-        // let mut timing = TimingTree::new(&format!("{stark} Stark Prove"), log::Level::Debug);
+        // let mut timing = TimingTree::new(&format!("{stark} Stark Prove"),
+        // log::Level::Debug);
         prove_single_table(
             stark,
             config,

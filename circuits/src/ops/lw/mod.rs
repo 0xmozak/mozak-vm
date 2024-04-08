@@ -31,7 +31,7 @@ pub mod columns {
         pub inst: Instruction<T>,
         pub clk: T,
         pub op2_value: T,
-        pub dst_value: T,
+        pub dst_limbs: [T; 4],
         // Extra column, so we can do CTL, like range check and memory.
         pub address: T,
 
@@ -58,7 +58,7 @@ pub mod columns {
                     clk: COL_MAP.clk,
                     op: is_write,
                     addr: COL_MAP.inst.rd_selected,
-                    value: COL_MAP.dst_value,
+                    value: ColumnWithTypedInput::reduce_with_powers(COL_MAP.dst_limbs, 1 << 8),
                 },
                 COL_MAP.is_running,
             ),
@@ -123,38 +123,42 @@ pub mod columns {
         )
     }
 
-    /// Lookup into fullword Memory table.
-    /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+    /// Lookup between Store Word memory table
+    /// and Memory stark table.
     #[must_use]
-    pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
-        LoadWordTable::new(
-            MemoryCtl {
-                clk: COL_MAP.clk,
-                is_store: ColumnWithTypedInput::constant(0),
-                is_load: ColumnWithTypedInput::constant(1),
-                addr: COL_MAP.address,
-                value: COL_MAP.dst_value,
-            },
-            COL_MAP.is_running,
-        )
+    pub fn lookup_for_memory_limb() -> Vec<TableWithTypedOutput<MemoryCtl<Column>>> {
+        (0..4)
+            .map(|limb_index| {
+                LoadWordTable::new(
+                    MemoryCtl {
+                        clk: COL_MAP.clk,
+                        is_store: ColumnWithTypedInput::constant(0),
+                        is_load: ColumnWithTypedInput::constant(1),
+                        value: COL_MAP.dst_limbs[limb_index],
+                        addr: COL_MAP.address + i64::try_from(limb_index).unwrap(),
+                    },
+                    COL_MAP.is_running,
+                )
+            })
+            .collect()
     }
 }
 
 use columns::{Instruction, LoadWord};
 use mozak_runner::instruction::Op;
-use mozak_runner::vm::{ExecutionRecord, Row};
+use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::utils::pad_trace_with_default;
 
 #[must_use]
-pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<LoadWord<F>> {
+pub fn generate<F: RichField>(executed: &[Row<F>]) -> Vec<LoadWord<F>> {
     let mut trace: Vec<LoadWord<F>> = vec![];
     for Row {
         state,
         instruction: inst,
         aux,
-    } in &record.executed
+    } in executed
     {
         if let Op::LW = inst.op {
             // let rs1_selected = inst.args.rs1;
@@ -165,7 +169,10 @@ pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<LoadWord<F>> {
             let imm_value = inst.args.imm;
             let address = aux.mem.unwrap().addr;
             let dst_value = aux.mem.unwrap().raw_value;
+            let dst_value_from_aux = aux.dst_val;
+            assert_eq!(dst_value, dst_value_from_aux);
             assert_eq!(address, op2_value.wrapping_add(imm_value));
+            let dst_limbs = aux.dst_val.to_le_bytes().map(u32::from);
             let row = LoadWord {
                 inst: Instruction {
                     pc: state.get_pc(),
@@ -176,7 +183,7 @@ pub fn generate<F: RichField>(record: &ExecutionRecord<F>) -> Vec<LoadWord<F>> {
                 clk: u32::try_from(state.clk).unwrap(),
                 op2_value,
                 address,
-                dst_value,
+                dst_limbs,
                 is_running: 1,
             }
             .map(F::from_canonical_u32);

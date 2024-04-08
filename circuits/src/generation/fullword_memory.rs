@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory::trace::get_memory_inst_clk;
-use crate::memory_fullword::columns::{FullWordMemory, Ops};
+// use crate::memory_fullword::columns::{FullWordMemory, Ops};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]

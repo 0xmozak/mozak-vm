@@ -261,7 +261,6 @@ mod tests {
 
     use crate::cross_table_lookup::ctl_utils::check_single_ctl;
     use crate::cross_table_lookup::CrossTableLookupWithTypedOutput;
-    use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
         generate_io_memory_private_trace, generate_io_memory_public_trace,
@@ -281,7 +280,7 @@ mod tests {
     };
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify};
-    use crate::{memory, memory_zeroinit, memoryinit};
+    use crate::{memory, memory_zeroinit, memoryinit, ops};
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -372,7 +371,8 @@ mod tests {
         let memory_init_rows = generate_elf_memory_init_trace(&program);
         let mozak_memory_init_rows = generate_mozak_memory_init_trace(&program);
         let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
-        let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
@@ -383,7 +383,8 @@ mod tests {
             &record.executed,
             &generate_memory_init_trace(&program),
             &halfword_memory_rows,
-            &fullword_memory_rows,
+            &store_word_rows,
+            &load_word_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &poseiden2_sponge_rows,

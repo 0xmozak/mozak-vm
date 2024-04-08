@@ -21,8 +21,6 @@ use crate::cross_table_lookup::{
 };
 use crate::memory::columns::{Memory, MemoryCtl};
 use crate::memory::stark::MemoryStark;
-use crate::memory_fullword::columns::FullWordMemory;
-use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::columns::{InputOutputMemory, InputOutputMemoryCtl};
@@ -79,11 +77,11 @@ use crate::register::RegisterCtl;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, cpu_skeleton, memory, memory_fullword, memory_halfword, memory_io,
-    memory_zeroinit, memoryinit, ops, program, program_multiplicities, rangecheck, register, xor,
+    bitshift, cpu, cpu_skeleton, memory, memory_halfword, memory_io, memory_zeroinit, memoryinit,
+    ops, program, program_multiplicities, rangecheck, register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 13 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
+const NUM_CROSS_TABLE_LOOKUP: usize = 12 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -128,8 +126,6 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub rangecheck_u8_stark: RangeCheckU8Stark<F, D>,
     #[StarkSet(stark_kind = "HalfWordMemory")]
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
-    #[StarkSet(stark_kind = "FullWordMemory")]
-    pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPrivate")]
     pub io_memory_private_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPublic")]
@@ -442,7 +438,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             memory_zeroinit_stark: MemoryZeroInitStark::default(),
             rangecheck_u8_stark: RangeCheckU8Stark::default(),
             halfword_memory_stark: HalfWordMemoryStark::default(),
-            fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
             register_zero_read_stark: RegisterZeroReadStark::default(),
@@ -471,7 +466,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 MemoryInitMemoryTable::lookups(),
                 RangeCheckU8LookupTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
-                FullWordMemoryCpuTable::lookups(),
                 RegisterLookups::lookups(),
                 IoMemoryToCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
@@ -612,11 +606,6 @@ table_impl!(
     TableKind::HalfWordMemory,
     HalfWordMemory
 );
-table_impl!(
-    FullWordMemoryTable,
-    TableKind::FullWordMemory,
-    FullWordMemory
-);
 table_impl!(RegisterInitTable, TableKind::RegisterInit, RegisterInit);
 table_impl!(RegisterTable, TableKind::Register, Register);
 table_impl!(
@@ -737,13 +726,15 @@ impl Lookups for IntoMemoryTable {
             cpu::columns::lookup_for_memory(),
             memory_halfword::columns::lookup_for_memory_limb(0),
             memory_halfword::columns::lookup_for_memory_limb(1),
-            memory_fullword::columns::lookup_for_memory_limb(0),
-            memory_fullword::columns::lookup_for_memory_limb(1),
-            memory_fullword::columns::lookup_for_memory_limb(2),
-            memory_fullword::columns::lookup_for_memory_limb(3),
+            // memory_fullword::columns::lookup_for_memory_limb(0),
+            // memory_fullword::columns::lookup_for_memory_limb(1),
+            // memory_fullword::columns::lookup_for_memory_limb(2),
+            // memory_fullword::columns::lookup_for_memory_limb(3),
             memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
             memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
         ]);
+        tables.extend(ops::sw::columns::lookup_for_memory_limb());
+        tables.extend(ops::lw::columns::lookup_for_memory_limb());
         #[cfg(feature = "enable_poseidon_starks")]
         {
             tables.extend((0..8).map(poseidon2_sponge::columns::lookup_for_input_memory));
@@ -841,23 +832,6 @@ impl Lookups for HalfWordMemoryCpuTable {
         CrossTableLookupWithTypedOutput::new(
             vec![cpu::columns::lookup_for_halfword_memory()],
             vec![memory_halfword::columns::lookup_for_cpu()],
-        )
-    }
-}
-
-pub struct FullWordMemoryCpuTable;
-
-impl Lookups for FullWordMemoryCpuTable {
-    type Row = MemoryCtl<Column>;
-
-    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(
-            vec![
-                cpu::columns::lookup_for_fullword_memory(),
-                ops::sw::columns::lookup_for_fullword_memory(),
-                ops::lw::columns::lookup_for_fullword_memory(),
-            ],
-            vec![memory_fullword::columns::lookup_for_cpu()],
         )
     }
 }
