@@ -451,7 +451,7 @@ mod tests {
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
     use starky::verifier::verify_stark_proof;
 
-    use crate::generation::poseidon2::generate_poseidon2_trace;
+    use crate::poseidon2::generation::generate_poseidon2_trace;
     use crate::poseidon2::stark::Poseidon2_12Stark;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};

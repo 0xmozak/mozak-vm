@@ -81,8 +81,8 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::test_utils::{inv, prep_table};
 
     // TODO(Matthias): Consider unifying with the byte memory example?
