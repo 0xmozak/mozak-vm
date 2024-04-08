@@ -120,7 +120,7 @@ impl<F: RichField> State<F> {
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             ecall::VM_TRACE_LOG => self.ecall_trace_log(),
-            _ => (Aux::default(), self.bump_pc()),
+            ecall::VM_TRACE_LOG..=u32::MAX => (Aux::default(), self.bump_pc()),
         }
     }
 }
