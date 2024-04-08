@@ -13,7 +13,7 @@ use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::io_memory::{
-    generate_io_memory_private_trace, generate_io_transcript_trace,
+    generate_call_tape_trace, generate_io_memory_private_trace,
 };
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
@@ -282,7 +282,7 @@ fn main() -> Result<()> {
                 // See: https://github.com/0xmozak/mozak-vm/pull/1335#issuecomment-2029402128
                 let trace = generate_io_memory_private_trace(&record.executed);
                 let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-                let trace = generate_io_transcript_trace(&record.executed);
+                let trace = generate_call_tape_trace(&record.executed);
                 let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
                 let transparent_attestation = TransparentAttestation {

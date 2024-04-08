@@ -88,7 +88,7 @@ pub(crate) fn io_constraints<P: PackedField>(
     );
     yield_constr.constraint(
         lv.is_io_transcript
-            * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::IO_READ_TRANSCRIPT)),
+            * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::IO_READ_CALL_TAPE)),
     );
 }
 
@@ -185,7 +185,7 @@ pub(crate) fn io_constraints_circuit<F: RichField + Extendable<D>, const D: usiz
     yield_constr.constraint(builder, constraint_public);
 
     let io_read_transcript_value =
-        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_TRANSCRIPT));
+        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_CALL_TAPE));
     let reg_a0_sub_io_read_transcript =
         builder.sub_extension(lv.op1_value, io_read_transcript_value);
     let constraint_transcript =
