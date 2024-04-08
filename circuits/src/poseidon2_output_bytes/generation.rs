@@ -1,6 +1,6 @@
 use plonky2::hash::hash_types::RichField;
 
-use super::MIN_TRACE_LENGTH;
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 
@@ -31,8 +31,8 @@ mod tests {
     use mozak_runner::vm::Row;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::MIN_TRACE_LENGTH;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
