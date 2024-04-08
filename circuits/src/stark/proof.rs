@@ -347,6 +347,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
+                let mut challenger = challenger.clone();
                 challenger.compact();
                 self.proofs[kind].get_challenges(&mut challenger, config)
             }),
