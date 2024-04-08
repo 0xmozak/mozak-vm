@@ -663,7 +663,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "test_public_table")]
-    fn recursive_verify_mozak_starks() -> Result<()> {
+    fn test_recursive_verification_with_public_subtable() -> Result<()> {
         use itertools::Itertools;
         use plonky2::field::types::Field;
 
