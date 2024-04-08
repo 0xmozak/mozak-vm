@@ -34,7 +34,10 @@ where
         }
     }
 
-    fn one(&mut self) -> ExtensionTarget<D> { self.builder.one_extension() }
+    fn constant(&mut self, value: i64) -> ExtensionTarget<D> {
+        let f = F::from_noncanonical_i64(value);
+        self.builder.constant_extension(f.into())
+    }
 }
 
 #[derive(Default)]
@@ -57,7 +60,9 @@ where
         }
     }
 
-    fn one(&mut self) -> P { P::ONES }
+    fn constant(&mut self, value: i64) -> P {
+        P::from(FE::from_noncanonical_i64(value))
+    }
 }
 
 pub struct Constraint<E> {

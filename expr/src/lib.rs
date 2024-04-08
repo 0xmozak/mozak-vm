@@ -63,9 +63,11 @@ impl ExprBuilder {
     /// Create a `Literal` expression
     pub fn lit<V>(&self, value: V) -> Expr<'_, V> { self.intern(ExprTree::Literal { value }) }
 
-    // Create a `One` expression
+    /// Create a `Constant` expression
+    pub fn constant<V>(&self, value: i64) -> Expr<'_, V> { self.intern(ExprTree::Constant { value }) }
 
-    pub fn one<V>(&self) -> Expr<'_, V> { self.intern(ExprTree::One) }
+    /// Create a `One` expression
+    pub fn one<V>(&self) -> Expr<'_, V> { self.constant(1i64) }
 
     /// Create an `Add` expression
     pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
@@ -108,7 +110,9 @@ enum ExprTree<'a, V> {
     Literal {
         value: V,
     },
-    One,
+    Constant {
+        value: i64,
+    },
 }
 
 impl<V> ExprTree<'_, V>
@@ -127,7 +131,7 @@ where
                 evaluator.bin_op(op, left, right)
             }
             ExprTree::Literal { value } => *value,
-            ExprTree::One => evaluator.one(),
+            ExprTree::Constant { value } => evaluator.constant(*value),
         }
     }
 }
@@ -137,7 +141,7 @@ pub trait Evaluator<V>
 where
     V: Copy, {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
-    fn one(&mut self) -> V;
+    fn constant(&mut self, value: i64) -> V;
     fn eval(&mut self, expr: Expr<'_, V>) -> V { expr.expr_tree.eval_with(self) }
 }
 
@@ -151,7 +155,7 @@ where
     V: Add<Output = V>,
     V: Sub<Output = V>,
     V: Mul<Output = V>,
-    V: From<u8>,
+    V: From<i64>,
 {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V {
         match op {
@@ -161,7 +165,7 @@ where
         }
     }
 
-    fn one(&mut self) -> V { 1u8.into() }
+    fn constant(&mut self, value: i64) -> V { value.into() }
 }
 
 #[cfg(test)]
@@ -172,8 +176,8 @@ mod tests {
     fn it_works() {
         let expr = ExprBuilder::default();
 
-        let a = expr.lit(7);
-        let b = expr.lit(5);
+        let a = expr.lit(7i64);
+        let b = expr.lit(5i64);
 
         let mut p = PureEvaluator::default();
 
