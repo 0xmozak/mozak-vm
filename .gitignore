@@ -21,13 +21,18 @@ tmp
 *.csv
 .env
 /perftool/build
-*.svg
-!air.svg
-!main-logo.svg
+perftool/plots/*.svg
 
 # Generated IOTapes
-*.tape
+*.tape*
+
+# Generated transaction bundle
+bundle
 
 riscv-testdata/testdata/*.o
 riscv-testdata/testdata/*.s
 riscv-testdata/testdata/*.i
+
+# Temporary scripts
+*tmp.sh
+examples/*/out/

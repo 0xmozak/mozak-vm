@@ -3,8 +3,9 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
-use log::log_enabled;
+use itertools::Itertools;
 use log::Level::Debug;
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -18,7 +19,8 @@ use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+#[allow(clippy::wildcard_imports)]
+use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
@@ -27,10 +29,10 @@ use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
+use crate::public_sub_table::public_sub_table_data_and_values;
 use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
-use crate::stark::proof::StarkProofWithMetadata;
 
 /// Prove the execution of a given [Program]
 ///
@@ -52,6 +54,7 @@ pub fn prove<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
@@ -124,7 +127,15 @@ where
             &ctl_challenges
         )
     );
-    let proofs_with_metadata = timed!(
+
+    let (public_sub_table_data_per_table, public_sub_table_values) =
+        public_sub_table_data_and_values::<F, D>(
+            traces_poly_values,
+            &mozak_stark.public_sub_tables,
+            &ctl_challenges,
+        );
+
+    let proofs = timed!(
         timing,
         "compute all proofs given commitments",
         prove_with_commitments(
@@ -134,6 +145,7 @@ where
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
+            &public_sub_table_data_per_table,
             &mut challenger,
             timing
         )?
@@ -146,12 +158,12 @@ where
         timing.print();
     }
     Ok(AllProof {
-        proofs_with_metadata,
-        ctl_challenges,
+        proofs,
         program_rom_trace_cap,
         elf_memory_init_trace_cap,
         mozak_memory_init_trace_cap,
         public_inputs,
+        public_sub_table_values,
     })
 }
 
@@ -169,9 +181,10 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
+    public_sub_table_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<StarkProofWithMetadata<F, C, D>>
+) -> Result<StarkProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -186,11 +199,15 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    let init_challenger_state = challenger.compact();
+    let z_poly_public_sub_table = public_sub_table_data.z_polys();
 
-    let z_polys = ctl_data.z_polys();
+    // commit to both z poly of ctl and open public
+    let z_polys = vec![ctl_data.z_polys(), z_poly_public_sub_table]
+        .into_iter()
+        .flatten()
+        .collect_vec();
     // TODO(Matthias): make the code work with empty z_polys, too.
-    assert!(!z_polys.is_empty(), "No CTL?");
+    assert!(!z_polys.is_empty(), "No CTL? {stark}");
 
     let ctl_zs_commitment = timed!(
         timing,
@@ -204,7 +221,6 @@ where
             None,
         )
     );
-
     let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
 
@@ -218,6 +234,7 @@ where
             &ctl_zs_commitment,
             public_inputs,
             ctl_data,
+            public_sub_table_data,
             &alphas,
             degree_bits,
             config,
@@ -279,6 +296,10 @@ where
 
     let initial_merkle_trees = vec![trace_commitment, &ctl_zs_commitment, &quotient_commitment];
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
+    let num_make_rows_public_data = public_sub_table_data.len();
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
@@ -286,10 +307,12 @@ where
             &stark.fri_instance(
                 zeta,
                 g,
+                0,
+                vec![],
                 config,
                 Some(&LookupConfig {
                     degree_bits,
-                    num_zs: ctl_data.len()
+                    num_zs: ctl_data.len() + num_make_rows_public_data
                 })
             ),
             &initial_merkle_trees,
@@ -299,16 +322,12 @@ where
         )
     );
 
-    let proof = StarkProof {
+    Ok(StarkProof {
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
         ctl_zs_cap,
         quotient_polys_cap,
         openings,
         opening_proof,
-    };
-    Ok(StarkProofWithMetadata {
-        init_challenger_state,
-        proof,
     })
 }
 
@@ -325,9 +344,10 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
+    public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<TableKindArray<StarkProofWithMetadata<F, C, D>>>
+) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
@@ -346,6 +366,7 @@ where
             &trace_commitments[kind],
             public_inputs[kind],
             &ctl_data_per_table[kind],
+            &public_sub_data_per_table[kind],
             challenger,
             timing,
         )?
@@ -353,11 +374,10 @@ where
 }
 
 #[cfg(test)]
-#[allow(clippy::cast_possible_wrap)]
 mod tests {
 
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::execute_code;
+    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::poseidon2::Poseidon2Hash;

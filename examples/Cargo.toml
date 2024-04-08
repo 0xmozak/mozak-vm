@@ -1,23 +1,25 @@
 [workspace]
 members = [
+  # Members that depend only on sdk::core
   "bss-tester",
   "fibonacci",
   "min-max",
   "memory-access",
   "panic",
-  "poseidon2",
   "static-mem-access",
   "sha2",
   "rkyv-serialization",
-  "stdin",
-  "fibonacci-input",
-  "fibonacci-input-new-api",
-  "merkleproof-trustedroot",
   "empty",
+
+  # Members that depend on more than sdk::core
+  "token",
+  "wallet",
+  "inputtape",
 ]
 resolver = "2"
 
 [profile.release]
 codegen-units = 1
 lto = "fat"
-opt-level = "z"
+opt-level = 3
+panic = "abort"

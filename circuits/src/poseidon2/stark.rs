@@ -306,15 +306,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         is_binary(yield_constr, lv.is_exe);
 
         let mut state = lv.input;
-        #[allow(clippy::range_plus_one)]
         matmul_external12_constraints(&mut state);
         // first full rounds
         for r in 0..(ROUNDS_F / 2) {
             add_rc_constraints(&mut state, r);
-            #[allow(clippy::needless_range_loop)]
-            for i in 0..STATE_SIZE {
+            for (i, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
                 sbox_p_constraints(
-                    &mut state[i],
+                    item,
                     &lv.s_box_input_qube_first_full_rounds[r * STATE_SIZE + i],
                 );
             }
@@ -345,10 +343,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         for i in 0..(ROUNDS_F / 2) {
             let r = (ROUNDS_F / 2) + i;
             add_rc_constraints(&mut state, r);
-            #[allow(clippy::needless_range_loop)]
-            for j in 0..STATE_SIZE {
+            for (j, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
                 sbox_p_constraints(
-                    &mut state[j],
+                    item,
                     &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
                 );
             }
@@ -374,16 +371,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         is_binary_ext_circuit(builder, lv.is_exe, yield_constr);
 
         let mut state = lv.input;
-        #[allow(clippy::range_plus_one)]
         matmul_external12_circuit(builder, &mut state);
         // first full rounds
         for r in 0..(ROUNDS_F / 2) {
             add_rc_circuit(builder, &mut state, r);
-            #[allow(clippy::needless_range_loop)]
-            for i in 0..STATE_SIZE {
+            for (i, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
                 sbox_p_circuit(
                     builder,
-                    &mut state[i],
+                    item,
                     &lv.s_box_input_qube_first_full_rounds[r * STATE_SIZE + i],
                 );
             }
@@ -426,11 +421,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         for i in 0..(ROUNDS_F / 2) {
             let r = (ROUNDS_F / 2) + i;
             add_rc_circuit(builder, &mut state, r);
-            #[allow(clippy::needless_range_loop)]
-            for j in 0..STATE_SIZE {
+            for (j, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
                 sbox_p_circuit(
                     builder,
-                    &mut state[j],
+                    item,
                     &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
                 );
             }
@@ -457,7 +451,7 @@ mod tests {
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
     use starky::verifier::verify_stark_proof;
 
-    use crate::generation::poseidon2::generate_poseidon2_trace;
+    use crate::poseidon2::generation::generate_poseidon2_trace;
     use crate::poseidon2::stark::Poseidon2_12Stark;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};

@@ -44,10 +44,10 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[cfg(test)]
-#[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code, reg, u32_extra};
+    use mozak_runner::test_utils::{reg, u32_extra};
+    use mozak_runner::util::execute_code;
 
     use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;
@@ -74,6 +74,14 @@ mod tests {
             );
         }
         Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    fn prove_add_mozak_example() {
+        let a = 1;
+        let b = 2;
+        let rd = 3;
+        prove_add::<MozakStark<F, D>>(a, b, rd);
     }
 
     use proptest::prelude::ProptestConfig;

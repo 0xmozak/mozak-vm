@@ -2,8 +2,7 @@
 //! 'ECALL'.
 
 use itertools::izip;
-use mozak_system::system::ecall;
-use mozak_system::system::reg_abi::REG_A0;
+use mozak_sdk::core::ecall;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -27,13 +26,13 @@ pub(crate) fn constraints<P: PackedField>(
     is_binary(yield_constr, lv.is_halt);
     is_binary(yield_constr, lv.is_io_store_private);
     is_binary(yield_constr, lv.is_io_store_public);
-    is_binary(yield_constr, lv.is_io_transcript);
+    is_binary(yield_constr, lv.is_call_tape);
     yield_constr.constraint(
         lv.inst.ops.ecall
             - (lv.is_halt
                 + lv.is_io_store_private
                 + lv.is_io_store_public
-                + lv.is_io_transcript
+                + lv.is_call_tape
                 + lv.is_poseidon2),
     );
     halt_constraints(lv, nv, yield_constr);
@@ -51,9 +50,8 @@ pub(crate) fn halt_constraints<P: PackedField>(
     // anywhere else.
     // Enable only for halt !!!
     yield_constr.constraint_transition(lv.is_halt * (lv.inst.ops.ecall + nv.is_running - P::ONES));
-    yield_constr.constraint(
-        lv.is_halt * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::HALT)),
-    );
+    yield_constr
+        .constraint(lv.is_halt * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::HALT)));
 
     // We also need to make sure that the program counter is not changed by the
     // 'halt' system call.
@@ -82,15 +80,14 @@ pub(crate) fn io_constraints<P: PackedField>(
 ) {
     yield_constr.constraint(
         lv.is_io_store_private
-            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_PRIVATE)),
+            * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::IO_READ_PRIVATE)),
     );
     yield_constr.constraint(
         lv.is_io_store_public
-            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_PUBLIC)),
+            * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::IO_READ_PUBLIC)),
     );
     yield_constr.constraint(
-        lv.is_io_transcript
-            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_TRANSCRIPT)),
+        lv.is_call_tape * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::IO_READ_CALL_TAPE)),
     );
 }
 
@@ -99,8 +96,7 @@ pub(crate) fn poseidon2_constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv.is_poseidon2
-            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::POSEIDON2)),
+        lv.is_poseidon2 * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::POSEIDON2)),
     );
 }
 
@@ -114,13 +110,13 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     is_binary_ext_circuit(builder, lv.is_halt, yield_constr);
     is_binary_ext_circuit(builder, lv.is_io_store_private, yield_constr);
     is_binary_ext_circuit(builder, lv.is_io_store_public, yield_constr);
-    is_binary_ext_circuit(builder, lv.is_io_transcript, yield_constr);
+    is_binary_ext_circuit(builder, lv.is_call_tape, yield_constr);
 
     let is_ecall_ops = add_extension_vec(builder, vec![
         lv.is_halt,
         lv.is_io_store_private,
         lv.is_io_store_public,
-        lv.is_io_transcript,
+        lv.is_call_tape,
         lv.is_poseidon2,
     ]);
     let ecall_constraint = builder.sub_extension(lv.inst.ops.ecall, is_ecall_ops);
@@ -144,7 +140,7 @@ pub(crate) fn halt_constraints_circuit<F: RichField + Extendable<D>, const D: us
     yield_constr.constraint_transition(builder, constraint1);
 
     let halt_value = builder.constant_extension(F::Extension::from_canonical_u32(ecall::HALT));
-    let halt_reg_a0_sub = builder.sub_extension(lv.regs[REG_A0 as usize], halt_value);
+    let halt_reg_a0_sub = builder.sub_extension(lv.op1_value, halt_value);
     let constraint2 = builder.mul_extension(lv.is_halt, halt_reg_a0_sub);
     yield_constr.constraint(builder, constraint2);
 
@@ -176,26 +172,22 @@ pub(crate) fn io_constraints_circuit<F: RichField + Extendable<D>, const D: usiz
 ) {
     let io_read_private_value =
         builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_PRIVATE));
-    let reg_a0_sub_io_read_private =
-        builder.sub_extension(lv.regs[REG_A0 as usize], io_read_private_value);
+    let reg_a0_sub_io_read_private = builder.sub_extension(lv.op1_value, io_read_private_value);
     let constraint_private =
         builder.mul_extension(lv.is_io_store_private, reg_a0_sub_io_read_private);
     yield_constr.constraint(builder, constraint_private);
 
     let io_read_public_value =
         builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_PUBLIC));
-    let reg_a0_sub_io_read_public =
-        builder.sub_extension(lv.regs[REG_A0 as usize], io_read_public_value);
+    let reg_a0_sub_io_read_public = builder.sub_extension(lv.op1_value, io_read_public_value);
     let constraint_public = builder.mul_extension(lv.is_io_store_public, reg_a0_sub_io_read_public);
     yield_constr.constraint(builder, constraint_public);
 
-    let io_read_transcript_value =
-        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_TRANSCRIPT));
-    let reg_a0_sub_io_read_transcript =
-        builder.sub_extension(lv.regs[REG_A0 as usize], io_read_transcript_value);
-    let constraint_transcript =
-        builder.mul_extension(lv.is_io_transcript, reg_a0_sub_io_read_transcript);
-    yield_constr.constraint(builder, constraint_transcript);
+    let call_tape_value =
+        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_CALL_TAPE));
+    let reg_a0_sub_call_tape_value = builder.sub_extension(lv.op1_value, call_tape_value);
+    let constraint_call_tape = builder.mul_extension(lv.is_call_tape, reg_a0_sub_call_tape_value);
+    yield_constr.constraint(builder, constraint_call_tape);
 }
 
 pub(crate) fn poseidon2_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
@@ -205,7 +197,7 @@ pub(crate) fn poseidon2_constraints_circuit<F: RichField + Extendable<D>, const 
 ) {
     let poseidon2_value =
         builder.constant_extension(F::Extension::from_canonical_u32(ecall::POSEIDON2));
-    let reg_a0_sub_poseidon2 = builder.sub_extension(lv.regs[REG_A0 as usize], poseidon2_value);
+    let reg_a0_sub_poseidon2 = builder.sub_extension(lv.op1_value, poseidon2_value);
     let constraint = builder.mul_extension(lv.is_poseidon2, reg_a0_sub_poseidon2);
     yield_constr.constraint(builder, constraint);
 }

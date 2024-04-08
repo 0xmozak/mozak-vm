@@ -55,7 +55,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
     fn constraint_degree(&self) -> usize { 3 }
 
-    #[allow(clippy::similar_names)]
     fn eval_ext_circuit(
         &self,
         circuit_builder: &mut CircuitBuilder<F, D>,
@@ -207,7 +206,7 @@ where
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::execute_code;
+    use mozak_runner::util::execute_code;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
@@ -216,7 +215,7 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::cross_table_lookup::ctl_utils::check_single_ctl;
-    use crate::cross_table_lookup::CrossTableLookup;
+    use crate::cross_table_lookup::CrossTableLookupWithTypedOutput;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
@@ -228,13 +227,12 @@ mod tests {
         generate_elf_memory_init_trace, generate_memory_init_trace,
         generate_mozak_memory_init_trace,
     };
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::mozak_stark::{
-        ElfMemoryInitTable, MemoryTable, MemoryZeroInitTable, MozakMemoryInitTable, MozakStark,
-        TableKindSetBuilder,
+        ElfMemoryInitTable, MozakMemoryInitTable, MozakStark, TableKindSetBuilder,
     };
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify};
@@ -304,11 +302,17 @@ mod tests {
         Stark::prove_and_verify(&program, &record)
     }
 
-    /// if all addresses are equal in memorytable, then
-    /// making all `is_init` as zero should fail.
-    /// Note this is required since this time, `diff_addr_inv` logic
-    /// can't help detect `is_init` for first row.
+    /// If all addresses are equal in memorytable, then setting all `is_init` to
+    /// zero should fail.
+    ///
+    /// Note this is required since this time, `diff_addr_inv` logic  can't help
+    /// detect `is_init` for first row.
+    ///
+    /// This will panic, if debug assertions are enabled in plonky2. So we need
+    /// to have two different versions of `should_panic`; see below.
     #[test]
+    // This will panic, if debug assertions are enabled in plonky2.
+    #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
     fn no_init_fail() {
         let instructions = [Instruction {
             op: Op::SB,
@@ -326,10 +330,10 @@ mod tests {
         let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
         #[allow(unused)]
         let poseidon2_output_bytes_rows =
-            generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
+            generate_poseidon2_output_bytes_trace(&poseidon2_sponge_rows);
         let mut memory_rows = generate_memory_trace(
             &record.executed,
             &generate_memory_init_trace(&program),
@@ -337,10 +341,10 @@ mod tests {
             &fullword_memory_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseiden2_sponge_rows,
+            &poseidon2_sponge_rows,
             &poseidon2_output_bytes_rows,
         );
-        // malicious prover makes first memory row's is_init as zero
+        // malicious prover sets first memory row's is_init to zero
         memory_rows[0].is_init = F::ZERO;
         // fakes a load instead of init
         memory_rows[0].is_load = F::ONE;
@@ -350,28 +354,16 @@ mod tests {
             .all(|row| row.is_init == F::ZERO && row.addr == F::ZERO));
 
         let memory_zeroinit_rows =
-            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
+            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
 
         // ctl for is_init values
-        let ctl = CrossTableLookup::new(
+        let ctl = CrossTableLookupWithTypedOutput::new(
             vec![
-                ElfMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MozakMemoryInitTable::new(
-                    memoryinit::columns::data_for_memory(),
-                    memoryinit::columns::filter_for_memory(),
-                ),
-                MemoryZeroInitTable::new(
-                    memory_zeroinit::columns::data_for_memory(),
-                    memory_zeroinit::columns::filter_for_memory(),
-                ),
+                memoryinit::columns::lookup_for_memory(ElfMemoryInitTable::new),
+                memoryinit::columns::lookup_for_memory(MozakMemoryInitTable::new),
+                memory_zeroinit::columns::lookup_for_memory(),
             ],
-            MemoryTable::new(
-                memory::columns::data_for_memoryinit(),
-                memory::columns::filter_for_memoryinit(),
-            ),
+            vec![memory::columns::lookup_for_memoryinit()],
         );
 
         let memory_trace = trace_rows_to_poly_values(memory_rows);
@@ -389,7 +381,7 @@ mod tests {
         let stark = S::default();
 
         // ctl for malicious prover indeed fails, showing inconsistency in is_init
-        assert!(check_single_ctl::<F>(&trace, &ctl).is_err());
+        assert!(check_single_ctl::<F>(&trace, &ctl.to_untyped_output()).is_err());
         let proof = prove::<F, C, S, D>(
             stark,
             &config,

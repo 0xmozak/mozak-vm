@@ -1,7 +1,6 @@
 use core::ops::Add;
 
 use plonky2::field::extension::Extendable;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
@@ -13,10 +12,11 @@ use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
-use crate::memoryinit::columns::MemoryInit;
+use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-use crate::stark::mozak_stark::{MemoryTable, Table};
+use crate::rangecheck::columns::RangeCheckCtl;
+use crate::stark::mozak_stark::{MemoryTable, TableWithTypedOutput};
 
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
@@ -164,11 +164,8 @@ impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
     }
 }
 
-impl<T: Clone + Add<Output = T>> Memory<T> {
-    pub fn is_executed(&self) -> T {
-        let s: Memory<T> = self.clone();
-        s.is_store + s.is_load + s.is_init
-    }
+impl<T: Copy + Add<Output = T>> Memory<T> {
+    pub fn is_executed(&self) -> T { self.is_store + self.is_load + self.is_init }
 }
 
 pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
@@ -180,72 +177,60 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[must_use]
-pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-    let mem = col_map().map(Column::from);
-    vec![
-        MemoryTable::new(Column::singles([col_map().addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles([col_map().diff_clk]), mem.is_executed()),
-    ]
+pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
+    [COL_MAP.addr, COL_MAP.addr, COL_MAP.diff_clk]
+        .into_iter()
+        .map(|addr| MemoryTable::new(RangeCheckCtl(addr), COL_MAP.is_executed()))
+        .collect()
 }
 
 #[must_use]
-pub fn rangecheck_u8_looking<F: Field>() -> Vec<Table<F>> {
-    let mem = col_map().map(Column::from);
+pub fn rangecheck_u8_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
     vec![MemoryTable::new(
-        Column::singles([col_map().value]),
-        mem.is_executed(),
+        RangeCheckCtl(COL_MAP.value),
+        COL_MAP.is_executed(),
     )]
 }
 
-/// Columns containing the data which are looked from the CPU table into Memory
+columns_view_impl!(MemoryCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct MemoryCtl<T> {
+    pub clk: T,
+    pub is_store: T,
+    pub is_load: T,
+    pub addr: T,
+    pub value: T,
+}
+
+/// Lookup between CPU table and Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
-    let map = col_map().map(Column::from);
-    vec![map.clk, map.is_store, map.is_load, map.value, map.addr]
+pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
+    MemoryTable::new(
+        MemoryCtl {
+            clk: COL_MAP.clk,
+            is_store: COL_MAP.is_store,
+            is_load: COL_MAP.is_load,
+            addr: COL_MAP.addr,
+            value: COL_MAP.value,
+        },
+        COL_MAP.is_store + COL_MAP.is_load,
+    )
 }
 
-/// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
+/// Lookup into `MemoryInit` Table
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> {
-    let mem = col_map().map(Column::from);
-    mem.is_store + mem.is_load
+pub fn lookup_for_memoryinit() -> TableWithTypedOutput<MemoryInitCtl<Column>> {
+    MemoryTable::new(
+        MemoryInitCtl {
+            is_writable: COL_MAP.is_writable,
+            address: COL_MAP.addr,
+            clk: COL_MAP.clk,
+            value: COL_MAP.value,
+        },
+        COL_MAP.is_init,
+    )
 }
 
-/// Columns containing the data which are looked up in the `MemoryInit` Table
-#[must_use]
-pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(col_map().is_writable),
-        Column::single(col_map().addr),
-        Column::single(col_map().clk),
-        Column::single(col_map().value),
-    ]
-}
-
-/// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
-#[must_use]
-pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(col_map().is_init) }
-
-/// Columns containing the data which are looked from the CPU table into Memory
-/// stark table.
-#[must_use]
-pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(col_map().clk),
-        Column::single(col_map().addr),
-        Column::single(col_map().value),
-        Column::single(col_map().is_store),
-        Column::single(col_map().is_load),
-    ]
-}
-
-/// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
-#[must_use]
-pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
-    let mem = col_map().map(Column::from);
-    mem.is_store + mem.is_load
-}
+// TODO(Matthias): add lookups for halfword and fullword memory table.

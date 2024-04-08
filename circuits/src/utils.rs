@@ -26,6 +26,13 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 }
 
 #[must_use]
+pub fn pad_trace_with_last<Row: Default + Clone>(mut trace: Vec<Row>) -> Vec<Row> {
+    let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
+    trace.resize(len, trace.last().unwrap().clone());
+    trace
+}
+
+#[must_use]
 pub fn pad_trace_with_last_to_len<Row: Default + Clone>(
     mut trace: Vec<Row>,
     len: usize,

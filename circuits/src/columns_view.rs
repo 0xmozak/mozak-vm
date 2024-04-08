@@ -24,7 +24,7 @@ pub(crate) const unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T
 }
 pub(crate) const unsafe fn transmute_ref<T, U>(t: &T) -> &U {
     debug_assert!(size_of::<T>() == size_of::<U>());
-    &*((t as *const T).cast::<U>())
+    &*(std::ptr::from_ref::<T>(t).cast::<U>())
 }
 
 pub trait HasNamedColumns {
@@ -33,6 +33,13 @@ pub trait HasNamedColumns {
 
 pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
+}
+
+pub trait Zip<Item> {
+    #[must_use]
+    fn zip_with<F>(self, other: Self, f: F) -> Self
+    where
+        F: FnMut(Item, Item) -> Item;
 }
 
 /// This structure only exists to improve macro impl hiding
@@ -101,6 +108,18 @@ macro_rules! columns_view_impl {
             }
         }
 
+        impl<Item> crate::columns_view::Zip<Item> for $s<Item> {
+            fn zip_with<F>(self, other: Self, mut f: F) -> Self
+            where
+                F: FnMut(Item, Item) -> Item, {
+                $s::from_array({
+                    let mut a = self.into_iter();
+                    let mut b = other.into_iter();
+                    core::array::from_fn(move |_| f(a.next().unwrap(), b.next().unwrap()))
+                })
+            }
+        }
+
         impl<T> crate::columns_view::NumberOfColumns for $s<T> {
             // `u8` is guaranteed to have a `size_of` of 1.
             const NUMBER_OF_COLUMNS: usize = std::mem::size_of::<$s<u8>>();
@@ -157,35 +176,77 @@ macro_rules! columns_view_impl {
                 Self::from_array(array)
             }
         }
+        impl core::ops::Neg for $s<i64> {
+            type Output = Self;
+
+            fn neg(self) -> Self::Output {
+                self.map(|x| x.checked_neg().expect("negation overflow"))
+            }
+        }
+        impl core::ops::Add<$s<i64>> for $s<i64> {
+            type Output = Self;
+
+            fn add(self, other: Self) -> Self::Output {
+                crate::columns_view::Zip::zip_with(self, other, |a, b| {
+                    a.checked_add(b).expect("addition overflow")
+                })
+            }
+        }
+        impl core::ops::Sub<$s<i64>> for $s<i64> {
+            type Output = Self;
+
+            fn sub(self, other: Self) -> Self::Output {
+                crate::columns_view::Zip::zip_with(self, other, |a, b| {
+                    a.checked_sub(b).expect("subtraction overflow")
+                })
+            }
+        }
+        impl core::ops::Mul<i64> for $s<i64> {
+            type Output = Self;
+
+            fn mul(self, other: i64) -> Self::Output {
+                self.map(|x| x.checked_mul(other).expect("multiplication overflow"))
+            }
+        }
+        impl core::iter::Sum<$s<i64>> for $s<i64> {
+            #[inline]
+            fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+                iter.fold(Self::default(), core::ops::Add::add)
+            }
+        }
     };
 }
 
 pub(crate) use columns_view_impl;
 
-#[must_use]
-pub const fn col_map<const NUMBER_OF_COLUMNS: usize>() -> [usize; NUMBER_OF_COLUMNS] {
-    let mut indices_arr = [0usize; NUMBER_OF_COLUMNS];
-    let mut i = 0;
-    while i < indices_arr.len() {
-        indices_arr[i] = i;
-        i += 1;
-    }
-    indices_arr
-}
-
-/// Implement a static `MAP` of the `ColumnsView` from an array with length
-/// [`NumberOfColumns`] of the `ColumnsView` that allows for indexing into an
-/// array with the column name rather than the column index.
+/// Implement a static `MAP` of the `ColumnsView` that allows for indexing for
+/// crosstable lookups
 macro_rules! make_col_map {
     ($s: ident) => {
-        pub(crate) const fn col_map() -> &'static $s<usize> {
-            const MAP: $s<usize> = {
-                use crate::columns_view::NumberOfColumns;
-                const NUMBER_OF_COLUMNS: usize = $s::<()>::NUMBER_OF_COLUMNS;
-                $s::from_array(crate::columns_view::col_map::<NUMBER_OF_COLUMNS>())
-            };
-            &MAP
-        }
+        // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
+        #[allow(dead_code)]
+        #[allow(clippy::large_stack_arrays)]
+        pub(crate) const COL_MAP: $s<
+            crate::linear_combination_typed::ColumnWithTypedInput<$s<i64>>,
+        > = {
+            use crate::columns_view::NumberOfColumns;
+            use crate::linear_combination_typed::ColumnWithTypedInput;
+            const N: usize = $s::<()>::NUMBER_OF_COLUMNS;
+
+            let mut indices_mat = [ColumnWithTypedInput {
+                lv_linear_combination: $s::from_array([0_i64; N]),
+                nv_linear_combination: $s::from_array([0_i64; N]),
+                constant: 0,
+            }; N];
+            let mut i = 0;
+            while i < N {
+                let mut lv_linear_combination = indices_mat[i].lv_linear_combination.into_array();
+                lv_linear_combination[i] = 1;
+                indices_mat[i].lv_linear_combination = $s::from_array(lv_linear_combination);
+                i += 1;
+            }
+            $s::from_array(indices_mat)
+        };
     };
 }
 pub(crate) use make_col_map;

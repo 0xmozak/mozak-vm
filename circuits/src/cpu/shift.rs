@@ -13,7 +13,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
 use super::bitwise::{and_gadget, and_gadget_extension_targets};
-use super::columns::{rs2_value_extension_target, CpuState};
+use super::columns::CpuState;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
@@ -29,7 +29,7 @@ pub(crate) fn constraints<P: PackedField>(
     let and_gadget = and_gadget(&lv.xor);
     yield_constr
         .constraint(is_shift * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0b1_1111)));
-    yield_constr.constraint(is_shift * (and_gadget.input_b - lv.rs2_value() - lv.inst.imm_value));
+    yield_constr.constraint(is_shift * (and_gadget.input_b - lv.op2_value_raw - lv.inst.imm_value));
 
     yield_constr.constraint(is_shift * (and_gadget.output - lv.bitshift.amount));
 }
@@ -49,8 +49,7 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     let shift_constr = builder.mul_extension(is_shift, input_a_sub_mask);
     yield_constr.constraint(builder, shift_constr);
 
-    let rs2_value = rs2_value_extension_target(builder, lv);
-    let rs2_value_imm = builder.add_extension(rs2_value, lv.inst.imm_value);
+    let rs2_value_imm = builder.add_extension(lv.op2_value_raw, lv.inst.imm_value);
     let input_b_sub_rs2_imm = builder.sub_extension(and_gadget.input_b, rs2_value_imm);
     let rs2_constr = builder.mul_extension(is_shift, input_b_sub_rs2_imm);
     yield_constr.constraint(builder, rs2_constr);
@@ -61,11 +60,11 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[cfg(test)]
-#[allow(clippy::cast_possible_wrap)]
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code, reg, u32_extra};
+    use mozak_runner::test_utils::{reg, u32_extra};
+    use mozak_runner::util::execute_code;
     use proptest::prelude::{prop_assume, ProptestConfig};
     use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert_eq, proptest};

@@ -1,7 +1,9 @@
-use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::Column;
+use crate::cross_table_lookup::ColumnWithTypedInput;
+use crate::linear_combination::Column;
+use crate::stark::mozak_stark::TableWithTypedOutput;
 
 columns_view_impl!(MemElement);
 /// A Memory Slot that has an address and a value
@@ -26,18 +28,47 @@ pub struct MemoryInit<T> {
     pub is_writable: T,
 }
 
-/// Columns containing the data which are looked up from the Memory Table
-#[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(col_map().is_writable),
-        Column::single(col_map().element.address),
-        // clk:
-        Column::constant(F::ONE),
-        Column::single(col_map().element.value),
-    ]
+impl<F: RichField> MemoryInit<F> {
+    /// Create a new `MemoryInit` row that is not writable. Useful
+    /// for memory traces that are initialized once and never written over.
+    #[must_use]
+    pub fn new_readonly((addr, value): (u32, u8)) -> Self {
+        Self {
+            filter: F::ONE,
+            is_writable: F::ZERO,
+            element: MemElement {
+                address: F::from_canonical_u32(addr),
+                value: F::from_canonical_u8(value),
+            },
+        }
+    }
 }
 
-/// Column for a binary filter to indicate a lookup from the Memory Table
+columns_view_impl!(MemoryInitCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct MemoryInitCtl<T> {
+    pub is_writable: T,
+    pub address: T,
+    pub clk: T,
+    pub value: T,
+}
+
+/// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(col_map().filter) }
+pub fn lookup_for_memory<T>(new: T) -> TableWithTypedOutput<MemoryInitCtl<Column>>
+where
+    T: Fn(
+        MemoryInitCtl<ColumnWithTypedInput<MemoryInit<i64>>>,
+        ColumnWithTypedInput<MemoryInit<i64>>,
+    ) -> TableWithTypedOutput<MemoryInitCtl<Column>>, {
+    new(
+        MemoryInitCtl {
+            is_writable: COL_MAP.is_writable,
+            address: COL_MAP.element.address,
+            clk: ColumnWithTypedInput::constant(1),
+            value: COL_MAP.element.value,
+        },
+        COL_MAP.filter,
+    )
+}

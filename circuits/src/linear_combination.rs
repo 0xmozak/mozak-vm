@@ -1,6 +1,5 @@
 use core::iter::Sum;
 use core::ops::{Add, Mul, Neg, Sub};
-use std::borrow::Borrow;
 use std::ops::Index;
 
 use itertools::{chain, Itertools};
@@ -12,83 +11,115 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
+use crate::cross_table_lookup::ColumnWithTypedInput;
+
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
-pub struct Column<F: Field> {
+pub struct ColumnSparse<F> {
     /// Linear combination of the local row
-    lv_linear_combination: Vec<(usize, F)>,
+    pub lv_linear_combination: Vec<(usize, F)>,
     /// Linear combination of the next row
-    nv_linear_combination: Vec<(usize, F)>,
+    pub nv_linear_combination: Vec<(usize, F)>,
     /// Constant of linear combination
-    constant: F,
+    pub constant: F,
 }
 
-impl<F: Field> Neg for Column<F> {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        Self {
+impl<T> ColumnSparse<T> {
+    pub fn map<F, U>(self, mut f: F) -> ColumnSparse<U>
+    where
+        F: FnMut(T) -> U, {
+        ColumnSparse {
             lv_linear_combination: self
                 .lv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, -c))
+                .map(|(idx, c)| (idx, f(c)))
                 .collect(),
             nv_linear_combination: self
                 .nv_linear_combination
                 .into_iter()
-                .map(|(idx, c)| (idx, -c))
+                .map(|(idx, c)| (idx, f(c)))
                 .collect(),
-            constant: -self.constant,
+            constant: f(self.constant),
         }
     }
 }
 
-impl<F: Field> Add<Self> for Column<F> {
+pub fn zip_with<T>(
+    left: ColumnSparse<T>,
+    right: ColumnSparse<T>,
+    mut f: impl FnMut(T, T) -> T,
+) -> ColumnSparse<T> {
+    let mut zip = |mut slc: Vec<(usize, T)>, mut rlc: Vec<(usize, T)>| {
+        slc.sort_by_key(|&(col_idx, _)| col_idx);
+        rlc.sort_by_key(|&(col_idx, _)| col_idx);
+        slc.into_iter()
+            .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
+            .map(|item| {
+                item.reduce(|(idx0, c0), (idx1, c1)| {
+                    assert_eq!(idx0, idx1);
+                    (idx0, f(c0, c1))
+                })
+            })
+            .collect()
+    };
+
+    ColumnSparse {
+        lv_linear_combination: zip(left.lv_linear_combination, right.lv_linear_combination),
+        nv_linear_combination: zip(left.nv_linear_combination, right.nv_linear_combination),
+        constant: f(left.constant, right.constant),
+    }
+}
+
+pub type ColumnI64 = ColumnSparse<i64>;
+pub use ColumnI64 as Column;
+
+impl<I: IntoIterator<Item = i64>> From<ColumnWithTypedInput<I>> for Column {
+    fn from(colx: ColumnWithTypedInput<I>) -> Self {
+        fn to_sparse(v: impl IntoIterator<Item = i64>) -> Vec<(usize, i64)> {
+            v.into_iter()
+                .enumerate()
+                .filter(|(_i, coefficient)| coefficient != &0)
+                .collect()
+        }
+        Self {
+            lv_linear_combination: to_sparse(colx.lv_linear_combination),
+            nv_linear_combination: to_sparse(colx.nv_linear_combination),
+            constant: colx.constant,
+        }
+    }
+}
+
+impl<F: Neg<Output = F>> Neg for ColumnSparse<F> {
     type Output = Self;
 
-    #[allow(clippy::similar_names)]
-    fn add(self, other: Self) -> Self {
-        let add_lc = |mut slc: Vec<(usize, F)>, mut rlc: Vec<(usize, F)>| {
-            slc.sort_by_key(|&(col_idx, _)| col_idx);
-            rlc.sort_by_key(|&(col_idx, _)| col_idx);
-            slc.into_iter()
-                .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
-                .map(|item| {
-                    item.reduce(|(idx0, c0), (idx1, c1)| {
-                        assert_eq!(idx0, idx1);
-                        (idx0, c0 + c1)
-                    })
-                })
-                .collect()
-        };
-
-        Self {
-            lv_linear_combination: add_lc(self.lv_linear_combination, other.lv_linear_combination),
-            nv_linear_combination: add_lc(self.nv_linear_combination, other.nv_linear_combination),
-            constant: self.constant + other.constant,
-        }
-    }
+    fn neg(self) -> Self::Output { self.map(Neg::neg) }
 }
 
-impl<F: Field> Add<Self> for &Column<F> {
-    type Output = Column<F>;
+impl<F: Add<F, Output = F>> Add<Self> for ColumnSparse<F> {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self { zip_with(self, other, Add::add) }
+}
+
+impl<F: Add<F, Output = F> + Copy> Add<Self> for &ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
     fn add(self, other: Self) -> Self::Output { self.clone() + other.clone() }
 }
 
-impl<F: Field> Add<Column<F>> for &Column<F> {
-    type Output = Column<F>;
+impl<F: Add<F, Output = F> + Copy> Add<ColumnSparse<F>> for &ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
-    fn add(self, other: Column<F>) -> Self::Output { self.clone() + other }
+    fn add(self, other: ColumnSparse<F>) -> Self::Output { self.clone() + other }
 }
 
-impl<F: Field> Add<&Self> for Column<F> {
-    type Output = Column<F>;
+impl<F: Add<F, Output = F> + Copy> Add<&Self> for ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
     fn add(self, other: &Self) -> Self::Output { self + other.clone() }
 }
 
-impl<F: Field> Add<F> for Column<F> {
+impl<F: Add<F, Output = F>> Add<F> for ColumnSparse<F> {
     type Output = Self;
 
     fn add(self, constant: F) -> Self {
@@ -99,186 +130,48 @@ impl<F: Field> Add<F> for Column<F> {
     }
 }
 
-impl<F: Field> Add<F> for &Column<F> {
-    type Output = Column<F>;
+impl<F: Add<F, Output = F> + Copy> Add<F> for &ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
-    fn add(self, constant: F) -> Column<F> { self.clone() + constant }
+    fn add(self, constant: F) -> ColumnSparse<F> { self.clone() + constant }
 }
 
-impl<F: Field> Sub<Self> for Column<F> {
+impl<F: Add<F, Output = F> + Neg<Output = F> + Copy> Sub<Self> for ColumnSparse<F> {
     type Output = Self;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
-    fn sub(self, other: Self) -> Self::Output { self.clone() + other.neg() }
+    fn sub(self, other: Self) -> Self::Output { self + other.neg() }
 }
 
-impl<F: Field> Mul<F> for Column<F> {
+impl<F: Copy + Mul<F, Output = F>> Mul<F> for ColumnSparse<F> {
     type Output = Self;
 
-    fn mul(self, factor: F) -> Self {
-        Self {
-            lv_linear_combination: self
-                .lv_linear_combination
-                .into_iter()
-                .map(|(idx, c)| (idx, factor * c))
-                .collect(),
-            nv_linear_combination: self
-                .nv_linear_combination
-                .into_iter()
-                .map(|(idx, c)| (idx, factor * c))
-                .collect(),
-            constant: factor * self.constant,
-        }
-    }
+    fn mul(self, factor: F) -> Self { self.map(|c| c * factor) }
 }
 
-impl<F: Field> Mul<F> for &Column<F> {
-    type Output = Column<F>;
+impl<F: Copy + Mul<F, Output = F>> Mul<F> for &ColumnSparse<F> {
+    type Output = ColumnSparse<F>;
 
-    fn mul(self, factor: F) -> Column<F> { self.clone() * factor }
+    fn mul(self, factor: F) -> ColumnSparse<F> { self.clone() * factor }
 }
 
-impl<F: Field> Sum<Column<F>> for Column<F> {
+impl<F: Add<F, Output = F> + Default> Sum<ColumnSparse<F>> for ColumnSparse<F> {
     #[inline]
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.reduce(|x, y| x + y).unwrap_or_default()
     }
 }
 
-impl<F: Field> Sum<usize> for Column<F> {
-    #[inline]
-    fn sum<I: Iterator<Item = usize>>(iter: I) -> Self { iter.map(Self::from).sum() }
-}
-
-// TODO: implement other traits like Sub, MulAssign, etc as we need them.
-
-impl<F: Field> From<usize> for Column<F> {
-    fn from(idx: usize) -> Self {
-        Self {
-            lv_linear_combination: vec![(idx, F::ONE)],
-            ..Self::default()
-        }
+impl Column {
+    // TODO(Matthias): add a `to_field` to `Table` as well.
+    pub fn to_field<F: Field>(&self) -> ColumnSparse<F> {
+        self.clone().map(F::from_noncanonical_i64)
     }
 }
 
-impl<F: Field> Column<F> {
+impl<F: Field> ColumnSparse<F> {
+    /// Evaluate on a row of a table given in column-major form.
     #[must_use]
-    pub fn always() -> Self {
-        Column {
-            constant: F::ONE,
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
-    pub fn constant(constant: F) -> Self {
-        Column {
-            constant,
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
-    pub fn not(c: usize) -> Self {
-        Self {
-            lv_linear_combination: vec![(c, F::NEG_ONE)],
-            constant: F::ONE,
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
-    pub fn single(c: usize) -> Self {
-        Self {
-            lv_linear_combination: vec![(c, F::ONE)],
-            ..Default::default()
-        }
-    }
-
-    /// Returns a column whose ith row refers to nv value of ith row of the
-    /// column with given index c.
-    #[must_use]
-    pub fn single_next(c: usize) -> Self {
-        Self {
-            nv_linear_combination: vec![(c, F::ONE)],
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
-    pub fn single_diff(c: usize) -> Self { Self::single_next(c) - Self::single(c) }
-
-    pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
-        cs.into_iter().map(|c| Self::single(*c.borrow())).collect()
-    }
-
-    pub fn singles_next<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
-        cs.into_iter()
-            .map(|c| Self::single_next(*c.borrow()))
-            .collect()
-    }
-
-    pub fn singles_diff<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
-        cs.into_iter()
-            .map(|c| Self::single_diff(*c.borrow()))
-            .collect()
-    }
-
-    #[must_use]
-    pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
-        Column {
-            lv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
-    pub fn many_next<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
-        Column {
-            nv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
-    pub fn reduce_with_powers(terms: &[Self], alpha: F) -> Self {
-        terms
-            .iter()
-            .rev()
-            .fold(Self::default(), |acc, term| acc * alpha + term)
-    }
-
-    #[must_use]
-    pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
-        Column {
-            lv_linear_combination: cs
-                .into_iter()
-                .enumerate()
-                .map(|(i, c)| (*c.borrow(), F::from_canonical_usize(i)))
-                .collect(),
-            ..Default::default()
-        }
-    }
-
-    pub fn eval<FE, P, const D: usize, V>(&self, lv: &V, nv: &V) -> P
-    where
-        FE: FieldExtension<D, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-        V: Index<usize, Output = P> + ?Sized, {
-        self.lv_linear_combination
-            .iter()
-            .map(|&(c, f)| lv[c] * FE::from_basefield(f))
-            .sum::<P>()
-            + self
-                .nv_linear_combination
-                .iter()
-                .map(|&(c, f)| nv[c] * FE::from_basefield(f))
-                .sum::<P>()
-            + FE::from_basefield(self.constant)
-    }
-
-    /// Evaluate on an row of a table given in column-major form.
-    #[allow(clippy::cast_possible_wrap)]
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
         self.lv_linear_combination
             .iter()
@@ -291,27 +184,46 @@ impl<F: Field> Column<F> {
                 .sum::<F>()
             + self.constant
     }
+}
+
+impl Column {
+    // TODO(Matthias): move the eval* functions into the 'typed' world.
+    pub fn eval<F: Field, FE, P, const D: usize, V>(&self, lv: &V, nv: &V) -> P
+    where
+        FE: FieldExtension<D, BaseField = F>,
+        P: PackedField<Scalar = FE>,
+        V: Index<usize, Output = P> + ?Sized, {
+        self.lv_linear_combination
+            .iter()
+            .map(|&(c, f)| lv[c] * FE::from_noncanonical_i64(f))
+            .sum::<P>()
+            + self
+                .nv_linear_combination
+                .iter()
+                .map(|&(c, f)| nv[c] * FE::from_noncanonical_i64(f))
+                .sum::<P>()
+            + FE::from_noncanonical_i64(self.constant)
+    }
 
     /// Evaluate on an row of a table
-    #[allow(clippy::similar_names)]
-    pub fn eval_row(
+    pub fn eval_row<F: Field>(
         &self,
         lv_row: &impl Index<usize, Output = F>,
         nv_row: &impl Index<usize, Output = F>,
     ) -> F {
         self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| lv_row[c] * f)
+            .map(|&(c, f)| lv_row[c] * F::from_noncanonical_i64(f))
             .sum::<F>()
             + self
                 .nv_linear_combination
                 .iter()
-                .map(|&(c, f)| nv_row[c] * f)
+                .map(|&(c, f)| nv_row[c] * F::from_noncanonical_i64(f))
                 .sum::<F>()
-            + self.constant
+            + F::from_noncanonical_i64(self.constant)
     }
 
-    pub fn eval_circuit<const D: usize>(
+    pub fn eval_circuit<F, const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         v: &[ExtensionTarget<D>],
@@ -330,11 +242,12 @@ impl<F: Field> Column<F> {
         .map(|(v, f)| {
             (
                 v,
-                builder.constant_extension(F::Extension::from_basefield(f)),
+                builder.constant_extension(F::Extension::from_noncanonical_i64(f)),
             )
         })
         .collect_vec();
-        let constant = builder.constant_extension(F::Extension::from_basefield(self.constant));
+        let constant =
+            builder.constant_extension(F::Extension::from_noncanonical_i64(self.constant));
         builder.inner_product_extension(F::ONE, constant, pairs)
     }
 }

@@ -1,0 +1,50 @@
+version: "3.4"
+name: mozak
+services:
+  runner:
+    image: 0xmozak/github-runner:latest
+    deploy:
+      replicas: ${MOZAK_RUNNER_REPLICAS:-3}
+      resources:
+        # Default to no limits.
+        limits:
+          cpus: ${MOZAK_RUNNER_CPU_LIMIT:-}
+          memory: ${MOZAK_RUNNER_MEMORY_LIMIT:-0}
+    # Ensure nix daemon is working before starting build agents
+    depends_on:
+      nix:
+        condition: service_healthy
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "${MOZAK_RUNNER_CACHE:-/tmp/github-runner-mozak/cache}:/opt/hostedtoolcache"
+      - "nix-store:/nix"
+
+    environment:
+      ACCESS_TOKEN: ${ACCESS_TOKEN}
+      RUNNER_NAME_PREFIX: ${RUNNER_NAME_PREFIX:-$USER-runner}
+      RUNNER_GROUP: default
+      RUNNER_SCOPE: org
+      ORG_NAME: 0xmozak
+      RUNNER_WORKDIR: /tmp/github-runner-mozak/workdir
+      LABELS: ubuntu-latest
+    labels:
+      net.unraid.docker.icon: "https://i.ibb.co/0FpLxW7/logo.png"
+  nix:
+    image: 0xmozak/github-runner:latest
+    volumes:
+      - "nix-store:/nix"
+    environment:
+      NIX_CONFIG: access-tokens = github.com=${ACCESS_TOKEN}
+    entrypoint: ["/root/.nix-profile/bin/nix", "daemon"]
+    # Check if we can build a small nix package from a known version of nixpkgs
+    healthcheck:
+      test: nix build --out-link /healthcheck-hello github:NixOS/nixpkgs/nixos-23.11-small#hello || exit 1
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 0s
+    labels:
+      net.unraid.docker.icon: "https://pbs.twimg.com/profile_images/663784290925289472/ET9J1uY-_400x400.png"
+
+volumes:
+  nix-store:

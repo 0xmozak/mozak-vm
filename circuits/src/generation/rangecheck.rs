@@ -7,7 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
-use crate::register::columns::Register;
+use crate::register::general::columns::Register;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
 
@@ -20,7 +20,7 @@ pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
 /// extract the values to be rangechecked.
 /// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
 /// memory traces, hence ignored
-pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
+pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {
     if let [column] = &looking_table.columns[..] {
@@ -45,7 +45,6 @@ where
 /// 2. trace width does not match the number of columns,
 /// 3. attempting to range check tuples instead of single values.
 #[must_use]
-#[allow(unused)]
 pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
@@ -60,7 +59,6 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
             match looking_table.kind {
                 TableKind::Cpu => extract(cpu_trace, &looking_table),
                 TableKind::Memory => extract(memory_trace, &looking_table),
-                #[cfg(feature = "enable_register_starks")]
                 TableKind::Register => extract(register_trace, &looking_table),
                 other => unimplemented!("Can't range check {other:#?} tables"),
             }
@@ -69,10 +67,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                 let val = u32::try_from(v.to_canonical_u64())
                     .expect("casting value to u32 should succeed");
 
-                multiplicities
-                    .entry(val)
-                    .and_modify(|e| *e += 1)
-                    .or_insert(1);
+                *multiplicities.entry(val).or_default() += 1;
             });
         });
     let mut trace = Vec::with_capacity(multiplicities.len());
@@ -89,7 +84,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::execute_code;
+    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
@@ -98,14 +93,14 @@ mod tests {
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_call_tape_trace, generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
-    use crate::generation::register::generate_register_trace;
     use crate::generation::MIN_TRACE_LENGTH;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
+    use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 
     #[test]
     fn test_generate_trace() {
@@ -125,14 +120,14 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
-        let register_rows = generate_register_trace::<F>(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
-        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
+        let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
         let memory_rows = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
@@ -140,8 +135,16 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseidon2_trace,
+            &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
+        );
+        let register_init = generate_register_init_trace(&record);
+        let (_, _, register_rows) = generate_register_trace(
+            &cpu_rows,
+            &io_memory_private_rows,
+            &io_memory_public_rows,
+            &call_tape_rows,
+            &register_init,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
         assert_eq!(
@@ -152,7 +155,7 @@ mod tests {
         );
         for (i, row) in trace.iter().enumerate() {
             match i {
-                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(4)),
+                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(2)),
                 1 => assert_eq!(row.multiplicity, F::from_canonical_u8(1)),
                 _ => {}
             }

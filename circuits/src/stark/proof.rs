@@ -11,27 +11,25 @@ use plonky2::iop::challenger::{Challenger, RecursiveChallenger};
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+#[allow(clippy::wildcard_imports)]
+use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{all_kind, PublicInputs, TableKindArray};
+use crate::public_sub_table::PublicSubTableValues;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
 #[allow(clippy::module_name_repetitions)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     pub fn degree_bits(&self, config: &StarkConfig) -> TableKindArray<usize> {
-        all_kind!(|kind| {
-            self.proofs_with_metadata[kind]
-                .proof
-                .recover_degree_bits(config)
-        })
+        all_kind!(|kind| self.proofs[kind].recover_degree_bits(config))
     }
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(bound = "")]
 pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     /// Merkle cap of LDEs of trace values.
@@ -106,7 +104,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StarkProofTarget<const D: usize> {
     pub trace_cap: MerkleCapTarget,
     pub ctl_zs_cap: MerkleCapTarget,
@@ -176,7 +174,7 @@ impl<const D: usize> StarkProofTarget<D> {
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StarkProofWithPublicInputsTarget<const D: usize> {
     pub proof: StarkProofTarget<D>,
     pub public_inputs: Vec<Target>,
@@ -199,7 +197,7 @@ pub struct StarkProofChallengesTarget<const D: usize> {
 }
 
 /// Purported values of each polynomial at the challenge point.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(bound = "")]
 pub struct StarkOpeningSet<F: RichField + Extendable<D>, const D: usize> {
     /// Openings of trace polynomials at `zeta`.
@@ -280,7 +278,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StarkOpeningSetTarget<const D: usize> {
     pub local_values: Vec<ExtensionTarget<D>>,
     pub next_values: Vec<ExtensionTarget<D>>,
@@ -317,33 +315,16 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
     }
 }
 
-/// A `StarkProof` along with some metadata about the initial Fiat-Shamir state,
-/// which is used when creating a recursive wrapper proof around a STARK proof.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(bound = "")]
-pub struct StarkProofWithMetadata<F, C, const D: usize>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
-    // TODO: Support serialization of `init_challenger_state`.
-    #[serde(skip)]
-    pub(crate) init_challenger_state: <C::Hasher as Hasher<F>>::Permutation,
-    // TODO: set it back to pub(crate) when cpu trace len is a public input
-    pub proof: StarkProof<F, C, D>,
-}
-
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub proofs_with_metadata: TableKindArray<StarkProofWithMetadata<F, C, D>>,
-    // TODO: Support serialization of `ctl_challenges`.
-    #[serde(skip)]
-    pub(crate) ctl_challenges: GrandProductChallengeSet<F>,
+    pub proofs: TableKindArray<StarkProof<F, C, D>>,
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
     pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub mozak_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
+    pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
@@ -356,8 +337,8 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     pub(crate) fn get_challenges(&self, config: &StarkConfig) -> AllProofChallenges<F, D> {
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
-        for proof_with_metadata in &self.proofs_with_metadata {
-            challenger.observe_cap(&proof_with_metadata.proof.trace_cap);
+        for proof in &self.proofs {
+            challenger.observe_cap(&proof.trace_cap);
         }
 
         // TODO: Observe public values.
@@ -367,9 +348,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
                 challenger.compact();
-                self.proofs_with_metadata[kind]
-                    .proof
-                    .get_challenges(&mut challenger, config)
+                self.proofs[kind].get_challenges(&mut challenger, config)
             }),
             ctl_challenges,
         }
@@ -379,7 +358,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     /// `g^-1`. The order corresponds to the order declared in
     /// [`TableKind`](crate::cross_table_lookup::TableKind).
     pub(crate) fn all_ctl_zs_last(self) -> TableKindArray<Vec<F>> {
-        self.proofs_with_metadata
-            .map(|p| p.proof.openings.ctl_zs_last)
+        self.proofs.map(|p| p.openings.ctl_zs_last)
     }
 }

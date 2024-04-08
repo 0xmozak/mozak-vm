@@ -1,6 +1,7 @@
 use std::fs;
 use std::process::Command;
 
+use mozak_sdk::common::types::ProgramIdentifier;
 use tempfile::TempDir;
 
 #[test]
@@ -10,21 +11,17 @@ fn test_prove_and_verify_recursive_proof_command() {
     let temp_path = temp_dir.path();
 
     // Define file paths inside the temporary directory
-    let io_tape_private = temp_path.join("io_tape_private.txt");
-    let io_tape_public = temp_path.join("io_tape_public.txt");
-    let transcript = temp_path.join("transcript.txt");
+    let system_tape = temp_path.join("system_tape.txt");
     let proof_file = temp_path.join("proof.bin");
     let recursive_proof_file = temp_path.join("recursive_proof.bin");
-    let recursive_proof_db = temp_path.join("recursive_proof.db");
+    let recursive_proof_vk = temp_path.join("recursive_proof.vk");
 
-    let elf_file: &str = "../examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci";
+    let elf_file: &str = "../examples/target/riscv32im-mozak-mozakvm-elf/release/fibonacci";
 
     // Create mock IO tape files
-    fs::write(&io_tape_private, b"").expect("Failed to create IO tape private file");
-    fs::write(&io_tape_public, b"").expect("Failed to create IO tape public file");
-    fs::write(&transcript, b"").expect("Failed to create transcript file");
+    fs::write(system_tape, b"").expect("Failed to create system tape file");
 
-    // Execute the `--prove` command
+    // Execute the `prove` command
     let output = Command::new("cargo")
         .args([
             "run",
@@ -32,12 +29,8 @@ fn test_prove_and_verify_recursive_proof_command() {
             "prove",
             elf_file,
             &proof_file.to_string_lossy(),
-            "--io-tape-private",
-            &io_tape_private.to_string_lossy(),
-            "--io-tape-public",
-            &io_tape_public.to_string_lossy(),
-            "--transcript",
-            &transcript.to_string_lossy(),
+            "--self-prog-id",
+            &format!("{:?}", &ProgramIdentifier::default()),
             &recursive_proof_file.to_string_lossy(),
         ])
         .output()
@@ -49,7 +42,7 @@ fn test_prove_and_verify_recursive_proof_command() {
     );
 
     // Assert the existence of output files
-    for file in &[&proof_file, &recursive_proof_file, &recursive_proof_db] {
+    for file in &[&proof_file, &recursive_proof_file, &recursive_proof_vk] {
         let file_exists = file.exists();
         assert!(file_exists, "Expected file {:?} not found", file);
     }
@@ -61,7 +54,7 @@ fn test_prove_and_verify_recursive_proof_command() {
             "--",
             "verify-recursive-proof",
             &recursive_proof_file.to_string_lossy(),
-            &recursive_proof_db.to_string_lossy(),
+            &recursive_proof_vk.to_string_lossy(),
         ])
         .output()
         .expect("Failed to execute verify-recursive-proof command");

@@ -217,14 +217,14 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[cfg(test)]
-#[allow(clippy::cast_possible_wrap)]
 mod tests {
 
     use std::borrow::Borrow;
 
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code, i32_extra, u32_extra};
+    use mozak_runner::test_utils::{i32_extra, u32_extra};
+    use mozak_runner::util::execute_code;
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use proptest::prelude::ProptestConfig;
@@ -234,14 +234,12 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::cpu::stark::CpuStark;
-    use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
-    use crate::generation::program::generate_program_rom_trace;
+    use crate::generation::cpu::generate_cpu_trace;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
-    use crate::stark::utils::trace_to_poly_values;
+    use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify, C, D, F};
     use crate::utils::from_u32;
     #[allow(clippy::cast_sign_loss)]
-    #[allow(clippy::cast_lossless)]
     #[test]
     fn prove_mulhsu_example() {
         type S = CpuStark<F, D>;
@@ -268,10 +266,7 @@ mod tests {
         let trace_poly_values = timed!(
             timing,
             "trace to poly",
-            trace_to_poly_values(generate_cpu_trace_extended(
-                cpu_trace,
-                &generate_program_rom_trace(&program)
-            ))
+            trace_rows_to_poly_values(cpu_trace)
         );
         let stark = S::default();
         let public_inputs = PublicInputs {
@@ -340,7 +335,6 @@ mod tests {
     }
 
     #[allow(clippy::cast_sign_loss)]
-    #[allow(clippy::cast_lossless)]
     fn prove_mulh<Stark: ProveAndVerify>(a: i32, b: i32) -> Result<(), TestCaseError> {
         let (program, record) = execute_code(
             [Instruction {
@@ -363,7 +357,6 @@ mod tests {
     }
 
     #[allow(clippy::cast_sign_loss)]
-    #[allow(clippy::cast_lossless)]
     fn prove_mulhsu<Stark: ProveAndVerify>(a: i32, b: u32) -> Result<(), TestCaseError> {
         let (program, record) = execute_code(
             [Instruction {
@@ -394,14 +387,10 @@ mod tests {
         fn prove_mulhu_cpu(a in u32_extra(), b in u32_extra()) {
             prove_mulhu::<CpuStark<F, D>>(a, b)?;
         }
-        #[allow(clippy::cast_sign_loss)]
-        #[allow(clippy::cast_lossless)]
         #[test]
         fn prove_mulh_cpu(a in i32_extra(), b in i32_extra()) {
             prove_mulh::<CpuStark<F, D>>(a, b)?;
         }
-        #[allow(clippy::cast_sign_loss)]
-        #[allow(clippy::cast_lossless)]
         #[test]
         fn prove_mulhsu_cpu(a in i32_extra(), b in u32_extra()) {
             prove_mulhsu::<CpuStark<F, D>>(a, b)?;
@@ -419,14 +408,10 @@ mod tests {
         fn prove_mulhu_mozak(a in u32_extra(), b in u32_extra()) {
             prove_mulhu::<MozakStark<F, D>>(a, b)?;
         }
-        #[allow(clippy::cast_sign_loss)]
-        #[allow(clippy::cast_lossless)]
         #[test]
         fn prove_mulh_mozak(a in i32_extra(), b in i32_extra()) {
             prove_mulh::<MozakStark<F, D>>(a, b)?;
         }
-        #[allow(clippy::cast_sign_loss)]
-        #[allow(clippy::cast_lossless)]
         #[test]
         fn prove_mulhsu_mozak(a in i32_extra(), b in u32_extra()) {
             prove_mulhsu::<MozakStark<F, D>>(a, b)?;

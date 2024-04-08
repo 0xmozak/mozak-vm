@@ -1,13 +1,13 @@
 [package]
 edition = "2021"
-name = "fibonacci-mozak-guest"
+name = "fibonacci"
 version = "0.1.0"
 
 [dependencies]
-guest = { path = "../../guest", default-features = false }
+mozak-sdk = { path = "../../sdk", default-features = false }
 
 [features]
-std = ["guest/std"]
+std = ["mozak-sdk/std"]
 
 [[bin]]
 name = "fibonacci"

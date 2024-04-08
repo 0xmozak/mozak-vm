@@ -1,9 +1,10 @@
 use core::ops::Add;
 
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::Column;
+use crate::cross_table_lookup::ColumnWithTypedInput;
+use crate::linear_combination::Column;
+use crate::memory::columns::MemoryCtl;
+use crate::stark::mozak_stark::{HalfWordMemoryTable, TableWithTypedOutput};
 // use crate::stark::mozak_stark::{HalfWordMemoryTable, Table};
 
 /// Operations (one-hot encoded)
@@ -18,6 +19,8 @@ pub struct Ops<T> {
     pub is_load: T,
 }
 
+make_col_map!(HalfWordMemory);
+columns_view_impl!(HalfWordMemory);
 // TODO(roman): address_limbs & value columns can be optimized
 // value == linear combination via range-check
 // address_limbs also linear combination + forbid  wrapping add
@@ -32,12 +35,9 @@ pub struct HalfWordMemory<T> {
     pub limbs: [T; 2],
 }
 
-columns_view_impl!(HalfWordMemory);
-make_col_map!(HalfWordMemory);
-
-impl<T: Clone + Add<Output = T>> HalfWordMemory<T> {
+impl<T: Copy + Add<Output = T>> HalfWordMemory<T> {
     pub fn is_executed(&self) -> T {
-        let ops: Ops<T> = self.ops.clone();
+        let ops = self.ops;
         ops.is_load + ops.is_store
     }
 }
@@ -45,38 +45,36 @@ impl<T: Clone + Add<Output = T>> HalfWordMemory<T> {
 /// Total number of columns.
 pub const NUM_HW_MEM_COLS: usize = HalfWordMemory::<()>::NUMBER_OF_COLUMNS;
 
-/// Columns containing the data which are looked from the CPU table into Memory
-/// stark table.
+/// Lookup from CPU table into halfword memory table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
-    let mem = col_map().map(Column::from);
-    vec![
-        mem.clk,
-        mem.addrs[0].clone(),
-        Column::reduce_with_powers(&mem.limbs, F::from_canonical_u16(1 << 8)),
-        mem.ops.is_store,
-        mem.ops.is_load,
-    ]
+pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
+    HalfWordMemoryTable::new(
+        MemoryCtl {
+            clk: COL_MAP.clk,
+            is_store: COL_MAP.ops.is_store,
+            is_load: COL_MAP.ops.is_load,
+            value: ColumnWithTypedInput::reduce_with_powers(COL_MAP.limbs, 1 << 8),
+            addr: COL_MAP.addrs[0],
+        },
+        COL_MAP.is_executed(),
+    )
 }
 
-/// Columns containing the data which are looked from the halfword memory table
-/// into Memory stark table.
+/// Lookup into Memory stark table.
 #[must_use]
-pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> Vec<Column<F>> {
+pub fn lookup_for_memory_limb(limb_index: usize) -> TableWithTypedOutput<MemoryCtl<Column>> {
     assert!(
         limb_index < 2,
         "limb_index is {limb_index} but it should be in 0..2 range"
     );
-    let mem = col_map().map(Column::from);
-    vec![
-        mem.clk,
-        mem.ops.is_store,
-        mem.ops.is_load,
-        mem.limbs[limb_index].clone(),
-        mem.addrs[limb_index].clone(),
-    ]
+    HalfWordMemoryTable::new(
+        MemoryCtl {
+            clk: COL_MAP.clk,
+            is_store: COL_MAP.ops.is_store,
+            is_load: COL_MAP.ops.is_load,
+            value: COL_MAP.limbs[limb_index],
+            addr: COL_MAP.addrs[limb_index],
+        },
+        COL_MAP.is_executed(),
+    )
 }
-
-/// Column for a binary filter to indicate a lookup
-#[must_use]
-pub fn filter<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed() }

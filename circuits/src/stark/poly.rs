@@ -9,7 +9,8 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::util::{log2_ceil, transpose};
-use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+#[allow(clippy::wildcard_imports)]
+use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
@@ -28,6 +29,7 @@ pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
+    public_sub_table_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
     config: &StarkConfig,
@@ -96,9 +98,11 @@ where
                 &get_trace_values_packed(i_next_start),
                 public_inputs,
             );
+            let public_sub_table_data_chain = public_sub_table_data.zs_columns.as_slice();
             let ctl_vars = ctl_data
                 .zs_columns
                 .iter()
+                .chain(public_sub_table_data_chain.iter())
                 .enumerate()
                 .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1> {
                     local_z: ctl_zs_commitment.get_lde_values_packed(i_start, step)[i],
@@ -152,7 +156,7 @@ pub fn eval_vanishing_poly_circuit<F, S, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,
     vars: &S::EvaluationFrameTarget,
-    ctl_vars: &[CtlCheckVarsTarget<F, D>],
+    ctl_vars: &[CtlCheckVarsTarget<D>],
     consumer: &mut RecursiveConstraintConsumer<F, D>,
 ) where
     F: RichField + Extendable<D>,

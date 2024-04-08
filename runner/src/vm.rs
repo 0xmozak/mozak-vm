@@ -218,6 +218,7 @@ impl<F: RichField> State<F> {
                 new_pc: state.get_pc(),
                 op1,
                 op2,
+                op2_raw: rs2_raw,
                 ..aux
             },
             inst,
@@ -315,17 +316,15 @@ mod tests {
     use proptest::{prop_assume, proptest};
 
     use super::*;
-    use crate::elf::Program;
-    use crate::instruction::{Args, Instruction, Op};
+    use crate::decode::ECALL;
     use crate::test_utils::{i16_extra, i32_extra, i8_extra, reg, u16_extra, u32_extra, u8_extra};
-    use crate::vm::step;
 
     fn simple_test_code(
         code: impl IntoIterator<Item = Instruction>,
         mem: &[(u32, u8)],
         regs: &[(u8, u32)],
     ) -> ExecutionRecord<GoldilocksField> {
-        crate::test_utils::execute_code(code, mem, regs).1
+        crate::util::execute_code(code, mem, regs).1
     }
 
     fn divu_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
@@ -1367,9 +1366,7 @@ mod tests {
     // Please check https://en.wikichip.org/wiki/risc-v/registers
 
     #[test]
-    fn ecall() {
-        let _ = simple_test_code([Instruction::new(Op::ECALL, Args::default())], &[], &[]);
-    }
+    fn ecall() { let _ = simple_test_code([ECALL], &[], &[]); }
 
     #[test]
     fn lui() {

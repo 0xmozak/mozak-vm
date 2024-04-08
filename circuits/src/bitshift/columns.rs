@@ -1,7 +1,8 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cross_table_lookup::Column;
+use crate::linear_combination::Column;
+#[cfg(feature = "test_public_table")]
+use crate::public_sub_table::PublicSubTable;
+use crate::stark::mozak_stark::{BitshiftTable, TableWithTypedOutput};
 
 columns_view_impl!(Bitshift);
 #[repr(C)]
@@ -36,12 +37,26 @@ pub struct BitshiftView<T> {
     pub multiplicity: T,
 }
 
-/// Columns containing the data which are looked from the CPU table into
-/// Bitshift stark table.
+/// Lookup from the CPU table into Bitshift stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(col_map().executed) }
+pub fn lookup_for_cpu() -> TableWithTypedOutput<Bitshift<Column>> {
+    BitshiftTable::new(COL_MAP.executed, COL_MAP.multiplicity)
+}
 
-/// Columns containing the filter which indicates whether this row is a dummy
-/// padding.
+/// This function makes `amount, multiplier` columns of
+/// Bitshift table, public. It looks something like this:
+/// [0, 1]
+/// [1, 2]
+/// [2, 4]
+/// ....
+/// [31, 2^31]
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().multiplicity.into() }
+#[cfg(feature = "test_public_table")]
+pub fn public_sub_table() -> PublicSubTable {
+    use crate::linear_combination_typed::ColumnWithTypedInput;
+
+    PublicSubTable {
+        table: BitshiftTable::new(COL_MAP.executed, ColumnWithTypedInput::constant(1)),
+        num_rows: 32,
+    }
+}

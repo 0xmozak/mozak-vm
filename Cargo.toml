@@ -5,8 +5,8 @@
 # `native` targets are supposed to be built for dev machines'
 # specifications e.g. `x86_64-unknown-linux-gnu` or `aarch64-apple-darwin`.
 # `mozak` targets are supposed to be built with
-# `buildtarget/riscv32im-mozak-zkvm-elf.json` or originally:
-# https://github.com/0xmozak/mozak-vm/blob/main/examples/.cargo/riscv32im-mozak-zkvm-elf.json
+# `buildtarget/riscv32im-mozak-mozakvm-elf.json` or originally:
+# https://github.com/0xmozak/mozak-vm/blob/main/examples/.cargo/riscv32im-mozak-mozakvm-elf.json
 #
 # The `members` described below list only crates with `native` target
 # The `exclude` described below list only crates with `mozak` target
@@ -16,14 +16,30 @@
 
 [workspace]
 exclude = ["sdk"]
-members = ["cli", "examples-builder", "runner", "circuits", "node-cli", "node", "rpc", "state", "circuits3", "signatures", "wasm-demo", "expr"]
+members = [
+  "cli",
+  "examples-builder",
+  "runner",
+  "circuits",
+  "node-cli",
+  "node",
+  "rpc",
+  "state",
+  "signatures",
+  "wasm-demo",
+  "expr"
+]
 resolver = "2"
 
-[profile.dev]
-# We are running our tests with optimizations turned on to make them faster.
-# Plase turn optimizations off, when you want accurate stack traces for debugging.
-lto = "thin"
+[profile.dev.package."*"]
+# Set the default for dependencies in Development mode.
 opt-level = 3
+
+[profile.dev]
+lto = "thin"
+# We are running our tests with optimizations turned on to make them faster.
+# Please turn optimizations off, when you want accurate stack traces for debugging.
+opt-level = 2
 
 [profile.release]
 lto = "fat"
@@ -33,4 +49,5 @@ lto = "thin"
 
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
 starky = { git = "https://github.com/0xmozak/plonky2.git" }

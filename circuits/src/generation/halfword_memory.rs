@@ -1,4 +1,4 @@
-use itertools::{self, Itertools};
+use itertools::Itertools;
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -63,6 +63,11 @@ pub fn generate_halfword_memory_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
 
+    use mozak_runner::elf::Program;
+    use mozak_runner::instruction::Op::{LH, LHU, SH};
+    use mozak_runner::instruction::{Args, Instruction};
+    use mozak_runner::util::execute_code;
+    use mozak_runner::vm::ExecutionRecord;
     use plonky2::field::goldilocks_field::GoldilocksField;
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
@@ -73,9 +78,73 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
-    use crate::memory_halfword::test_utils::halfword_memory_trace_test_case;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::test_utils::{inv, prep_table};
+
+    // TODO(Matthias): Consider unifying with the byte memory example?
+    #[must_use]
+    fn halfword_memory_trace_test_case(
+        repeats: usize,
+    ) -> (Program, ExecutionRecord<GoldilocksField>) {
+        let new = Instruction::new;
+        let instructions = [
+            new(SH, Args {
+                // addr = rs2 + imm, value = rs1-value
+                // store-full-word of address = 100, value 0x0102
+                rs1: 1,
+                imm: 400,
+                ..Args::default()
+            }),
+            new(LH, Args {
+                // addr = rs2 + imm, value = rd-value
+                // load-full-word from address = 100 to reg-3, value of 0x0102
+                rd: 3,
+                imm: 400,
+                ..Args::default()
+            }),
+            new(SH, Args {
+                // addr = rs2 + imm, value = rs1
+                // store-full-word of address = 200, value 0x0304
+                rs1: 2,
+                imm: 500,
+                ..Args::default()
+            }),
+            new(LHU, Args {
+                // addr = rs2 + imm, value = rd
+                // load-full-word from address = 200 to reg-4, value of 0x0304
+                rd: 4,
+                imm: 500,
+                ..Args::default()
+            }),
+        ];
+        let code = std::iter::repeat(&instructions)
+            .take(repeats)
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>();
+        let (program, record) = execute_code(
+            code,
+            &[
+                (400, 0),
+                (401, 0),
+                (402, 0),
+                (403, 0),
+                (500, 0),
+                (501, 0),
+                (502, 0),
+            ],
+            &[(1, 0x0102), (2, 0x0304), (3, 0xFFFF), (4, 0x0000_FFFF)],
+        );
+
+        if repeats > 0 {
+            let state = &record.last_state;
+            assert_eq!(state.load_u32(400), 0x0102);
+            assert_eq!(state.get_register_value(3), 0x0102);
+            assert_eq!(state.load_u32(500), 0x0304);
+            assert_eq!(state.get_register_value(4), 0x0304);
+        }
+        (program, record)
+    }
 
     type F = GoldilocksField;
     // This test simulates the scenario of a set of instructions
@@ -92,8 +161,8 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
-        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_rows);
+        let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_rows);
 
         let trace = generate_memory_trace::<GoldilocksField>(
             &record.executed,
@@ -102,7 +171,7 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseidon2_rows,
+            &poseidon2_sponge_rows,
             &poseidon2_output_bytes,
         );
         assert_eq!(trace,

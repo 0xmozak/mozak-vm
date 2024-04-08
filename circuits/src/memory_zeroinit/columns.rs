@@ -1,7 +1,8 @@
-use plonky2::field::types::Field;
-
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::Column;
+use crate::cross_table_lookup::ColumnWithTypedInput;
+use crate::linear_combination::Column;
+use crate::memoryinit::columns::MemoryInitCtl;
+use crate::stark::mozak_stark::{MemoryZeroInitTable, TableWithTypedOutput};
 
 columns_view_impl!(MemoryZeroInit);
 make_col_map!(MemoryZeroInit);
@@ -14,17 +15,16 @@ pub struct MemoryZeroInit<T> {
 
 pub const NUM_MEMORYINIT_COLS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 
-/// Columns containing the data which are looked up from the Memory Table
+/// Lookup into Memory Table
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::constant(F::ONE), // is_writable
-        Column::single(col_map().addr),
-        Column::constant(F::ZERO), // clk
-        Column::constant(F::ZERO), // value
-    ]
+pub fn lookup_for_memory() -> TableWithTypedOutput<MemoryInitCtl<Column>> {
+    MemoryZeroInitTable::new(
+        MemoryInitCtl {
+            is_writable: ColumnWithTypedInput::constant(1),
+            address: COL_MAP.addr,
+            clk: ColumnWithTypedInput::constant(0),
+            value: ColumnWithTypedInput::constant(0),
+        },
+        COL_MAP.filter,
+    )
 }
-
-/// Column for a binary filter to indicate a lookup from the Memory Table
-#[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(col_map().filter) }

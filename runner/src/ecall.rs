@@ -2,8 +2,8 @@
 
 use std::str::from_utf8;
 
-use mozak_system::system::ecall;
-use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
+use mozak_sdk::core::ecall;
+use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
 use plonky2::hash::hash_types::RichField;
 
 use crate::state::{read_bytes, Aux, IoEntry, IoOpcode, State};
@@ -41,9 +41,9 @@ impl<F: RichField> State<F> {
                 &mut self.io_tape.private.read_index,
                 num_bytes_requested as usize,
             ),
-            IoOpcode::StoreTranscript => read_bytes(
-                &self.transcript.data,
-                &mut self.transcript.read_index,
+            IoOpcode::StoreCallTape => read_bytes(
+                &self.call_tape.data,
+                &mut self.call_tape.read_index,
                 num_bytes_requested as usize,
             ),
             IoOpcode::None => panic!(),
@@ -116,7 +116,7 @@ impl<F: RichField> State<F> {
             ecall::HALT => self.ecall_halt(),
             ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
             ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
-            ecall::IO_READ_TRANSCRIPT => self.ecall_io_read(IoOpcode::StoreTranscript),
+            ecall::IO_READ_CALL_TAPE => self.ecall_io_read(IoOpcode::StoreCallTape),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             ecall::VM_TRACE_LOG => self.ecall_trace_log(),

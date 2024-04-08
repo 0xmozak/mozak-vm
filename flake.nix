@@ -15,6 +15,7 @@
       systems = [
         "x86_64-linux"
         "aarch64-darwin"
+        "aarch64-linux"
       ];
 
       perSystem = {
@@ -37,7 +38,7 @@
 
         packages.rust-toolchain = pkgs.fenix.fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "sha256-/Qcw88/iUz/WDWv19OZs4zL/EpdLHsD7loh65qSXvU8=";
+          sha256 = "sha256-IIfju5JkpNdph2e98MTl1PaR7cN8awLVYkjDKd9qr5Q=";
         };
 
         packages.ci-deps = pkgs.symlinkJoin {
@@ -49,14 +50,20 @@
               nodejs_20
               wasmtime
               cargo-nextest
+              cargo-udeps
               config.packages.rust-toolchain
+              (python312.withPackages (python-pkgs: [
+                python-pkgs.colorama
+                python-pkgs.toml
+              ]))
             ]
             ++ lib.lists.optional (stdenv.isDarwin) pkgs.darwin.libiconv;
         };
 
         # CI Setup for GitHub Actions
-        packages.ci-env = pkgs.writeScriptBin "ci-setup" ''
+        packages.ci-env = pkgs.writeShellScriptBin "ci-setup" ''
           echo CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/"
+          echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/"
           echo CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS="-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/"
         '';
 
@@ -66,6 +73,7 @@
           ];
 
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = ''-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/'';
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS = ''-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/'';
           CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS = ''-C link-args=-Wl,-rpath,${config.packages.ci-deps}/lib/'';
         };
       };

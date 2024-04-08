@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
+use log::debug;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
@@ -15,7 +16,8 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindSetBuilder};
 use super::proof::AllProof;
-use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
+use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
+use crate::public_sub_table::reduce_public_sub_tables_values;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 
@@ -28,40 +30,38 @@ pub fn verify_proof<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    debug!("Starting Verify");
+
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
     } = all_proof.get_challenges(config);
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::Program]
-            .proof
-            .trace_cap
-            == all_proof.program_rom_trace_cap,
+        all_proof.proofs[TableKind::Program].trace_cap == all_proof.program_rom_trace_cap,
         "Mismatch between Program ROM trace caps"
     );
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::ElfMemoryInit]
-            .proof
-            .trace_cap
-            == all_proof.elf_memory_init_trace_cap,
+        all_proof.proofs[TableKind::ElfMemoryInit].trace_cap == all_proof.elf_memory_init_trace_cap,
         "Mismatch between ElfMemoryInit trace caps"
     );
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::MozakMemoryInit]
-            .proof
-            .trace_cap
+        all_proof.proofs[TableKind::MozakMemoryInit].trace_cap
             == all_proof.mozak_memory_init_trace_cap,
         "Mismatch between MozakMemoryInit trace caps"
     );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
-        &all_proof.proofs_with_metadata,
+        &all_proof.proofs,
         &mozak_stark.cross_table_lookups,
+        &mozak_stark.public_sub_tables,
         &ctl_challenges,
     );
+
+    let reduced_public_sub_tables_values =
+        reduce_public_sub_tables_values(&all_proof.public_sub_table_values, &ctl_challenges);
 
     let public_inputs = TableKindSetBuilder::<&[_]> {
         cpu_stark: all_proof.public_inputs.borrow(),
@@ -71,15 +71,17 @@ where
     all_starks!(mozak_stark, |stark, kind| {
         verify_stark_proof_with_challenges(
             stark,
-            &all_proof.proofs_with_metadata[kind].proof,
+            &all_proof.proofs[kind],
             &stark_challenges[kind],
             public_inputs[kind],
             &ctl_vars_per_table[kind],
             config,
         )?;
     });
-    verify_cross_table_lookups::<F, D>(
+    verify_cross_table_lookups_and_public_sub_tables::<F, D>(
         &mozak_stark.cross_table_lookups,
+        &mozak_stark.public_sub_tables,
+        &reduced_public_sub_tables_values,
         &all_proof.all_ctl_zs_last(),
         config,
     )?;
@@ -169,10 +171,15 @@ where
         proof.quotient_polys_cap.clone(),
     ];
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
     verify_fri_proof::<F, C, D>(
         &stark.fri_instance(
             challenges.stark_zeta,
             F::primitive_root_of_unity(degree_bits),
+            0,
+            vec![],
             config,
             Some(&LookupConfig {
                 degree_bits,

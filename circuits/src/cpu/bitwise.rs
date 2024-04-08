@@ -130,7 +130,6 @@ pub(crate) fn xor_gadget_extension_targets<const D: usize>(
 /// representing that the operation is neither AND, nor OR or XOR.
 /// The operation constraints are maintained in the corresponding gadget, and we
 /// just need to make sure the gadget gets assigned correct inputs and output.
-#[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -183,10 +182,10 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[cfg(test)]
-#[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code, u32_extra};
+    use mozak_runner::test_utils::u32_extra;
+    use mozak_runner::util::execute_code;
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 

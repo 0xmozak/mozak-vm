@@ -1,4 +1,4 @@
-use itertools::{self, chain, Itertools};
+use itertools::{chain, Itertools};
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -246,11 +246,11 @@ mod tests {
         generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, inv, prep_table};
 
@@ -262,8 +262,9 @@ mod tests {
     #[rustfmt::skip]
     #[test]
     #[ignore]
-    #[should_panic = "failing constraint: init is required per memory address"]
-    // TODO(Roman): fix this test, looks like we should constrain the `is_init` 
+    #[should_panic = "Constraint failed in"]
+    // TODO(Roman): fix this test, looks like we should constrain the `is_init`
+    /// Test that we have a constraint to catch, if there is no init for any memory address.
     fn no_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
@@ -276,6 +277,7 @@ mod tests {
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let config = fast_test_config();
+        // This will fail, iff debug assertions are enabled.
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -287,28 +289,43 @@ mod tests {
     }
 
     #[rustfmt::skip]
+    fn double_init_trace() -> Vec<Memory<GoldilocksField>> {
+        prep_table(vec![
+            //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
+            [       0,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(100)],
+            [       1,     100,   1,     0,      0,       1,        2,       0,     inv::<F>(0)],
+        ])
+    }
+
+    /// Test that we have a constraint to catch if there are multiple inits per
+    /// memory address.
     #[test]
-    #[should_panic = "failing constraint: only single init is allowed per memory address"]
+    #[cfg_attr(
+        not(debug_assertions),
+        should_panic = "failing constraint: only single init is allowed per memory address"
+    )]
+    #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
     fn double_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
 
-        let trace: Vec<Memory<GoldilocksField>> = prep_table(vec![
-                //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
-                [       0,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(100)],
-                [       1,     100,   1,     0,      0,       1,        2,       0,     inv::<F>(0)],
-        ]);
+        let trace: Vec<Memory<GoldilocksField>> = double_init_trace();
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let config = fast_test_config();
+        // This will fail, iff debug assertions are enabled.
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
-        ).unwrap();
-        assert!(verify_stark_proof(stark, proof, &config).is_ok(), "failing constraint: only single init is allowed per memory address");
+        )
+        .unwrap();
+        assert!(
+            verify_stark_proof(stark, proof, &config).is_ok(),
+            "failing constraint: only single init is allowed per memory address"
+        );
     }
 
     // This test simulates the scenario of a set of instructions
@@ -324,8 +341,8 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
-        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
+        let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &record.executed,
@@ -334,7 +351,7 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseidon2_trace,
+            &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
         assert_eq!(

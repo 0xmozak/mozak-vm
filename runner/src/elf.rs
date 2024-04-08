@@ -1,11 +1,10 @@
-use core::option::Option;
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::iter::repeat;
 use std::ops::Range;
 
 use anyhow::{anyhow, ensure, Result};
-use derive_more::{Deref, DerefMut};
+use derive_more::{Deref, DerefMut, IntoIterator};
 use elf::endian::LittleEndian;
 use elf::file::Class;
 use elf::segment::{ProgramHeader, SegmentTable};
@@ -35,45 +34,73 @@ impl MozakMemoryRegion {
     fn fill(&mut self, data: &[u8]) {
         assert!(
             data.len() <= self.capacity.try_into().unwrap(),
-            "fill data must fit into capacity"
+            "data of length {:?} does not fit into address ({:x?}) with capacity {:?}",
+            data.len(),
+            self.starting_address,
+            self.capacity,
         );
         for (index, &item) in izip!(self.starting_address.., data) {
             self.data.insert(index, item);
         }
         assert!(
             self.data.len() <= self.capacity.try_into().unwrap(),
-            "data does not fit into capacity"
+            "data of length {:?} does not fit into address ({:x?}) with capacity {:?}",
+            self.data.len(),
+            self.starting_address,
+            self.capacity,
         );
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemory {
-    // context variables
-    pub context_variables: MozakMemoryRegion,
+    // self_prog_id
+    pub self_prog_id: MozakMemoryRegion,
+    // cast_list
+    pub cast_list: MozakMemoryRegion,
     // io private
     pub io_tape_private: MozakMemoryRegion,
     // io public
     pub io_tape_public: MozakMemoryRegion,
-    // transcript
-    pub transcript: MozakMemoryRegion,
+    // call_tape
+    pub call_tape: MozakMemoryRegion,
+    // event_tape
+    pub event_tape: MozakMemoryRegion,
 }
 
-#[cfg(test)]
+impl From<MozakMemory> for HashMap<u32, u8> {
+    fn from(mem: MozakMemory) -> Self {
+        [
+            mem.self_prog_id,
+            mem.cast_list,
+            mem.io_tape_private,
+            mem.io_tape_public,
+            mem.call_tape,
+            mem.event_tape,
+        ]
+        .into_iter()
+        .flat_map(|MozakMemoryRegion { data: Data(d), .. }| d.into_iter())
+        .collect()
+    }
+}
+
 impl Default for MozakMemory {
-    /// Assumed to be used only from tests
-    // TODO(Roman): maybe `default` should be swapped with MozakMemory::create()
-    // function, and `create()` will be used only by the tests and renamed to
-    // `default_for_tests()` + conditional compilation ?
     fn default() -> Self {
         // These magic numbers taken from mozak-linker-script
         // TODO(Roman): Once `end-of-mozak-region` symbol will be added to linker-script
         // it will be possible to implement test that load mozak-empty-ELF and check
         // that all expected addresses and capacities are indeed aligned with the code.
+        // We have test, that loads `empty-ELF` compiled with mozak-linker-script.
+        // This test ensures that assumed symbols are defined.
         MozakMemory {
-            context_variables: MozakMemoryRegion {
+            self_prog_id: MozakMemoryRegion {
                 starting_address: 0x2000_0000_u32,
-                capacity: 0x0100_0000_u32,
+                capacity: 0x20_u32,
+                ..Default::default()
+            },
+            cast_list: MozakMemoryRegion {
+                starting_address: 0x2000_0020_u32,
+                capacity: 0x00FF_FFE0_u32,
                 ..Default::default()
             },
             io_tape_public: MozakMemoryRegion {
@@ -86,15 +113,21 @@ impl Default for MozakMemory {
                 capacity: 0x1000_0000_u32,
                 ..Default::default()
             },
-            transcript: MozakMemoryRegion {
+            call_tape: MozakMemoryRegion {
                 starting_address: 0x4000_0000_u32,
-                capacity: 0x1000_0000_u32,
+                capacity: 0x0800_0000_u32,
+                ..Default::default()
+            },
+            event_tape: MozakMemoryRegion {
+                starting_address: 0x4800_0000_u32,
+                capacity: 0x0800_0000_u32,
                 ..Default::default()
             },
         }
     }
 }
 
+/// Deprecated??
 impl From<(&[u8], &[u8])> for MozakMemory {
     fn from((private, public): (&[u8], &[u8])) -> Self {
         let mut mozak_memory = MozakMemory::create();
@@ -107,21 +140,33 @@ impl From<(&[u8], &[u8])> for MozakMemory {
 impl MozakMemory {
     fn create() -> MozakMemory {
         MozakMemory {
-            context_variables: MozakMemoryRegion::default(),
+            self_prog_id: MozakMemoryRegion::default(),
+            cast_list: MozakMemoryRegion::default(),
             io_tape_private: MozakMemoryRegion::default(),
             io_tape_public: MozakMemoryRegion::default(),
-            transcript: MozakMemoryRegion::default(),
+            call_tape: MozakMemoryRegion::default(),
+            event_tape: MozakMemoryRegion::default(),
         }
     }
 
+    // TODO(Roman): refactor this function, caller can parse p_vaddr, so pure u32
+    // address will be enough
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
-        let address: u32 = u32::try_from(program_header.p_vaddr)
-            .expect("p_vaddr for zk-vm expected to be cast-able to u32");
+        self.is_address_belongs_to_mozak_ro_memory(
+            u32::try_from(program_header.p_vaddr)
+                .expect("p_vaddr for zk-vm expected to be cast-able to u32"),
+        )
+    }
+
+    #[must_use]
+    pub fn is_address_belongs_to_mozak_ro_memory(&self, address: u32) -> bool {
         let mem_addresses = [
-            self.context_variables.memory_range(),
+            self.self_prog_id.memory_range(),
+            self.cast_list.memory_range(),
             self.io_tape_public.memory_range(),
             self.io_tape_private.memory_range(),
-            self.transcript.memory_range(),
+            self.call_tape.memory_range(),
+            self.event_tape.memory_range(),
         ];
         log::trace!(
             "mozak-memory-addresses: {:?}, address: {:?}",
@@ -149,32 +194,19 @@ impl MozakMemory {
                 )
             })
         };
-        self.context_variables.starting_address = get("_mozak_context_variables");
-        log::debug!(
-            "_mozak_context_variables: 0x{:0x}",
-            self.context_variables.starting_address
-        );
+
+        self.self_prog_id.starting_address = get("_mozak_self_prog_id");
+        self.cast_list.starting_address = get("_mozak_cast_list");
         self.io_tape_public.starting_address = get("_mozak_public_io_tape");
-        log::debug!(
-            "_mozak_public_io_tape: 0x{:0x}",
-            self.io_tape_public.starting_address
-        );
-
         self.io_tape_private.starting_address = get("_mozak_private_io_tape");
-        log::debug!(
-            "_mozak_private_io_tape: 0x{:0x}",
-            self.io_tape_private.starting_address
-        );
-
-        self.transcript.starting_address = get("_mozak_transcript");
-        log::debug!(
-            "_mozak_transcript: 0x{:0x}",
-            self.transcript.starting_address
-        );
+        self.call_tape.starting_address = get("_mozak_call_tape");
+        self.event_tape.starting_address = get("_mozak_event_tape");
+        // log::debug!("_mozak_call_tape: 0x{:0x}", self.call_tape.starting_address);
 
         // compute capacity, assume single memory region (refer to linker-script)
-        self.context_variables.capacity =
-            self.io_tape_public.starting_address - self.context_variables.starting_address;
+        self.self_prog_id.capacity = 0x20_u32;
+        self.cast_list.capacity = 0x00FF_FFE0_u32;
+
         self.io_tape_public.capacity =
             self.io_tape_private.starting_address - self.io_tape_public.starting_address;
         // refer to linker-script to understand this magic number ...
@@ -184,35 +216,53 @@ impl MozakMemory {
         // linker-script we not help us, since there is not symbol that defines
         // `end-of-mozak-region`...
         self.io_tape_private.capacity =
-            self.transcript.starting_address - self.io_tape_private.starting_address;
-        self.transcript.capacity = 0x5000_0000_u32 - self.transcript.starting_address;
+            self.call_tape.starting_address - self.io_tape_private.starting_address;
+        self.call_tape.capacity =
+            self.event_tape.starting_address - self.call_tape.starting_address;
+        self.event_tape.capacity = 0x5000_0000 - self.event_tape.starting_address;
     }
 }
 
-/// A Mozak program runtime arguments
+/// A Mozak program runtime arguments, all fields are 4 LE bytes length prefixed
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RuntimeArguments {
-    pub context_variables: Vec<u8>,
+    pub self_prog_id: Vec<u8>,
+    pub cast_list: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
-    pub transcript: Vec<u8>,
+    pub call_tape: Vec<u8>,
+    pub event_tape: Vec<u8>,
 }
 
 impl RuntimeArguments {
-    /// # Panics
     #[must_use]
-    pub fn new(
-        context_variables: Vec<u8>,
-        io_tape_private: Vec<u8>,
-        io_tape_public: Vec<u8>,
-        transcript: Vec<u8>,
-    ) -> Self {
-        RuntimeArguments {
-            context_variables,
-            io_tape_private,
-            io_tape_public,
-            transcript,
-        }
+    pub fn is_empty(&self) -> bool {
+        self.self_prog_id.is_empty()
+            && self.cast_list.is_empty()
+            && self.io_tape_private.is_empty()
+            && self.io_tape_public.is_empty()
+            && self.call_tape.is_empty()
+            && self.event_tape.is_empty()
+    }
+}
+
+impl From<&RuntimeArguments> for MozakMemory {
+    fn from(args: &RuntimeArguments) -> Self {
+        let mut mozak_ro_memory = MozakMemory::default();
+        mozak_ro_memory
+            .self_prog_id
+            .fill(args.self_prog_id.as_slice());
+        mozak_ro_memory.cast_list.fill(args.cast_list.as_slice());
+        mozak_ro_memory
+            .io_tape_public
+            .fill(args.io_tape_public.as_slice());
+        mozak_ro_memory
+            .io_tape_private
+            .fill(args.io_tape_private.as_slice());
+        mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
+        mozak_ro_memory.event_tape.fill(args.event_tape.as_slice());
+
+        mozak_ro_memory
     }
 }
 
@@ -223,11 +273,11 @@ pub struct Program {
     pub entry_point: u32,
 
     /// Read-only section of memory
-    /// 'ro_memory' takes precedence, if a memory location is in both.
+    /// `ro_memory` takes precedence, if a memory location is in both.
     pub ro_memory: Data,
 
     /// Read-write section of memory
-    /// 'ro_memory' takes precedence, if a memory location is in both.
+    /// `ro_memory` takes precedence, if a memory location is in both.
     pub rw_memory: Data,
 
     /// Executable code of the ELF, read only
@@ -255,7 +305,9 @@ pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 /// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, PartialEq)]
+#[derive(
+    Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, IntoIterator, PartialEq,
+)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
@@ -336,8 +388,10 @@ impl From<HashMap<u32, u32>> for Data {
         )
     }
 }
+
 type CheckProgramFlags =
     fn(flags: u32, program_headers: &ProgramHeader, mozak_memory: &Option<MozakMemory>) -> bool;
+
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
     /// should rename it later, with `vanilla_` prefix
@@ -347,7 +401,7 @@ impl Program {
     /// Same as `Program::internal_load_elf`
     /// TODO(Roman): Refactor this API to be aligned with `mozak_load_elf` -
     /// just return Program
-    pub fn load_elf(input: &[u8]) -> Result<Program> {
+    pub fn vanilla_load_elf(input: &[u8]) -> Result<Program> {
         let (_, entry_point, segments) = Program::parse_and_validate_elf(input)?;
         Ok(Program::internal_load_elf(
             input,
@@ -519,7 +573,9 @@ impl Program {
     /// # Panics
     /// When `Program::load_elf` or index as address is not cast-able to u32
     /// cast-able
-    pub fn load_program(elf_bytes: &[u8]) -> Result<Program> { Program::load_elf(elf_bytes) }
+    pub fn vanilla_load_program(elf_bytes: &[u8]) -> Result<Program> {
+        Program::vanilla_load_elf(elf_bytes)
+    }
 
     /// Loads a "mozak program" from static ELF and populates the reserved
     /// memory with runtime arguments
@@ -540,8 +596,9 @@ impl Program {
             .expect("MozakMemory should exist for mozak-elf case");
         // Context Variables address
         mozak_ro_memory
-            .context_variables
-            .fill(args.context_variables.as_slice());
+            .self_prog_id
+            .fill(args.self_prog_id.as_slice());
+        mozak_ro_memory.cast_list.fill(args.cast_list.as_slice());
         // IO public
         mozak_ro_memory
             .io_tape_public
@@ -550,15 +607,81 @@ impl Program {
         mozak_ro_memory
             .io_tape_private
             .fill(args.io_tape_private.as_slice());
-        mozak_ro_memory.transcript.fill(args.transcript.as_slice());
+        mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
+        mozak_ro_memory.event_tape.fill(args.event_tape.as_slice());
 
         Ok(program)
+    }
+
+    /// # Panics
+    /// When some of the provided addresses (rw,ro,code) belongs to
+    /// `mozak-ro-memory`
+    /// # Errors
+    /// When some of the provided addresses (rw,ro,code) belongs to
+    /// `mozak-ro-memory`
+    #[must_use]
+    #[allow(clippy::similar_names)]
+    pub fn create_with_args(
+        ro_mem: &[(u32, u8)],
+        rw_mem: &[(u32, u8)],
+        ro_code: &Code,
+        args: &RuntimeArguments,
+    ) -> Program {
+        let mozak_ro_memory = MozakMemory::from(args);
+        let mem_iters = chain!(ro_mem.iter(), rw_mem.iter()).map(|(addr, _)| addr);
+        let code_iter = ro_code.iter().map(|(addr, _)| addr);
+        chain!(mem_iters, code_iter).for_each(|addr| {
+            assert!(
+                !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr),
+                "address: {addr} belongs to mozak-ro-memory - it is forbidden"
+            );
+        });
+        Program {
+            ro_memory: Data(ro_mem.iter().copied().collect()),
+            rw_memory: Data(rw_mem.iter().copied().collect()),
+            ro_code: ro_code.clone(),
+            mozak_ro_memory: Some(mozak_ro_memory),
+            ..Default::default()
+        }
+    }
+
+    /// # Panics
+    /// When some of the provided addresses (rw,ro,code) belongs to
+    /// `mozak-ro-memory` AND when arguments for mozak-ro-memory is not empty
+    /// # Errors
+    /// When some of the provided addresses (rw,ro,code) belongs to
+    /// `mozak-ro-memory`
+    /// Note: This function is mostly useful for risc-v native tests, and other
+    /// tests that need the ability to run over full memory space, and don't
+    /// use any mozak-ro-memory capabilities
+    #[must_use]
+    #[allow(clippy::similar_names)]
+    #[cfg(any(feature = "test", test))]
+    pub fn create(
+        ro_mem: &[(u32, u8)],
+        rw_mem: &[(u32, u8)],
+        ro_code: &Code,
+        args: &RuntimeArguments,
+    ) -> Program {
+        // Non-strict behavior is to allow successful creation when arguments parameter
+        // is empty
+        if args.is_empty() {
+            return Program {
+                ro_memory: Data(ro_mem.iter().copied().collect()),
+                rw_memory: Data(rw_mem.iter().copied().collect()),
+                ro_code: ro_code.clone(),
+                mozak_ro_memory: None,
+                ..Default::default()
+            };
+        }
+        Program::create_with_args(ro_mem, rw_mem, ro_code, args)
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::elf::{MozakMemory, MozakMemoryRegion, Program, RuntimeArguments};
+
     #[test]
     fn test_serialize_deserialize() {
         let program = Program::default();
@@ -587,6 +710,7 @@ mod test {
             assert_eq!(data[usize::try_from(*k).unwrap()], *v);
         });
     }
+
     #[test]
     fn test_empty_elf_with_empty_args() {
         let mozak_ro_memory =
@@ -594,24 +718,31 @@ mod test {
                 .unwrap()
                 .mozak_ro_memory
                 .unwrap();
-        assert_eq!(mozak_ro_memory.context_variables.data.len(), 0);
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 0);
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
-        assert_eq!(mozak_ro_memory.transcript.data.len(), 0);
+        assert_eq!(mozak_ro_memory.call_tape.data.len(), 0);
     }
+
     #[test]
     fn test_empty_elf_with_args() {
-        let mozak_ro_memory = Program::mozak_load_program(
-            mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(vec![0], vec![0, 1], vec![0, 1, 2], vec![0, 1, 2, 3]),
-        )
-        .unwrap()
-        .mozak_ro_memory
-        .unwrap();
-        assert_eq!(mozak_ro_memory.context_variables.data.len(), 1);
-        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 2);
-        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 3);
-        assert_eq!(mozak_ro_memory.transcript.data.len(), 4);
+        let mozak_ro_memory =
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
+                self_prog_id: vec![0],
+                cast_list: vec![0, 1],
+                io_tape_private: vec![0, 1, 2],
+                io_tape_public: vec![0, 1, 2, 3],
+                call_tape: vec![0, 1, 2, 3, 4],
+                event_tape: vec![0, 1, 2, 3, 4, 5],
+            })
+            .unwrap()
+            .mozak_ro_memory
+            .unwrap();
+        assert_eq!(mozak_ro_memory.self_prog_id.data.len(), 1);
+        assert_eq!(mozak_ro_memory.cast_list.data.len(), 2);
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 3);
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 4);
+        assert_eq!(mozak_ro_memory.call_tape.data.len(), 5);
+        assert_eq!(mozak_ro_memory.event_tape.data.len(), 6);
     }
 
     #[test]

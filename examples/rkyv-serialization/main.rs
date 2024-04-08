@@ -1,10 +1,13 @@
-#![cfg_attr(target_os = "zkvm", no_main)]
+#![cfg_attr(target_os = "mozakvm", no_main)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
+#[cfg(not(feature = "std"))]
 use alloc::string::String;
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
+use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
@@ -21,6 +24,7 @@ pub struct Test {
     pub option: Option<Vec<i32>>,
 }
 
+#[cfg(not(feature = "std"))]
 use alloc::string::ToString;
 use alloc::vec;
 
@@ -32,19 +36,21 @@ pub fn main() {
     };
 
     // Serializing is as easy as a single function call
-    let bytes = rkyv::to_bytes::<_, 256>(&value).unwrap();
+    let bytes = rkyv::to_bytes::<_, 256, Panic>(&value).unwrap();
 
     // Or you can use the unsafe API for maximum performance
-    let archived = unsafe { rkyv::archived_root::<Test>(&bytes[..]) };
+    let archived = unsafe { rkyv::access_unchecked::<Test>(&bytes[..]) };
     assert_eq!(archived, &value);
 
     // And you can always deserialize back to the original type
-    let deserialized: Test = archived.deserialize(&mut rkyv::Infallible).unwrap();
+    let deserialized: Test = archived
+        .deserialize(Strategy::<(), Panic>::wrap(&mut ()))
+        .unwrap();
     assert_eq!(deserialized, value);
-    #[cfg(not(target_os = "zkvm"))]
+    #[cfg(all(not(target_os = "mozakvm"), feature = "std"))]
     println!("Deserialized Value: {:?}", deserialized);
-    let bytes = rkyv::to_bytes::<_, 256>(&deserialized).unwrap();
-    guest::env::write(&bytes);
+    let bytes = rkyv::to_bytes::<_, 256, Panic>(&deserialized).unwrap();
+    mozak_sdk::core::env::write(&bytes);
 }
 
-guest::entry!(main);
+mozak_sdk::entry!(main);

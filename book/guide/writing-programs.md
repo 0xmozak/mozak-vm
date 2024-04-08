@@ -1,6 +1,6 @@
 # Writing Programs
 
-[RISC-V] is a general purpose instruction set architecture. As a RISC-V Zero-Knowledge Virtual Machine, 
+[RISC-V] is a general purpose instruction set architecture. As a RISC-V Zero-Knowledge Virtual Machine,
 Mozak-VM aims to be able to prove and verify arbitrary programs that are compiled to RISC-V regardless of whether the program
 was written in Rust, C++, or another language.
 
@@ -12,7 +12,7 @@ If you are not sure what these instructions mentioned above include, checkout [a
 ## Executable and Linkable Format
 
 At a high level, programs are compiled to RISC-V [ELFs], that are executed and proven independently. The execution generates a computation trace
-and then proven with the Zero-Knowledge Proof System. 
+and then proven with the Zero-Knowledge Proof System.
 
 <!-- If you are interested in learning more about this check out architecture section (not written yet) -->
 
@@ -78,7 +78,7 @@ Building the programs requires the [Rust nightly toolchain](https://www.rust-lan
 cargo build --release
 ```
 
-This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
+This would build ELF executables under `target/riscv32im-mozak-mozakvm-elf/debug/`.
 
 <!---
 change the following to actual files after iotapes are added to examples
@@ -87,7 +87,7 @@ change the following to actual files after iotapes are added to examples
 use `mozak-cli`'s run command to execute generated ELF, where `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>` are files containing the private and public inputs of the program.
 
 ```rust
-mozak-cli run target/riscv32im-mozak-zkvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC>
+mozak-cli run target/riscv32im-mozak-mozakvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC>
 ```
 
 For this fibonnacci example, both `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>` are empty files.
@@ -95,7 +95,7 @@ For this fibonnacci example, both `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>` are
 To prove the execution of the program, run:
 
 ```rust
-mozak-cli prove target/riscv32im-mozak-zkvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC> <PROOF>
+mozak-cli prove target/riscv32im-mozak-mozakvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC> <PROOF>
 ```
 
 where `<PROOF>` is the path to the proof file

@@ -1,14 +1,22 @@
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::plonk::config::GenericHashOut;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+#[cfg(feature = "enable_poseidon_starks")]
+use crate::cross_table_lookup::ColumnWithTypedInput;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
+#[cfg(feature = "enable_poseidon_starks")]
+use crate::memory::columns::MemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
+#[cfg(feature = "enable_poseidon_starks")]
+use crate::stark::mozak_stark::{Poseidon2OutputBytesTable, TableWithTypedOutput};
 
 pub const FIELDS_COUNT: usize = 4;
 pub const BYTES_COUNT: usize = 32;
 
+columns_view_impl!(Poseidon2OutputBytes);
+make_col_map!(Poseidon2OutputBytes);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Poseidon2OutputBytes<F> {
@@ -18,9 +26,6 @@ pub struct Poseidon2OutputBytes<F> {
     pub output_fields: [F; FIELDS_COUNT],
     pub output_bytes: [F; BYTES_COUNT],
 }
-
-columns_view_impl!(Poseidon2OutputBytes);
-make_col_map!(Poseidon2OutputBytes);
 
 pub const NUM_POSEIDON2_OUTPUT_BYTES_COLS: usize = Poseidon2OutputBytes::<()>::NUMBER_OF_COLUMNS;
 
@@ -49,33 +54,40 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2OutputBytes<F>> {
     }
 }
 
-#[must_use]
-pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
-    let data = col_map().map(Column::from);
-    let mut data_cols = vec![];
-    data_cols.push(data.clk);
-    data_cols.push(data.output_addr);
-    data_cols.extend(data.output_fields.to_vec());
-    data_cols
+columns_view_impl!(Poseidon2OutputBytesCtl);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct Poseidon2OutputBytesCtl<F> {
+    pub clk: F,
+    pub output_addr: F,
+    pub output_fields: [F; FIELDS_COUNT],
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
-    col_map().map(Column::from).is_executed
+pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2OutputBytesCtl<Column>> {
+    Poseidon2OutputBytesTable::new(
+        Poseidon2OutputBytesCtl {
+            clk: COL_MAP.clk,
+            output_addr: COL_MAP.output_addr,
+            output_fields: COL_MAP.output_fields,
+        },
+        COL_MAP.is_executed,
+    )
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
-pub fn data_for_output_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
+pub fn lookup_for_output_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
     assert!(limb_index < 32, "limb_index can be 0..31");
-    let data = col_map().map(Column::from);
-    vec![
-        data.clk,
-        Column::constant(F::ONE),                            // is_store
-        Column::constant(F::ZERO),                           // is_load
-        data.output_bytes[limb_index as usize].clone(),      // value
-        data.output_addr + F::from_canonical_u8(limb_index), // address
-    ]
+    Poseidon2OutputBytesTable::new(
+        MemoryCtl {
+            clk: COL_MAP.clk,
+            is_store: ColumnWithTypedInput::constant(1),
+            is_load: ColumnWithTypedInput::constant(0),
+            value: COL_MAP.output_bytes[limb_index as usize],
+            addr: COL_MAP.output_addr + i64::from(limb_index),
+        },
+        COL_MAP.is_executed,
+    )
 }
-
-#[must_use]
-pub fn filter_for_output_memory<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed }

@@ -1,19 +1,79 @@
+use std::iter::zip;
+
 use iter_fixed::IntoIteratorFixed;
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{
+    HashOut, HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS,
+};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::VerifierCircuitTarget;
+use plonky2::plonk::config::Hasher;
 
+pub mod accumulate_event;
+pub mod bounded;
 pub mod make_tree;
 pub mod merge;
+pub mod propagate;
+pub mod state_from_event;
 pub mod state_update;
 pub mod summarized;
 pub mod unbounded;
 pub mod unpruned;
 pub mod verify_address;
+pub mod verify_event;
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum EventType {
+    Write = 0,
+    Ensure = 1,
+    Read = 2,
+    GiveOwner = 3,
+    TakeOwner = 4,
+    CreditDelta = 5,
+}
+
+impl EventType {
+    fn constant<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> Target
+    where
+        F: RichField + Extendable<D>, {
+        builder.constant(F::from_canonical_u64(self as u64))
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct Event<F> {
+    owner: [F; 4],
+    ty: EventType,
+    address: u64,
+    value: [F; 4],
+}
+
+impl<F: RichField> Event<F> {
+    pub fn bytes(self) -> impl Iterator<Item = F> {
+        chain!(
+            self.owner,
+            [self.ty as u64, self.address].map(F::from_canonical_u64),
+            self.value
+        )
+    }
+
+    pub fn hash(self) -> HashOut<F> {
+        let bytes = self.bytes().collect_vec();
+        Poseidon2Hash::hash_no_pad(&bytes)
+    }
+
+    pub fn byte_wise_hash(self) -> HashOut<F> {
+        let bytes = self
+            .bytes()
+            .flat_map(|v| v.to_canonical_u64().to_le_bytes())
+            .map(|v| F::from_canonical_u8(v))
+            .collect_vec();
+        Poseidon2Hash::hash_no_pad(&bytes)
+    }
+}
 
 /// Computes `if b { h0 } else { h1 }`.
 pub(crate) fn select_hash<F, const D: usize>(
@@ -193,4 +253,110 @@ where
 
     // Select the hash based on presence
     hash_or_forward(builder, left_non_zero, left, right_non_zero, right)
+}
+
+/// Guarantee at least one `BoolTarget` is `true`.
+/// Does nothing if no targets are provided
+fn at_least_one_true<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    targets: impl IntoIterator<Item = BoolTarget>,
+) where
+    F: RichField + Extendable<D>, {
+    let mut targets = targets.into_iter();
+    let Some(first) = targets.next() else { return };
+
+    // Sum all the booleans
+    let total = targets.fold(first.target, |total, i| builder.add(total, i.target));
+
+    // If all booleans were 0, self-division will be unsatisfiable
+    builder.div(total, total);
+}
+
+/// Finds the index of a target `t` in an array. Useful for getting and
+/// labelling the indices for public inputs.
+fn find_target(targets: &[Target], t: Target) -> usize {
+    targets
+        .iter()
+        .position(|&pi| pi == t)
+        .expect("target not found")
+}
+
+/// Finds the index of a boolean target `t` in an array. Useful for getting and
+/// labelling the indices for public inputs.
+fn find_bool(targets: &[Target], t: BoolTarget) -> usize { find_target(targets, t.target) }
+
+/// Finds the indices of targets `ts` in an array. Useful for getting and
+/// labelling the indices for public inputs.
+fn find_targets<const N: usize>(targets: &[Target], ts: [Target; N]) -> [usize; N] {
+    ts.map(|t| find_target(targets, t))
+}
+
+/// Finds the indices of the target elements of `ts` in an array. Useful for
+/// getting and labelling the indices for public inputs.
+fn find_hash(targets: &[Target], ts: HashOutTarget) -> [usize; NUM_HASH_OUT_ELTS] {
+    find_targets(targets, ts.elements)
+}
+
+/// Connects `x` to `v` if `maybe_v` is true
+fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    x: [Target; N],
+    maybe_v: BoolTarget,
+    v: [Target; N],
+) {
+    // Loop over the limbs
+    for (parent, child) in zip(x, v) {
+        let child = builder.select(maybe_v, child, parent);
+        builder.connect(parent, child);
+    }
+}
+
+fn hash_event<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    owner: [Target; 4],
+    ty: Target,
+    address: Target,
+    value: [Target; 4],
+) -> HashOutTarget {
+    builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(chain!(owner, [ty, address], value,).collect())
+}
+
+fn byte_wise_hash_event<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    owner: [Target; 4],
+    ty: Target,
+    address: Target,
+    value: [Target; 4],
+) -> HashOutTarget {
+    byte_wise_hash(builder, chain!(owner, [ty, address], value).collect())
+}
+
+fn split_bytes<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    mut source: Target,
+) -> [Target; 8] {
+    [(); 8]
+        .into_iter_fixed()
+        .enumerate()
+        .map(|(i, ())| {
+            if i == 7 {
+                source
+            } else {
+                let (lo, rest) = builder.split_low_high(source, 8, 64 - 8 * i);
+                source = rest;
+                lo
+            }
+        })
+        .collect()
+}
+
+fn byte_wise_hash<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    inputs: Vec<Target>,
+) -> HashOutTarget {
+    let bytes = inputs
+        .into_iter()
+        .flat_map(|v| split_bytes(builder, v))
+        .collect();
+    builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(bytes)
 }

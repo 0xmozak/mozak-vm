@@ -1,7 +1,8 @@
-#![cfg_attr(target_os = "zkvm", no_main)]
+#![cfg_attr(target_os = "mozakvm", no_main)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
 pub fn min_max() -> Vec<u8> {
@@ -13,7 +14,7 @@ pub fn min_max() -> Vec<u8> {
 
 pub fn main() {
     let result = min_max();
-    guest::env::write(&result);
+    mozak_sdk::core::env::write(&result);
 }
 
-guest::entry!(main);
+mozak_sdk::entry!(main);

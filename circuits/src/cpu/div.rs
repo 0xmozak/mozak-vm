@@ -17,7 +17,6 @@ use crate::cpu::mul::{bit_to_sign, bit_to_sign_extension};
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// Constraints for DIV / REM / DIVU / REMU / SRL / SRA instructions
-#[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -274,7 +273,8 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code, u32_extra};
+    use mozak_runner::test_utils::u32_extra;
+    use mozak_runner::util::execute_code;
     use proptest::prelude::{prop_assert_eq, ProptestConfig};
     use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert, proptest};

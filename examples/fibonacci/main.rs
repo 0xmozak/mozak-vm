@@ -1,4 +1,4 @@
-#![cfg_attr(target_os = "zkvm", no_main)]
+#![cfg_attr(target_os = "mozakvm", no_main)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use core::{assert, assert_eq};
@@ -18,7 +18,7 @@ pub fn main() {
     let (high, low) = fibonacci(40);
     assert!(low == 63245986);
     assert_eq!(high, 0);
-    guest::env::write(&high.to_le_bytes());
+    mozak_sdk::core::env::write(&high.to_le_bytes());
 }
 
-guest::entry!(main);
+mozak_sdk::entry!(main);

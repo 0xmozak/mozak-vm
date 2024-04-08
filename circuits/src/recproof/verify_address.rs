@@ -1,12 +1,6 @@
-//! Subcircuits for recursively proving addresses of select leaves of a merkle
+//! Subcircuits for recursively proving addresses of leaves of a merkle
 //! tree are correct.
-//!
-//! These subcircuits are pseudo-recursive, building on top of each other to
-//! create the next level up of the merkle tree. "Pseudo-" here means the height
-//! must be fixed ahead of time and not depend on the content.
-//!
-//! These subcircuits are useful to prove knowledge of a selected subset of
-//! nodes.
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
@@ -14,7 +8,9 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-#[derive(Copy, Clone)]
+use super::{find_bool, find_target};
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
     pub node_present: usize,
     pub node_address: usize,
@@ -37,7 +33,8 @@ impl PublicIndices {
         public_inputs[self.node_address] = v;
     }
 }
-pub struct LeafInputs {
+
+pub struct SubCircuitInputs {
     pub node_present: BoolTarget,
 
     /// The address of this node or `-1` if absent
@@ -51,7 +48,7 @@ pub struct LeafTargets {
     pub node_address: Target,
 }
 
-impl LeafInputs {
+impl SubCircuitInputs {
     pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
     where
         F: RichField + Extendable<D>, {
@@ -66,7 +63,7 @@ impl LeafInputs {
     }
 
     #[must_use]
-    pub fn build<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> LeafTargets
+    pub fn build_leaf<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> LeafTargets
     where
         F: RichField + Extendable<D>, {
         let Self {
@@ -96,14 +93,8 @@ impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
-            node_present: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_present.target)
-                .expect("target not found"),
-            node_address: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_address)
-                .expect("target not found"),
+            node_present: find_bool(public_inputs, self.node_present),
+            node_address: find_target(public_inputs, self.node_address),
         };
         LeafSubCircuit {
             targets: self,
@@ -113,15 +104,15 @@ impl LeafTargets {
 }
 
 impl LeafSubCircuit {
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         node_address: Option<u64>,
     ) {
-        self.set_inputs_unsafe(inputs, node_address.is_some(), node_address);
+        self.set_witness_unsafe(inputs, node_address.is_some(), node_address);
     }
 
-    fn set_inputs_unsafe<F: RichField>(
+    fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         node_present: bool,
@@ -133,75 +124,44 @@ impl LeafSubCircuit {
     }
 }
 
-pub struct BranchInputs {
-    pub node_present: BoolTarget,
-
-    /// The address of this node or `-1` if absent.
-    /// This should be the half the value of the child addresses
-    pub node_address: Target,
-}
-
 pub struct BranchTargets {
+    /// The public inputs
+    pub inputs: SubCircuitInputs,
+
     /// The left direction
     /// Should have an even address which is one less than `right`
-    pub left: BranchDirectionTargets,
+    pub left: SubCircuitInputs,
 
     /// The right direction
     /// Should have an odd address which is one more than `left`
-    pub right: BranchDirectionTargets,
-
-    pub node_present: BoolTarget,
-
-    /// The address of this node or `-1` if absent
-    /// This should be the half the value of the child addresses
-    pub node_address: Target,
+    pub right: SubCircuitInputs,
 }
 
-pub struct BranchDirectionTargets {
-    pub node_present: BoolTarget,
-
-    /// The address of this node or `-1` if absent
-    pub node_address: Target,
-}
-
-impl BranchInputs {
-    pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
-    where
-        F: RichField + Extendable<D>, {
-        let node_present = builder.add_virtual_bool_target_safe();
-        let node_address = builder.add_virtual_target();
-        builder.register_public_input(node_present.target);
-        builder.register_public_input(node_address);
-        Self {
-            node_present,
-            node_address,
-        }
-    }
-
+impl SubCircuitInputs {
     fn direction_from_node<const D: usize>(
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
-    ) -> BranchDirectionTargets {
+    ) -> SubCircuitInputs {
         let node_present = indices.get_node_present(&proof.public_inputs);
         let node_present = BoolTarget::new_unsafe(node_present);
         let node_address = indices.get_node_address(&proof.public_inputs);
 
-        BranchDirectionTargets {
+        SubCircuitInputs {
             node_present,
             node_address,
         }
     }
 
-    fn build_helper<F: RichField + Extendable<D>, const D: usize>(
+    pub fn build_branch<F: RichField + Extendable<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
-        left: BranchDirectionTargets,
-        right: BranchDirectionTargets,
+        indices: &PublicIndices,
+        left_proof: &ProofWithPublicInputsTarget<D>,
+        right_proof: &ProofWithPublicInputsTarget<D>,
     ) -> BranchTargets {
-        let Self {
-            node_present,
-            node_address,
-        } = self;
+        let left = Self::direction_from_node(left_proof, indices);
+        let right = Self::direction_from_node(right_proof, indices);
+
         let one = builder.one();
         let two = builder.two();
 
@@ -226,84 +186,34 @@ impl BranchInputs {
         let parent = builder.select(l_present, l_parent, r_parent);
         let node_address_calc = builder.select(node_present_calc, parent, l_address);
 
-        builder.connect(node_present_calc.target, node_present.target);
-        builder.connect(node_address_calc, node_address);
+        builder.connect(node_present_calc.target, self.node_present.target);
+        builder.connect(node_address_calc, self.node_address);
 
         BranchTargets {
+            inputs: self,
             left,
             right,
-            node_present,
-            node_address,
         }
-    }
-
-    #[must_use]
-    pub fn from_leaf<F: RichField + Extendable<D>, const D: usize>(
-        self,
-        builder: &mut CircuitBuilder<F, D>,
-        leaf: &LeafSubCircuit,
-        left_proof: &ProofWithPublicInputsTarget<D>,
-        right_proof: &ProofWithPublicInputsTarget<D>,
-    ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, &leaf.indices);
-        let right = Self::direction_from_node(right_proof, &leaf.indices);
-        self.build_helper(builder, left, right)
-    }
-
-    pub fn from_branch<F: RichField + Extendable<D>, const D: usize>(
-        self,
-        builder: &mut CircuitBuilder<F, D>,
-        branch: &BranchSubCircuit,
-        left_proof: &ProofWithPublicInputsTarget<D>,
-        right_proof: &ProofWithPublicInputsTarget<D>,
-    ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, &branch.indices);
-        let right = Self::direction_from_node(right_proof, &branch.indices);
-        self.build_helper(builder, left, right)
     }
 }
 
 pub struct BranchSubCircuit {
     pub targets: BranchTargets,
     pub indices: PublicIndices,
-    /// The distance from the leaves (`0` being the lowest branch)
-    /// Used for debugging
-    pub dbg_height: usize,
 }
 
 impl BranchTargets {
-    fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices {
-        PublicIndices {
-            node_present: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_present.target)
-                .expect("target not found"),
-            node_address: public_inputs
-                .iter()
-                .position(|&pi| pi == self.node_address)
-                .expect("target not found"),
-        }
-    }
-
     #[must_use]
-    pub fn from_leaf(self, public_inputs: &[Target]) -> BranchSubCircuit {
-        BranchSubCircuit {
-            indices: self.get_indices(public_inputs),
-            targets: self,
-            dbg_height: 0,
-        }
-    }
+    pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit {
+        let indices = PublicIndices {
+            node_present: find_bool(public_inputs, self.inputs.node_present),
+            node_address: find_target(public_inputs, self.inputs.node_address),
+        };
+        debug_assert_eq!(indices, *child);
 
-    #[must_use]
-    pub fn from_branch(
-        self,
-        branch: &BranchSubCircuit,
-        public_inputs: &[Target],
-    ) -> BranchSubCircuit {
         BranchSubCircuit {
-            indices: self.get_indices(public_inputs),
+            indices,
             targets: self,
-            dbg_height: branch.dbg_height + 1,
         }
     }
 }
@@ -312,23 +222,23 @@ impl BranchSubCircuit {
     /// This call is actually totally unnecessary, as the parent will
     /// be calculated from the child proofs, but it can be used to verify
     /// the parent is what you think it is.
-    pub fn set_inputs<F: RichField>(
+    pub fn set_witness<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         node_address: Option<u64>,
     ) {
-        self.set_inputs_unsafe(inputs, node_address.is_some(), node_address);
+        self.set_witness_unsafe(inputs, node_address.is_some(), node_address);
     }
 
-    fn set_inputs_unsafe<F: RichField>(
+    fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         node_present: bool,
         node_address: Option<u64>,
     ) {
         let node_address = node_address.map_or(F::ZERO.sub_one(), F::from_canonical_u64);
-        inputs.set_bool_target(self.targets.node_present, node_present);
-        inputs.set_target(self.targets.node_address, node_address);
+        inputs.set_bool_target(self.targets.inputs.node_present, node_present);
+        inputs.set_target(self.targets.inputs.node_address, node_address);
     }
 }
 
@@ -336,13 +246,16 @@ impl BranchSubCircuit {
 mod test {
     use anyhow::Result;
     use iter_fixed::IntoIteratorFixed;
+    use lazy_static::lazy_static;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::test_utils::{C, D, F};
+    use crate::recproof::bounded;
+    use crate::test_utils::{fast_test_circuit_config, C, D, F};
 
     pub struct DummyLeafCircuit {
+        pub bounded: bounded::LeafSubCircuit,
         pub address: LeafSubCircuit,
         pub circuit: CircuitData<F, C, D>,
     }
@@ -352,17 +265,29 @@ mod test {
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-            let address_inputs = LeafInputs::default(&mut builder);
-            let address_targets = address_inputs.build(&mut builder);
-            let circuit = builder.build();
-            let address = address_targets.build(&circuit.prover_only.public_inputs);
+            let bounded_inputs = bounded::SubCircuitInputs::default(&mut builder);
+            let address_inputs = SubCircuitInputs::default(&mut builder);
 
-            Self { address, circuit }
+            let bounded_targets = bounded_inputs.build_leaf(&mut builder);
+            let address_targets = address_inputs.build_leaf(&mut builder);
+
+            let circuit = builder.build();
+
+            let public_inputs = &circuit.prover_only.public_inputs;
+            let bounded = bounded_targets.build(public_inputs);
+            let address = address_targets.build(public_inputs);
+
+            Self {
+                bounded,
+                address,
+                circuit,
+            }
         }
 
         pub fn prove(&self, node_address: Option<u64>) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.address.set_inputs(&mut inputs, node_address);
+            self.bounded.set_witness(&mut inputs);
+            self.address.set_witness(&mut inputs, node_address);
             self.circuit.prove(inputs)
         }
 
@@ -372,128 +297,108 @@ mod test {
             node_address: Option<u64>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
+            self.bounded.set_witness(&mut inputs);
             self.address
-                .set_inputs_unsafe(&mut inputs, node_present, node_address);
+                .set_witness_unsafe(&mut inputs, node_present, node_address);
             self.circuit.prove(inputs)
         }
     }
 
     pub struct DummyBranchCircuit {
+        pub bounded: bounded::BranchSubCircuit<D>,
         pub address: BranchSubCircuit,
         pub circuit: CircuitData<F, C, D>,
-        pub targets: DummyBranchTargets,
-    }
-
-    pub struct DummyBranchTargets {
-        pub left_proof: ProofWithPublicInputsTarget<D>,
-        pub right_proof: ProofWithPublicInputsTarget<D>,
     }
 
     impl DummyBranchCircuit {
         #[must_use]
-        pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
+        pub fn new(
+            circuit_config: &CircuitConfig,
+            indices: &PublicIndices,
+            child: &CircuitData<F, C, D>,
+        ) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-            let circuit_data = &leaf.circuit;
-            let common = &circuit_data.common;
-            let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
-            let left_proof = builder.add_virtual_proof_with_pis(common);
-            let right_proof = builder.add_virtual_proof_with_pis(common);
-            let address_inputs = BranchInputs::default(&mut builder);
+            let bounded_inputs = bounded::SubCircuitInputs::default(&mut builder);
+            let address_inputs = SubCircuitInputs::default(&mut builder);
 
-            builder.verify_proof::<C>(&left_proof, &verifier, common);
-            builder.verify_proof::<C>(&right_proof, &verifier, common);
-            let address_targets =
-                address_inputs.from_leaf(&mut builder, &leaf.address, &left_proof, &right_proof);
-            let targets = DummyBranchTargets {
-                left_proof,
-                right_proof,
-            };
+            let bounded_targets = bounded_inputs.build_branch(&mut builder, child);
+            let address_targets = address_inputs.build_branch(
+                &mut builder,
+                indices,
+                &bounded_targets.left_proof,
+                &bounded_targets.right_proof,
+            );
 
             let circuit = builder.build();
-            let address = address_targets.from_leaf(&circuit.prover_only.public_inputs);
+
+            let public_inputs = &circuit.prover_only.public_inputs;
+            let bounded = bounded_targets.build(public_inputs);
+            let address = address_targets.build(indices, public_inputs);
 
             Self {
+                bounded,
                 address,
                 circuit,
-                targets,
             }
         }
 
-        pub fn from_branch(circuit_config: &CircuitConfig, branch: &DummyBranchCircuit) -> Self {
-            let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+        #[must_use]
+        pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
+            Self::new(circuit_config, &leaf.address.indices, &leaf.circuit)
+        }
 
-            let circuit_data = &branch.circuit;
-            let common = &circuit_data.common;
-            let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
-            let left_proof = builder.add_virtual_proof_with_pis(common);
-            let right_proof = builder.add_virtual_proof_with_pis(common);
-            let address_inputs = BranchInputs::default(&mut builder);
-
-            builder.verify_proof::<C>(&left_proof, &verifier, common);
-            builder.verify_proof::<C>(&right_proof, &verifier, common);
-            let address_targets = address_inputs.from_branch(
-                &mut builder,
-                &branch.address,
-                &left_proof,
-                &right_proof,
-            );
-            let targets = DummyBranchTargets {
-                left_proof,
-                right_proof,
-            };
-
-            let circuit = builder.build();
-            let address =
-                address_targets.from_branch(&branch.address, &circuit.prover_only.public_inputs);
-
-            Self {
-                address,
-                circuit,
-                targets,
-            }
+        #[must_use]
+        pub fn from_branch(circuit_config: &CircuitConfig, branch: &Self) -> Self {
+            Self::new(circuit_config, &branch.address.indices, &branch.circuit)
         }
 
         pub fn prove(
             &self,
+            node_address: Option<u64>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_proof: &ProofWithPublicInputs<F, C, D>,
-            node_address: Option<u64>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
-            inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
-            self.address.set_inputs(&mut inputs, node_address);
+            self.bounded
+                .set_witness(&mut inputs, left_proof, right_proof);
+            self.address.set_witness(&mut inputs, node_address);
             self.circuit.prove(inputs)
         }
 
         fn prove_unsafe(
             &self,
-            left_proof: &ProofWithPublicInputs<F, C, D>,
-            right_proof: &ProofWithPublicInputs<F, C, D>,
             node_present: bool,
             node_address: Option<u64>,
+            left_proof: &ProofWithPublicInputs<F, C, D>,
+            right_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            inputs.set_proof_with_pis_target(&self.targets.left_proof, left_proof);
-            inputs.set_proof_with_pis_target(&self.targets.right_proof, right_proof);
+            self.bounded
+                .set_witness(&mut inputs, left_proof, right_proof);
             self.address
-                .set_inputs_unsafe(&mut inputs, node_present, node_address);
+                .set_witness_unsafe(&mut inputs, node_present, node_address);
             self.circuit.prove(inputs)
         }
     }
 
+    const CONFIG: CircuitConfig = fast_test_circuit_config();
+
+    lazy_static! {
+        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
+        static ref BRANCH_1: DummyBranchCircuit = DummyBranchCircuit::from_leaf(&CONFIG, &LEAF);
+        static ref BRANCH_2: DummyBranchCircuit =
+            DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1);
+    }
+
     #[test]
     fn verify_leaf() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let circuit = DummyLeafCircuit::new(&circuit_config);
-
-        let proof = circuit.prove(None)?;
-        circuit.circuit.verify(proof)?;
+        let proof = LEAF.prove(None)?;
+        LEAF.circuit.verify(proof)?;
 
         for i in 0..4 {
-            let proof = circuit.prove(Some(i))?;
-            circuit.circuit.verify(proof)?;
+            let proof = LEAF.prove(Some(i))?;
+            LEAF.circuit.verify(proof)?;
         }
 
         Ok(())
@@ -502,61 +407,45 @@ mod test {
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_zero_leaf() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let circuit = DummyLeafCircuit::new(&circuit_config);
-
-        let proof = circuit.prove_unsafe(true, None).unwrap();
-        circuit.circuit.verify(proof).unwrap();
+        let proof = LEAF.prove_unsafe(true, None).unwrap();
+        LEAF.circuit.verify(proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_non_zero_leaf() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let circuit = DummyLeafCircuit::new(&circuit_config);
-
-        let proof = circuit.prove_unsafe(false, Some(5)).unwrap();
-        circuit.circuit.verify(proof).unwrap();
+        let proof = LEAF.prove_unsafe(false, Some(5)).unwrap();
+        LEAF.circuit.verify(proof).unwrap();
     }
 
     #[test]
     fn verify_branch() -> Result<()> {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf_circuit = DummyLeafCircuit::new(&circuit_config);
-        let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
-        let branch_circuit_2 = DummyBranchCircuit::from_branch(&circuit_config, &branch_circuit_1);
-
         // Leaf proofs
-        let zero_proof = leaf_circuit.prove(None)?;
-        leaf_circuit.circuit.verify(zero_proof.clone())?;
+        let zero_proof = LEAF.prove(None)?;
+        LEAF.circuit.verify(zero_proof.clone())?;
 
         let leaf_proofs: [_; 4] = [0u8; 4]
             .into_iter_fixed()
             .enumerate()
             .map(|(i, _)| {
-                let non_zero_proof = leaf_circuit.prove(Some(i as u64)).unwrap();
-                leaf_circuit.circuit.verify(non_zero_proof.clone()).unwrap();
+                let non_zero_proof = LEAF.prove(Some(i as u64)).unwrap();
+                LEAF.circuit.verify(non_zero_proof.clone()).unwrap();
                 non_zero_proof
             })
             .collect();
 
         // Branch proofs
-        let empty_branch_proof = branch_circuit_1.prove(&zero_proof, &zero_proof, None)?;
-        branch_circuit_1
-            .circuit
-            .verify(empty_branch_proof.clone())?;
+        let empty_branch_proof = BRANCH_1.prove(None, &zero_proof, &zero_proof)?;
+        BRANCH_1.circuit.verify(empty_branch_proof.clone())?;
 
         let left_branch_proofs: [_; 2] = [0u8; 2]
             .into_iter_fixed()
             .enumerate()
             .map(|(i, _)| {
-                let non_zero_proof = branch_circuit_1
-                    .prove(&leaf_proofs[i * 2], &zero_proof, Some(i as u64))
+                let non_zero_proof = BRANCH_1
+                    .prove(Some(i as u64), &leaf_proofs[i * 2], &zero_proof)
                     .unwrap();
-                branch_circuit_1
-                    .circuit
-                    .verify(non_zero_proof.clone())
-                    .unwrap();
+                BRANCH_1.circuit.verify(non_zero_proof.clone()).unwrap();
                 non_zero_proof
             })
             .collect();
@@ -565,13 +454,10 @@ mod test {
             .into_iter_fixed()
             .enumerate()
             .map(|(i, _)| {
-                let non_zero_proof = branch_circuit_1
-                    .prove(&zero_proof, &leaf_proofs[i * 2 + 1], Some(i as u64))
+                let non_zero_proof = BRANCH_1
+                    .prove(Some(i as u64), &zero_proof, &leaf_proofs[i * 2 + 1])
                     .unwrap();
-                branch_circuit_1
-                    .circuit
-                    .verify(non_zero_proof.clone())
-                    .unwrap();
+                BRANCH_1.circuit.verify(non_zero_proof.clone()).unwrap();
                 non_zero_proof
             })
             .collect();
@@ -580,33 +466,30 @@ mod test {
             .into_iter_fixed()
             .enumerate()
             .map(|(i, _)| {
-                let non_zero_proof = branch_circuit_1
-                    .prove(&leaf_proofs[i * 2], &leaf_proofs[i * 2 + 1], Some(i as u64))
+                let non_zero_proof = BRANCH_1
+                    .prove(Some(i as u64), &leaf_proofs[i * 2], &leaf_proofs[i * 2 + 1])
                     .unwrap();
-                branch_circuit_1
-                    .circuit
-                    .verify(non_zero_proof.clone())
-                    .unwrap();
+                BRANCH_1.circuit.verify(non_zero_proof.clone()).unwrap();
                 non_zero_proof
             })
             .collect();
 
         // Double branch proofs
         let empty_branch_2_proof =
-            branch_circuit_2.prove(&empty_branch_proof, &empty_branch_proof, None)?;
-        branch_circuit_2.circuit.verify(empty_branch_2_proof)?;
+            BRANCH_2.prove(None, &empty_branch_proof, &empty_branch_proof)?;
+        BRANCH_2.circuit.verify(empty_branch_2_proof)?;
 
         let branches = [left_branch_proofs, right_branch_proofs, full_branch_proofs];
         for b in &branches {
-            let non_zero_proof = branch_circuit_2.prove(&b[0], &empty_branch_proof, Some(0))?;
-            branch_circuit_2.circuit.verify(non_zero_proof)?;
+            let non_zero_proof = BRANCH_2.prove(Some(0), &b[0], &empty_branch_proof)?;
+            BRANCH_2.circuit.verify(non_zero_proof)?;
 
-            let non_zero_proof = branch_circuit_2.prove(&empty_branch_proof, &b[1], Some(0))?;
-            branch_circuit_2.circuit.verify(non_zero_proof)?;
+            let non_zero_proof = BRANCH_2.prove(Some(0), &empty_branch_proof, &b[1])?;
+            BRANCH_2.circuit.verify(non_zero_proof)?;
 
             for b2 in &branches {
-                let non_zero_proof = branch_circuit_2.prove(&b[0], &b2[1], Some(0))?;
-                branch_circuit_2.circuit.verify(non_zero_proof)?;
+                let non_zero_proof = BRANCH_2.prove(Some(0), &b[0], &b2[1])?;
+                BRANCH_2.circuit.verify(non_zero_proof)?;
             }
         }
 
@@ -616,78 +499,54 @@ mod test {
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_proof_branch() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf_circuit = DummyLeafCircuit::new(&circuit_config);
-        let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
+        let zero_proof = LEAF.prove(None).unwrap();
+        LEAF.circuit.verify(zero_proof.clone()).unwrap();
 
-        let zero_proof = leaf_circuit.prove(None).unwrap();
-        leaf_circuit.circuit.verify(zero_proof.clone()).unwrap();
+        let bad_proof = LEAF.prove_unsafe(true, None).unwrap();
 
-        let bad_proof = leaf_circuit.prove_unsafe(true, None).unwrap();
-
-        let empty_branch_proof = branch_circuit_1
-            .prove(&zero_proof, &bad_proof, None)
-            .unwrap();
-        branch_circuit_1.circuit.verify(empty_branch_proof).unwrap();
+        let empty_branch_proof = BRANCH_1.prove(None, &zero_proof, &bad_proof).unwrap();
+        BRANCH_1.circuit.verify(empty_branch_proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_zero_branch() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf_circuit = DummyLeafCircuit::new(&circuit_config);
-        let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
+        let zero_proof = LEAF.prove(None).unwrap();
+        LEAF.circuit.verify(zero_proof.clone()).unwrap();
 
-        let zero_proof = leaf_circuit.prove(None).unwrap();
-        leaf_circuit.circuit.verify(zero_proof.clone()).unwrap();
-
-        let branch_proof = branch_circuit_1
-            .prove_unsafe(&zero_proof, &zero_proof, true, None)
+        let branch_proof = BRANCH_1
+            .prove_unsafe(true, None, &zero_proof, &zero_proof)
             .unwrap();
-        branch_circuit_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(branch_proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_non_zero_branch() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf_circuit = DummyLeafCircuit::new(&circuit_config);
-        let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
+        let zero_proof = LEAF.prove(None).unwrap();
+        LEAF.circuit.verify(zero_proof.clone()).unwrap();
 
-        let zero_proof = leaf_circuit.prove(None).unwrap();
-        leaf_circuit.circuit.verify(zero_proof.clone()).unwrap();
+        let non_zero_proof = LEAF.prove(Some(5)).unwrap();
+        LEAF.circuit.verify(non_zero_proof.clone()).unwrap();
 
-        let non_zero_proof = leaf_circuit.prove(Some(5)).unwrap();
-        leaf_circuit.circuit.verify(non_zero_proof.clone()).unwrap();
-
-        let branch_proof = branch_circuit_1
-            .prove_unsafe(&zero_proof, &non_zero_proof, false, Some(2))
+        let branch_proof = BRANCH_1
+            .prove_unsafe(false, Some(2), &zero_proof, &non_zero_proof)
             .unwrap();
-        branch_circuit_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(branch_proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_wrong_parent_branch() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf_circuit = DummyLeafCircuit::new(&circuit_config);
-        let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
+        let non_zero_proof_1 = LEAF.prove(Some(4)).unwrap();
+        LEAF.circuit.verify(non_zero_proof_1.clone()).unwrap();
 
-        let non_zero_proof_1 = leaf_circuit.prove(Some(4)).unwrap();
-        leaf_circuit
-            .circuit
-            .verify(non_zero_proof_1.clone())
-            .unwrap();
+        let non_zero_proof_2 = LEAF.prove(Some(5)).unwrap();
+        LEAF.circuit.verify(non_zero_proof_2.clone()).unwrap();
 
-        let non_zero_proof_2 = leaf_circuit.prove(Some(5)).unwrap();
-        leaf_circuit
-            .circuit
-            .verify(non_zero_proof_2.clone())
+        let branch_proof = BRANCH_1
+            .prove(Some(3), &non_zero_proof_1, &non_zero_proof_2)
             .unwrap();
-
-        let branch_proof = branch_circuit_1
-            .prove(&non_zero_proof_1, &non_zero_proof_2, Some(3))
-            .unwrap();
-        branch_circuit_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(branch_proof).unwrap();
     }
 }
