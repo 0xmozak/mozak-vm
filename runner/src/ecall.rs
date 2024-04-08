@@ -46,6 +46,17 @@ impl<F: RichField> State<F> {
                 &mut self.call_tape.read_index,
                 num_bytes_requested as usize,
             ),
+            IoOpcode::StoreEventsCommitmentTape => read_bytes(
+                &self.call_tape.data,
+                &mut self.call_tape.read_index,
+                num_bytes_requested as usize,
+            ),
+            IoOpcode::StoreCastListCommitmentTape => read_bytes(
+                &self.call_tape.data,
+                &mut self.call_tape.read_index,
+                num_bytes_requested as usize,
+            ),
+
             IoOpcode::None => panic!(),
         };
         (

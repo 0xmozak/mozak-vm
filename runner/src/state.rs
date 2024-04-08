@@ -60,6 +60,8 @@ pub struct State<F: RichField> {
     pub memory: StateMemory,
     pub io_tape: IoTape,
     pub call_tape: IoTapeData,
+    pub events_commitment_tape: IoTapeData,
+    pub cast_list_commitment_tape: IoTapeData,
     _phantom: PhantomData<F>,
 }
 
@@ -92,6 +94,15 @@ pub struct IoTapeData {
     #[deref]
     pub data: Rc<[u8]>,
     pub read_index: usize,
+}
+
+impl Default for IoTapeData {
+    fn default() -> Self {
+        Self {
+            data: [].into(),
+            read_index: 0,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
@@ -129,10 +140,9 @@ impl<F: RichField> Default for State<F> {
             pc: Default::default(),
             memory: StateMemory::default(),
             io_tape: IoTape::from((vec![], vec![])),
-            call_tape: IoTapeData {
-                data: [].into(),
-                read_index: 0,
-            },
+            call_tape: IoTapeData::default(),
+            events_commitment_tape: IoTapeData::default(),
+            cast_list_commitment_tape: IoTapeData::default(),
             _phantom: PhantomData,
         }
     }
@@ -183,6 +193,8 @@ pub enum IoOpcode {
     StorePrivate,
     StorePublic,
     StoreCallTape,
+    StoreEventsCommitmentTape,
+    StoreCastListCommitmentTape,
 }
 
 #[derive(Debug, Default, Clone)]

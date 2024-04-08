@@ -53,6 +53,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                                 IoOpcode::StorePrivate
                                     | IoOpcode::StorePublic
                                     | IoOpcode::StoreCallTape
+                                    | IoOpcode::StoreEventsCommitmentTape
                             )),
                             is_memory_store: F::ZERO,
                         },
@@ -75,6 +76,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                                     IoOpcode::StorePrivate
                                         | IoOpcode::StorePublic
                                         | IoOpcode::StoreCallTape
+                                        | IoOpcode::StoreCastListCommitmentTape
                                 )),
                             },
                             is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
@@ -103,4 +105,18 @@ pub fn generate_io_memory_public_trace<F: RichField>(
 #[must_use]
 pub fn generate_call_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<InputOutputMemory<F>> {
     generate_io_memory_trace(step_rows, IoOpcode::StoreCallTape)
+}
+
+#[must_use]
+pub fn generate_events_commitment_tape_trace<F: RichField>(
+    step_rows: &[Row<F>],
+) -> Vec<InputOutputMemory<F>> {
+    generate_io_memory_trace(step_rows, IoOpcode::StoreEventsCommitmentTape)
+}
+
+#[must_use]
+pub fn generate_cast_list_commitment_tape_trace<F: RichField>(
+    step_rows: &[Row<F>],
+) -> Vec<InputOutputMemory<F>> {
+    generate_io_memory_trace(step_rows, IoOpcode::StoreCastListCommitmentTape)
 }
