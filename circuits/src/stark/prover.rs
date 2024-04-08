@@ -25,7 +25,7 @@ use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{
-    all_starks_par, MozakStark, TableKind, TableKindArray, TableKindSetBuilder,
+    all_starks, MozakStark, TableKind, TableKindArray, TableKindSetBuilder
 };
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
@@ -358,7 +358,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &Challenger<F, C::Hasher>,
-    _timing: &mut TimingTree,
+    timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
@@ -370,9 +370,9 @@ where
     }
     .build();
 
-    Ok(all_starks_par!(mozak_stark, |stark, kind| {
+    Ok(all_starks!(mozak_stark, |stark, kind| {
         // TODO: fix timing to work in parallel.
-        let mut timing = TimingTree::new(&format!("{stark} Stark Prove"), log::Level::Debug);
+        // let mut timing = TimingTree::new(&format!("{stark} Stark Prove"), log::Level::Debug);
         prove_single_table(
             stark,
             config,
@@ -382,7 +382,7 @@ where
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
             challenger.clone(),
-            &mut timing,
+            timing,
         )
         .unwrap()
     }))
