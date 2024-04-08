@@ -119,7 +119,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
             // each Field element in preimage represents packed data (packed bytes)
             (0..Poseidon2Permutation::<F>::RATE)
                 .flat_map(|fe_index_inside_preimage| {
-                    let base_address = value.input_addr_padded
+                    let base_address = value.input_addr
                         + MozakPoseidon2::data_capacity_fe::<F>()
                             * F::from_canonical_u8(
                                 u8::try_from(fe_index_inside_preimage).expect("i > 255"),

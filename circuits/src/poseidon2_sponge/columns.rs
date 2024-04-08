@@ -38,7 +38,6 @@ pub struct Poseidon2Sponge<T> {
     pub preimage: [T; WIDTH],
     pub output: [T; WIDTH],
     pub gen_output: T,
-    pub input_addr_padded: T,
 }
 
 columns_view_impl!(Poseidon2Sponge);
@@ -127,8 +126,7 @@ pub fn lookup_for_preimage_pack(
         Poseidon2SpongePreimagePackCtl {
             clk: sponge.clk,
             value: sponge.preimage[limb_index as usize], // value
-            fe_addr: sponge.input_addr + i64::from(limb_index), // address
-            byte_addr: sponge.input_addr_padded
+            byte_addr: sponge.input_addr
                 + i64::from(
                     limb_index
                         * u8::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
