@@ -45,9 +45,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let lv = Memory::from_iter(eb.inject_slice(vars.get_local_values()));
-        let nv = Memory::from_iter(eb.inject_slice(vars.get_next_values()));
-        let cb = generate_constraints(&eb, lv, nv);
+        let cb = generate_constraints(&eb, vars);
         build_packed(cb, yield_constr);
     }
 
@@ -60,22 +58,23 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let lv = Memory::from_iter(eb.inject_slice(vars.get_local_values()));
-        let nv = Memory::from_iter(eb.inject_slice(vars.get_next_values()));
-        let cb = generate_constraints(&eb, lv, nv);
+        let cb = generate_constraints(&eb, vars);
         build_ext(cb, circuit_builder, yield_constr);
     }
 }
 
 // A Script to generate constraints
 // Constraints design: https://docs.google.com/presentation/d/1G4tmGl8V1W0Wqxv-MwjGjaM3zUF99dzTvFhpiood4x4/edit?usp=sharing
-fn generate_constraints<'a, V>(
+fn generate_constraints<'a, V, T, const N: usize, const N2: usize>(
     eb: &'a ExprBuilder,
-    lv: Memory<Expr<'a, V>>,
-    nv: Memory<Expr<'a, V>>,
+    vars: &'a StarkFrame<V, T, N, N2>
 ) -> ConstraintBuilder<Expr<'a, V>>
 where
-    V: Copy, {
+    V: Copy + Default + std::fmt::Debug,
+    T: Copy + Default, {
+    let lv = Memory::from_iter(eb.inject_slice(vars.get_local_values()));
+    let nv = Memory::from_iter(eb.inject_slice(vars.get_next_values()));
+
     // TODO(Matthias): add a constraint to forbid two is_init in a row (with the
     // same address).  See `circuits/src/generation/memoryinit.rs` in
     // `a75c8fbc2701a4a6b791b2ff71857795860c5591`
