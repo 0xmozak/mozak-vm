@@ -7,9 +7,7 @@ use plonky2::hash::poseidon2::Poseidon2Permutation;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::poseidon2_sponge::columns::{Ops, Poseidon2Sponge};
 
-fn pad_poseidon2_sponge_trace<F: RichField>(
-    mut trace: Vec<Poseidon2Sponge<F>>,
-) -> Vec<Poseidon2Sponge<F>> {
+fn pad_trace<F: RichField>(mut trace: Vec<Poseidon2Sponge<F>>) -> Vec<Poseidon2Sponge<F>> {
     trace.resize(
         trace.len().next_power_of_two().max(MIN_TRACE_LENGTH),
         Poseidon2Sponge::default(),
@@ -61,7 +59,7 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
 pub fn generate_poseidon2_sponge_trace<F: RichField>(
     step_rows: &[Row<F>],
 ) -> Vec<Poseidon2Sponge<F>> {
-    let trace = pad_poseidon2_sponge_trace(
+    let trace = pad_trace(
         filter(step_rows)
             .map(|s| unroll_sponge_data(s))
             .collect_vec()

@@ -175,16 +175,11 @@ pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Posei
 mod test {
 
     use plonky2::field::types::Sample;
-    use plonky2::hash::poseidon2::Poseidon2;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::generation::poseidon2::{
-        generate_1st_full_round_state, generate_2st_full_round_state, generate_partial_round_state,
-        FullRoundOutput,
-    };
-    use crate::generation::MIN_TRACE_LENGTH;
-    use crate::poseidon2::columns::{Poseidon2State, ROUNDS_F, STATE_SIZE};
+    use super::*;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
+
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
