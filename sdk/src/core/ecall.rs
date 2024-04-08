@@ -1,3 +1,4 @@
+#![cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 #[cfg(target_os = "mozakvm")]
 use core::arch::asm;
 
@@ -24,8 +25,6 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
     }
 }
 
-#[allow(dead_code)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -43,10 +42,6 @@ pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
     }
 }
 
-#[allow(dead_code)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[allow(clippy::ptr_as_ptr)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -63,10 +58,6 @@ pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[allow(clippy::ptr_as_ptr)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -83,10 +74,6 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[allow(clippy::ptr_as_ptr)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
@@ -103,8 +90,6 @@ pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn panic(msg_ptr: *const u8, msg_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -121,8 +106,6 @@ pub fn panic(msg_ptr: *const u8, msg_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn trace(msg_ptr: *const u8, msg_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -139,8 +122,6 @@ pub fn trace(msg_ptr: *const u8, msg_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn halt(output: u8) {
     #[cfg(target_os = "mozakvm")]
     // HALT ecall
