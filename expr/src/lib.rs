@@ -6,7 +6,7 @@ use bumpalo::Bump;
 
 /// Publicly available struct.  Contains a reference to [`ExprTree`] that is
 /// managed by [`ExprBuilder`].
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Expr<'a, V> {
     expr_tree: &'a ExprTree<'a, V>,
     builder: &'a ExprBuilder,
@@ -32,6 +32,7 @@ impl<'a, V> Mul for Expr<'a, V> {
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate
 /// store all the [`ExprTree`]s.
+#[derive(Debug)]
 pub struct ExprBuilder {
     bump: Bump,
 }
@@ -64,7 +65,9 @@ impl ExprBuilder {
     pub fn lit<V>(&self, value: V) -> Expr<'_, V> { self.intern(ExprTree::Literal { value }) }
 
     /// Create a `Constant` expression
-    pub fn constant<V>(&self, value: i64) -> Expr<'_, V> { self.intern(ExprTree::Constant { value }) }
+    pub fn constant<V>(&self, value: i64) -> Expr<'_, V> {
+        self.intern(ExprTree::Constant { value })
+    }
 
     /// Create a `One` expression
     pub fn one<V>(&self) -> Expr<'_, V> { self.constant(1i64) }
@@ -88,6 +91,12 @@ impl ExprBuilder {
     where
         V: Copy, {
         x * (self.one() - x)
+    }
+
+    pub fn inject_slice<'a, V>(&'a self, items: &'a [V]) -> impl IntoIterator<Item = Expr<'a, V>>
+    where
+        V: Copy, {
+        items.iter().map(|x| self.lit(*x))
     }
 }
 

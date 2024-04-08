@@ -12,7 +12,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, Constraint, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::memory::columns::Memory;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -45,11 +45,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let lv: &Memory<_> = vars.get_local_values().into();
-        let lv = lv.map(|x| eb.lit(x));
-        let nv: &Memory<_> = vars.get_next_values().into();
-        let nv = nv.map(|x| eb.lit(x));
-        let cb = generate_constraints(&eb, lv, nv).into();
+        let lv = Memory::from_iter(eb.inject_slice(vars.get_local_values()));
+        let nv = Memory::from_iter(eb.inject_slice(vars.get_next_values()));
+        let cb = generate_constraints(&eb, lv, nv);
         build_packed(cb, yield_constr);
     }
 
@@ -62,11 +60,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let lv: &Memory<_> = vars.get_local_values().into();
-        let lv = lv.map(|x| eb.lit(x));
-        let nv: &Memory<_> = vars.get_next_values().into();
-        let nv = nv.map(|x| eb.lit(x));
-        let cb = generate_constraints(&eb, lv, nv).into();
+        let lv = Memory::from_iter(eb.inject_slice(vars.get_local_values()));
+        let nv = Memory::from_iter(eb.inject_slice(vars.get_next_values()));
+        let cb = generate_constraints(&eb, lv, nv);
         build_ext(cb, circuit_builder, yield_constr);
     }
 }
@@ -77,7 +73,7 @@ fn generate_constraints<'a, V>(
     eb: &'a ExprBuilder,
     lv: Memory<Expr<'a, V>>,
     nv: Memory<Expr<'a, V>>,
-) -> Vec<Constraint<Expr<'a, V>>>
+) -> ConstraintBuilder<Expr<'a, V>>
 where
     V: Copy, {
     // TODO(Matthias): add a constraint to forbid two is_init in a row (with the
@@ -199,7 +195,7 @@ where
     // Note: nv.diff_addr_inv != 0 IFF: lv.addr != nv.addr
     cb.constraint_transition((diff_addr * nv.diff_addr_inv) - nv.is_init);
 
-    cb.collect()
+    cb
 }
 
 #[cfg(test)]
