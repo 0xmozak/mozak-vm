@@ -12,6 +12,10 @@ pub const IO_READ_CAST_LIST_COMMITMENT_TAPE: u32 = 7;
 /// Syscall to output the VM trace log at `clk`. Useful for debugging.
 pub const VM_TRACE_LOG: u32 = 8;
 
+/// The number of bytes requested for events commitment tape and
+/// cast list commitment tape is hardcoded to 32 bytes.
+pub const COMMITMENT_SIZE: usize = 32;
+
 #[must_use]
 pub fn log<'a>(raw_id: u32) -> &'a str {
     match raw_id {
@@ -108,14 +112,14 @@ pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 #[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
-pub fn events_commitment_tape_read(buf_ptr: *mut u8, buf_len: usize) {
+pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
         in ("a0") IO_READ_EVENTS_COMMITMENT_TAPE,
         in ("a1") buf_ptr,
-        in ("a2") buf_len,
+        in ("a2") COMMITMENT_SIZE,
         );
     }
     #[cfg(not(target_os = "mozakvm"))]
@@ -125,14 +129,14 @@ pub fn events_commitment_tape_read(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 #[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
-pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8, buf_len: usize) {
+pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
         in ("a0") IO_READ_CAST_LIST_COMMITMENT_TAPE,
         in ("a1") buf_ptr,
-        in ("a2") buf_len,
+        in ("a2") COMMITMENT_SIZE,
         );
     }
     #[cfg(not(target_os = "mozakvm"))]
