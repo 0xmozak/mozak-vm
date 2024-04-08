@@ -124,12 +124,6 @@ pub fn trace(msg_ptr: *const u8, msg_len: usize) {
 
 pub fn halt(output: u8) {
     #[cfg(target_os = "mozakvm")]
-    // HALT ecall
-    //
-    // As per RISC-V Calling Convention a0/a1 (which are actually X10/X11) can be
-    // used as function argument/result.
-    // a0 is used to indicate that its HALT system call.
-    // a1 is used to pass output bytes.
     unsafe {
         asm!(
             "ecall",
