@@ -97,7 +97,7 @@ pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     mem_private: &[InputOutputMemory<F>],
     mem_public: &[InputOutputMemory<F>],
-    mem_transcript: &[InputOutputMemory<F>],
+    mem_call_tape: &[InputOutputMemory<F>],
     reg_init: &[RegisterInit<F>],
 ) -> (
     Vec<RegisterZeroRead<F>>,
@@ -112,7 +112,7 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::Cpu => extract(cpu_trace, &looking_table),
             TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
-            TableKind::IoTranscript => extract(mem_transcript, &looking_table),
+            TableKind::CallTape => extract(mem_call_tape, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
@@ -168,8 +168,7 @@ mod tests {
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::io_memory::{
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
-        generate_io_transcript_trace,
+        generate_call_tape_trace, generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::test_utils::prep_table;
 
@@ -209,13 +208,13 @@ mod tests {
         let cpu_rows = generate_cpu_trace::<F>(&record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
-        let io_transcript = generate_io_transcript_trace(&record.executed);
+        let call_tape = generate_call_tape_trace(&record.executed);
         let register_init = generate_register_init_trace(&record);
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,
-            &io_transcript,
+            &call_tape,
             &register_init,
         );
 

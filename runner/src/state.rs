@@ -182,7 +182,7 @@ pub enum IoOpcode {
     None,
     StorePrivate,
     StorePublic,
-    StoreTranscript,
+    StoreCallTape,
 }
 
 #[derive(Debug, Default, Clone)]
