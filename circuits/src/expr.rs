@@ -146,12 +146,7 @@ pub fn build_ext<F, const D: usize>(
         let mut evaluator = CircuitBuilderEvaluator {
             builder: circuit_builder,
         };
-        let constraint = constraint.map(|constraint| {
-            CircuitBuilderEvaluator {
-                builder: circuit_builder,
-            }
-            .eval(constraint)
-        });
+        let constraint = constraint.map(|constraint| evaluator.eval(constraint));
         (match constraint.constraint_type {
             ConstraintType::FirstRow => RecursiveConstraintConsumer::constraint_first_row,
             ConstraintType::Always => RecursiveConstraintConsumer::constraint,
