@@ -60,9 +60,7 @@ where
         }
     }
 
-    fn constant(&mut self, value: i64) -> P {
-        P::from(FE::from_noncanonical_i64(value))
-    }
+    fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
 }
 
 pub struct Constraint<E> {

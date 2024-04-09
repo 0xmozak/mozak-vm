@@ -67,7 +67,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 // Constraints design: https://docs.google.com/presentation/d/1G4tmGl8V1W0Wqxv-MwjGjaM3zUF99dzTvFhpiood4x4/edit?usp=sharing
 fn generate_constraints<'a, V, T, const N: usize, const N2: usize>(
     eb: &'a ExprBuilder,
-    vars: &'a StarkFrame<V, T, N, N2>
+    vars: &'a StarkFrame<V, T, N, N2>,
 ) -> ConstraintBuilder<Expr<'a, V>>
 where
     V: Copy + Default + std::fmt::Debug,
