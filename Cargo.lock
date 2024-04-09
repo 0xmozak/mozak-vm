@@ -191,9 +191,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.15.4"
+version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ff69b9dd49fd426c69a0db9fc04dd934cdb6645ff000864d98f7e2af8830eaa"
+checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
 name = "byteorder"
@@ -209,9 +209,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.0.91"
+version = "1.0.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fd97381a8cc6493395a5afc4c691c1084b3768db713b73aa215217aa245d153"
+checksum = "2678b2e3449475e95b0aa6f9b506a28e61b3dc8996592b983695e8ebb58a8b41"
 
 [[package]]
 name = "cfg-if"
@@ -985,6 +985,7 @@ dependencies = [
  "plonky2",
  "proptest",
  "rkyv",
+ "rkyv_derive",
  "serde_json",
  "starky",
  "tempfile",
@@ -1043,6 +1044,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rkyv",
+ "rkyv_derive",
  "serde",
  "serde-hex",
  "serde_json",
@@ -1476,9 +1478,9 @@ checksum = "7f02fc3227b019649985d2f89e254e345f027cc58af7bbf5faa4f3f7271bc4cc"
 
 [[package]]
 name = "rkyv"
-version = "0.8.0-alpha.2"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d125265f4bf0016653476f0e6f33757f4d5ce34447473c2b317c1bb28766481"
+checksum = "f11954ea56d7bfee4022704c89d997ca15659bff852ab06dbee5cbeffdc723ed"
 dependencies = [
  "bitvec",
  "hashbrown 0.14.3",
@@ -1491,9 +1493,9 @@ dependencies = [
 
 [[package]]
 name = "rkyv_derive"
-version = "0.8.0-alpha.2"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670836f48c7644bc9f68e507064f0a83984e910a5a5515ac5f496ccf4e109e6b"
+checksum = "5d936536583355d1ef18b9473dbe2a59d0c9ffff278a92c171feb30f2489dd0a"
 dependencies = [
  "proc-macro2",
  "quote",
