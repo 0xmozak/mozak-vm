@@ -32,6 +32,15 @@ impl<InputColumns> ColumnWithTypedInput<InputColumns> {
     }
 }
 
+impl<InputColumns> ColumnWithTypedInput<InputColumns>
+where
+    Self: Copy + Sub<Self, Output = Self>,
+{
+    // TODO(Consider requiring that nv is empty beforehand?
+    #[must_use]
+    pub fn diff(self) -> Self { self.flip() - self }
+}
+
 impl<C> Neg for ColumnWithTypedInput<C>
 where
     C: Neg<Output = C>,
@@ -93,6 +102,24 @@ where
             constant: self
                 .constant
                 .checked_sub(other.constant)
+                .expect("subtraction overflow"),
+        }
+    }
+}
+
+impl<C> Sub<i64> for ColumnWithTypedInput<C>
+where
+    C: Sub<Output = C>,
+{
+    type Output = Self;
+
+    fn sub(self, other: i64) -> Self {
+        Self {
+            lv_linear_combination: self.lv_linear_combination,
+            nv_linear_combination: self.nv_linear_combination,
+            constant: self
+                .constant
+                .checked_sub(other)
                 .expect("subtraction overflow"),
         }
     }
