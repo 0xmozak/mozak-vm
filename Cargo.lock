@@ -1146,7 +1146,7 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 [[package]]
 name = "plonky2"
 version = "0.2.1"
-source = "git+https://github.com/0xmozak/plonky2.git#4312ef9d53297d0bbb3ef844c0db916d4b3cdf95"
+source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1187,7 +1187,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.2.1"
-source = "git+https://github.com/0xmozak/plonky2.git#4312ef9d53297d0bbb3ef844c0db916d4b3cdf95"
+source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
@@ -1202,7 +1202,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#4312ef9d53297d0bbb3ef844c0db916d4b3cdf95"
+source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 dependencies = [
  "rayon",
 ]
@@ -1210,7 +1210,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#4312ef9d53297d0bbb3ef844c0db916d4b3cdf95"
+source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 
 [[package]]
 name = "plotters"
@@ -1468,9 +1468,8 @@ checksum = "7f02fc3227b019649985d2f89e254e345f027cc58af7bbf5faa4f3f7271bc4cc"
 
 [[package]]
 name = "rkyv"
-version = "0.8.0-alpha.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d125265f4bf0016653476f0e6f33757f4d5ce34447473c2b317c1bb28766481"
+version = "0.8.0-alpha.1"
+source = "git+https://github.com/rkyv/rkyv.git?rev=626cb2121b8910feb9402589a21bfe0e4a78b98d#626cb2121b8910feb9402589a21bfe0e4a78b98d"
 dependencies = [
  "bitvec",
  "hashbrown 0.14.3",
@@ -1483,9 +1482,8 @@ dependencies = [
 
 [[package]]
 name = "rkyv_derive"
-version = "0.8.0-alpha.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670836f48c7644bc9f68e507064f0a83984e910a5a5515ac5f496ccf4e109e6b"
+version = "0.8.0-alpha.1"
+source = "git+https://github.com/rkyv/rkyv.git?rev=626cb2121b8910feb9402589a21bfe0e4a78b98d#626cb2121b8910feb9402589a21bfe0e4a78b98d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1676,7 +1674,7 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.3.0"
-source = "git+https://github.com/0xmozak/plonky2.git#4312ef9d53297d0bbb3ef844c0db916d4b3cdf95"
+source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 dependencies = [
  "ahash",
  "anyhow",

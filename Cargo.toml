@@ -50,3 +50,6 @@ lto = "thin"
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
 starky = { git = "https://github.com/0xmozak/plonky2.git" }
+# We need to nail down the exact dependencies, to avoid upgrading to 0.8.0-alpha.2, which has an incompatible API.
+rkyv = { git = "https://github.com/rkyv/rkyv.git", rev = "626cb2121b8910feb9402589a21bfe0e4a78b98d" }
+rkyv_derive = { git = "https://github.com/rkyv/rkyv.git", rev = "626cb2121b8910feb9402589a21bfe0e4a78b98d" }
