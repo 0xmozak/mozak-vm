@@ -1,4 +1,4 @@
-//! Simple library for handling ASTs in Rust
+//! Simple library for handling ASTs for polynomials for ZKP in Rust
 
 use std::ops::{Add, Mul, Sub};
 
