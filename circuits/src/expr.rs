@@ -108,14 +108,12 @@ impl<E> From<Vec<Constraint<E>>> for ConstraintBuilder<E> {
 
 impl<E> ConstraintBuilder<E> {
     #[track_caller]
-    fn constraint(&mut self, constraint: E, ty: ConstraintType) {
-        let location = Location::caller();
-        let c = Constraint {
-            constraint_type: ty,
-            location,
-            term: constraint,
-        };
-        self.constraints.push(c);
+    fn constraint(&mut self, term: E, constraint_type: ConstraintType) {
+        self.constraints.push(Constraint {
+            constraint_type,
+            location: Location::caller(),
+            term,
+        });
     }
 
     #[track_caller]
