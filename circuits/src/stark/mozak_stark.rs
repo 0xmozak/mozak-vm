@@ -66,6 +66,7 @@ use crate::register::zero_read::stark::RegisterZeroReadStark;
 use crate::register::zero_write::columns::RegisterZeroWrite;
 use crate::register::zero_write::stark::RegisterZeroWriteStark;
 use crate::register::RegisterCtl;
+use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
@@ -154,6 +155,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
         StarkSet(stark_kind = "Poseidon2OutputBytes")
     )]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
+    #[StarkSet(stark_kind = "TapeCommitment")]
+    pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
     #[cfg(feature = "test_public_table")]
     pub public_sub_tables: [PublicSubTable; 1],
@@ -444,6 +447,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
+            tape_commitments_stark: TapeCommitmentsStark::default(),
 
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.

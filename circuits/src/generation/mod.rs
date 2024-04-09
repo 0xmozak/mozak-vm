@@ -14,8 +14,8 @@ pub mod memoryinit;
 pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_u8;
+pub mod tape_commitments;
 pub mod xor;
-
 use std::borrow::Borrow;
 use std::fmt::Display;
 
@@ -46,6 +46,7 @@ use self::memoryinit::{
 };
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_u8::generate_rangecheck_u8_trace;
+use self::tape_commitments::generate_tape_commitments_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::generation::io_memory::{
@@ -130,6 +131,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
+    let tape_commitments_rows = generate_tape_commitments_trace(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
@@ -164,6 +166,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
+        tape_commitments_stark: trace_rows_to_poly_values(tape_commitments_rows),
     }
     .build()
 }
