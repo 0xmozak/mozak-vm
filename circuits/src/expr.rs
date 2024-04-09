@@ -68,7 +68,7 @@ where
 pub struct Constraint<E> {
     constraint_type: ConstraintType,
     location: &'static Location<'static>,
-    constraint: E,
+    term: E,
 }
 
 impl<E> Constraint<E> {
@@ -78,7 +78,7 @@ impl<E> Constraint<E> {
         Constraint {
             constraint_type: self.constraint_type,
             location: self.location,
-            constraint: f(self.constraint),
+            term: f(self.term),
         }
     }
 }
@@ -113,7 +113,7 @@ impl<E> ConstraintBuilder<E> {
         let c = Constraint {
             constraint_type: ty,
             location,
-            constraint,
+            term: constraint,
         };
         self.constraints.push(c);
     }
@@ -142,17 +142,21 @@ pub fn build_ext<F, const D: usize>(
 ) where
     F: RichField,
     F: Extendable<D>, {
-    let mut evaluator = CircuitBuilderEvaluator {
-        builder: circuit_builder,
-    };
-
     for constraint in cb.constraints {
-        let c = constraint.map(|constraint| evaluator.eval(constraint));
-        (match c.constraint_type {
+        let mut evaluator = CircuitBuilderEvaluator {
+            builder: circuit_builder,
+        };
+        let constraint = constraint.map(|constraint| {
+            CircuitBuilderEvaluator {
+                builder: circuit_builder,
+            }
+            .eval(constraint)
+        });
+        (match constraint.constraint_type {
             ConstraintType::FirstRow => RecursiveConstraintConsumer::constraint_first_row,
             ConstraintType::Always => RecursiveConstraintConsumer::constraint,
             ConstraintType::Transition => RecursiveConstraintConsumer::constraint_transition,
-        })(yield_constr, circuit_builder, c.constraint);
+        })(yield_constr, circuit_builder, constraint.term);
     }
 }
 
@@ -173,7 +177,7 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
 
     let mozak_stark_debug = std::env::var("MOZAK_STARK_DEBUG").is_ok();
     for c in evaluated {
-        if mozak_stark_debug && !c.constraint.is_zeros() {
+        if mozak_stark_debug && !c.term.is_zeros() {
             log::error!(
                 "ConstraintConsumer - DEBUG trace (non-zero-constraint): {}",
                 c.location
@@ -184,6 +188,6 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
             ConstraintType::FirstRow => ConstraintConsumer::constraint_first_row,
             ConstraintType::Always => ConstraintConsumer::constraint,
             ConstraintType::Transition => ConstraintConsumer::constraint_transition,
-        })(yield_constr, c.constraint);
+        })(yield_constr, c.term);
     }
 }
