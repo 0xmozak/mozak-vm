@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-use itertools::chain;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -20,13 +19,9 @@ pub(crate) fn init_in_program<F: RichField>(program: &Program) -> BTreeSet<u32> 
 
 #[must_use]
 pub(crate) fn used_in_execution<F: RichField>(step_rows: &[Row<F>]) -> BTreeSet<u32> {
-    chain!(
-        // We always consider these two used, to make our constraints work out.
-        [0, u32::MAX],
         step_rows
             .iter()
             .flat_map(|row| row.aux.mem_addresses_used.clone())
-    )
     .collect()
 }
 
@@ -74,11 +69,11 @@ mod tests {
             // `MemoryInit`. This is tracked in this trace here, to prep for CTL.
             prep_table(vec![
                 // addr, filter
-                [0, 1],
                 [100, 1],
                 [200, 1],
-                [u64::from(u32::MAX), 1],
                 // padding
+                [0, 0],
+                [0, 0],
                 [0, 0],
                 [0, 0],
                 [0, 0],
