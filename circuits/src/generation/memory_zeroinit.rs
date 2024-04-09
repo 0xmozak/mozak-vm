@@ -27,7 +27,7 @@ pub(crate) fn used_in_execution<F: RichField>(step_rows: &[Row<F>]) -> BTreeSet<
 
 /// Generates a zero init trace
 #[must_use]
-pub(crate) fn generate_memory_zero_init_trace<F: RichField>(
+pub fn generate_memory_zero_init_trace<F: RichField>(
     step_rows: &[Row<F>],
     program: &Program,
 ) -> Vec<MemoryZeroInit<F>> {
