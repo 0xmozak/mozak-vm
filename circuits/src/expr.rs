@@ -124,9 +124,7 @@ impl<E> ConstraintBuilder<E> {
     }
 
     #[track_caller]
-    pub fn always(&mut self, constraint: E) {
-        self.constraint(constraint, ConstraintType::Always);
-    }
+    pub fn always(&mut self, constraint: E) { self.constraint(constraint, ConstraintType::Always); }
 
     #[track_caller]
     pub fn transition(&mut self, constraint: E) {
