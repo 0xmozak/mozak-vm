@@ -80,7 +80,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
     let program_mult_rows = generate_program_mult_trace(&cpu_rows, &program_rows);
-    let memory_init_rows = generate_elf_memory_init_trace(program);
+    let elf_memory_init_rows = generate_elf_memory_init_trace(program);
     let mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
     let call_tape_init_rows = generate_call_tape_init_trace(program);
     let private_tape_init_rows = generate_private_tape_init_trace(program);
@@ -106,8 +106,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &poseiden2_sponge_rows,
         &poseidon2_output_bytes_rows,
     );
-    let memory_zeroinit_rows =
-        generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, program);
+    let memory_zeroinit_rows = generate_memory_zero_init_trace::<F>(&record.executed, program);
 
     let register_init_rows = generate_register_init_trace::<F>(record);
     let (register_zero_read_rows, register_zero_write_rows, register_rows) =
@@ -132,7 +131,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         program_stark: trace_rows_to_poly_values(program_rows),
         program_mult_stark: trace_rows_to_poly_values(program_mult_rows),
         memory_stark: trace_rows_to_poly_values(memory_rows),
-        elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+        elf_memory_init_stark: trace_rows_to_poly_values(elf_memory_init_rows),
         mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
         call_tape_init_stark: trace_rows_to_poly_values(call_tape_init_rows),
         private_tape_init_stark: trace_rows_to_poly_values(private_tape_init_rows),

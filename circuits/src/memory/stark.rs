@@ -319,7 +319,7 @@ mod tests {
             },
         }];
         let (program, record) = execute_code(instructions, &[(0, 0)], &[(1, 0)]);
-        let memory_init_rows = generate_elf_memory_init_trace(&program);
+        let elf_memory_init_rows = generate_elf_memory_init_trace(&program);
         let mozak_memory_init_rows = generate_mozak_memory_init_trace(&program);
         let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
         let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
@@ -348,8 +348,7 @@ mod tests {
             .iter()
             .all(|row| row.is_init == F::ZERO && row.addr == F::ZERO));
 
-        let memory_zeroinit_rows =
-            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
+        let memory_zeroinit_rows = generate_memory_zero_init_trace::<F>(&record.executed, &program);
 
         // ctl for is_init values
         let ctl = CrossTableLookupWithTypedOutput::new(
@@ -364,7 +363,7 @@ mod tests {
         let memory_trace = trace_rows_to_poly_values(memory_rows);
         let trace = TableKindSetBuilder {
             memory_stark: memory_trace.clone(),
-            elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+            elf_memory_init_stark: trace_rows_to_poly_values(elf_memory_init_rows),
             memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
             mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
             ..Default::default()
