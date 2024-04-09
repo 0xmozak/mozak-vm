@@ -246,11 +246,11 @@ mod tests {
         generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, inv, prep_table};
 
@@ -341,8 +341,8 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
-        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
+        let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &record.executed,
@@ -351,7 +351,7 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseidon2_trace,
+            &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
         assert_eq!(

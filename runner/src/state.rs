@@ -182,7 +182,7 @@ pub enum IoOpcode {
     None,
     StorePrivate,
     StorePublic,
-    StoreTranscript,
+    StoreCallTape,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -215,6 +215,7 @@ pub struct Aux<F: RichField> {
     pub dst_val: u32,
     pub new_pc: u32,
     pub mem: Option<MemEntry>,
+    pub mem_addresses_used: Vec<u32>,
     pub will_halt: bool,
     pub op1: u32,
     pub op2: u32,
@@ -307,21 +308,30 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
-    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> (u32, u32)) -> (Aux<F>, Self) {
+    pub fn memory_load(
+        self,
+        data: &Args,
+        bytes: u32,
+        op: fn(&[u8; 4]) -> (u32, u32),
+    ) -> (Aux<F>, Self) {
         let addr: u32 = self.get_register_value(data.rs2).wrapping_add(data.imm);
+        let mut mem_addresses_used: Vec<u32> = (0..4).map(|i| addr.wrapping_add(i)).collect();
 
-        let mem = [
-            self.load_u8(addr),
-            self.load_u8(addr.wrapping_add(1)),
-            self.load_u8(addr.wrapping_add(2)),
-            self.load_u8(addr.wrapping_add(3)),
-        ];
+        let mem = mem_addresses_used
+            .iter()
+            .map(|&addr| self.load_u8(addr))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+
+        mem_addresses_used.truncate(bytes as usize);
         let (raw_value, dst_val) = op(&mem);
 
         (
             Aux {
                 dst_val,
                 mem: Some(MemEntry { addr, raw_value }),
+                mem_addresses_used,
                 ..Default::default()
             },
             self.set_register_value(data.rd, dst_val).bump_pc(),

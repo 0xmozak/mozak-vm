@@ -272,10 +272,10 @@ mod tests {
         generate_elf_memory_init_trace, generate_memory_init_trace,
         generate_mozak_memory_init_trace,
     };
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::mozak_stark::{
         ElfMemoryInitTable, MozakMemoryInitTable, MozakStark, TableKindSetBuilder,
     };
@@ -369,16 +369,16 @@ mod tests {
             },
         }];
         let (program, record) = execute_code(instructions, &[(0, 0)], &[(1, 0)]);
-        let memory_init_rows = generate_elf_memory_init_trace(&program);
+        let elf_memory_init_rows = generate_elf_memory_init_trace(&program);
         let mozak_memory_init_rows = generate_mozak_memory_init_trace(&program);
         let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
         let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
         #[allow(unused)]
         let poseidon2_output_bytes_rows =
-            generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
+            generate_poseidon2_output_bytes_trace(&poseidon2_sponge_rows);
         let mut memory_rows = generate_memory_trace(
             &record.executed,
             &generate_memory_init_trace(&program),
@@ -386,7 +386,7 @@ mod tests {
             &fullword_memory_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseiden2_sponge_rows,
+            &poseidon2_sponge_rows,
             &poseidon2_output_bytes_rows,
         );
         // malicious prover sets first memory row's is_init to zero
@@ -398,8 +398,7 @@ mod tests {
             .iter()
             .all(|row| row.is_init == F::ZERO && row.addr == F::ZERO));
 
-        let memory_zeroinit_rows =
-            generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed, &program);
+        let memory_zeroinit_rows = generate_memory_zero_init_trace::<F>(&record.executed, &program);
 
         // ctl for is_init values
         let ctl = CrossTableLookupWithTypedOutput::new(
@@ -414,7 +413,7 @@ mod tests {
         let memory_trace = trace_rows_to_poly_values(memory_rows);
         let trace = TableKindSetBuilder {
             memory_stark: memory_trace.clone(),
-            elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+            elf_memory_init_stark: trace_rows_to_poly_values(elf_memory_init_rows),
             memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
             mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
             ..Default::default()

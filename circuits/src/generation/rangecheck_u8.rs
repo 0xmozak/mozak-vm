@@ -71,13 +71,12 @@ mod tests {
     use crate::generation::generate_poseidon2_output_bytes_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
-        generate_io_transcript_trace,
+        generate_call_tape_trace, generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::rangecheck::generate_rangecheck_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 
     #[test]
@@ -103,9 +102,9 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
-        let io_transcript = generate_io_transcript_trace(&record.executed);
-        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
-        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
+        let call_tape = generate_call_tape_trace(&record.executed);
+        let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
         let memory_rows = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
@@ -113,7 +112,7 @@ mod tests {
             &fullword_memory,
             &io_memory_private,
             &io_memory_public,
-            &poseidon2_trace,
+            &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
         let register_init = generate_register_init_trace(&record);
@@ -121,7 +120,7 @@ mod tests {
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,
-            &io_transcript,
+            &call_tape,
             &register_init,
         );
         let rangecheck_rows =

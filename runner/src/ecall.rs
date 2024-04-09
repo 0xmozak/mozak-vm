@@ -41,16 +41,21 @@ impl<F: RichField> State<F> {
                 &mut self.io_tape.private.read_index,
                 num_bytes_requested as usize,
             ),
-            IoOpcode::StoreTranscript => read_bytes(
+            IoOpcode::StoreCallTape => read_bytes(
                 &self.call_tape.data,
                 &mut self.call_tape.read_index,
                 num_bytes_requested as usize,
             ),
             IoOpcode::None => panic!(),
         };
+        let data_len = u32::try_from(data.len()).expect("cannot fit data.len() into u32");
+        let mem_addresses_used: Vec<u32> = (0..data_len)
+            .map(|i| buffer_start.wrapping_add(i))
+            .collect();
         (
             Aux {
-                dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                dst_val: data_len,
+                mem_addresses_used,
                 io: Some(IoEntry {
                     addr: buffer_start,
                     op,
@@ -116,7 +121,7 @@ impl<F: RichField> State<F> {
             ecall::HALT => self.ecall_halt(),
             ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
             ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
-            ecall::IO_READ_TRANSCRIPT => self.ecall_io_read(IoOpcode::StoreTranscript),
+            ecall::IO_READ_CALL_TAPE => self.ecall_io_read(IoOpcode::StoreCallTape),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             ecall::VM_TRACE_LOG => self.ecall_trace_log(),
