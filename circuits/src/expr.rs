@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::panic::Location;
 
+use derive_more::Display;
 use expr::{BinOp, Evaluator, Expr};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -63,6 +64,7 @@ where
     fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Constraint<E> {
     constraint_type: ConstraintType,
     location: &'static Location<'static>,
@@ -81,20 +83,21 @@ impl<E> Constraint<E> {
     }
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Debug, Display)]
 enum ConstraintType {
-    ConstraintFirstRow,
-    Constraint,
-    ConstraintTransition,
+    FirstRow,
+    #[default]
+    Always,
+    Transition,
 }
 
 pub struct ConstraintBuilder<E> {
     constraints: Vec<Constraint<E>>,
 }
-
 impl<E> Default for ConstraintBuilder<E> {
     fn default() -> Self {
         Self {
-            constraints: Vec::new(),
+            constraints: Vec::default(),
         }
     }
 }
@@ -105,11 +108,10 @@ impl<E> From<Vec<Constraint<E>>> for ConstraintBuilder<E> {
 
 impl<E> ConstraintBuilder<E> {
     #[track_caller]
-    pub fn constraint_first_row(&mut self, constraint: E) {
-        let constraint_type = ConstraintType::ConstraintFirstRow;
+    fn constraint(&mut self, constraint: E, ty: ConstraintType) {
         let location = Location::caller();
         let c = Constraint {
-            constraint_type,
+            constraint_type: ty,
             location,
             constraint,
         };
@@ -117,27 +119,18 @@ impl<E> ConstraintBuilder<E> {
     }
 
     #[track_caller]
-    pub fn constraint(&mut self, constraint: E) {
-        let constraint_type = ConstraintType::Constraint;
-        let location = Location::caller();
-        let c = Constraint {
-            constraint_type,
-            location,
-            constraint,
-        };
-        self.constraints.push(c);
+    pub fn first_row(&mut self, constraint: E) {
+        self.constraint(constraint, ConstraintType::FirstRow);
     }
 
     #[track_caller]
-    pub fn constraint_transition(&mut self, constraint: E) {
-        let constraint_type = ConstraintType::ConstraintTransition;
-        let location = Location::caller();
-        let c = Constraint {
-            constraint_type,
-            location,
-            constraint,
-        };
-        self.constraints.push(c);
+    pub fn always(&mut self, constraint: E) {
+        self.constraint(constraint, ConstraintType::Always);
+    }
+
+    #[track_caller]
+    pub fn transition(&mut self, constraint: E) {
+        self.constraint(constraint, ConstraintType::Transition);
     }
 
     #[must_use]
@@ -162,10 +155,10 @@ pub fn build_ext<F, const D: usize>(
         .collect::<Vec<_>>();
 
     evaluated.into_iter().for_each(|c| match c.constraint_type {
-        ConstraintType::ConstraintFirstRow =>
+        ConstraintType::FirstRow =>
             yield_constr.constraint_first_row(circuit_builder, c.constraint),
-        ConstraintType::Constraint => yield_constr.constraint(circuit_builder, c.constraint),
-        ConstraintType::ConstraintTransition =>
+        ConstraintType::Always => yield_constr.constraint(circuit_builder, c.constraint),
+        ConstraintType::Transition =>
             yield_constr.constraint_transition(circuit_builder, c.constraint),
     });
 }
@@ -195,10 +188,9 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
         }
 
         match c.constraint_type {
-            ConstraintType::ConstraintFirstRow => yield_constr.constraint_first_row(c.constraint),
-            ConstraintType::Constraint => yield_constr.constraint(c.constraint),
-            ConstraintType::ConstraintTransition =>
-                yield_constr.constraint_transition(c.constraint),
+            ConstraintType::FirstRow => yield_constr.constraint_first_row(c.constraint),
+            ConstraintType::Always => yield_constr.constraint(c.constraint),
+            ConstraintType::Transition => yield_constr.constraint_transition(c.constraint),
         }
     }
 }

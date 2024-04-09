@@ -126,31 +126,31 @@ where
     // -------------------
     // Constrain certain columns of the memory table to be only
     // boolean values.
-    cb.constraint(eb.is_binary(lv.is_writable));
-    cb.constraint(eb.is_binary(lv.is_store));
-    cb.constraint(eb.is_binary(lv.is_load));
-    cb.constraint(eb.is_binary(lv.is_init));
-    cb.constraint(eb.is_binary(lv.is_executed()));
+    cb.always(eb.is_binary(lv.is_writable));
+    cb.always(eb.is_binary(lv.is_store));
+    cb.always(eb.is_binary(lv.is_load));
+    cb.always(eb.is_binary(lv.is_init));
+    cb.always(eb.is_binary(lv.is_executed()));
 
     // first row init is always one or its a dummy row
-    cb.constraint_first_row((one - lv.is_init) * lv.is_executed());
+    cb.first_row((one - lv.is_init) * lv.is_executed());
 
     // All init ops happen prior to exec and the `clk` would be `0` or `1`.
-    cb.constraint(lv.is_init * zero_init_clk * elf_init_clk);
+    cb.always(lv.is_init * zero_init_clk * elf_init_clk);
     // All zero inits should have value `0`.
     // (Assumption: `is_init` == 1, `clk` == 0)
-    cb.constraint(lv.is_init * zero_init_clk * lv.value);
+    cb.always(lv.is_init * zero_init_clk * lv.value);
     // All zero inits should be writable.
     // (Assumption: `is_init` == 1, `clk` == 0)
-    cb.constraint(lv.is_init * zero_init_clk * (one - lv.is_writable));
+    cb.always(lv.is_init * zero_init_clk * (one - lv.is_writable));
 
     // Operation constraints
     // ---------------------
     // No `SB` operation can be seen if memory address is not marked `writable`
-    cb.constraint((one - lv.is_writable) * lv.is_store);
+    cb.always((one - lv.is_writable) * lv.is_store);
 
     // For all "load" operations, the value cannot change between rows
-    cb.constraint(nv.is_load * (nv.value - lv.value));
+    cb.always(nv.is_load * (nv.value - lv.value));
 
     // Clock constraints
     // -----------------
@@ -159,14 +159,14 @@ where
     // in case the "new row" describes an `addr` different from the current
     // row, we expect `diff_clk` to be `0`. New row's clk remains
     // unconstrained in such situation.
-    cb.constraint_transition((one - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
-    cb.constraint_transition(lv.is_init * lv.diff_clk);
+    cb.transition((one - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
+    cb.transition(lv.is_init * lv.diff_clk);
 
     // Padding constraints
     // -------------------
     // Once we have padding, all subsequent rows are padding; ie not
     // `is_executed`.
-    cb.constraint_transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
+    cb.transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
 
     // We can have init == 1 row only when address is changing. More specifically,
     // is_init has to be the first row in an address block.
@@ -188,11 +188,11 @@ where
     // MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed())
     // Please add test that fails with not-sorted memory trace
     let diff_addr = nv.addr - lv.addr;
-    cb.constraint_transition(diff_addr * (one - diff_addr * nv.diff_addr_inv));
+    cb.transition(diff_addr * (one - diff_addr * nv.diff_addr_inv));
 
     // b) checking that nv.is_init == 1 only when nv.diff_addr_inv != 0
     // Note: nv.diff_addr_inv != 0 IFF: lv.addr != nv.addr
-    cb.constraint_transition((diff_addr * nv.diff_addr_inv) - nv.is_init);
+    cb.transition((diff_addr * nv.diff_addr_inv) - nv.is_init);
 
     cb
 }
