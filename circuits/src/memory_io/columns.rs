@@ -10,6 +10,7 @@ use crate::stark::mozak_stark::{
     CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable, IoMemoryPrivateTable,
     IoMemoryPublicTable, TableKind, TableWithTypedOutput,
 };
+use crate::tape_commitments::columns::TapeCommitmentCTL;
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -113,4 +114,24 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
         CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
     ]
+}
+
+#[must_use]
+pub fn event_commitment_lookup_in_tape_commitments(
+) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
+    let data = TapeCommitmentCTL {
+        byte: COL_MAP.value,
+        index: -COL_MAP.size + 31,
+    };
+    EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store)
+}
+
+#[must_use]
+pub fn castlist_commitment_lookup_in_tape_commitments(
+) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
+    let data = TapeCommitmentCTL {
+        byte: COL_MAP.value,
+        index: -COL_MAP.size + 31,
+    };
+    CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store)
 }

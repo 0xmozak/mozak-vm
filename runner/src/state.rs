@@ -141,8 +141,14 @@ impl<F: RichField> Default for State<F> {
             memory: StateMemory::default(),
             io_tape: IoTape::from((vec![], vec![])),
             call_tape: IoTapeData::default(),
-            events_commitment_tape: IoTapeData::default(),
-            cast_list_commitment_tape: IoTapeData::default(),
+            events_commitment_tape: IoTapeData {
+                data: Rc::from(vec![0; 32]),
+                read_index: 0,
+            },
+            cast_list_commitment_tape: IoTapeData {
+                data: Rc::from(vec![0; 32]),
+                read_index: 0,
+            },
             _phantom: PhantomData,
         }
     }

@@ -45,11 +45,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for TapeCommitmen
         P: PackedField<Scalar = FE>, {
         let lv: &TapeCommitments<P> = vars.get_local_values().into();
 
-        is_binary(yield_constr, lv.is_castlist_commitment);
-        is_binary(yield_constr, lv.is_event_tape_commitment);
+        is_binary(yield_constr, lv.is_event_commitment_tape_row);
+        is_binary(yield_constr, lv.is_castlist_commitment_tape_row);
         is_binary(
             yield_constr,
-            lv.is_castlist_commitment + lv.is_event_tape_commitment,
+            lv.is_event_commitment_tape_row + lv.is_castlist_commitment_tape_row,
+        );
+
+        // if multiplicity is set, filter should be set too
+        yield_constr.constraint(
+            lv.event_commitment_tape_multiplicity * (lv.is_event_commitment_tape_row - P::ONES),
+        );
+        yield_constr.constraint(
+            lv.castlist_commitment_tape_multiplicity
+                * (lv.is_castlist_commitment_tape_row - P::ONES),
         );
     }
 
@@ -61,12 +70,30 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for TapeCommitmen
     ) {
         let lv: &TapeCommitments<ExtensionTarget<D>> = vars.get_local_values().into();
 
-        let is_executed =
-            builder.add_extension(lv.is_castlist_commitment, lv.is_event_tape_commitment);
-
-        is_binary_ext_circuit(builder, lv.is_castlist_commitment, yield_constr);
-        is_binary_ext_circuit(builder, lv.is_event_tape_commitment, yield_constr);
+        let is_executed = builder.add_extension(
+            lv.is_event_commitment_tape_row,
+            lv.is_castlist_commitment_tape_row,
+        );
+        is_binary_ext_circuit(builder, lv.is_event_commitment_tape_row, yield_constr);
+        is_binary_ext_circuit(builder, lv.is_castlist_commitment_tape_row, yield_constr);
         is_binary_ext_circuit(builder, is_executed, yield_constr);
+
+        let event_multiplicity_times_filter_minus_multiplicity = builder.mul_sub_extension(
+            lv.event_commitment_tape_multiplicity,
+            lv.is_event_commitment_tape_row,
+            lv.event_commitment_tape_multiplicity,
+        );
+        yield_constr.constraint(builder, event_multiplicity_times_filter_minus_multiplicity);
+
+        let castlist_multiplicity_times_filter_minus_multiplicity = builder.mul_sub_extension(
+            lv.castlist_commitment_tape_multiplicity,
+            lv.is_castlist_commitment_tape_row,
+            lv.castlist_commitment_tape_multiplicity,
+        );
+        yield_constr.constraint(
+            builder,
+            castlist_multiplicity_times_filter_minus_multiplicity,
+        );
     }
 
     fn constraint_degree(&self) -> usize { 2 }

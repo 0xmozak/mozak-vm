@@ -5,6 +5,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::tape_commitments::columns::{CommitmentByteWithIndex, TapeCommitments};
 
+#[must_use]
 pub fn num_io_ecalls<F: RichField>(step_rows: &[Row<F>], which_tape: IoOpcode) -> usize {
     step_rows
         .iter()
@@ -18,6 +19,7 @@ pub fn num_io_ecalls<F: RichField>(step_rows: &[Row<F>], which_tape: IoOpcode) -
         .count()
 }
 
+#[must_use]
 pub fn generate_tape_commitment_trace_with_op_code<F: RichField>(
     execution: &ExecutionRecord<F>,
     which_tape_commitment: IoOpcode,
@@ -36,30 +38,40 @@ pub fn generate_tape_commitment_trace_with_op_code<F: RichField>(
             .try_into()
             .unwrap(),
     );
-    let is_castlist_commitment = F::from_bool(matches!(
+
+    let castlist_commitment_tape_multiplicity = F::from_bool(matches!(
+        which_tape_commitment,
+        IoOpcode::StoreCastListCommitmentTape
+    )) * num_tape_commitment_ecalls;
+    let event_commitment_tape_multiplicity = F::from_bool(matches!(
+        which_tape_commitment,
+        IoOpcode::StoreEventsCommitmentTape
+    )) * num_tape_commitment_ecalls;
+    let is_castlist_commitment_tape_row = F::from_bool(matches!(
         which_tape_commitment,
         IoOpcode::StoreCastListCommitmentTape
     ));
-    let is_event_tape_commitment = F::from_bool(matches!(
+    let is_event_commitment_tape_row = F::from_bool(matches!(
         which_tape_commitment,
         IoOpcode::StoreEventsCommitmentTape
     ));
     tape.iter()
         .enumerate()
         .map(|(i, hash_byte)| TapeCommitments {
-            byte_with_index: CommitmentByteWithIndex {
+            commitment_byte_row: CommitmentByteWithIndex {
                 byte: *hash_byte,
-                index: i as u8,
+                index: u8::try_from(i).expect("index must lie between 0 and 31"),
             }
             .map(F::from_canonical_u8),
-            multiplicity: num_tape_commitment_ecalls,
-            is_castlist_commitment,
-            is_event_tape_commitment,
-            ..Default::default()
+            event_commitment_tape_multiplicity,
+            castlist_commitment_tape_multiplicity,
+            is_castlist_commitment_tape_row,
+            is_event_commitment_tape_row,
         })
         .collect_vec()
 }
 
+#[must_use]
 pub fn generate_tape_commitments_trace<F: RichField>(
     execution: &ExecutionRecord<F>,
 ) -> Vec<TapeCommitments<F>> {
