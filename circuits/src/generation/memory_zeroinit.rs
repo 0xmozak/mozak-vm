@@ -19,10 +19,10 @@ pub(crate) fn init_in_program<F: RichField>(program: &Program) -> BTreeSet<u32> 
 
 #[must_use]
 pub(crate) fn used_in_execution<F: RichField>(step_rows: &[Row<F>]) -> BTreeSet<u32> {
-        step_rows
-            .iter()
-            .flat_map(|row| row.aux.mem_addresses_used.clone())
-    .collect()
+    step_rows
+        .iter()
+        .flat_map(|row| row.aux.mem_addresses_used.clone())
+        .collect()
 }
 
 /// Generates a zero init trace
