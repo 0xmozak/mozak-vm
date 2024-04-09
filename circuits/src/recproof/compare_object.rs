@@ -1,3 +1,5 @@
+//! Subcircuits for recursively proving partial objects match a specific
+//! (summarized) state hash
 use enumflags2::BitFlags;
 use itertools::chain;
 use plonky2::field::extension::Extendable;
@@ -51,7 +53,7 @@ pub struct LeafTargets {
     /// The old credits
     pub old_credits: Target,
 
-    /// The old credits
+    /// The new credits
     pub new_credits: Target,
 
     /// The state hash
@@ -200,7 +202,7 @@ pub struct LeafWitnessValue<F: Field> {
     /// The old credits
     pub old_credits: u64,
 
-    /// The old credits
+    /// The new credits
     pub new_credits: u64,
 }
 
