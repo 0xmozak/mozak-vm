@@ -146,19 +146,14 @@ pub fn build_ext<F, const D: usize>(
         builder: circuit_builder,
     };
 
-    let evaluated = cb
-        .constraints
-        .into_iter()
-        .map(|c| c.map(|constraint| evaluator.eval(constraint)))
-        .collect::<Vec<_>>();
-
-    evaluated.into_iter().for_each(|c| {
+    for constraint in cb.constraints {
+        let c = constraint.map(|constraint| evaluator.eval(constraint));
         (match c.constraint_type {
             ConstraintType::FirstRow => RecursiveConstraintConsumer::constraint_first_row,
             ConstraintType::Always => RecursiveConstraintConsumer::constraint,
             ConstraintType::Transition => RecursiveConstraintConsumer::constraint_transition,
-        })(yield_constr, circuit_builder, c.constraint)
-    });
+        })(yield_constr, circuit_builder, c.constraint);
+    }
 }
 
 pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
