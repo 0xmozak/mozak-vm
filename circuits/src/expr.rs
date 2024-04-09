@@ -152,12 +152,12 @@ pub fn build_ext<F, const D: usize>(
         .map(|c| c.map(|constraint| evaluator.eval(constraint)))
         .collect::<Vec<_>>();
 
-    evaluated.into_iter().for_each(|c| match c.constraint_type {
-        ConstraintType::FirstRow =>
-            yield_constr.constraint_first_row(circuit_builder, c.constraint),
-        ConstraintType::Always => yield_constr.constraint(circuit_builder, c.constraint),
-        ConstraintType::Transition =>
-            yield_constr.constraint_transition(circuit_builder, c.constraint),
+    evaluated.into_iter().for_each(|c| {
+        (match c.constraint_type {
+            ConstraintType::FirstRow => RecursiveConstraintConsumer::constraint_first_row,
+            ConstraintType::Always => RecursiveConstraintConsumer::constraint,
+            ConstraintType::Transition => RecursiveConstraintConsumer::constraint_transition,
+        })(yield_constr, circuit_builder, c.constraint)
     });
 }
 
@@ -185,10 +185,10 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
             );
         }
 
-        match c.constraint_type {
-            ConstraintType::FirstRow => yield_constr.constraint_first_row(c.constraint),
-            ConstraintType::Always => yield_constr.constraint(c.constraint),
-            ConstraintType::Transition => yield_constr.constraint_transition(c.constraint),
-        }
+        (match c.constraint_type {
+            ConstraintType::FirstRow => ConstraintConsumer::constraint_first_row,
+            ConstraintType::Always => ConstraintConsumer::constraint,
+            ConstraintType::Transition => ConstraintConsumer::constraint_transition,
+        })(yield_constr, c.constraint);
     }
 }
