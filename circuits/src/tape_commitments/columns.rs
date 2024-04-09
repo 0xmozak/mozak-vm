@@ -1,5 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
+use crate::public_sub_table::PublicSubTable;
 use crate::stark::mozak_stark::{TableWithTypedOutput, TapeCommitmentsTable};
 
 make_col_map!(TapeCommitments);
@@ -62,4 +63,26 @@ pub fn lookup_for_event_tape_commitment() -> TableWithTypedOutput<TapeCommitment
         },
         COL_MAP.event_commitment_tape_multiplicity,
     )
+}
+
+#[must_use]
+pub fn make_event_commitment_tape_public() -> PublicSubTable {
+    PublicSubTable {
+        table: TapeCommitmentsTable::new(
+            vec![COL_MAP.commitment_byte_row.byte],
+            COL_MAP.is_castlist_commitment_tape_row,
+        ),
+        num_rows: 32,
+    }
+}
+
+#[must_use]
+pub fn make_castlist_commitment_tape_public() -> PublicSubTable {
+    PublicSubTable {
+        table: TapeCommitmentsTable::new(
+            vec![COL_MAP.commitment_byte_row.byte],
+            COL_MAP.is_event_commitment_tape_row,
+        ),
+        num_rows: 32,
+    }
 }

@@ -49,11 +49,9 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///                          hash) = 64
 ///   `ElfMemoryInit trace cap`: 64
 ///   `MozakMemoryInit trace cap`: 64
-///   `bitshift public sub table`: 2 rows * 32 columns = 64
-#[cfg(not(feature = "test_public_table"))]
-pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64;
-#[cfg(feature = "test_public_table")]
-pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64 + 64;
+///   `event commitment_tape`: 32
+///   `castlist_commitment_tape`: 32
+pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64 + 32 + 32;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
@@ -245,12 +243,16 @@ where
                 .collect::<Vec<_>>(),
         );
     }
+    let mut public_sub_table_values_targets_iter = public_sub_table_values_targets
+        .each_ref()
+        .map(|table| table.iter());
     for public_sub_table in &mozak_stark.public_sub_tables {
         builder.register_public_inputs(
-            &public_sub_table_values_targets[public_sub_table.table.kind]
+            &public_sub_table_values_targets_iter[public_sub_table.table.kind]
+                .next()
+                .unwrap()
                 .clone()
                 .into_iter()
-                .flatten()
                 .flatten()
                 .collect::<Vec<_>>(),
         );
@@ -662,9 +664,7 @@ mod tests {
     type S = MozakStark<F, D>;
 
     #[test]
-    #[cfg(feature = "test_public_table")]
     fn recursive_verify_mozak_starks() -> Result<()> {
-        use itertools::Itertools;
         use plonky2::field::types::Field;
 
         use crate::stark::verifier::verify_proof;
@@ -708,14 +708,19 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
-        let expected_bitshift_subtable = (0..32)
-            .flat_map(|i| [F::from_canonical_u64(i), F::from_canonical_u64(1 << i)])
-            .collect_vec();
+        let expected_event_commitment_tape = [F::ZERO; 32];
+        let expected_castlist_commitment_tape = [F::ZERO; 32];
         assert_eq!(
-            recursive_proof.public_inputs[25..].to_vec(),
-            expected_bitshift_subtable,
-            "Could not find bitshift subtable in recursive proof's public inputs"
+            recursive_proof.public_inputs[25..25 + 32].to_vec(),
+            expected_event_commitment_tape,
+            "Could not find expected_event_commitment_tape in recursive proof's public inputs"
         );
+        assert_eq!(
+            recursive_proof.public_inputs[25 + 32..25 + 32 + 32].to_vec(),
+            expected_castlist_commitment_tape,
+            "Could not find expected_castlist_commitment_tape in recursive proof's public inputs"
+        );
+        println!("size of pi{:?}", recursive_proof.public_inputs.len());
 
         mozak_stark_circuit.circuit.verify(recursive_proof)
     }

@@ -159,10 +159,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "TapeCommitments")]
     pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-    #[cfg(feature = "test_public_table")]
-    pub public_sub_tables: [PublicSubTable; 1],
-    #[cfg(not(feature = "test_public_table"))]
-    pub public_sub_tables: [PublicSubTable; 0],
+    pub public_sub_tables: [PublicSubTable; 2],
     pub debug: bool,
 }
 
@@ -474,10 +471,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 EventCommitmentTapeTapeCommitmentsTable::lookups(),
                 CastlistCommitmentTapeTapeCommitmentsTable::lookups(),
             ],
-            #[cfg(not(feature = "test_public_table"))]
-            public_sub_tables: [],
-            #[cfg(feature = "test_public_table")]
-            public_sub_tables: [crate::bitshift::columns::public_sub_table()],
+            public_sub_tables: [
+                crate::tape_commitments::columns::make_event_commitment_tape_public(),
+                crate::tape_commitments::columns::make_castlist_commitment_tape_public(),
+            ],
             debug: false,
         }
     }
