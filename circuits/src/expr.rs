@@ -130,9 +130,6 @@ impl<E> ConstraintBuilder<E> {
     pub fn transition(&mut self, constraint: E) {
         self.constraint(constraint, ConstraintType::Transition);
     }
-
-    #[must_use]
-    pub fn collect(self) -> Vec<Constraint<E>> { self.constraints }
 }
 
 pub fn build_ext<F, const D: usize>(
