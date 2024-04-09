@@ -1,5 +1,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
 
 #[cfg(not(target_arch = "wasm32"))]
 use mimalloc::MiMalloc;
