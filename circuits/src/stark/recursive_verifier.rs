@@ -658,6 +658,9 @@ mod tests {
         verify_recursive_vm_proof, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
         VM_RECURSION_THRESHOLD_DEGREE_BITS,
     };
+    use crate::tape_commitments::columns::{
+        get_castlist_commitment_tape_from_proof, get_event_commitment_tape_from_proof,
+    };
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
 
@@ -711,12 +714,12 @@ mod tests {
         let expected_event_commitment_tape = [F::ZERO; 32];
         let expected_castlist_commitment_tape = [F::ZERO; 32];
         assert_eq!(
-            recursive_proof.public_inputs[25..25 + 32].to_vec(),
+            get_event_commitment_tape_from_proof(&recursive_proof),
             expected_event_commitment_tape,
             "Could not find expected_event_commitment_tape in recursive proof's public inputs"
         );
         assert_eq!(
-            recursive_proof.public_inputs[25 + 32..25 + 32 + 32].to_vec(),
+            get_castlist_commitment_tape_from_proof(&recursive_proof),
             expected_castlist_commitment_tape,
             "Could not find expected_castlist_commitment_tape in recursive proof's public inputs"
         );
