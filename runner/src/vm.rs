@@ -116,10 +116,12 @@ impl<F: RichField> State<F> {
         let mask = u32::MAX >> (32 - 8 * bytes);
         let raw_value: u32 = self.get_register_value(inst.rs1) & mask;
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
+        let mem_addresses_used: Vec<u32> = (0..bytes).map(|i| addr.wrapping_add(i)).collect();
         (
             Aux {
                 dst_val: raw_value,
                 mem: Some(MemEntry { addr, raw_value }),
+                mem_addresses_used,
                 ..Default::default()
             },
             (0..bytes)
@@ -185,11 +187,11 @@ impl<F: RichField> State<F> {
             Op::XOR => rop!(core::ops::BitXor::bitxor),
             Op::SUB => rop!(u32::wrapping_sub),
 
-            Op::LB => self.memory_load(&inst.args, lb),
-            Op::LBU => self.memory_load(&inst.args, lbu),
-            Op::LH => self.memory_load(&inst.args, lh),
-            Op::LHU => self.memory_load(&inst.args, lhu),
-            Op::LW => self.memory_load(&inst.args, lw),
+            Op::LB => self.memory_load(&inst.args, 1, lb),
+            Op::LBU => self.memory_load(&inst.args, 1, lbu),
+            Op::LH => self.memory_load(&inst.args, 2, lh),
+            Op::LHU => self.memory_load(&inst.args, 2, lhu),
+            Op::LW => self.memory_load(&inst.args, 4, lw),
 
             Op::ECALL => self.ecall(),
             Op::JALR => self.jalr(&inst.args),

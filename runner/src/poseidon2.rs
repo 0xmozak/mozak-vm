@@ -1,6 +1,6 @@
 use std::iter::repeat;
 
-use itertools::izip;
+use itertools::{chain, izip};
 use mozak_sdk::core::reg_abi::{REG_A1, REG_A2, REG_A3};
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
@@ -79,8 +79,15 @@ impl<F: RichField> State<F> {
             hash_n_to_m_no_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
         let hash = hash.to_bytes();
         assert_eq!(32, hash.len());
+
+        let mem_addresses_used: Vec<u32> = chain!(
+            (0..input_len).map(|i| input_ptr.wrapping_add(i)),
+            izip!(0.., &hash).map(|(i, _)| output_ptr.wrapping_add(i))
+        )
+        .collect();
         (
             Aux {
+                mem_addresses_used,
                 poseidon2: Some(Poseidon2Entry {
                     addr: input_ptr,
                     output_addr: output_ptr,

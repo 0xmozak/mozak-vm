@@ -59,9 +59,14 @@ impl<F: RichField> State<F> {
 
             IoOpcode::None => panic!(),
         };
+        let data_len = u32::try_from(data.len()).expect("cannot fit data.len() into u32");
+        let mem_addresses_used: Vec<u32> = (0..data_len)
+            .map(|i| buffer_start.wrapping_add(i))
+            .collect();
         (
             Aux {
-                dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                dst_val: data_len,
+                mem_addresses_used,
                 io: Some(IoEntry {
                     addr: buffer_start,
                     op,

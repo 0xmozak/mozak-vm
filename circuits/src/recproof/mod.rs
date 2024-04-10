@@ -1,5 +1,6 @@
 use std::iter::zip;
 
+use enumflags2::{bitflags, BitFlags};
 use iter_fixed::IntoIteratorFixed;
 use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
@@ -14,6 +15,7 @@ use plonky2::plonk::config::Hasher;
 
 pub mod accumulate_event;
 pub mod bounded;
+pub mod compare_object;
 pub mod make_tree;
 pub mod merge;
 pub mod propagate;
@@ -41,6 +43,23 @@ impl EventType {
         F: RichField + Extendable<D>, {
         builder.constant(F::from_canonical_u64(self as u64))
     }
+}
+
+#[bitflags]
+#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum EventFlags {
+    WriteFlag = 1 << 0,
+    EnsureFlag = 1 << 1,
+    ReadFlag = 1 << 2,
+    GiveOwnerFlag = 1 << 3,
+    TakeOwnerFlag = 1 << 4,
+}
+
+impl EventFlags {
+    fn count() -> usize { BitFlags::<Self>::ALL.len() }
+
+    fn index(self) -> usize { (self as u8).trailing_zeros() as usize }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -156,6 +175,22 @@ where
     builder.or(bools[0], bools[1])
 }
 
+/// Computes `a == b`.
+fn are_equal<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    a: [Target; 4],
+    b: [Target; 4],
+) -> BoolTarget
+where
+    F: RichField + Extendable<D>, {
+    let eq = a
+        .into_iter_fixed()
+        .zip(b)
+        .map(|(h0, h1)| builder.is_equal(h0, h1))
+        .collect();
+    and_helper(builder, eq)
+}
+
 /// Computes `h0 == h1`.
 fn hashes_equal<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -164,13 +199,7 @@ fn hashes_equal<F, const D: usize>(
 ) -> BoolTarget
 where
     F: RichField + Extendable<D>, {
-    let eq = h0
-        .elements
-        .into_iter_fixed()
-        .zip(h1.elements)
-        .map(|(h0, h1)| builder.is_equal(h0, h1))
-        .collect();
-    and_helper(builder, eq)
+    are_equal(builder, h0.elements, h1.elements)
 }
 
 /// Computes `h0 != ZERO`.
@@ -190,15 +219,11 @@ where
     or_helper(builder, zero)
 }
 
-/// Computes `h0 == ZERO`.
-fn hash_is_zero<F, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    h0: HashOutTarget,
-) -> BoolTarget
+/// Computes `a == ZERO`.
+fn are_zero<F, const D: usize>(builder: &mut CircuitBuilder<F, D>, a: [Target; 4]) -> BoolTarget
 where
     F: RichField + Extendable<D>, {
-    let zero = h0
-        .elements
+    let zero = a
         .into_iter_fixed()
         .map(|h0| {
             let non_zero = builder.is_nonzero(h0);
@@ -207,6 +232,16 @@ where
         .collect();
     // All numbers must be zero to be zero
     and_helper(builder, zero)
+}
+
+/// Computes `h0 == ZERO`.
+fn hash_is_zero<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    h0: HashOutTarget,
+) -> BoolTarget
+where
+    F: RichField + Extendable<D>, {
+    are_zero(builder, h0.elements)
 }
 
 /// Hash left and right together if both are present, otherwise forward one
