@@ -27,12 +27,16 @@ pub(crate) fn constraints<P: PackedField>(
     is_binary(yield_constr, lv.is_io_store_private);
     is_binary(yield_constr, lv.is_io_store_public);
     is_binary(yield_constr, lv.is_call_tape);
+    is_binary(yield_constr, lv.is_events_commitment_tape);
+    is_binary(yield_constr, lv.is_cast_list_commitment_tape);
     yield_constr.constraint(
         lv.inst.ops.ecall
             - (lv.is_halt
                 + lv.is_io_store_private
                 + lv.is_io_store_public
                 + lv.is_call_tape
+                + lv.is_events_commitment_tape
+                + lv.is_cast_list_commitment_tape
                 + lv.is_poseidon2),
     );
     halt_constraints(lv, nv, yield_constr);
@@ -89,6 +93,14 @@ pub(crate) fn io_constraints<P: PackedField>(
     yield_constr.constraint(
         lv.is_call_tape * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::IO_READ_CALL_TAPE)),
     );
+    yield_constr.constraint(
+        lv.is_events_commitment_tape
+            * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::EVENTS_COMMITMENT_TAPE)),
+    );
+    yield_constr.constraint(
+        lv.is_cast_list_commitment_tape
+            * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::CAST_LIST_COMMITMENT_TAPE)),
+    );
 }
 
 pub(crate) fn poseidon2_constraints<P: PackedField>(
@@ -111,12 +123,16 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     is_binary_ext_circuit(builder, lv.is_io_store_private, yield_constr);
     is_binary_ext_circuit(builder, lv.is_io_store_public, yield_constr);
     is_binary_ext_circuit(builder, lv.is_call_tape, yield_constr);
+    is_binary_ext_circuit(builder, lv.is_events_commitment_tape, yield_constr);
+    is_binary_ext_circuit(builder, lv.is_cast_list_commitment_tape, yield_constr);
 
     let is_ecall_ops = add_extension_vec(builder, vec![
         lv.is_halt,
         lv.is_io_store_private,
         lv.is_io_store_public,
         lv.is_call_tape,
+        lv.is_events_commitment_tape,
+        lv.is_cast_list_commitment_tape,
         lv.is_poseidon2,
     ]);
     let ecall_constraint = builder.sub_extension(lv.inst.ops.ecall, is_ecall_ops);
@@ -170,24 +186,57 @@ pub(crate) fn io_constraints_circuit<F: RichField + Extendable<D>, const D: usiz
     lv: &CpuState<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
-    let io_read_private_value =
-        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_PRIVATE));
-    let reg_a0_sub_io_read_private = builder.sub_extension(lv.op1_value, io_read_private_value);
-    let constraint_private =
-        builder.mul_extension(lv.is_io_store_private, reg_a0_sub_io_read_private);
-    yield_constr.constraint(builder, constraint_private);
+    // Constrains the expression:
+    //   reg_a0 == opcode of the ecall,
+    // for ecalls where tapes are read.
+    fn io_constraint<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+        op1_value: ExtensionTarget<D>,
+        lv_io_opcode: ExtensionTarget<D>,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        io_opcode: u32,
+    ) {
+        let value = builder.constant_extension(F::Extension::from_canonical_u32(io_opcode));
+        let reg_a0_sub_value = builder.sub_extension(op1_value, value);
+        let constraint = builder.mul_extension(lv_io_opcode, reg_a0_sub_value);
+        yield_constr.constraint(builder, constraint);
+    }
 
-    let io_read_public_value =
-        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_PUBLIC));
-    let reg_a0_sub_io_read_public = builder.sub_extension(lv.op1_value, io_read_public_value);
-    let constraint_public = builder.mul_extension(lv.is_io_store_public, reg_a0_sub_io_read_public);
-    yield_constr.constraint(builder, constraint_public);
-
-    let call_tape_value =
-        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_CALL_TAPE));
-    let reg_a0_sub_call_tape_value = builder.sub_extension(lv.op1_value, call_tape_value);
-    let constraint_call_tape = builder.mul_extension(lv.is_call_tape, reg_a0_sub_call_tape_value);
-    yield_constr.constraint(builder, constraint_call_tape);
+    io_constraint(
+        builder,
+        lv.op1_value,
+        lv.is_io_store_private,
+        yield_constr,
+        ecall::IO_READ_PRIVATE,
+    );
+    io_constraint(
+        builder,
+        lv.op1_value,
+        lv.is_io_store_public,
+        yield_constr,
+        ecall::IO_READ_PUBLIC,
+    );
+    io_constraint(
+        builder,
+        lv.op1_value,
+        lv.is_call_tape,
+        yield_constr,
+        ecall::IO_READ_CALL_TAPE,
+    );
+    io_constraint(
+        builder,
+        lv.op1_value,
+        lv.is_events_commitment_tape,
+        yield_constr,
+        ecall::EVENTS_COMMITMENT_TAPE,
+    );
+    io_constraint(
+        builder,
+        lv.op1_value,
+        lv.is_cast_list_commitment_tape,
+        yield_constr,
+        ecall::CAST_LIST_COMMITMENT_TAPE,
+    );
 }
 
 pub(crate) fn poseidon2_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
