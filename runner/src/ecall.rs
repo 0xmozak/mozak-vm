@@ -47,12 +47,12 @@ impl<F: RichField> State<F> {
                 num_bytes_requested as usize,
             ),
             IoOpcode::StoreEventsCommitmentTape => read_bytes(
-                &self.events_commitment_tape,
+                &*self.events_commitment_tape,
                 &mut 0,
                 num_bytes_requested as usize,
             ),
             IoOpcode::StoreCastListCommitmentTape => read_bytes(
-                &self.cast_list_commitment_tape,
+                &*self.cast_list_commitment_tape,
                 &mut 0,
                 num_bytes_requested as usize,
             ),

@@ -7,12 +7,16 @@ use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
+
+#[derive(Debug, Clone, Deref)]
+pub struct CommitmentTape(pub [u8; COMMITMENT_SIZE]);
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -60,8 +64,8 @@ pub struct State<F: RichField> {
     pub memory: StateMemory,
     pub io_tape: IoTape,
     pub call_tape: IoTapeData,
-    pub events_commitment_tape: [u8; 32],
-    pub cast_list_commitment_tape: [u8; 32],
+    pub events_commitment_tape: CommitmentTape,
+    pub cast_list_commitment_tape: CommitmentTape,
     _phantom: PhantomData<F>,
 }
 
@@ -141,8 +145,8 @@ impl<F: RichField> Default for State<F> {
             memory: StateMemory::default(),
             io_tape: IoTape::from((vec![], vec![])),
             call_tape: IoTapeData::default(),
-            events_commitment_tape: [0; 32],
-            cast_list_commitment_tape: [0; 32],
+            events_commitment_tape: CommitmentTape([0; 32]),
+            cast_list_commitment_tape: CommitmentTape([0; 32]),
             _phantom: PhantomData,
         }
     }
