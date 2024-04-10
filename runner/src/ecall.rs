@@ -32,13 +32,13 @@ impl<F: RichField> State<F> {
 
         let data = match op {
             IoOpcode::StorePublic => read_bytes(
-                &self.io_tape.public.data,
-                &mut self.io_tape.public.read_index,
+                &self.public_tape.data,
+                &mut self.public_tape.read_index,
                 num_bytes_requested as usize,
             ),
             IoOpcode::StorePrivate => read_bytes(
-                &self.io_tape.private.data,
-                &mut self.io_tape.private.read_index,
+                &self.private_tape.data,
+                &mut self.private_tape.read_index,
                 num_bytes_requested as usize,
             ),
             IoOpcode::StoreCallTape => read_bytes(

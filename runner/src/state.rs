@@ -62,8 +62,10 @@ pub struct State<F: RichField> {
     pub registers: [u32; 32],
     pub pc: u32,
     pub memory: StateMemory,
-    pub io_tape: IoTape,
-    pub call_tape: IoTapeData,
+    pub private_tape: IoTape,
+    pub public_tape: IoTape,
+    pub call_tape: IoTape,
+    pub event_tape: IoTape,
     pub events_commitment_tape: CommitmentTape,
     pub cast_list_commitment_tape: CommitmentTape,
     _phantom: PhantomData<F>,
@@ -94,39 +96,17 @@ impl StateMemory {
 }
 
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
-pub struct IoTapeData {
+pub struct IoTape {
     #[deref]
     pub data: Rc<[u8]>,
     pub read_index: usize,
 }
 
-impl Default for IoTapeData {
+impl Default for IoTape {
     fn default() -> Self {
         Self {
             data: [].into(),
             read_index: 0,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
-pub struct IoTape {
-    #[deref]
-    pub private: IoTapeData,
-    pub public: IoTapeData,
-}
-
-impl From<(Vec<u8>, Vec<u8>)> for IoTape {
-    fn from(data: (Vec<u8>, Vec<u8>)) -> Self {
-        Self {
-            private: IoTapeData {
-                data: Rc::from(data.0),
-                read_index: 0,
-            },
-            public: IoTapeData {
-                data: Rc::from(data.1),
-                read_index: 0,
-            },
         }
     }
 }
@@ -143,8 +123,10 @@ impl<F: RichField> Default for State<F> {
             registers: Default::default(),
             pc: Default::default(),
             memory: StateMemory::default(),
-            io_tape: IoTape::from((vec![], vec![])),
-            call_tape: IoTapeData::default(),
+            private_tape: IoTape::default(),
+            public_tape: IoTape::default(),
+            call_tape: IoTape::default(),
+            event_tape: IoTape::default(),
             events_commitment_tape: CommitmentTape([0; 32]),
             cast_list_commitment_tape: CommitmentTape([0; 32]),
             _phantom: PhantomData,
@@ -270,11 +252,6 @@ impl<F: RichField> State<F> {
         Self {
             pc,
             memory,
-            // TODO(bing): Handle the case where iotapes are
-            // in .mozak_global sections in the RISC-V binary.
-            // Now, the CLI simply does unwrap_or_default() to either
-            // use an iotape from file or default to an empty input.
-            io_tape: IoTape::from((vec![], vec![])),
             ..Default::default()
         }
     }
@@ -473,23 +450,5 @@ impl<F: RichField> State<F> {
         let clk = self.clk;
         trace!("CLK: {clk:#?}, PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::state::IoTape;
-
-    #[test]
-    fn test_io_tape_serialization() {
-        let io_tape = IoTape::from((vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10], vec![
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-        ]));
-        let serialized = serde_json::to_string(&io_tape).unwrap();
-        let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(io_tape.private.read_index, deserialized.private.read_index);
-        assert_eq!(io_tape.private.data, deserialized.private.data);
-        assert_eq!(io_tape.public.read_index, deserialized.public.read_index);
-        assert_eq!(io_tape.public.data, deserialized.public.data);
     }
 }
