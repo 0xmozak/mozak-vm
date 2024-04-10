@@ -54,17 +54,11 @@ impl MozakMemoryRegion {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemory {
-    // self_prog_id
     pub self_prog_id: MozakMemoryRegion,
-    // cast_list
     pub cast_list: MozakMemoryRegion,
-    // io private
     pub io_tape_private: MozakMemoryRegion,
-    // io public
     pub io_tape_public: MozakMemoryRegion,
-    // call_tape
     pub call_tape: MozakMemoryRegion,
-    // event_tape
     pub event_tape: MozakMemoryRegion,
 }
 
