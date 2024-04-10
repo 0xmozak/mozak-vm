@@ -140,7 +140,7 @@ fn generate_poseidon2_states<F: RichField>(
 
 #[must_use]
 pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Poseidon2State<F>> {
-    let trace = pad_trace_with_row::<F, Poseidon2State<F>>(
+    let trace = pad_trace_with_row::<Poseidon2State<F>>(
         step_rows
             .iter()
             .filter(|row| row.aux.poseidon2.is_some())
@@ -165,6 +165,7 @@ mod test {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::*;
+    use crate::generation::MIN_TRACE_LENGTH;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
 
     const D: usize = 2;

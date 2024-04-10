@@ -8,10 +8,7 @@ use crate::generation::MIN_TRACE_LENGTH;
 /// There's an assert that makes sure all columns passed in have the same
 /// length.
 #[must_use]
-pub fn pad_trace_with_row<F: Field, Row: Default + Clone>(
-    mut trace: Vec<Row>,
-    row: Row,
-) -> Vec<Row> {
+pub fn pad_trace_with_row<Row: Default + Clone>(mut trace: Vec<Row>, row: Row) -> Vec<Row> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
     trace.resize(len, row);
     trace
