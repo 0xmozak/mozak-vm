@@ -127,8 +127,8 @@ impl<F: RichField> Default for State<F> {
             public_tape: IoTape::default(),
             call_tape: IoTape::default(),
             event_tape: IoTape::default(),
-            events_commitment_tape: CommitmentTape([0; 32]),
-            cast_list_commitment_tape: CommitmentTape([0; 32]),
+            events_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
+            cast_list_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
             _phantom: PhantomData,
         }
     }
