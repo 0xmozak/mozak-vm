@@ -1,4 +1,4 @@
-use enumflags2::{bitflags, BitFlags};
+use enumflags2::BitFlags;
 use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -7,27 +7,10 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{find_target, find_targets, maybe_connect, Event, EventType};
+use super::{find_target, find_targets, maybe_connect, Event, EventFlags, EventType};
 
 // Limit transfers to 2^40 credits to avoid overflow issues
 const MAX_LEAF_TRANSFER: usize = 40;
-
-#[bitflags]
-#[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum Flags {
-    WriteFlag = 1 << 0,
-    EnsureFlag = 1 << 1,
-    ReadFlag = 1 << 2,
-    GiveOwnerFlag = 1 << 3,
-    TakeOwnerFlag = 1 << 4,
-}
-
-impl Flags {
-    fn count() -> usize { BitFlags::<Self>::ALL.len() }
-
-    fn index(self) -> usize { (self as u8).trailing_zeros() as usize }
-}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
@@ -190,12 +173,13 @@ impl SplitFlags {
     fn split<F, const D: usize>(builder: &mut CircuitBuilder<F, D>, flags: Target) -> Self
     where
         F: RichField + Extendable<D>, {
-        let new_data_flag_count = (Flags::WriteFlag | Flags::EnsureFlag).len();
-        let other_flag_count = Flags::count() - new_data_flag_count;
-        let owner_flag_count = (Flags::GiveOwnerFlag | Flags::TakeOwnerFlag).len();
+        let new_data_flag_count = (EventFlags::WriteFlag | EventFlags::EnsureFlag).len();
+        let other_flag_count = EventFlags::count() - new_data_flag_count;
+        let owner_flag_count = (EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag).len();
 
         // Split off the flags corresponding to changes to new_data
-        let (new_data, flags) = builder.split_low_high(flags, new_data_flag_count, Flags::count());
+        let (new_data, flags) =
+            builder.split_low_high(flags, new_data_flag_count, EventFlags::count());
         // Split  the flag corresponding to read from the owner flags
         let (read, owner) = builder.split_low_high(flags, 1, other_flag_count);
         let read = BoolTarget::new_unsafe(read);
@@ -208,11 +192,11 @@ impl SplitFlags {
         Self {
             new_data,
             owner,
-            write: flags[Flags::WriteFlag.index()],
-            ensure: flags[Flags::EnsureFlag.index()],
-            read: flags[Flags::ReadFlag.index()],
-            give_owner: flags[Flags::GiveOwnerFlag.index()],
-            take_owner: flags[Flags::TakeOwnerFlag.index()],
+            write: flags[EventFlags::WriteFlag.index()],
+            ensure: flags[EventFlags::EnsureFlag.index()],
+            read: flags[EventFlags::ReadFlag.index()],
+            give_owner: flags[EventFlags::GiveOwnerFlag.index()],
+            take_owner: flags[EventFlags::TakeOwnerFlag.index()],
         }
     }
 }
@@ -267,14 +251,14 @@ impl SubCircuitInputs {
         let event_value = builder.add_virtual_target_arr();
 
         let (write_flag, ensure_flag, read_flag, give_owner_flag, take_owner_flag) = {
-            let object_flags = builder.split_le(self.object_flags, Flags::count());
+            let object_flags = builder.split_le(self.object_flags, EventFlags::count());
 
             (
-                object_flags[Flags::WriteFlag.index()],
-                object_flags[Flags::EnsureFlag.index()],
-                object_flags[Flags::ReadFlag.index()],
-                object_flags[Flags::GiveOwnerFlag.index()],
-                object_flags[Flags::TakeOwnerFlag.index()],
+                object_flags[EventFlags::WriteFlag.index()],
+                object_flags[EventFlags::EnsureFlag.index()],
+                object_flags[EventFlags::ReadFlag.index()],
+                object_flags[EventFlags::GiveOwnerFlag.index()],
+                object_flags[EventFlags::TakeOwnerFlag.index()],
             )
         };
 
@@ -372,7 +356,7 @@ impl LeafTargets {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct LeafWitnessValue<F> {
     pub address: u64,
-    pub object_flags: BitFlags<Flags>,
+    pub object_flags: BitFlags<EventFlags>,
     pub old_owner: [F; 4],
     pub new_owner: [F; 4],
     pub old_data: [F; 4],
@@ -388,11 +372,11 @@ impl<F: RichField> LeafWitnessValue<F> {
         let zero = [F::ZERO; 4];
 
         let (object_flags, credit_delta) = match event.ty {
-            EventType::Write => (Flags::WriteFlag.into(), 0),
-            EventType::Read => (Flags::ReadFlag.into(), 0),
-            EventType::Ensure => (Flags::EnsureFlag.into(), 0),
-            EventType::GiveOwner => (Flags::GiveOwnerFlag.into(), 0),
-            EventType::TakeOwner => (Flags::TakeOwnerFlag.into(), 0),
+            EventType::Write => (EventFlags::WriteFlag.into(), 0),
+            EventType::Read => (EventFlags::ReadFlag.into(), 0),
+            EventType::Ensure => (EventFlags::EnsureFlag.into(), 0),
+            EventType::GiveOwner => (EventFlags::GiveOwnerFlag.into(), 0),
+            EventType::TakeOwner => (EventFlags::TakeOwnerFlag.into(), 0),
             EventType::CreditDelta => {
                 #[allow(clippy::cast_possible_wrap)]
                 let value = event.value[0].to_canonical_u64() as i64;
@@ -619,7 +603,7 @@ impl<F> From<LeafWitnessValue<F>> for BranchWitnessValue<F> {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct BranchWitnessValue<F> {
     pub address: u64,
-    pub object_flags: BitFlags<Flags>,
+    pub object_flags: BitFlags<EventFlags>,
     pub old_owner: [F; 4],
     pub new_owner: [F; 4],
     pub old_data: [F; 4],
@@ -631,18 +615,18 @@ fn merge_branch<F: RichField>(
     l: &BranchWitnessValue<F>,
     r: &BranchWitnessValue<F>,
     f: impl Fn(&BranchWitnessValue<F>) -> [F; 4],
-    flags: impl Into<BitFlags<Flags>>,
+    flags: impl Into<BitFlags<EventFlags>>,
 ) -> [F; 4] {
     merge_branch_helper(l, l.object_flags, r, r.object_flags, f, flags)
 }
 
 fn merge_branch_helper<F: RichField, W>(
     l: W,
-    l_flags: BitFlags<Flags>,
+    l_flags: BitFlags<EventFlags>,
     r: W,
-    r_flags: BitFlags<Flags>,
+    r_flags: BitFlags<EventFlags>,
     f: impl Fn(W) -> [F; 4],
-    flags: impl Into<BitFlags<Flags>>,
+    flags: impl Into<BitFlags<EventFlags>>,
 ) -> [F; 4] {
     let flags = flags.into();
     match (l_flags.intersects(flags), r_flags.intersects(flags)) {
@@ -662,10 +646,11 @@ impl<F: RichField> BranchWitnessValue<F> {
         let left: Self = left.into();
         let right: Self = right.into();
 
-        let old_owner = Flags::WriteFlag | Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
-        let new_owner = Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
-        let old_data = Flags::ReadFlag;
-        let new_data = Flags::WriteFlag | Flags::EnsureFlag;
+        let old_owner =
+            EventFlags::WriteFlag | EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag;
+        let new_owner = EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag;
+        let old_data = EventFlags::ReadFlag;
+        let new_data = EventFlags::WriteFlag | EventFlags::EnsureFlag;
 
         Self {
             address: left.address,
@@ -725,15 +710,16 @@ impl BranchSubCircuit {
             F::from_canonical_u64(left_flags | right_flags),
         );
         #[allow(clippy::cast_possible_truncation)]
-        let left_flags = BitFlags::<Flags>::from_bits(left_flags as u8).unwrap();
+        let left_flags = BitFlags::<EventFlags>::from_bits(left_flags as u8).unwrap();
         #[allow(clippy::cast_possible_truncation)]
-        let right_flags = BitFlags::<Flags>::from_bits(right_flags as u8).unwrap();
+        let right_flags = BitFlags::<EventFlags>::from_bits(right_flags as u8).unwrap();
 
         // Setup the flags for each scenario
-        let old_owner = Flags::WriteFlag | Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
-        let new_owner = Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
-        let old_data = Flags::ReadFlag;
-        let new_data = Flags::WriteFlag | Flags::EnsureFlag;
+        let old_owner =
+            EventFlags::WriteFlag | EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag;
+        let new_owner = EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag;
+        let old_data = EventFlags::ReadFlag;
+        let new_data = EventFlags::WriteFlag | EventFlags::EnsureFlag;
 
         // Get the object fields based on the flags
         let old_owner = merge_branch_helper(
@@ -1052,7 +1038,7 @@ mod test {
             EventType::Write,
             [3, 1, 4, 15],
             |event, _, _| {
-                event.object_flags = Flags::EnsureFlag.into();
+                event.object_flags = EventFlags::EnsureFlag.into();
             },
         );
     }
@@ -1065,7 +1051,7 @@ mod test {
             EventType::Write,
             [3, 1, 4, 15],
             |event, _, _| {
-                event.object_flags = Flags::GiveOwnerFlag.into();
+                event.object_flags = EventFlags::GiveOwnerFlag.into();
             },
         );
     }
@@ -1078,7 +1064,7 @@ mod test {
             EventType::Write,
             [3, 1, 4, 15],
             |event, _, _| {
-                event.object_flags = Flags::EnsureFlag | Flags::WriteFlag;
+                event.object_flags = EventFlags::EnsureFlag | EventFlags::WriteFlag;
             },
         );
     }
@@ -1104,7 +1090,7 @@ mod test {
             EventType::Ensure,
             [3, 1, 4, 15],
             |event, _, _| {
-                event.object_flags = Flags::WriteFlag.into();
+                event.object_flags = EventFlags::WriteFlag.into();
             },
         );
     }
@@ -1432,7 +1418,7 @@ mod test {
         let branch_proof_1 = BRANCHES[0].prove(
             BranchWitnessValue {
                 address: 200,
-                object_flags: Flags::ReadFlag | Flags::WriteFlag,
+                object_flags: EventFlags::ReadFlag | EventFlags::WriteFlag,
                 old_owner: program_hash_1,
                 new_owner: zero_val,
                 old_data: non_zero_val_1,
@@ -1449,7 +1435,7 @@ mod test {
         let branch_proof_2 = BRANCHES[0].prove(
             BranchWitnessValue {
                 address: 200,
-                object_flags: Flags::EnsureFlag.into(),
+                object_flags: EventFlags::EnsureFlag.into(),
                 old_owner: zero_val,
                 new_owner: zero_val,
                 old_data: zero_val,
@@ -1466,7 +1452,7 @@ mod test {
         let double_branch_proof = BRANCHES[1].prove(
             BranchWitnessValue {
                 address: 200,
-                object_flags: Flags::ReadFlag | Flags::WriteFlag | Flags::EnsureFlag,
+                object_flags: EventFlags::ReadFlag | EventFlags::WriteFlag | EventFlags::EnsureFlag,
                 old_owner: program_hash_1,
                 new_owner: zero_val,
                 old_data: non_zero_val_1,
