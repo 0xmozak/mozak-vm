@@ -30,7 +30,7 @@ pub fn filter<F: RichField>(
             && matches!(row.instruction.op, Op::ECALL,)
     })
 }
-const fn is_io_opcode<F: RichField>(op: IoOpcode) -> F {
+fn is_io_opcode<F: RichField>(op: IoOpcode) -> F {
     F::from_bool(matches!(
         op,
         IoOpcode::StorePrivate
