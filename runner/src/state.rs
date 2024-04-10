@@ -60,8 +60,8 @@ pub struct State<F: RichField> {
     pub memory: StateMemory,
     pub io_tape: IoTape,
     pub call_tape: IoTapeData,
-    pub events_commitment_tape: IoTapeData,
-    pub cast_list_commitment_tape: IoTapeData,
+    pub events_commitment_tape: [u8; 32],
+    pub cast_list_commitment_tape: [u8; 32],
     _phantom: PhantomData<F>,
 }
 
@@ -141,8 +141,8 @@ impl<F: RichField> Default for State<F> {
             memory: StateMemory::default(),
             io_tape: IoTape::from((vec![], vec![])),
             call_tape: IoTapeData::default(),
-            events_commitment_tape: IoTapeData::default(),
-            cast_list_commitment_tape: IoTapeData::default(),
+            events_commitment_tape: [0; 32],
+            cast_list_commitment_tape: [0; 32],
             _phantom: PhantomData,
         }
     }
