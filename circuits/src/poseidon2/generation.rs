@@ -4,8 +4,8 @@ use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
-use crate::generation::MIN_TRACE_LENGTH;
 use crate::poseidon2::columns::{Poseidon2State, ROUNDS_F, ROUNDS_P, STATE_SIZE};
+use crate::utils::pad_trace_with_row;
 
 struct FullRoundOutput<F> {
     pub state: [F; STATE_SIZE],
@@ -15,20 +15,6 @@ struct FullRoundOutput<F> {
 struct PartialRoundOutput<F> {
     pub state_0: F,
     pub s_box_input_qube_0: F,
-}
-
-/// Pad the trace to a power of 2.
-#[must_use]
-fn pad_trace<F: RichField>(mut trace: Vec<Poseidon2State<F>>) -> Vec<Poseidon2State<F>> {
-    let original_len = trace.len();
-    let ext_trace_len = original_len.next_power_of_two().max(MIN_TRACE_LENGTH);
-
-    trace.resize(
-        ext_trace_len,
-        generate_poseidon2_state(&[F::ZERO; STATE_SIZE], false),
-    );
-
-    trace
 }
 
 fn x_qube<F: RichField>(x: F) -> F {
@@ -154,7 +140,7 @@ fn generate_poseidon2_states<F: RichField>(
 
 #[must_use]
 pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Poseidon2State<F>> {
-    let trace = pad_trace(
+    let trace = pad_trace_with_row(
         step_rows
             .iter()
             .filter(|row| row.aux.poseidon2.is_some())
@@ -166,6 +152,7 @@ pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Posei
             .into_iter()
             .flatten()
             .collect::<Vec<Poseidon2State<F>>>(),
+        generate_poseidon2_state(&[F::ZERO; STATE_SIZE], false),
     );
     log::trace!("Poseison2 trace {:?}", trace);
     trace
@@ -178,6 +165,7 @@ mod test {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::*;
+    use crate::generation::MIN_TRACE_LENGTH;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
 
     const D: usize = 2;
