@@ -54,8 +54,3 @@ required-features = ["test"]
 harness = false
 name = "simple_prover"
 required-features = ["test"]
-
-[[bench]]
-harness = false
-name = "recproof"
-required-features = ["test"]

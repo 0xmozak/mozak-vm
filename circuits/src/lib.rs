@@ -28,7 +28,6 @@ pub mod program_multiplicities;
 pub mod public_sub_table;
 pub mod rangecheck;
 pub mod rangecheck_u8;
-pub mod recproof;
 pub mod register;
 pub mod stark;
 #[cfg(any(feature = "test", test))]
