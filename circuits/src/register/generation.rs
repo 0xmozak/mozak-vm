@@ -122,7 +122,7 @@ pub fn generate_register_trace<F: RichField>(
     (
         pad_trace_with_default(zeros_read),
         pad_trace_with_default(zeros_write),
-        pad_trace_with_row::<Register<F>>(general, Register {
+        pad_trace_with_row(general, Register {
             ops: Ops::default(),
             // ..And fill other columns with duplicate of last real trace row.
             ..last
