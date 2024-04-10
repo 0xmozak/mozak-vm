@@ -30,7 +30,7 @@ pub fn filter<F: RichField>(
             && matches!(row.instruction.op, Op::ECALL,)
     })
 }
-const fn is_io_opcode<F: RichField>() -> F {
+const fn is_io_opcode<F: RichField>(op: IoOpcode) -> F {
     F::from_bool(matches!(
         op,
         IoOpcode::StorePrivate
@@ -58,7 +58,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                         addr: F::from_canonical_u32(addr),
                         size: F::from_canonical_usize(len),
                         ops: Ops {
-                            is_io_store: is_io_opcode(),
+                            is_io_store: is_io_opcode(op),
                             is_memory_store: F::ZERO,
                         },
                         is_lv_and_nv_are_memory_rows: F::from_bool(false),
@@ -75,7 +75,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                             value: F::from_canonical_u8(local_value),
                             ops: Ops {
                                 is_io_store: F::ZERO,
-                                is_memory_store: is_io_opcode(),
+                                is_memory_store: is_io_opcode(op),
                             },
                             is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
                         }
