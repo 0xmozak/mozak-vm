@@ -86,7 +86,7 @@ impl<'a, V> Mul<Expr<'a, V>> for i64 {
 // builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)]
 // where [..] means split into multiple constraints.
 
-/// Expression Builder.  Contains a [`Bump`] memory arena that will allocate
+/// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
 /// store all the [`ExprTree`]s.
 #[derive(Debug)]
 pub struct ExprBuilder {
