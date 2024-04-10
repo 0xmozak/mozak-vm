@@ -30,8 +30,16 @@ where
     ) -> ExtensionTarget<D> {
         match op {
             BinOp::Add => self.builder.add_extension(left, right),
-            BinOp::Sub => self.builder.sub_extension(left, right),
             BinOp::Mul => self.builder.mul_extension(left, right),
+        }
+    }
+
+    fn una_op(&mut self, op: &expr::UnaOp, expr: ExtensionTarget<D>) -> ExtensionTarget<D> {
+        match op {
+            expr::UnaOp::Neg => {
+                let neg_one = self.builder.neg_one();
+                self.builder.scalar_mul_ext(neg_one, expr)
+            }
         }
     }
 
@@ -56,8 +64,13 @@ where
     fn bin_op(&mut self, op: &BinOp, left: P, right: P) -> P {
         match op {
             BinOp::Add => left + right,
-            BinOp::Sub => left - right,
             BinOp::Mul => left * right,
+        }
+    }
+
+    fn una_op(&mut self, op: &expr::UnaOp, expr: P) -> P {
+        match op {
+            expr::UnaOp::Neg => -expr,
         }
     }
 

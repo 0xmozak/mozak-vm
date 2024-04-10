@@ -1,6 +1,6 @@
 //! Simple library for handling ASTs for polynomials for ZKP in Rust
 
-use std::ops::{Add, Mul, Sub};
+use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
 
@@ -61,6 +61,14 @@ impl ExprBuilder {
         self.intern(expr_tree)
     }
 
+    /// Convenience method for creating `UnaOp` nodes
+    fn una_op<'a, V>(&'a self, op: UnaOp, expr: Expr<'a, V>) -> Expr<'a, V> {
+        let expr = expr.expr_tree;
+        let expr_tree = ExprTree::UnaOp { op, expr };
+
+        self.intern(expr_tree)
+    }
+
     /// Create a `Literal` expression
     pub fn lit<V>(&self, value: V) -> Expr<'_, V> { self.intern(ExprTree::Literal { value }) }
 
@@ -79,7 +87,7 @@ impl ExprBuilder {
 
     /// Create a `Sub` expression
     pub fn sub<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        self.bin_op(BinOp::Sub, left, right)
+        self.bin_op(BinOp::Add, left, self.una_op(UnaOp::Neg, right))
     }
 
     /// Create a `Mul` expression
@@ -101,11 +109,16 @@ impl ExprBuilder {
 }
 
 /// Enum for binary operations
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub enum BinOp {
     Add,
-    Sub,
     Mul,
+}
+
+/// Unary operations
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
+pub enum UnaOp {
+    Neg,
 }
 
 /// Internal type to represent the expression trees
@@ -115,6 +128,10 @@ enum ExprTree<'a, V> {
         op: BinOp,
         left: &'a ExprTree<'a, V>,
         right: &'a ExprTree<'a, V>,
+    },
+    UnaOp {
+        op: UnaOp,
+        expr: &'a ExprTree<'a, V>,
     },
     Literal {
         value: V,
@@ -139,6 +156,10 @@ where
 
                 evaluator.bin_op(op, left, right)
             }
+            ExprTree::UnaOp { op, expr } => {
+                let expr = expr.eval_with(evaluator);
+                evaluator.una_op(op, expr)
+            }
             ExprTree::Literal { value } => *value,
             ExprTree::Constant { value } => evaluator.constant(*value),
         }
@@ -150,6 +171,7 @@ pub trait Evaluator<V>
 where
     V: Copy, {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
+    fn una_op(&mut self, op: &UnaOp, expr: V) -> V;
     fn constant(&mut self, value: i64) -> V;
     fn eval(&mut self, expr: Expr<'_, V>) -> V { expr.expr_tree.eval_with(self) }
 }
@@ -160,17 +182,18 @@ pub struct PureEvaluator {}
 
 impl<V> Evaluator<V> for PureEvaluator
 where
-    V: Copy,
-    V: Add<Output = V>,
-    V: Sub<Output = V>,
-    V: Mul<Output = V>,
-    V: From<i64>,
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + From<i64>,
 {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V {
         match op {
             BinOp::Add => left + right,
-            BinOp::Sub => left - right,
             BinOp::Mul => left * right,
+        }
+    }
+
+    fn una_op(&mut self, op: &UnaOp, expr: V) -> V {
+        match op {
+            UnaOp::Neg => -expr,
         }
     }
 
