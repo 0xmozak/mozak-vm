@@ -17,16 +17,17 @@
 [workspace]
 exclude = ["sdk"]
 members = [
+  "circuits",
   "cli",
   "examples-builder",
-  "runner",
-  "circuits",
+  "expr",
   "node-cli",
   "node",
   "recproofs",
   "rpc",
-  "state",
+  "runner",
   "signatures",
+  "state",
   "wasm-demo",
 ]
 resolver = "2"
