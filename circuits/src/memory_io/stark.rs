@@ -280,7 +280,7 @@ mod tests {
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &(0..COMMITMENT_SIZE)
-                .map(|i| (address + (i as u32), 0_u8))
+                .map(|i| (address.wrapping_add(i as u32), 0_u8))
                 .collect_vec(),
             &[
                 (REG_A0, ecall::EVENTS_COMMITMENT_TAPE),
@@ -289,7 +289,7 @@ mod tests {
             ],
             RuntimeArguments {
                 events_commitment_tape,
-                ..Default::default()
+                ..Default::default(),
             },
         );
         Stark::prove_and_verify(&program, &record).unwrap();
@@ -303,7 +303,7 @@ mod tests {
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &(0..COMMITMENT_SIZE)
-                .map(|i| (address + (i as u32), 0_u8))
+                .map(|i| (address.wrapping_add(i as u32), 0_u8))
                 .collect_vec(),
             &[
                 (REG_A0, ecall::CAST_LIST_COMMITMENT_TAPE),
