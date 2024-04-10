@@ -121,16 +121,6 @@ impl Default for MozakMemory {
     }
 }
 
-/// Deprecated??
-impl From<(&[u8], &[u8])> for MozakMemory {
-    fn from((private, public): (&[u8], &[u8])) -> Self {
-        let mut mozak_memory = MozakMemory::create();
-        mozak_memory.io_tape_private.fill(private);
-        mozak_memory.io_tape_public.fill(public);
-        mozak_memory
-    }
-}
-
 impl MozakMemory {
     fn create() -> MozakMemory {
         MozakMemory {
