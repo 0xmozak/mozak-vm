@@ -5,7 +5,6 @@ use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
-use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::register::general::columns::{Ops, Register};
 use crate::register::init::columns::RegisterInit;
@@ -13,7 +12,7 @@ use crate::register::zero_read::columns::RegisterZeroRead;
 use crate::register::zero_write::columns::RegisterZeroWrite;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
-use crate::utils::pad_trace_with_default;
+use crate::utils::{pad_trace_with_default, pad_trace_with_row};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
 /// internally by `augmented_clk`
@@ -24,17 +23,6 @@ pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Ve
             row.addr.to_noncanonical_u64(),
             row.augmented_clk().to_noncanonical_u64(),
         )
-    });
-    trace
-}
-
-#[must_use]
-pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
-    let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
-    trace.resize(len, Register {
-        ops: Ops::default(),
-        // ..And fill other columns with duplicate of last real trace row.
-        ..*trace.last().unwrap()
     });
     trace
 }
@@ -130,10 +118,15 @@ pub fn generate_register_trace<F: RichField>(
         .collect();
 
     log::trace!("trace for general registers {:?}", general);
+    let last = *general.last().unwrap();
     (
         pad_trace_with_default(zeros_read),
         pad_trace_with_default(zeros_write),
-        pad_trace(general),
+        pad_trace_with_row(general, Register {
+            ops: Ops::default(),
+            // ..And fill other columns with duplicate of last real trace row.
+            ..last
+        }),
     )
 }
 
