@@ -126,7 +126,7 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
     vec![RegisterTable::new(
-        RangeCheckCtl(COL_MAP.augmented_clk().flip() - COL_MAP.augmented_clk()),
+        RangeCheckCtl(COL_MAP.augmented_clk().diff()),
         COL_MAP.is_rw().flip(),
     )]
 }

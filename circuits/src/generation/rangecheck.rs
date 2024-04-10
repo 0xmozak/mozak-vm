@@ -64,9 +64,11 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
             }
             .into_iter()
             .for_each(|v| {
-                let val = u32::try_from(v.to_canonical_u64())
-                    .expect("casting value to u32 should succeed");
-
+                let val = u32::try_from(v.to_canonical_u64()).unwrap_or_else(|_| {
+                    panic!(
+                        "We can only rangecheck values that actually fit in u32, but got: {v:#x?}"
+                    )
+                });
                 *multiplicities.entry(val).or_default() += 1;
             });
         });
