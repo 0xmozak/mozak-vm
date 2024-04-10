@@ -4,8 +4,7 @@ use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
 
-/// Publicly available struct.  Contains a reference to [`ExprTree`] that is
-/// managed by [`ExprBuilder`].
+/// Contains a reference to [`ExprTree`] that is managed by [`ExprBuilder`].
 #[derive(Clone, Copy, Debug)]
 pub struct Expr<'a, V> {
     expr_tree: &'a ExprTree<'a, V>,
@@ -18,10 +17,47 @@ impl<'a, V> Add for Expr<'a, V> {
     fn add(self, rhs: Self) -> Self::Output { self.builder.add(self, rhs) }
 }
 
+impl<'a, V> Add<i64> for Expr<'a, V> {
+    type Output = Expr<'a, V>;
+
+    fn add(self, rhs: i64) -> Self::Output {
+        let rhs = self.builder.constant(rhs);
+        self + rhs
+    }
+}
+
+impl<'a, V> Add<Expr<'a, V>> for i64 {
+    type Output = Expr<'a, V>;
+
+    fn add(self, rhs: Expr<'a, V>) -> Self::Output { rhs + self }
+}
+
+impl<'a, V> Neg for Expr<'a, V> {
+    type Output = Expr<'a, V>;
+
+    fn neg(self) -> Self::Output { self.builder.neg(self) }
+}
+
 impl<'a, V> Sub for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
     fn sub(self, rhs: Self) -> Self::Output { self.builder.sub(self, rhs) }
+}
+
+impl<'a, V> Sub<i64> for Expr<'a, V> {
+    type Output = Expr<'a, V>;
+
+    fn sub(self, rhs: i64) -> Self::Output {
+        let rhs = self.builder.constant(-rhs);
+        self + rhs
+    }
+}
+
+impl<'a, V> Sub<Expr<'a, V>> for i64 {
+    type Output = Expr<'a, V>;
+
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn sub(self, rhs: Expr<'a, V>) -> Self::Output { self + rhs.builder.neg(rhs) }
 }
 
 impl<'a, V> Mul for Expr<'a, V> {
@@ -29,6 +65,26 @@ impl<'a, V> Mul for Expr<'a, V> {
 
     fn mul(self, rhs: Self) -> Self::Output { self.builder.mul(self, rhs) }
 }
+
+impl<'a, V> Mul<i64> for Expr<'a, V> {
+    type Output = Expr<'a, V>;
+
+    fn mul(self, rhs: i64) -> Self::Output {
+        let rhs = self.builder.constant(rhs);
+        self.builder.mul(self, rhs)
+    }
+}
+
+impl<'a, V> Mul<Expr<'a, V>> for i64 {
+    type Output = Expr<'a, V>;
+
+    fn mul(self, rhs: Expr<'a, V>) -> Self::Output { rhs * self }
+}
+
+// TODO: support `|` via multiplication.
+// TODO support `&` via distributive law, and integration with constraint
+// builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)]
+// where [..] means split into multiple constraints.
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate
 /// store all the [`ExprTree`]s.
@@ -84,6 +140,8 @@ impl ExprBuilder {
     pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         self.bin_op(BinOp::Add, left, right)
     }
+
+    pub fn neg<'a, V>(&'a self, x: Expr<'a, V>) -> Expr<'a, V> { self.una_op(UnaOp::Neg, x) }
 
     /// Create a `Sub` expression
     pub fn sub<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
