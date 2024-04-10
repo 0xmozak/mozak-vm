@@ -1,30 +1,23 @@
-use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::generation::MIN_TRACE_LENGTH;
 
-/// Pad the trace to a power of 2.
+/// Pad the trace with a given `Row` to a power of 2.
 ///
 /// # Panics
 /// There's an assert that makes sure all columns passed in have the same
 /// length.
 #[must_use]
-pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
-    assert!(trace
-        .iter()
-        .tuple_windows()
-        .all(|(a, b)| a.len() == b.len()));
-    for col in &mut trace {
-        if let (Some(padded_len), Some(&last)) = (
-            col.len().max(MIN_TRACE_LENGTH).checked_next_power_of_two(),
-            col.last(),
-        ) {
-            col.extend(vec![last; padded_len - col.len()]);
-        }
-    }
+pub fn pad_trace_with_row<F: Field, Row: Default + Clone>(
+    mut trace: Vec<Row>,
+    row: Row,
+) -> Vec<Row> {
+    let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
+    trace.resize(len, row);
     trace
 }
 
+/// Pad the trace with the trace's last `Row` to a power of 2.
 #[must_use]
 pub fn pad_trace_with_last<Row: Default + Clone>(mut trace: Vec<Row>) -> Vec<Row> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
