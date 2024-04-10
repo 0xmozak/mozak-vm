@@ -78,7 +78,6 @@ where
     // TODO(Matthias): add a constraint to forbid two is_init in a row (with the
     // same address).  See `circuits/src/generation/memoryinit.rs` in
     // `a75c8fbc2701a4a6b791b2ff71857795860c5591`
-    let one: Expr<'_, V> = eb.one();
     let mut cb = ConstraintBuilder::default();
 
     // Memory initialization Constraints
@@ -119,7 +118,7 @@ where
     //
     // A zero init at clk == 0,
     // while an ELF init happens at clk == 1.
-    let zero_init_clk = one - lv.clk;
+    let zero_init_clk = 1 - lv.clk;
     let elf_init_clk = lv.clk;
 
     // Boolean constraints
@@ -133,7 +132,7 @@ where
     cb.always(eb.is_binary(lv.is_executed()));
 
     // first row init is always one or its a dummy row
-    cb.first_row((one - lv.is_init) * lv.is_executed());
+    cb.first_row((1 - lv.is_init) * lv.is_executed());
 
     // All init ops happen prior to exec and the `clk` would be `0` or `1`.
     cb.always(lv.is_init * zero_init_clk * elf_init_clk);
@@ -142,12 +141,12 @@ where
     cb.always(lv.is_init * zero_init_clk * lv.value);
     // All zero inits should be writable.
     // (Assumption: `is_init` == 1, `clk` == 0)
-    cb.always(lv.is_init * zero_init_clk * (one - lv.is_writable));
+    cb.always(lv.is_init * zero_init_clk * (1 - lv.is_writable));
 
     // Operation constraints
     // ---------------------
     // No `SB` operation can be seen if memory address is not marked `writable`
-    cb.always((one - lv.is_writable) * lv.is_store);
+    cb.always((1 - lv.is_writable) * lv.is_store);
 
     // For all "load" operations, the value cannot change between rows
     cb.always(nv.is_load * (nv.value - lv.value));
@@ -159,7 +158,7 @@ where
     // in case the "new row" describes an `addr` different from the current
     // row, we expect `diff_clk` to be `0`. New row's clk remains
     // unconstrained in such situation.
-    cb.transition((one - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
+    cb.transition((1 - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
     cb.transition(lv.is_init * lv.diff_clk);
 
     // Padding constraints
@@ -188,7 +187,7 @@ where
     // MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed())
     // Please add test that fails with not-sorted memory trace
     let diff_addr = nv.addr - lv.addr;
-    cb.transition(diff_addr * (one - diff_addr * nv.diff_addr_inv));
+    cb.transition(diff_addr * (1 - diff_addr * nv.diff_addr_inv));
 
     // b) checking that nv.is_init == 1 only when nv.diff_addr_inv != 0
     // Note: nv.diff_addr_inv != 0 IFF: lv.addr != nv.addr

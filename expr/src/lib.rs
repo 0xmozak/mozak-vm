@@ -88,13 +88,9 @@ impl<'a, V> Mul<Expr<'a, V>> for i64 {
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
 /// store all the [`ExprTree`]s.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExprBuilder {
     bump: Bump,
-}
-
-impl Default for ExprBuilder {
-    fn default() -> Self { Self { bump: Bump::new() } }
 }
 
 impl ExprBuilder {
@@ -133,9 +129,6 @@ impl ExprBuilder {
         self.intern(ExprTree::Constant { value })
     }
 
-    /// Create a `One` expression
-    pub fn one<V>(&self) -> Expr<'_, V> { self.constant(1i64) }
-
     /// Create an `Add` expression
     pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         self.bin_op(BinOp::Add, left, right)
@@ -156,7 +149,7 @@ impl ExprBuilder {
     pub fn is_binary<'a, V>(&'a self, x: Expr<'a, V>) -> Expr<'a, V>
     where
         V: Copy, {
-        x * (self.one() - x)
+        x * (1 - x)
     }
 
     pub fn inject_slice<'a, V>(&'a self, items: &'a [V]) -> impl IntoIterator<Item = Expr<'a, V>>
