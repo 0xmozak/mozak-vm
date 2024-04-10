@@ -9,8 +9,9 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::unpruned::PartialAllowed;
-use super::{hash_event, state_from_event, unbounded, unpruned, Event, EventType};
+use crate::subcircuits::unpruned::PartialAllowed;
+use crate::subcircuits::{state_from_event, unbounded, unpruned};
+use crate::{hash_event, Event, EventType};
 
 pub struct LeafCircuit<F, C, const D: usize>
 where

@@ -23,6 +23,7 @@ members = [
   "circuits",
   "node-cli",
   "node",
+  "recproofs",
   "rpc",
   "state",
   "signatures",
