@@ -97,13 +97,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
 
     fn eval_ext_circuit(
         &self,
-        circuit_builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
         let cb = generate_constraints(eb.to_typed_starkframe(vars));
-        build_ext(cb, circuit_builder, yield_constr);
+        build_ext(cb, builder, yield_constr);
     }
 }
 
