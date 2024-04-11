@@ -35,8 +35,7 @@ fn generate_constraints<T, U, const N2: usize>(
     vars: StarkFrameTyped<BitshiftView<Expr<T>>, [U; N2]>,
 ) -> ConstraintBuilder<Expr<T>>
 where
-    T: Copy + Default + std::fmt::Debug,
-    T: Copy + Default, {
+    T: Copy + std::fmt::Debug, {
     let lv: Bitshift<_> = vars.local_values.executed;
     let nv: Bitshift<_> = vars.next_values.executed;
     let mut cb = ConstraintBuilder::default();
