@@ -428,20 +428,18 @@ impl LeafSubCircuit {
         inputs: &mut PartialWitness<F>,
         v: LeafWitnessValue<F>,
     ) {
+        let targets = &self.targets.inputs;
+        inputs.set_target(targets.address, F::from_canonical_u64(v.address));
         inputs.set_target(
-            self.targets.inputs.address,
-            F::from_canonical_u64(v.address),
-        );
-        inputs.set_target(
-            self.targets.inputs.object_flags,
+            targets.object_flags,
             F::from_canonical_u8(v.object_flags.bits()),
         );
-        inputs.set_target_arr(&self.targets.inputs.old_owner, &v.old_owner);
-        inputs.set_target_arr(&self.targets.inputs.new_owner, &v.new_owner);
-        inputs.set_target_arr(&self.targets.inputs.old_data, &v.old_data);
-        inputs.set_target_arr(&self.targets.inputs.new_data, &v.new_data);
+        inputs.set_target_arr(&targets.old_owner, &v.old_owner);
+        inputs.set_target_arr(&targets.new_owner, &v.new_owner);
+        inputs.set_target_arr(&targets.old_data, &v.old_data);
+        inputs.set_target_arr(&targets.new_data, &v.new_data);
         inputs.set_target(
-            self.targets.inputs.credit_delta,
+            targets.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
         );
         inputs.set_target_arr(&self.targets.event_owner, &v.event_owner);
@@ -506,6 +504,7 @@ impl SubCircuitInputs {
         right.object_flags = builder.select(partial, zero, right.object_flags);
         right.credit_delta = builder.select(partial, zero, right.credit_delta);
 
+        // Match addresses
         builder.connect(self.address, left.address);
         builder.connect(self.address, right.address);
 
@@ -682,20 +681,18 @@ impl BranchSubCircuit {
         partial: bool,
         v: BranchWitnessValue<F>,
     ) {
+        let targets = &self.targets.inputs;
+        witness.set_target(targets.address, F::from_canonical_u64(v.address));
         witness.set_target(
-            self.targets.inputs.address,
-            F::from_canonical_u64(v.address),
-        );
-        witness.set_target(
-            self.targets.inputs.object_flags,
+            targets.object_flags,
             F::from_canonical_u8(v.object_flags.bits()),
         );
-        witness.set_target_arr(&self.targets.inputs.old_owner, &v.old_owner);
-        witness.set_target_arr(&self.targets.inputs.new_owner, &v.new_owner);
-        witness.set_target_arr(&self.targets.inputs.old_data, &v.old_data);
-        witness.set_target_arr(&self.targets.inputs.new_data, &v.new_data);
+        witness.set_target_arr(&targets.old_owner, &v.old_owner);
+        witness.set_target_arr(&targets.new_owner, &v.new_owner);
+        witness.set_target_arr(&targets.old_data, &v.old_data);
+        witness.set_target_arr(&targets.new_data, &v.new_data);
         witness.set_target(
-            self.targets.inputs.credit_delta,
+            targets.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
         );
         witness.set_bool_target(self.targets.partial, partial);
@@ -731,8 +728,10 @@ impl BranchSubCircuit {
         // Handle flags
         let left_flags = indices.get_object_flags(left_inputs).to_canonical_u64();
         let right_flags = indices.get_object_flags(right_inputs).to_canonical_u64();
-        let object_flags = F::from_canonical_u64(left_flags | right_flags);
-        witness.set_target(targets.object_flags, object_flags);
+        witness.set_target(
+            targets.object_flags,
+            F::from_canonical_u64(left_flags | right_flags),
+        );
         #[allow(clippy::cast_possible_truncation)]
         let left_flags = BitFlags::<EventFlags>::from_bits(left_flags as u8).unwrap();
         #[allow(clippy::cast_possible_truncation)]
@@ -793,6 +792,7 @@ impl BranchSubCircuit {
         let credits = left_credits + right_credits;
         witness.set_target(targets.credit_delta, F::from_noncanonical_i64(credits));
 
+        // Both sides, so not partial
         witness.set_bool_target(self.targets.partial, false);
     }
 }

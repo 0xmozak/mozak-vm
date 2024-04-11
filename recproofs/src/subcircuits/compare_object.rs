@@ -89,12 +89,11 @@ impl SubCircuitInputs {
         let old_credits = builder.add_virtual_target();
         let new_credits = builder.add_virtual_target();
 
-        let (write_flag, ensure_flag, give_owner_flag, take_owner_flag) = {
+        let (write_flag, give_owner_flag, take_owner_flag) = {
             let object_flags = builder.split_le(object_flags, EventFlags::count());
 
             (
                 object_flags[EventFlags::WriteFlag.index()],
-                object_flags[EventFlags::EnsureFlag.index()],
                 object_flags[EventFlags::GiveOwnerFlag.index()],
                 object_flags[EventFlags::TakeOwnerFlag.index()],
             )
@@ -107,12 +106,9 @@ impl SubCircuitInputs {
         builder.connect(give_owner_flag.target, take_owner_flag.target);
 
         // Require writes to be complete
-        let not_write = builder.not(write_flag);
-        let ensured_without_write = builder.and(not_write, ensure_flag);
         let data_unchanged = are_equal(builder, old_data, new_data);
-        let data_updated = builder.not(data_unchanged);
-        let incomplete_write = builder.and(ensured_without_write, data_updated);
-        builder.connect(incomplete_write.target, zero);
+        let unchanged_or_flag = builder.or(data_unchanged, write_flag);
+        builder.connect(unchanged_or_flag.target, one);
 
         // Ensure ownership changes are limited to creation and deletion
         let no_owner_change = are_equal(builder, old_owner, new_owner);
@@ -473,7 +469,9 @@ mod test {
         let creation = LeafWitnessValue {
             address: 42,
             block_height: 23,
-            object_flags: EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag,
+            object_flags: EventFlags::GiveOwnerFlag
+                | EventFlags::TakeOwnerFlag
+                | EventFlags::WriteFlag,
             old_owner: zero_val,
             new_owner: program_hash_1,
             old_data: zero_val,
@@ -527,6 +525,21 @@ mod test {
             ..burn
         };
         let proof = LEAF.prove(mint)?;
+        LEAF.circuit.verify(proof)?;
+
+        let deletion = LeafWitnessValue {
+            block_height: 28,
+            object_flags: EventFlags::GiveOwnerFlag
+                | EventFlags::TakeOwnerFlag
+                | EventFlags::WriteFlag,
+            new_owner: zero_val,
+            new_data: zero_val,
+            last_updated: 27,
+            old_credits: 190,
+            new_credits: 0,
+            ..burn
+        };
+        let proof = LEAF.prove(deletion)?;
         LEAF.circuit.verify(proof)?;
 
         Ok(())
@@ -625,6 +638,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
+    /// Only creation and deletion should be allowed
     fn bad_transer_leaf() {
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
         let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
@@ -647,6 +661,8 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
+    /// Updates should require the `Write` flag to be set
+
     fn bad_ensure_leaf() {
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
         let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
@@ -716,7 +732,9 @@ mod test {
         let creation_1 = LeafWitnessValue {
             address: 42,
             block_height: 23,
-            object_flags: EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag,
+            object_flags: EventFlags::GiveOwnerFlag
+                | EventFlags::TakeOwnerFlag
+                | EventFlags::WriteFlag,
             old_owner: zero_val,
             new_owner: program_hash_1,
             old_data: zero_val,
@@ -731,7 +749,9 @@ mod test {
         let creation_2 = LeafWitnessValue {
             address: 142,
             block_height: 123,
-            object_flags: EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag,
+            object_flags: EventFlags::GiveOwnerFlag
+                | EventFlags::TakeOwnerFlag
+                | EventFlags::WriteFlag,
             old_owner: zero_val,
             new_owner: program_hash_2,
             old_data: zero_val,
