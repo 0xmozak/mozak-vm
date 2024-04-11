@@ -1,4 +1,3 @@
-use im::hashmap::HashMap;
 use itertools::{chain, izip};
 use mozak_sdk::core::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;

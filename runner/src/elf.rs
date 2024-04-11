@@ -593,7 +593,6 @@ impl Program {
     /// use any mozak-ro-memory capabilities
     #[must_use]
     #[allow(clippy::similar_names)]
-    #[cfg(any(feature = "test", test))]
     pub fn create(
         ro_mem: &[(u32, u8)],
         rw_mem: &[(u32, u8)],
@@ -636,9 +635,7 @@ impl Program {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
-
-    use crate::elf::{Program, RuntimeArguments};
+    use super::*;
 
     #[test]
     fn test_serialize_deserialize() {
@@ -654,11 +651,9 @@ mod test {
     }
 
     #[test]
-    fn test_mozak_load_program_default() -> Result<()> {
+    fn test_mozak_load_program_default() {
         Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
             .unwrap();
-
-        Ok(())
     }
 
     #[test]
@@ -673,7 +668,6 @@ mod test {
                 io_tape_public: data.clone(),
                 event_tape: data.clone(),
                 call_tape: data.clone(),
-                ..Default::default()
             })
             .unwrap()
             .mozak_ro_memory
