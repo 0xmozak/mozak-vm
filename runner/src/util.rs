@@ -10,16 +10,6 @@ use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
 
 #[must_use]
-pub fn load_u32(m: &HashMap<u32, u8>, addr: u32) -> u32 {
-    const WORD_SIZE: usize = 4;
-    let mut bytes = [0_u8; WORD_SIZE];
-    for (i, byte) in (addr..).zip(bytes.iter_mut()) {
-        *byte = m.get(&i).copied().unwrap_or_default();
-    }
-    u32::from_le_bytes(bytes)
-}
-
-#[must_use]
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::similar_names)]
 // TODO(Roman): refactor this later (runtime_args)
@@ -53,10 +43,7 @@ pub fn execute_code_with_ro_memory(
         .collect(),
     );
 
-    #[cfg(any(feature = "test", test))]
-    let program = Program::create(ro_mem, rw_mem, &ro_code, &runtime_args);
-    #[cfg(not(any(feature = "test", test)))]
-    let program = Program::create_with_args(ro_mem, rw_mem, &ro_code, &runtime_args);
+    let program = Program::create(ro_mem, rw_mem, ro_code, &runtime_args);
     let state0 = State::new(program.clone());
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
