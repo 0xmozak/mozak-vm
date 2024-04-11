@@ -66,7 +66,7 @@ mod tests {
     use mozak_runner::elf::Program;
     use mozak_runner::instruction::Op::{LH, LHU, SH};
     use mozak_runner::instruction::{Args, Instruction};
-    use mozak_runner::util::execute_code;
+    use mozak_runner::code;
     use mozak_runner::vm::ExecutionRecord;
     use plonky2::field::goldilocks_field::GoldilocksField;
 
@@ -122,7 +122,7 @@ mod tests {
             .flatten()
             .copied()
             .collect::<Vec<_>>();
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             code,
             &[
                 (400, 0),

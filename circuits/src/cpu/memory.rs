@@ -140,7 +140,7 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::u32_extra;
-    use mozak_runner::util::execute_code;
+    use mozak_runner::code;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -149,7 +149,7 @@ mod tests {
     use crate::test_utils::{ProveAndVerify, D, F};
 
     fn prove_sb<Stark: ProveAndVerify>(a: u32, b: u32) {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [Instruction {
                 op: Op::SB,
                 args: Args {
@@ -172,7 +172,7 @@ mod tests {
     /// TODO: In future we should test any combination of load and store
     /// in any order to work.
     fn prove_lb_and_lbu<Stark: ProveAndVerify>(a: u32, b: u32) {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [
                 Instruction {
                     op: Op::LB,
@@ -199,7 +199,7 @@ mod tests {
     }
 
     fn prove_sb_lbu<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u32) {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [
                 Instruction {
                     op: Op::SB,
@@ -227,7 +227,7 @@ mod tests {
     }
 
     fn prove_sb_lb<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u32) {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [
                 Instruction {
                     op: Op::SB,
@@ -255,7 +255,7 @@ mod tests {
     }
 
     fn prove_sh_lh<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u32) {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [
                 Instruction {
                     op: Op::SH,

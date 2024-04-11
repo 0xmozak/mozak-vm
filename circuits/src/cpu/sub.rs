@@ -45,7 +45,7 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::u32_extra;
-    use mozak_runner::util::execute_code;
+    use mozak_runner::code;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -54,7 +54,7 @@ mod tests {
     use crate::test_utils::{ProveAndVerify, D, F};
 
     fn prove_sub<Stark: ProveAndVerify>(a: u32, b: u32) {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [Instruction {
                 op: Op::SUB,
                 args: Args {

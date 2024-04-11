@@ -61,7 +61,7 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::util::execute_code;
+    use mozak_runner::code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, PrimeField64};
 
@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_generate_trace() {
         type F = GoldilocksField;
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [Instruction {
                 op: Op::SB,
                 args: Args {

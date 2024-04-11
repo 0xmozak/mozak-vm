@@ -2,10 +2,10 @@ use std::borrow::Borrow;
 
 use anyhow::Result;
 use itertools::izip;
+use mozak_runner::code;
 use mozak_runner::decode::ECALL;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
-use mozak_runner::util::execute_code;
 use mozak_runner::vm::ExecutionRecord;
 use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
@@ -487,7 +487,7 @@ pub fn create_poseidon2_test(
         ]);
     }
 
-    execute_code(instructions, memory.as_slice(), &[])
+    code::execute(instructions, memory.as_slice(), &[])
 }
 
 pub fn hash_str(v: &str) -> HashOut<F> {

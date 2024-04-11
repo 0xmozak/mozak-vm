@@ -1,5 +1,4 @@
 use std::cmp::{max, min};
-use std::collections::HashSet;
 use std::iter::repeat;
 use std::ops::Range;
 
@@ -15,8 +14,7 @@ use im::hashmap::HashMap;
 use itertools::{chain, iproduct, izip, Itertools};
 use serde::{Deserialize, Serialize};
 
-use crate::decode::decode_instruction;
-use crate::instruction::{DecodingError, Instruction};
+use crate::code::Code;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemoryRegion {
@@ -279,12 +277,6 @@ pub struct Program {
     pub mozak_ro_memory: Option<MozakMemory>,
 }
 
-/// Executable code of the ELF
-///
-/// A wrapper of a map from pc to [Instruction]
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
-pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
-
 /// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
@@ -292,38 +284,6 @@ pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
     Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, IntoIterator, PartialEq,
 )]
 pub struct Data(pub HashMap<u32, u8>);
-
-impl Code {
-    /// Get [Instruction] given `pc`
-    #[must_use]
-    pub fn get_instruction(&self, pc: u32) -> Option<&Result<Instruction, DecodingError>> {
-        let Code(code) = self;
-        code.get(&pc)
-    }
-}
-
-impl From<&HashMap<u32, u8>> for Code {
-    fn from(image: &HashMap<u32, u8>) -> Self {
-        fn load_u32(m: &HashMap<u32, u8>, addr: u32) -> u32 {
-            const WORD_SIZE: usize = 4;
-            let mut bytes = [0_u8; WORD_SIZE];
-            for (i, byte) in (addr..).zip(bytes.iter_mut()) {
-                *byte = m.get(&i).copied().unwrap_or_default();
-            }
-            u32::from_le_bytes(bytes)
-        }
-
-        Self(
-            image
-                .keys()
-                .map(|addr| addr & !3)
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .map(|key| (key, decode_instruction(key, load_u32(image, key))))
-                .collect(),
-        )
-    }
-}
 
 impl From<HashMap<u32, u32>> for Program {
     fn from(image: HashMap<u32, u32>) -> Self {
