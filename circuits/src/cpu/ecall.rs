@@ -12,7 +12,6 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
 use super::columns::CpuState;
-use crate::cpu::stark::add_extension_vec;
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 pub(crate) fn constraints<P: PackedField>(
@@ -98,108 +97,6 @@ pub(crate) fn poseidon2_constraints<P: PackedField>(
     yield_constr.constraint(
         lv.is_poseidon2 * (lv.op1_value - P::Scalar::from_canonical_u32(ecall::POSEIDON2)),
     );
-}
-
-pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    is_binary_ext_circuit(builder, lv.is_poseidon2, yield_constr);
-    is_binary_ext_circuit(builder, lv.is_halt, yield_constr);
-    is_binary_ext_circuit(builder, lv.is_io_store_private, yield_constr);
-    is_binary_ext_circuit(builder, lv.is_io_store_public, yield_constr);
-    is_binary_ext_circuit(builder, lv.is_call_tape, yield_constr);
-
-    let is_ecall_ops = add_extension_vec(builder, vec![
-        lv.is_halt,
-        lv.is_io_store_private,
-        lv.is_io_store_public,
-        lv.is_call_tape,
-        lv.is_poseidon2,
-    ]);
-    let ecall_constraint = builder.sub_extension(lv.inst.ops.ecall, is_ecall_ops);
-    yield_constr.constraint(builder, ecall_constraint);
-
-    halt_constraints_circuit(builder, lv, nv, yield_constr);
-    io_constraints_circuit(builder, lv, yield_constr);
-    poseidon2_constraints_circuit(builder, lv, yield_constr);
-}
-
-pub(crate) fn halt_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let one = builder.one_extension();
-    let halt_ecall_plus_running = builder.add_extension(lv.inst.ops.ecall, nv.is_running);
-    let halt_ecall_plus_running_sub_one = builder.sub_extension(halt_ecall_plus_running, one);
-    let constraint1 = builder.mul_extension(lv.is_halt, halt_ecall_plus_running_sub_one);
-    yield_constr.constraint_transition(builder, constraint1);
-
-    let halt_value = builder.constant_extension(F::Extension::from_canonical_u32(ecall::HALT));
-    let halt_reg_a0_sub = builder.sub_extension(lv.op1_value, halt_value);
-    let constraint2 = builder.mul_extension(lv.is_halt, halt_reg_a0_sub);
-    yield_constr.constraint(builder, constraint2);
-
-    let nv_pc_sub_lv_pc = builder.sub_extension(nv.inst.pc, lv.inst.pc);
-    let ecall_mul_nv_pc_sub_lv_pc = builder.mul_extension(lv.inst.ops.ecall, nv_pc_sub_lv_pc);
-    let pc_constraint = builder.mul_extension(lv.is_halt, ecall_mul_nv_pc_sub_lv_pc);
-    yield_constr.constraint_transition(builder, pc_constraint);
-
-    let is_halted = builder.sub_extension(one, lv.is_running);
-    is_binary_ext_circuit(builder, lv.is_running, yield_constr);
-    yield_constr.constraint_last_row(builder, lv.is_running);
-
-    let nv_is_running_sub_lv_is_running = builder.sub_extension(nv.is_running, lv.is_running);
-    let transition_constraint = builder.mul_extension(is_halted, nv_is_running_sub_lv_is_running);
-    yield_constr.constraint_transition(builder, transition_constraint);
-
-    for (index, &lv_entry) in lv.iter().enumerate() {
-        let nv_entry = nv[index];
-        let lv_nv_entry_sub = builder.sub_extension(lv_entry, nv_entry);
-        let transition_constraint = builder.mul_extension(is_halted, lv_nv_entry_sub);
-        yield_constr.constraint_transition(builder, transition_constraint);
-    }
-}
-
-pub(crate) fn io_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let io_read_private_value =
-        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_PRIVATE));
-    let reg_a0_sub_io_read_private = builder.sub_extension(lv.op1_value, io_read_private_value);
-    let constraint_private =
-        builder.mul_extension(lv.is_io_store_private, reg_a0_sub_io_read_private);
-    yield_constr.constraint(builder, constraint_private);
-
-    let io_read_public_value =
-        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_PUBLIC));
-    let reg_a0_sub_io_read_public = builder.sub_extension(lv.op1_value, io_read_public_value);
-    let constraint_public = builder.mul_extension(lv.is_io_store_public, reg_a0_sub_io_read_public);
-    yield_constr.constraint(builder, constraint_public);
-
-    let call_tape_value =
-        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_CALL_TAPE));
-    let reg_a0_sub_call_tape_value = builder.sub_extension(lv.op1_value, call_tape_value);
-    let constraint_call_tape = builder.mul_extension(lv.is_call_tape, reg_a0_sub_call_tape_value);
-    yield_constr.constraint(builder, constraint_call_tape);
-}
-
-pub(crate) fn poseidon2_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let poseidon2_value =
-        builder.constant_extension(F::Extension::from_canonical_u32(ecall::POSEIDON2));
-    let reg_a0_sub_poseidon2 = builder.sub_extension(lv.op1_value, poseidon2_value);
-    let constraint = builder.mul_extension(lv.is_poseidon2, reg_a0_sub_poseidon2);
-    yield_constr.constraint(builder, constraint);
 }
 
 // We are already testing ecall halt with our coda of every `execute_code`.

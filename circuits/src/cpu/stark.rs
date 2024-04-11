@@ -1,10 +1,13 @@
 use std::marker::PhantomData;
+use std::process::Output;
 
+use derive_more::Sub;
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
+use plonky2::gates::public_input;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -12,13 +15,14 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::{is_mem_op_extention_target, CpuState, Instruction, OpSelectors};
+use super::columns::{CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
+use core::ops::Add;
 
 /// A Gadget for CPU Instructions
 ///
@@ -33,7 +37,9 @@ impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
     type Columns = CpuState<F>;
 }
 
-impl<P: PackedField> OpSelectors<P> {
+impl<P: Copy + Add<Output = P>> OpSelectors<P> where 
+    i64: Sub<P, Output = P>,
+{
     // List of opcodes that manipulated the program counter, instead of
     // straight line incrementing it.
     // Note: ecall is only 'jumping' in the sense that a 'halt'
@@ -43,57 +49,23 @@ impl<P: PackedField> OpSelectors<P> {
     }
 
     /// List of opcodes that only bump the program counter.
-    pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
+    pub fn is_straightline(&self) -> P { 1 - self.is_jumping() }
 
     /// List of opcodes that work with memory.
     pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
 }
 
-pub fn add_extension_vec<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    targets: Vec<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let mut result = builder.zero_extension();
-    for target in targets {
-        result = builder.add_extension(result, target);
-    }
-    result
-}
-
 /// Ensure that if opcode is straight line, then program counter is incremented
 /// by 4.
-fn pc_ticks_up<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
+fn pc_ticks_up<'a, P: Copy>(
+    lv: &CpuState<Expr<'a, P>>,
+    nv: &CpuState<Expr<'a, P>>,
+    cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
-    yield_constr.constraint_transition(
-        lv.inst.ops.is_straightline()
-            * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
+    cb.transition(
+         lv.inst.ops.is_straightline()
+            * (nv.inst.pc - (lv.inst.pc + 4)),
     );
-}
-
-fn pc_ticks_up_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let four = builder.constant_extension(F::Extension::from_noncanonical_u64(4));
-    let lv_inst_pc_add_four = builder.add_extension(lv.inst.pc, four);
-    let nv_inst_pc_sub_lv_inst_pc_add_four = builder.sub_extension(nv.inst.pc, lv_inst_pc_add_four);
-    let is_jumping = add_extension_vec(builder, vec![
-        lv.inst.ops.beq,
-        lv.inst.ops.bge,
-        lv.inst.ops.blt,
-        lv.inst.ops.bne,
-        lv.inst.ops.ecall,
-        lv.inst.ops.jalr,
-    ]);
-    let one = builder.one_extension();
-    let is_straightline = builder.sub_extension(one, is_jumping);
-    let constr = builder.mul_extension(is_straightline, nv_inst_pc_sub_lv_inst_pc_add_four);
-    yield_constr.constraint_transition(builder, constr);
 }
 
 /// Enforce that selectors of opcode as well as registers are one-hot encoded.
@@ -150,146 +122,79 @@ fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>
 }
 
 /// Ensure clock is ticking up, iff CPU is still running.
-fn clock_ticks<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
+fn clock_ticks<'a, P: Copy>(
+    lv: &CpuState<Expr<'a, P>>,
+    nv: &CpuState<Expr<'a, P>>,
+    cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     let clock_diff = nv.clk - lv.clk;
-    is_binary_transition(yield_constr, clock_diff);
-    yield_constr.constraint_transition(clock_diff - lv.is_running);
-}
-
-fn clock_ticks_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    nv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let clock_diff = builder.sub_extension(nv.clk, lv.clk);
-    let one = builder.one_extension();
-    let one_sub_clock_diff = builder.sub_extension(one, clock_diff);
-    let clock_diff_mul_one_sub_clock_diff = builder.mul_extension(clock_diff, one_sub_clock_diff);
-    yield_constr.constraint_transition(builder, clock_diff_mul_one_sub_clock_diff);
-    let clock_diff_sub_lv_is_running = builder.sub_extension(clock_diff, lv.is_running);
-    yield_constr.constraint_transition(builder, clock_diff_sub_lv_is_running);
+    cb.transition(clock_diff.is_binary());
+    cb.transition(clock_diff - lv.is_running);
 }
 
 /// Constraints for values in op2, which is the sum of the value of the second
 /// operand register and the immediate value (except for branch instructions).
 /// This may overflow.
-fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    let wrap_at = CpuState::<P>::shifted(32);
-    let ops = &lv.inst.ops;
-    let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
-    let is_shift_operation = ops.sll + ops.srl + ops.sra;
+// fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
+//     let wrap_at = CpuState::<P>::shifted(32);
+//     let ops = &lv.inst.ops;
+//     let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
+//     let is_shift_operation = ops.sll + ops.srl + ops.sra;
 
-    yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.op2_value_raw));
-    yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
-    yield_constr.constraint(
-        (P::ONES - is_branch_operation - is_shift_operation)
-            * (lv.op2_value_overflowing - lv.inst.imm_value - lv.op2_value_raw),
-    );
-    yield_constr.constraint(
-        (P::ONES - is_branch_operation - is_shift_operation)
-            * (lv.op2_value_overflowing - lv.op2_value)
-            * (lv.op2_value_overflowing - lv.op2_value - wrap_at * ops.is_mem_op()),
-    );
-}
-
-fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let wrap_at = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
-    let ops = &lv.inst.ops;
-    let is_branch_operation = add_extension_vec(builder, vec![ops.beq, ops.bne, ops.blt, ops.bge]);
-    let is_shift_operation = add_extension_vec(builder, vec![ops.sll, ops.srl, ops.sra]);
-
-    let lv_op2_value_sub_rs2_value = builder.sub_extension(lv.op2_value, lv.op2_value_raw);
-    let is_branch_op_mul_lv_op2_value_sub_rs2_value =
-        builder.mul_extension(is_branch_operation, lv_op2_value_sub_rs2_value);
-    yield_constr.constraint(builder, is_branch_op_mul_lv_op2_value_sub_rs2_value);
-
-    let op2_sub_bitshift_multiplier = builder.sub_extension(lv.op2_value, lv.bitshift.multiplier);
-    let is_shift_op_mul_op2_sub_bitshift_multiplier =
-        builder.mul_extension(is_shift_operation, op2_sub_bitshift_multiplier);
-    yield_constr.constraint(builder, is_shift_op_mul_op2_sub_bitshift_multiplier);
-
-    let one = builder.one_extension();
-    let one_sub_is_branch_operation = builder.sub_extension(one, is_branch_operation);
-    let one_sub_is_branch_operation_sub_is_shift_operation =
-        builder.sub_extension(one_sub_is_branch_operation, is_shift_operation);
-    let op2_value_overflowing_sub_inst_imm_value =
-        builder.sub_extension(lv.op2_value_overflowing, lv.inst.imm_value);
-    let op2_value_overflowing_sub_inst_imm_value_sub_rs2_value =
-        builder.sub_extension(op2_value_overflowing_sub_inst_imm_value, lv.op2_value_raw);
-    let constr = builder.mul_extension(
-        one_sub_is_branch_operation_sub_is_shift_operation,
-        op2_value_overflowing_sub_inst_imm_value_sub_rs2_value,
-    );
-    yield_constr.constraint(builder, constr);
-
-    let op2_value_overflowing_sub_op2_value =
-        builder.sub_extension(lv.op2_value_overflowing, lv.op2_value);
-    let is_mem_op = is_mem_op_extention_target(builder, ops);
-    let wrap_at_mul_is_mem_op = builder.mul_extension(wrap_at, is_mem_op);
-    let lv_op2_value_overflowing_sub_op2_value_mul_wrap_at_mul_is_mem_op =
-        builder.sub_extension(op2_value_overflowing_sub_op2_value, wrap_at_mul_is_mem_op);
-    let constr = builder.mul_extension(
-        op2_value_overflowing_sub_op2_value,
-        lv_op2_value_overflowing_sub_op2_value_mul_wrap_at_mul_is_mem_op,
-    );
-    let constr = builder.mul_extension(one_sub_is_branch_operation_sub_is_shift_operation, constr);
-    yield_constr.constraint(builder, constr);
-}
+//     yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.op2_value_raw));
+//     yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
+//     yield_constr.constraint(
+//         (P::ONES - is_branch_operation - is_shift_operation)
+//             * (lv.op2_value_overflowing - lv.inst.imm_value - lv.op2_value_raw),
+//     );
+//     yield_constr.constraint(
+//         (P::ONES - is_branch_operation - is_shift_operation)
+//             * (lv.op2_value_overflowing - lv.op2_value)
+//             * (lv.op2_value_overflowing - lv.op2_value - wrap_at * ops.is_mem_op()),
+//     );
+// }
 
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
  
-fn generate_constraints<'a, T: Copy, U>(
-    vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, PublicInputs<U>>,
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let nv = vars.next_values;
+    let lv = &vars.local_values;
+    let nv = &vars.next_values;
+    let public_inputs = vars.public_inputs;
     let mut constraints = ConstraintBuilder::default();
 
-    // let public_inputs: &PublicInputs<_> = (&vars.public_inputs).
-    // .iter()
-    //             .map(|&v| self.lit(v))
-    //             .collect();
+    constraints.first_row(lv.inst.pc - public_inputs.entry_point);
+    clock_ticks(lv, nv, &mut constraints);
+    pc_ticks_up(lv, nv, &mut constraints);
 
-    //     yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
-    //     clock_ticks(lv, nv, yield_constr);
-    //     pc_ticks_up(lv, nv, yield_constr);
-
-    //     one_hots(&lv.inst, yield_constr);
+    //     one_hots(&lv.inst, &mut constraints);
 
     //     // Registers
-    //     populate_op2_value(lv, yield_constr);
+    //     populate_op2_value(lv, &mut constraints);
 
-    //     add::constraints(lv, yield_constr);
-    //     sub::constraints(lv, yield_constr);
-    //     bitwise::constraints(lv, yield_constr);
-    //     branches::comparison_constraints(lv, yield_constr);
-    //     branches::constraints(lv, nv, yield_constr);
-    //     memory::constraints(lv, yield_constr);
-    //     signed_comparison::signed_constraints(lv, yield_constr);
-    //     signed_comparison::slt_constraints(lv, yield_constr);
-    //     shift::constraints(lv, yield_constr);
-    //     div::constraints(lv, yield_constr);
-    //     mul::constraints(lv, yield_constr);
-    //     jalr::constraints(lv, nv, yield_constr);
-    //     ecall::constraints(lv, nv, yield_constr);
+    //     add::constraints(lv, &mut constraints);
+    //     sub::constraints(lv, &mut constraints);
+    //     bitwise::constraints(lv, &mut constraints);
+    //     branches::comparison_constraints(lv, &mut constraints);
+    //     branches::constraints(lv, nv, &mut constraints);
+    //     memory::constraints(lv, &mut constraints);
+    //     signed_comparison::signed_constraints(lv, &mut constraints);
+    //     signed_comparison::slt_constraints(lv, &mut constraints);
+    //     shift::constraints(lv, &mut constraints);
+    //     div::constraints(lv, &mut constraints);
+    //     mul::constraints(lv, &mut constraints);
+    //     jalr::constraints(lv, nv, &mut constraints);
+    //     ecall::constraints(lv, nv, &mut constraints);
 
     //     // Clock starts at 2. This is to differentiate
     //     // execution clocks (2 and above) from
     //     // clk values `0` and `1` which are reserved for
     //     // elf initialisation and zero initialisation respectively.
-    //     yield_constr.constraint_first_row(P::ONES + P::ONES - lv.clk);
+    //     constraints.first_row(P::ONES + P::ONES - lv.clk);
 
     constraints
 }
@@ -311,7 +216,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        // TODO(Matthias): handle conversion of public inputs less uglily.
+        let public_inputs: [P::Scalar; PUBLIC_INPUTS] = vars.get_public_inputs().try_into().unwrap();
+        let vars: StarkFrame<P, P, COLUMNS, PUBLIC_INPUTS> = 
+            StarkFrame::from_values(
+                vars.get_local_values(),
+                 vars.get_next_values(),
+                &public_inputs.map(P::from),
+            )
+        ;
+        let vars: StarkFrameTyped<CpuState<Expr<'_, P>>, PublicInputs<_>> = expr_builder.to_typed_starkframe(&vars);
+        let constraints = generate_constraints(&vars);
         build_packed(constraints, constraint_consumer);
     }
 
