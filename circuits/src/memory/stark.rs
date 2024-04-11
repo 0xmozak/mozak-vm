@@ -28,12 +28,10 @@ impl<F, const D: usize> HasNamedColumns for MemoryStark<F, D> {
 const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-// The clippy exception makes life times slightly easier to work with.
-#[allow(clippy::needless_pass_by_value)]
 // Constraints design: https://docs.google.com/presentation/d/1G4tmGl8V1W0Wqxv-MwjGjaM3zUF99dzTvFhpiood4x4/edit?usp=sharing
-fn generate_constraints<T: Copy, U, const N2: usize>(
-    vars: StarkFrameTyped<Memory<Expr<T>>, [U; N2]>,
-) -> ConstraintBuilder<Expr<T>> {
+fn generate_constraints<'a, T: Copy, U, const N2: usize>(
+    vars: &StarkFrameTyped<Memory<Expr<'a, T>>, [U; N2]>,
+) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values;
     let nv = vars.next_values;
     let mut constraints = ConstraintBuilder::default();
@@ -163,7 +161,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    fn eval_packed_generic<FE, P, const D2: usize>(
+    fn eval_packed_generic<'a, FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
         consumer: &mut ConstraintConsumer<P>,
@@ -171,7 +169,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
         build_packed(constraints, consumer);
     }
 
@@ -184,7 +182,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
         build_ext(constraints, builder, consumer);
     }
 }
