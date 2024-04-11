@@ -59,7 +59,7 @@ fn generate_constraints<T: Copy, U, const N2: usize>(
         //      if a = b = 0            -> 0 + 0 - 2 * 0 * 0 = 0
         //      if only a = 1 or b = 1  -> 1 + 0 - 2 * 1 * 0 = 1
         //      if a = b = 1            -> 1 + 1 - 2 * 1 * 1 = 0
-        let xor = a + b - 2 * (a * b);
+        let xor = a + b - 2 * a * b;
         constraints.always(res - xor);
     }
 
