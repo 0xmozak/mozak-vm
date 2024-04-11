@@ -12,6 +12,44 @@ pub struct Expr<'a, V> {
     builder: &'a ExprBuilder,
 }
 
+impl<'a, V> Expr<'a, V> {
+    pub fn is_binary(self) -> Self
+    where
+        V: Copy, {
+        self * (1 - self)
+    }
+
+    // pub fn reduce_with_powers<'a, P: PackedField, T: IntoIterator<Item = &'a P>>(
+    //     terms: T,
+    //     alpha: P::Scalar,
+    // ) -> P
+    // where
+    //     T::IntoIter: DoubleEndedIterator,
+    // {
+    //     let mut sum = P::ZEROS;
+    //     for &term in terms.into_iter().rev() {
+    //         sum = sum * alpha + term;
+    //     }
+    //     sum
+    // }
+
+    /// Reduce a sequence of terms into a single term using powers of `base`.
+    ///
+    /// For typing convenience, this only works for non-empty list of terms.
+    pub fn reduce_with_powers<I>(terms: I, base: i64) -> Self
+    where
+        I: IntoIterator<Item = Self>,
+        I::IntoIter: DoubleEndedIterator, {
+        let mut terms = terms.into_iter().rev().peekable();
+        let builder = terms.peek().unwrap().builder;
+        let mut sum = builder.constant(0);
+        for term in terms {
+            sum = sum * base + term;
+        }
+        sum
+    }
+}
+
 impl<'a, V> Add for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
@@ -145,12 +183,6 @@ impl ExprBuilder {
     /// Create a `Mul` expression
     pub fn mul<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         self.bin_op(BinOp::Mul, left, right)
-    }
-
-    pub fn is_binary<'a, V>(&'a self, x: Expr<'a, V>) -> Expr<'a, V>
-    where
-        V: Copy, {
-        x * (1 - x)
     }
 
     /// Convert from untyped `StarkFrame` to a typed representation.
