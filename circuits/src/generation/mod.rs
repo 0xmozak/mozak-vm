@@ -11,7 +11,6 @@ pub mod io_memory;
 pub mod memory;
 pub mod memory_zeroinit;
 pub mod memoryinit;
-pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_u8;
 pub mod xor;
@@ -52,10 +51,10 @@ use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::{
     generate_elf_memory_init_trace, generate_mozak_memory_init_trace,
 };
-use crate::generation::program::generate_program_rom_trace;
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
+use crate::program::generation::generate_program_rom_trace;
 use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
