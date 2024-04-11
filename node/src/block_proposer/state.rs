@@ -2,7 +2,7 @@ use std::mem;
 use std::ops::Add;
 
 use itertools::{chain, Itertools};
-use mozak_circuits::recproof::state_update::{self, AddressPresent};
+use mozak_recproofs::circuits::state_update::{self, AddressPresent};
 use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::plonk::circuit_data::CircuitConfig;

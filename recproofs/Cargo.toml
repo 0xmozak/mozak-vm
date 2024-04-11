@@ -1,0 +1,30 @@
+[package]
+categories = ["cryptography"]
+description = "MozakVM circuits"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "mozak-recproofs"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[dependencies]
+anyhow = { version = "1.0", default-features = false }
+enumflags2 = "0.7.9"
+iter_fixed = "0.3.1"
+itertools = "0.12"
+lazy_static = "1.4.0"
+plonky2 = { version = "0", default-features = false }
+plonky2_maybe_rayon = { version = "0", default-features = false }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[features]
+test = []
+
+[[bench]]
+harness = false
+name = "recproof"
+required-features = ["test"]

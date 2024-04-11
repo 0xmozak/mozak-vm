@@ -4,28 +4,53 @@ use enumflags2::{bitflags, BitFlags};
 use iter_fixed::IntoIteratorFixed;
 use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
+use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::{
     HashOut, HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS,
 };
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::VerifierCircuitTarget;
-use plonky2::plonk::config::Hasher;
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 
-pub mod accumulate_event;
-pub mod bounded;
-pub mod compare_object;
-pub mod make_tree;
-pub mod merge;
-pub mod propagate;
-pub mod state_from_event;
-pub mod state_update;
-pub mod summarized;
-pub mod unbounded;
-pub mod unpruned;
-pub mod verify_address;
-pub mod verify_event;
+pub mod circuits;
+pub mod subcircuits;
+
+#[cfg(any(feature = "test", test))]
+pub mod test_utils {
+    use plonky2::field::types::Field;
+    use plonky2::hash::hash_types::{HashOut, RichField};
+    use plonky2::hash::poseidon2::Poseidon2Hash;
+    use plonky2::plonk::circuit_data::CircuitConfig;
+    use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
+
+    #[must_use]
+    pub const fn fast_test_circuit_config() -> CircuitConfig {
+        let mut config = CircuitConfig::standard_recursion_config();
+        config.security_bits = 1;
+        config.num_challenges = 1;
+        config.fri_config.cap_height = 0;
+        config.fri_config.proof_of_work_bits = 0;
+        config.fri_config.num_query_rounds = 1;
+        config
+    }
+
+    pub fn hash_str(v: &str) -> HashOut<F> {
+        let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
+        Poseidon2Hash::hash_no_pad(&v)
+    }
+
+    pub fn hash_branch<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
+        let [l0, l1, l2, l3] = left.elements;
+        let [r0, r1, r2, r3] = right.elements;
+        Poseidon2Hash::hash_no_pad(&[l0, l1, l2, l3, r0, r1, r2, r3])
+    }
+
+    pub const D: usize = 2;
+    pub type C = Poseidon2GoldilocksConfig;
+    pub type F = <C as GenericConfig<D>>::F;
+}
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum EventType {
@@ -394,4 +419,45 @@ fn byte_wise_hash<F: RichField + Extendable<D>, const D: usize>(
         .flat_map(|v| split_bytes(builder, v))
         .collect();
     builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(bytes)
+}
+
+// Generates `CircuitData` usable for recursion.
+#[must_use]
+pub fn circuit_data_for_recursion<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    const D: usize,
+>(
+    config: &CircuitConfig,
+    target_degree_bits: usize,
+    public_input_size: usize,
+) -> CircuitData<F, C, D>
+where
+    C::Hasher: AlgebraicHasher<F>, {
+    // Generate a simple circuit that will be recursively verified in the out
+    // circuit.
+    let common = {
+        let mut builder = CircuitBuilder::<F, D>::new(config.clone());
+        while builder.num_gates() < 1 << 5 {
+            builder.add_gate(NoopGate, vec![]);
+        }
+        builder.build::<C>().common
+    };
+
+    let mut builder = CircuitBuilder::<F, D>::new(config.clone());
+    let proof = builder.add_virtual_proof_with_pis(&common);
+    let verifier_data = builder.add_virtual_verifier_data(common.config.fri_config.cap_height);
+    builder.verify_proof::<C>(&proof, &verifier_data, &common);
+    for _ in 0..public_input_size {
+        builder.add_virtual_public_input();
+    }
+    // We don't want to pad all the way up to 2^target_degree_bits, as the builder
+    // will add a few special gates afterward. So just pad to
+    // 2^(target_degree_bits - 1) + 1. Then the builder will pad to the next
+    // power of two.
+    let min_gates = (1 << (target_degree_bits - 1)) + 1;
+    while builder.num_gates() < min_gates {
+        builder.add_gate(NoopGate, vec![]);
+    }
+    builder.build::<C>()
 }
