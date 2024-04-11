@@ -25,7 +25,7 @@ pub(crate) fn constraints<'a, P: Copy>(
     cb.always(is_shift * (and_gadget.input_a - 0b1_1111));
     cb.always(is_shift * (and_gadget.input_b - lv.op2_value_raw - lv.inst.imm_value));
 
-    cb.always(is_shift * (and_gadget.doubled_output - lv.bitshift.amount));
+    cb.always(is_shift * (and_gadget.doubled_output - 2 * lv.bitshift.amount));
 }
 
 #[cfg(test)]

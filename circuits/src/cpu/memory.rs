@@ -32,7 +32,9 @@ pub(crate) fn signed_constraints<'a, P: Copy>(
     cb.always((lv.inst.ops.sb + lv.inst.ops.sh) * (and_gadget.input_a - lv.op1_value));
     cb.always(lv.inst.ops.sb * (and_gadget.input_b - 0x0000_00FF));
     cb.always(lv.inst.ops.sh * (and_gadget.input_b - 0x0000_FFFF));
-    cb.always((lv.inst.ops.sb + lv.inst.ops.sh) * (and_gadget.doubled_output - lv.mem_value_raw));
+    cb.always(
+        (lv.inst.ops.sb + lv.inst.ops.sh) * (and_gadget.doubled_output - 2 * lv.mem_value_raw),
+    );
 }
 
 pub(crate) fn constraints<'a, P: Copy>(
