@@ -8,7 +8,9 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::{at_least_one_true, bounded, hashes_equal, summarized, unpruned, verify_address};
+use crate::subcircuits::{bounded, summarized, unpruned, verify_address};
+use crate::{at_least_one_true, hashes_equal};
+
 pub struct LeafCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,

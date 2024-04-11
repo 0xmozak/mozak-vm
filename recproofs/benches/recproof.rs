@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use mozak_circuits::recproof::state_update::{BranchCircuit, LeafCircuit};
-use mozak_circuits::recproof::{make_tree, unbounded};
-use mozak_circuits::test_utils::{hash_branch, hash_str, C, D, F};
+use mozak_recproofs::circuits::state_update::{BranchCircuit, LeafCircuit};
+use mozak_recproofs::subcircuits::{make_tree, unbounded};
+use mozak_recproofs::test_utils::{hash_branch, hash_str, C, D, F};
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
