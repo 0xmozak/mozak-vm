@@ -22,6 +22,8 @@ pub(crate) fn used_in_execution<F: RichField>(step_rows: &[Row<F>]) -> BTreeSet<
     step_rows
         .iter()
         .flat_map(|row| row.aux.mem_addresses_used.clone())
+        // We always consider these two used, to make our constraints work out.
+        .chain([0, u32::MAX])
         .collect()
 }
 
@@ -69,11 +71,11 @@ mod tests {
             // `MemoryInit`. This is tracked in this trace here, to prep for CTL.
             prep_table(vec![
                 // addr, filter
+                [0, 1],
                 [100, 1],
                 [200, 1],
+                [u64::from(u32::MAX), 1],
                 // padding
-                [0, 0],
-                [0, 0],
                 [0, 0],
                 [0, 0],
                 [0, 0],

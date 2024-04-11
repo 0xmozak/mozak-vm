@@ -11,6 +11,9 @@ pub mod io_memory;
 pub mod memory;
 pub mod memory_zeroinit;
 pub mod memoryinit;
+pub mod program;
+pub mod rangecheck;
+pub mod rangecheck_u8;
 pub mod xor;
 
 use std::borrow::Borrow;
@@ -38,6 +41,8 @@ use self::memoryinit::{
     generate_call_tape_init_trace, generate_event_tape_init_trace, generate_memory_init_trace,
     generate_private_tape_init_trace, generate_public_tape_init_trace,
 };
+use self::rangecheck::generate_rangecheck_trace;
+use self::rangecheck_u8::generate_rangecheck_u8_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::generation::io_memory::{
@@ -47,12 +52,10 @@ use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::{
     generate_elf_memory_init_trace, generate_mozak_memory_init_trace,
 };
+use crate::generation::program::generate_program_rom_trace;
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
-use crate::program::generation::generate_program_rom_trace;
-use crate::rangecheck::generation::generate_rangecheck_trace;
-use crate::rangecheck_u8::generation::generate_rangecheck_u8_trace;
 use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
@@ -77,12 +80,17 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
     let program_mult_rows = generate_program_mult_trace(&cpu_rows, &program_rows);
+
+    let memory_init = generate_memory_init_trace(program);
     let elf_memory_init_rows = generate_elf_memory_init_trace(program);
     let mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
     let call_tape_init_rows = generate_call_tape_init_trace(program);
     let private_tape_init_rows = generate_private_tape_init_trace(program);
     let public_tape_init_rows = generate_public_tape_init_trace(program);
     let event_tape_init_rows = generate_event_tape_init_trace(program);
+
+    let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, program);
+
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
@@ -93,9 +101,11 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let poseidon2_output_bytes_rows = generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
     #[allow(unused)]
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
+
     let memory_rows = generate_memory_trace(
         &record.executed,
-        &generate_memory_init_trace(program),
+        &memory_init,
+        &memory_zeroinit_rows,
         &halfword_memory_rows,
         &fullword_memory_rows,
         &io_memory_private_rows,
@@ -103,7 +113,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &poseiden2_sponge_rows,
         &poseidon2_output_bytes_rows,
     );
-    let memory_zeroinit_rows = generate_memory_zero_init_trace::<F>(&record.executed, program);
 
     let register_init_rows = generate_register_init_trace::<F>(record);
     let (register_zero_read_rows, register_zero_write_rows, register_rows) =

@@ -62,9 +62,9 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{reg, u32_extra};
+    use mozak_runner::util::execute_code;
     use proptest::prelude::{prop_assume, ProptestConfig};
     use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert_eq, proptest};
@@ -83,7 +83,7 @@ mod tests {
         prop_assume!(rs1 != rs2);
         prop_assume!(rs1 != rd);
         prop_assume!(rs2 != rd);
-        let (program, record) = code::execute(
+        let (program, record) = execute_code(
             [
                 Instruction {
                     op: Op::SRL,
@@ -122,7 +122,7 @@ mod tests {
         prop_assume!(rs1 != rs2);
         prop_assume!(rs1 != rd);
         prop_assume!(rs2 != rd);
-        let (program, record) = code::execute(
+        let (program, record) = execute_code(
             [
                 Instruction {
                     op: Op::SLL,
@@ -161,7 +161,7 @@ mod tests {
         prop_assume!(rs1 != rs2);
         prop_assume!(rs1 != rd);
         prop_assume!(rs2 != rd);
-        let (program, record) = code::execute(
+        let (program, record) = execute_code(
             [
                 Instruction {
                     op: Op::SRA,

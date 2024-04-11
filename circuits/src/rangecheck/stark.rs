@@ -8,8 +8,8 @@ pub type RangeCheckStark<F, const D: usize> =
 
 #[cfg(test)]
 mod tests {
-    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::util::execute_code;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_circuit_constraints;
 
@@ -30,7 +30,7 @@ mod tests {
             .step_by(23)
             .map(|i| (i, inst))
             .collect::<Vec<_>>();
-        let (program, record) = code::execute(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::ADD,
                 args: Args {

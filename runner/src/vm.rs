@@ -318,7 +318,6 @@ mod tests {
     use proptest::{prop_assume, proptest};
 
     use super::*;
-    use crate::code;
     use crate::decode::ECALL;
     use crate::test_utils::{i16_extra, i32_extra, i8_extra, reg, u16_extra, u32_extra, u8_extra};
 
@@ -327,7 +326,7 @@ mod tests {
         mem: &[(u32, u8)],
         regs: &[(u8, u32)],
     ) -> ExecutionRecord<GoldilocksField> {
-        code::execute(code, mem, regs).1
+        crate::util::execute_code(code, mem, regs).1
     }
 
     fn divu_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {

@@ -1,6 +1,6 @@
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
-use mozak_runner::code;
 use mozak_runner::instruction::{Args, Instruction, Op, NOP};
+use mozak_runner::util::execute_code;
 use starky::config::StarkConfig;
 
 #[allow(clippy::module_name_repetitions)]
@@ -26,7 +26,7 @@ pub fn nop_bench(iterations: u32) -> Result<(), anyhow::Error> {
             },
         },
     ];
-    let (program, record) = code::execute(instructions, &[], &[(1, iterations)]);
+    let (program, record) = execute_code(instructions, &[], &[(1, iterations)]);
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
 

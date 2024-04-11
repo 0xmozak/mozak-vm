@@ -16,7 +16,7 @@ use mozak_circuits::generation::io_memory::{
     generate_call_tape_trace, generate_io_memory_private_trace,
 };
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
-use mozak_circuits::program::generation::generate_program_rom_trace;
+use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
