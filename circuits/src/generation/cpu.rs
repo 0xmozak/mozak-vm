@@ -129,9 +129,26 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     pad_trace_with_last(trace)
 }
 
+#[derive(Copy, Clone, derive_more::From, derive_more::Add, derive_more::Mul, derive_more::Sub)]
+#[mul(forward)]
+pub struct FieldWrapper<F>(pub F);
+
+use core::ops::Mul;
+
+// TODO: upstreame this implementations to plonky2 (or our fork) and attach them
+// directly to RichField, then we can get rid of the wrapper here.
+impl<F: RichField> Mul<i64> for FieldWrapper<F> {
+    type Output = Self;
+
+    fn mul(self, rhs: i64) -> Self::Output { Self(self.0 * F::from_noncanonical_i64(rhs)) }
+}
+
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
-    row.cmp_diff_inv = row.signed_diff().try_inverse().unwrap_or_default();
-    row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
+    // TODO: undo these shenanigans, when the proper impl for Add with i64 etc are
+    // upstreamed to RichField.
+    let nrow = row.map(FieldWrapper);
+    row.cmp_diff_inv = nrow.signed_diff().0.try_inverse().unwrap_or_default();
+    row.normalised_diff = F::from_bool(nrow.signed_diff().0.is_nonzero());
 }
 
 /// Generates a bitshift row on a shift operation. This is used in the bitshift

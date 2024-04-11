@@ -2,69 +2,47 @@
 //! store. Supported operators include: `SB` 'Save Byte', `LB` and `LBU` 'Load
 //! Byte' and 'Load Byte Unsigned'
 
-use plonky2::field::extension::Extendable;
-use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use expr::Expr;
 
-use super::bitwise::{and_gadget, and_gadget_extension_targets};
+use super::bitwise::and_gadget;
 use super::columns::CpuState;
-use crate::stark::utils::is_binary;
+use crate::expr::ConstraintBuilder;
 
 /// Ensure that `dst_value` and `mem_value_raw` only differ
 /// in case of `LB` by `0xFFFF_FF00` and for `LH` by `0xFFFF_0000`. The
 /// correctness of value presented in `dst_sign_bit` is ensured via range-check
-pub(crate) fn signed_constraints<P: PackedField>(
-    lv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
+pub(crate) fn signed_constraints<'a, P: Copy>(
+    lv: &CpuState<Expr<'a, P>>,
+    cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
-    is_binary(yield_constr, lv.dst_sign_bit);
+    cb.always(lv.dst_sign_bit.is_binary());
     // When dst is not signed as per instruction semantics, dst_sign_bit must be 0.
-    yield_constr.constraint((P::ONES - lv.inst.is_dst_signed) * lv.dst_sign_bit);
+    cb.always((1 - lv.inst.is_dst_signed) * lv.dst_sign_bit);
 
     // Ensure `dst_value` is `0xFFFF_FF00` greater than
     // `mem_access_raw` in case `dst_sign_bit` is set
-    yield_constr.constraint(
-        lv.inst.ops.lb
-            * (lv.dst_value
-                - (lv.mem_value_raw
-                    + lv.dst_sign_bit * P::Scalar::from_canonical_u32(0xFFFF_FF00))),
-    );
+    cb.always(lv.inst.ops.lb * (lv.dst_value - (lv.mem_value_raw + lv.dst_sign_bit * 0xFFFF_FF00)));
 
     // Ensure `dst_value` is `0xFFFF_0000` greater than
     // `mem_access_raw` in case `dst_sign_bit` is set
-    yield_constr.constraint(
-        lv.inst.ops.lh
-            * (lv.dst_value
-                - (lv.mem_value_raw
-                    + lv.dst_sign_bit * P::Scalar::from_canonical_u32(0xFFFF_0000))),
-    );
+    cb.always(lv.inst.ops.lh * (lv.dst_value - (lv.mem_value_raw + lv.dst_sign_bit * 0xFFFF_0000)));
 
     let and_gadget = and_gadget(&lv.xor);
     // SB/SH uses only least significant 8/16 bit from RS1 register.
-    yield_constr
-        .constraint((lv.inst.ops.sb + lv.inst.ops.sh) * (and_gadget.input_a - lv.op1_value));
-    yield_constr.constraint(
-        lv.inst.ops.sb * (and_gadget.input_b - P::Scalar::from_canonical_u32(0x0000_00FF)),
-    );
-    yield_constr.constraint(
-        lv.inst.ops.sh * (and_gadget.input_b - P::Scalar::from_canonical_u32(0x0000_FFFF)),
-    );
-    yield_constr
-        .constraint((lv.inst.ops.sb + lv.inst.ops.sh) * (and_gadget.output - lv.mem_value_raw));
+    cb.always((lv.inst.ops.sb + lv.inst.ops.sh) * (and_gadget.input_a - lv.op1_value));
+    cb.always(lv.inst.ops.sb * (and_gadget.input_b - 0x0000_00FF));
+    cb.always(lv.inst.ops.sh * (and_gadget.input_b - 0x0000_FFFF));
+    cb.always((lv.inst.ops.sb + lv.inst.ops.sh) * (and_gadget.doubled_output - lv.mem_value_raw));
 }
 
-pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
+pub(crate) fn constraints<'a, P: Copy>(
+    lv: &CpuState<Expr<'a, P>>,
+    cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     // memory address is equal to rs2-value + imm (wrapping)
-    yield_constr.constraint(lv.inst.ops.is_mem_ops() * (lv.mem_addr - lv.op2_value));
+    cb.always(lv.inst.ops.is_mem_op() * (lv.mem_addr - lv.op2_value));
     // signed memory constraints
-    signed_constraints(lv, yield_constr);
+    signed_constraints(lv, cb);
 }
 
 #[cfg(test)]
