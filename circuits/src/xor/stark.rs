@@ -50,7 +50,7 @@ fn generate_constraints<'a, T: Copy, U, const N2: usize>(
 
     // Check: output bit representation is Xor of input a and b bit representations
     for (a, b, out) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-        // Xor behaves like addition in binary field, ie with overflow:
+        // Xor behaves like addition in binary field, i.e. addition with wrap-around:
         constraints.always((a + b - out) * (a + b - 2 - out));
     }
 
