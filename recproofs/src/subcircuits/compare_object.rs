@@ -98,11 +98,16 @@ impl SubCircuitInputs {
             )
         };
 
-        let credits_updated = builder.is_equal(old_credits, new_credits);
-        let credits_updated = builder.not(credits_updated);
+        let credits_unchanged = builder.is_equal(old_credits, new_credits);
+        let credits_updated = builder.not(credits_unchanged);
 
         // Require ownership to be complete
         builder.connect(give_owner_flag.target, take_owner_flag.target);
+
+        // Require writes to be complete
+        let data_unchanged = are_equal(builder, old_data, new_data);
+        let unchanged_or_flag = builder.or(data_unchanged, write_flag);
+        builder.connect(unchanged_or_flag.target, one);
 
         // Ensure ownership changes are limited to creation and deletion
         let no_owner_change = are_equal(builder, old_owner, new_owner);
@@ -463,7 +468,9 @@ mod test {
         let creation = LeafWitnessValue {
             address: 42,
             block_height: 23,
-            object_flags: EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag,
+            object_flags: EventFlags::GiveOwnerFlag
+                | EventFlags::TakeOwnerFlag
+                | EventFlags::WriteFlag,
             old_owner: zero_val,
             new_owner: program_hash_1,
             old_data: zero_val,
@@ -517,6 +524,21 @@ mod test {
             ..burn
         };
         let proof = LEAF.prove(mint)?;
+        LEAF.circuit.verify(proof)?;
+
+        let deletion = LeafWitnessValue {
+            block_height: 28,
+            object_flags: EventFlags::GiveOwnerFlag
+                | EventFlags::TakeOwnerFlag
+                | EventFlags::WriteFlag,
+            new_owner: zero_val,
+            new_data: zero_val,
+            last_updated: 27,
+            old_credits: 190,
+            new_credits: 0,
+            ..burn
+        };
+        let proof = LEAF.prove(deletion)?;
         LEAF.circuit.verify(proof)?;
 
         Ok(())
@@ -615,6 +637,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
+    /// Only creation and deletion should be allowed
     fn bad_transer_leaf() {
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
         let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
@@ -631,6 +654,31 @@ mod test {
             last_updated: 0,
             old_credits: 0,
             new_credits: 150,
+        };
+        let proof = LEAF.prove(creation).unwrap();
+        LEAF.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    /// Updates should require the `Write` flag to be set
+
+    fn bad_ensure_leaf() {
+        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
+        let non_zero_val_2 = [42, 0, 0, 0].map(F::from_canonical_u64);
+
+        let creation = LeafWitnessValue {
+            address: 42,
+            block_height: 23,
+            object_flags: EventFlags::EnsureFlag.into(),
+            old_owner: program_hash_1,
+            new_owner: program_hash_1,
+            old_data: non_zero_val_1,
+            new_data: non_zero_val_2,
+            last_updated: 0,
+            old_credits: 0,
+            new_credits: 0,
         };
         let proof = LEAF.prove(creation).unwrap();
         LEAF.circuit.verify(proof).unwrap();
@@ -684,7 +732,9 @@ mod test {
         let creation_1 = LeafWitnessValue {
             address: 42,
             block_height: 23,
-            object_flags: EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag,
+            object_flags: EventFlags::GiveOwnerFlag
+                | EventFlags::TakeOwnerFlag
+                | EventFlags::WriteFlag,
             old_owner: zero_val,
             new_owner: program_hash_1,
             old_data: zero_val,
@@ -699,7 +749,9 @@ mod test {
         let creation_2 = LeafWitnessValue {
             address: 142,
             block_height: 123,
-            object_flags: EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag,
+            object_flags: EventFlags::GiveOwnerFlag
+                | EventFlags::TakeOwnerFlag
+                | EventFlags::WriteFlag,
             old_owner: zero_val,
             new_owner: program_hash_2,
             old_data: zero_val,
