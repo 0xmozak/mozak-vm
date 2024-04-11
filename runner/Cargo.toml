@@ -18,7 +18,6 @@ env_logger = { version = "0.11" }
 im = "15.1"
 itertools = "0.12"
 log = "0.4"
-mozak-examples = { path = "../examples-builder", features = ["empty", "fibonacci"] }
 mozak-sdk = { path = "../sdk" }
 plonky2 = { version = "0", default-features = false }
 proptest = { version = "1.4", optional = true }
