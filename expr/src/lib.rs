@@ -3,6 +3,7 @@
 use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 
 /// Contains a reference to [`ExprTree`] that is managed by [`ExprBuilder`].
 #[derive(Clone, Copy, Debug)]
@@ -152,11 +153,44 @@ impl ExprBuilder {
         x * (1 - x)
     }
 
-    pub fn inject_slice<'a, V>(&'a self, items: &'a [V]) -> impl IntoIterator<Item = Expr<'a, V>>
+    /// Convert from untyped `StarkFrame` to a typed representation.
+    ///
+    /// We ignore public inputs for now, and leave them as is.
+    pub fn to_typed_starkframe<'a, T, U, const N: usize, const N2: usize, View>(
+        &'a self,
+        vars: &'a StarkFrame<T, U, N, N2>,
+    ) -> StarkFrameTyped<View, [U; N2]>
     where
-        V: Copy, {
-        items.iter().map(|x| self.lit(*x))
+        T: Copy + Clone + Default,
+        U: Copy + Clone + Default,
+        // We don't actually need the first constraint, but it's useful to make the compiler yell
+        // at us, if we mix things up. See the TODO about fixing `StarkEvaluationFrame` to
+        // give direct access to its contents.
+        View: From<[Expr<'a, T>; N]> + FromIterator<Expr<'a, T>>, {
+        // TODO: Fix `StarkEvaluationFrame` to give direct access to its contents, no
+        // need for the reference only access.
+        StarkFrameTyped {
+            local_values: vars
+                .get_local_values()
+                .iter()
+                .map(|&v| self.lit(v))
+                .collect(),
+            next_values: vars
+                .get_next_values()
+                .iter()
+                .map(|&v| self.lit(v))
+                .collect(),
+            public_inputs: vars.get_public_inputs().try_into().unwrap(),
+        }
     }
+}
+
+/// A helper around `StarkFrame` to add types
+#[derive(Debug)]
+pub struct StarkFrameTyped<Row, PublicInputs> {
+    pub local_values: Row,
+    pub next_values: Row,
+    pub public_inputs: PublicInputs,
 }
 
 /// Enum for binary operations

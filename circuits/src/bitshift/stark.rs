@@ -1,18 +1,19 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
-use super::columns::{Bitshift, BitshiftView};
+use super::columns::BitshiftView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 
 /// Bitshift Trace Constraints
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -27,6 +28,49 @@ impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
 
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
+
+// The clippy exception makes life times slightly easier to work with.
+#[allow(clippy::needless_pass_by_value)]
+fn generate_constraints<T: Copy, U, const N2: usize>(
+    vars: StarkFrameTyped<BitshiftView<Expr<T>>, [U; N2]>,
+) -> ConstraintBuilder<Expr<T>> {
+    let lv = vars.local_values.executed;
+    let nv = vars.next_values.executed;
+    let mut constraints = ConstraintBuilder::default();
+
+    // Constraints on shift amount
+    // They ensure:
+    //  1. Shift amount increases with each row by 0 or 1.
+    // (We allow increases of 0 in order to allow the table to add
+    //  multiple same value rows. This is needed when we have multiple
+    //  `SHL` or `SHR` operations with the same shift amount.)
+    //  2. We have shift amounts starting from 0 to max possible value of 31.
+    // (This is due to RISC-V max shift amount being 31.)
+
+    let diff = nv.amount - lv.amount;
+    // Check: initial amount value is set to 0
+    constraints.first_row(lv.amount);
+    // Check: amount value is increased by 1 or kept unchanged
+    constraints.transition(diff * (diff - 1));
+    // Check: last amount value is set to 31
+    constraints.last_row(lv.amount - 31);
+
+    // Constraints on multiplier
+    // They ensure:
+    //  1. Shift multiplier is multiplied by 2 only if amount increases.
+    //  2. We have shift multiplier from 1 to max possible value of 2^31.
+
+    // Check: initial multiplier value is set to 1 = 2^0
+    constraints.first_row(lv.multiplier - 1);
+    // Check: multiplier value is doubled if amount is increased
+    constraints.transition(nv.multiplier - (1 + diff) * lv.multiplier);
+    // Check: last multiplier value is set to 2^31
+    // (Note that based on the previous constraint, this is already
+    //  satisfied if the last amount value is 31. We leave it for readability.)
+    constraints.last_row(lv.multiplier - (1 << 31));
+
+    constraints
+}
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
@@ -44,41 +88,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &BitshiftView<P> = vars.get_local_values().into();
-        let nv: &BitshiftView<P> = vars.get_next_values().into();
-        let lv: &Bitshift<P> = &lv.executed;
-        let nv: &Bitshift<P> = &nv.executed;
-
-        // Constraints on shift amount
-        // They ensure:
-        //  1. Shift amount increases with each row by 0 or 1.
-        // (We allow increases of 0 in order to allow the table to add
-        //  multiple same value rows. This is needed when we have multiple
-        //  `SHL` or `SHR` operations with the same shift amount.)
-        //  2. We have shift amounts starting from 0 to max possible value of 31.
-        // (This is due to RISC-V max shift amount being 31.)
-
-        let diff = nv.amount - lv.amount;
-        // Check: initial amount value is set to 0
-        yield_constr.constraint_first_row(lv.amount);
-        // Check: amount value is increased by 1 or kept unchanged
-        yield_constr.constraint_transition(diff * (diff - P::ONES));
-        // Check: last amount value is set to 31
-        yield_constr.constraint_last_row(lv.amount - P::Scalar::from_canonical_u8(31));
-
-        // Constraints on multiplier
-        // They ensure:
-        //  1. Shift multiplier is multiplied by 2 only if amount increases.
-        //  2. We have shift multiplier from 1 to max possible value of 2^31.
-
-        // Check: initial multiplier value is set to 1 = 2^0
-        yield_constr.constraint_first_row(lv.multiplier - P::ONES);
-        // Check: multiplier value is doubled if amount is increased
-        yield_constr.constraint_transition(nv.multiplier - (P::ONES + diff) * lv.multiplier);
-        // Check: last multiplier value is set to 2^31
-        // (Note that based on the previous constraint, this is already
-        //  satisfied if the last amount value is 31. We leave it for readability.)
-        yield_constr.constraint_last_row(lv.multiplier - P::Scalar::from_canonical_u32(1 << 31));
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
+        build_packed(constraints, yield_constr);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -89,36 +101,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &BitshiftView<ExtensionTarget<D>> = vars.get_local_values().into();
-        let nv: &BitshiftView<ExtensionTarget<D>> = vars.get_next_values().into();
-        let lv: &Bitshift<ExtensionTarget<D>> = &lv.executed;
-        let nv: &Bitshift<ExtensionTarget<D>> = &nv.executed;
-
-        yield_constr.constraint_first_row(builder, lv.amount);
-
-        let diff = builder.sub_extension(nv.amount, lv.amount);
-        let one_extension = builder.one_extension();
-        let diff_sub_one = builder.sub_extension(diff, one_extension);
-        let diff_mul_diff_sub_one = builder.mul_extension(diff, diff_sub_one);
-        yield_constr.constraint_transition(builder, diff_mul_diff_sub_one);
-
-        let thirty_one_extension = builder.constant_extension(F::Extension::from_canonical_u8(31));
-        let amount_sub_thirty_one = builder.sub_extension(lv.amount, thirty_one_extension);
-        yield_constr.constraint_last_row(builder, amount_sub_thirty_one);
-
-        let multiplier_minus_one = builder.sub_extension(lv.multiplier, one_extension);
-        yield_constr.constraint_first_row(builder, multiplier_minus_one);
-
-        let one_plus_diff = builder.add_extension(one_extension, diff);
-        let either_multiplier = builder.mul_extension(one_plus_diff, lv.multiplier);
-        let multiplier_difference = builder.sub_extension(nv.multiplier, either_multiplier);
-        yield_constr.constraint_transition(builder, multiplier_difference);
-
-        let two_to_thirty_one_extension =
-            builder.constant_extension(F::Extension::from_canonical_u32(1 << 31));
-        let multiplier_sub_two_to_thirty_one =
-            builder.sub_extension(lv.multiplier, two_to_thirty_one_extension);
-        yield_constr.constraint_last_row(builder, multiplier_sub_two_to_thirty_one);
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
+        build_ext(constraints, builder, yield_constr);
     }
 }
 
