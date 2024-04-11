@@ -250,8 +250,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;

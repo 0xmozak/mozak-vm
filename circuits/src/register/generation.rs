@@ -153,8 +153,8 @@ pub fn generate_register_init_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
-    use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 

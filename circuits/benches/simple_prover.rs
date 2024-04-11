@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
-use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::code;
+use mozak_runner::instruction::{Args, Instruction, Op};
 use starky::config::StarkConfig;
 
 fn bench_prove_verify_all(c: &mut Criterion) {

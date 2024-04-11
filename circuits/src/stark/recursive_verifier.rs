@@ -640,8 +640,8 @@ mod tests {
 
     use anyhow::Result;
     use log::info;
-    use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;

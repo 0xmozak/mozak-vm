@@ -183,9 +183,9 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 #[cfg(test)]
 mod tests {
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::u32_extra;
-    use mozak_runner::code;
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 

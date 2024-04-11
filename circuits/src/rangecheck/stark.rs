@@ -8,8 +8,8 @@ pub type RangeCheckStark<F, const D: usize> =
 
 #[cfg(test)]
 mod tests {
-    use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_circuit_constraints;
 

@@ -63,10 +63,10 @@ pub fn generate_halfword_memory_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
 
+    use mozak_runner::code;
     use mozak_runner::elf::Program;
     use mozak_runner::instruction::Op::{LH, LHU, SH};
     use mozak_runner::instruction::{Args, Instruction};
-    use mozak_runner::code;
     use mozak_runner::vm::ExecutionRecord;
     use plonky2::field::goldilocks_field::GoldilocksField;
 
