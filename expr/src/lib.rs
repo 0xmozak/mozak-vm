@@ -19,20 +19,6 @@ impl<'a, V> Expr<'a, V> {
         self * (1 - self)
     }
 
-    // pub fn reduce_with_powers<'a, P: PackedField, T: IntoIterator<Item = &'a P>>(
-    //     terms: T,
-    //     alpha: P::Scalar,
-    // ) -> P
-    // where
-    //     T::IntoIter: DoubleEndedIterator,
-    // {
-    //     let mut sum = P::ZEROS;
-    //     for &term in terms.into_iter().rev() {
-    //         sum = sum * alpha + term;
-    //     }
-    //     sum
-    // }
-
     /// Reduce a sequence of terms into a single term using powers of `base`.
     ///
     /// For typing convenience, this only works for non-empty list of terms.
