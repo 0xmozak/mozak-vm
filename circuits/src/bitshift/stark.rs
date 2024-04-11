@@ -11,7 +11,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
-use super::columns::{Bitshift, BitshiftView};
+use super::columns::BitshiftView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 
@@ -34,8 +34,8 @@ const PUBLIC_INPUTS: usize = 0;
 fn generate_constraints<T: Copy, U, const N2: usize>(
     vars: StarkFrameTyped<BitshiftView<Expr<T>>, [U; N2]>,
 ) -> ConstraintBuilder<Expr<T>> {
-    let lv: Bitshift<_> = vars.local_values.executed;
-    let nv: Bitshift<_> = vars.next_values.executed;
+    let lv = vars.local_values.executed;
+    let nv = vars.next_values.executed;
     let mut cb = ConstraintBuilder::default();
 
     // Constraints on shift amount
