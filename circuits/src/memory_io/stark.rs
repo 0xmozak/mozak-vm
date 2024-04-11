@@ -289,7 +289,7 @@ mod tests {
             ],
             RuntimeArguments {
                 events_commitment_tape,
-                ..Default::default(),
+                ..Default::default()
             },
         );
         Stark::prove_and_verify(&program, &record).unwrap();

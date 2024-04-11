@@ -619,6 +619,12 @@ impl Program {
         mozak_ro_memory
             .self_prog_id
             .fill(args.self_prog_id.as_slice());
+        mozak_ro_memory
+            .events_commitment_tape
+            .fill(args.events_commitment_tape.as_slice());
+        mozak_ro_memory
+            .cast_list_commitment_tape
+            .fill(args.cast_list_commitment_tape.as_slice());
         mozak_ro_memory.cast_list.fill(args.cast_list.as_slice());
         // IO public
         mozak_ro_memory
@@ -755,7 +761,7 @@ mod test {
                 io_tape_private: vec![0, 1, 2, 3, 4],
                 io_tape_public: vec![0, 1, 2, 3, 4, 5],
                 call_tape: vec![0, 1, 2, 3, 4, 5, 6],
-                event_tape: vec![0, 1, 2, 3, 4, 5, 7],
+                event_tape: vec![0, 1, 2, 3, 4, 5, 6, 7],
             })
             .unwrap()
             .mozak_ro_memory
