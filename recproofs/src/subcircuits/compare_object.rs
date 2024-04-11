@@ -73,9 +73,8 @@ impl SubCircuitInputs {
     where
         F: RichField + Extendable<D>, {
         let one = builder.one();
-        let zero = builder.zero();
         let zero_hash = HashOutTarget {
-            elements: [zero; NUM_HASH_OUT_ELTS],
+            elements: [builder.zero(); NUM_HASH_OUT_ELTS],
         };
 
         let block_height = builder.add_virtual_target();
@@ -641,6 +640,7 @@ mod test {
     /// Only creation and deletion should be allowed
     fn bad_transer_leaf() {
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+        let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
         let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
 
         let creation = LeafWitnessValue {
@@ -648,7 +648,7 @@ mod test {
             block_height: 23,
             object_flags: EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag,
             old_owner: program_hash_1,
-            new_owner: program_hash_1,
+            new_owner: program_hash_2,
             old_data: non_zero_val_1,
             new_data: non_zero_val_1,
             last_updated: 0,
