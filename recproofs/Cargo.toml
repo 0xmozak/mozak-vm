@@ -19,6 +19,7 @@ plonky2_maybe_rayon = { version = "0", default-features = false }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+lazy_static = "1.4.0"
 
 [features]
 test = []
