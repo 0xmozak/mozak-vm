@@ -102,6 +102,7 @@ enum ConstraintType {
     #[default]
     Always,
     Transition,
+    LastRow,
 }
 
 pub struct ConstraintBuilder<E> {
@@ -135,6 +136,11 @@ impl<E> ConstraintBuilder<E> {
     }
 
     #[track_caller]
+    pub fn last_row(&mut self, constraint: E) {
+        self.constraint(constraint, ConstraintType::LastRow);
+    }
+
+    #[track_caller]
     pub fn always(&mut self, constraint: E) { self.constraint(constraint, ConstraintType::Always); }
 
     #[track_caller]
@@ -159,6 +165,7 @@ pub fn build_ext<F, const D: usize>(
             ConstraintType::FirstRow => RecursiveConstraintConsumer::constraint_first_row,
             ConstraintType::Always => RecursiveConstraintConsumer::constraint,
             ConstraintType::Transition => RecursiveConstraintConsumer::constraint_transition,
+            ConstraintType::LastRow => RecursiveConstraintConsumer::constraint_last_row,
         })(yield_constr, circuit_builder, constraint.term);
     }
 }
@@ -191,6 +198,7 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
             ConstraintType::FirstRow => ConstraintConsumer::constraint_first_row,
             ConstraintType::Always => ConstraintConsumer::constraint,
             ConstraintType::Transition => ConstraintConsumer::constraint_transition,
+            ConstraintType::LastRow => ConstraintConsumer::constraint_last_row,
         })(yield_constr, c.term);
     }
 }
