@@ -45,14 +45,12 @@ fn generate_constraints<T: Copy, U, const N2: usize>(
         constraints.always(bit_value.is_binary());
     }
 
-    // Check: bit representation of inputs and output were generated
-    // correctly.
+    // Check: bit representation of inputs and output were generated correctly.
     for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
         constraints.always(Expr::reduce_with_powers(opx_limbs, 2) - opx);
     }
 
-    // Check: output bit representation is Xor of input a and b bit
-    // representations
+    // Check: output bit representation is Xor of input a and b bit representations
     for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
         // Note that if a, b are in {0, 1}: (a ^ b) = a + b - 2 * a * b
         // One can check by substituting the values, that:
