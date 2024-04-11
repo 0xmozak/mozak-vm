@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use crate::decode::decode_instruction;
 use crate::instruction::{DecodingError, Instruction};
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemoryRegion {
     pub starting_address: u32,
     pub capacity: u32,
@@ -51,7 +51,7 @@ impl MozakMemoryRegion {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemory {
     pub self_prog_id: MozakMemoryRegion,
     pub cast_list: MozakMemoryRegion,
@@ -289,7 +289,7 @@ pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
 #[derive(
-    Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, IntoIterator, PartialEq, Eq,
+    Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, IntoIterator, PartialEq,
 )]
 pub struct Data(pub HashMap<u32, u8>);
 
