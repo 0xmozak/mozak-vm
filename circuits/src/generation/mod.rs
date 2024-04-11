@@ -11,7 +11,6 @@ pub mod io_memory;
 pub mod memory;
 pub mod memory_zeroinit;
 pub mod memoryinit;
-pub mod program;
 pub mod xor;
 
 use std::borrow::Borrow;
@@ -48,10 +47,10 @@ use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::{
     generate_elf_memory_init_trace, generate_mozak_memory_init_trace,
 };
-use crate::generation::program::generate_program_rom_trace;
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
+use crate::program::generation::generate_program_rom_trace;
 use crate::rangecheck::generation::generate_rangecheck_trace;
 use crate::rangecheck_u8::generation::generate_rangecheck_u8_trace;
 use crate::register::generation::{generate_register_init_trace, generate_register_trace};
