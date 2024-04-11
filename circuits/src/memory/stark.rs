@@ -25,44 +25,6 @@ impl<F, const D: usize> HasNamedColumns for MemoryStark<F, D> {
     type Columns = Memory<F>;
 }
 
-const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
-const PUBLIC_INPUTS: usize = 0;
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn constraint_degree(&self) -> usize { 3 }
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
-        &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let cb = generate_constraints(&eb, vars);
-        build_packed(cb, yield_constr);
-    }
-
-    fn eval_ext_circuit(
-        &self,
-        circuit_builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let cb = generate_constraints(&eb, vars);
-        build_ext(cb, circuit_builder, yield_constr);
-    }
-}
-
 fn generate_constraints<'a, V, T, const N: usize, const N2: usize>(
     eb: &'a ExprBuilder,
     vars: &'a StarkFrame<V, T, N, N2>,
@@ -122,6 +84,44 @@ where
     cb.always((nv.is_init + nv.is_store - 1) * (nv.value - lv.value));
 
     cb
+}
+
+const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 0;
+
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
+
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget =
+        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
+
+    fn constraint_degree(&self) -> usize { 3 }
+
+    fn eval_packed_generic<FE, P, const D2: usize>(
+        &self,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
+        yield_constr: &mut ConstraintConsumer<P>,
+    ) where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>, {
+        let eb = ExprBuilder::default();
+        let cb = generate_constraints(&eb, vars);
+        build_packed(cb, yield_constr);
+    }
+
+    fn eval_ext_circuit(
+        &self,
+        circuit_builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+    ) {
+        let eb = ExprBuilder::default();
+        let cb = generate_constraints(&eb, vars);
+        build_ext(cb, circuit_builder, yield_constr);
+    }
 }
 
 #[cfg(test)]
