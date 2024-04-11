@@ -45,16 +45,16 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 #[cfg(test)]
 mod tests {
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{reg, u32_extra};
-    use mozak_runner::util::execute_code;
 
     use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{ProveAndVerify, D, F};
 
     fn prove_add<Stark: ProveAndVerify>(a: u32, b: u32, rd: u8) {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [Instruction {
                 op: Op::ADD,
                 args: Args {

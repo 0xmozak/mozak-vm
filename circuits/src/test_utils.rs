@@ -2,10 +2,10 @@ use std::borrow::Borrow;
 
 use anyhow::Result;
 use itertools::izip;
+use mozak_runner::code;
 use mozak_runner::decode::ECALL;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
-use mozak_runner::util::execute_code;
 use mozak_runner::vm::ExecutionRecord;
 use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
@@ -34,7 +34,6 @@ use crate::generation::io_memory::{
 };
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
-use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
@@ -42,6 +41,7 @@ use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
+use crate::rangecheck::generation::generate_rangecheck_trace;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::register::general::stark::RegisterStark;
 use crate::register::generation::{generate_register_init_trace, generate_register_trace};
@@ -487,7 +487,7 @@ pub fn create_poseidon2_test(
         ]);
     }
 
-    execute_code(instructions, memory.as_slice(), &[])
+    code::execute(instructions, memory.as_slice(), &[])
 }
 
 pub fn hash_str(v: &str) -> HashOut<F> {
