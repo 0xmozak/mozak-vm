@@ -307,8 +307,8 @@ mod tests {
                 .collect_vec(),
             &[
                 (REG_A0, ecall::CAST_LIST_COMMITMENT_TAPE),
-                (REG_A1, address),                        // A1 - address
-                (REG_A2, u32::try_from(COMMITMENT_SIZE)), // A2 - size
+                (REG_A1, address),                                 // A1 - address
+                (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
             RuntimeArguments {
                 cast_list_commitment_tape,
