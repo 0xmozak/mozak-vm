@@ -73,8 +73,9 @@ impl SubCircuitInputs {
     where
         F: RichField + Extendable<D>, {
         let one = builder.one();
+        let zero = builder.zero();
         let zero_hash = HashOutTarget {
-            elements: [builder.zero(); NUM_HASH_OUT_ELTS],
+            elements: [zero; NUM_HASH_OUT_ELTS],
         };
 
         let block_height = builder.add_virtual_target();
@@ -88,21 +89,30 @@ impl SubCircuitInputs {
         let old_credits = builder.add_virtual_target();
         let new_credits = builder.add_virtual_target();
 
-        let (write_flag, give_owner_flag, take_owner_flag) = {
+        let (write_flag, ensure_flag, give_owner_flag, take_owner_flag) = {
             let object_flags = builder.split_le(object_flags, EventFlags::count());
 
             (
                 object_flags[EventFlags::WriteFlag.index()],
+                object_flags[EventFlags::EnsureFlag.index()],
                 object_flags[EventFlags::GiveOwnerFlag.index()],
                 object_flags[EventFlags::TakeOwnerFlag.index()],
             )
         };
 
-        let credits_updated = builder.is_equal(old_credits, new_credits);
-        let credits_updated = builder.not(credits_updated);
+        let credits_unchanged = builder.is_equal(old_credits, new_credits);
+        let credits_updated = builder.not(credits_unchanged);
 
         // Require ownership to be complete
         builder.connect(give_owner_flag.target, take_owner_flag.target);
+
+        // Require writes to be complete
+        let not_write = builder.not(write_flag);
+        let ensured_without_write = builder.and(not_write, ensure_flag);
+        let data_unchanged = are_equal(builder, old_data, new_data);
+        let data_updated = builder.not(data_unchanged);
+        let incomplete_write = builder.and(ensured_without_write, data_updated);
+        builder.connect(incomplete_write.target, zero);
 
         // Ensure ownership changes are limited to creation and deletion
         let no_owner_change = are_equal(builder, old_owner, new_owner);
@@ -617,7 +627,6 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_transer_leaf() {
         let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
-        let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
         let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
 
         let creation = LeafWitnessValue {
@@ -625,12 +634,35 @@ mod test {
             block_height: 23,
             object_flags: EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag,
             old_owner: program_hash_1,
-            new_owner: program_hash_2,
+            new_owner: program_hash_1,
             old_data: non_zero_val_1,
             new_data: non_zero_val_1,
             last_updated: 0,
             old_credits: 0,
             new_credits: 150,
+        };
+        let proof = LEAF.prove(creation).unwrap();
+        LEAF.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_ensure_leaf() {
+        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
+        let non_zero_val_2 = [42, 0, 0, 0].map(F::from_canonical_u64);
+
+        let creation = LeafWitnessValue {
+            address: 42,
+            block_height: 23,
+            object_flags: EventFlags::EnsureFlag.into(),
+            old_owner: program_hash_1,
+            new_owner: program_hash_1,
+            old_data: non_zero_val_1,
+            new_data: non_zero_val_2,
+            last_updated: 0,
+            old_credits: 0,
+            new_credits: 0,
         };
         let proof = LEAF.prove(creation).unwrap();
         LEAF.circuit.verify(proof).unwrap();
