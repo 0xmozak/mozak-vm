@@ -30,10 +30,9 @@ const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 // The clippy exception makes life times slightly easier to work with.
-#[allow(clippy::needless_pass_by_value)]
-fn generate_constraints<T: Copy, U, const N2: usize>(
-    vars: StarkFrameTyped<BitshiftView<Expr<T>>, [U; N2]>,
-) -> ConstraintBuilder<Expr<T>> {
+fn generate_constraints<'a, T: Copy, U, const N2: usize>(
+    vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, [U; N2]>,
+) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values.executed;
     let nv = vars.next_values.executed;
     let mut constraints = ConstraintBuilder::default();
@@ -84,26 +83,26 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        constraint_consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
-        build_packed(constraints, yield_constr);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_packed(constraints, constraint_consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
 
     fn eval_ext_circuit(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        circuit_builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, yield_constr);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_ext(constraints, circuit_builder, constraint_consumer);
     }
 }
 
