@@ -187,10 +187,10 @@ impl ExprBuilder {
 
 /// A helper around `StarkFrame` to add types
 #[derive(Debug)]
-pub struct StarkFrameTyped<T, U> {
-    pub local_values: T,
-    pub next_values: T,
-    pub public_inputs: U,
+pub struct StarkFrameTyped<Row, PublicInputs> {
+    pub local_values: Row,
+    pub next_values: Row,
+    pub public_inputs: PublicInputs,
 }
 
 /// Enum for binary operations
