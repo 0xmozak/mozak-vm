@@ -280,12 +280,12 @@ mod tests {
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &(0..COMMITMENT_SIZE)
-                .map(|i| (address.wrapping_add(i as u32), 0_u8))
+                .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
                 .collect_vec(),
             &[
                 (REG_A0, ecall::EVENTS_COMMITMENT_TAPE),
-                (REG_A1, address),                // A1 - address
-                (REG_A2, COMMITMENT_SIZE as u32), // A2 - size
+                (REG_A1, address),                                 // A1 - address
+                (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
             RuntimeArguments {
                 events_commitment_tape,
@@ -303,12 +303,12 @@ mod tests {
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &(0..COMMITMENT_SIZE)
-                .map(|i| (address.wrapping_add(i as u32), 0_u8))
+                .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
                 .collect_vec(),
             &[
                 (REG_A0, ecall::CAST_LIST_COMMITMENT_TAPE),
-                (REG_A1, address),                // A1 - address
-                (REG_A2, COMMITMENT_SIZE as u32), // A2 - size
+                (REG_A1, address),                        // A1 - address
+                (REG_A2, u32::try_from(COMMITMENT_SIZE)), // A2 - size
             ],
             RuntimeArguments {
                 cast_list_commitment_tape,
