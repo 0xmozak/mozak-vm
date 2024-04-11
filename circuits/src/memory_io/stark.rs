@@ -155,13 +155,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 
 #[cfg(test)]
 mod tests {
+    use mozak_runner::code::execute_code_with_ro_memory;
     use mozak_runner::decode::ECALL;
-    use mozak_runner::elf::RuntimeArguments;
+    use mozak_runner::elf::{Program, RuntimeArguments};
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
-    use mozak_runner::util::execute_code_with_runtime_args;
+    use mozak_runner::vm::ExecutionRecord;
     use mozak_sdk::core::ecall;
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -170,6 +172,16 @@ mod tests {
     use crate::memory_io::stark::InputOutputMemoryStark;
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{ProveAndVerify, D, F};
+
+    #[must_use]
+    fn execute_code_with_runtime_args(
+        code: impl IntoIterator<Item = Instruction>,
+        rw_mem: &[(u32, u8)],
+        regs: &[(u8, u32)],
+        runtime_args: &RuntimeArguments,
+    ) -> (Program, ExecutionRecord<GoldilocksField>) {
+        execute_code_with_ro_memory(code, &[], rw_mem, regs, runtime_args)
+    }
 
     pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
@@ -181,7 +193,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            &RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -196,7 +208,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            &RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -211,7 +223,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            &RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -226,7 +238,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            &RuntimeArguments {
                 io_tape_private,
                 ..Default::default()
             },
@@ -245,7 +257,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            &RuntimeArguments {
                 io_tape_public,
                 ..Default::default()
             },
@@ -263,7 +275,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            &RuntimeArguments {
                 call_tape,
                 ..Default::default()
             },
@@ -308,7 +320,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            &RuntimeArguments {
                 self_prog_id: vec![content],
                 cast_list: vec![content],
                 io_tape_private: vec![content],
@@ -382,7 +394,7 @@ mod tests {
                 (address.wrapping_add(3), 0),
             ],
             &[],
-            RuntimeArguments {
+            &RuntimeArguments {
                 io_tape_private: vec![content, content, content, content],
                 ..Default::default()
             },

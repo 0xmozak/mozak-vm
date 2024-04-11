@@ -11,7 +11,8 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
-use crate::elf::{Code, Data, Program, RuntimeArguments};
+use crate::code::Code;
+use crate::elf::{Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
