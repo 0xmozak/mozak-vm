@@ -259,84 +259,68 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        constraint_consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &CpuState<_> = vars.get_local_values().into();
-        let nv: &CpuState<_> = vars.get_next_values().into();
-        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
-
-        yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
-        clock_ticks(lv, nv, yield_constr);
-        pc_ticks_up(lv, nv, yield_constr);
-
-        one_hots(&lv.inst, yield_constr);
-
-        // Registers
-        populate_op2_value(lv, yield_constr);
-
-        add::constraints(lv, yield_constr);
-        sub::constraints(lv, yield_constr);
-        bitwise::constraints(lv, yield_constr);
-        branches::comparison_constraints(lv, yield_constr);
-        branches::constraints(lv, nv, yield_constr);
-        memory::constraints(lv, yield_constr);
-        signed_comparison::signed_constraints(lv, yield_constr);
-        signed_comparison::slt_constraints(lv, yield_constr);
-        shift::constraints(lv, yield_constr);
-        div::constraints(lv, yield_constr);
-        mul::constraints(lv, yield_constr);
-        jalr::constraints(lv, nv, yield_constr);
-        ecall::constraints(lv, nv, yield_constr);
-
-        // Clock starts at 2. This is to differentiate
-        // execution clocks (2 and above) from
-        // clk values `0` and `1` which are reserved for
-        // elf initialisation and zero initialisation respectively.
-        yield_constr.constraint_first_row(P::ONES + P::ONES - lv.clk);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_packed(constraints, constraint_consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
 
     fn eval_ext_circuit(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        circuit_builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &CpuState<_> = vars.get_local_values().into();
-        let nv: &CpuState<_> = vars.get_next_values().into();
-        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
-
-        let inst_pc_sub_public_inputs_entry_point =
-            builder.sub_extension(lv.inst.pc, public_inputs.entry_point);
-        yield_constr.constraint_first_row(builder, inst_pc_sub_public_inputs_entry_point);
-        clock_ticks_circuit(builder, lv, nv, yield_constr);
-        pc_ticks_up_circuit(builder, lv, nv, yield_constr);
-
-        one_hots_circuit(builder, &lv.inst, yield_constr);
-
-        populate_op2_value_circuit(builder, lv, yield_constr);
-
-        add::constraints_circuit(builder, lv, yield_constr);
-        sub::constraints_circuit(builder, lv, yield_constr);
-        bitwise::constraints_circuit(builder, lv, yield_constr);
-        branches::comparison_constraints_circuit(builder, lv, yield_constr);
-        branches::constraints_circuit(builder, lv, nv, yield_constr);
-        memory::constraints_circuit(builder, lv, yield_constr);
-        signed_comparison::signed_constraints_circuit(builder, lv, yield_constr);
-        signed_comparison::slt_constraints_circuit(builder, lv, yield_constr);
-        shift::constraints_circuit(builder, lv, yield_constr);
-        div::constraints_circuit(builder, lv, yield_constr);
-        mul::constraints_circuit(builder, lv, yield_constr);
-        jalr::constraints_circuit(builder, lv, nv, yield_constr);
-        ecall::constraints_circuit(builder, lv, nv, yield_constr);
-
-        let two = builder.two_extension();
-        let two_sub_lv_clk = builder.sub_extension(two, lv.clk);
-        yield_constr.constraint_first_row(builder, two_sub_lv_clk);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_ext(constraints, circuit_builder, constraint_consumer);
     }
+
+    // fn eval_packed_generic<FE, P, const D2: usize>(
+    //     &self,
+    //     vars: &Self::EvaluationFrame<FE, P, D2>,
+    //     yield_constr: &mut ConstraintConsumer<P>,
+    // ) where
+    //     FE: FieldExtension<D2, BaseField = F>,
+    //     P: PackedField<Scalar = FE>, {
+    //     let lv: &CpuState<_> = vars.get_local_values().into();
+    //     let nv: &CpuState<_> = vars.get_next_values().into();
+    //     let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
+
+    //     yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
+    //     clock_ticks(lv, nv, yield_constr);
+    //     pc_ticks_up(lv, nv, yield_constr);
+
+    //     one_hots(&lv.inst, yield_constr);
+
+    //     // Registers
+    //     populate_op2_value(lv, yield_constr);
+
+    //     add::constraints(lv, yield_constr);
+    //     sub::constraints(lv, yield_constr);
+    //     bitwise::constraints(lv, yield_constr);
+    //     branches::comparison_constraints(lv, yield_constr);
+    //     branches::constraints(lv, nv, yield_constr);
+    //     memory::constraints(lv, yield_constr);
+    //     signed_comparison::signed_constraints(lv, yield_constr);
+    //     signed_comparison::slt_constraints(lv, yield_constr);
+    //     shift::constraints(lv, yield_constr);
+    //     div::constraints(lv, yield_constr);
+    //     mul::constraints(lv, yield_constr);
+    //     jalr::constraints(lv, nv, yield_constr);
+    //     ecall::constraints(lv, nv, yield_constr);
+
+    //     // Clock starts at 2. This is to differentiate
+    //     // execution clocks (2 and above) from
+    //     // clk values `0` and `1` which are reserved for
+    //     // elf initialisation and zero initialisation respectively.
+    //     yield_constr.constraint_first_row(P::ONES + P::ONES - lv.clk);
+    // }
 }
 
 #[cfg(test)]
