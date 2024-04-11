@@ -12,8 +12,6 @@ pub mod memory;
 pub mod memory_zeroinit;
 pub mod memoryinit;
 pub mod program;
-pub mod rangecheck;
-pub mod rangecheck_u8;
 pub mod xor;
 
 use std::borrow::Borrow;
@@ -41,8 +39,6 @@ use self::memoryinit::{
     generate_call_tape_init_trace, generate_event_tape_init_trace, generate_memory_init_trace,
     generate_private_tape_init_trace, generate_public_tape_init_trace,
 };
-use self::rangecheck::generate_rangecheck_trace;
-use self::rangecheck_u8::generate_rangecheck_u8_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::generation::io_memory::{
@@ -56,6 +52,8 @@ use crate::generation::program::generate_program_rom_trace;
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
+use crate::rangecheck::generation::generate_rangecheck_trace;
+use crate::rangecheck_u8::generation::generate_rangecheck_u8_trace;
 use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
