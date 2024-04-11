@@ -156,7 +156,7 @@ impl ExprBuilder {
     /// Convert from untyped `StarkFrame` to a typed representation.
     ///
     /// We ignore public inputs for now, and leave them as is.
-    pub fn to_typed<'a, T, U, const N: usize, const N2: usize, View>(
+    pub fn to_typed_starkframe<'a, T, U, const N: usize, const N2: usize, View>(
         &'a self,
         vars: &'a StarkFrame<T, U, N, N2>,
     ) -> StarkFrameTyped<View, [U; N2]>

@@ -90,7 +90,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let cb = generate_constraints(eb.to_typed(vars));
+        let cb = generate_constraints(eb.to_typed_starkframe(vars));
         build_packed(cb, yield_constr);
     }
 
@@ -103,7 +103,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let cb = generate_constraints(eb.to_typed(vars));
+        let cb = generate_constraints(eb.to_typed_starkframe(vars));
         build_ext(cb, circuit_builder, yield_constr);
     }
 }
