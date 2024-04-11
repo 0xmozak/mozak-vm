@@ -612,6 +612,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "expr"
+version = "0.1.0"
+dependencies = [
+ "bumpalo",
+ "starky",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -926,13 +934,11 @@ dependencies = [
  "bitfield",
  "criterion",
  "derive_more",
- "enumflags2",
  "env_logger",
+ "expr",
  "hex",
  "im",
- "iter_fixed",
  "itertools 0.12.1",
- "lazy_static",
  "log",
  "mozak-circuits-derive",
  "mozak-runner",
@@ -993,9 +999,24 @@ version = "0.1.0"
 dependencies = [
  "itertools 0.12.1",
  "mozak-circuits",
+ "mozak-recproofs",
  "mozak-sdk",
  "plonky2",
  "serde",
+]
+
+[[package]]
+name = "mozak-recproofs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "criterion",
+ "enumflags2",
+ "iter_fixed",
+ "itertools 0.12.1",
+ "lazy_static",
+ "plonky2",
+ "plonky2_maybe_rayon",
 ]
 
 [[package]]

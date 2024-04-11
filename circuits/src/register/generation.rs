@@ -158,8 +158,8 @@ pub fn generate_register_init_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
@@ -198,7 +198,7 @@ mod tests {
             }),
         ];
 
-        execute_code(instructions, &[], &[(6, 100), (7, 200)]).1
+        code::execute(instructions, &[], &[(6, 100), (7, 200)]).1
     }
 
     #[test]
@@ -251,7 +251,7 @@ mod tests {
                 [    8,    0,   0,       1,      0,       0], // init
                 [    9,    0,   0,       1,      0,       0], // init
                 [    10,   0,   0,       1,      0,       0], // init
-                // This is one part of the instructions added in the setup fn `execute_code()`
+                // This is one part of the instructions added in the setup fn `code::execute()`
                 [    10,   0,   5,       0,      0,       1],
                 [    10,   0,   6,       0,      1,       0],
                 [    11,   0,   0,       1,      0,       0], // init
