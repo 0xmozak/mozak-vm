@@ -174,17 +174,19 @@ impl ExprBuilder {
     /// Convert from untyped `StarkFrame` to a typed representation.
     ///
     /// We ignore public inputs for now, and leave them as is.
-    pub fn to_typed_starkframe<'a, T, U, const N: usize, const N2: usize, View>(
+    pub fn to_typed_starkframe<'a, T, U, const N: usize, const N2: usize, View, PublicInputs>(
         &'a self,
         vars: &'a StarkFrame<T, U, N, N2>,
-    ) -> StarkFrameTyped<View, [U; N2]>
+    ) -> StarkFrameTyped<View, PublicInputs>
     where
         T: Copy + Clone + Default,
         U: Copy + Clone + Default,
         // We don't actually need the first constraint, but it's useful to make the compiler yell
         // at us, if we mix things up. See the TODO about fixing `StarkEvaluationFrame` to
         // give direct access to its contents.
-        View: From<[Expr<'a, T>; N]> + FromIterator<Expr<'a, T>>, {
+        View: From<[Expr<'a, T>; N]> + FromIterator<Expr<'a, T>>,
+        PublicInputs: From<[Expr<'a, U>; N2]> + FromIterator<Expr<'a, U>>,
+        {
         // TODO: Fix `StarkEvaluationFrame` to give direct access to its contents, no
         // need for the reference only access.
         StarkFrameTyped {
@@ -198,7 +200,12 @@ impl ExprBuilder {
                 .iter()
                 .map(|&v| self.lit(v))
                 .collect(),
-            public_inputs: vars.get_public_inputs().try_into().unwrap(),
+            public_inputs:
+            vars
+                .get_public_inputs()
+                .iter()
+                .map(|&v| self.lit(v))
+                .collect()
         }
     }
 }

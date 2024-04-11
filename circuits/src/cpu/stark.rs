@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -15,6 +16,7 @@ use super::columns::{is_mem_op_extention_target, CpuState, Instruction, OpSelect
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
@@ -247,6 +249,51 @@ const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
+ 
+fn generate_constraints<'a, T: Copy, U>(
+    vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, PublicInputs<U>>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv = vars.local_values;
+    let nv = vars.next_values;
+    let mut constraints = ConstraintBuilder::default();
+
+    // let public_inputs: &PublicInputs<_> = (&vars.public_inputs).
+    // .iter()
+    //             .map(|&v| self.lit(v))
+    //             .collect();
+
+    //     yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
+    //     clock_ticks(lv, nv, yield_constr);
+    //     pc_ticks_up(lv, nv, yield_constr);
+
+    //     one_hots(&lv.inst, yield_constr);
+
+    //     // Registers
+    //     populate_op2_value(lv, yield_constr);
+
+    //     add::constraints(lv, yield_constr);
+    //     sub::constraints(lv, yield_constr);
+    //     bitwise::constraints(lv, yield_constr);
+    //     branches::comparison_constraints(lv, yield_constr);
+    //     branches::constraints(lv, nv, yield_constr);
+    //     memory::constraints(lv, yield_constr);
+    //     signed_comparison::signed_constraints(lv, yield_constr);
+    //     signed_comparison::slt_constraints(lv, yield_constr);
+    //     shift::constraints(lv, yield_constr);
+    //     div::constraints(lv, yield_constr);
+    //     mul::constraints(lv, yield_constr);
+    //     jalr::constraints(lv, nv, yield_constr);
+    //     ecall::constraints(lv, nv, yield_constr);
+
+    //     // Clock starts at 2. This is to differentiate
+    //     // execution clocks (2 and above) from
+    //     // clk values `0` and `1` which are reserved for
+    //     // elf initialisation and zero initialisation respectively.
+    //     yield_constr.constraint_first_row(P::ONES + P::ONES - lv.clk);
+
+    constraints
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
@@ -280,47 +327,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
-
-    // fn eval_packed_generic<FE, P, const D2: usize>(
-    //     &self,
-    //     vars: &Self::EvaluationFrame<FE, P, D2>,
-    //     yield_constr: &mut ConstraintConsumer<P>,
-    // ) where
-    //     FE: FieldExtension<D2, BaseField = F>,
-    //     P: PackedField<Scalar = FE>, {
-    //     let lv: &CpuState<_> = vars.get_local_values().into();
-    //     let nv: &CpuState<_> = vars.get_next_values().into();
-    //     let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
-
-    //     yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
-    //     clock_ticks(lv, nv, yield_constr);
-    //     pc_ticks_up(lv, nv, yield_constr);
-
-    //     one_hots(&lv.inst, yield_constr);
-
-    //     // Registers
-    //     populate_op2_value(lv, yield_constr);
-
-    //     add::constraints(lv, yield_constr);
-    //     sub::constraints(lv, yield_constr);
-    //     bitwise::constraints(lv, yield_constr);
-    //     branches::comparison_constraints(lv, yield_constr);
-    //     branches::constraints(lv, nv, yield_constr);
-    //     memory::constraints(lv, yield_constr);
-    //     signed_comparison::signed_constraints(lv, yield_constr);
-    //     signed_comparison::slt_constraints(lv, yield_constr);
-    //     shift::constraints(lv, yield_constr);
-    //     div::constraints(lv, yield_constr);
-    //     mul::constraints(lv, yield_constr);
-    //     jalr::constraints(lv, nv, yield_constr);
-    //     ecall::constraints(lv, nv, yield_constr);
-
-    //     // Clock starts at 2. This is to differentiate
-    //     // execution clocks (2 and above) from
-    //     // clk values `0` and `1` which are reserved for
-    //     // elf initialisation and zero initialisation respectively.
-    //     yield_constr.constraint_first_row(P::ONES + P::ONES - lv.clk);
-    // }
 }
 
 #[cfg(test)]

@@ -29,8 +29,8 @@ impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy, U, const N2: usize>(
-    vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, [U; N2]>,
+fn generate_constraints<'a, T: Copy, U>(
+    vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, Vec<U>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values.executed;
     let nv = vars.next_values.executed;
