@@ -178,9 +178,9 @@ mod tests {
         code: impl IntoIterator<Item = Instruction>,
         rw_mem: &[(u32, u8)],
         regs: &[(u8, u32)],
-        runtime_args: RuntimeArguments,
+        runtime_args: &RuntimeArguments,
     ) -> (Program, ExecutionRecord<GoldilocksField>) {
-        execute_code_with_ro_memory(code, &[], rw_mem, regs, &runtime_args)
+        execute_code_with_ro_memory(code, &[], rw_mem, regs, runtime_args)
     }
 
     pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(address: u32) {
@@ -193,7 +193,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            &RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -208,7 +208,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            &RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -223,7 +223,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            &RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -238,7 +238,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            &RuntimeArguments {
                 io_tape_private,
                 ..Default::default()
             },
@@ -257,7 +257,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            &RuntimeArguments {
                 io_tape_public,
                 ..Default::default()
             },
@@ -275,7 +275,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            &RuntimeArguments {
                 call_tape,
                 ..Default::default()
             },
@@ -320,7 +320,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            &RuntimeArguments {
                 self_prog_id: vec![content],
                 cast_list: vec![content],
                 io_tape_private: vec![content],
@@ -394,7 +394,7 @@ mod tests {
                 (address.wrapping_add(3), 0),
             ],
             &[],
-            RuntimeArguments {
+            &RuntimeArguments {
                 io_tape_private: vec![content, content, content, content],
                 ..Default::default()
             },
