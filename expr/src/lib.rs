@@ -172,12 +172,12 @@ impl ExprBuilder {
         StarkFrameTyped {
             local_values: vars
                 .get_local_values()
-                .into_iter()
+                .iter()
                 .map(|&v| self.lit(v))
                 .collect(),
             next_values: vars
                 .get_next_values()
-                .into_iter()
+                .iter()
                 .map(|&v| self.lit(v))
                 .collect(),
             public_inputs: vars.get_public_inputs().try_into().unwrap(),

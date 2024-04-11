@@ -29,9 +29,11 @@ impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T, U, const N2: usize>(
-    vars: StarkFrameTyped<BitshiftView<Expr<'a, T>>, [U; N2]>,
-) -> ConstraintBuilder<Expr<'a, T>>
+// The clippy exception makes life times slightly easier to work with.
+#[allow(clippy::needless_pass_by_value)]
+fn generate_constraints<T, U, const N2: usize>(
+    vars: StarkFrameTyped<BitshiftView<Expr<T>>, [U; N2]>,
+) -> ConstraintBuilder<Expr<T>>
 where
     T: Copy + Default + std::fmt::Debug,
     T: Copy + Default, {
