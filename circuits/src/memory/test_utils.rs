@@ -1,7 +1,7 @@
+use mozak_runner::code;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::Op::{LBU, SB};
 use mozak_runner::instruction::{Args, Instruction};
-use mozak_runner::util::execute_code;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::goldilocks_field::GoldilocksField;
 
@@ -45,7 +45,7 @@ pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord<Goldi
         .flatten()
         .copied()
         .collect::<Vec<_>>();
-    let (program, record) = execute_code(
+    let (program, record) = code::execute(
         code,
         &[(101, 0), (102, 0), (103, 0), (201, 0), (202, 0), (203, 0)],
         &[(1, 255), (2, 10), (3, 15)],

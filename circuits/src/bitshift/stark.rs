@@ -29,11 +29,9 @@ impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-// The clippy exception makes life times slightly easier to work with.
-#[allow(clippy::needless_pass_by_value)]
-fn generate_constraints<T: Copy, U, const N2: usize>(
-    vars: StarkFrameTyped<BitshiftView<Expr<T>>, [U; N2]>,
-) -> ConstraintBuilder<Expr<T>> {
+fn generate_constraints<'a, T: Copy, U, const N2: usize>(
+    vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, [U; N2]>,
+) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values.executed;
     let nv = vars.next_values.executed;
     let mut constraints = ConstraintBuilder::default();
@@ -84,35 +82,35 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        constraint_consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
-        build_packed(constraints, yield_constr);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_packed(constraints, constraint_consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
 
     fn eval_ext_circuit(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        circuit_builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, yield_constr);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_ext(constraints, circuit_builder, constraint_consumer);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::u32_extra;
-    use mozak_runner::util::execute_code;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use proptest::{prop_assert_eq, proptest};
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
@@ -147,7 +145,7 @@ mod tests {
         };
         // We use 3 similar instructions here to ensure duplicates and padding work
         // during trace generation.
-        let (program, record) = execute_code([sll, sll, sll], &[], &[(7, p), (8, q)]);
+        let (program, record) = code::execute([sll, sll, sll], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
     }
@@ -168,7 +166,7 @@ mod tests {
 
         // We use 3 similar instructions here to ensure duplicates and padding work
         // during trace generation.
-        let (program, record) = execute_code([srl, srl, srl], &[], &[(7, p), (8, q)]);
+        let (program, record) = code::execute([srl, srl, srl], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
     }
@@ -176,7 +174,7 @@ mod tests {
     proptest! {
         #[test]
         fn prove_shift_amount_proptest(p in u32_extra(), q in u32_extra()) {
-            let (program, record) = execute_code(
+            let (program, record) = code::execute(
                 [Instruction {
                     op: Op::SLL,
                     args: Args {
