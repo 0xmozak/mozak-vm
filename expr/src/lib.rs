@@ -28,7 +28,10 @@ impl<'a, V> Expr<'a, V> {
         I: IntoIterator<Item = Self>,
         I::IntoIter: DoubleEndedIterator, {
         let mut terms = terms.into_iter().rev().peekable();
-        let builder = terms.peek().unwrap().builder;
+        let builder = terms
+            .peek()
+            .unwrap_or_else(|| panic!("At least one term is required for an expression to be reduced, for type system reasons."))
+            .builder;
         let mut sum = builder.constant(0);
         for term in terms {
             sum = sum * base + term;
