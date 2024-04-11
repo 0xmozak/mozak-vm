@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use itertools::{chain, izip};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -7,14 +8,13 @@ use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use super::columns::XorColumnsView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::stark::utils::{is_binary, is_binary_ext_circuit};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -29,6 +29,34 @@ impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
+fn generate_constraints<'a, T: Copy, U, const N2: usize>(
+    vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, [U; N2]>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv = vars.local_values;
+    let mut constraints = ConstraintBuilder::default();
+
+    // We first convert both input and output to bit representation
+    // We then work with the bit representations to check the Xor result.
+
+    // Check: bit representation of inputs and output contains either 0 or 1.
+    for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+        constraints.always(bit_value.is_binary());
+    }
+
+    // Check: bit representation of inputs and output were generated correctly.
+    for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
+        constraints.always(Expr::reduce_with_powers(opx_limbs, 2) - opx);
+    }
+
+    // Check: output bit representation is Xor of input a and b bit representations
+    for (a, b, out) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+        // Xor behaves like addition in binary field, i.e. addition with wrap-around:
+        constraints.always((a + b - out) * (a + b - 2 - out));
+    }
+
+    constraints
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
@@ -41,63 +69,26 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &XorColumnsView<_> = vars.get_local_values().into();
-
-        // We first convert both input and output to bit representation
-        // We then work with the bit representations to check the Xor result.
-
-        // Check: bit representation of inputs and output contains either 0 or 1.
-        for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-            is_binary(yield_constr, bit_value);
-        }
-
-        // Check: bit representation of inputs and output were generated correctly.
-        for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
-            yield_constr.constraint(reduce_with_powers(&opx_limbs, P::Scalar::TWO) - opx);
-        }
-
-        // Check: output bit representation is Xor of input a and b bit representations
-        for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-            // Note that if a, b are in {0, 1}: (a ^ b) = a + b - 2 * a * b
-            // One can check by substituting the values, that:
-            //      if a = b = 0            -> 0 + 0 - 2 * 0 * 0 = 0
-            //      if only a = 1 or b = 1  -> 1 + 0 - 2 * 1 * 0 = 1
-            //      if a = b = 1            -> 1 + 1 - 2 * 1 * 1 = 0
-            let xor = (a + b) - (a * b).doubles();
-            yield_constr.constraint(res - xor);
-        }
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_packed(constraints, consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
 
     fn eval_ext_circuit(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        circuit_builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &XorColumnsView<ExtensionTarget<D>> = vars.get_local_values().into();
-        for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-            is_binary_ext_circuit(builder, bit_value, yield_constr);
-        }
-        let two = builder.constant(F::TWO);
-        for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
-            let x = reduce_with_powers_ext_circuit(builder, &opx_limbs, two);
-            let x_sub_opx = builder.sub_extension(x, opx);
-            yield_constr.constraint(builder, x_sub_opx);
-        }
-        for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-            let a_add_b = builder.add_extension(a, b);
-            let a_mul_b = builder.mul_extension(a, b);
-            let a_mul_b_doubles = builder.add_extension(a_mul_b, a_mul_b);
-            let a_add_b_sub_a_mul_b_doubles = builder.sub_extension(a_add_b, a_mul_b_doubles);
-            let xor = builder.sub_extension(res, a_add_b_sub_a_mul_b_doubles);
-            yield_constr.constraint(builder, xor);
-        }
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_ext(constraints, circuit_builder, consumer);
     }
 }
 
