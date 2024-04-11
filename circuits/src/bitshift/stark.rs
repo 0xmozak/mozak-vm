@@ -33,7 +33,7 @@ fn generate_constraints<'a, T: Copy, U>(
     vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, Vec<U>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values.executed;
-    let nv = vars.next_values.executed;[
+    let nv = vars.next_values.executed;
     let mut constraints = ConstraintBuilder::default();
 
     // Constraints on shift amount
