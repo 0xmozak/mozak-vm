@@ -69,13 +69,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
         let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_packed(constraints, yield_constr);
+        build_packed(constraints, consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -84,11 +84,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
         &self,
         circuit_builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
         let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_ext(constraints, circuit_builder, yield_constr);
+        build_ext(constraints, circuit_builder, consumer);
     }
 }
 
