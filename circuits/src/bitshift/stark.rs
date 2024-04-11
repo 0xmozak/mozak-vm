@@ -31,11 +31,9 @@ const PUBLIC_INPUTS: usize = 0;
 
 // The clippy exception makes life times slightly easier to work with.
 #[allow(clippy::needless_pass_by_value)]
-fn generate_constraints<T, U, const N2: usize>(
+fn generate_constraints<T: Copy, U, const N2: usize>(
     vars: StarkFrameTyped<BitshiftView<Expr<T>>, [U; N2]>,
-) -> ConstraintBuilder<Expr<T>>
-where
-    T: Copy + std::fmt::Debug, {
+) -> ConstraintBuilder<Expr<T>> {
     let lv: Bitshift<_> = vars.local_values.executed;
     let nv: Bitshift<_> = vars.next_values.executed;
     let mut cb = ConstraintBuilder::default();
