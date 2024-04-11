@@ -29,11 +29,9 @@ impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-// The clippy exception makes life times slightly easier to work with.
-#[allow(clippy::needless_pass_by_value)]
-fn generate_constraints<T: Copy, U, const N2: usize>(
-    vars: StarkFrameTyped<XorColumnsView<Expr<T>>, [U; N2]>,
-) -> ConstraintBuilder<Expr<T>> {
+fn generate_constraints<'a, T: Copy, U, const N2: usize>(
+    vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, [U; N2]>,
+) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values;
     let mut constraints = ConstraintBuilder::default();
 
@@ -51,13 +49,9 @@ fn generate_constraints<T: Copy, U, const N2: usize>(
     }
 
     // Check: output bit representation is Xor of input a and b bit representations
-    for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-        // Note that if a, b are in {0, 1}: (a ^ b) = a + b - 2 * a * b
-        // One can check by substituting the values, that:
-        //  if a = b = 0            -> 0 + 0 - 2 * 0 * 0 = 0
-        //  if only a = 1 or b = 1  -> 1 + 0 - 2 * 1 * 0 = 1
-        //  if a = b = 1            -> 1 + 1 - 2 * 1 * 1 = 0
-        constraints.always(a + b - 2 * a * b - res);
+    for (a, b, out) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+        // Xor behaves like addition in binary field, i.e. addition with wrap-around:
+        constraints.always((a + b - out) * (a + b - 2 - out));
     }
 
     constraints
@@ -75,26 +69,26 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
-        build_packed(constraints, yield_constr);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_packed(constraints, consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
 
     fn eval_ext_circuit(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
+        circuit_builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, yield_constr);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_ext(constraints, circuit_builder, consumer);
     }
 }
 
