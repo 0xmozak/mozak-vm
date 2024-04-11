@@ -36,7 +36,7 @@ fn generate_constraints<T: Copy, U, const N2: usize>(
 ) -> ConstraintBuilder<Expr<T>> {
     let lv = vars.local_values.executed;
     let nv = vars.next_values.executed;
-    let mut cb = ConstraintBuilder::default();
+    let mut constraints = ConstraintBuilder::default();
 
     // Constraints on shift amount
     // They ensure:
@@ -49,11 +49,11 @@ fn generate_constraints<T: Copy, U, const N2: usize>(
 
     let diff = nv.amount - lv.amount;
     // Check: initial amount value is set to 0
-    cb.first_row(lv.amount);
+    constraints.first_row(lv.amount);
     // Check: amount value is increased by 1 or kept unchanged
-    cb.transition(diff * (diff - 1));
+    constraints.transition(diff * (diff - 1));
     // Check: last amount value is set to 31
-    cb.last_row(lv.amount - 31);
+    constraints.last_row(lv.amount - 31);
 
     // Constraints on multiplier
     // They ensure:
@@ -61,15 +61,15 @@ fn generate_constraints<T: Copy, U, const N2: usize>(
     //  2. We have shift multiplier from 1 to max possible value of 2^31.
 
     // Check: initial multiplier value is set to 1 = 2^0
-    cb.first_row(lv.multiplier - 1);
+    constraints.first_row(lv.multiplier - 1);
     // Check: multiplier value is doubled if amount is increased
-    cb.transition(nv.multiplier - (1 + diff) * lv.multiplier);
+    constraints.transition(nv.multiplier - (1 + diff) * lv.multiplier);
     // Check: last multiplier value is set to 2^31
     // (Note that based on the previous constraint, this is already
     //  satisfied if the last amount value is 31. We leave it for readability.)
-    cb.last_row(lv.multiplier - (1 << 31));
+    constraints.last_row(lv.multiplier - (1 << 31));
 
-    cb
+    constraints
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark<F, D> {
@@ -89,8 +89,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let cb = generate_constraints(eb.to_typed_starkframe(vars));
-        build_packed(cb, yield_constr);
+        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
+        build_packed(constraints, yield_constr);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -102,8 +102,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let cb = generate_constraints(eb.to_typed_starkframe(vars));
-        build_ext(cb, builder, yield_constr);
+        let constraints = generate_constraints(eb.to_typed_starkframe(vars));
+        build_ext(constraints, builder, yield_constr);
     }
 }
 
