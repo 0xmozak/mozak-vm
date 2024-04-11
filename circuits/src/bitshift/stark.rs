@@ -11,7 +11,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::{Bitshift, BitshiftView};
+use super::columns::BitshiftView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 
@@ -36,12 +36,14 @@ fn generate_constraints<'a, V, T, const N: usize, const N2: usize>(
 where
     V: Copy + Default + std::fmt::Debug,
     T: Copy + Default, {
-    let lv: &Bitshift<_> = vars.get_local_values().into();
+    let lv: &BitshiftView<_> = vars.get_local_values().into();
     let lv = lv.map(|v| eb.lit(v));
-    let nv: &Bitshift<_> = vars.get_next_values().into();
+    let nv: &BitshiftView<_> = vars.get_next_values().into();
     let nv = nv.map(|v| eb.lit(v));
     let mut cb = ConstraintBuilder::default();
 
+    let lv = lv.executed;
+    let nv = nv.executed;
     // Constraints on shift amount
     // They ensure:
     //  1. Shift amount increases with each row by 0 or 1.
