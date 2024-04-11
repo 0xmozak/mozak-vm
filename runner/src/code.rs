@@ -97,9 +97,9 @@ pub fn execute_code_with_ro_memory(
 
 /// Entrypoint for a stream of instructions into the VM.
 ///
-/// Creates a (`Program`)[crate::elf::Program] and executes given
-/// [`Instruction`]s based on empty pre-initialized
-/// (`MozakMemory`)[crate::elf::MozakMemory].
+/// Creates a [`Program`] and executes given
+/// [Instruction]s based on empty pre-initialized
+/// [`MozakMemory`](crate::elf::MozakMemory).
 #[must_use]
 pub fn execute(
     code: impl IntoIterator<Item = Instruction>,
