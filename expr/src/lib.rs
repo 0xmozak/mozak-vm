@@ -27,7 +27,10 @@ impl<'a, V> Expr<'a, V> {
         I: IntoIterator<Item = Self>,
         I::IntoIter: DoubleEndedIterator, {
         let mut terms = terms.into_iter().rev().peekable();
-        let builder = terms.peek().unwrap().builder;
+        let builder = terms
+            .peek()
+            .unwrap_or_else(|| panic!("Sorry, can't reduce_with_powers over an empty list, because we need at least one term to get access to an ExprBuilder"))
+            .builder;
         let mut sum = builder.constant(0);
         for term in terms {
             sum = sum * base + term;
