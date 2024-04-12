@@ -121,8 +121,6 @@ where
 }
 
 impl<C> Sub<i64> for ColumnWithTypedInput<C>
-where
-    C: Sub<Output = C>,
 {
     type Output = Self;
 
@@ -204,6 +202,7 @@ where
         }
     }
 }
+
 impl<C: Default> From<C> for ColumnWithTypedInput<C> {
     fn from(lv_linear_combination: C) -> Self { Self::now(lv_linear_combination) }
 }
