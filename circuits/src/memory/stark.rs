@@ -39,15 +39,11 @@ fn generate_constraints<'a, T: Copy, U, const N2: usize>(
     // -------------------
     // Constrain certain columns of the memory table to be only
     // boolean values.
-    for selector in [
-        lv.is_writable,
-        lv.is_store,
-        lv.is_load,
-        lv.is_init,
-        lv.is_executed(),
-    ] {
-        constraints.always(selector.is_binary());
-    }
+    constraints.always(lv.is_writable.is_binary());
+    constraints.always(lv.is_store.is_binary());
+    constraints.always(lv.is_load.is_binary());
+    constraints.always(lv.is_init.is_binary());
+    constraints.always(lv.is_executed().is_binary());
 
     // Address constraints
     // -------------------
