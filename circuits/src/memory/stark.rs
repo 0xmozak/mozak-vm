@@ -124,7 +124,6 @@ mod tests {
     use anyhow::Result;
     use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
@@ -232,7 +231,6 @@ mod tests {
     // This will panic, if debug assertions are enabled in plonky2.
     #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
     fn no_init_fail() {
-        type F = GoldilocksField;
         const ADDRESS_TO_BE_FAKED: u32 = 1;
         let instructions = [Instruction {
             op: Op::SB,
