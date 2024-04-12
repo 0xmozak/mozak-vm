@@ -58,17 +58,6 @@ fn one_hot<'a, P: Copy, Selectors: Copy + IntoIterator<Item = Expr<'a, P>>>(
     cb.always(1 - sum_s_op);
 }
 
-// /// Ensure clock is ticking up, iff CPU is still running.
-// fn clock_ticks<'a, P: Copy>(
-//     lv: &CpuState<Expr<'a, P>>,
-//     nv: &CpuState<Expr<'a, P>>,
-//     cb: &mut ConstraintBuilder<Expr<'a, P>>,
-// ) {
-//     let clock_diff = nv.clk - lv.clk;
-//     cb.transition(clock_diff.is_binary());
-//     cb.transition(clock_diff - lv.is_running);
-// }
-
 /// Constraints for values in op2, which is the sum of the value of the second
 /// operand register and the immediate value (except for branch instructions).
 /// This may overflow.
