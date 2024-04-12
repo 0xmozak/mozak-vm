@@ -8,7 +8,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::linear_combination::Column;
+use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
