@@ -35,7 +35,6 @@ use crate::generation::io_memory::{
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
-use crate::rangecheck::generation::generate_rangecheck_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
@@ -43,6 +42,7 @@ use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
+use crate::rangecheck::generation::generate_rangecheck_trace;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::register::general::stark::RegisterStark;
 use crate::register::generation::{generate_register_init_trace, generate_register_trace};
