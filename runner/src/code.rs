@@ -17,7 +17,7 @@ use crate::vm::{step, ExecutionRecord};
 /// Executable code of the ELF
 ///
 /// A wrapper of a map from pc to [Instruction]
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, PartialEq)]
 pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 
 impl Code {
@@ -54,6 +54,9 @@ impl From<&HashMap<u32, u8>> for Code {
 
 #[must_use]
 #[allow(clippy::similar_names)]
+/// # Panics
+///
+/// Panics if the VM is not halted at its last state.
 pub fn execute_code_with_ro_memory(
     code: impl IntoIterator<Item = Instruction>,
     ro_mem: &[(u32, u8)],
