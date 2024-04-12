@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -12,6 +13,7 @@ use starky::stark::Stark;
 
 use super::columns::CpuSkeleton;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::stark::mozak_stark::PublicInputs;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
@@ -28,6 +30,44 @@ const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<CpuSkeleton<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv = vars.local_values;
+    let nv = vars.next_values;
+    let public_inputs = vars.public_inputs;
+    let mut constraints = ConstraintBuilder::default();
+
+    constraints.first_row(lv.pc - public_inputs.entry_point);
+    // Clock starts at 2. This is to differentiate
+    // execution clocks (2 and above) from
+    // clk values `0` and `1` which are reserved for
+    // elf initialisation and zero initialisation respectively.
+    constraints.first_row(lv.clk - 2);
+
+    let clock_diff = nv.clk - lv.clk;
+    constraints.transition(clock_diff.is_binary());
+
+    // clock only counts up when we are still running.
+    constraints.transition(clock_diff - lv.is_running);
+
+    // We start in running state.
+    constraints.first_row(lv.is_running - 1);
+
+    // We may transition to a non-running state.
+    constraints.transition(nv.is_running * (nv.is_running - lv.is_running));
+
+    // We end in a non-running state.
+    constraints.last_row(lv.is_running);
+
+    // NOTE: in our old CPU table we had constraints that made sure nothing
+    // changes anymore, once we are halted. We don't need those
+    // anymore: the only thing that can change are memory or registers.  And
+    // our CTLs make sure, that after we are halted, no more memory
+    // or register changes are allowed.
+    constraints
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
@@ -40,59 +80,35 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &CpuSkeleton<_> = vars.get_local_values().into();
-        let nv: &CpuSkeleton<_> = vars.get_next_values().into();
-
-        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
-        yield_constr.constraint_first_row(lv.pc - public_inputs.entry_point);
-        // Clock starts at 2. This is to differentiate
-        // execution clocks (2 and above) from
-        // clk values `0` and `1` which are reserved for
-        // elf initialisation and zero initialisation respectively.
-        yield_constr.constraint_first_row(P::ONES + P::ONES - lv.clk);
-
-        let clock_diff = nv.clk - lv.clk;
-        is_binary_transition(yield_constr, clock_diff);
-
-        // clock only counts up when we are still running.
-        yield_constr.constraint_transition(clock_diff - lv.is_running);
-
-        // We start in running state.
-        yield_constr.constraint_first_row(lv.is_running - P::ONES);
-
-        // We may transition to a non-running state.
-        yield_constr.constraint_transition(nv.is_running * (nv.is_running - lv.is_running));
-
-        // We end in a non-running state.
-        yield_constr.constraint_last_row(lv.is_running);
-
-        // NOTE: in our old CPU table we had constraints that made sure nothing
-        // changes anymore, once we are halted. We don't need those
-        // anymore: the only thing that can change are memory or registers.  And
-        // our CTLs make sure, that after we are halted, no more memory
-        // or register changes are allowed.
+        let expr_builder = ExprBuilder::default();
+        // TODO(Matthias): handle conversion of public inputs less uglily.
+        let public_inputs: [P::Scalar; PUBLIC_INPUTS] =
+            vars.get_public_inputs().try_into().unwrap();
+        let vars: StarkFrame<P, P, COLUMNS, PUBLIC_INPUTS> = StarkFrame::from_values(
+            vars.get_local_values(),
+            vars.get_next_values(),
+            &public_inputs.map(P::from),
+        );
+        let vars: StarkFrameTyped<CpuSkeleton<Expr<'_, P>>, PublicInputs<_>> =
+            expr_builder.to_typed_starkframe(&vars);
+        let constraints = generate_constraints(&vars);
+        build_packed(constraints, consumer);
     }
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        todo!()
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_ext(constraints, builder, consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
-}
-
-/// Ensure an expression only takes on values 0 or 1 for transition rows.
-///
-/// That's useful for differences between `local_values` and `next_values`, like
-/// a clock tick.
-pub(crate) fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
-    yield_constr.constraint_transition(x * (P::ONES - x));
 }
