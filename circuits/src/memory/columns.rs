@@ -121,9 +121,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
                 .flat_map(|fe_index_inside_preimage| {
                     let base_address = value.input_addr_padded
                         + MozakPoseidon2::data_capacity_fe::<F>()
-                            * F::from_canonical_u8(
-                                u8::try_from(fe_index_inside_preimage).expect("i > 255"),
-                            );
+                            * F::from_canonical_usize(fe_index_inside_preimage);
                     let unpacked = MozakPoseidon2::unpack_to_field_elements(
                         &value.preimage[fe_index_inside_preimage],
                     );
@@ -131,10 +129,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
                     (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
                         .map(|byte_index_inside_fe| Memory {
                             clk: value.clk,
-                            addr: base_address
-                                + F::from_canonical_u8(
-                                    u8::try_from(byte_index_inside_fe).expect("j > 255"),
-                                ),
+                            addr: base_address + F::from_canonical_usize(byte_index_inside_fe),
                             is_load: F::ONE,
                             value: unpacked[byte_index_inside_fe],
                             ..Default::default()

@@ -35,28 +35,14 @@ impl MozakPoseidon2 {
     pub const FIELD_ELEMENTS_RATE: usize = 8;
     pub const MAX_BYTES_PER_FIELD_ELEMENT: usize = 8;
 
-    /// # Panics
-    ///
-    /// Panics if `MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT` is not
-    /// convertable to u64
     #[must_use]
     pub fn data_capacity_fe<F: RichField>() -> F {
-        F::from_canonical_u64(
-            u64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).expect(
-                "Cast from usize to u64 for MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT should succeed",
-            ),
-        )
+        F::from_canonical_usize(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
     }
 
-    /// # Panics
-    ///
-    /// Panics if `MozakPoseidon2::DATA_PADDING` is not
-    /// convertable to u64
     #[must_use]
     pub fn data_padding_fe<F: RichField>() -> F {
-        F::from_canonical_u64(u64::try_from(MozakPoseidon2::DATA_PADDING).expect(
-            "Cast from usize to u64 for MozakPoseidon2::BYTES_PER_FIELD_ELEMENT should succeed",
-        ))
+        F::from_canonical_usize(MozakPoseidon2::DATA_PADDING)
     }
 
     /// Byte padding
@@ -68,10 +54,9 @@ impl MozakPoseidon2 {
     /// the first padded byte will be 1 (same as for Case-A)
     #[must_use]
     pub fn do_padding(data: &[u8]) -> Vec<u8> {
-        let bit_padding_schema = 0b0000_0001_u8;
         let mut padded = data.to_vec();
-        padded.push(bit_padding_schema);
-        padded.resize(padded.len().next_multiple_of(Self::DATA_PADDING), 0_u8);
+        padded.push(1);
+        padded.resize(padded.len().next_multiple_of(Self::DATA_PADDING), 0);
         padded
     }
 
@@ -100,8 +85,8 @@ impl MozakPoseidon2 {
             "Allow only padded byte-data"
         );
         data.chunks(Self::DATA_CAPACITY_PER_FIELD_ELEMENT)
-            .map(|x| Self::pack_to_field_element(x))
-            .collect::<Vec<_>>()
+            .map(Self::pack_to_field_element)
+            .collect()
     }
 
     /// # Panics
