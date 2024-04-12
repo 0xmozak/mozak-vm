@@ -10,19 +10,20 @@ use plonky2::plonk::config::GenericHashOut;
 use crate::state::{Aux, State};
 
 #[derive(Debug, Clone, Default)]
-pub struct Poseidon2SpongeData<F> {
+pub struct SpongeData<F> {
     pub preimage: [F; WIDTH],
     pub output: [F; WIDTH],
     pub gen_output: F,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Poseidon2Entry<F: RichField> {
+pub struct Entry<F: RichField> {
     pub addr: u32,
     pub output_addr: u32,
     pub len: u32,
-    pub sponge_data: Vec<Poseidon2SpongeData<F>>,
+    pub sponge_data: Vec<SpongeData<F>>,
 }
+
 // Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
 /// This function is sponge function which uses poseidon2 permutation function.
 /// Input must be multiple of 8 bytes. It absorbs all input and the squeezes
@@ -34,8 +35,8 @@ pub struct Poseidon2Entry<F: RichField> {
 /// 12.
 pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
-) -> (HashOut<F>, Vec<Poseidon2SpongeData<F>>) {
-    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Vec<Poseidon2SpongeData<F>>| {
+) -> (HashOut<F>, Vec<SpongeData<F>>) {
+    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Vec<SpongeData<F>>| {
         const STATE_SIZE: usize = 12;
         assert_eq!(STATE_SIZE, P::WIDTH);
         let preimage: [F; STATE_SIZE] = perm
@@ -47,7 +48,7 @@ pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
             .as_ref()
             .try_into()
             .expect("length must be equal to poseidon2 STATE_SIZE");
-        sponge_data.push(Poseidon2SpongeData {
+        sponge_data.push(SpongeData {
             preimage,
             output,
             gen_output: F::from_bool(false),
@@ -102,7 +103,7 @@ impl<F: RichField> State<F> {
         (
             Aux {
                 mem_addresses_used,
-                poseidon2: Some(Poseidon2Entry {
+                poseidon2: Some(Entry {
                     addr: input_ptr,
                     output_addr: output_ptr,
                     len: input_len.next_multiple_of(

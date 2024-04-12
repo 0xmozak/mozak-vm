@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::code::Code;
 use crate::elf::{Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
-use crate::poseidon2::Poseidon2Entry;
+use crate::poseidon2;
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -193,7 +193,7 @@ pub struct Aux<F: RichField> {
     pub op1: u32,
     pub op2: u32,
     pub op2_raw: u32,
-    pub poseidon2: Option<Poseidon2Entry<F>>,
+    pub poseidon2: Option<poseidon2::Entry<F>>,
     pub io: Option<IoEntry>,
 }
 
