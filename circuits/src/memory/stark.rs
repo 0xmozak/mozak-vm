@@ -29,8 +29,8 @@ const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 // Constraints design: https://docs.google.com/presentation/d/1G4tmGl8V1W0Wqxv-MwjGjaM3zUF99dzTvFhpiood4x4/edit?usp=sharing
-fn generate_constraints<'a, T: Copy, U, const N2: usize>(
-    vars: &StarkFrameTyped<Memory<Expr<'a, T>>, [U; N2]>,
+fn generate_constraints<'a, T: Copy, U>(
+    vars: &StarkFrameTyped<Memory<Expr<'a, T>>, Vec<U>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values;
     let nv = vars.next_values;
