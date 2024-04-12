@@ -71,7 +71,6 @@ fn generate_constraints<'a, T: Copy, U, const N2: usize>(
     // --------------------
 
     // writeable only changes for init:
-    //     (nv.is_writable - lv.is_writable) * nv.is_init
     constraints.always((1 - nv.is_init) * (nv.is_writable - lv.is_writable));
 
     // No `SB` operation can be seen if memory address is not marked `writable`
