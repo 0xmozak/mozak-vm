@@ -153,10 +153,6 @@ impl<F: RichField> From<Program> for State<F> {
     }
 }
 
-impl<F: RichField> From<&Program> for State<F> {
-    fn from(program: &Program) -> Self { Self::from(program.clone()) }
-}
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MemEntry {
     pub addr: u32,
