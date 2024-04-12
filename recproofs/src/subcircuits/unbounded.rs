@@ -174,6 +174,7 @@ pub struct BranchTargets<const D: usize> {
 
     /// The left proof
     pub left_proof: ProofWithPublicInputsTarget<D>,
+
     /// The right proof
     pub right_proof: ProofWithPublicInputsTarget<D>,
 }

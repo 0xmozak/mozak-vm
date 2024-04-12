@@ -1,4 +1,4 @@
-//! Subcircuits for proving events can be summarized to a commitment.
+//! Circuits for proving events can be summarized to a commitment.
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;

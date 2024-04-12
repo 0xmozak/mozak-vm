@@ -89,6 +89,15 @@ where
     }
 }
 
+impl<C> Add<ColumnWithTypedInput<C>> for i64
+where
+    C: Add<Output = C>,
+{
+    type Output = ColumnWithTypedInput<C>;
+
+    fn add(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> { other + self }
+}
+
 impl<C> Sub<Self> for ColumnWithTypedInput<C>
 where
     C: Sub<Output = C>,
@@ -125,6 +134,17 @@ where
     }
 }
 
+impl<C> Sub<ColumnWithTypedInput<C>> for i64
+where
+    C: Sub<Output = C> + Default,
+{
+    type Output = ColumnWithTypedInput<C>;
+
+    fn sub(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> {
+        ColumnWithTypedInput::constant(self) - other
+    }
+}
+
 impl<C> Mul<i64> for ColumnWithTypedInput<C>
 where
     C: Mul<i64, Output = C>,
@@ -141,6 +161,15 @@ where
                 .expect("multiplication overflow"),
         }
     }
+}
+
+impl<C> Mul<ColumnWithTypedInput<C>> for i64
+where
+    C: Mul<i64, Output = C>,
+{
+    type Output = ColumnWithTypedInput<C>;
+
+    fn mul(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> { other * self }
 }
 
 impl<C> Sum<ColumnWithTypedInput<C>> for ColumnWithTypedInput<C>
