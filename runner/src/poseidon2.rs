@@ -1,13 +1,28 @@
 use std::iter::repeat;
 
-use itertools::{izip, Itertools};
+use itertools::{chain, izip, Itertools};
 use mozak_sdk::core::reg_abi::{REG_A1, REG_A2, REG_A3};
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
-use plonky2::hash::poseidon2::Poseidon2Permutation;
+use plonky2::hash::poseidon2::{Poseidon2Permutation, WIDTH};
 use plonky2::plonk::config::GenericHashOut;
 
-use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
+use crate::state::{Aux, State};
+
+#[derive(Debug, Clone, Default)]
+pub struct SpongeData<F> {
+    pub preimage: [F; WIDTH],
+    pub output: [F; WIDTH],
+    pub gen_output: F,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Entry<F: RichField> {
+    pub addr: u32,
+    pub output_addr: u32,
+    pub len: u32,
+    pub sponge_data: Vec<SpongeData<F>>,
+}
 
 #[allow(clippy::module_name_repetitions)]
 pub struct MozakPoseidon2 {}
@@ -140,8 +155,8 @@ impl MozakPoseidon2 {
 /// 12.
 pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
-) -> (HashOut<F>, Vec<Poseidon2SpongeData<F>>) {
-    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Vec<Poseidon2SpongeData<F>>| {
+) -> (HashOut<F>, Vec<SpongeData<F>>) {
+    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Vec<SpongeData<F>>| {
         // STATE_SIZE is 12 since it's hard-coded in our stark-backend
         const STATE_SIZE: usize = 12;
         assert_eq!(STATE_SIZE, P::WIDTH);
@@ -156,7 +171,7 @@ pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
             .expect("length must be equal to poseidon2 STATE_SIZE");
         // `sponge_data` is previous `perm` and `perm` permutation
         // `gen_output` is a flag that will be used later
-        sponge_data.push(Poseidon2SpongeData {
+        sponge_data.push(SpongeData {
             preimage,
             output,
             gen_output: F::from_bool(false),
@@ -251,9 +266,16 @@ impl<F: RichField> State<F> {
         // In this step, 2 things happen:
         // 1) Fill the Aux.poseidon2 entry
         // 2) Store the computed hash inside `output_ptr`
+
+        let mem_addresses_used: Vec<u32> = chain!(
+            (0..input_len).map(|i| input_ptr.wrapping_add(i)),
+            izip!(0.., &hash).map(|(i, _)| output_ptr.wrapping_add(i))
+        )
+        .collect();
         (
             Aux {
-                poseidon2: Some(Poseidon2Entry {
+                mem_addresses_used,
+                poseidon2: Some(Entry {
                     addr: input_ptr,
                     output_addr: output_ptr,
                     len: u32::try_from(Poseidon2Permutation::<F>::RATE * sponge_data.len())

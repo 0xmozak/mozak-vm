@@ -13,7 +13,8 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{byte_wise_hash, find_hash, select_hash};
+use crate::{byte_wise_hash, find_hash, select_hash};
+
 pub trait Extended {
     type BranchTargets;
 }
@@ -286,7 +287,7 @@ mod test {
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::recproof::bounded;
+    use crate::subcircuits::bounded;
     use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
 
     pub struct DummyLeafCircuit {

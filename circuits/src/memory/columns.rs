@@ -56,7 +56,7 @@ pub struct Memory<T> {
     pub diff_addr_inv: T,
 }
 columns_view_impl!(Memory);
-make_col_map!(Memory);
+make_col_map!(MEM, Memory);
 
 impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
     /// All other fields are intentionally set to defaults, and clk is
@@ -193,17 +193,17 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    [COL_MAP.addr, COL_MAP.addr, COL_MAP.diff_clk]
+    [MEM.addr, MEM.addr, MEM.diff_clk]
         .into_iter()
-        .map(|addr| MemoryTable::new(RangeCheckCtl(addr), COL_MAP.is_executed()))
+        .map(|addr| MemoryTable::new(RangeCheckCtl(addr), MEM.is_executed()))
         .collect()
 }
 
 #[must_use]
 pub fn rangecheck_u8_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
     vec![MemoryTable::new(
-        RangeCheckCtl(COL_MAP.value),
-        COL_MAP.is_executed(),
+        RangeCheckCtl(MEM.value),
+        MEM.is_executed(),
     )]
 }
 
@@ -224,13 +224,13 @@ pub struct MemoryCtl<T> {
 pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
     MemoryTable::new(
         MemoryCtl {
-            clk: COL_MAP.clk,
-            is_store: COL_MAP.is_store,
-            is_load: COL_MAP.is_load,
-            addr: COL_MAP.addr,
-            value: COL_MAP.value,
+            clk: MEM.clk,
+            is_store: MEM.is_store,
+            is_load: MEM.is_load,
+            addr: MEM.addr,
+            value: MEM.value,
         },
-        COL_MAP.is_store + COL_MAP.is_load,
+        MEM.is_store + MEM.is_load,
     )
 }
 
@@ -239,12 +239,12 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
 pub fn lookup_for_memoryinit() -> TableWithTypedOutput<MemoryInitCtl<Column>> {
     MemoryTable::new(
         MemoryInitCtl {
-            is_writable: COL_MAP.is_writable,
-            address: COL_MAP.addr,
-            clk: COL_MAP.clk,
-            value: COL_MAP.value,
+            is_writable: MEM.is_writable,
+            address: MEM.addr,
+            clk: MEM.clk,
+            value: MEM.value,
         },
-        COL_MAP.is_init,
+        MEM.is_init,
     )
 }
 

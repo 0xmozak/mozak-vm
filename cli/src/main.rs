@@ -13,10 +13,10 @@ use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::io_memory::{
-    generate_io_memory_private_trace, generate_io_transcript_trace,
+    generate_call_tape_trace, generate_io_memory_private_trace,
 };
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
-use mozak_circuits::generation::program::generate_program_rom_trace;
+use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
@@ -132,7 +132,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            let state = State::<GoldilocksField>::new(program.clone());
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs {
@@ -145,7 +145,7 @@ fn main() -> Result<()> {
                 .unwrap_or_default();
 
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            let state = State::<GoldilocksField>::new(program.clone());
 
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -161,7 +161,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -258,8 +258,7 @@ fn main() -> Result<()> {
                     }),
                     &args,
                 )?;
-                let state =
-                    State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.clone());
+                let state = State::<GoldilocksField>::new(program.clone());
                 let record = step(&program, state)?;
 
                 let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
@@ -282,7 +281,7 @@ fn main() -> Result<()> {
                 // See: https://github.com/0xmozak/mozak-vm/pull/1335#issuecomment-2029402128
                 let trace = generate_io_memory_private_trace(&record.executed);
                 let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-                let trace = generate_io_transcript_trace(&record.executed);
+                let trace = generate_call_tape_trace(&record.executed);
                 let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
                 let transparent_attestation = TransparentAttestation {

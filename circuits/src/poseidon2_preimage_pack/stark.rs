@@ -74,7 +74,7 @@ mod tests {
 
     use super::Poseidon2PreimagePackStark;
     use crate::generation::poseidon2_preimage_pack::generate_poseidon2_preimage_pack_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
 
