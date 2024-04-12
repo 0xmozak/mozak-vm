@@ -386,8 +386,8 @@ where
 #[cfg(test)]
 mod tests {
 
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn prove_halt() {
-        let (program, record) = execute_code([], &[], &[]);
+        let (program, record) = code::execute([], &[], &[]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -412,14 +412,14 @@ mod tests {
                 ..Args::default()
             },
         };
-        let (program, record) = execute_code([lui], &[], &[]);
+        let (program, record) = code::execute([lui], &[], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
     fn prove_lui_2() {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [Instruction {
                 op: Op::ADD,
                 args: Args {
@@ -437,7 +437,7 @@ mod tests {
 
     #[test]
     fn prove_beq() {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [Instruction {
                 op: Op::BEQ,
                 args: Args {

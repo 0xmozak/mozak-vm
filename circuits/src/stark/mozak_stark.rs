@@ -131,8 +131,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub io_memory_private_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPublic")]
     pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
-    #[StarkSet(stark_kind = "IoTranscript")]
-    pub io_transcript_stark: InputOutputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "CallTape")]
+    pub call_tape_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
@@ -443,7 +443,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             register_zero_write_stark: RegisterZeroWriteStark::default(),
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
-            io_transcript_stark: InputOutputMemoryStark::default(),
+            call_tape_stark: InputOutputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
@@ -631,11 +631,7 @@ table_impl!(
     TableKind::IoMemoryPublic,
     InputOutputMemory
 );
-table_impl!(
-    IoTranscriptTable,
-    TableKind::IoTranscript,
-    InputOutputMemory
-);
+table_impl!(CallTapeTable, TableKind::CallTape, InputOutputMemory);
 #[cfg(feature = "enable_poseidon_starks")]
 table_impl!(
     Poseidon2SpongeTable,
@@ -876,7 +872,7 @@ impl Lookups for IoMemoryToCpuTable {
                 [
                     TableKind::IoMemoryPrivate,
                     TableKind::IoMemoryPublic,
-                    TableKind::IoTranscript
+                    TableKind::CallTape
                 ],
                 0..
             )

@@ -1,4 +1,4 @@
-//! Subcircuits for proving events can be accumulated to a partial object.
+//! Circuits for proving events can be accumulated to a partial object.
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
@@ -9,8 +9,9 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::unpruned::PartialAllowed;
-use super::{hash_event, state_from_event, unbounded, unpruned, Event, EventType};
+use crate::subcircuits::unpruned::PartialAllowed;
+use crate::subcircuits::{state_from_event, unbounded, unpruned};
+use crate::{hash_event, Event, EventType};
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
@@ -136,6 +137,11 @@ where
             &unbounded_targets.right_proof,
         );
 
+        builder.connect(
+            event_hash_targets.extension.partial.target,
+            partial_state_targets.partial.target,
+        );
+
         let circuit = builder.build();
 
         let public_inputs = &circuit.prover_only.public_inputs;
@@ -168,11 +174,16 @@ where
             right_proof,
         );
         self.event_hash.set_witness(&mut inputs, None, partial);
-        self.partial_state.set_witness_from_proofs(
-            &mut inputs,
-            &left_proof.public_inputs,
-            &right_proof.public_inputs,
-        );
+        if partial {
+            self.partial_state
+                .set_witness_from_proof(&mut inputs, &left_proof.public_inputs);
+        } else {
+            self.partial_state.set_witness_from_proofs(
+                &mut inputs,
+                &left_proof.public_inputs,
+                &right_proof.public_inputs,
+            );
+        }
         self.circuit.prove(inputs)
     }
 }
@@ -305,7 +316,13 @@ mod test {
         BRANCH.circuit.verify(branch_proof_1.clone())?;
 
         let branch_proof_2 = BRANCH.prove(false, &branch_proof_1, Some((true, &ensure_proof)))?;
-        BRANCH.circuit.verify(branch_proof_2)?;
+        BRANCH.circuit.verify(branch_proof_2.clone())?;
+
+        let branch_proof_3 = BRANCH.prove(false, &branch_proof_2, None)?;
+        BRANCH.circuit.verify(branch_proof_3)?;
+
+        let branch_proof_4 = BRANCH.prove(true, &read_proof, None)?;
+        BRANCH.circuit.verify(branch_proof_4)?;
 
         Ok(())
     }

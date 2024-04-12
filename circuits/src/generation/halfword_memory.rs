@@ -63,10 +63,10 @@ pub fn generate_halfword_memory_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
 
+    use mozak_runner::code;
     use mozak_runner::elf::Program;
     use mozak_runner::instruction::Op::{LH, LHU, SH};
     use mozak_runner::instruction::{Args, Instruction};
-    use mozak_runner::util::execute_code;
     use mozak_runner::vm::ExecutionRecord;
     use plonky2::field::goldilocks_field::GoldilocksField;
 
@@ -78,7 +78,7 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::test_utils::{inv, prep_table};
 
     // TODO(Matthias): Consider unifying with the byte memory example?
@@ -122,7 +122,7 @@ mod tests {
             .flatten()
             .copied()
             .collect::<Vec<_>>();
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             code,
             &[
                 (400, 0),
@@ -161,8 +161,8 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
-        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_rows);
+        let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_rows);
 
         let trace = generate_memory_trace::<GoldilocksField>(
             &record.executed,
@@ -171,7 +171,7 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseidon2_rows,
+            &poseidon2_sponge_rows,
             &poseidon2_output_bytes,
         );
         assert_eq!(trace,

@@ -1,4 +1,4 @@
-//! Subcircuits for proving events can be summarized to a commitment.
+//! Circuits for proving events can be summarized to a commitment.
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
@@ -10,8 +10,9 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::unpruned::PartialAllowed;
-use super::{byte_wise_hash_event, hash_event, propagate, unbounded, unpruned, Event};
+use crate::subcircuits::unpruned::PartialAllowed;
+use crate::subcircuits::{propagate, unbounded, unpruned};
+use crate::{byte_wise_hash_event, hash_event, Event};
 
 pub struct LeafTargets {
     /// The event type
@@ -261,8 +262,8 @@ mod test {
     use plonky2::plonk::config::Hasher;
 
     use super::*;
-    use crate::recproof::EventType;
     use crate::test_utils::{fast_test_circuit_config, hash_branch, C, D, F};
+    use crate::EventType;
 
     const CONFIG: CircuitConfig = fast_test_circuit_config();
 

@@ -15,8 +15,7 @@ use plonky2::plonk::circuit_data::{CircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
-use super::{find_hash, select_verifier};
-use crate::stark::recursive_verifier::circuit_data_for_recursion;
+use crate::{circuit_data_for_recursion, find_hash, select_verifier};
 
 /// Plonky2's recursion threshold is 2^12 gates. We use a slightly relaxed
 /// threshold here to support the case that two proofs are verified in the same
@@ -175,6 +174,7 @@ pub struct BranchTargets<const D: usize> {
 
     /// The left proof
     pub left_proof: ProofWithPublicInputsTarget<D>,
+
     /// The right proof
     pub right_proof: ProofWithPublicInputsTarget<D>,
 }

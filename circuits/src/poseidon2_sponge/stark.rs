@@ -214,7 +214,7 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use super::Poseidon2SpongeStark;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
 

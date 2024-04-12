@@ -184,7 +184,7 @@ pub struct CpuState<T> {
     // TODO: implement the above.
     pub is_io_store_private: T,
     pub is_io_store_public: T,
-    pub is_io_transcript: T,
+    pub is_call_tape: T,
     pub is_halt: T,
     pub is_poseidon2: T,
     // TODO: these two need constraints.
@@ -345,7 +345,7 @@ pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCt
             op: ColumnWithTypedInput::ascending_sum([
                 CPU.is_io_store_private,
                 CPU.is_io_store_public,
-                CPU.is_io_transcript,
+                CPU.is_call_tape,
             ]),
             clk: CPU.clk,
             addr: CPU.io_addr,
@@ -354,7 +354,7 @@ pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCt
         [
             CPU.is_io_store_private,
             CPU.is_io_store_public,
-            CPU.is_io_transcript,
+            CPU.is_call_tape,
         ]
         .iter()
         .sum(),
