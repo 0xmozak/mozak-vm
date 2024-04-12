@@ -692,8 +692,7 @@ impl Lookups for IntoMemoryTable {
 
     #[allow(clippy::too_many_lines)]
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let mut tables = vec![];
-        tables.extend([
+        let mut tables = vec![
             cpu::columns::lookup_for_memory(),
             memory_halfword::columns::lookup_for_memory_limb(0),
             memory_halfword::columns::lookup_for_memory_limb(1),
@@ -703,11 +702,11 @@ impl Lookups for IntoMemoryTable {
             memory_fullword::columns::lookup_for_memory_limb(3),
             memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
             memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
-        ]);
+        ];
         #[cfg(feature = "enable_poseidon_starks")]
         {
             tables.extend(poseidon2_preimage_pack::columns::lookup_for_input_memory());
-            tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
+            tables.extend(poseidon2_output_bytes::columns::lookup_for_output_memory());
         }
         CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])
     }
