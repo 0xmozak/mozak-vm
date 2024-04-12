@@ -525,13 +525,12 @@ pub fn eval_cross_table_lookup_checks_circuit<
 }
 
 pub mod ctl_utils {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use anyhow::Result;
     use derive_more::{Deref, DerefMut};
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
-    use plonky2::field::types::Field;
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
@@ -539,9 +538,9 @@ pub mod ctl_utils {
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
     #[derive(Clone, Debug, Default, Deref, DerefMut)]
-    struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
+    struct MultiSet<F>(pub BTreeMap<Vec<u64>, Vec<(TableKind, F)>>);
 
-    impl<F: Field> MultiSet<F> {
+    impl<F: RichField> MultiSet<F> {
         fn process_row(
             &mut self,
             trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
@@ -560,14 +559,14 @@ pub mod ctl_utils {
                     let row = columns
                         .iter()
                         .map(|c| c.eval_table(trace, i))
+                        .map(|f| f.to_canonical_u64())
                         .collect::<Vec<_>>();
                     self.entry(row).or_default().push((table.kind, filter));
                 };
             }
         }
     }
-
-    pub fn check_single_ctl<F: Field>(
+    pub fn check_single_ctl<F: RichField>(
         trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
         // TODO(Matthias): make this one work with CrossTableLookupNamed, instead of having to
         // forget the types first.  That should also help with adding better debug messages.
@@ -578,24 +577,19 @@ pub mod ctl_utils {
         ///
         /// The CTL check holds iff `looking_multiplicity ==
         /// looked_multiplicity`.
-        fn check_multiplicities<F: Field>(
-            row: &[F],
+        fn check_multiplicities<F: RichField>(
+            row: &[u64],
             looking_locations: &[(TableKind, F)],
             looked_locations: &[(TableKind, F)],
-            looking_multiset: &MultiSet<F>,
-            looked_multiset: &MultiSet<F>,
         ) -> Result<(), LookupError> {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
-                // let row: CpuSkeletonCtl<_> = row.iter().copied().collect();
                 println!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\
                     Looking locations: {looking_locations:?}.\n\
-                    Looked locations: {looked_locations:?}.\n
-                    Looking muiltiset: {looking_multiset:?}.\n
-                    Looked muiltiset: {looked_multiset:?}.\n",
+                    Looked locations: {looked_locations:?}.",
                 );
                 return Err(LookupError::InconsistentTableRows);
             }
@@ -620,26 +614,14 @@ pub mod ctl_utils {
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(
-                row,
-                looking_locations,
-                looked_locations,
-                &looking_multiset,
-                &looked_multiset,
-            )?;
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
         for (row, looked_locations) in &looked_multiset.0 {
             let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(
-                row,
-                looking_locations,
-                looked_locations,
-                &looking_multiset,
-                &looked_multiset,
-            )?;
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         Ok(())
