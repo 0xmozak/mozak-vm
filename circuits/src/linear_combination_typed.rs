@@ -120,8 +120,7 @@ where
     }
 }
 
-impl<C> Sub<i64> for ColumnWithTypedInput<C>
-{
+impl<C> Sub<i64> for ColumnWithTypedInput<C> {
     type Output = Self;
 
     fn sub(self, other: i64) -> Self {
@@ -142,6 +141,7 @@ where
 {
     type Output = ColumnWithTypedInput<C>;
 
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn sub(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> { self + other.neg() }
 }
 
