@@ -3,12 +3,40 @@
 use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 
 /// Contains a reference to [`ExprTree`] that is managed by [`ExprBuilder`].
 #[derive(Clone, Copy, Debug)]
 pub struct Expr<'a, V> {
     expr_tree: &'a ExprTree<'a, V>,
     builder: &'a ExprBuilder,
+}
+
+impl<'a, V> Expr<'a, V> {
+    pub fn is_binary(self) -> Self
+    where
+        V: Copy, {
+        self * (1 - self)
+    }
+
+    /// Reduce a sequence of terms into a single term using powers of `base`.
+    ///
+    /// For typing convenience, this only works for non-empty list of terms.
+    pub fn reduce_with_powers<I>(terms: I, base: i64) -> Self
+    where
+        I: IntoIterator<Item = Self>,
+        I::IntoIter: DoubleEndedIterator, {
+        let mut terms = terms.into_iter().rev().peekable();
+        let builder = terms
+            .peek()
+            .unwrap_or_else(|| panic!("At least one term is required for an expression to be reduced, for type system reasons."))
+            .builder;
+        let mut sum = builder.constant(0);
+        for term in terms {
+            sum = sum * base + term;
+        }
+        sum
+    }
 }
 
 impl<'a, V> Add for Expr<'a, V> {
@@ -146,17 +174,44 @@ impl ExprBuilder {
         self.bin_op(BinOp::Mul, left, right)
     }
 
-    pub fn is_binary<'a, V>(&'a self, x: Expr<'a, V>) -> Expr<'a, V>
+    /// Convert from untyped `StarkFrame` to a typed representation.
+    ///
+    /// We ignore public inputs for now, and leave them as is.
+    pub fn to_typed_starkframe<'a, T, U, const N: usize, const N2: usize, View>(
+        &'a self,
+        vars: &'a StarkFrame<T, U, N, N2>,
+    ) -> StarkFrameTyped<View, [U; N2]>
     where
-        V: Copy, {
-        x * (1 - x)
+        T: Copy + Clone + Default,
+        U: Copy + Clone + Default,
+        // We don't actually need the first constraint, but it's useful to make the compiler yell
+        // at us, if we mix things up. See the TODO about fixing `StarkEvaluationFrame` to
+        // give direct access to its contents.
+        View: From<[Expr<'a, T>; N]> + FromIterator<Expr<'a, T>>, {
+        // TODO: Fix `StarkEvaluationFrame` to give direct access to its contents, no
+        // need for the reference only access.
+        StarkFrameTyped {
+            local_values: vars
+                .get_local_values()
+                .iter()
+                .map(|&v| self.lit(v))
+                .collect(),
+            next_values: vars
+                .get_next_values()
+                .iter()
+                .map(|&v| self.lit(v))
+                .collect(),
+            public_inputs: vars.get_public_inputs().try_into().unwrap(),
+        }
     }
+}
 
-    pub fn inject_slice<'a, V>(&'a self, items: &'a [V]) -> impl IntoIterator<Item = Expr<'a, V>>
-    where
-        V: Copy, {
-        items.iter().map(|x| self.lit(*x))
-    }
+/// A helper around `StarkFrame` to add types
+#[derive(Debug)]
+pub struct StarkFrameTyped<Row, PublicInputs> {
+    pub local_values: Row,
+    pub next_values: Row,
+    pub public_inputs: PublicInputs,
 }
 
 /// Enum for binary operations
