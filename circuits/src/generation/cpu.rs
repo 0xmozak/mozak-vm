@@ -133,7 +133,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 /// This is a wrapper to make the Expr mechanics work directly with a Field.
 ///
 /// TODO(Matthias): Make this more generally useful.
-fn signed_diff<'a, F: RichField>(row: &'a CpuState<F>) -> F {
+fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
     let expr_builder = ExprBuilder::default();
     let mut evaluator = PureEvaluator(F::from_noncanonical_i64);
     let row = row.map(|x| expr_builder.lit(x));
