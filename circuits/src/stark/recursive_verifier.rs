@@ -719,7 +719,6 @@ mod tests {
             expected_castlist_commitment_tape,
             "Could not find expected_castlist_commitment_tape in recursive proof's public inputs"
         );
-        println!("size of pi{:?}", recursive_proof.public_inputs.len());
 
         mozak_stark_circuit.circuit.verify(recursive_proof)
     }
