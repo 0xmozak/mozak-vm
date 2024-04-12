@@ -69,8 +69,7 @@ pub(crate) fn constraints<'a, P: Copy>(
     cb.always(is_bge * lt * (next_pc - bumped_pc));
     cb.always(is_bge * (1 - lt) * (next_pc - branched_pc));
 
-    // Check: for BEQ, branch if `normalised_diff git 0`, otherwise increment the
-    // pc.
+    // Check: for BEQ, branch if `normalised_diff == 0`, otherwise increment the pc.
     cb.always(ops.beq * (1 - lv.normalised_diff) * (next_pc - branched_pc));
     cb.always(ops.beq * lv.normalised_diff * (next_pc - bumped_pc));
 
