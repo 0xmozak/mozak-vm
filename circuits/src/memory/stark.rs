@@ -93,8 +93,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    fn constraint_degree(&self) -> usize { 3 }
-
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
@@ -106,6 +104,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
         build_packed(constraints, consumer);
     }
+
+    fn constraint_degree(&self) -> usize { 3 }
 
     fn eval_ext_circuit(
         &self,
