@@ -22,7 +22,9 @@ pub(crate) fn used_in_execution<F: RichField>(step_rows: &[Row<F>]) -> BTreeSet<
     step_rows
         .iter()
         .flat_map(|row| row.aux.mem_addresses_used.clone())
-        // We always consider these two used, to make our constraints work out.
+        // Our constraints require that we start at memory address 0 and end at u32::MAX,
+        // so we always consider these two used.  (This saves rangechecking the addresses
+        // themselves, we only rangecheck their difference.)
         .chain([0, u32::MAX])
         .collect()
 }

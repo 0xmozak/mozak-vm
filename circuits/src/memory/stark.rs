@@ -53,9 +53,9 @@ fn generate_constraints<'a, T: Copy, U, const N2: usize>(
     // -------------------
 
     // We start address at 0 and end at u32::MAX
-    // This saves us a rangecheck on the address,
-    // but we rangecheck the address difference.
-    constraints.first_row(lv.addr);
+    // This saves rangechecking the addresses
+    // themselves, we only rangecheck their difference.
+    constraints.first_row(lv.addr - 0);
     constraints.last_row(lv.addr - i64::from(u32::MAX));
 
     // Address can only change for init in the new row...
