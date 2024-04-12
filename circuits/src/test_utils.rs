@@ -18,7 +18,6 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
-use proptest::strategy::Strategy;
 use starky::config::StarkConfig;
 use starky::prover::prove as prove_table;
 use starky::stark::Stark;

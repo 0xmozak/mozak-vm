@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -7,12 +8,29 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use super::columns::TapeCommitments;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::stark::utils::{is_binary, is_binary_ext_circuit};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+fn generate_constraints<'a, T: Copy, U, const N2: usize>(
+    vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, [U; N2]>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv: &TapeCommitments<Expr<'a, T>> = &vars.local_values;
+    let mut constraint = ConstraintBuilder::default();
+    constraint.always(lv.is_event_commitment_tape_row.is_binary());
+    constraint.always(lv.is_castlist_commitment_tape_row.is_binary());
+    constraint
+        .always((lv.is_castlist_commitment_tape_row + lv.is_event_commitment_tape_row).is_binary());
+    constraint.always(
+        lv.event_commitment_tape_multiplicity * (1 - lv.event_commitment_tape_multiplicity),
+    );
+    constraint.always(
+        lv.castlist_commitment_tape_multiplicity * (1 - lv.castlist_commitment_tape_multiplicity),
+    );
+    constraint
+}
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -39,64 +57,27 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for TapeCommitmen
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &TapeCommitments<P> = vars.get_local_values().into();
-
-        is_binary(yield_constr, lv.is_event_commitment_tape_row);
-        is_binary(yield_constr, lv.is_castlist_commitment_tape_row);
-        is_binary(
-            yield_constr,
-            lv.is_event_commitment_tape_row + lv.is_castlist_commitment_tape_row,
-        );
-
-        // if multiplicity is set, filter should be set too
-        yield_constr.constraint(
-            lv.event_commitment_tape_multiplicity * (lv.is_event_commitment_tape_row - P::ONES),
-        );
-        yield_constr.constraint(
-            lv.castlist_commitment_tape_multiplicity
-                * (lv.is_castlist_commitment_tape_row - P::ONES),
-        );
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_packed(constraints, consumer);
     }
+
+    fn constraint_degree(&self) -> usize { 2 }
 
     fn eval_ext_circuit(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &TapeCommitments<ExtensionTarget<D>> = vars.get_local_values().into();
-
-        let is_executed = builder.add_extension(
-            lv.is_event_commitment_tape_row,
-            lv.is_castlist_commitment_tape_row,
-        );
-        is_binary_ext_circuit(builder, lv.is_event_commitment_tape_row, yield_constr);
-        is_binary_ext_circuit(builder, lv.is_castlist_commitment_tape_row, yield_constr);
-        is_binary_ext_circuit(builder, is_executed, yield_constr);
-
-        let event_multiplicity_times_filter_minus_multiplicity = builder.mul_sub_extension(
-            lv.event_commitment_tape_multiplicity,
-            lv.is_event_commitment_tape_row,
-            lv.event_commitment_tape_multiplicity,
-        );
-        yield_constr.constraint(builder, event_multiplicity_times_filter_minus_multiplicity);
-
-        let castlist_multiplicity_times_filter_minus_multiplicity = builder.mul_sub_extension(
-            lv.castlist_commitment_tape_multiplicity,
-            lv.is_castlist_commitment_tape_row,
-            lv.castlist_commitment_tape_multiplicity,
-        );
-        yield_constr.constraint(
-            builder,
-            castlist_multiplicity_times_filter_minus_multiplicity,
-        );
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_ext(constraints, builder, consumer);
     }
-
-    fn constraint_degree(&self) -> usize { 2 }
 }
 
 #[cfg(test)]
