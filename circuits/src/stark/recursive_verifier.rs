@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
-use itertools::zip_eq;
+use itertools::{zip_eq, Itertools};
 use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -245,16 +245,16 @@ where
                 .collect::<Vec<_>>(),
         );
     }
-    for public_sub_table in &mozak_stark.public_sub_tables {
+    all_kind!(|kind| {
         builder.register_public_inputs(
-            &public_sub_table_values_targets[public_sub_table.table.kind]
+            &public_sub_table_values_targets[kind]
                 .clone()
                 .into_iter()
                 .flatten()
                 .flatten()
-                .collect::<Vec<_>>(),
+                .collect_vec(),
         );
-    }
+    });
 
     let circuit = builder.build();
     MozakStarkVerifierCircuit {
