@@ -11,7 +11,7 @@ use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
-use crate::elf::{Data, Program, RuntimeArguments};
+use crate::elf::{Data, Program};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
 
@@ -194,39 +194,6 @@ pub struct Aux<F: RichField> {
 }
 
 impl<F: RichField> State<F> {
-    #[must_use]
-    #[allow(clippy::similar_names)]
-    // TODO(Roman): currently this function uses old io-tape mechanism (based on
-    // `ecall`) once a new stark mechanics related to io-tapes will be added, this
-    // function will be used only for old-io-tapes API, and another function
-    // `new_mozak_elf` will be added specifically for new io-tapes mechanism
-    // NOTE: currently, both mozak-elf and vanilla elf will use this API since there
-    // is still no stark-backend that supports new-io-tapes
-    pub fn legacy_ecall_api_new(
-        Program {
-            rw_memory: Data(rw_memory),
-            ro_memory: Data(ro_memory),
-            mozak_ro_memory,
-            entry_point: pc,
-            ..
-        }: Program,
-        RuntimeArguments { .. }: RuntimeArguments,
-    ) -> Self {
-        let memory = StateMemory::new(
-            [
-                ro_memory,
-                mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
-            ]
-            .into_iter(),
-            once(rw_memory),
-        );
-        Self {
-            pc,
-            memory,
-            ..Default::default()
-        }
-    }
-
     #[must_use]
     #[allow(clippy::similar_names)]
     /// # Panics
