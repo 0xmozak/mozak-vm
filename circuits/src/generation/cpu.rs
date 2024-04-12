@@ -1,3 +1,4 @@
+use expr::{Evaluator, ExprBuilder, PureEvaluator};
 use itertools::{chain, Itertools};
 use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
@@ -158,9 +159,19 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     pad_trace(trace)
 }
 
+/// This is a wrapper to make the Expr mechanics work directly with a Field.
+///
+/// TODO(Matthias): Make this more generally useful.
+fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
+    let expr_builder = ExprBuilder::default();
+    let row = row.map(|x| expr_builder.lit(x));
+    PureEvaluator(F::from_noncanonical_i64).eval(row.signed_diff())
+}
+
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
-    row.cmp_diff_inv = row.signed_diff().try_inverse().unwrap_or_default();
-    row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
+    let signed_diff = signed_diff(row);
+    row.cmp_diff_inv = signed_diff.try_inverse().unwrap_or_default();
+    row.normalised_diff = F::from_bool(signed_diff.is_nonzero());
 }
 
 /// Generates a bitshift row on a shift operation. This is used in the bitshift
