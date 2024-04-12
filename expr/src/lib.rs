@@ -294,15 +294,16 @@ where
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
     fn una_op(&mut self, op: &UnaOp, expr: V) -> V;
     fn constant(&mut self, value: i64) -> V;
-    fn eval<'a>(&'a mut self, expr: Expr<'a, V>) -> V { expr.expr_tree.eval_with(self) }
+    fn eval(&mut self, expr: Expr<'_, V>) -> V { expr.expr_tree.eval_with(self) }
 }
 
 /// Default evaluator for pure values.
-pub struct PureEvaluator<V>(pub fn(i64) -> V);
+#[derive(Default)]
+pub struct PureEvaluator {}
 
-impl<V> Evaluator<V> for PureEvaluator<V>
+impl<V> Evaluator<V> for PureEvaluator
 where
-    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V>,
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + From<i64>,
 {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V {
         match op {
@@ -317,7 +318,7 @@ where
         }
     }
 
-    fn constant(&mut self, value: i64) -> V { (self.0)(value) }
+    fn constant(&mut self, value: i64) -> V { value.into() }
 }
 
 #[cfg(test)]
@@ -331,7 +332,7 @@ mod tests {
         let a = expr.lit(7i64);
         let b = expr.lit(5i64);
 
-        let mut p = PureEvaluator(i64::from);
+        let mut p = PureEvaluator::default();
 
         assert_eq!(p.eval(a + b), 12);
         assert_eq!(p.eval(a - b), 2);
