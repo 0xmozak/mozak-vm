@@ -203,28 +203,6 @@ where
     }
 }
 
-impl<C: Default> From<C> for ColumnWithTypedInput<C> {
-    fn from(lv_linear_combination: C) -> Self { Self::now(lv_linear_combination) }
-}
-
-impl<C: Default> ColumnWithTypedInput<C> {
-    pub fn now(lv_linear_combination: C) -> Self {
-        Self {
-            lv_linear_combination,
-            nv_linear_combination: C::default(),
-            constant: Default::default(),
-        }
-    }
-
-    pub fn next(nv_linear_combination: C) -> Self {
-        Self {
-            nv_linear_combination,
-            lv_linear_combination: C::default(),
-            constant: Default::default(),
-        }
-    }
-}
-
 impl<C: Default + Zip<i64>> ColumnWithTypedInput<C>
 where
     Self: Default
