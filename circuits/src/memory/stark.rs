@@ -68,8 +68,8 @@ fn generate_constraints<'a, T: Copy, U, const N2: usize>(
     // No `SB` operation can be seen if memory address is not marked `writable`
     constraints.always((1 - lv.is_writable) * lv.is_store);
 
-    // Only init and store can change the value.  Padding and read stay the same.
-    constraints.always((nv.is_init + nv.is_store - 1) * (nv.value - lv.value));
+    // For all "load" operations, the value cannot change between rows
+    constraints.always(nv.is_load * (nv.value - lv.value));
 
     // Padding constraints
     // -------------------
