@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use mozak_runner::state::Poseidon2Entry;
+use mozak_runner::poseidon2;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
@@ -129,7 +129,7 @@ pub fn generate_poseidon2_state<F: RichField>(
 }
 
 fn generate_poseidon2_states<F: RichField>(
-    poseidon_data: &Poseidon2Entry<F>,
+    poseidon_data: &poseidon2::Entry<F>,
 ) -> Vec<Poseidon2State<F>> {
     poseidon_data
         .sponge_data
