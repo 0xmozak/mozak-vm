@@ -158,19 +158,19 @@ pub struct LeafTargets {
     pub event_value: [Target; 4],
 }
 
-struct SplitFlags {
-    new_data: Target,
-    owner: Target,
+pub struct SplitFlags {
+    pub new_data: Target,
+    pub owner: Target,
 
-    write: BoolTarget,
-    ensure: BoolTarget,
-    read: BoolTarget,
-    give_owner: BoolTarget,
-    take_owner: BoolTarget,
+    pub write: BoolTarget,
+    pub ensure: BoolTarget,
+    pub read: BoolTarget,
+    pub give_owner: BoolTarget,
+    pub take_owner: BoolTarget,
 }
 
 impl SplitFlags {
-    fn split<F, const D: usize>(builder: &mut CircuitBuilder<F, D>, flags: Target) -> Self
+    pub fn split<F, const D: usize>(builder: &mut CircuitBuilder<F, D>, flags: Target) -> Self
     where
         F: RichField + Extendable<D>, {
         let new_data_flag_count = (EventFlags::WriteFlag | EventFlags::EnsureFlag).len();
@@ -428,20 +428,18 @@ impl LeafSubCircuit {
         inputs: &mut PartialWitness<F>,
         v: LeafWitnessValue<F>,
     ) {
+        let targets = &self.targets.inputs;
+        inputs.set_target(targets.address, F::from_canonical_u64(v.address));
         inputs.set_target(
-            self.targets.inputs.address,
-            F::from_canonical_u64(v.address),
-        );
-        inputs.set_target(
-            self.targets.inputs.object_flags,
+            targets.object_flags,
             F::from_canonical_u8(v.object_flags.bits()),
         );
-        inputs.set_target_arr(&self.targets.inputs.old_owner, &v.old_owner);
-        inputs.set_target_arr(&self.targets.inputs.new_owner, &v.new_owner);
-        inputs.set_target_arr(&self.targets.inputs.old_data, &v.old_data);
-        inputs.set_target_arr(&self.targets.inputs.new_data, &v.new_data);
+        inputs.set_target_arr(&targets.old_owner, &v.old_owner);
+        inputs.set_target_arr(&targets.new_owner, &v.new_owner);
+        inputs.set_target_arr(&targets.old_data, &v.old_data);
+        inputs.set_target_arr(&targets.new_data, &v.new_data);
         inputs.set_target(
-            self.targets.inputs.credit_delta,
+            targets.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
         );
         inputs.set_target_arr(&self.targets.event_owner, &v.event_owner);
@@ -670,20 +668,18 @@ impl BranchSubCircuit {
         witness: &mut PartialWitness<F>,
         v: BranchWitnessValue<F>,
     ) {
+        let targets = &self.targets.inputs;
+        witness.set_target(targets.address, F::from_canonical_u64(v.address));
         witness.set_target(
-            self.targets.inputs.address,
-            F::from_canonical_u64(v.address),
-        );
-        witness.set_target(
-            self.targets.inputs.object_flags,
+            targets.object_flags,
             F::from_canonical_u8(v.object_flags.bits()),
         );
-        witness.set_target_arr(&self.targets.inputs.old_owner, &v.old_owner);
-        witness.set_target_arr(&self.targets.inputs.new_owner, &v.new_owner);
-        witness.set_target_arr(&self.targets.inputs.old_data, &v.old_data);
-        witness.set_target_arr(&self.targets.inputs.new_data, &v.new_data);
+        witness.set_target_arr(&targets.old_owner, &v.old_owner);
+        witness.set_target_arr(&targets.new_owner, &v.new_owner);
+        witness.set_target_arr(&targets.old_data, &v.old_data);
+        witness.set_target_arr(&targets.new_data, &v.new_data);
         witness.set_target(
-            self.targets.inputs.credit_delta,
+            targets.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
         );
     }
@@ -694,19 +690,16 @@ impl BranchSubCircuit {
         left_inputs: &[F],
         right_inputs: &[F],
     ) {
+        let targets = &self.targets.inputs;
+        let indices = &self.indices;
+
         // Address can be derived, so we can skip it
 
         // Handle flags
-        let left_flags = self
-            .indices
-            .get_object_flags(left_inputs)
-            .to_canonical_u64();
-        let right_flags = self
-            .indices
-            .get_object_flags(right_inputs)
-            .to_canonical_u64();
+        let left_flags = indices.get_object_flags(left_inputs).to_canonical_u64();
+        let right_flags = indices.get_object_flags(right_inputs).to_canonical_u64();
         witness.set_target(
-            self.targets.inputs.object_flags,
+            targets.object_flags,
             F::from_canonical_u64(left_flags | right_flags),
         );
         #[allow(clippy::cast_possible_truncation)]
@@ -727,7 +720,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| self.indices.get_old_owner(inputs),
+            |inputs| indices.get_old_owner(inputs),
             old_owner,
         );
         let new_owner = merge_branch_helper(
@@ -735,7 +728,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| self.indices.get_new_owner(inputs),
+            |inputs| indices.get_new_owner(inputs),
             new_owner,
         );
         let old_data = merge_branch_helper(
@@ -743,7 +736,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| self.indices.get_old_data(inputs),
+            |inputs| indices.get_old_data(inputs),
             old_data,
         );
         let new_data = merge_branch_helper(
@@ -751,32 +744,23 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| self.indices.get_new_data(inputs),
+            |inputs| indices.get_new_data(inputs),
             new_data,
         );
 
         // Set the object fields
-        witness.set_target_arr(&self.targets.inputs.old_owner, &old_owner);
-        witness.set_target_arr(&self.targets.inputs.new_owner, &new_owner);
-        witness.set_target_arr(&self.targets.inputs.old_data, &old_data);
-        witness.set_target_arr(&self.targets.inputs.new_data, &new_data);
+        witness.set_target_arr(&targets.old_owner, &old_owner);
+        witness.set_target_arr(&targets.new_owner, &new_owner);
+        witness.set_target_arr(&targets.old_data, &old_data);
+        witness.set_target_arr(&targets.new_data, &new_data);
 
         // Handle the credits
         #[allow(clippy::cast_possible_wrap)]
-        let left_credits = self
-            .indices
-            .get_credit_delta(left_inputs)
-            .to_canonical_u64() as i64;
+        let left_credits = indices.get_credit_delta(left_inputs).to_canonical_u64() as i64;
         #[allow(clippy::cast_possible_wrap)]
-        let right_credits = self
-            .indices
-            .get_credit_delta(right_inputs)
-            .to_canonical_u64() as i64;
+        let right_credits = indices.get_credit_delta(right_inputs).to_canonical_u64() as i64;
         let credits = left_credits + right_credits;
-        witness.set_target(
-            self.targets.inputs.credit_delta,
-            F::from_noncanonical_i64(credits),
-        );
+        witness.set_target(targets.credit_delta, F::from_noncanonical_i64(credits));
     }
 }
 
