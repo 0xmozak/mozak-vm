@@ -111,19 +111,15 @@ pub fn generate_register_trace<F: RichField>(
         .into_iter()
         .into_group_map_by(|row| (row.addr.is_zero().then_some(row.ops.is_read.is_nonzero())));
     let general = groups.remove(&None).unwrap_or_default();
-    let zeros_read = groups
-        .remove(&Some(true))
-        .unwrap_or_default()
-        .into_iter()
-        .map(RegisterZeroRead::from)
-        .collect();
-    let zeros_write = groups
-        .remove(&Some(false))
-        .unwrap_or_default()
+    let zeros_read = groups.remove(&Some(true)).unwrap_or_default();
+    let zeros_write = groups.remove(&Some(false)).unwrap_or_default();
+    assert!(groups.is_empty());
+
+    let zeros_read = zeros_read.into_iter().map(RegisterZeroRead::from).collect();
+    let zeros_write = zeros_write
         .into_iter()
         .map(RegisterZeroWrite::from)
         .collect();
-    assert!(groups.is_empty());
 
     log::trace!("trace for general registers {:?}", general);
     let last = *general.last().unwrap();
