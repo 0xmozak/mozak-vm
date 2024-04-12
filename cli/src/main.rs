@@ -132,7 +132,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            let state = State::<GoldilocksField>::new(program.clone());
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs {
@@ -145,7 +145,7 @@ fn main() -> Result<()> {
                 .unwrap_or_default();
 
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            let state = State::<GoldilocksField>::new(program.clone());
 
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -161,7 +161,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -258,8 +258,7 @@ fn main() -> Result<()> {
                     }),
                     &args,
                 )?;
-                let state =
-                    State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args.clone());
+                let state = State::<GoldilocksField>::new(program.clone());
                 let record = step(&program, state)?;
 
                 let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
