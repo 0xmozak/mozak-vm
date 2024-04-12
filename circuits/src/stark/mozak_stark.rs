@@ -910,10 +910,9 @@ impl Lookups for Poseidon2Sponge2Poseidon2PreimagePackTable {
     type Row = Poseidon2SpongePreimagePackCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let mut tables = vec![];
-        tables.extend((0..8).map(crate::poseidon2_sponge::columns::lookup_for_preimage_pack));
-        CrossTableLookupWithTypedOutput::new(tables, vec![
-            poseidon2_preimage_pack::columns::lookup_for_poseidon2_sponge(),
-        ])
+        CrossTableLookupWithTypedOutput::new(
+            crate::poseidon2_sponge::columns::lookup_for_preimage_pack(),
+            vec![poseidon2_preimage_pack::columns::lookup_for_poseidon2_sponge()],
+        )
     }
 }

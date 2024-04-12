@@ -119,22 +119,24 @@ pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl
 
 #[must_use]
 pub fn lookup_for_preimage_pack(
-    limb_index: u8,
-) -> TableWithTypedOutput<Poseidon2SpongePreimagePackCtl<Column>> {
-    assert!(limb_index < 8, "limb_index can be 0..7");
+) -> Vec<TableWithTypedOutput<Poseidon2SpongePreimagePackCtl<Column>>> {
     let sponge = COL_MAP;
-    Poseidon2SpongeTable::new(
-        Poseidon2SpongePreimagePackCtl {
-            clk: sponge.clk,
-            value: sponge.preimage[limb_index as usize], // value
-            fe_addr: sponge.input_addr + i64::from(limb_index), // address
-            byte_addr: sponge.input_addr_padded
-                + i64::from(
-                    limb_index
-                        * u8::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
-                            .expect("Should be < 255"),
-                ),
-        },
-        sponge.ops.is_init_permute + sponge.ops.is_permute,
-    )
+    (0..8)
+        .map(|limb_index| {
+            Poseidon2SpongeTable::new(
+                Poseidon2SpongePreimagePackCtl {
+                    clk: sponge.clk,
+                    value: sponge.preimage[limb_index as usize], // value
+                    fe_addr: sponge.input_addr + i64::from(limb_index), // address
+                    byte_addr: sponge.input_addr_padded
+                        + i64::from(
+                            limb_index
+                                * u8::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                                    .expect("Should be < 255"),
+                        ),
+                },
+                sponge.ops.is_init_permute + sponge.ops.is_permute,
+            )
+        })
+        .collect()
 }
