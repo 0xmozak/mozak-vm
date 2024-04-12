@@ -121,18 +121,17 @@ pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl
 pub fn lookup_for_preimage_pack(
 ) -> Vec<TableWithTypedOutput<Poseidon2SpongePreimagePackCtl<Column>>> {
     (0..8)
-        .map(|limb_index| {
+        .zip(SPONGE.preimage)
+        .map(|(limb_index, value)| {
             Poseidon2SpongeTable::new(
                 Poseidon2SpongePreimagePackCtl {
                     clk: SPONGE.clk,
-                    value: SPONGE.preimage[limb_index as usize], // value
-                    fe_addr: SPONGE.input_addr + i64::from(limb_index), // address
+                    value,
+                    fe_addr: SPONGE.input_addr + limb_index,
                     byte_addr: SPONGE.input_addr_padded
-                        + i64::from(
-                            limb_index
-                                * u8::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
-                                    .expect("Should be < 255"),
-                        ),
+                        + limb_index
+                            * i64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                                .expect("Should be < 255"),
                 },
                 SPONGE.ops.is_init_permute + SPONGE.ops.is_permute,
             )
