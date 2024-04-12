@@ -123,9 +123,9 @@ where
         });
 
         // Set public inputs
-        let cpu_target = &self.targets[TableKind::Cpu].stark_proof_with_pis_target;
+        let cpu_skeleton_target = &self.targets[TableKind::CpuSkeleton].stark_proof_with_pis_target;
         inputs.set_target_arr(
-            cpu_target.public_inputs.as_ref(),
+            cpu_skeleton_target.public_inputs.as_ref(),
             all_proof.public_inputs.borrow(),
         );
 
