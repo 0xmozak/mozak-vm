@@ -233,16 +233,17 @@ mod tests {
     #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
     fn no_init_fail() {
         type F = GoldilocksField;
+        const ADDRESS_TO_BE_FAKED: u32 = 1;
         let instructions = [Instruction {
             op: Op::SB,
             args: Args {
                 rs1: 1,
                 rs2: 1,
-                imm: 1,
+                imm: ADDRESS_TO_BE_FAKED,
                 ..Args::default()
             },
         }];
-        let (program, record) = code::execute(instructions, &[(0, 0)], &[(1, 0)]);
+        let (program, record) = code::execute(instructions, &[], &[(1, ADDRESS_TO_BE_FAKED)]);
 
         let memory_init = generate_memory_init_trace(&program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
@@ -270,9 +271,9 @@ mod tests {
             &poseidon2_output_bytes_rows,
         );
         // malicious prover sets first memory row's is_init to zero
-        memory_rows[1].is_init = F::ZERO;
+        memory_rows[ADDRESS_TO_BE_FAKED as usize].is_init = F::ZERO;
         // fakes a load instead of init
-        memory_rows[1].is_load = F::ONE;
+        memory_rows[ADDRESS_TO_BE_FAKED as usize].is_load = F::ONE;
         // now address 1 no longer has an init.
         assert!(memory_rows
             .iter()
