@@ -108,7 +108,7 @@ impl MozakPoseidon2 {
             data_extended_with_zeros
                 .as_slice()
                 .try_into()
-                .expect("pack bytes to singe u64 should succeed"),
+                .expect("pack bytes to single u64 should succeed"),
         ))
     }
 
