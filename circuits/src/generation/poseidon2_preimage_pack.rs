@@ -1,18 +1,8 @@
 use plonky2::hash::hash_types::RichField;
 
-use super::MIN_TRACE_LENGTH;
 use crate::poseidon2_preimage_pack::columns::Poseidon2PreimagePack;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-
-fn pad_trace<F: RichField>(
-    mut trace: Vec<Poseidon2PreimagePack<F>>,
-) -> Vec<Poseidon2PreimagePack<F>> {
-    trace.resize(
-        trace.len().next_power_of_two().max(MIN_TRACE_LENGTH),
-        Poseidon2PreimagePack::default(),
-    );
-    trace
-}
+use crate::utils::pad_trace_with_default;
 
 pub fn generate_poseidon2_preimage_pack_trace<F: RichField>(
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
@@ -21,7 +11,7 @@ pub fn generate_poseidon2_preimage_pack_trace<F: RichField>(
         .iter()
         .flat_map(Into::<Vec<Poseidon2PreimagePack<F>>>::into)
         .collect();
-    let trace = pad_trace(trace);
+    let trace = pad_trace_with_default(trace);
     log::trace!("trace {:?}", trace);
     trace
 }
