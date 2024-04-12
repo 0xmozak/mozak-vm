@@ -31,7 +31,7 @@ use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
 use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
-use mozak_runner::elf::RuntimeArguments;
+use mozak_runner::preinit_memory::RuntimeArguments;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};

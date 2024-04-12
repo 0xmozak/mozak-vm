@@ -9,8 +9,9 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::{decode_instruction, ECALL};
-use crate::elf::{Program, RuntimeArguments};
+use crate::elf::Program;
 use crate::instruction::{Args, DecodingError, Instruction, Op};
+use crate::preinit_memory::RuntimeArguments;
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
 

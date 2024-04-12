@@ -157,8 +157,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 mod tests {
     use mozak_runner::code::execute_code_with_ro_memory;
     use mozak_runner::decode::ECALL;
-    use mozak_runner::elf::{Program, RuntimeArguments};
+    use mozak_runner::elf::Program;
     use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::preinit_memory::RuntimeArguments;
     use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
     use mozak_runner::vm::ExecutionRecord;
     use mozak_sdk::core::ecall;

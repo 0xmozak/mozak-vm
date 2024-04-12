@@ -232,7 +232,8 @@ pub fn generate_memory_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use im::hashmap::HashMap;
-    use mozak_runner::elf::{Data, Program};
+    use mozak_runner::elf::Program;
+    use mozak_runner::preinit_memory::Data;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;

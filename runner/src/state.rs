@@ -11,9 +11,10 @@ use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
-use crate::elf::{Data, Program, RuntimeArguments};
+use crate::elf::Program;
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
+use crate::preinit_memory::{Data, RuntimeArguments};
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;

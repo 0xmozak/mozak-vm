@@ -3,7 +3,7 @@ use proptest::prelude::any;
 use proptest::prop_oneof;
 use proptest::strategy::{Just, Strategy};
 
-use crate::elf::MozakMemory;
+use crate::preinit_memory::MozakMemory;
 
 #[allow(clippy::cast_sign_loss)]
 pub fn u32_extra() -> impl Strategy<Value = u32> {
