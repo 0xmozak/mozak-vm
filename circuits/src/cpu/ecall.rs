@@ -81,4 +81,4 @@ pub(crate) fn poseidon2_constraints<'a, P: Copy>(
     cb.always(lv.is_poseidon2 * (lv.op1_value - i64::from(ecall::POSEIDON2)));
 }
 
-// We are already testing ecall halt with our coda of every `execute_code`.
+// We are already testing ecall halt with our coda of every `code::execute`.
