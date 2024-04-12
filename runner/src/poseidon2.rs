@@ -118,9 +118,9 @@ impl MozakPoseidon2 {
 
     pub fn unpack_to_field_elements<F: RichField>(fe: &F) -> Vec<F> {
         Self::unpack_to_bytes(fe)
-            .iter()
-            .map(|e| F::from_canonical_u8(*e))
-            .collect_vec()
+            .into_iter()
+            .map(F::from_canonical_u8)
+            .collect()
     }
 }
 
