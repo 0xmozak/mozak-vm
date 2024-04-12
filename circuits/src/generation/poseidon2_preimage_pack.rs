@@ -11,9 +11,7 @@ pub fn generate_poseidon2_preimage_pack_trace<F: RichField>(
         .iter()
         .flat_map(Into::<Vec<Poseidon2PreimagePack<F>>>::into)
         .collect();
-    let trace = pad_trace_with_default(trace);
-    log::trace!("trace {:?}", trace);
-    trace
+    pad_trace_with_default(trace)
 }
 
 #[cfg(test)]
