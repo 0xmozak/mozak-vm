@@ -132,17 +132,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        // TODO(Matthias): move this to Skeleton.
-        // // TODO(Matthias): handle conversion of public inputs less uglily.
-        // let public_inputs: [P::Scalar; PUBLIC_INPUTS] =
-        //     vars.get_public_inputs().try_into().unwrap();
-        // let vars: StarkFrame<P, P, COLUMNS, PUBLIC_INPUTS> = StarkFrame::from_values(
-        //     vars.get_local_values(),
-        //     vars.get_next_values(),
-        //     &public_inputs.map(P::from),
-        // );
-        // let vars: StarkFrameTyped<CpuState<Expr<'_, P>>, PublicInputs<_>> =
-        //     expr_builder.to_typed_starkframe(&vars);
         let vars = expr_builder.to_typed_starkframe(vars);
         let constraints = generate_constraints(&vars);
         build_packed(constraints, constraint_consumer);
