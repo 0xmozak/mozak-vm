@@ -42,7 +42,7 @@ pub struct Poseidon2Sponge<T> {
 }
 
 columns_view_impl!(Poseidon2Sponge);
-make_col_map!(Poseidon2Sponge);
+make_col_map!(SPONGE, Poseidon2Sponge);
 
 pub const NUM_POSEIDON2_SPONGE_COLS: usize = Poseidon2Sponge::<()>::NUMBER_OF_COLUMNS;
 
@@ -64,11 +64,11 @@ pub struct Poseidon2SpongeCtl<T> {
 pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
     Poseidon2SpongeTable::new(
         Poseidon2SpongeCtl {
-            clk: COL_MAP.clk,
-            input_addr: COL_MAP.input_addr,
-            input_len: COL_MAP.input_len,
+            clk: SPONGE.clk,
+            input_addr: SPONGE.input_addr,
+            input_len: SPONGE.input_len,
         },
-        COL_MAP.ops.is_init_permute,
+        SPONGE.ops.is_init_permute,
     )
 }
 
@@ -77,10 +77,10 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
 pub fn lookup_for_poseidon2() -> TableWithTypedOutput<Poseidon2StateCtl<Column>> {
     Poseidon2SpongeTable::new(
         Poseidon2StateCtl {
-            input: COL_MAP.preimage,
-            output: COL_MAP.output,
+            input: SPONGE.preimage,
+            output: SPONGE.output,
         },
-        COL_MAP.is_executed(),
+        SPONGE.is_executed(),
     )
     // let mut data = sponge.preimage.to_vec();
     // data.extend(sponge.output.to_vec());
@@ -93,11 +93,11 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2Outp
 {
     Poseidon2SpongeTable::new(
         Poseidon2OutputBytesCtl {
-            clk: COL_MAP.clk,
-            output_addr: COL_MAP.output_addr,
-            output_fields: COL_MAP.output[..NUM_HASH_OUT_ELTS].try_into().unwrap(),
+            clk: SPONGE.clk,
+            output_addr: SPONGE.output_addr,
+            output_fields: SPONGE.output[..NUM_HASH_OUT_ELTS].try_into().unwrap(),
         },
-        COL_MAP.gen_output,
+        SPONGE.gen_output,
     )
 }
 
@@ -107,35 +107,34 @@ pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl
     assert!(limb_index < 8, "limb_index can be 0..7");
     Poseidon2SpongeTable::new(
         MemoryCtl {
-            clk: COL_MAP.clk,
+            clk: SPONGE.clk,
             is_store: ColumnWithTypedInput::constant(0),
             is_load: ColumnWithTypedInput::constant(1),
-            value: COL_MAP.preimage[limb_index as usize],
-            addr: COL_MAP.input_addr + i64::from(limb_index),
+            value: SPONGE.preimage[limb_index as usize],
+            addr: SPONGE.input_addr + i64::from(limb_index),
         },
-        COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
+        SPONGE.ops.is_init_permute + SPONGE.ops.is_permute,
     )
 }
 
 #[must_use]
 pub fn lookup_for_preimage_pack(
 ) -> Vec<TableWithTypedOutput<Poseidon2SpongePreimagePackCtl<Column>>> {
-    let sponge = COL_MAP;
     (0..8)
         .map(|limb_index| {
             Poseidon2SpongeTable::new(
                 Poseidon2SpongePreimagePackCtl {
-                    clk: sponge.clk,
-                    value: sponge.preimage[limb_index as usize], // value
-                    fe_addr: sponge.input_addr + i64::from(limb_index), // address
-                    byte_addr: sponge.input_addr_padded
+                    clk: SPONGE.clk,
+                    value: SPONGE.preimage[limb_index as usize], // value
+                    fe_addr: SPONGE.input_addr + i64::from(limb_index), // address
+                    byte_addr: SPONGE.input_addr_padded
                         + i64::from(
                             limb_index
                                 * u8::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
                                     .expect("Should be < 255"),
                         ),
                 },
-                sponge.ops.is_init_permute + sponge.ops.is_permute,
+                SPONGE.ops.is_init_permute + SPONGE.ops.is_permute,
             )
         })
         .collect()
