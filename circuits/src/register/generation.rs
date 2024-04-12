@@ -106,16 +106,24 @@ pub fn generate_register_trace<F: RichField>(
         })
         .collect();
     let trace = sort_into_address_blocks(operations);
-    let (zeros, general): (Vec<_>, Vec<_>) = trace.into_iter().partition(|row| row.addr.is_zero());
-    let (zeros_read, zeros_write): (Vec<_>, Vec<_>) = zeros
-        .into_iter()
-        .partition(|row| row.ops.is_write.is_zero());
 
-    let zeros_read = zeros_read.into_iter().map(RegisterZeroRead::from).collect();
-    let zeros_write = zeros_write
+    let mut groups = trace
+        .into_iter()
+        .into_group_map_by(|row| (row.addr.is_zero().then_some(row.ops.is_read.is_nonzero())));
+    let general = groups.remove(&None).unwrap_or_default();
+    let zeros_read = groups
+        .remove(&Some(true))
+        .unwrap_or_default()
+        .into_iter()
+        .map(RegisterZeroRead::from)
+        .collect();
+    let zeros_write = groups
+        .remove(&Some(false))
+        .unwrap_or_default()
         .into_iter()
         .map(RegisterZeroWrite::from)
         .collect();
+    assert!(groups.is_empty());
 
     log::trace!("trace for general registers {:?}", general);
     let last = *general.last().unwrap();
