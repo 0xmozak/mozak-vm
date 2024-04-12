@@ -63,6 +63,8 @@ impl From<MozakMemory> for HashMap<u32, u8> {
     fn from(mem: MozakMemory) -> Self {
         [
             mem.self_prog_id,
+            mem.events_commitment_tape,
+            mem.cast_list_commitment_tape,
             mem.cast_list,
             mem.io_tape_private,
             mem.io_tape_public,
@@ -119,17 +121,6 @@ impl Default for MozakMemory {
 }
 
 impl MozakMemory {
-    fn create() -> MozakMemory {
-        MozakMemory {
-            self_prog_id: MozakMemoryRegion::default(),
-            cast_list: MozakMemoryRegion::default(),
-            io_tape_private: MozakMemoryRegion::default(),
-            io_tape_public: MozakMemoryRegion::default(),
-            call_tape: MozakMemoryRegion::default(),
-            event_tape: MozakMemoryRegion::default(),
-        }
-    }
-
     // TODO(Roman): refactor this function, caller can parse p_vaddr, so pure u32
     // address will be enough
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
@@ -248,7 +239,7 @@ impl From<&RuntimeArguments> for MozakMemory {
 }
 
 /// A RISC-V program
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
@@ -334,9 +325,6 @@ impl From<HashMap<u32, u32>> for Data {
     }
 }
 
-type CheckProgramFlags =
-    fn(flags: u32, program_headers: &ProgramHeader, mozak_memory: &Option<MozakMemory>) -> bool;
-
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
     /// should rename it later, with `vanilla_` prefix
@@ -391,7 +379,7 @@ impl Program {
                         .is_mozak_ro_memory_address(ph))
             },
             Some({
-                let mut mm = MozakMemory::create();
+                let mut mm = MozakMemory::default();
                 mm.fill(&elf.symbol_table().unwrap().unwrap());
                 mm
             }),
@@ -436,7 +424,7 @@ impl Program {
         entry_point: u32,
         segments: SegmentTable<LittleEndian>,
         check_program_flags: fn(
-            u32,
+            flags: u32,
             program_headers: &ProgramHeader,
             mozak_memory: &Option<MozakMemory>,
         ) -> bool,
@@ -477,7 +465,11 @@ impl Program {
     }
 
     fn extract_elf_data(
-        check_program_flags: CheckProgramFlags,
+        check_program_flags: fn(
+            flags: u32,
+            program_headers: &ProgramHeader,
+            mozak_memory: &Option<MozakMemory>,
+        ) -> bool,
         input: &[u8],
         segments: &SegmentTable<LittleEndian>,
         mozak_memory: &Option<MozakMemory>,
@@ -602,12 +594,7 @@ mod test {
         let program = Program::default();
         let serialized = serde_json::to_string(&program).unwrap();
         let deserialized: Program = serde_json::from_str(&serialized).unwrap();
-
-        // Check that all object parameters are the same.
-        assert_eq!(program.entry_point, deserialized.entry_point);
-        assert_eq!(program.ro_memory.0, deserialized.ro_memory.0);
-        assert_eq!(program.rw_memory.0, deserialized.rw_memory.0);
-        assert_eq!(program.ro_code.0, deserialized.ro_code.0);
+        assert_eq!(program, deserialized);
     }
 
     #[test]

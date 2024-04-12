@@ -17,7 +17,7 @@ use crate::vm::{step, ExecutionRecord};
 /// Executable code of the ELF
 ///
 /// A wrapper of a map from pc to [Instruction]
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, PartialEq)]
 pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 
 impl Code {
