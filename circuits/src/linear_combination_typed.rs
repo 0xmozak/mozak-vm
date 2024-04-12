@@ -59,11 +59,11 @@ where
 // This only really makes sense for binary columns.
 impl<C> Not for ColumnWithTypedInput<C>
 where
-    ColumnWithTypedInput<C>: Neg<Output = ColumnWithTypedInput<C>>,
+    i64: Sub<Self, Output = Self>,
 {
     type Output = Self;
 
-    fn not(self) -> Self::Output { -self + 1 }
+    fn not(self) -> Self::Output { 1 - self }
 }
 
 impl<C> Add<Self> for ColumnWithTypedInput<C>
@@ -96,10 +96,7 @@ impl<C> Add<i64> for ColumnWithTypedInput<C> {
     }
 }
 
-impl<C> Add<ColumnWithTypedInput<C>> for i64
-where
-    C: Add<Output = C>,
-{
+impl<C> Add<ColumnWithTypedInput<C>> for i64 {
     type Output = ColumnWithTypedInput<C>;
 
     fn add(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> { other + self }
@@ -143,13 +140,11 @@ where
 
 impl<C> Sub<ColumnWithTypedInput<C>> for i64
 where
-    C: Sub<Output = C> + Default,
+    C: Neg<Output = C>,
 {
     type Output = ColumnWithTypedInput<C>;
 
-    fn sub(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> {
-        ColumnWithTypedInput::constant(self) - other
-    }
+    fn sub(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> { self + other.neg() }
 }
 
 impl<C> Mul<i64> for ColumnWithTypedInput<C>
