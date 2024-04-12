@@ -3,7 +3,6 @@ use std::ops::{Index, IndexMut};
 use cpu::columns::CpuState;
 use itertools::{chain, izip};
 use mozak_circuits_derive::StarkSet;
-use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -707,13 +706,7 @@ impl Lookups for IntoMemoryTable {
         ]);
         #[cfg(feature = "enable_poseidon_starks")]
         {
-            tables.extend(
-                (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).map(|index| {
-                    poseidon2_preimage_pack::columns::lookup_for_input_memory(
-                        u8::try_from(index).expect("DATA_CAPACITY_PER_FIELD_ELEMENT > 255"),
-                    )
-                }),
-            );
+            tables.extend(poseidon2_preimage_pack::columns::lookup_for_input_memory());
             tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
         }
         CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])
