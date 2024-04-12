@@ -101,13 +101,36 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for TapeCommitmen
 
 #[cfg(test)]
 mod tests {
+    use mozak_runner::code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_circuit_constraints;
+
+    use super::TapeCommitmentsStark;
+    use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = super::TapeCommitmentsStark<F, D>;
+
+    #[test]
+    fn test_tape_commitment_stark() -> anyhow::Result<()> {
+        let (program, record) = code::execute(
+            [Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, 100), (7, 100)],
+        );
+        TapeCommitmentsStark::prove_and_verify(&program, &record)
+    }
 
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
