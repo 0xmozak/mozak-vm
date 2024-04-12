@@ -109,13 +109,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
     fn eval_ext_circuit(
         &self,
-        circuit_builder: &mut CircuitBuilder<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
         let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
-        build_ext(constraints, circuit_builder, consumer);
+        build_ext(constraints, builder, consumer);
     }
 }
 
