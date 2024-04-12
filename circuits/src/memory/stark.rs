@@ -44,11 +44,15 @@ where
     // -------------------
     // Constrain certain columns of the memory table to be only
     // boolean values.
-    cb.always(eb.is_binary(lv.is_writable));
-    cb.always(eb.is_binary(lv.is_store));
-    cb.always(eb.is_binary(lv.is_load));
-    cb.always(eb.is_binary(lv.is_init));
-    cb.always(eb.is_binary(lv.is_executed()));
+    for selector in [
+        lv.is_writable,
+        lv.is_store,
+        lv.is_load,
+        lv.is_init,
+        lv.is_executed(),
+    ] {
+        cb.always(selector.is_binary());
+    }
 
     // Address constraints
     // -------------------
@@ -127,8 +131,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::util::code::execute;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
