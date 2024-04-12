@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use mozak_runner::state::Poseidon2Entry;
+use mozak_runner::poseidon2::Poseidon2Entry;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};

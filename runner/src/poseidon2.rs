@@ -4,11 +4,25 @@ use itertools::{chain, izip};
 use mozak_sdk::core::reg_abi::{REG_A1, REG_A2, REG_A3};
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
-use plonky2::hash::poseidon2::Poseidon2Permutation;
+use plonky2::hash::poseidon2::{Poseidon2Permutation, WIDTH};
 use plonky2::plonk::config::GenericHashOut;
 
-use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
+use crate::state::{Aux, State};
 
+#[derive(Debug, Clone, Default)]
+pub struct Poseidon2SpongeData<F> {
+    pub preimage: [F; WIDTH],
+    pub output: [F; WIDTH],
+    pub gen_output: F,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Poseidon2Entry<F: RichField> {
+    pub addr: u32,
+    pub output_addr: u32,
+    pub len: u32,
+    pub sponge_data: Vec<Poseidon2SpongeData<F>>,
+}
 // Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
 /// This function is sponge function which uses poseidon2 permutation function.
 /// Input must be multiple of 8 bytes. It absorbs all input and the squeezes

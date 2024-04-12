@@ -8,12 +8,12 @@ use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
-use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
 use crate::elf::{Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
+use crate::poseidon2::Poseidon2Entry;
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -164,7 +164,6 @@ pub struct MemEntry {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum IoOpcode {
     #[default]
@@ -179,21 +178,6 @@ pub struct IoEntry {
     pub addr: u32,
     pub op: IoOpcode,
     pub data: Vec<u8>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Poseidon2SpongeData<F> {
-    pub preimage: [F; WIDTH],
-    pub output: [F; WIDTH],
-    pub gen_output: F,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Poseidon2Entry<F: RichField> {
-    pub addr: u32,
-    pub output_addr: u32,
-    pub len: u32,
-    pub sponge_data: Vec<Poseidon2SpongeData<F>>,
 }
 
 /// Auxiliary information about the instruction execution
@@ -292,6 +276,11 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
+    /// # Panics
+    ///
+    /// Panics if conversion from `mem_addresses_used: Vec<u32>` into `mem: [u8;
+    /// 4]` fails, though, this should typically not fail since we iterate only
+    /// from (0..4).
     pub fn memory_load(
         self,
         data: &Args,
