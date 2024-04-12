@@ -155,13 +155,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
     use mozak_runner::code::execute_code_with_ro_memory;
     use mozak_runner::decode::ECALL;
     use mozak_runner::elf::{Program, RuntimeArguments};
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
     use mozak_runner::vm::ExecutionRecord;
-    use mozak_sdk::core::ecall;
+    use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
@@ -283,6 +284,52 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
+    pub fn prove_events_commitment_tape<Stark: ProveAndVerify>(
+        address: u32,
+        events_commitment_tape: Vec<u8>,
+    ) {
+        let (program, record) = execute_code_with_runtime_args(
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
+            &(0..COMMITMENT_SIZE)
+                .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
+                .collect_vec(),
+            &[
+                (REG_A0, ecall::EVENTS_COMMITMENT_TAPE),
+                (REG_A1, address),                                 // A1 - address
+                (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
+            ],
+            &RuntimeArguments {
+                events_commitment_tape,
+                ..Default::default()
+            },
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_cast_list_commitment_tape<Stark: ProveAndVerify>(
+        address: u32,
+        cast_list_commitment_tape: Vec<u8>,
+    ) {
+        let (program, record) = execute_code_with_runtime_args(
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
+            &(0..COMMITMENT_SIZE)
+                .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
+                .collect_vec(),
+            &[
+                (REG_A0, ecall::CAST_LIST_COMMITMENT_TAPE),
+                (REG_A1, address),                                 // A1 - address
+                (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
+            ],
+            &RuntimeArguments {
+                cast_list_commitment_tape,
+                ..Default::default()
+            },
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
     pub fn prove_io_read<Stark: ProveAndVerify>(address: u32, content: u8) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
@@ -323,6 +370,8 @@ mod tests {
             &RuntimeArguments {
                 self_prog_id: vec![content],
                 cast_list: vec![content],
+                events_commitment_tape: vec![content],
+                cast_list_commitment_tape: vec![content],
                 io_tape_private: vec![content],
                 io_tape_public: vec![content],
                 call_tape: vec![content],
@@ -429,6 +478,15 @@ mod tests {
             prove_io_read_call_tape::<MozakStark<F, D>>(address, vec![content]);
         }
 
+        #[test]
+        fn prove_events_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_events_commitment_tape::<MozakStark<F, D>>(address, vec![content]);
+        }
+
+        #[test]
+        fn prove_cast_list_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_cast_list_commitment_tape::<MozakStark<F, D>>(address, vec![content]);
+        }
 
         #[test]
         fn prove_io_read_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {

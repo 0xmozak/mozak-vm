@@ -57,6 +57,8 @@ pub struct MozakMemory {
     pub io_tape_public: MozakMemoryRegion,
     pub call_tape: MozakMemoryRegion,
     pub event_tape: MozakMemoryRegion,
+    pub events_commitment_tape: MozakMemoryRegion,
+    pub cast_list_commitment_tape: MozakMemoryRegion,
 }
 
 impl From<MozakMemory> for HashMap<u32, u8> {
@@ -89,9 +91,19 @@ impl Default for MozakMemory {
                 capacity: 0x20_u32,
                 ..Default::default()
             },
-            cast_list: MozakMemoryRegion {
+            events_commitment_tape: MozakMemoryRegion {
                 starting_address: 0x2000_0020_u32,
-                capacity: 0x00FF_FFE0_u32,
+                capacity: 0x20_u32,
+                ..Default::default()
+            },
+            cast_list_commitment_tape: MozakMemoryRegion {
+                starting_address: 0x2000_0040_u32,
+                capacity: 0x20_u32,
+                ..Default::default()
+            },
+            cast_list: MozakMemoryRegion {
+                starting_address: 0x2000_0060_u32,
+                capacity: 0x00FF_FFA0_u32,
                 ..Default::default()
             },
             io_tape_public: MozakMemoryRegion {
@@ -122,6 +134,8 @@ impl MozakMemory {
     fn create() -> MozakMemory {
         MozakMemory {
             self_prog_id: MozakMemoryRegion::default(),
+            events_commitment_tape: MozakMemoryRegion::default(),
+            cast_list_commitment_tape: MozakMemoryRegion::default(),
             cast_list: MozakMemoryRegion::default(),
             io_tape_private: MozakMemoryRegion::default(),
             io_tape_public: MozakMemoryRegion::default(),
@@ -144,6 +158,8 @@ impl MozakMemory {
         let mem_addresses = [
             self.self_prog_id.memory_range(),
             self.cast_list.memory_range(),
+            self.events_commitment_tape.memory_range(),
+            self.cast_list_commitment_tape.memory_range(),
             self.io_tape_public.memory_range(),
             self.io_tape_private.memory_range(),
             self.call_tape.memory_range(),
@@ -178,6 +194,8 @@ impl MozakMemory {
 
         self.self_prog_id.starting_address = get("_mozak_self_prog_id");
         self.cast_list.starting_address = get("_mozak_cast_list");
+        self.events_commitment_tape.starting_address = get("_mozak_events_commitment_tape");
+        self.cast_list_commitment_tape.starting_address = get("_mozak_cast_list_commitment_tape");
         self.io_tape_public.starting_address = get("_mozak_public_io_tape");
         self.io_tape_private.starting_address = get("_mozak_private_io_tape");
         self.call_tape.starting_address = get("_mozak_call_tape");
@@ -186,7 +204,9 @@ impl MozakMemory {
 
         // compute capacity, assume single memory region (refer to linker-script)
         self.self_prog_id.capacity = 0x20_u32;
-        self.cast_list.capacity = 0x00FF_FFE0_u32;
+        self.events_commitment_tape.capacity = 0x20_u32;
+        self.cast_list_commitment_tape.capacity = 0x20_u32;
+        self.cast_list.capacity = 0x00FF_FFA0_u32;
 
         self.io_tape_public.capacity =
             self.io_tape_private.starting_address - self.io_tape_public.starting_address;
@@ -208,6 +228,8 @@ impl MozakMemory {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RuntimeArguments {
     pub self_prog_id: Vec<u8>,
+    pub events_commitment_tape: Vec<u8>,
+    pub cast_list_commitment_tape: Vec<u8>,
     pub cast_list: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
@@ -233,6 +255,12 @@ impl From<&RuntimeArguments> for MozakMemory {
         mozak_ro_memory
             .self_prog_id
             .fill(args.self_prog_id.as_slice());
+        mozak_ro_memory
+            .events_commitment_tape
+            .fill(args.call_tape.as_slice());
+        mozak_ro_memory
+            .cast_list_commitment_tape
+            .fill(args.event_tape.as_slice());
         mozak_ro_memory.cast_list.fill(args.cast_list.as_slice());
         mozak_ro_memory
             .io_tape_public
@@ -242,7 +270,6 @@ impl From<&RuntimeArguments> for MozakMemory {
             .fill(args.io_tape_private.as_slice());
         mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
         mozak_ro_memory.event_tape.fill(args.event_tape.as_slice());
-
         mozak_ro_memory
     }
 }
@@ -527,6 +554,12 @@ impl Program {
         mozak_ro_memory
             .self_prog_id
             .fill(args.self_prog_id.as_slice());
+        mozak_ro_memory
+            .events_commitment_tape
+            .fill(args.events_commitment_tape.as_slice());
+        mozak_ro_memory
+            .cast_list_commitment_tape
+            .fill(args.cast_list_commitment_tape.as_slice());
         mozak_ro_memory.cast_list.fill(args.cast_list.as_slice());
         // IO public
         mozak_ro_memory
@@ -623,6 +656,8 @@ mod test {
         let mozak_ro_memory =
             Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
                 self_prog_id: data.clone(),
+                events_commitment_tape: data.clone(),
+                cast_list_commitment_tape: data.clone(),
                 cast_list: data.clone(),
                 io_tape_private: data.clone(),
                 io_tape_public: data.clone(),
@@ -634,6 +669,14 @@ mod test {
             .unwrap();
 
         assert_eq!(mozak_ro_memory.self_prog_id.data.len(), data.len());
+        assert_eq!(
+            mozak_ro_memory.events_commitment_tape.data.len(),
+            data.len()
+        );
+        assert_eq!(
+            mozak_ro_memory.cast_list_commitment_tape.data.len(),
+            data.len()
+        );
         assert_eq!(mozak_ro_memory.cast_list.data.len(), data.len());
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), data.len());
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), data.len());
