@@ -202,4 +202,4 @@ pub(crate) fn poseidon2_constraints_circuit<F: RichField + Extendable<D>, const 
     yield_constr.constraint(builder, constraint);
 }
 
-// We are already testing ecall halt with our coda of every `execute_code`.
+// We are already testing ecall halt with our coda of every `code::execute`.

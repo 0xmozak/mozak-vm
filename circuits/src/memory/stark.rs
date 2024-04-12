@@ -128,7 +128,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::util::execute_code;
+    use mozak_runner::util::code::execute;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
@@ -221,7 +221,7 @@ mod tests {
                 },
             },
         ];
-        let (program, record) = execute_code(instructions, &[], &[(1, iterations)]);
+        let (program, record) = code::execute(instructions, &[], &[(1, iterations)]);
         Stark::prove_and_verify(&program, &record)
     }
 
@@ -247,7 +247,7 @@ mod tests {
                 ..Args::default()
             },
         }];
-        let (program, record) = execute_code(instructions, &[(0, 0)], &[(1, 0)]);
+        let (program, record) = code::execute(instructions, &[(0, 0)], &[(1, 0)]);
 
         let memory_init = generate_memory_init_trace(&program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);

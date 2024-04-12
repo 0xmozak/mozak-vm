@@ -11,9 +11,6 @@ pub mod io_memory;
 pub mod memory;
 pub mod memory_zeroinit;
 pub mod memoryinit;
-pub mod program;
-pub mod rangecheck;
-pub mod rangecheck_u8;
 pub mod xor;
 
 use std::borrow::Borrow;
