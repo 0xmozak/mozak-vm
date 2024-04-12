@@ -640,8 +640,8 @@ mod tests {
 
     use anyhow::Result;
     use log::info;
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -672,7 +672,7 @@ mod tests {
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 1;
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [Instruction {
                 op: Op::ADD,
                 args: Args {
@@ -735,7 +735,7 @@ mod tests {
             },
         };
 
-        let (program0, record0) = execute_code([inst], &[], &[(6, 100), (7, 200)]);
+        let (program0, record0) = code::execute([inst], &[], &[(6, 100), (7, 200)]);
         let public_inputs = PublicInputs {
             entry_point: from_u32(program0.entry_point),
         };
@@ -749,7 +749,7 @@ mod tests {
             &mut TimingTree::default(),
         )?;
 
-        let (program1, record1) = execute_code(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
+        let (program1, record1) = code::execute(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
         let public_inputs = PublicInputs {
             entry_point: from_u32(program1.entry_point),
         };

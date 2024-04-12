@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_imports)]
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
+use mozak_runner::code;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use starky::config::StarkConfig;
 use wasm_bindgen::prelude::*;
@@ -15,7 +16,7 @@ extern "C" {
 #[wasm_bindgen]
 pub fn wasm_demo(a: u32, b: u32) {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
-    let e = mozak_runner::util::execute_code(
+    let e = code::execute(
         [Instruction::new(Op::ADD, Args {
             rd: 3,
             rs1: 1,
@@ -34,7 +35,7 @@ pub fn wasm_demo(a: u32, b: u32) {
 }
 
 pub fn wasm_demo_(a: u32, b: u32) {
-    let e = mozak_runner::util::execute_code(
+    let e = code::execute(
         [Instruction::new(Op::ADD, Args {
             rd: 3,
             rs1: 1,

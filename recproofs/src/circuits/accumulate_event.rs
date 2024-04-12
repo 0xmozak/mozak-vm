@@ -1,4 +1,4 @@
-//! Subcircuits for proving events can be accumulated to a partial object.
+//! Circuits for proving events can be accumulated to a partial object.
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;

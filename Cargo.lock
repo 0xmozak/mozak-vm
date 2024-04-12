@@ -616,6 +616,7 @@ name = "expr"
 version = "0.1.0"
 dependencies = [
  "bumpalo",
+ "starky",
 ]
 
 [[package]]
@@ -933,14 +934,11 @@ dependencies = [
  "bitfield",
  "criterion",
  "derive_more",
- "enumflags2",
  "env_logger",
  "expr",
  "hex",
  "im",
- "iter_fixed",
  "itertools 0.12.1",
- "lazy_static",
  "log",
  "mozak-circuits-derive",
  "mozak-runner",
