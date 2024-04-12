@@ -63,12 +63,8 @@ fn generate_constraints<'a, T: Copy, U, const N2: usize>(
     // ... and we have a range-check to make sure that addresses go up for each
     // init.
 
-    // Dummy also needs to have the same address as rows before _and_ after; apart
-    // from the last dummy in the trace.
-    constraints.transition((1 - lv.is_executed()) * (nv.addr - lv.addr));
-
-    // Writable constraints
-    // --------------------
+    // Operation constraints
+    // ---------------------
 
     // writeable only changes for init:
     constraints.always((1 - nv.is_init) * (nv.is_writable - lv.is_writable));
@@ -76,10 +72,14 @@ fn generate_constraints<'a, T: Copy, U, const N2: usize>(
     // No `SB` operation can be seen if memory address is not marked `writable`
     constraints.always((1 - lv.is_writable) * lv.is_store);
 
-    // Value constraint
-    // -----------------
-    // Only init and store can change the value.  Dummy and read stay the same.
+    // Only init and store can change the value.  Padding and read stay the same.
     constraints.always((nv.is_init + nv.is_store - 1) * (nv.value - lv.value));
+
+    // Padding constraints
+    // -------------------
+    // Once we have padding, all subsequent rows are padding; ie not
+    // `is_executed`.
+    constraints.transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
 
     constraints
 }
