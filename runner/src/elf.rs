@@ -66,6 +66,8 @@ impl From<MozakMemory> for HashMap<u32, u8> {
         [
             mem.self_prog_id,
             mem.cast_list,
+            mem.events_commitment_tape,
+            mem.cast_list_commitment_tape,
             mem.io_tape_private,
             mem.io_tape_public,
             mem.call_tape,
