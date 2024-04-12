@@ -9,12 +9,12 @@ use im::HashSet;
 use log::trace;
 use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::hash::hash_types::RichField;
-use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
 use crate::elf::{Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
+use crate::poseidon2;
 
 #[derive(Debug, Clone, Deref)]
 pub struct CommitmentTape(pub [u8; COMMITMENT_SIZE]);
@@ -161,10 +161,6 @@ impl<F: RichField> From<Program> for State<F> {
     }
 }
 
-impl<F: RichField> From<&Program> for State<F> {
-    fn from(program: &Program) -> Self { Self::from(program.clone()) }
-}
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MemEntry {
     pub addr: u32,
@@ -172,7 +168,6 @@ pub struct MemEntry {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum IoOpcode {
     #[default]
@@ -191,21 +186,6 @@ pub struct IoEntry {
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct Poseidon2SpongeData<F> {
-    pub preimage: [F; WIDTH],
-    pub output: [F; WIDTH],
-    pub gen_output: F,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Poseidon2Entry<F: RichField> {
-    pub addr: u32,
-    pub output_addr: u32,
-    pub len: u32,
-    pub sponge_data: Vec<Poseidon2SpongeData<F>>,
-}
-
 /// Auxiliary information about the instruction execution
 #[derive(Debug, Clone, Default)]
 pub struct Aux<F: RichField> {
@@ -219,7 +199,7 @@ pub struct Aux<F: RichField> {
     pub op1: u32,
     pub op2: u32,
     pub op2_raw: u32,
-    pub poseidon2: Option<Poseidon2Entry<F>>,
+    pub poseidon2: Option<poseidon2::Entry<F>>,
     pub io: Option<IoEntry>,
 }
 
@@ -302,6 +282,11 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
+    /// # Panics
+    ///
+    /// Panics if conversion from `mem_addresses_used: Vec<u32>` into `mem: [u8;
+    /// 4]` fails, though, this should typically not fail since we iterate only
+    /// from (0..4).
     pub fn memory_load(
         self,
         data: &Args,

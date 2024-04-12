@@ -133,19 +133,6 @@ impl Default for MozakMemory {
 }
 
 impl MozakMemory {
-    fn create() -> MozakMemory {
-        MozakMemory {
-            self_prog_id: MozakMemoryRegion::default(),
-            events_commitment_tape: MozakMemoryRegion::default(),
-            cast_list_commitment_tape: MozakMemoryRegion::default(),
-            cast_list: MozakMemoryRegion::default(),
-            io_tape_private: MozakMemoryRegion::default(),
-            io_tape_public: MozakMemoryRegion::default(),
-            call_tape: MozakMemoryRegion::default(),
-            event_tape: MozakMemoryRegion::default(),
-        }
-    }
-
     // TODO(Roman): refactor this function, caller can parse p_vaddr, so pure u32
     // address will be enough
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
@@ -277,7 +264,7 @@ impl From<&RuntimeArguments> for MozakMemory {
 }
 
 /// A RISC-V program
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
@@ -363,18 +350,12 @@ impl From<HashMap<u32, u32>> for Data {
     }
 }
 
-type CheckProgramFlags =
-    fn(flags: u32, program_headers: &ProgramHeader, mozak_memory: &Option<MozakMemory>) -> bool;
-
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
     /// should rename it later, with `vanilla_` prefix
+    ///
     /// # Errors
     /// Same as `Program::internal_load_elf`
-    /// # Panics
-    /// Same as `Program::internal_load_elf`
-    /// TODO(Roman): Refactor this API to be aligned with `mozak_load_elf` -
-    /// just return Program
     pub fn vanilla_load_elf(input: &[u8]) -> Result<Program> {
         let (_, entry_point, segments) = Program::parse_and_validate_elf(input)?;
         Ok(Program::internal_load_elf(
@@ -420,7 +401,7 @@ impl Program {
                         .is_mozak_ro_memory_address(ph))
             },
             Some({
-                let mut mm = MozakMemory::create();
+                let mut mm = MozakMemory::default();
                 mm.fill(&elf.symbol_table().unwrap().unwrap());
                 mm
             }),
@@ -449,23 +430,14 @@ impl Program {
         Ok((elf, entry_point, segments))
     }
 
-    /// Initialize a RISC Program from an appropriate ELF file
-    ///
-    /// # Errors
-    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
-    /// invalid.
-    ///
-    /// # Panics
-    // This function is actually mostly covered by tests, but it's too annoying to work out how to
-    // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
-    // exercise the error handling?
+    /// Initialize a RISC Program from a validated ELF file.
     #[allow(clippy::similar_names)]
     fn internal_load_elf(
         input: &[u8],
         entry_point: u32,
         segments: SegmentTable<LittleEndian>,
         check_program_flags: fn(
-            u32,
+            flags: u32,
             program_headers: &ProgramHeader,
             mozak_memory: &Option<MozakMemory>,
         ) -> bool,
@@ -506,7 +478,11 @@ impl Program {
     }
 
     fn extract_elf_data(
-        check_program_flags: CheckProgramFlags,
+        check_program_flags: fn(
+            flags: u32,
+            program_headers: &ProgramHeader,
+            mozak_memory: &Option<MozakMemory>,
+        ) -> bool,
         input: &[u8],
         segments: &SegmentTable<LittleEndian>,
         mozak_memory: &Option<MozakMemory>,
@@ -577,15 +553,13 @@ impl Program {
         Ok(program)
     }
 
+    /// Creates a [`Program`] with preinitialized mozak memory given its memory,
+    /// [`Code`] and [`RuntimeArguments`].
+    ///
     /// # Panics
-    /// When some of the provided addresses (rw,ro,code) belongs to
-    /// `mozak-ro-memory` AND when arguments for mozak-ro-memory is not empty
-    /// # Errors
-    /// When some of the provided addresses (rw,ro,code) belongs to
-    /// `mozak-ro-memory`
-    /// Note: This function is mostly useful for risc-v native tests, and other
-    /// tests that need the ability to run over full memory space, and don't
-    /// use any mozak-ro-memory capabilities
+    ///
+    /// Panics if any of `ro_mem`, `rw_mem` or `ro_code` violates the memory
+    /// space that [`MozakMemory`] takes.
     #[must_use]
     #[allow(clippy::similar_names)]
     pub fn create(
@@ -637,12 +611,7 @@ mod test {
         let program = Program::default();
         let serialized = serde_json::to_string(&program).unwrap();
         let deserialized: Program = serde_json::from_str(&serialized).unwrap();
-
-        // Check that all object parameters are the same.
-        assert_eq!(program.entry_point, deserialized.entry_point);
-        assert_eq!(program.ro_memory.0, deserialized.ro_memory.0);
-        assert_eq!(program.rw_memory.0, deserialized.rw_memory.0);
-        assert_eq!(program.ro_code.0, deserialized.ro_code.0);
+        assert_eq!(program, deserialized);
     }
 
     #[test]
