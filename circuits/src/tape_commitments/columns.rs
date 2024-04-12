@@ -11,8 +11,8 @@ use crate::stark::mozak_stark::{TableWithTypedOutput, TapeCommitmentsTable};
 
 make_col_map!(TapeCommitments);
 columns_view_impl!(TapeCommitments);
-pub const EVENT_COMMITMENT_TAPE_OFFSET: usize = 27;
-pub const CASTLIST_COMMITMENT_TAPE_OFFSET: usize = 59;
+pub const EVENT_COMMITMENT_TAPE_OFFSET: usize = 25;
+pub const CASTLIST_COMMITMENT_TAPE_OFFSET: usize = 57;
 
 /// This stark table is used to store tape commitments
 /// which we want to make public in final recursive proof.
