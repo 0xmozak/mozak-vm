@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use expr::{Expr, ExprBuilder};
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -8,7 +8,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
@@ -28,20 +28,12 @@ impl<F, const D: usize> HasNamedColumns for MemoryStark<F, D> {
 const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, V, T, const N: usize, const N2: usize>(
-    eb: &'a ExprBuilder,
-    vars: &'a StarkFrame<V, T, N, N2>,
-) -> ConstraintBuilder<Expr<'a, V>>
-where
-    V: Copy + Default + std::fmt::Debug,
-    T: Copy + Default, {
-    // TODO: put all of this into some boiler-plate thing.
-    let lv: &Memory<_> = vars.get_local_values().into();
-    let lv = lv.map(|v| eb.lit(v));
-    let nv: &Memory<_> = vars.get_next_values().into();
-    let nv = nv.map(|v| eb.lit(v));
-
-    let mut cb = ConstraintBuilder::default();
+fn generate_constraints<'a, T: Copy, U, const N2: usize>(
+    vars: &StarkFrameTyped<Memory<Expr<'a, T>>, [U; N2]>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv = vars.local_values;
+    let nv = vars.next_values;
+    let mut constraints = ConstraintBuilder::default();
 
     // Boolean constraints
     // -------------------
@@ -54,7 +46,7 @@ where
         lv.is_init,
         lv.is_executed(),
     ] {
-        cb.always(selector.is_binary());
+        constraints.always(selector.is_binary());
     }
 
     // Address constraints
@@ -63,34 +55,34 @@ where
     // We start address at 0 and end at u32::MAX
     // This saves us a rangecheck on the address,
     // but we rangecheck the address difference.
-    cb.first_row(lv.addr);
-    cb.last_row(lv.addr - i64::from(u32::MAX));
+    constraints.first_row(lv.addr);
+    constraints.last_row(lv.addr - i64::from(u32::MAX));
 
     // Address can only change for init in the new row...
-    cb.always((1 - nv.is_init) * (nv.addr - lv.addr));
+    constraints.always((1 - nv.is_init) * (nv.addr - lv.addr));
     // ... and we have a range-check to make sure that addresses go up for each
     // init.
 
     // Dummy also needs to have the same address as rows before _and_ after; apart
     // from the last dummy in the trace.
-    cb.transition((1 - lv.is_executed()) * (nv.addr - lv.addr));
+    constraints.transition((1 - lv.is_executed()) * (nv.addr - lv.addr));
 
     // Writable constraints
     // --------------------
 
     // writeable only changes for init:
     //     (nv.is_writable - lv.is_writable) * nv.is_init
-    cb.always((1 - nv.is_init) * (nv.is_writable - lv.is_writable));
+    constraints.always((1 - nv.is_init) * (nv.is_writable - lv.is_writable));
 
     // No `SB` operation can be seen if memory address is not marked `writable`
-    cb.always((1 - lv.is_writable) * lv.is_store);
+    constraints.always((1 - lv.is_writable) * lv.is_store);
 
     // Value constraint
     // -----------------
     // Only init and store can change the value.  Dummy and read stay the same.
-    cb.always((nv.is_init + nv.is_store - 1) * (nv.value - lv.value));
+    constraints.always((nv.is_init + nv.is_store - 1) * (nv.value - lv.value));
 
-    cb
+    constraints
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
@@ -107,24 +99,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        constraint_consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let cb = generate_constraints(&eb, vars);
-        build_packed(cb, yield_constr);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_packed(constraints, constraint_consumer);
     }
 
     fn eval_ext_circuit(
         &self,
         circuit_builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let eb = ExprBuilder::default();
-        let cb = generate_constraints(&eb, vars);
-        build_ext(cb, circuit_builder, yield_constr);
+        let expr_builder = ExprBuilder::default();
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_ext(constraints, circuit_builder, constraint_consumer);
     }
 }
 
