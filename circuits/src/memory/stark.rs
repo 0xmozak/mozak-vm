@@ -25,6 +25,9 @@ impl<F, const D: usize> HasNamedColumns for MemoryStark<F, D> {
     type Columns = Memory<F>;
 }
 
+const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 0;
+
 fn generate_constraints<'a, V, T, const N: usize, const N2: usize>(
     eb: &'a ExprBuilder,
     vars: &'a StarkFrame<V, T, N, N2>,
@@ -89,9 +92,6 @@ where
 
     cb
 }
-
-const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
-const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
