@@ -101,6 +101,7 @@ mod tests {
         generate_call_tape_trace, generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::generation::memory::generate_memory_trace;
+    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::MIN_TRACE_LENGTH;
     use crate::ops::{self, blt_taken};
@@ -128,7 +129,10 @@ mod tests {
         let cpu_rows = generate_cpu_trace::<F>(&record);
         let add_rows = ops::add::generate(&record);
         let blt_rows = blt_taken::generate(&record);
+
         let memory_init = generate_memory_init_trace(&program);
+        let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
+
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
@@ -139,6 +143,7 @@ mod tests {
         let memory_rows = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
+            &memory_zeroinit_rows,
             &halfword_memory,
             &fullword_memory,
             &io_memory_private_rows,
@@ -166,8 +171,8 @@ mod tests {
         );
         for (i, row) in trace.iter().enumerate() {
             match i {
-                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(2)),
-                1 => assert_eq!(row.multiplicity, F::from_canonical_u8(1)),
+                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(7)),
+                1 => assert_eq!(row.multiplicity, F::from_canonical_u8(2)),
                 _ => {}
             }
         }

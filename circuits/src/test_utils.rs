@@ -31,6 +31,7 @@ use crate::generation::io_memory::{
     generate_call_tape_trace, generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
 use crate::generation::memory::generate_memory_trace;
+use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
@@ -144,7 +145,10 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let cpu_trace = generate_cpu_trace(record);
         let add_trace = ops::add::generate(record);
         let blt_trace = ops::blt_taken::generate(record);
+
         let memory_init = generate_memory_init_trace(program);
+        let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, program);
+
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
@@ -155,6 +159,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let memory_trace = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
+            &memory_zeroinit_rows,
             &halfword_memory,
             &fullword_memory,
             &io_memory_private,
@@ -217,7 +222,10 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let config = fast_test_config();
 
         let stark = S::default();
+
         let memory_init = generate_memory_init_trace(program);
+        let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, program);
+
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
@@ -227,6 +235,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
             &record.executed,
             &memory_init,
+            &memory_zeroinit_rows,
             &halfword_memory,
             &fullword_memory,
             &io_memory_private,
