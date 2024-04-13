@@ -96,15 +96,16 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongePrei
 
 #[must_use]
 pub fn lookup_for_input_memory() -> Vec<TableWithTypedOutput<MemoryCtl<Column>>> {
-    (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT as u8)
-        .map(|index| {
+    (0..)
+        .zip(PACK.bytes)
+        .map(|(index, value)| {
             Poseidon2PreimagePackTable::new(
                 MemoryCtl {
                     clk: PACK.clk,
                     is_store: ColumnWithTypedInput::constant(0),
                     is_load: ColumnWithTypedInput::constant(1),
-                    value: PACK.bytes[index as usize],
-                    addr: PACK.byte_addr + i64::from(index),
+                    value,
+                    addr: PACK.byte_addr + index,
                 },
                 PACK.is_executed,
             )
