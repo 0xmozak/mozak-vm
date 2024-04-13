@@ -21,7 +21,7 @@ pub struct Poseidon2PreimagePack<F> {
 }
 
 columns_view_impl!(Poseidon2PreimagePack);
-make_col_map!(Poseidon2PreimagePack);
+make_col_map!(PACK, Poseidon2PreimagePack);
 
 pub const NUM_POSEIDON2_PREIMAGE_PACK_COLS: usize = Poseidon2PreimagePack::<()>::NUMBER_OF_COLUMNS;
 
@@ -83,32 +83,31 @@ pub struct Poseidon2SpongePreimagePackCtl<T> {
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongePreimagePackCtl<Column>>
 {
-    let data = COL_MAP;
     Poseidon2PreimagePackTable::new(
         Poseidon2SpongePreimagePackCtl {
-            clk: data.clk,
-            value: ColumnWithTypedInput::reduce_with_powers(data.bytes, i64::from(1 << 8)),
-            fe_addr: data.fe_addr,
-            byte_addr: data.byte_addr,
+            clk: PACK.clk,
+            value: ColumnWithTypedInput::reduce_with_powers(PACK.bytes, i64::from(1 << 8)),
+            fe_addr: PACK.fe_addr,
+            byte_addr: PACK.byte_addr,
         },
-        COL_MAP.is_executed,
+        PACK.is_executed,
     )
 }
 
 #[must_use]
 pub fn lookup_for_input_memory() -> Vec<TableWithTypedOutput<MemoryCtl<Column>>> {
     (0..)
-        .zip(COL_MAP.bytes)
+        .zip(PACK.bytes)
         .map(|(limb_index, value)| {
             Poseidon2PreimagePackTable::new(
                 MemoryCtl {
-                    clk: COL_MAP.clk,
+                    clk: PACK.clk,
                     is_store: ColumnWithTypedInput::constant(0),
                     is_load: ColumnWithTypedInput::constant(1),
                     value,
-                    addr: COL_MAP.fe_addr + limb_index,
+                    addr: PACK.fe_addr + limb_index,
                 },
-                COL_MAP.is_executed,
+                PACK.is_executed,
             )
         })
         .collect()
