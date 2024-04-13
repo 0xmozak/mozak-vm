@@ -585,7 +585,7 @@ pub mod ctl_utils {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
-                eprintln!(
+                println!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\
                     Looking locations: {looking_locations:?}.\n\
@@ -614,22 +614,14 @@ pub mod ctl_utils {
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations).map_err(|e| {
-                eprintln!("Looking multiset: {looking_multiset:?}");
-                eprintln!("Looked multiset: {looked_multiset:?}");
-                e
-            })?;
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
         for (row, looked_locations) in &looked_multiset.0 {
             let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations).map_err(|e| {
-                eprintln!("Looking multiset: {looking_multiset:?}");
-                eprintln!("Looked multiset: {looked_multiset:?}");
-                e
-            })?;
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         Ok(())
