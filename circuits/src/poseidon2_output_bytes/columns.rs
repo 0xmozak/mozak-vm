@@ -31,19 +31,14 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2OutputBytes<F>> {
             let output_fields: [F; FIELDS_COUNT] = value.output[..FIELDS_COUNT]
                 .try_into()
                 .expect("Must have at least 4 Fields");
-            let hash_bytes = HashOut::from(output_fields).to_bytes();
-            let output_bytes = hash_bytes
-                .iter()
-                .map(|x| F::from_canonical_u8(*x))
-                .collect::<Vec<F>>()
-                .try_into()
-                .expect("must have 32 bytes");
+            let hash_bytes: [u8; BYTES_COUNT] =
+                HashOut::from(output_fields).to_bytes().try_into().unwrap();
             return vec![Poseidon2OutputBytes {
                 is_executed: F::ONE,
                 clk: value.clk,
                 output_addr: value.output_addr,
                 output_fields,
-                output_bytes,
+                output_bytes: hash_bytes.map(F::from_canonical_u8),
             }];
         }
         vec![]
@@ -73,19 +68,17 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2OutputByte
 
 #[must_use]
 pub fn lookup_for_output_memory() -> Vec<TableWithTypedOutput<MemoryCtl<Column>>> {
-    (0..)
-        .zip(COL_MAP.output_bytes)
-        .map(|(limb_index, value)| {
-            Poseidon2OutputBytesTable::new(
-                MemoryCtl {
-                    clk: COL_MAP.clk,
-                    is_store: ColumnWithTypedInput::constant(1),
-                    is_load: ColumnWithTypedInput::constant(0),
-                    value,
-                    addr: COL_MAP.output_addr + limb_index,
-                },
-                COL_MAP.is_executed,
-            )
-        })
-        .collect()
+    (0..).zip(COL_MAP.output_bytes).map(|(limb_index, value)| {
+        Poseidon2OutputBytesTable::new(
+            MemoryCtl {
+                clk: COL_MAP.clk,
+                is_store: ColumnWithTypedInput::constant(1),
+                is_load: ColumnWithTypedInput::constant(0),
+                value,
+                addr: COL_MAP.output_addr + limb_index,
+            },
+            COL_MAP.is_executed,
+        )
+    })
+    .collect()
 }
