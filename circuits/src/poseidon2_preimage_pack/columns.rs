@@ -105,10 +105,10 @@ pub fn lookup_for_input_memory(index: u8) -> TableWithTypedOutput<MemoryCtl<Colu
     Poseidon2PreimagePackTable::new(
         MemoryCtl {
             clk: data.clk,
-            is_store: ColumnWithTypedInput::constant(0), // is_store
-            is_load: ColumnWithTypedInput::constant(1),  // is_load
-            value: data.bytes[index as usize],           // value
-            addr: data.byte_addr + i64::from(index),     // address
+            is_store: ColumnWithTypedInput::constant(0),
+            is_load: ColumnWithTypedInput::constant(1),
+            value: data.bytes[index as usize],
+            addr: data.byte_addr + i64::from(index),
         },
         data.is_executed,
     )
