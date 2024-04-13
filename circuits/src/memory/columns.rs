@@ -142,19 +142,17 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
 }
 
 impl<F: RichField> From<&Poseidon2OutputBytes<F>> for Vec<Memory<F>> {
-    fn from(value: &Poseidon2OutputBytes<F>) -> Self {
-        if value.is_executed.is_zero() {
+    fn from(output: &Poseidon2OutputBytes<F>) -> Self {
+        if output.is_executed.is_zero() {
             vec![]
         } else {
-            (0..BYTES_COUNT)
-                .map(|i| Memory {
-                    clk: value.clk,
-                    addr: value.output_addr
-                        + F::from_canonical_u8(u8::try_from(i).expect(
-                            "BYTES_COUNT of poseidon output should be representable by a u8",
-                        )),
+            (0..)
+                .zip(output.output_bytes)
+                .map(|(i, value)| Memory {
+                    clk: output.clk,
+                    addr: output.output_addr + F::from_canonical_usize(i),
                     is_store: F::ONE,
-                    value: value.output_bytes[i],
+                    value,
                     ..Default::default()
                 })
                 .collect()

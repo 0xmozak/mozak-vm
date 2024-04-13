@@ -68,17 +68,19 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2OutputByte
 
 #[must_use]
 pub fn lookup_for_output_memory() -> Vec<TableWithTypedOutput<MemoryCtl<Column>>> {
-    (0..).zip(COL_MAP.output_bytes).map(|(limb_index, value)| {
-        Poseidon2OutputBytesTable::new(
-            MemoryCtl {
-                clk: COL_MAP.clk,
-                is_store: ColumnWithTypedInput::constant(1),
-                is_load: ColumnWithTypedInput::constant(0),
-                value,
-                addr: COL_MAP.output_addr + limb_index,
-            },
-            COL_MAP.is_executed,
-        )
-    })
-    .collect()
+    (0..)
+        .zip(COL_MAP.output_bytes)
+        .map(|(limb_index, value)| {
+            Poseidon2OutputBytesTable::new(
+                MemoryCtl {
+                    clk: COL_MAP.clk,
+                    is_store: ColumnWithTypedInput::constant(1),
+                    is_load: ColumnWithTypedInput::constant(0),
+                    value,
+                    addr: COL_MAP.output_addr + limb_index,
+                },
+                COL_MAP.is_executed,
+            )
+        })
+        .collect()
 }
