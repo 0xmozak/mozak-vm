@@ -29,10 +29,10 @@ jobs:
       # TODO(Matthias): consider de-duplicating with `.github/workflows/ci.yml`
       # to make keeping these in sync easier.
       - name: Compile
-        run: cargo test --no-run --locked --features="enable_poseidon_starks" --all-targets
+        run: cargo test --no-run --locked --all-targets
 
       - name: Test
-        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --features="enable_poseidon_starks" --all-targets
+        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
 
       - name: Create github issue for failed action
         uses: imjohnbo/issue-bot@v3
