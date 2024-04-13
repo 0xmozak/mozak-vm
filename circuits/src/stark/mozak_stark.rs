@@ -3,6 +3,7 @@ use std::ops::{Index, IndexMut};
 use cpu::columns::CpuState;
 use itertools::{chain, izip};
 use mozak_circuits_derive::StarkSet;
+use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -663,22 +664,28 @@ impl Lookups for IntoMemoryTable {
 
     #[allow(clippy::too_many_lines)]
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let tables = chain![
-            [
-                cpu::columns::lookup_for_memory(),
-                memory_halfword::columns::lookup_for_memory_limb(0),
-                memory_halfword::columns::lookup_for_memory_limb(1),
-                memory_fullword::columns::lookup_for_memory_limb(0),
-                memory_fullword::columns::lookup_for_memory_limb(1),
-                memory_fullword::columns::lookup_for_memory_limb(2),
-                memory_fullword::columns::lookup_for_memory_limb(3),
-                memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
-                memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
-            ],
-            poseidon2_preimage_pack::columns::lookup_for_input_memory(),
-            poseidon2_output_bytes::columns::lookup_for_output_memory(),
-        ]
-        .collect();
+        let mut tables = vec![];
+        tables.extend([
+            cpu::columns::lookup_for_memory(),
+            memory_halfword::columns::lookup_for_memory_limb(0),
+            memory_halfword::columns::lookup_for_memory_limb(1),
+            memory_fullword::columns::lookup_for_memory_limb(0),
+            memory_fullword::columns::lookup_for_memory_limb(1),
+            memory_fullword::columns::lookup_for_memory_limb(2),
+            memory_fullword::columns::lookup_for_memory_limb(3),
+            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
+            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
+        ]);
+        {
+            tables.extend(
+                (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT).map(|index| {
+                    poseidon2_preimage_pack::columns::lookup_for_input_memory(
+                        u8::try_from(index).expect("DATA_CAPACITY_PER_FIELD_ELEMENT > 255"),
+                    )
+                }),
+            );
+            tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
+        }
         CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])
     }
 }
