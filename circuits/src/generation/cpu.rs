@@ -84,13 +84,10 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
-            #[cfg(feature = "enable_poseidon_starks")]
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
-            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_input_addr: F::from_canonical_u32(
                 aux.poseidon2.clone().unwrap_or_default().addr,
             ),
-            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_input_len: F::from_canonical_u32(
                 aux.poseidon2.clone().unwrap_or_default().len,
             ),

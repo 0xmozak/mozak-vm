@@ -444,7 +444,6 @@ mod tests {
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
-    #[allow(unused)]
     fn test_poseidon2(test_data: &[Poseidon2Test]) {
         let (program, record) = create_poseidon2_test(test_data);
         for test_datum in test_data {
@@ -468,7 +467,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "enable_poseidon_starks")]
     fn prove_poseidon2() {
         test_poseidon2(&[Poseidon2Test {
             data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),

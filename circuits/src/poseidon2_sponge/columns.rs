@@ -1,21 +1,14 @@
 use core::ops::Add;
 
-#[cfg(feature = "enable_poseidon_starks")]
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::cross_table_lookup::ColumnWithTypedInput;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::memory::columns::MemoryCtl;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::columns::Poseidon2StateCtl;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableWithTypedOutput};
 
 #[repr(C)]
@@ -56,7 +49,6 @@ pub struct Poseidon2SpongeCtl<T> {
     pub input_len: T,
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
     Poseidon2SpongeTable::new(
@@ -69,7 +61,6 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
     )
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2() -> TableWithTypedOutput<Poseidon2StateCtl<Column>> {
     Poseidon2SpongeTable::new(
@@ -84,7 +75,6 @@ pub fn lookup_for_poseidon2() -> TableWithTypedOutput<Poseidon2StateCtl<Column>>
     // data
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2OutputBytesCtl<Column>>
 {
@@ -98,7 +88,6 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2Outp
     )
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
     assert!(limb_index < 8, "limb_index can be 0..7");
