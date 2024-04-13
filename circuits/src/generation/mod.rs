@@ -91,12 +91,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
     let call_tape_rows = generate_call_tape_trace(&record.executed);
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
-    #[cfg(feature = "enable_poseidon_starks")]
     let poseidon2_output_bytes_rows = generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
-    #[cfg(feature = "enable_poseidon_starks")]
     let poseidon2_preimage_pack_rows =
         generate_poseidon2_preimage_pack_trace(&poseiden2_sponge_rows);
-    #[cfg(feature = "enable_poseidon_starks")]
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
     let memory_rows = generate_memory_trace(
         &record.executed,
@@ -150,13 +147,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         register_stark: trace_rows_to_poly_values(register_rows),
         register_zero_read_stark: trace_rows_to_poly_values(register_zero_read_rows),
         register_zero_write_stark: trace_rows_to_poly_values(register_zero_write_rows),
-        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
-        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
-        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
-        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_preimage_pack: trace_rows_to_poly_values(poseidon2_preimage_pack_rows),
     }
     .build()

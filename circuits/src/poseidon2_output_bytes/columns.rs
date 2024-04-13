@@ -2,14 +2,10 @@ use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::plonk::config::GenericHashOut;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::cross_table_lookup::ColumnWithTypedInput;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::stark::mozak_stark::{Poseidon2OutputBytesTable, TableWithTypedOutput};
 
 pub const FIELDS_COUNT: usize = 4;
@@ -63,7 +59,6 @@ pub struct Poseidon2OutputBytesCtl<F> {
     pub output_fields: [F; FIELDS_COUNT],
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2OutputBytesCtl<Column>> {
     Poseidon2OutputBytesTable::new(
@@ -76,7 +71,6 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2OutputByte
     )
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_output_memory() -> Vec<TableWithTypedOutput<MemoryCtl<Column>>> {
     (0..)
