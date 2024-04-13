@@ -86,7 +86,7 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongePrei
     Poseidon2PreimagePackTable::new(
         Poseidon2SpongePreimagePackCtl {
             clk: PACK.clk,
-            value: ColumnWithTypedInput::reduce_with_powers(PACK.bytes, i64::from(1 << 8)),
+            value: ColumnWithTypedInput::reduce_with_powers(PACK.bytes, 1 << 8),
             fe_addr: PACK.fe_addr,
             byte_addr: PACK.byte_addr,
         },
