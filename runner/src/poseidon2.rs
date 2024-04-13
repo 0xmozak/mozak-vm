@@ -112,15 +112,19 @@ impl MozakPoseidon2 {
         ))
     }
 
-    pub fn unpack_to_bytes<F: RichField>(fe: &F) -> Vec<u8> {
-        fe.to_canonical_u64().to_le_bytes()[..Self::DATA_CAPACITY_PER_FIELD_ELEMENT].to_vec()
+    /// # Panics
+    /// When `Self::DATA_CAPACITY_PER_FIELD_ELEMENT` is larger than the number
+    /// of bytes in a u64, ie 8.
+    pub fn unpack_to_bytes<F: RichField>(fe: &F) -> [u8; Self::DATA_CAPACITY_PER_FIELD_ELEMENT] {
+        fe.to_canonical_u64().to_le_bytes()[..Self::DATA_CAPACITY_PER_FIELD_ELEMENT]
+            .try_into()
+            .unwrap()
     }
 
-    pub fn unpack_to_field_elements<F: RichField>(fe: &F) -> Vec<F> {
-        Self::unpack_to_bytes(fe)
-            .into_iter()
-            .map(F::from_canonical_u8)
-            .collect()
+    pub fn unpack_to_field_elements<F: RichField>(
+        fe: &F,
+    ) -> [F; Self::DATA_CAPACITY_PER_FIELD_ELEMENT] {
+        Self::unpack_to_bytes(fe).map(F::from_canonical_u8)
     }
 }
 

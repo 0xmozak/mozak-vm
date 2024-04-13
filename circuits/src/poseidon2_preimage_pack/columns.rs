@@ -59,10 +59,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                         clk: value.clk,
                         byte_addr,
                         fe_addr,
-                        bytes: <[F; MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT]>::try_from(
-                            MozakPoseidon2::unpack_to_field_elements(fe),
-                        )
-                        .unwrap(),
+                        bytes: MozakPoseidon2::unpack_to_field_elements(fe),
                         is_executed: F::ONE,
                     }
                 })
