@@ -684,7 +684,7 @@ impl Lookups for IntoMemoryTable {
                     )
                 }),
             );
-            tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
+            tables.extend(poseidon2_output_bytes::columns::lookup_for_output_memory());
         }
         CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])
     }
