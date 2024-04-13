@@ -14,7 +14,7 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
-use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
+use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{MemoryTable, TableWithTypedOutput};
