@@ -96,16 +96,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // input
         yield_constr
             .constraint_transition(not_last_sponge * (lv.input_len - (nv.input_len + rate_scalar)));
-        // and input_addr increases by RATE
+        // and input_addr increases by RATE *
         yield_constr.constraint_transition(
-            not_last_sponge * (lv.input_addr - (nv.input_addr - rate_scalar)),
+            not_last_sponge * (lv.input_addr - (nv.input_addr - padding_scalar)),
         );
-        // and input_addr_padded increases by DATA_PADDING = PACK_CAP * RATE
-        yield_constr.constraint_transition(
-            not_last_sponge * (lv.input_addr_padded - (nv.input_addr_padded - padding_scalar)),
-        );
-        // and for init permute, input_addr = input_addr_padded
-        yield_constr.constraint(lv.ops.is_init_permute * (lv.input_addr - lv.input_addr_padded));
 
         // For each init_permute capacity bits are zero.
         (rate..state_size).for_each(|i| {
@@ -187,26 +181,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // length decreases by RATE, note that only actual execution row can consume
         // input
         yield_constr.constraint_transition(builder, len_check);
-        // and input_addr increases by RATE
-        let nv_input_addr_rate = builder.sub_extension(nv.input_addr, rate_ext);
+        // and input_addr increases by PADDING
+        let nv_input_addr_rate = builder.sub_extension(nv.input_addr, padding_ext);
         let input_addr_diff_rate = builder.sub_extension(lv.input_addr, nv_input_addr_rate);
         let addr_check = builder.mul_extension(not_last_sponge, input_addr_diff_rate);
         yield_constr.constraint_transition(builder, addr_check);
-
-        // and input_addr_padding increases by DATA_PADDING
-        let nv_input_addr_padding = builder.sub_extension(nv.input_addr_padded, padding_ext);
-        let input_addr_diff_padding =
-            builder.sub_extension(lv.input_addr_padded, nv_input_addr_padding);
-        let padding_addr_check = builder.mul_extension(not_last_sponge, input_addr_diff_padding);
-        yield_constr.constraint_transition(builder, padding_addr_check);
-
-        // and for init permute, input_addr = input_addr_padded
-        // yield_constr.constraint(lv.ops.is_init_permute * (lv.input_addr -
-        // lv.input_addr_padded));
-        let lv_diff_addr_padding = builder.sub_extension(lv.input_addr, lv.input_addr_padded);
-        let padding_addr_init_check =
-            builder.mul_extension(lv.ops.is_init_permute, lv_diff_addr_padding);
-        yield_constr.constraint(builder, padding_addr_init_check);
 
         let zero = builder.constant_extension(F::Extension::ZERO);
         // For each init_permute capacity bits are zero.

@@ -15,7 +15,6 @@ use crate::stark::mozak_stark::{Poseidon2PreimagePackTable, TableWithTypedOutput
 pub struct Poseidon2PreimagePack<F> {
     pub clk: F,
     pub byte_addr: F,
-    pub fe_addr: F,
     pub bytes: [F; MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT],
     pub is_executed: F,
 }
@@ -40,8 +39,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                 [..MozakPoseidon2::FIELD_ELEMENTS_RATE]
                 .try_into()
                 .expect("Should succeed since preimage can't be empty");
-            let mut byte_base_address = value.input_addr_padded;
-            let mut fe_base_addr = value.input_addr;
+            let mut byte_base_address = value.input_addr;
             // For each FE of preimage we have BYTES_COUNT bytes
             preimage
                 .iter()
@@ -50,15 +48,9 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                     let byte_addr = byte_base_address;
                     // increase by DATA_CAP the byte base address after each iteration
                     byte_base_address += MozakPoseidon2::data_capacity_fe();
-                    // specific field-el address
-                    let fe_addr = fe_base_addr;
-                    // increase by 1 after each iteration
-                    fe_base_addr += F::ONE;
-
                     Poseidon2PreimagePack {
                         clk: value.clk,
                         byte_addr,
-                        fe_addr,
                         bytes: MozakPoseidon2::unpack_to_field_elements(fe),
                         is_executed: F::ONE,
                     }
@@ -74,7 +66,6 @@ columns_view_impl!(Poseidon2SpongePreimagePackCtl);
 pub struct Poseidon2SpongePreimagePackCtl<T> {
     pub clk: T,
     pub value: T,
-    pub fe_addr: T,
     pub byte_addr: T,
 }
 #[must_use]
@@ -84,7 +75,6 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongePrei
         Poseidon2SpongePreimagePackCtl {
             clk: PACK.clk,
             value: ColumnWithTypedInput::reduce_with_powers(PACK.bytes, 1 << 8),
-            fe_addr: PACK.fe_addr,
             byte_addr: PACK.byte_addr,
         },
         PACK.is_executed,
