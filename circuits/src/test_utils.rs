@@ -441,7 +441,6 @@ pub fn inv<F: RichField>(x: u64) -> u64 {
         .to_canonical_u64()
 }
 
-#[allow(unused)]
 pub struct Poseidon2Test {
     pub data: String,
     pub input_start_addr: u32,
