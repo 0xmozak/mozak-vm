@@ -96,7 +96,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // input
         yield_constr
             .constraint_transition(not_last_sponge * (lv.input_len - (nv.input_len + rate_scalar)));
-        // and input_addr increases by RATE *
+        // and input_addr increases by DATA_PADDING
         yield_constr.constraint_transition(
             not_last_sponge * (lv.input_addr - (nv.input_addr - padding_scalar)),
         );
