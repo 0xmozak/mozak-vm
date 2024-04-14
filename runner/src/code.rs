@@ -9,7 +9,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::{decode_instruction, ECALL};
-use crate::elf::{Program, RuntimeArguments};
+use crate::elf::{PreinitMemory, Program};
 use crate::instruction::{Args, DecodingError, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
@@ -62,7 +62,7 @@ pub fn execute_code_with_ro_memory(
     ro_mem: &[(u32, u8)],
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
-    runtime_args: &RuntimeArguments,
+    runtime_args: &PreinitMemory,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     let _ = env_logger::try_init();
     let ro_code = Code(
@@ -109,5 +109,5 @@ pub fn execute(
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    execute_code_with_ro_memory(code, &[], rw_mem, regs, &RuntimeArguments::default())
+    execute_code_with_ro_memory(code, &[], rw_mem, regs, &PreinitMemory::default())
 }

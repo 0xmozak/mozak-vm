@@ -193,9 +193,13 @@ impl MozakMemory {
     }
 }
 
-/// A Mozak program runtime arguments, all fields are 4 LE bytes length prefixed
+/// A representation of the preinit memory of a program compiled with the
+/// MozakVM linker script. This is injected within [`Program::create`] to be
+/// used for testing.
+///
+/// All fields are 4 LE bytes length prefixed.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RuntimeArguments {
+pub struct PreinitMemory {
     pub self_prog_id: Vec<u8>,
     pub cast_list: Vec<u8>,
     pub io_tape_private: Vec<u8>,
@@ -204,7 +208,7 @@ pub struct RuntimeArguments {
     pub event_tape: Vec<u8>,
 }
 
-impl RuntimeArguments {
+impl PreinitMemory {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.self_prog_id.is_empty()
@@ -216,8 +220,8 @@ impl RuntimeArguments {
     }
 }
 
-impl From<&RuntimeArguments> for MozakMemory {
-    fn from(args: &RuntimeArguments) -> Self {
+impl From<&PreinitMemory> for MozakMemory {
+    fn from(args: &PreinitMemory) -> Self {
         let mut mozak_ro_memory = MozakMemory::default();
         mozak_ro_memory
             .self_prog_id
@@ -494,7 +498,7 @@ impl Program {
     /// # Panics
     /// When `Program::load_elf` or index as address is not cast-able to be u32
     /// cast-able
-    pub fn mozak_load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
+    pub fn mozak_load_program(elf_bytes: &[u8], args: &PreinitMemory) -> Result<Program> {
         let mut program =
             Program::mozak_load_elf(elf_bytes, Program::parse_and_validate_elf(elf_bytes)?);
         let mozak_ro_memory = program
@@ -521,7 +525,7 @@ impl Program {
     }
 
     /// Creates a [`Program`] with preinitialized mozak memory given its memory,
-    /// [`Code`] and [`RuntimeArguments`].
+    /// [`Code`] and [`PreinitMemory`].
     ///
     /// # Panics
     ///
@@ -533,7 +537,7 @@ impl Program {
         ro_mem: &[(u32, u8)],
         rw_mem: &[(u32, u8)],
         ro_code: Code,
-        args: &RuntimeArguments,
+        args: &PreinitMemory,
     ) -> Program {
         let ro_memory = Data(ro_mem.iter().copied().collect());
         let rw_memory = Data(rw_mem.iter().copied().collect());
@@ -583,8 +587,7 @@ mod test {
 
     #[test]
     fn test_mozak_load_program_default() {
-        Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
-            .unwrap();
+        Program::mozak_load_program(mozak_examples::EMPTY_ELF, &PreinitMemory::default()).unwrap();
     }
 
     #[test]
@@ -592,7 +595,7 @@ mod test {
         let data = vec![0, 1, 2, 3];
 
         let mozak_ro_memory =
-            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &PreinitMemory {
                 self_prog_id: data.clone(),
                 cast_list: data.clone(),
                 io_tape_private: data.clone(),
