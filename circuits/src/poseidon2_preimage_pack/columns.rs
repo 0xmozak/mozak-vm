@@ -32,28 +32,23 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
             vec![]
         } else {
             assert!(
-                MozakPoseidon2::FIELD_ELEMENTS_RATE < STATE_SIZE,
-                "Packing RATE should be less than STATE_SIZE"
+                MozakPoseidon2::FIELD_ELEMENTS_RATE <= STATE_SIZE,
+                "Packing RATE (FIELD_ELEMENTS_RATE) should be less or equal than STATE_SIZE"
             );
             let preimage: [F; MozakPoseidon2::FIELD_ELEMENTS_RATE] = value.preimage
                 [..MozakPoseidon2::FIELD_ELEMENTS_RATE]
                 .try_into()
                 .expect("Should succeed since preimage can't be empty");
-            let mut byte_base_address = value.input_addr;
-            // For each FE of preimage we have BYTES_COUNT bytes
+            // For each FE of preimage we have PACK_CAP bytes
             preimage
                 .iter()
-                .map(|fe| {
-                    // specific byte address
-                    let byte_addr = byte_base_address;
-                    // increase by DATA_CAP the byte base address after each iteration
-                    byte_base_address += MozakPoseidon2::data_capacity_fe();
-                    Poseidon2PreimagePack {
-                        clk: value.clk,
-                        byte_addr,
-                        bytes: MozakPoseidon2::unpack_to_field_elements(fe),
-                        is_executed: F::ONE,
-                    }
+                .enumerate()
+                .map(|(i, fe)| Poseidon2PreimagePack {
+                    clk: value.clk,
+                    byte_addr: value.input_addr
+                        + F::from_canonical_usize(i) * MozakPoseidon2::data_capacity_fe::<F>(),
+                    bytes: MozakPoseidon2::unpack_to_field_elements(fe),
+                    is_executed: F::ONE,
                 })
                 .collect_vec()
         }

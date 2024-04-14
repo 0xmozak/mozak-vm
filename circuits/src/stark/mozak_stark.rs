@@ -676,7 +676,7 @@ impl Lookups for IntoMemoryTable {
                 memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
             ],
             poseidon2_preimage_pack::columns::lookup_for_input_memory(),
-            poseidon2_output_bytes::columns::lookup_for_output_memory(),
+            (0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory),
         ]
         .collect();
         CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])
