@@ -14,6 +14,7 @@ use starky::stark::Stark;
 use super::columns::BitshiftView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::unstark::NoColumns;
 
 /// Bitshift Trace Constraints
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -29,8 +30,8 @@ impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy, U>(
-    vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, Vec<U>>,
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values.executed;
     let nv = vars.next_values.executed;
