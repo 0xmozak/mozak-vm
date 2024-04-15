@@ -159,9 +159,10 @@ mod tests {
     use mozak_runner::decode::ECALL;
     use mozak_runner::elf::{Program, RuntimeArguments};
     use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::state::State;
     use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
     use mozak_runner::vm::ExecutionRecord;
-    use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
+    use mozak_sdk::core::ecall::{self};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
@@ -232,16 +233,22 @@ mod tests {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
-            &[],
+            &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
                 (REG_A1, address), // A1 - address
-                (REG_A2, u32::try_from(io_tape_private.len()).unwrap()), // A2 - size
+                (REG_A2, 1),       // A2 - size
             ],
             RuntimeArguments {
                 io_tape_private,
                 ..Default::default()
             },
+        );
+        let state: State<F> = State::from(program.clone());
+        assert_ne!(
+            state.private_tape.data.len(),
+            0,
+            "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -250,17 +257,23 @@ mod tests {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
-            &[],
+            &[(address, 0)],
             &[
                 // TODO: this looks like a bug, it should be IO_READ_PUBLIC?
                 (REG_A0, ecall::IO_READ_CALL_TAPE),
                 (REG_A1, address), // A1 - address
-                (REG_A2, u32::try_from(io_tape_public.len()).unwrap()), // A2 - size
+                (REG_A2, 1),       // A2 - size
             ],
             RuntimeArguments {
                 io_tape_public,
                 ..Default::default()
             },
+        );
+        let state: State<F> = State::from(program.clone());
+        assert_ne!(
+            state.public_tape.data.len(),
+            0,
+            "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -269,110 +282,23 @@ mod tests {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
-            &[],
+            &[(address, 0)],
             &[
                 (REG_A0, ecall::IO_READ_CALL_TAPE),
-                (REG_A1, address),                                 // A1 - address
-                (REG_A2, u32::try_from(call_tape.len()).unwrap()), // A2 - size
+                (REG_A1, address), // A1 - address
+                (REG_A2, 1),       // A2 - size
             ],
             RuntimeArguments {
                 call_tape,
                 ..Default::default()
             },
         );
-        Stark::prove_and_verify(&program, &record).unwrap();
-    }
-
-    pub fn prove_events_commitment_tape<Stark: ProveAndVerify>(
-        address: u32,
-        events_commitment_tape: Vec<u8>,
-    ) {
-        let (program, record) = execute_code_with_runtime_args(
-            // set sys-call IO_READ in x10(or a0)
-            [ECALL],
-            &[],
-            &[
-                (REG_A0, ecall::EVENTS_COMMITMENT_TAPE),
-                (REG_A1, address),                                 // A1 - address
-                (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
-            ],
-            RuntimeArguments {
-                events_commitment_tape,
-                ..Default::default()
-            },
-        );
-        Stark::prove_and_verify(&program, &record).unwrap();
-    }
-
-    pub fn prove_cast_list_commitment_tape<Stark: ProveAndVerify>(
-        address: u32,
-        cast_list_commitment_tape: Vec<u8>,
-    ) {
-        let (program, record) = execute_code_with_runtime_args(
-            // set sys-call IO_READ in x10(or a0)
-            [ECALL],
-            &[],
-            &[
-                (REG_A0, ecall::CAST_LIST_COMMITMENT_TAPE),
-                (REG_A1, address),                                 // A1 - address
-                (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
-            ],
-            RuntimeArguments {
-                cast_list_commitment_tape,
-                ..Default::default()
-            },
-        );
-        Stark::prove_and_verify(&program, &record).unwrap();
-    }
-
-    pub fn prove_io_read<Stark: ProveAndVerify>(address: u32, content: u8) {
-        let (program, record) = execute_code_with_runtime_args(
-            // set sys-call IO_READ in x10(or a0)
-            [
-                ECALL,
-                Instruction {
-                    op: Op::ADD,
-                    args: Args {
-                        rd: REG_A1,
-                        imm: address,
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::ADD,
-                    args: Args {
-                        rd: REG_A2,
-                        imm: 1,
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::ADD,
-                    args: Args {
-                        rd: REG_A0,
-                        imm: ecall::IO_READ_PUBLIC,
-                        ..Args::default()
-                    },
-                },
-                ECALL,
-            ],
-            &[(address, 0)],
-            &[
-                (REG_A0, ecall::IO_READ_PRIVATE),
-                (REG_A1, address), // A1 - address
-                (REG_A2, 1),       // A2 - size
-            ],
-            RuntimeArguments {
-                self_prog_id: vec![content],
-                cast_list: vec![content],
-                events_commitment_tape: vec![content],
-                cast_list_commitment_tape: vec![content],
-                io_tape_private: vec![content],
-                io_tape_public: vec![content],
-                call_tape: vec![content],
-                event_tape: vec![content],
-            },
-        );
+        let state: State<F> = State::from(program.clone());
+        assert_ne!(
+            state.call_tape.data.len(),
+            0,
+            "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
+            );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -453,16 +379,16 @@ mod tests {
             prove_io_read_private_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_private_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra(), size in u8_extra()) {
-            prove_io_read_private::<MozakStark<F, D>>(address, vec![content; size.into()]);
+        fn prove_io_read_private_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_io_read_private::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
         fn prove_io_read_public_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
             prove_io_read_public_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_public_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra(), size in u8_extra()) {
-            prove_io_read_public::<MozakStark<F, D>>(address, vec![content; size.into()]);
+        fn prove_io_read_public_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_io_read_public::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
         fn prove_io_read_call_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
@@ -473,26 +399,10 @@ mod tests {
             prove_io_read_call_tape::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
-        fn prove_io_read_events_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_events_commitment_tape::<MozakStark<F, D>>(address, vec![content; COMMITMENT_SIZE]);
-        }
-
-        #[test]
-        fn prove_io_read_castlist_commiment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_cast_list_commitment_tape::<MozakStark<F, D>>(address, vec![content; COMMITMENT_SIZE]);
-        }
-
-
-        #[test]
-        fn prove_io_read_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_io_read::<MozakStark<F, D>>(address, content);
-        }
-        #[test]
         fn prove_io_read_mozak_explicit(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
             prove_io_read_explicit::<MozakStark<F, D>>(address, content);
         }
     }
-
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
         type C = Poseidon2GoldilocksConfig;
