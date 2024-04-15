@@ -17,7 +17,6 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::utils::build_typed_starkframe;
 
 /// A Gadget for CPU Instructions
 ///
@@ -160,7 +159,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        let vars = build_typed_starkframe(&expr_builder, vars);
+        let vars = (expr_builder).to_typed_starkframe(vars);
         let constraints = generate_constraints(&vars);
         build_packed(constraints, constraint_consumer);
     }
@@ -174,7 +173,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let vars = build_typed_starkframe(&expr_builder, vars);
+        let vars = expr_builder.to_typed_starkframe(vars);
         let constraints = generate_constraints(&vars);
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
