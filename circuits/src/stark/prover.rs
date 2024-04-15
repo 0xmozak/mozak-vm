@@ -323,7 +323,7 @@ where
     );
 
     Ok(StarkProof {
-        trace_cap: trace_commitment.merkle_tree.cap.clone(),
+        trace_cap: vec![trace_commitment.merkle_tree.cap.clone()],
         ctl_zs_cap,
         quotient_polys_cap,
         openings,

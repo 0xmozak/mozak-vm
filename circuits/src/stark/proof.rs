@@ -33,7 +33,9 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 #[serde(bound = "")]
 pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     /// Merkle cap of LDEs of trace values.
-    pub trace_cap: MerkleCap<F, C::Hasher>,
+    // TODO(Matthias): MerkleCap is already a Vector (internally) so it already does half of what
+    // we need. Or we could add a vector around it?
+    pub trace_cap: Vec<MerkleCap<F, C::Hasher>>,
     /// Merkle cap of LDEs of cross-table lookup Z values.
     pub ctl_zs_cap: MerkleCap<F, C::Hasher>,
     /// Merkle cap of LDEs of trace values.
@@ -106,7 +108,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StarkProofTarget<const D: usize> {
-    pub trace_cap: MerkleCapTarget,
+    pub trace_cap: Vec<MerkleCapTarget>,
     pub ctl_zs_cap: MerkleCapTarget,
     pub quotient_polys_cap: MerkleCapTarget,
     pub openings: StarkOpeningSetTarget<D>,
@@ -338,7 +340,9 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
         for proof in &self.proofs {
-            challenger.observe_cap(&proof.trace_cap);
+            for cap in &proof.trace_cap {
+                challenger.observe_cap(cap);
+            }
         }
 
         // TODO: Observe public values.

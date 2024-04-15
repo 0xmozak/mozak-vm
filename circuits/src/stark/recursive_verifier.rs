@@ -3,13 +3,13 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
-use itertools::{zip_eq, Itertools};
+use itertools::{chain, zip_eq, Itertools};
 use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
-use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hash_types::{MerkleCapTarget, RichField};
 use plonky2::iop::challenger::RecursiveChallenger;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
@@ -172,7 +172,9 @@ where
     });
 
     for pi in &stark_proof_with_pis_target {
-        challenger.observe_cap(&pi.proof.trace_cap);
+        for cap in &pi.proof.trace_cap {
+            challenger.observe_cap(cap);
+        }
     }
 
     let ctl_challenges = get_grand_product_challenge_set_target(
@@ -239,9 +241,8 @@ where
                 .stark_proof_with_pis_target
                 .proof
                 .trace_cap
-                .0
                 .iter()
-                .flat_map(|h| h.elements)
+                .flat_map(|cap| cap.0.iter().flat_map(|h| h.elements))
                 .collect::<Vec<_>>(),
         );
     }
@@ -338,11 +339,12 @@ fn verify_stark_proof_with_challenges_circuit<
         builder.connect_extension(vanishing_polys_zeta[i], computed_vanishing_poly);
     }
 
-    let merkle_caps = vec![
-        proof_with_public_inputs.proof.trace_cap.clone(),
-        proof_with_public_inputs.proof.ctl_zs_cap.clone(),
-        proof_with_public_inputs.proof.quotient_polys_cap.clone(),
-    ];
+    let merkle_caps: Vec<MerkleCapTarget> =
+        chain![proof_with_public_inputs.proof.trace_cap.clone(), [
+            proof_with_public_inputs.proof.ctl_zs_cap.clone(),
+            proof_with_public_inputs.proof.quotient_polys_cap.clone(),
+        ]]
+        .collect();
 
     let fri_instance = stark.fri_instance_target(
         builder,
@@ -427,7 +429,7 @@ pub fn add_virtual_stark_proof<F: RichField + Extendable<D>, S: Stark<F, D>, con
     let ctl_zs_cap = builder.add_virtual_cap(cap_height);
 
     StarkProofTarget {
-        trace_cap: builder.add_virtual_cap(cap_height),
+        trace_cap: vec![builder.add_virtual_cap(cap_height)],
         ctl_zs_cap,
         quotient_polys_cap: builder.add_virtual_cap(cap_height),
         openings: add_virtual_stark_opening_set::<F, S, D>(builder, stark, num_ctl_zs, config),
@@ -462,7 +464,9 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     F: RichField + Extendable<D>,
     C::Hasher: AlgebraicHasher<F>,
     W: Witness<F>, {
-    witness.set_cap_target(&proof_target.trace_cap, &proof.trace_cap);
+    for (cap_target, cap) in zip_eq(&proof_target.trace_cap, &proof.trace_cap) {
+        witness.set_cap_target(cap_target, cap);
+    }
     witness.set_cap_target(&proof_target.quotient_polys_cap, &proof.quotient_polys_cap);
 
     witness.set_fri_openings(

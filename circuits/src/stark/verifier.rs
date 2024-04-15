@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use log::debug;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
@@ -38,18 +38,23 @@ where
     } = all_proof.get_challenges(config);
 
     ensure!(
-        all_proof.proofs[TableKind::Program].trace_cap == all_proof.program_rom_trace_cap,
+        // TODO: this one actually needs to change!
+        all_proof.proofs[TableKind::Program].trace_cap.clone()
+            == vec![all_proof.program_rom_trace_cap.clone()],
         "Mismatch between Program ROM trace caps"
     );
 
     ensure!(
-        all_proof.proofs[TableKind::ElfMemoryInit].trace_cap == all_proof.elf_memory_init_trace_cap,
+        all_proof.proofs[TableKind::ElfMemoryInit].trace_cap.clone()
+            == vec![all_proof.elf_memory_init_trace_cap.clone()],
         "Mismatch between ElfMemoryInit trace caps"
     );
 
     ensure!(
-        all_proof.proofs[TableKind::MozakMemoryInit].trace_cap
-            == all_proof.mozak_memory_init_trace_cap,
+        all_proof.proofs[TableKind::MozakMemoryInit]
+            .trace_cap
+            .clone()
+            == vec![all_proof.mozak_memory_init_trace_cap.clone()],
         "Mismatch between MozakMemoryInit trace caps"
     );
 
@@ -68,6 +73,7 @@ where
         ..Default::default()
     }
     .build();
+    // TODO(Matthias): This actually wants to be a `zip`.
     all_starks!(mozak_stark, |stark, kind| {
         verify_stark_proof_with_challenges(
             stark,
@@ -165,11 +171,11 @@ where
         );
     }
 
-    let merkle_caps = vec![
-        proof.trace_cap.clone(),
+    let merkle_caps: Vec<_> = chain![proof.trace_cap.clone(), [
         proof.ctl_zs_cap.clone(),
         proof.quotient_polys_cap.clone(),
-    ];
+    ]]
+    .collect();
 
     // Make sure that we do not use Starky's lookups.
     assert!(!stark.requires_ctls());
@@ -229,7 +235,9 @@ where
     let fri_params = config.fri_params(degree_bits);
     let cap_height = fri_params.config.cap_height;
 
-    ensure!(trace_cap.height() == cap_height);
+    for cap in trace_cap {
+        ensure!(cap.height() == cap_height);
+    }
     ensure!(ctl_zs_cap.height() == cap_height);
     ensure!(quotient_polys_cap.height() == cap_height);
 
