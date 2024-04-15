@@ -14,7 +14,7 @@ fn fibonacci_benchmark(c: &mut Criterion) {
     group.bench_function("fibonacci", |b| {
         b.iter(|| {
             let program = Program::vanilla_load_elf(FIBONACCI_ELF).unwrap();
-            let state = State::<GoldilocksField>::from(&program);
+            let state = State::<GoldilocksField>::from(program.clone());
             let _state = step(&program, state).unwrap();
         })
     });

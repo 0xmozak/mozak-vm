@@ -1,0 +1,14 @@
+[package]
+categories = ["languages"]
+description = "A simple DSL"
+edition = "2021"
+keywords = ["dsl"]
+license = "All rights reserved"
+name = "expr"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[dependencies]
+bumpalo = "3.14.0"
+starky = { version = "0", default-features = false, features = ["std"] }

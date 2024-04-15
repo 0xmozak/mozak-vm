@@ -1,5 +1,4 @@
 use std::cmp::{max, min};
-use std::collections::HashSet;
 use std::iter::repeat;
 use std::ops::Range;
 
@@ -15,9 +14,7 @@ use im::hashmap::HashMap;
 use itertools::{chain, iproduct, izip, Itertools};
 use serde::{Deserialize, Serialize};
 
-use crate::decode::decode_instruction;
-use crate::instruction::{DecodingError, Instruction};
-use crate::util::load_u32;
+use crate::code::Code;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemoryRegion {
@@ -54,17 +51,11 @@ impl MozakMemoryRegion {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemory {
-    // self_prog_id
     pub self_prog_id: MozakMemoryRegion,
-    // cast_list
     pub cast_list: MozakMemoryRegion,
-    // io private
     pub io_tape_private: MozakMemoryRegion,
-    // io public
     pub io_tape_public: MozakMemoryRegion,
-    // call_tape
     pub call_tape: MozakMemoryRegion,
-    // event_tape
     pub event_tape: MozakMemoryRegion,
 }
 
@@ -127,28 +118,7 @@ impl Default for MozakMemory {
     }
 }
 
-/// Deprecated??
-impl From<(&[u8], &[u8])> for MozakMemory {
-    fn from((private, public): (&[u8], &[u8])) -> Self {
-        let mut mozak_memory = MozakMemory::create();
-        mozak_memory.io_tape_private.fill(private);
-        mozak_memory.io_tape_public.fill(public);
-        mozak_memory
-    }
-}
-
 impl MozakMemory {
-    fn create() -> MozakMemory {
-        MozakMemory {
-            self_prog_id: MozakMemoryRegion::default(),
-            cast_list: MozakMemoryRegion::default(),
-            io_tape_private: MozakMemoryRegion::default(),
-            io_tape_public: MozakMemoryRegion::default(),
-            call_tape: MozakMemoryRegion::default(),
-            event_tape: MozakMemoryRegion::default(),
-        }
-    }
-
     // TODO(Roman): refactor this function, caller can parse p_vaddr, so pure u32
     // address will be enough
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
@@ -267,7 +237,7 @@ impl From<&RuntimeArguments> for MozakMemory {
 }
 
 /// A RISC-V program
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
@@ -296,12 +266,6 @@ pub struct Program {
     pub mozak_ro_memory: Option<MozakMemory>,
 }
 
-/// Executable code of the ELF
-///
-/// A wrapper of a map from pc to [Instruction]
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
-pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
-
 /// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
@@ -310,34 +274,15 @@ pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 )]
 pub struct Data(pub HashMap<u32, u8>);
 
-impl Code {
-    /// Get [Instruction] given `pc`
-    #[must_use]
-    pub fn get_instruction(&self, pc: u32) -> Option<&Result<Instruction, DecodingError>> {
-        let Code(code) = self;
-        code.get(&pc)
-    }
-}
-
-impl From<&HashMap<u32, u8>> for Code {
-    fn from(image: &HashMap<u32, u8>) -> Self {
-        Self(
-            image
-                .keys()
-                .map(|addr| addr & !3)
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .map(|key| (key, decode_instruction(key, load_u32(image, key))))
-                .collect(),
-        )
-    }
-}
-
-// TODO: Right now, we only have convenient functions for initialising the
-// rw_memory and ro_code. In the future we might want to add ones for ro_memory
-// as well (or leave it to be manually constructed by the caller).
-impl From<HashMap<u32, u8>> for Program {
-    fn from(image: HashMap<u32, u8>) -> Self {
+impl From<HashMap<u32, u32>> for Program {
+    fn from(image: HashMap<u32, u32>) -> Self {
+        for (addr, val) in image.iter() {
+            assert!(addr % 4 == 0, "Misaligned code: {addr:x} {val:x}");
+        }
+        let image: HashMap<u32, u8> = image
+            .iter()
+            .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
+            .collect::<HashMap<u32, u8>>();
         Self {
             entry_point: 0_u32,
             ro_code: Code::from(&image),
@@ -348,22 +293,7 @@ impl From<HashMap<u32, u8>> for Program {
     }
 }
 
-impl From<HashMap<u32, u32>> for Program {
-    fn from(image: HashMap<u32, u32>) -> Self {
-        for (addr, val) in image.iter() {
-            assert!(addr % 4 == 0, "Misaligned code: {addr:x} {val:x}");
-        }
-        Self::from(
-            image
-                .iter()
-                .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
-                .collect::<HashMap<u32, u8>>(),
-        )
-    }
-}
-
 impl From<HashMap<u32, u32>> for Data {
-    #[allow(clippy::cast_possible_truncation)]
     fn from(image: HashMap<u32, u32>) -> Self {
         // Check for overlapping data
         //
@@ -383,24 +313,22 @@ impl From<HashMap<u32, u32>> for Data {
         Data(
             image
                 .iter()
-                .flat_map(move |(k, v)| (u64::from(*k)..).map(|k| k as u32).zip(v.to_le_bytes()))
+                .flat_map(move |(k, v)| {
+                    (u64::from(*k)..)
+                        .map(|k| u32::try_from(k).unwrap())
+                        .zip(v.to_le_bytes())
+                })
                 .collect(),
         )
     }
 }
 
-type CheckProgramFlags =
-    fn(flags: u32, program_headers: &ProgramHeader, mozak_memory: &Option<MozakMemory>) -> bool;
-
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
     /// should rename it later, with `vanilla_` prefix
+    ///
     /// # Errors
     /// Same as `Program::internal_load_elf`
-    /// # Panics
-    /// Same as `Program::internal_load_elf`
-    /// TODO(Roman): Refactor this API to be aligned with `mozak_load_elf` -
-    /// just return Program
     pub fn vanilla_load_elf(input: &[u8]) -> Result<Program> {
         let (_, entry_point, segments) = Program::parse_and_validate_elf(input)?;
         Ok(Program::internal_load_elf(
@@ -446,7 +374,7 @@ impl Program {
                         .is_mozak_ro_memory_address(ph))
             },
             Some({
-                let mut mm = MozakMemory::create();
+                let mut mm = MozakMemory::default();
                 mm.fill(&elf.symbol_table().unwrap().unwrap());
                 mm
             }),
@@ -475,23 +403,14 @@ impl Program {
         Ok((elf, entry_point, segments))
     }
 
-    /// Initialize a RISC Program from an appropriate ELF file
-    ///
-    /// # Errors
-    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
-    /// invalid.
-    ///
-    /// # Panics
-    // This function is actually mostly covered by tests, but it's too annoying to work out how to
-    // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
-    // exercise the error handling?
+    /// Initialize a RISC Program from a validated ELF file.
     #[allow(clippy::similar_names)]
     fn internal_load_elf(
         input: &[u8],
         entry_point: u32,
         segments: SegmentTable<LittleEndian>,
         check_program_flags: fn(
-            u32,
+            flags: u32,
             program_headers: &ProgramHeader,
             mozak_memory: &Option<MozakMemory>,
         ) -> bool,
@@ -532,7 +451,11 @@ impl Program {
     }
 
     fn extract_elf_data(
-        check_program_flags: CheckProgramFlags,
+        check_program_flags: fn(
+            flags: u32,
+            program_headers: &ProgramHeader,
+            mozak_memory: &Option<MozakMemory>,
+        ) -> bool,
         input: &[u8],
         segments: &SegmentTable<LittleEndian>,
         mozak_memory: &Option<MozakMemory>,
@@ -559,22 +482,6 @@ impl Program {
             .flatten_ok()
             .try_collect()
             .expect("extract elf data should always succeed")
-    }
-
-    /// Loads a "risc-v program" from static ELF and populates the reserved
-    /// memory with runtime arguments. Note: this function added mostly for
-    /// convenience of the API. Later on, maybe we should rename it with prefix:
-    /// `vanilla_`
-    ///
-    /// # Errors
-    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
-    /// invalid.
-    ///
-    /// # Panics
-    /// When `Program::load_elf` or index as address is not cast-able to u32
-    /// cast-able
-    pub fn vanilla_load_program(elf_bytes: &[u8]) -> Result<Program> {
-        Program::vanilla_load_elf(elf_bytes)
     }
 
     /// Loads a "mozak program" from static ELF and populates the reserved
@@ -613,20 +520,36 @@ impl Program {
         Ok(program)
     }
 
+    /// Creates a [`Program`] with preinitialized mozak memory given its memory,
+    /// [`Code`] and [`RuntimeArguments`].
+    ///
     /// # Panics
-    /// When some of the provided addresses (rw,ro,code) belongs to
-    /// `mozak-ro-memory`
-    /// # Errors
-    /// When some of the provided addresses (rw,ro,code) belongs to
-    /// `mozak-ro-memory`
+    ///
+    /// Panics if any of `ro_mem`, `rw_mem` or `ro_code` violates the memory
+    /// space that [`MozakMemory`] takes.
     #[must_use]
     #[allow(clippy::similar_names)]
-    pub fn create_with_args(
+    pub fn create(
         ro_mem: &[(u32, u8)],
         rw_mem: &[(u32, u8)],
-        ro_code: &Code,
+        ro_code: Code,
         args: &RuntimeArguments,
     ) -> Program {
+        let ro_memory = Data(ro_mem.iter().copied().collect());
+        let rw_memory = Data(rw_mem.iter().copied().collect());
+
+        // Non-strict behavior is to allow successful creation when arguments parameter
+        // is empty
+        if args.is_empty() {
+            return Program {
+                ro_memory,
+                rw_memory,
+                ro_code,
+                mozak_ro_memory: None,
+                ..Default::default()
+            };
+        }
+
         let mozak_ro_memory = MozakMemory::from(args);
         let mem_iters = chain!(ro_mem.iter(), rw_mem.iter()).map(|(addr, _)| addr);
         let code_iter = ro_code.iter().map(|(addr, _)| addr);
@@ -637,123 +560,55 @@ impl Program {
             );
         });
         Program {
-            ro_memory: Data(ro_mem.iter().copied().collect()),
-            rw_memory: Data(rw_mem.iter().copied().collect()),
-            ro_code: ro_code.clone(),
+            ro_memory,
+            rw_memory,
+            ro_code,
             mozak_ro_memory: Some(mozak_ro_memory),
             ..Default::default()
         }
-    }
-
-    /// # Panics
-    /// When some of the provided addresses (rw,ro,code) belongs to
-    /// `mozak-ro-memory` AND when arguments for mozak-ro-memory is not empty
-    /// # Errors
-    /// When some of the provided addresses (rw,ro,code) belongs to
-    /// `mozak-ro-memory`
-    /// Note: This function is mostly useful for risc-v native tests, and other
-    /// tests that need the ability to run over full memory space, and don't
-    /// use any mozak-ro-memory capabilities
-    #[must_use]
-    #[allow(clippy::similar_names)]
-    #[cfg(any(feature = "test", test))]
-    pub fn create(
-        ro_mem: &[(u32, u8)],
-        rw_mem: &[(u32, u8)],
-        ro_code: &Code,
-        args: &RuntimeArguments,
-    ) -> Program {
-        // Non-strict behavior is to allow successful creation when arguments parameter
-        // is empty
-        if args.is_empty() {
-            return Program {
-                ro_memory: Data(ro_mem.iter().copied().collect()),
-                rw_memory: Data(rw_mem.iter().copied().collect()),
-                ro_code: ro_code.clone(),
-                mozak_ro_memory: None,
-                ..Default::default()
-            };
-        }
-        Program::create_with_args(ro_mem, rw_mem, ro_code, args)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::elf::{MozakMemory, MozakMemoryRegion, Program, RuntimeArguments};
+    use super::*;
 
     #[test]
     fn test_serialize_deserialize() {
         let program = Program::default();
         let serialized = serde_json::to_string(&program).unwrap();
         let deserialized: Program = serde_json::from_str(&serialized).unwrap();
-
-        // Check that all object parameters are the same.
-        assert_eq!(program.entry_point, deserialized.entry_point);
-        assert_eq!(program.ro_memory.0, deserialized.ro_memory.0);
-        assert_eq!(program.rw_memory.0, deserialized.rw_memory.0);
-        assert_eq!(program.ro_code.0, deserialized.ro_code.0);
+        assert_eq!(program, deserialized);
     }
 
     #[test]
-    fn test_mozak_memory_region() {
-        let mut mmr = MozakMemoryRegion {
-            capacity: 10,
-            ..Default::default()
-        };
-        mmr.fill(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        assert_eq!(mmr.starting_address, 0);
-        assert_eq!(mmr.capacity, 10);
-        let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        mmr.data.iter().for_each(|(k, v)| {
-            assert_eq!(u8::try_from(*k).unwrap(), *v);
-            assert_eq!(data[usize::try_from(*k).unwrap()], *v);
-        });
+    fn test_mozak_load_program_default() {
+        Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
+            .unwrap();
     }
 
     #[test]
-    fn test_empty_elf_with_empty_args() {
-        let mozak_ro_memory =
-            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
-                .unwrap()
-                .mozak_ro_memory
-                .unwrap();
-        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 0);
-        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
-        assert_eq!(mozak_ro_memory.call_tape.data.len(), 0);
-    }
+    fn test_mozak_load_program() {
+        let data = vec![0, 1, 2, 3];
 
-    #[test]
-    fn test_empty_elf_with_args() {
         let mozak_ro_memory =
             Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
-                self_prog_id: vec![0],
-                cast_list: vec![0, 1],
-                io_tape_private: vec![0, 1, 2],
-                io_tape_public: vec![0, 1, 2, 3],
-                call_tape: vec![0, 1, 2, 3, 4],
-                event_tape: vec![0, 1, 2, 3, 4, 5],
+                self_prog_id: data.clone(),
+                cast_list: data.clone(),
+                io_tape_private: data.clone(),
+                io_tape_public: data.clone(),
+                event_tape: data.clone(),
+                call_tape: data.clone(),
             })
             .unwrap()
             .mozak_ro_memory
             .unwrap();
-        assert_eq!(mozak_ro_memory.self_prog_id.data.len(), 1);
-        assert_eq!(mozak_ro_memory.cast_list.data.len(), 2);
-        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 3);
-        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 4);
-        assert_eq!(mozak_ro_memory.call_tape.data.len(), 5);
-        assert_eq!(mozak_ro_memory.event_tape.data.len(), 6);
-    }
 
-    #[test]
-    fn test_empty_elf_check_assumed_values() {
-        // This test ensures mozak-loader & mozak-linker-script is indeed aligned
-        let mozak_ro_memory =
-            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
-                .unwrap()
-                .mozak_ro_memory
-                .unwrap();
-        let test_mozak_ro_memory = MozakMemory::default();
-        assert_eq!(mozak_ro_memory, test_mozak_ro_memory);
+        assert_eq!(mozak_ro_memory.self_prog_id.data.len(), data.len());
+        assert_eq!(mozak_ro_memory.cast_list.data.len(), data.len());
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), data.len());
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), data.len());
+        assert_eq!(mozak_ro_memory.call_tape.data.len(), data.len());
+        assert_eq!(mozak_ro_memory.event_tape.data.len(), data.len());
     }
 }

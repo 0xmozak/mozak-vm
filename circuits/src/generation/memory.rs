@@ -84,14 +84,12 @@ pub fn transform_halfword<F: RichField>(
         .flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub fn transform_poseidon2_sponge<F: RichField>(
     sponge_data: &[Poseidon2Sponge<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
     sponge_data.iter().flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub fn transform_poseidon2_output_bytes<F: RichField>(
     output_bytes: &[Poseidon2OutputBytes<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
@@ -142,9 +140,7 @@ pub fn generate_memory_trace<F: RichField>(
     fullword_memory_rows: &[FullWordMemory<F>],
     io_memory_private_rows: &[InputOutputMemory<F>],
     io_memory_public_rows: &[InputOutputMemory<F>],
-    #[allow(unused)] //
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
-    #[allow(unused)] //
     poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
@@ -157,15 +153,10 @@ pub fn generate_memory_trace<F: RichField>(
         transform_fullword(fullword_memory_rows),
         transform_io(io_memory_private_rows),
         transform_io(io_memory_public_rows),
+        transform_poseidon2_sponge(poseidon2_sponge_rows),
+        transform_poseidon2_output_bytes(poseidon2_output_bytes_rows,),
     )
     .collect();
-
-    #[cfg(feature = "enable_poseidon_starks")]
-    merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
-    #[cfg(feature = "enable_poseidon_starks")]
-    merged_trace.extend(transform_poseidon2_output_bytes(
-        poseidon2_output_bytes_rows,
-    ));
 
     merged_trace.sort_by_key(key);
     let mut merged_trace: Vec<_> = merged_trace
@@ -246,11 +237,11 @@ mod tests {
         generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, inv, prep_table};
 
@@ -341,8 +332,8 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
-        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
+        let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &record.executed,
@@ -351,7 +342,7 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseidon2_trace,
+            &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
         assert_eq!(

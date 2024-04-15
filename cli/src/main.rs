@@ -15,7 +15,7 @@ use log::debug;
 use mozak_circuits::generation::memoryinit::{
     generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_private_tape_init_trace,
 };
-use mozak_circuits::generation::program::generate_program_rom_trace;
+use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
@@ -135,7 +135,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            let state = State::<GoldilocksField>::new(program.clone());
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs {
@@ -148,7 +148,7 @@ fn main() -> Result<()> {
                 .unwrap_or_default();
 
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            let state = State::<GoldilocksField>::new(program.clone());
 
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -164,7 +164,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::legacy_ecall_api_new(program.clone(), args);
+            let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
