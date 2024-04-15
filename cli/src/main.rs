@@ -39,9 +39,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
-use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
-use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -229,80 +227,86 @@ fn main() -> Result<()> {
             bundle,
         } => {
             println!("Bundling transaction...");
-            let mut call_tape_hash: Option<MerkleCap<F, <C as GenericConfig<D>>::Hasher>> = None;
-            let mut constituent_zs = Vec::with_capacity(cast_list.len());
-            for (i, mut plan) in bundle_plan.into_iter().enumerate() {
-                let mut bundle_plan_bytes = Vec::new();
-                let _ = plan.read_to_end(&mut bundle_plan_bytes)?;
-                let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes).unwrap();
+            let zipped = bundle_plan
+                .into_iter()
+                .map(|mut plan| {
+                    let mut bundle_plan_bytes = Vec::new();
+                    let _ = plan.read_to_end(&mut bundle_plan_bytes)?;
+                    let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes)?;
 
-                let sys_tapes: SystemTape =
-                    deserialize_system_tape(Input::try_from(&plan.system_tape_filepath).unwrap())
-                        .unwrap();
+                    let sys_tapes: SystemTape =
+                        deserialize_system_tape(Input::try_from(&plan.system_tape_filepath)?)?;
 
-                let event_tape: OrderedEvents = sys_tapes
-                    .event_tape
-                    .writer
-                    .into_iter()
-                    .find_map(|t| {
-                        (t.0 == ProgramIdentifier::from(plan.self_prog_id.clone())).then_some(t.1)
-                    })
-                    .unwrap_or_default();
-
-                let args = tapes_to_runtime_arguments(
-                    Input::try_from(&plan.system_tape_filepath).unwrap(),
-                    Some(plan.self_prog_id.to_string()),
-                );
-
-                let program = load_program(
-                    Input::try_from(&plan.elf_filepath).unwrap_or_else(|_| {
-                        panic!("Elf filepath {:?} not found", plan.elf_filepath)
-                    }),
-                    &args,
-                )?;
-                let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
-                    let rate_bits = config.fri_config.rate_bits;
-                    let cap_height = config.fri_config.cap_height;
-                    let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                        poly_values,
-                        rate_bits,
-                        false, // blinding
-                        cap_height,
-                        &mut TimingTree::default(),
-                        None, // fft_root_table
+                    let event_tape: OrderedEvents = sys_tapes
+                        .event_tape
+                        .writer
+                        .get(&ProgramIdentifier::from(plan.self_prog_id.clone()))
+                        .cloned()
+                        .ok_or(anyhow::anyhow!(
+                            "Event tape not found for program id: {:?}",
+                            plan.self_prog_id
+                        ))?;
+                    let args = tapes_to_runtime_arguments(
+                        Input::try_from(&plan.system_tape_filepath)?,
+                        Some(plan.self_prog_id.to_string()),
                     );
-                    trace_commitment.merkle_tree.cap
-                };
 
-                // TODO(bing): These traces are currently empty, because the generation
-                // rely on the old ecall API. We need new init tables for this, and
-                // the hashes should be generated based on the new init tables.
-                // See: https://github.com/0xmozak/mozak-vm/pull/1335#issuecomment-2029402128
-                let trace = generate_private_tape_init_trace(&program);
-                let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-                if i == 0 {
+                    let program = load_program(
+                        Input::try_from(&plan.elf_filepath).unwrap_or_else(|_| {
+                            panic!("Elf filepath {:?} not found", plan.elf_filepath)
+                        }),
+                        &args,
+                    )?;
+                    let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
+                        let rate_bits = config.fri_config.rate_bits;
+                        let cap_height = config.fri_config.cap_height;
+                        let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                            poly_values,
+                            rate_bits,
+                            false, // blinding
+                            cap_height,
+                            &mut TimingTree::default(),
+                            None, // fft_root_table
+                        );
+                        trace_commitment.merkle_tree.cap
+                    };
+
+                    // TODO(bing): These traces are currently empty, because the generation
+                    // relies on the old ecall API. We need new init tables for this, and
+                    // the hashes should be generated based on the new init tables.
+                    // See: https://github.com/0xmozak/mozak-vm/pull/1335#issuecomment-2029402128
+                    let trace = generate_private_tape_init_trace(&program);
+                    let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
+
                     let trace = generate_call_tape_init_trace(&program);
-                    call_tape_hash = Some(hash_from_poly_values(trace_rows_to_poly_values(trace)));
-                }
+                    let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
-                let transparent_attestation = TransparentAttestation {
-                    public_tape: args.io_tape_public,
-                    event_tape,
-                };
+                    let transparent_attestation = TransparentAttestation {
+                        public_tape: args.io_tape_public,
+                        event_tape,
+                    };
 
-                let opaque_attestation: OpaqueAttestation<F, C, D> =
-                    OpaqueAttestation { private_tape_hash };
+                    let opaque_attestation: OpaqueAttestation<F, C, D> =
+                        OpaqueAttestation { private_tape_hash };
 
-                let attestation = Attestation {
-                    id: plan.self_prog_id.into(),
-                    opaque: opaque_attestation,
-                    transparent: transparent_attestation,
-                };
-                constituent_zs.push(attestation);
-            }
+                    let attestation = Attestation {
+                        id: plan.self_prog_id.into(),
+                        opaque: opaque_attestation,
+                        transparent: transparent_attestation,
+                    };
+                    Ok((attestation, call_tape_hash))
+                })
+                .collect::<Result<Vec<(_, _)>>>()?;
+            let (constituent_zs, call_tape_hashes): (Vec<_>, Vec<_>) = zipped.into_iter().unzip();
+            let call_tape_hash = call_tape_hashes
+                .first()
+                .ok_or(anyhow::anyhow!(
+                    "No call tape hash found in the first bundle plan"
+                ))?
+                .clone();
 
             let transaction = Transaction {
-                call_tape_hash: call_tape_hash.unwrap(),
+                call_tape_hash,
                 cast_list: cast_list
                     .clone()
                     .into_iter()
