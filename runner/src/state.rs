@@ -19,7 +19,7 @@ use crate::poseidon2;
 #[derive(Debug, Clone, Deref)]
 pub struct CommitmentTape(pub [u8; COMMITMENT_SIZE]);
 impl From<Vec<u8>> for CommitmentTape {
-    fn from(value: Vec<u8>) -> Self { Self(value.try_into().unwrap()) }
+    fn from(value: Vec<u8>) -> Self { Self(value.try_into().unwrap_or([0; 32])) }
 }
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
