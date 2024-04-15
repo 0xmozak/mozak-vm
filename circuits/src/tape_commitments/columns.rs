@@ -78,7 +78,7 @@ pub fn make_event_commitment_tape_public() -> PublicSubTable {
     PublicSubTable {
         table: TapeCommitmentsTable::new(
             vec![COL_MAP.commitment_byte_row.byte],
-            COL_MAP.is_castlist_commitment_tape_row,
+            COL_MAP.is_event_commitment_tape_row,
         ),
         num_rows: 32,
     }
@@ -89,7 +89,7 @@ pub fn make_castlist_commitment_tape_public() -> PublicSubTable {
     PublicSubTable {
         table: TapeCommitmentsTable::new(
             vec![COL_MAP.commitment_byte_row.byte],
-            COL_MAP.is_event_commitment_tape_row,
+            COL_MAP.is_castlist_commitment_tape_row,
         ),
         num_rows: 32,
     }

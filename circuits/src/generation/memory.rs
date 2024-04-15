@@ -156,6 +156,9 @@ pub fn generate_memory_trace<F: RichField>(
     fullword_memory_rows: &[FullWordMemory<F>],
     io_memory_private_rows: &[InputOutputMemory<F>],
     io_memory_public_rows: &[InputOutputMemory<F>],
+    io_memory_call_tape_rows: &[InputOutputMemory<F>],
+    io_memory_events_commitment_tape_rows: &[InputOutputMemory<F>],
+    io_memory_castlist_commitment_tape_rows: &[InputOutputMemory<F>],
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
     poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
@@ -170,6 +173,9 @@ pub fn generate_memory_trace<F: RichField>(
         transform_fullword(fullword_memory_rows),
         transform_io(io_memory_private_rows),
         transform_io(io_memory_public_rows),
+        transform_io(io_memory_call_tape_rows),
+        transform_io(io_memory_events_commitment_tape_rows),
+        transform_io(io_memory_castlist_commitment_tape_rows),
         transform_poseidon2_sponge(poseidon2_sponge_rows),
         transform_poseidon2_output_bytes(poseidon2_output_bytes_rows,),
     )
@@ -208,7 +214,9 @@ mod tests {
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
+        generate_io_memory_public_trace,
     };
     use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
@@ -273,6 +281,9 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+        let io_memory_call_tape_rows = generate_call_tape_trace(&record.executed);
+        let io_memory_events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
+        let io_memory_castlist_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
 
@@ -284,6 +295,9 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
+            &io_memory_call_tape_rows,
+            &io_memory_events_commitment_tape_rows,
+            &io_memory_castlist_commitment_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
@@ -354,6 +368,9 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&[]);
         let io_memory_private_rows = generate_io_memory_private_trace(&[]);
         let io_memory_public_rows = generate_io_memory_public_trace(&[]);
+        let io_memory_call_tape_rows = generate_call_tape_trace(&[]);
+        let io_memory_events_commitment_tape_rows = generate_events_commitment_tape_trace(&[]);
+        let io_memory_castlist_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&[]);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&[]);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let trace = super::generate_memory_trace::<F>(
@@ -364,6 +381,9 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
+            &io_memory_call_tape_rows,
+            &io_memory_events_commitment_tape_rows,
+            &io_memory_castlist_commitment_tape_rows,
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );

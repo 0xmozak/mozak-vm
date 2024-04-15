@@ -691,6 +691,9 @@ impl Lookups for IntoMemoryTable {
                 memory_fullword::columns::lookup_for_memory_limb(3),
                 memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
                 memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
+                memory_io::columns::lookup_for_memory(TableKind::CallTape),
+                memory_io::columns::lookup_for_memory(TableKind::EventsCommitmentTape),
+                memory_io::columns::lookup_for_memory(TableKind::CastListCommitmentTape),
             ],
             (0..8).map(poseidon2_sponge::columns::lookup_for_input_memory),
             (0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory),
@@ -831,7 +834,9 @@ impl Lookups for IoMemoryToCpuTable {
                 [
                     TableKind::IoMemoryPrivate,
                     TableKind::IoMemoryPublic,
-                    TableKind::CallTape
+                    TableKind::CallTape,
+                    TableKind::EventsCommitmentTape,
+                    TableKind::CastListCommitmentTape,
                 ],
                 0..
             )

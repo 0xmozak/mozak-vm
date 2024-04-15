@@ -123,7 +123,7 @@ pub fn event_commitment_lookup_in_tape_commitments(
         byte: COL_MAP.value,
         index: -COL_MAP.size + 31,
     };
-    EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store)
+    EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
 }
 
 #[must_use]
@@ -133,5 +133,5 @@ pub fn castlist_commitment_lookup_in_tape_commitments(
         byte: COL_MAP.value,
         index: -COL_MAP.size + 31,
     };
-    CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store)
+    CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
 }

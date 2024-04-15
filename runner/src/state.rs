@@ -18,6 +18,9 @@ use crate::poseidon2;
 
 #[derive(Debug, Clone, Deref)]
 pub struct CommitmentTape(pub [u8; COMMITMENT_SIZE]);
+impl From<Vec<u8>> for CommitmentTape {
+    fn from(value: Vec<u8>) -> Self { Self(value.try_into().unwrap()) }
+}
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -228,6 +231,8 @@ pub struct RawTapes {
     pub public_tape: Vec<u8>,
     pub call_tape: Vec<u8>,
     pub event_tape: Vec<u8>,
+    pub events_commitment_tape: Vec<u8>,
+    pub cast_list_commitment_tape: Vec<u8>,
 }
 
 /// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
@@ -241,6 +246,8 @@ impl From<RuntimeArguments> for RawTapes {
             public_tape: args.io_tape_public,
             call_tape: args.call_tape,
             event_tape: args.event_tape,
+            cast_list_commitment_tape: args.cast_list_commitment_tape,
+            events_commitment_tape: args.events_commitment_tape,
         }
     }
 }
@@ -287,6 +294,8 @@ impl<F: RichField> State<F> {
                 data: raw_tapes.event_tape.into(),
                 read_index: 0,
             },
+            cast_list_commitment_tape: raw_tapes.cast_list_commitment_tape.into(),
+            events_commitment_tape: raw_tapes.events_commitment_tape.into(),
             ..Default::default()
         }
     }
