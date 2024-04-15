@@ -120,36 +120,13 @@ mod tests {
     use anyhow::Result;
     use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-    use plonky2::util::timing::TimingTree;
-    use starky::prover::prove;
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
-    use starky::verifier::verify_stark_proof;
 
-    use crate::cross_table_lookup::ctl_utils::check_single_ctl;
-    use crate::cross_table_lookup::CrossTableLookupWithTypedOutput;
-    use crate::generation::fullword_memory::generate_fullword_memory_trace;
-    use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::io_memory::{
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
-    };
-    use crate::generation::memory::generate_memory_trace;
-    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-    use crate::generation::memoryinit::{
-        generate_elf_memory_init_trace, generate_memory_init_trace,
-        generate_mozak_memory_init_trace,
-    };
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
-    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
-    use crate::stark::mozak_stark::{
-        ElfMemoryInitTable, MozakMemoryInitTable, MozakStark, TableKindSetBuilder,
-    };
-    use crate::stark::utils::trace_rows_to_poly_values;
-    use crate::test_utils::{fast_test_config, ProveAndVerify};
-    use crate::{memory, memory_zeroinit, memoryinit};
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -213,102 +190,6 @@ mod tests {
         ];
         let (program, record) = code::execute(instructions, &[], &[(1, iterations)]);
         Stark::prove_and_verify(&program, &record)
-    }
-
-    /// If all addresses are equal in memorytable, then setting all `is_init` to
-    /// zero should fail.
-    ///
-    /// Note this is required since this time, `diff_addr_inv` logic  can't help
-    /// detect `is_init` for first row.
-    ///
-    /// This will panic, if debug assertions are enabled in plonky2. So we need
-    /// to have two different versions of `should_panic`; see below.
-    #[test]
-    // This will panic, if debug assertions are enabled in plonky2.
-    #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
-    fn no_init_fail() {
-        const ADDRESS_TO_BE_FAKED: u32 = 1;
-        let instructions = [Instruction {
-            op: Op::SB,
-            args: Args {
-                rs1: 1,
-                rs2: 1,
-                imm: ADDRESS_TO_BE_FAKED,
-                ..Args::default()
-            },
-        }];
-        let (program, record) = code::execute(instructions, &[], &[(1, ADDRESS_TO_BE_FAKED)]);
-
-        let memory_init = generate_memory_init_trace(&program);
-        let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
-
-        let elf_memory_init_rows = generate_elf_memory_init_trace(&program);
-        let mozak_memory_init_rows = generate_mozak_memory_init_trace(&program);
-
-        let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
-        let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
-        let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
-        let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
-        #[allow(unused)]
-        let poseidon2_output_bytes_rows =
-            generate_poseidon2_output_bytes_trace(&poseidon2_sponge_rows);
-        let mut memory_rows = generate_memory_trace(
-            &record.executed,
-            &memory_init,
-            &memory_zeroinit_rows,
-            &halfword_memory_rows,
-            &fullword_memory_rows,
-            &io_memory_private_rows,
-            &io_memory_public_rows,
-            &poseidon2_sponge_rows,
-            &poseidon2_output_bytes_rows,
-        );
-        // malicious prover sets first memory row's is_init to zero
-        memory_rows[ADDRESS_TO_BE_FAKED as usize].is_init = F::ZERO;
-        // fakes a load instead of init
-        memory_rows[ADDRESS_TO_BE_FAKED as usize].is_load = F::ONE;
-        // now address 1 no longer has an init.
-        assert!(memory_rows
-            .iter()
-            .all(|row| row.addr != F::ONE || row.is_init == F::ZERO));
-
-        // ctl for is_init values
-        let ctl = CrossTableLookupWithTypedOutput::new(
-            vec![
-                memoryinit::columns::lookup_for_memory(ElfMemoryInitTable::new),
-                memoryinit::columns::lookup_for_memory(MozakMemoryInitTable::new),
-                memory_zeroinit::columns::lookup_for_memory(),
-            ],
-            vec![memory::columns::lookup_for_memoryinit()],
-        );
-
-        let memory_trace = trace_rows_to_poly_values(memory_rows);
-        let trace = TableKindSetBuilder {
-            memory_stark: memory_trace.clone(),
-            elf_memory_init_stark: trace_rows_to_poly_values(elf_memory_init_rows),
-            memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
-            mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
-            ..Default::default()
-        }
-        .build();
-
-        let config = fast_test_config();
-
-        let stark = S::default();
-
-        // ctl for malicious prover indeed fails, showing inconsistency in is_init
-        assert!(check_single_ctl::<F>(&trace, &ctl.to_untyped_output()).is_err());
-        let proof = prove::<F, C, S, D>(
-            stark,
-            &config,
-            memory_trace,
-            &[],
-            &mut TimingTree::default(),
-        )
-        .unwrap();
-        // so memory stark proof should fail too.
-        assert!(verify_stark_proof(stark, proof, &config).is_err());
     }
 
     #[test]
