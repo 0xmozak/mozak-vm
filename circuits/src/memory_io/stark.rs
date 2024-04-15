@@ -235,8 +235,8 @@ mod tests {
             &[],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
-                (REG_A1, address),                      // A1 - address
-                (REG_A2, io_tape_private.len() as u32), // A2 - size
+                (REG_A1, address), // A1 - address
+                (REG_A2, u32::try_from(io_tape_private.len()).unwrap()), // A2 - size
             ],
             RuntimeArguments {
                 io_tape_private,
@@ -254,8 +254,8 @@ mod tests {
             &[
                 // TODO: this looks like a bug, it should be IO_READ_PUBLIC?
                 (REG_A0, ecall::IO_READ_CALL_TAPE),
-                (REG_A1, address),                     // A1 - address
-                (REG_A2, io_tape_public.len() as u32), // A2 - size
+                (REG_A1, address), // A1 - address
+                (REG_A2, u32::try_from(io_tape_public.len()).unwrap()), // A2 - size
             ],
             RuntimeArguments {
                 io_tape_public,
@@ -272,8 +272,8 @@ mod tests {
             &[],
             &[
                 (REG_A0, ecall::IO_READ_CALL_TAPE),
-                (REG_A1, address),                // A1 - address
-                (REG_A2, call_tape.len() as u32), // A2 - size
+                (REG_A1, address),                                 // A1 - address
+                (REG_A2, u32::try_from(call_tape.len()).unwrap()), // A2 - size
             ],
             RuntimeArguments {
                 call_tape,
