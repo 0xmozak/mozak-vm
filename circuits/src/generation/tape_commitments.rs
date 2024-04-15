@@ -39,22 +39,21 @@ pub fn generate_tape_commitment_trace_with_op_code<F: RichField>(
             .unwrap(),
     );
 
-    let castlist_commitment_tape_multiplicity = F::from_bool(matches!(
-        which_tape_commitment,
-        IoOpcode::StoreCastListCommitmentTape
-    )) * num_tape_commitment_ecalls;
-    let event_commitment_tape_multiplicity = F::from_bool(matches!(
-        which_tape_commitment,
-        IoOpcode::StoreEventsCommitmentTape
-    )) * num_tape_commitment_ecalls;
     let is_castlist_commitment_tape_row = F::from_bool(matches!(
         which_tape_commitment,
         IoOpcode::StoreCastListCommitmentTape
     ));
+
     let is_event_commitment_tape_row = F::from_bool(matches!(
         which_tape_commitment,
         IoOpcode::StoreEventsCommitmentTape
     ));
+
+    let castlist_commitment_tape_multiplicity =
+        is_castlist_commitment_tape_row * num_tape_commitment_ecalls;
+    let event_commitment_tape_multiplicity =
+        is_event_commitment_tape_row * num_tape_commitment_ecalls;
+
     tape.iter()
         .enumerate()
         .map(|(i, hash_byte)| TapeCommitments {
