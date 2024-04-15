@@ -200,3 +200,17 @@ jobs:
 
       - name: taplo fmt
         run: nixdo nice taplo fmt --check
+  
+  transaction-bundle:
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
+        with:
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: transaction-bundle-script
+        run: nixdo ./scripts/test_bundle_tx.sh
