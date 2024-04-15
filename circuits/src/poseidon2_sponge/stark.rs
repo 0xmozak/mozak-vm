@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use mozak_circuits_derive::StarkNameDisplay;
-use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -10,6 +9,7 @@ use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use poseidon2::mozak_poseidon2;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
@@ -57,7 +57,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         let state_size = u8::try_from(Poseidon2Permutation::<F>::WIDTH).expect("state_size > 255");
         let rate_scalar = P::Scalar::from_canonical_u8(rate);
         let padding_scalar = P::Scalar::from_canonical_u8(
-            u8::try_from(MozakPoseidon2::DATA_PADDING).expect("DATA_PADDING > 255"),
+            u8::try_from(mozak_poseidon2::DATA_PADDING).expect("DATA_PADDING > 255"),
         );
         let lv: &Poseidon2Sponge<P> = vars.get_local_values().into();
         let nv: &Poseidon2Sponge<P> = vars.get_next_values().into();
@@ -146,7 +146,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // chunk of input.
         let rate_ext = builder.constant_extension(F::Extension::from_canonical_u8(rate));
         let padding_ext = builder.constant_extension(F::Extension::from_canonical_u8(
-            u8::try_from(MozakPoseidon2::DATA_PADDING).expect("DATA_PADDING > 255"),
+            u8::try_from(mozak_poseidon2::DATA_PADDING).expect("DATA_PADDING > 255"),
         ));
         let input_len_sub_rate = builder.sub_extension(lv.input_len, rate_ext);
         let gen_op_len_check = builder.mul_extension(lv.gen_output, input_len_sub_rate);

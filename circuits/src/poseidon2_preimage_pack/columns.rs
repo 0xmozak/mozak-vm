@@ -1,6 +1,6 @@
 use itertools::Itertools;
-use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::hash::hash_types::RichField;
+use poseidon2::mozak_poseidon2;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
@@ -15,7 +15,7 @@ use crate::stark::mozak_stark::{Poseidon2PreimagePackTable, TableWithTypedOutput
 pub struct Poseidon2PreimagePack<F> {
     pub clk: F,
     pub byte_addr: F,
-    pub bytes: [F; MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT],
+    pub bytes: [F; mozak_poseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT],
     pub is_executed: F,
 }
 
@@ -32,11 +32,11 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
             vec![]
         } else {
             assert!(
-                MozakPoseidon2::FIELD_ELEMENTS_RATE <= STATE_SIZE,
+                mozak_poseidon2::FIELD_ELEMENTS_RATE <= STATE_SIZE,
                 "Packing RATE (FIELD_ELEMENTS_RATE) should be less or equal than STATE_SIZE"
             );
-            let preimage: [F; MozakPoseidon2::FIELD_ELEMENTS_RATE] = value.preimage
-                [..MozakPoseidon2::FIELD_ELEMENTS_RATE]
+            let preimage: [F; mozak_poseidon2::FIELD_ELEMENTS_RATE] = value.preimage
+                [..mozak_poseidon2::FIELD_ELEMENTS_RATE]
                 .try_into()
                 .expect("Should succeed since preimage can't be empty");
             // For each FE of preimage we have PACK_CAP bytes
@@ -46,8 +46,8 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2PreimagePack<F>> {
                 .map(|(i, fe)| Poseidon2PreimagePack {
                     clk: value.clk,
                     byte_addr: value.input_addr
-                        + F::from_canonical_usize(i) * MozakPoseidon2::data_capacity_fe::<F>(),
-                    bytes: MozakPoseidon2::unpack_to_field_elements(fe),
+                        + F::from_canonical_usize(i) * mozak_poseidon2::data_capacity_fe::<F>(),
+                    bytes: mozak_poseidon2::unpack_to_field_elements(fe),
                     is_executed: F::ONE,
                 })
                 .collect_vec()

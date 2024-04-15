@@ -6,7 +6,6 @@ use mozak_runner::code;
 use mozak_runner::decode::ECALL;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
-use mozak_runner::poseidon2::MozakPoseidon2;
 use mozak_runner::vm::ExecutionRecord;
 use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
@@ -19,6 +18,7 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
+use poseidon2::mozak_poseidon2;
 use starky::config::StarkConfig;
 use starky::prover::prove as prove_table;
 use starky::stark::Stark;
@@ -443,7 +443,7 @@ pub fn create_poseidon2_test(
     let mut memory: Vec<(u32, u8)> = vec![];
 
     for test_datum in test_data {
-        let data_bytes = MozakPoseidon2::do_padding(test_datum.data.as_bytes());
+        let data_bytes = mozak_poseidon2::do_padding(test_datum.data.as_bytes());
         let data_len = data_bytes.len();
         let input_memory: Vec<(u32, u8)> =
             izip!((test_datum.input_start_addr..), data_bytes).collect();

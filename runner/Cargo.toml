@@ -19,6 +19,7 @@ im = "15.1"
 itertools = "0.12"
 log = "0.4"
 mozak-sdk = { path = "../sdk" }
+poseidon2 = { path = "../poseidon2" }
 plonky2 = { version = "0", default-features = false }
 proptest = { version = "1.4", optional = true }
 serde = { version = "1.0", features = ["derive"] }

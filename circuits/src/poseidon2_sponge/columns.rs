@@ -1,8 +1,8 @@
 use core::ops::Add;
 
-use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
+use poseidon2::mozak_poseidon2;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnWithTypedInput;
@@ -117,7 +117,7 @@ pub fn lookup_for_preimage_pack(
                     value,
                     byte_addr: COL_MAP.input_addr
                         + limb_index
-                            * i64::try_from(MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                            * i64::try_from(mozak_poseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
                                 .expect("Should be < 255"),
                 },
                 COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,

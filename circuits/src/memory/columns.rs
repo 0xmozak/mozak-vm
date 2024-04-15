@@ -1,12 +1,12 @@
 use core::ops::Add;
 
-use mozak_runner::poseidon2::MozakPoseidon2;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use poseidon2::mozak_poseidon2;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
@@ -120,13 +120,13 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
             (0..Poseidon2Permutation::<F>::RATE)
                 .flat_map(|fe_index_inside_preimage| {
                     let base_address = value.input_addr
-                        + MozakPoseidon2::data_capacity_fe::<F>()
+                        + mozak_poseidon2::data_capacity_fe::<F>()
                             * F::from_canonical_usize(fe_index_inside_preimage);
-                    let unpacked = MozakPoseidon2::unpack_to_field_elements(
+                    let unpacked = mozak_poseidon2::unpack_to_field_elements(
                         &value.preimage[fe_index_inside_preimage],
                     );
 
-                    (0..MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                    (0..mozak_poseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
                         .map(|byte_index_inside_fe| Memory {
                             clk: value.clk,
                             addr: base_address + F::from_canonical_usize(byte_index_inside_fe),

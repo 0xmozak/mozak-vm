@@ -1,9 +1,9 @@
 use itertools::Itertools;
-use mozak_runner::poseidon2::MozakPoseidon2;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
+use poseidon2::mozak_poseidon2;
 
 use crate::poseidon2_sponge::columns::{Ops, Poseidon2Sponge};
 use crate::utils::pad_trace_with_default;
@@ -41,7 +41,7 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             output: sponge_datum.output,
             gen_output: sponge_datum.gen_output,
         });
-        input_addr += u32::try_from(MozakPoseidon2::DATA_PADDING).expect("Should succeed");
+        input_addr += u32::try_from(mozak_poseidon2::DATA_PADDING).expect("Should succeed");
         input_len -= rate_size;
     }
 
@@ -66,11 +66,11 @@ pub fn generate_poseidon2_sponge_trace<F: RichField>(
 
 #[cfg(test)]
 mod test {
-    use mozak_runner::poseidon2::MozakPoseidon2;
     use plonky2::field::types::Field;
     use plonky2::hash::hashing::PlonkyPermutation;
     use plonky2::hash::poseidon2::Poseidon2Permutation;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use poseidon2::mozak_poseidon2;
 
     use crate::generation::MIN_TRACE_LENGTH;
     use crate::poseidon2_sponge::columns::Poseidon2Sponge;
@@ -82,7 +82,7 @@ mod test {
     #[test]
     fn generate_poseidon2_sponge_trace() {
         let data = "😇 Mozak is knowledge arguments based technology".to_string();
-        let data_len_in_bytes = MozakPoseidon2::do_padding(data.as_bytes()).len();
+        let data_len_in_bytes = mozak_poseidon2::do_padding(data.as_bytes()).len();
         let input_start_addr = 1024;
         let output_start_addr = 2048;
         let (_program, record) = create_poseidon2_test(&[Poseidon2Test {
@@ -96,7 +96,7 @@ mod test {
 
         let rate_size = Poseidon2Permutation::<F>::RATE;
         let sponge_count =
-            (data_len_in_bytes / MozakPoseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT) / rate_size;
+            (data_len_in_bytes / mozak_poseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT) / rate_size;
         for (i, value) in trace.iter().enumerate().take(sponge_count) {
             assert_eq!(
                 value.input_addr,

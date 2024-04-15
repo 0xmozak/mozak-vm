@@ -20,6 +20,7 @@ log = "0.4"
 mozak-circuits-derive = { path = "./derive" }
 mozak-runner = { path = "../runner" }
 mozak-sdk = { path = "../sdk" }
+poseidon2 = { path = "../poseidon2" }
 plonky2 = { version = "0", default-features = false }
 plonky2_maybe_rayon = { version = "0", default-features = false }
 serde = { version = "1.0", features = ["derive"] }

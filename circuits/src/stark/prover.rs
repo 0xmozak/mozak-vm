@@ -378,10 +378,10 @@ mod tests {
 
     use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::poseidon2::MozakPoseidon2;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::hash::poseidon2::Poseidon2Hash;
     use plonky2::plonk::config::{GenericHashOut, Hasher};
+    use poseidon2::mozak_poseidon2;
 
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test, ProveAndVerify};
@@ -454,8 +454,8 @@ mod tests {
                         .load_u8(test_datum.output_start_addr + u32::from(i))
                 })
                 .collect();
-            let data_fields: Vec<GoldilocksField> = MozakPoseidon2::pack_padded_input(
-                MozakPoseidon2::do_padding(test_datum.data.as_bytes()).as_slice(),
+            let data_fields: Vec<GoldilocksField> = mozak_poseidon2::pack_padded_input(
+                mozak_poseidon2::do_padding(test_datum.data.as_bytes()).as_slice(),
             );
             assert_eq!(
                 output,
