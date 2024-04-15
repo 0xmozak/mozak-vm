@@ -29,24 +29,11 @@ use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::memoryinit::stark::MemoryInitStark;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2::columns::Poseidon2State;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2::columns::Poseidon2StateCtl;
+use crate::poseidon2::columns::{Poseidon2State, Poseidon2StateCtl};
 use crate::poseidon2::stark::Poseidon2_12Stark;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_output_bytes;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
+use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, Poseidon2OutputBytesCtl};
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_sponge;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
+use crate::poseidon2_sponge::columns::{Poseidon2Sponge, Poseidon2SpongeCtl};
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
@@ -72,10 +59,11 @@ use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, program, program_multiplicities, rangecheck, register, xor,
+    memoryinit, poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities,
+    rangecheck, register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 14 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
+const NUM_CROSS_TABLE_LOOKUP: usize = 17;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -144,17 +132,11 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub register_zero_read_stark: RegisterZeroReadStark<F, D>,
     #[StarkSet(stark_kind = "RegisterZeroWrite")]
     pub register_zero_write_stark: RegisterZeroWriteStark<F, D>,
-    #[cfg_attr(feature = "enable_poseidon_starks", StarkSet(stark_kind = "Poseidon2"))]
+    #[StarkSet(stark_kind = "Poseidon2")]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
-    #[cfg_attr(
-        feature = "enable_poseidon_starks",
-        StarkSet(stark_kind = "Poseidon2Sponge")
-    )]
+    #[StarkSet(stark_kind = "Poseidon2Sponge")]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
-    #[cfg_attr(
-        feature = "enable_poseidon_starks",
-        StarkSet(stark_kind = "Poseidon2OutputBytes")
-    )]
+    #[StarkSet(stark_kind = "Poseidon2OutputBytes")]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     #[StarkSet(stark_kind = "TapeCommitments")]
     pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
@@ -462,11 +444,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 FullWordMemoryCpuTable::lookups(),
                 RegisterLookups::lookups(),
                 IoMemoryToCpuTable::lookups(),
-                #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2SpongeCpuTable::lookups(),
-                #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2Poseidon2SpongeTable::lookups(),
-                #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
                 EventCommitmentTapeTapeCommitmentsTable::lookups(),
                 CastlistCommitmentTapeTapeCommitmentsTable::lookups(),
@@ -639,7 +618,6 @@ table_impl!(
     TableKind::CastListCommitmentTape,
     InputOutputMemory
 );
-#[cfg(feature = "enable_poseidon_starks")]
 table_impl!(
     Poseidon2SpongeTable,
     TableKind::Poseidon2Sponge,
@@ -650,9 +628,7 @@ table_impl!(
     TableKind::TapeCommitments,
     TapeCommitments
 );
-#[cfg(feature = "enable_poseidon_starks")]
 table_impl!(Poseidon2Table, TableKind::Poseidon2, Poseidon2State);
-#[cfg(feature = "enable_poseidon_starks")]
 table_impl!(
     Poseidon2OutputBytesTable,
     TableKind::Poseidon2OutputBytes,
@@ -704,23 +680,22 @@ impl Lookups for IntoMemoryTable {
 
     #[allow(clippy::too_many_lines)]
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let mut tables = vec![];
-        tables.extend([
-            cpu::columns::lookup_for_memory(),
-            memory_halfword::columns::lookup_for_memory_limb(0),
-            memory_halfword::columns::lookup_for_memory_limb(1),
-            memory_fullword::columns::lookup_for_memory_limb(0),
-            memory_fullword::columns::lookup_for_memory_limb(1),
-            memory_fullword::columns::lookup_for_memory_limb(2),
-            memory_fullword::columns::lookup_for_memory_limb(3),
-            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
-            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
-        ]);
-        #[cfg(feature = "enable_poseidon_starks")]
-        {
-            tables.extend((0..8).map(poseidon2_sponge::columns::lookup_for_input_memory));
-            tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
-        }
+        let tables = chain![
+            [
+                cpu::columns::lookup_for_memory(),
+                memory_halfword::columns::lookup_for_memory_limb(0),
+                memory_halfword::columns::lookup_for_memory_limb(1),
+                memory_fullword::columns::lookup_for_memory_limb(0),
+                memory_fullword::columns::lookup_for_memory_limb(1),
+                memory_fullword::columns::lookup_for_memory_limb(2),
+                memory_fullword::columns::lookup_for_memory_limb(3),
+                memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
+                memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
+            ],
+            (0..8).map(poseidon2_sponge::columns::lookup_for_input_memory),
+            (0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory),
+        ]
+        .collect();
         CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])
     }
 }
@@ -867,9 +842,8 @@ impl Lookups for IoMemoryToCpuTable {
     }
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub struct Poseidon2SpongeCpuTable;
-#[cfg(feature = "enable_poseidon_starks")]
+
 impl Lookups for Poseidon2SpongeCpuTable {
     type Row = Poseidon2SpongeCtl<Column>;
 
@@ -881,9 +855,8 @@ impl Lookups for Poseidon2SpongeCpuTable {
     }
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub struct Poseidon2Poseidon2SpongeTable;
-#[cfg(feature = "enable_poseidon_starks")]
+
 impl Lookups for Poseidon2Poseidon2SpongeTable {
     type Row = Poseidon2StateCtl<Column>;
 
@@ -895,9 +868,8 @@ impl Lookups for Poseidon2Poseidon2SpongeTable {
     }
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub struct Poseidon2OutputBytesPoseidon2SpongeTable;
-#[cfg(feature = "enable_poseidon_starks")]
+
 impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
     type Row = Poseidon2OutputBytesCtl<Column>;
 

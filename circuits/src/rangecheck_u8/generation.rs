@@ -75,6 +75,7 @@ mod tests {
         generate_io_memory_public_trace,
     };
     use crate::generation::memory::generate_memory_trace;
+    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
@@ -99,7 +100,10 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
+
         let memory_init = generate_memory_init_trace(&program);
+        let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
+
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
@@ -113,6 +117,7 @@ mod tests {
         let memory_rows = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
+            &memory_zeroinit_rows,
             &halfword_memory,
             &fullword_memory,
             &io_memory_private,
@@ -142,8 +147,8 @@ mod tests {
         }
 
         assert_eq!(trace[0].value, F::from_canonical_u8(0));
-        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(24));
+        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(48));
         assert_eq!(trace[255].value, F::from_canonical_u8(u8::MAX));
-        assert_eq!(trace[255].multiplicity, F::from_canonical_u64(17));
+        assert_eq!(trace[255].multiplicity, F::from_canonical_u64(4));
     }
 }

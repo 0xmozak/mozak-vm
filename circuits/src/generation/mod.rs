@@ -81,12 +81,17 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
     let program_mult_rows = generate_program_mult_trace(&cpu_rows, &program_rows);
+
+    let memory_init = generate_memory_init_trace(program);
     let elf_memory_init_rows = generate_elf_memory_init_trace(program);
     let mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
     let call_tape_init_rows = generate_call_tape_init_trace(program);
     let private_tape_init_rows = generate_private_tape_init_trace(program);
     let public_tape_init_rows = generate_public_tape_init_trace(program);
     let event_tape_init_rows = generate_event_tape_init_trace(program);
+
+    let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, program);
+
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
@@ -95,13 +100,13 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
     let cast_list_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
-    #[allow(unused)]
     let poseidon2_output_bytes_rows = generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
-    #[allow(unused)]
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
+
     let memory_rows = generate_memory_trace(
         &record.executed,
-        &generate_memory_init_trace(program),
+        &memory_init,
+        &memory_zeroinit_rows,
         &halfword_memory_rows,
         &fullword_memory_rows,
         &io_memory_private_rows,
@@ -109,7 +114,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &poseiden2_sponge_rows,
         &poseidon2_output_bytes_rows,
     );
-    let memory_zeroinit_rows = generate_memory_zero_init_trace::<F>(&record.executed, program);
 
     let register_init_rows = generate_register_init_trace::<F>(record);
     let (register_zero_read_rows, register_zero_write_rows, register_rows) =
@@ -156,11 +160,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         register_stark: trace_rows_to_poly_values(register_rows),
         register_zero_read_stark: trace_rows_to_poly_values(register_zero_read_rows),
         register_zero_write_stark: trace_rows_to_poly_values(register_zero_write_rows),
-        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
-        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
-        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
         tape_commitments_stark: trace_rows_to_poly_values(tape_commitments_rows),
     }

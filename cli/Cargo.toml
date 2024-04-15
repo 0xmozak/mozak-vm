@@ -16,7 +16,7 @@ clap = { version = "4.5", features = [
   "env",
   "unicode",
 ] }
-mozak-circuits = { path = "../circuits", features = ["test", "enable_poseidon_starks"] }
+mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-node = { path = "../node", features = ["std"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 mozak-sdk = { path = "../sdk", features = ["std"] }
