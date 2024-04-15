@@ -15,6 +15,7 @@ use starky::stark::Stark;
 use super::columns::XorColumnsView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::stark::utils::{build_typed_starkframe_circuit, build_typed_starkframe_packed};
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -29,8 +30,8 @@ impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy, U>(
-    vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, Vec<U>>,
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, Vec<Expr<'a, T>>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values;
     let mut constraints = ConstraintBuilder::default();
@@ -74,7 +75,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let constraints = generate_constraints(&build_typed_starkframe_packed(&expr_builder, vars));
         build_packed(constraints, consumer);
     }
 
@@ -87,7 +88,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let constraints =
+            generate_constraints(&build_typed_starkframe_circuit(&expr_builder, vars));
         build_ext(constraints, circuit_builder, consumer);
     }
 }

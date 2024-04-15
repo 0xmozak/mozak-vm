@@ -4,7 +4,6 @@ use core::iter::Sum;
 use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 
 /// Contains a reference to [`ExprTree`] that is managed by [`ExprBuilder`].
 #[derive(Clone, Copy, Debug)]
@@ -182,42 +181,6 @@ impl ExprBuilder {
     /// Create a `Mul` expression
     pub fn mul<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
         self.bin_op(BinOp::Mul, left, right)
-    }
-
-    /// Convert from untyped `StarkFrame` to a typed representation.
-    ///
-    /// We ignore public inputs for now, and leave them as is.
-    pub fn to_typed_starkframe<'a, T, U, const N: usize, const N2: usize, View, PublicInputs>(
-        &'a self,
-        vars: &'a StarkFrame<T, U, N, N2>,
-    ) -> StarkFrameTyped<View, PublicInputs>
-    where
-        T: Copy + Clone + Default,
-        U: Copy + Clone + Default,
-        // We don't actually need the first constraint, but it's useful to make the compiler yell
-        // at us, if we mix things up. See the TODO about fixing `StarkEvaluationFrame` to
-        // give direct access to its contents.
-        View: From<[Expr<'a, T>; N]> + FromIterator<Expr<'a, T>>,
-        PublicInputs: From<[Expr<'a, U>; N2]> + FromIterator<Expr<'a, U>>, {
-        // TODO: Fix `StarkEvaluationFrame` to give direct access to its contents, no
-        // need for the reference only access.
-        StarkFrameTyped {
-            local_values: vars
-                .get_local_values()
-                .iter()
-                .map(|&v| self.lit(v))
-                .collect(),
-            next_values: vars
-                .get_next_values()
-                .iter()
-                .map(|&v| self.lit(v))
-                .collect(),
-            public_inputs: vars
-                .get_public_inputs()
-                .iter()
-                .map(|&v| self.lit(v))
-                .collect(),
-        }
     }
 }
 
