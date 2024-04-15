@@ -71,7 +71,7 @@ pub const MIN_TRACE_LENGTH: usize = 8;
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
     record: &ExecutionRecord<F>,
-) -> TableKindArray<Vec<PolynomialValues<F>>> {
+) -> TableKindArray<Vec<Vec<PolynomialValues<F>>>> {
     let cpu_rows = generate_cpu_trace::<F>(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
@@ -119,33 +119,33 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
 
     TableKindSetBuilder {
-        cpu_stark: trace_rows_to_poly_values(cpu_rows),
-        rangecheck_stark: trace_rows_to_poly_values(rangecheck_rows),
-        xor_stark: trace_rows_to_poly_values(xor_rows),
-        shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),
-        program_stark: trace_rows_to_poly_values(program_rows),
-        program_mult_stark: trace_rows_to_poly_values(program_mult_rows),
-        memory_stark: trace_rows_to_poly_values(memory_rows),
-        elf_memory_init_stark: trace_rows_to_poly_values(elf_memory_init_rows),
-        mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
-        call_tape_init_stark: trace_rows_to_poly_values(call_tape_init_rows),
-        private_tape_init_stark: trace_rows_to_poly_values(private_tape_init_rows),
-        public_tape_init_stark: trace_rows_to_poly_values(public_tape_init_rows),
-        event_tape_init_stark: trace_rows_to_poly_values(event_tape_init_rows),
-        memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
-        rangecheck_u8_stark: trace_rows_to_poly_values(rangecheck_u8_rows),
-        halfword_memory_stark: trace_rows_to_poly_values(halfword_memory_rows),
-        fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),
-        io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
-        io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
-        call_tape_stark: trace_rows_to_poly_values(call_tape_rows),
-        register_init_stark: trace_rows_to_poly_values(register_init_rows),
-        register_stark: trace_rows_to_poly_values(register_rows),
-        register_zero_read_stark: trace_rows_to_poly_values(register_zero_read_rows),
-        register_zero_write_stark: trace_rows_to_poly_values(register_zero_write_rows),
-        poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
-        poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
-        poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
+        cpu_stark: vec![trace_rows_to_poly_values(cpu_rows)],
+        rangecheck_stark: vec![trace_rows_to_poly_values(rangecheck_rows)],
+        xor_stark: vec![trace_rows_to_poly_values(xor_rows)],
+        shift_amount_stark: vec![trace_rows_to_poly_values(shift_amount_rows)],
+        program_stark: vec![trace_rows_to_poly_values(program_rows)],
+        program_mult_stark: vec![trace_rows_to_poly_values(program_mult_rows)],
+        memory_stark: vec![trace_rows_to_poly_values(memory_rows)],
+        elf_memory_init_stark: vec![trace_rows_to_poly_values(elf_memory_init_rows)],
+        mozak_memory_init_stark: vec![trace_rows_to_poly_values(mozak_memory_init_rows)],
+        call_tape_init_stark: vec![trace_rows_to_poly_values(call_tape_init_rows)],
+        private_tape_init_stark: vec![trace_rows_to_poly_values(private_tape_init_rows)],
+        public_tape_init_stark: vec![trace_rows_to_poly_values(public_tape_init_rows)],
+        event_tape_init_stark: vec![trace_rows_to_poly_values(event_tape_init_rows)],
+        memory_zeroinit_stark: vec![trace_rows_to_poly_values(memory_zeroinit_rows)],
+        rangecheck_u8_stark: vec![trace_rows_to_poly_values(rangecheck_u8_rows)],
+        halfword_memory_stark: vec![trace_rows_to_poly_values(halfword_memory_rows)],
+        fullword_memory_stark: vec![trace_rows_to_poly_values(fullword_memory_rows)],
+        io_memory_private_stark: vec![trace_rows_to_poly_values(io_memory_private_rows)],
+        io_memory_public_stark: vec![trace_rows_to_poly_values(io_memory_public_rows)],
+        call_tape_stark: vec![trace_rows_to_poly_values(call_tape_rows)],
+        register_init_stark: vec![trace_rows_to_poly_values(register_init_rows)],
+        register_stark: vec![trace_rows_to_poly_values(register_rows)],
+        register_zero_read_stark: vec![trace_rows_to_poly_values(register_zero_read_rows)],
+        register_zero_write_stark: vec![trace_rows_to_poly_values(register_zero_write_rows)],
+        poseidon2_stark: vec![trace_rows_to_poly_values(poseidon2_rows)],
+        poseidon2_sponge_stark: vec![trace_rows_to_poly_values(poseiden2_sponge_rows)],
+        poseidon2_output_bytes_stark: vec![trace_rows_to_poly_values(poseidon2_output_bytes_rows)],
     }
     .build()
 }
@@ -169,7 +169,7 @@ pub fn transpose_polys<
 }
 
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
-    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+    traces_poly_values: &TableKindArray<Vec<Vec<PolynomialValues<F>>>>,
     mozak_stark: &MozakStark<F, D>,
     public_inputs: &PublicInputs<F>,
 ) {
@@ -190,11 +190,12 @@ pub fn debug_single_trace<
     S: Stark<F, D> + Display + HasNamedColumns,
 >(
     stark: &S,
-    trace_rows: &[PolynomialValues<F>],
+    trace_rows: &[Vec<PolynomialValues<F>>],
     public_inputs: &[F],
 ) where
     S::Columns: FromIterator<F> + Debug, {
-    transpose_polys::<F, D, S>(trace_rows.to_vec())
+    let trace_rows = trace_rows.iter().flatten().cloned().collect_vec();
+    transpose_polys::<F, D, S>(trace_rows)
         .iter()
         .enumerate()
         .circular_tuple_windows()

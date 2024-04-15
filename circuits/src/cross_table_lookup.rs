@@ -543,7 +543,7 @@ pub mod ctl_utils {
     impl<F: RichField> MultiSet<F> {
         fn process_row(
             &mut self,
-            trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+            trace_poly_values: &TableKindArray<Vec<Vec<PolynomialValues<F>>>>,
             table: &Table,
         ) {
             let trace = &trace_poly_values[table.kind];
@@ -567,7 +567,7 @@ pub mod ctl_utils {
         }
     }
     pub fn check_single_ctl<F: RichField>(
-        trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+        trace_poly_values: &TableKindArray<Vec<Vec<PolynomialValues<F>>>>,
         // TODO(Matthias): make this one work with CrossTableLookupNamed, instead of having to
         // forget the types first.  That should also help with adding better debug messages.
         ctl: &CrossTableLookup,
@@ -627,7 +627,7 @@ pub mod ctl_utils {
         Ok(())
     }
     pub fn debug_ctl<F: RichField + Extendable<D>, const D: usize>(
-        traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+        traces_poly_values: &TableKindArray<Vec<Vec<PolynomialValues<F>>>>,
         mozak_stark: &MozakStark<F, D>,
     ) {
         mozak_stark

@@ -77,7 +77,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
-    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+    traces_poly_values: &TableKindArray<Vec<Vec<PolynomialValues<F>>>>,
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
@@ -92,29 +92,32 @@ where
         traces_poly_values
             .clone()
             .with_kind()
-            .map(|(trace, table)| {
+            .map(|(traces, table)| {
                 timed!(
                     timing,
                     &format!("compute trace commitment for {table:?}"),
-                    PolynomialBatch::<F, C, D>::from_values(
-                        trace.clone(),
-                        rate_bits,
-                        false,
-                        cap_height,
-                        timing,
-                        None,
-                    )
+                    traces.into_iter().map(|trace|
+                        PolynomialBatch::<F, C, D>::from_values(
+                            trace.clone(),
+                            rate_bits,
+                            false,
+                            cap_height,
+                            timing,
+                            None,
+                        )).collect::<Vec<_>>()
                 )
             })
     );
 
     let trace_caps = trace_commitments
         .each_ref()
-        .map(|c| c.merkle_tree.cap.clone());
+        .map(|cs| cs.into_iter().map(|c| c.merkle_tree.cap.clone()).collect_vec());
     // Add trace commitments to the challenger entropy pool.
     let mut challenger = Challenger::<F, C::Hasher>::new();
-    for cap in &trace_caps {
-        challenger.observe_cap(cap);
+    for caps in &trace_caps {
+        for cap in caps {
+            challenger.observe_cap(cap);
+        }
     }
 
     let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
@@ -341,7 +344,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: &PublicInputs<F>,
-    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+    traces_poly_values: &TableKindArray<Vec<Vec<PolynomialValues<F>>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
