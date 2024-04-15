@@ -242,10 +242,7 @@ fn main() -> Result<()> {
                         .writer
                         .get(&ProgramIdentifier::from(plan.self_prog_id.clone()))
                         .cloned()
-                        .ok_or(anyhow::anyhow!(
-                            "Event tape not found for program id: {:?}",
-                            plan.self_prog_id
-                        ))?;
+                        .unwrap_or_default();
                     let args = tapes_to_runtime_arguments(
                         Input::try_from(&plan.system_tape_filepath)?,
                         Some(plan.self_prog_id.to_string()),
