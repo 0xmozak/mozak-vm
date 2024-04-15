@@ -32,11 +32,10 @@ use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
 use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
 use mozak_runner::elf::RuntimeArguments;
-use mozak_runner::state::State;
+use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
 use mozak_sdk::native::{OrderedEvents, ProofBundle};
-use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -132,7 +131,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone());
+            let state: State<F> = State::new(program.clone(), RawTapes::default());
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs {
@@ -145,7 +144,7 @@ fn main() -> Result<()> {
                 .unwrap_or_default();
 
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone());
+            let state = State::new(program.clone(), RawTapes::default());
 
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -161,7 +160,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone());
+            let state = State::new(program.clone(), RawTapes::default());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -258,7 +257,7 @@ fn main() -> Result<()> {
                     }),
                     &args,
                 )?;
-                let state = State::<GoldilocksField>::new(program.clone());
+                let state = State::new(program.clone(), RawTapes::default());
                 let record = step(&program, state)?;
 
                 let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {

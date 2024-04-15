@@ -11,7 +11,7 @@ use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
-use crate::elf::{Data, Program};
+use crate::elf::{Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
 
@@ -106,6 +106,16 @@ impl Default for IoTape {
     }
 }
 
+/// Converts raw bytes in [`Data`] to an [`IoTape`] for consumption via ecalls.
+impl From<Data> for IoTape {
+    fn from(data: Data) -> Self {
+        Self {
+            data: Rc::from_iter(data.0.values().cloned().into_iter()),
+            read_index: 0,
+        }
+    }
+}
+
 /// By default, all `State` start with `clk` 1. This is to differentiate
 /// execution clocks (1 and above) from `clk` value of 0 which is
 /// reserved for any initialisation concerns. e.g. memory initialization
@@ -138,6 +148,12 @@ impl<F: RichField> From<Program> for State<F> {
             mozak_ro_memory,
         }: Program,
     ) -> Self {
+        let mrm = mozak_ro_memory.as_ref().unwrap();
+        let private_tape = IoTape::from(mrm.io_tape_private.data.clone());
+        let public_tape = IoTape::from(mrm.io_tape_public.data.clone());
+        let call_tape = IoTape::from(mrm.call_tape.data.clone());
+        let event_tape = IoTape::from(mrm.event_tape.data.clone());
+
         Self {
             pc,
             memory: StateMemory::new(
@@ -148,6 +164,10 @@ impl<F: RichField> From<Program> for State<F> {
                 .into_iter(),
                 [rw_memory].into_iter(),
             ),
+            private_tape,
+            public_tape,
+            call_tape,
+            event_tape,
             ..Default::default()
         }
     }
@@ -193,6 +213,29 @@ pub struct Aux<F: RichField> {
     pub io: Option<IoEntry>,
 }
 
+#[derive(Default)]
+pub struct RawTapes {
+    pub private_tape: Vec<u8>,
+    pub public_tape: Vec<u8>,
+    pub call_tape: Vec<u8>,
+    pub event_tape: Vec<u8>,
+}
+
+/// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
+/// compatible `RawTapes`.
+///
+/// TODO(bing): Remove when we no longer rely on preinit memory.
+impl From<RuntimeArguments> for RawTapes {
+    fn from(args: RuntimeArguments) -> Self {
+        Self {
+            private_tape: args.io_tape_private,
+            public_tape: args.io_tape_public,
+            call_tape: args.call_tape,
+            event_tape: args.event_tape,
+        }
+    }
+}
+
 impl<F: RichField> State<F> {
     #[must_use]
     #[allow(clippy::similar_names)]
@@ -207,6 +250,7 @@ impl<F: RichField> State<F> {
             mozak_ro_memory,
             ..
         }: Program,
+        raw_tapes: RawTapes,
     ) -> Self {
         Self {
             pc,
@@ -218,6 +262,22 @@ impl<F: RichField> State<F> {
                 .into_iter(),
                 once(rw_memory),
             ),
+            private_tape: IoTape {
+                data: raw_tapes.private_tape.into(),
+                read_index: 0,
+            },
+            public_tape: IoTape {
+                data: raw_tapes.public_tape.into(),
+                read_index: 0,
+            },
+            call_tape: IoTape {
+                data: raw_tapes.call_tape.into(),
+                read_index: 0,
+            },
+            event_tape: IoTape {
+                data: raw_tapes.event_tape.into(),
+                read_index: 0,
+            },
             ..Default::default()
         }
     }
