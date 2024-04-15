@@ -7,6 +7,7 @@ use poseidon2::mozak_poseidon2;
 use crate::common::types::poseidon2hash::DIGEST_BYTES;
 use crate::common::types::{Poseidon2Hash, ProgramIdentifier};
 use crate::mozakvm::linker_symbols::_mozak_self_prog_id;
+
 /// Get a owned reference to a length-prefixed memory region.
 /// It is expected that the memory region is length-prefixed
 /// in little-endian 4-bytes and (addr+4) marks the begining
