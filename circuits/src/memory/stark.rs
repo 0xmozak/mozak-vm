@@ -14,7 +14,7 @@ use starky::stark::Stark;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::memory::columns::Memory;
-use crate::stark::utils::{build_typed_starkframe_circuit, build_typed_starkframe_packed};
+use crate::stark::utils::build_typed_starkframe;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -170,7 +170,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&build_typed_starkframe_packed(&eb, vars));
+        let constraints = generate_constraints(&build_typed_starkframe(&eb, vars));
         build_packed(constraints, consumer);
     }
 
@@ -183,7 +183,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&build_typed_starkframe_circuit(&eb, vars));
+        let constraints = generate_constraints(&build_typed_starkframe(&eb, vars));
         build_ext(constraints, builder, consumer);
     }
 }

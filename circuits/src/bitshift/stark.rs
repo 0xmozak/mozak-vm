@@ -14,7 +14,7 @@ use starky::stark::Stark;
 use super::columns::BitshiftView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
-use crate::stark::utils::{build_typed_starkframe_circuit, build_typed_starkframe_packed};
+use crate::stark::utils::build_typed_starkframe;
 
 /// Bitshift Trace Constraints
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -88,7 +88,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&build_typed_starkframe_packed(&expr_builder, vars));
+        let constraints = generate_constraints(&build_typed_starkframe(&expr_builder, vars));
         build_packed(constraints, constraint_consumer);
     }
 
@@ -101,8 +101,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let constraints =
-            generate_constraints(&build_typed_starkframe_circuit(&expr_builder, vars));
+        let constraints = generate_constraints(&build_typed_starkframe(&expr_builder, vars));
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
 }

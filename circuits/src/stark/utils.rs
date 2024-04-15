@@ -14,55 +14,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 /// Convert from untyped `StarkFrame` to a typed representation.
 ///
 /// We ignore public inputs for now, and leave them as is.
-pub fn build_typed_starkframe_circuit<
-    'a,
-    T,
-    const N: usize,
-    const N2: usize,
-    View,
-    PublicInputs,
->(
-    builder: &'a ExprBuilder,
-    vars: &'a StarkFrame<T, T, N, N2>,
-) -> StarkFrameTyped<View, PublicInputs>
-where
-    T: Copy + Clone + Default,
-    // We don't actually need the first constraint, but it's useful to make the compiler yell
-    // at us, if we mix things up. See the TODO about fixing `StarkEvaluationFrame` to
-    // give direct access to its contents.
-    View: From<[Expr<'a, T>; N]> + FromIterator<Expr<'a, T>>,
-    PublicInputs: From<[Expr<'a, T>; N2]> + FromIterator<Expr<'a, T>>, {
-    StarkFrameTyped {
-        local_values: vars
-            .get_local_values()
-            .iter()
-            .map(|&v| builder.lit(v))
-            .collect(),
-        next_values: vars
-            .get_next_values()
-            .iter()
-            .map(|&v| builder.lit(v))
-            .collect(),
-        public_inputs: vars
-            .get_public_inputs()
-            .iter()
-            .map(|&v| builder.lit(v))
-            .collect(),
-    }
-}
-
-/// Convert from untyped `StarkFrame` to a typed representation.
-///
-/// We ignore public inputs for now, and leave them as is.
-pub fn build_typed_starkframe_packed<
-    'a,
-    T,
-    U,
-    const N: usize,
-    const N2: usize,
-    View,
-    PublicInputs,
->(
+pub fn build_typed_starkframe<'a, T, U, const N: usize, const N2: usize, View, PublicInputs>(
     builder: &'a ExprBuilder,
     vars: &'a StarkFrame<T, U, N, N2>,
 ) -> StarkFrameTyped<View, PublicInputs>
