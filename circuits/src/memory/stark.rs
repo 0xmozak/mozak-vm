@@ -120,36 +120,13 @@ mod tests {
     use anyhow::Result;
     use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-    use plonky2::util::timing::TimingTree;
-    use starky::prover::prove;
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
-    use starky::verifier::verify_stark_proof;
 
-    use crate::cross_table_lookup::ctl_utils::check_single_ctl;
-    use crate::cross_table_lookup::CrossTableLookupWithTypedOutput;
-    use crate::generation::fullword_memory::generate_fullword_memory_trace;
-    use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::io_memory::{
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
-    };
-    use crate::generation::memory::generate_memory_trace;
-    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-    use crate::generation::memoryinit::{
-        generate_elf_memory_init_trace, generate_memory_init_trace,
-        generate_mozak_memory_init_trace,
-    };
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
-    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
-    use crate::stark::mozak_stark::{
-        ElfMemoryInitTable, MozakMemoryInitTable, MozakStark, TableKindSetBuilder,
-    };
-    use crate::stark::utils::trace_rows_to_poly_values;
-    use crate::test_utils::{fast_test_config, ProveAndVerify};
-    use crate::{memory, memory_zeroinit, memoryinit};
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
