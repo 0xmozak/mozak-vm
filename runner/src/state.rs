@@ -148,11 +148,14 @@ impl<F: RichField> From<Program> for State<F> {
             mozak_ro_memory,
         }: Program,
     ) -> Self {
-        let mrm = mozak_ro_memory.as_ref().unwrap();
-        let private_tape = IoTape::from(mrm.io_tape_private.data.clone());
-        let public_tape = IoTape::from(mrm.io_tape_public.data.clone());
-        let call_tape = IoTape::from(mrm.call_tape.data.clone());
-        let event_tape = IoTape::from(mrm.event_tape.data.clone());
+        let mut state: State<F> = State::default();
+
+        if let Some(ref mrm) = mozak_ro_memory {
+            state.private_tape = IoTape::from(mrm.io_tape_private.data.clone());
+            state.public_tape = IoTape::from(mrm.io_tape_public.data.clone());
+            state.call_tape = IoTape::from(mrm.call_tape.data.clone());
+            state.event_tape = IoTape::from(mrm.event_tape.data.clone());
+        };
 
         Self {
             pc,
@@ -164,11 +167,7 @@ impl<F: RichField> From<Program> for State<F> {
                 .into_iter(),
                 [rw_memory].into_iter(),
             ),
-            private_tape,
-            public_tape,
-            call_tape,
-            event_tape,
-            ..Default::default()
+            ..state
         }
     }
 }
