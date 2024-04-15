@@ -1,9 +1,7 @@
 use plonky2::hash::poseidon2::{ROUND_F_END, ROUND_P, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::linear_combination::Column;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::stark::mozak_stark::{Poseidon2Table, TableWithTypedOutput};
 
 /// The size of the state
@@ -60,7 +58,6 @@ pub struct Poseidon2StateCtl<F> {
     pub output: [F; STATE_SIZE],
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 #[must_use]
 pub fn lookup_for_sponge() -> TableWithTypedOutput<Poseidon2StateCtl<Column>> {
     // Extend data with outputs which is basically state after last full round.

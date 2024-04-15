@@ -317,7 +317,6 @@ mod tests {
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
-        #[allow(unused)]
         let poseidon2_output_bytes_rows =
             generate_poseidon2_output_bytes_trace(&poseidon2_sponge_rows);
         let mut memory_rows = generate_memory_trace(

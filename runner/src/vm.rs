@@ -1355,9 +1355,11 @@ mod tests {
         let image: HashMap<u32, u32> = mem.iter().chain(exit_inst.iter()).copied().collect();
         let program = Program::from(image);
 
-        let state = regs.iter().fold(State::from(&program), |state, (rs, val)| {
-            state.set_register_value(*rs, *val)
-        });
+        let state = regs
+            .iter()
+            .fold(State::from(program.clone()), |state, (rs, val)| {
+                state.set_register_value(*rs, *val)
+            });
 
         let record = step(&program, state).unwrap();
         assert!(record.last_state.has_halted());
