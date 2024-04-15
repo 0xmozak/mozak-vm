@@ -1,3 +1,4 @@
+use core::iter::Sum;
 use core::ops::{Add, Mul, Sub};
 
 use plonky2::field::extension::Extendable;
@@ -103,9 +104,6 @@ pub struct CpuState<T> {
     pub new_pc: T,
     pub inst: Instruction<T>,
 
-    // Represents the end of the program. Also used as the filter column for cross checking Program
-    // ROM instructions.
-    pub is_running: T,
     // TODO(Matthias): we can remove this, once our 'halt' instruction is in its own table.
     pub next_is_running: T,
 
@@ -194,6 +192,10 @@ pub struct CpuState<T> {
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
+impl<T: Copy + Sum> CpuState<T> {
+    pub fn is_running(&self) -> T { self.inst.ops.into_iter().sum() }
+}
+
 impl<T: Copy> CpuState<T>
 where
     T: Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
@@ -216,10 +218,15 @@ where
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-impl<P: Copy + Add<Output = P>> OpSelectors<P>
+impl<P> OpSelectors<P>
 where
-    i64: Sub<P, Output = P>,
+    P: Copy + Add<Output = P> + Sum + Sub<Output = P>,
 {
+    /// List of opcodes that only bump the program counter.
+    pub fn is_straightline(self) -> P { self.into_iter().sum::<P>() - self.is_jumping() }
+}
+
+impl<P: Copy + Add<Output = P>> OpSelectors<P> {
     // List of opcodes that manipulated the program counter, instead of
     // straight line incrementing it.
     // Note: ecall is only 'jumping' in the sense that a 'halt'
@@ -227,9 +234,6 @@ where
     pub fn is_jumping(&self) -> P {
         self.beq + self.bge + self.blt + self.bne + self.ecall + self.jalr
     }
-
-    /// List of opcodes that only bump the program counter.
-    pub fn is_straightline(&self) -> P { 1 - self.is_jumping() }
 
     /// List of opcodes that work with memory.
     pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
@@ -422,7 +426,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> 
                 1 << 5,
             ),
         },
-        CPU.is_running,
+        CPU.is_running(),
     )
 }
 
@@ -451,7 +455,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rs1_selected,
                 value: CPU.op1_value,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
         CpuTable::new(
             RegisterCtl {
@@ -460,7 +464,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rs2_selected,
                 value: CPU.op2_value_raw,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
         CpuTable::new(
             RegisterCtl {
@@ -469,7 +473,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rd_selected,
                 value: CPU.dst_value,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
     ]
 }
@@ -483,6 +487,6 @@ pub fn lookup_for_skeleton() -> TableWithTypedOutput<CpuSkeletonCtl<Column>> {
             new_pc: CPU.new_pc,
             will_halt: CPU.is_halt,
         },
-        CPU.is_running,
+        CPU.is_running(),
     )
 }

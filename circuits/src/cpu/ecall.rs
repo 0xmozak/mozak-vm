@@ -46,7 +46,7 @@ pub(crate) fn halt_constraints<'a, P: Copy>(
     // 'halt' system call.
     // Enable only for halt !!!
     cb.transition(lv.is_halt * (lv.inst.ops.ecall * (lv.new_pc - lv.inst.pc)));
-    cb.always(lv.is_running.is_binary());
+    cb.always(lv.is_running().is_binary());
 }
 
 pub(crate) fn io_constraints<'a, P: Copy>(

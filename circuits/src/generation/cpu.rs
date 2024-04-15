@@ -22,8 +22,10 @@ use crate::xor::columns::XorView;
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
-    let mut last = trace.last().copied().unwrap();
-    last.is_running = F::ZERO;
+    let mut last = CpuState::default();
+    last.bitshift.multiplier = F::ONE;
+    // last.product_high_limb_inv_helper = F::ONE;
+    last.product_sign = F::ONE;
     trace.resize(len, last);
     trace
 }
@@ -37,7 +39,7 @@ pub fn generate_program_mult_trace<F: RichField>(
 ) -> Vec<ProgramMult<F>> {
     let cpu_counts = trace
         .iter()
-        .filter(|row| row.is_running == F::ONE)
+        .filter(|&row| row.is_running() == F::ONE)
         .map(|row| row.inst.pc);
     let add_counts = add_trace
         .iter()
@@ -104,7 +106,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
                 + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
-            is_running: F::from_bool(!state.halted),
+            // is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain

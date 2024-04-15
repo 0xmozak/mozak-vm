@@ -39,23 +39,15 @@ fn pc_ticks_up<'a, P: Copy>(lv: &CpuState<Expr<'a, P>>, cb: &mut ConstraintBuild
 /// Enforce that selectors of opcode are one-hot encoded.
 /// Ie exactly one of them should be 1, and all others 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
-fn one_hots<'a, P: Copy>(
+fn binary_selectors<'a, P: Copy>(
     inst: &'a Instruction<Expr<'a, P>>,
     cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
-    one_hot(inst.ops, cb);
-}
-
-fn one_hot<'a, P: Copy, Selectors: Copy + IntoIterator<Item = Expr<'a, P>>>(
-    selectors: Selectors,
-    cb: &mut ConstraintBuilder<Expr<'a, P>>,
-) {
     // selectors have value 0 or 1.
-    selectors.into_iter().for_each(|s| cb.always(s.is_binary()));
+    inst.ops.into_iter().for_each(|s| cb.always(s.is_binary()));
 
-    // Only one selector enabled.
-    let sum_s_op: Expr<'a, P> = selectors.into_iter().sum();
-    cb.always(1 - sum_s_op);
+    // Only at most one selector enabled.
+    cb.always(inst.ops.into_iter().sum::<Expr<'a, P>>().is_binary());
 }
 
 /// Constraints for values in op2, which is the sum of the value of the second
@@ -93,7 +85,7 @@ fn generate_constraints<'a, T: Copy, U>(
 
     pc_ticks_up(lv, &mut constraints);
 
-    one_hots(&lv.inst, &mut constraints);
+    binary_selectors(&lv.inst, &mut constraints);
 
     // Registers
     populate_op2_value(lv, &mut constraints);
