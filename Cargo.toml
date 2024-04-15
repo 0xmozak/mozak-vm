@@ -17,19 +17,19 @@
 [workspace]
 exclude = ["sdk"]
 members = [
-    "circuits",
-    "cli",
-    "examples-builder",
-    "expr",
-    "node-cli",
-    "node",
-    "recproofs",
-    "rpc",
-    "runner",
-    "signatures",
-    "state",
-    "wasm-demo",
-    "poseidon2",
+  "circuits",
+  "cli",
+  "examples-builder",
+  "expr",
+  "node-cli",
+  "node",
+  "recproofs",
+  "rpc",
+  "runner",
+  "signatures",
+  "state",
+  "wasm-demo",
+  "poseidon2",
 ]
 resolver = "2"
 
