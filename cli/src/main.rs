@@ -271,10 +271,6 @@ fn main() -> Result<()> {
                         trace_commitment.merkle_tree.cap
                     };
 
-                    // TODO(bing): These traces are currently empty, because the generation
-                    // relies on the old ecall API. We need new init tables for this, and
-                    // the hashes should be generated based on the new init tables.
-                    // See: https://github.com/0xmozak/mozak-vm/pull/1335#issuecomment-2029402128
                     let trace = generate_private_tape_init_trace(&program);
                     let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
