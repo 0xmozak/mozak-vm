@@ -1,6 +1,5 @@
 //! Simple library for handling ASTs for polynomials for ZKP in Rust
 
-use core::iter::Sum;
 use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
@@ -108,15 +107,6 @@ impl<'a, V> Mul<Expr<'a, V>> for i64 {
     type Output = Expr<'a, V>;
 
     fn mul(self, rhs: Expr<'a, V>) -> Self::Output { rhs * self }
-}
-
-impl<'a, V> Sum<Expr<'a, V>> for Expr<'a, V>
-where
-    Self: Add<Output = Self>,
-{
-    // For convenience with the types, we need to have at least one value.
-    #[inline]
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.reduce(Add::add).unwrap() }
 }
 
 // TODO: support `|` via multiplication.
