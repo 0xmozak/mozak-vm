@@ -22,10 +22,12 @@ use crate::xor::columns::XorView;
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
-    let mut last = CpuState::default();
-    last.bitshift.multiplier = F::ONE;
-    // last.product_high_limb_inv_helper = F::ONE;
-    last.product_sign = F::ONE;
+    let last = CpuState {
+        product_high_limb_inv_helper: F::from_canonical_u32(u32::MAX).inverse(),
+        quotient_value: F::from_canonical_u32(u32::MAX),
+        ..Default::default()
+    };
+
     trace.resize(len, last);
     trace
 }
