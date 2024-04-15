@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, HasNamedColumns, NumberOfColumns};
 
 /// Template for a STARK with zero internal constraints. Use this if the STARK
 /// itself does not need any built-in constraints, but rely on cross table
@@ -64,3 +64,10 @@ impl<
 
     fn constraint_degree(&self) -> usize { 3 }
 }
+
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct NoColumns<T> {
+    _phantom: PhantomData<T>,
+}
+columns_view_impl!(NoColumns);

@@ -14,6 +14,7 @@ use starky::stark::Stark;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::memory::columns::Memory;
+use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -29,8 +30,8 @@ const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 // Constraints design: https://docs.google.com/presentation/d/1G4tmGl8V1W0Wqxv-MwjGjaM3zUF99dzTvFhpiood4x4/edit?usp=sharing
-fn generate_constraints<'a, T: Copy, U>(
-    vars: &StarkFrameTyped<Memory<Expr<'a, T>>, Vec<U>>,
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<Memory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values;
     let nv = vars.next_values;
