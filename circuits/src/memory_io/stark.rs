@@ -155,7 +155,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
     use mozak_runner::code::execute_code_with_ro_memory;
     use mozak_runner::decode::ECALL;
     use mozak_runner::elf::{Program, RuntimeArguments};
@@ -179,7 +178,7 @@ mod tests {
         code: impl IntoIterator<Item = Instruction>,
         rw_mem: &[(u32, u8)],
         regs: &[(u8, u32)],
-        runtime_args: &RuntimeArguments,
+        runtime_args: RuntimeArguments,
     ) -> (Program, ExecutionRecord<GoldilocksField>) {
         execute_code_with_ro_memory(code, &[], rw_mem, regs, runtime_args)
     }
@@ -194,7 +193,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            &RuntimeArguments::default(),
+            RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -209,7 +208,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            &RuntimeArguments::default(),
+            RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -224,7 +223,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            &RuntimeArguments::default(),
+            RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -233,13 +232,13 @@ mod tests {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
-            &[(address, 0)],
+            &[],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
                 (REG_A1, address), // A1 - address
-                (REG_A2, 1),       // A2 - size
+                (REG_A2, u32::try_from(io_tape_private.len()).unwrap()), // A2 - size
             ],
-            &RuntimeArguments {
+            RuntimeArguments {
                 io_tape_private,
                 ..Default::default()
             },
@@ -251,14 +250,14 @@ mod tests {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
-            &[(address, 0)],
+            &[],
             &[
                 // TODO: this looks like a bug, it should be IO_READ_PUBLIC?
                 (REG_A0, ecall::IO_READ_CALL_TAPE),
                 (REG_A1, address), // A1 - address
-                (REG_A2, 1),       // A2 - size
+                (REG_A2, u32::try_from(io_tape_public.len()).unwrap()), // A2 - size
             ],
-            &RuntimeArguments {
+            RuntimeArguments {
                 io_tape_public,
                 ..Default::default()
             },
@@ -270,13 +269,13 @@ mod tests {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
-            &[(address, 0)],
+            &[],
             &[
                 (REG_A0, ecall::IO_READ_CALL_TAPE),
-                (REG_A1, address), // A1 - address
-                (REG_A2, 1),       // A2 - size
+                (REG_A1, address),                                 // A1 - address
+                (REG_A2, u32::try_from(call_tape.len()).unwrap()), // A2 - size
             ],
-            &RuntimeArguments {
+            RuntimeArguments {
                 call_tape,
                 ..Default::default()
             },
@@ -291,15 +290,13 @@ mod tests {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
-            &(0..COMMITMENT_SIZE)
-                .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
-                .collect_vec(),
+            &[],
             &[
                 (REG_A0, ecall::EVENTS_COMMITMENT_TAPE),
                 (REG_A1, address),                                 // A1 - address
                 (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
-            &RuntimeArguments {
+            RuntimeArguments {
                 events_commitment_tape,
                 ..Default::default()
             },
@@ -314,15 +311,13 @@ mod tests {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
-            &(0..COMMITMENT_SIZE)
-                .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
-                .collect_vec(),
+            &[],
             &[
                 (REG_A0, ecall::CAST_LIST_COMMITMENT_TAPE),
                 (REG_A1, address),                                 // A1 - address
                 (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
-            &RuntimeArguments {
+            RuntimeArguments {
                 cast_list_commitment_tape,
                 ..Default::default()
             },
@@ -367,7 +362,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            &RuntimeArguments {
+            RuntimeArguments {
                 self_prog_id: vec![content],
                 cast_list: vec![content],
                 events_commitment_tape: vec![content],
@@ -443,7 +438,7 @@ mod tests {
                 (address.wrapping_add(3), 0),
             ],
             &[],
-            &RuntimeArguments {
+            RuntimeArguments {
                 io_tape_private: vec![content, content, content, content],
                 ..Default::default()
             },
@@ -458,16 +453,16 @@ mod tests {
             prove_io_read_private_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_private_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_io_read_private::<MozakStark<F, D>>(address, vec![content]);
+        fn prove_io_read_private_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra(), size in u8_extra()) {
+            prove_io_read_private::<MozakStark<F, D>>(address, vec![content; size.into()]);
         }
         #[test]
         fn prove_io_read_public_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
             prove_io_read_public_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_public_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_io_read_public::<MozakStark<F, D>>(address, vec![content]);
+        fn prove_io_read_public_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra(), size in u8_extra()) {
+            prove_io_read_public::<MozakStark<F, D>>(address, vec![content; size.into()]);
         }
         #[test]
         fn prove_io_read_call_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
@@ -477,16 +472,16 @@ mod tests {
         fn prove_io_read_call_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
             prove_io_read_call_tape::<MozakStark<F, D>>(address, vec![content]);
         }
-
         #[test]
-        fn prove_events_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_events_commitment_tape::<MozakStark<F, D>>(address, vec![content]);
+        fn prove_io_read_events_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_events_commitment_tape::<MozakStark<F, D>>(address, vec![content; COMMITMENT_SIZE]);
         }
 
         #[test]
-        fn prove_cast_list_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_cast_list_commitment_tape::<MozakStark<F, D>>(address, vec![content]);
+        fn prove_io_read_castlist_commiment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_cast_list_commitment_tape::<MozakStark<F, D>>(address, vec![content; COMMITMENT_SIZE]);
         }
+
 
         #[test]
         fn prove_io_read_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {

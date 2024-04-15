@@ -12,6 +12,7 @@ use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
+use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
@@ -47,12 +48,6 @@ pub struct Memory<T> {
 
     /// Value of memory access.
     pub value: T,
-
-    /// Difference between current and previous clock.
-    pub diff_clk: T,
-
-    /// Difference between current and previous addresses inversion
-    pub diff_addr_inv: T,
 }
 columns_view_impl!(Memory);
 make_col_map!(MEM, Memory);
@@ -67,6 +62,19 @@ impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
             is_init: F::ONE,
             value: row.element.value,
             clk: F::ONE,
+            ..Default::default()
+        })
+    }
+}
+
+impl<F: RichField> From<&MemoryZeroInit<F>> for Option<Memory<F>> {
+    /// Clock `clk` is deliberately set to zero, to come before 'real' init
+    /// rows.
+    fn from(row: &MemoryZeroInit<F>) -> Self {
+        row.filter.is_one().then(|| Memory {
+            is_writable: F::ONE,
+            addr: row.addr,
+            is_init: F::ONE,
             ..Default::default()
         })
     }
@@ -178,10 +186,24 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    [MEM.addr, MEM.addr, MEM.diff_clk]
-        .into_iter()
-        .map(|addr| MemoryTable::new(RangeCheckCtl(addr), MEM.is_executed()))
-        .collect()
+    vec![
+        MemoryTable::new(
+            // We treat `is_init` on the next line special, to make sure that inits change the
+            // address.
+            RangeCheckCtl(MEM.addr.diff() - MEM.is_init.flip()),
+            MEM.is_executed(),
+        ),
+        // Anything but an init has a non-negative clock difference.
+        // We augment the clock difference, to make sure that for the same clock cycle the order is
+        // as follows: init, load, store, dummy.
+        // Specifically, loads should come before stores, so that eg a poseidon ecall that reads
+        // and writes to the same memory addresses will do the Right Thing.
+        MemoryTable::new(
+            // TODO: put augmented_clock function into columns, like for registers.
+            RangeCheckCtl((MEM.clk * 4 - MEM.is_store - MEM.is_load * 2 - MEM.is_init * 3).diff()),
+            (1 - MEM.is_init).flip(),
+        ),
+    ]
 }
 
 #[must_use]
