@@ -110,7 +110,7 @@ impl Default for IoTape {
 impl From<Data> for IoTape {
     fn from(data: Data) -> Self {
         Self {
-            data: Rc::from_iter(data.0.values().cloned().into_iter()),
+            data: data.0.values().copied().collect::<Rc<[u8]>>(),
             read_index: 0,
         }
     }
