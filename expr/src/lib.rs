@@ -4,6 +4,7 @@ use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+mod basic;
 
 /// Contains a reference to [`ExprTree`] that is managed by [`ExprBuilder`].
 #[derive(Clone, Copy, Debug)]
@@ -229,7 +230,7 @@ pub enum UnaOp {
 
 /// Internal type to represent the expression trees
 #[derive(Debug)]
-enum ExprTree<'a, V> {
+pub enum ExprTree<'a, V> {
     BinOp {
         op: BinOp,
         left: &'a ExprTree<'a, V>,
