@@ -248,7 +248,7 @@ mod tests {
         assert_ne!(
             state.private_tape.data.len(),
             0,
-            "Proving an execution with an empty tape may result in a false positive"
+            "Proving an execution with an empty tape can be a false positive in testing"
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -273,7 +273,7 @@ mod tests {
         assert_ne!(
             state.public_tape.data.len(),
             0,
-            "Proving an execution with an empty tape may result in a false positive"
+            "Proving an execution with an empty tape can be a false positive in testing"
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -297,7 +297,7 @@ mod tests {
         assert_ne!(
             state.call_tape.data.len(),
             0,
-            "Proving an execution with an empty tape may result in a false positive"
+            "Proving an execution with an empty tape can be a false positive in testing"
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
