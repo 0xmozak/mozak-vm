@@ -50,10 +50,7 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///   `ElfMemoryInit trace cap`: 64
 ///   `MozakMemoryInit trace cap`: 64
 ///   `bitshift public sub table`: 2 rows * 32 columns = 64
-#[cfg(not(feature = "test_public_table"))]
 pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64;
-#[cfg(feature = "test_public_table")]
-pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64 + 64;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
@@ -662,7 +659,6 @@ mod tests {
     type S = MozakStark<F, D>;
 
     #[test]
-    #[cfg(feature = "test_public_table")]
     fn recursive_verify_mozak_starks() -> Result<()> {
         use itertools::Itertools;
         use plonky2::field::types::Field;
