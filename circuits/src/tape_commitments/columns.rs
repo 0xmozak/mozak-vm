@@ -9,8 +9,9 @@ use crate::linear_combination::Column;
 use crate::public_sub_table::PublicSubTable;
 use crate::stark::mozak_stark::{TableWithTypedOutput, TapeCommitmentsTable};
 
-make_col_map!(TapeCommitments);
+make_col_map!(TAPE_COMMITMENTS, TapeCommitments);
 columns_view_impl!(TapeCommitments);
+
 pub const EVENT_COMMITMENT_TAPE_OFFSET: usize = 25;
 pub const CASTLIST_COMMITMENT_TAPE_OFFSET: usize = 57;
 
@@ -55,10 +56,10 @@ pub struct TapeCommitmentCTL<T> {
 pub fn lookup_for_castlist_commitment() -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
     TapeCommitmentsTable::new(
         TapeCommitmentCTL {
-            byte: COL_MAP.commitment_byte_row.byte,
-            index: COL_MAP.commitment_byte_row.index,
+            byte: TAPE_COMMITMENTS.commitment_byte_row.byte,
+            index: TAPE_COMMITMENTS.commitment_byte_row.index,
         },
-        COL_MAP.castlist_commitment_tape_multiplicity,
+        TAPE_COMMITMENTS.castlist_commitment_tape_multiplicity,
     )
 }
 
@@ -66,10 +67,10 @@ pub fn lookup_for_castlist_commitment() -> TableWithTypedOutput<TapeCommitmentCT
 pub fn lookup_for_event_tape_commitment() -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
     TapeCommitmentsTable::new(
         TapeCommitmentCTL {
-            byte: COL_MAP.commitment_byte_row.byte,
-            index: COL_MAP.commitment_byte_row.index,
+            byte: TAPE_COMMITMENTS.commitment_byte_row.byte,
+            index: TAPE_COMMITMENTS.commitment_byte_row.index,
         },
-        COL_MAP.event_commitment_tape_multiplicity,
+        TAPE_COMMITMENTS.event_commitment_tape_multiplicity,
     )
 }
 
@@ -77,8 +78,8 @@ pub fn lookup_for_event_tape_commitment() -> TableWithTypedOutput<TapeCommitment
 pub fn make_event_commitment_tape_public() -> PublicSubTable {
     PublicSubTable {
         table: TapeCommitmentsTable::new(
-            vec![COL_MAP.commitment_byte_row.byte],
-            COL_MAP.is_event_commitment_tape_row,
+            vec![TAPE_COMMITMENTS.commitment_byte_row.byte],
+            TAPE_COMMITMENTS.is_event_commitment_tape_row,
         ),
         num_rows: 32,
     }
@@ -88,8 +89,8 @@ pub fn make_event_commitment_tape_public() -> PublicSubTable {
 pub fn make_castlist_commitment_tape_public() -> PublicSubTable {
     PublicSubTable {
         table: TapeCommitmentsTable::new(
-            vec![COL_MAP.commitment_byte_row.byte],
-            COL_MAP.is_castlist_commitment_tape_row,
+            vec![TAPE_COMMITMENTS.commitment_byte_row.byte],
+            TAPE_COMMITMENTS.is_castlist_commitment_tape_row,
         ),
         num_rows: 32,
     }
