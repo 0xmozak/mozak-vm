@@ -14,11 +14,19 @@ pub struct BenchArgs {
 
 #[derive(PartialEq, Debug, Subcommand, Clone)]
 pub enum BenchFunction {
-    XorBench { iterations: u32 },
-    NopBench { iterations: u32 },
-    Poseidon2Bench { input_len: u32 },
+    XorBench {
+        iterations: u32,
+    },
+    NopBench {
+        iterations: u32,
+    },
+    Poseidon2Bench {
+        input_len: u32,
+    },
     /// Benchmarks (almost) every instruction.
-    OmniBench { iterations: u32 },
+    OmniBench {
+        iterations: u32,
+    },
 }
 
 impl BenchArgs {
