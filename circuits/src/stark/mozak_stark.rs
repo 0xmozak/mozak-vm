@@ -487,6 +487,31 @@ pub struct TableWithTypedOutput<Row> {
     pub(crate) filter_column: Column,
 }
 
+// #[repr(C)]
+// pub struct Tagged<T, Row> {
+//     tag: T,
+//     row: Row,
+// }
+
+impl<Row> TableWithTypedOutput<Row> {
+    #[must_use]
+    pub fn negate_multiplicity(self) -> Self {
+        Self {
+            kind: self.kind,
+            columns: self.columns,
+            filter_column: -self.filter_column,
+        }
+    }
+}
+
+impl Table {
+    #[must_use]
+    pub fn tagged(mut self, tag: i64) -> Self {
+        self.columns.push(Column::constant(tag));
+        self
+    }
+}
+
 pub type TableUntyped = TableWithTypedOutput<Vec<Column>>;
 pub use TableUntyped as Table;
 

@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use anyhow::{ensure, Result};
-use itertools::{chain, iproduct, izip, zip_eq};
+use itertools::{chain, iproduct, izip, zip_eq, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -55,8 +57,7 @@ impl<F: Field> CtlData<F> {
 pub(crate) struct CtlZData<F: Field> {
     pub(crate) z: PolynomialValues<F>,
     pub(crate) challenge: GrandProductChallenge<F>,
-    pub(crate) columns: Vec<Column>,
-    pub(crate) filter_column: Column,
+    pub(crate) tables: Vec<(Vec<Column>, Column)>,
 }
 
 pub(crate) fn verify_cross_table_lookups_and_public_sub_tables<
@@ -71,6 +72,10 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_tables<
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter().copied());
     for _ in 0..config.num_challenges {
+        // TODO: just sum everything up (with signs), and check that the sum is zero
+        // Instead of doing one sum for each CrossTableLookup.
+        // When generating (and checking constraints) use a tag that we get from
+        // enumerating `cross_table_lookups`.
         for CrossTableLookup {
             looking_tables,
             looked_tables,
@@ -163,11 +168,78 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_table_circuit<
     debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
 }
 
+#[must_use]
+fn chunk_it_up<F: Field>(
+    polys: impl Iterator<Item = PolynomialValues<F>>,
+) -> Vec<PolynomialValues<F>> {
+    polys
+        .chunks(2)
+        .into_iter()
+        .filter_map(|chunk| {
+            chunk.into_iter().reduce(|xs, ys| {
+                PolynomialValues::new(
+                    izip!(xs.values, ys.values)
+                        .map(|(x, y)| x + y)
+                        .collect::<Vec<_>>(),
+                )
+            })
+        })
+        .collect()
+}
+
+// TODO(Matthias): here is where we do the batching.
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     cross_table_lookups: &[CrossTableLookup],
     ctl_challenges: &GrandProductChallengeSet<F>,
 ) -> TableKindArray<CtlData<F>> {
+    // First, we need to collect all look.* tables for each table kind.
+
+    // The hash table is non-deterministic, but the end result should be.
+    let mut mapmap: HashMap<TableKind, Vec<Table>> =
+        izip!((0..), cross_table_lookups.iter().cloned())
+            .flat_map(
+                |(
+                    tag,
+                    CrossTableLookup {
+                        looking_tables,
+                        looked_tables,
+                    },
+                )| {
+                    chain!(
+                        looking_tables,
+                        looked_tables
+                            .into_iter()
+                            .map(TableWithTypedOutput::negate_multiplicity),
+                    )
+                    .map(
+                        move |table: TableWithTypedOutput<Vec<ColumnSparse<i64>>>| {
+                            table.tagged(tag)
+                        },
+                    )
+                },
+            )
+            .into_group_map_by(|table| table.kind);
+    let tables: TableKindArray<Vec<Table>> =
+        all_kind!(|kind| mapmap.remove(&kind).unwrap_or_default());
+    assert!(mapmap.is_empty());
+    {
+        // let mut ctl_data_per_table = all_kind!(|_kind| CtlData::default());
+        for &challenge in &ctl_challenges.challenges {
+            let zsss: TableKindArray<Vec<PolynomialValues<F>>> = all_kind!(|kind| {
+                chunk_it_up(tables[kind].iter().map(|table| {
+                    // We can just call this one twice, and add it up elementwise!
+                    partial_sums(
+                        &trace_poly_values[kind],
+                        &table.columns,
+                        &table.filter_column,
+                        challenge,
+                    )
+                }))
+            });
+        }
+    }
+
     let mut ctl_data_per_table = all_kind!(|_kind| CtlData::default());
     for &challenge in &ctl_challenges.challenges {
         for CrossTableLookup {
@@ -184,6 +256,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
             );
 
             let make_z = |table: &Table| {
+                // We can just call this one twice, and add it up elementwise!
                 partial_sums(
                     &trace_poly_values[table.kind],
                     &table.columns,
@@ -212,8 +285,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 ctl_data_per_table[table.kind].zs_columns.push(CtlZData {
                     z,
                     challenge,
-                    columns: table.columns.clone(),
-                    filter_column: table.filter_column.clone(),
+                    tables: vec![(table.columns.clone(), table.filter_column.clone())],
                 });
             }
         }
@@ -338,7 +410,7 @@ impl<Row> CrossTableLookupWithTypedOutput<Row> {
 }
 
 #[derive(Clone)]
-pub struct CtlCheckVars<'a, F, FE, P, const D2: usize>
+pub struct CtlCheckVars<F, FE, P, const D2: usize>
 where
     F: Field,
     FE: FieldExtension<D2, BaseField = F>,
@@ -346,12 +418,11 @@ where
     pub(crate) local_z: P,
     pub(crate) next_z: P,
     pub(crate) challenges: GrandProductChallenge<F>,
-    pub(crate) columns: &'a [Column],
-    pub(crate) filter_column: &'a Column,
+    pub(crate) tables: Vec<(Vec<Column>, Column)>,
 }
 
 impl<'a, F: RichField + Extendable<D>, const D: usize>
-    CtlCheckVars<'a, F, F::Extension, F::Extension, D>
+    CtlCheckVars<F, F::Extension, F::Extension, D>
 {
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
         proofs: &TableKindArray<StarkProof<F, C, D>>,
@@ -376,8 +447,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 local_z,
                 next_z,
                 challenges,
-                columns: &table.columns,
-                filter_column: &table.filter_column,
+                tables: vec![(table.columns.clone(), table.filter_column.clone())],
             });
         }
         for (&challenges, public_sub_table) in
@@ -388,8 +458,10 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 local_z,
                 next_z,
                 challenges,
-                columns: &public_sub_table.table.columns,
-                filter_column: &public_sub_table.table.filter_column,
+                tables: vec![(
+                    public_sub_table.table.columns.clone(),
+                    public_sub_table.table.filter_column.clone(),
+                )],
             });
         }
         ctl_vars_per_table
@@ -410,11 +482,13 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
             local_z,
             next_z,
             challenges,
-            columns,
-            filter_column,
+            tables,
         } = lookup_vars;
         let local_values = vars.get_local_values();
         let next_values = vars.get_next_values();
+        // TODO(Matthias): fix.
+        let columns = tables[0].0.clone();
+        let filter_column = tables[0].1.clone();
 
         let combine = |lv: &[P], nv: &[P]| -> P {
             let evals = columns.iter().map(|c| c.eval(lv, nv)).collect::<Vec<_>>();

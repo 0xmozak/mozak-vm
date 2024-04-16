@@ -113,6 +113,13 @@ enum Command {
 /// iotape.txt`
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
+    // let a: Vec<i32> = vec![1, 2, 3, 4, 5];
+    // let xs = a.into_iter().scan(0, |state, x| {
+    //     *state += x;
+    //     Some(*state)
+    // }).collect::<Vec<_>>();
+    // dbg!(xs);
+    // panic!();
     let cli = Cli::parse();
     let config = StarkConfig::standard_fast_config();
     env_logger::Builder::new()

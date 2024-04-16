@@ -24,6 +24,16 @@ pub struct ColumnSparse<F> {
     pub constant: F,
 }
 
+impl<F> ColumnSparse<F> {
+    pub fn constant(constant: F) -> Self {
+        Self {
+            lv_linear_combination: vec![],
+            nv_linear_combination: vec![],
+            constant,
+        }
+    }
+}
+
 impl<T> ColumnSparse<T> {
     pub fn map<F, U>(self, mut f: F) -> ColumnSparse<U>
     where

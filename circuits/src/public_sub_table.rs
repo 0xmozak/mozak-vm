@@ -95,8 +95,7 @@ impl PublicSubTable {
         CtlZData {
             z,
             challenge,
-            columns: self.table.columns.clone(),
-            filter_column: self.table.filter_column.clone(),
+            tables: vec![(self.table.columns.clone(), self.table.filter_column.clone())],
         }
     }
 
