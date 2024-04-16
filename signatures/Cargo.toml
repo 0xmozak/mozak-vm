@@ -16,7 +16,7 @@ anyhow = "1.0.82"
 hex = "0.4.3"
 itertools = "0.12.1"
 log = "0.4"
-num = "0.4.1"
+num = "0.4.2"
 plonky2 = "0"
 plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
 serde = "1.0.197"
