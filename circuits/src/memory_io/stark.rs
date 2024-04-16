@@ -260,8 +260,7 @@ mod tests {
             [ECALL],
             &[(address, 0)],
             &[
-                // TODO: this looks like a bug, it should be IO_READ_PUBLIC?
-                (REG_A0, ecall::IO_READ_CALL_TAPE),
+                (REG_A0, ecall::IO_READ_PUBLIC),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
