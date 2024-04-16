@@ -9,13 +9,7 @@ use crate::tape_commitments::columns::{CommitmentByteWithIndex, TapeCommitments}
 pub fn num_io_ecalls<F: RichField>(step_rows: &[Row<F>], which_tape: IoOpcode) -> usize {
     step_rows
         .iter()
-        .filter(|row| {
-            if let Some(io_entry) = &row.aux.io {
-                io_entry.op == which_tape
-            } else {
-                false
-            }
-        })
+        .filter(|row| row.aux.io.as_ref().is_some_and(|io| io.op == which_tape))
         .count()
 }
 

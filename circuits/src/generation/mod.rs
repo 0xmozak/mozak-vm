@@ -138,52 +138,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     let tape_commitments_rows = generate_tape_commitments_trace(record);
 
-    // print length of each trace
-    println!("cpu_rows: {}", cpu_rows.len());
-    println!("xor_rows: {}", xor_rows.len());
-    println!("shift_amount_rows: {}", shift_amount_rows.len());
-    println!("program_rows: {}", program_rows.len());
-    println!("program_mult_rows: {}", program_mult_rows.len());
-    println!("memory_rows: {}", memory_rows.len());
-    println!("elf_memory_init_rows: {}", elf_memory_init_rows.len());
-    println!("mozak_memory_init_rows: {}", mozak_memory_init_rows.len());
-    println!("call_tape_init_rows: {}", call_tape_init_rows.len());
-    println!("private_tape_init_rows: {}", private_tape_init_rows.len());
-    println!("public_tape_init_rows: {}", public_tape_init_rows.len());
-    println!("event_tape_init_rows: {}", event_tape_init_rows.len());
-    println!("memory_zeroinit_rows: {}", memory_zeroinit_rows.len());
-    println!("rangecheck_rows: {}", rangecheck_rows.len());
-    println!("rangecheck_u8_rows: {}", rangecheck_u8_rows.len());
-    println!("halfword_memory_rows: {}", halfword_memory_rows.len());
-    println!("fullword_memory_rows: {}", fullword_memory_rows.len());
-    println!("io_memory_private_rows: {}", io_memory_private_rows.len());
-    println!("io_memory_public_rows: {}", io_memory_public_rows.len());
-    println!(
-        "io_memory_call_tape_rows: {}",
-        io_memory_call_tape_rows.len()
-    );
-    println!(
-        "io_memory_events_commitment_tape_row: {}",
-        io_memory_events_commitment_tape_rows.len()
-    );
-    println!(
-        "io_memory_cast_list_commitment_tape_rows: {}",
-        io_memory_cast_list_commitment_tape_rows.len()
-    );
-    println!("poseiden2_sponge_rows: {}", poseiden2_sponge_rows.len());
-    println!(
-        "poseidon2_output_bytes_rows: {}",
-        poseidon2_output_bytes_rows.len()
-    );
-    println!("poseidon2_rows: {}", poseidon2_rows.len());
-    println!("register_zero_read_rows: {}", register_zero_read_rows.len());
-    println!(
-        "register_zero_write_rows: {}",
-        register_zero_write_rows.len()
-    );
-    println!("register_rows: {}", register_rows.len());
-    println!("tape_commitments_rows: {}", tape_commitments_rows.len());
-
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
         rangecheck_stark: trace_rows_to_poly_values(rangecheck_rows),
