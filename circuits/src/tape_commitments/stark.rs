@@ -14,8 +14,9 @@ use starky::stark::Stark;
 use super::columns::TapeCommitments;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
-fn generate_constraints<'a, T: Copy, U, const N2: usize>(
-    vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, [U; N2]>,
+use crate::unstark::NoColumns;
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv: &TapeCommitments<Expr<'a, T>> = &vars.local_values;
     let mut constraint = ConstraintBuilder::default();
