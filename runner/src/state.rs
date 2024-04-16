@@ -228,8 +228,8 @@ pub struct RawTapes {
     pub public_tape: Vec<u8>,
     pub call_tape: Vec<u8>,
     pub event_tape: Vec<u8>,
-    pub events_commitment_tape: [u8; 32],
-    pub cast_list_commitment_tape: [u8; 32],
+    pub events_commitment_tape: [u8; COMMITMENT_SIZE],
+    pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
 }
 
 /// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
