@@ -78,10 +78,10 @@ pub fn generate_tape_commitments_trace<F: RichField>(
         execution,
         IoOpcode::StoreCastListCommitmentTape,
     );
-    println!("{:?}", cast_list_commitment_trace);
+    log::trace!("{cast_list_commitment_trace:?}");
     let events_commitment_tape_trace =
         generate_tape_commitment_trace_with_op_code(execution, IoOpcode::StoreEventsCommitmentTape);
-    println!("{:?}", events_commitment_tape_trace);
+    log::trace!("{events_commitment_tape_trace:?}");
     // Note that the final trace length is 64, hence no need to pad.
     chain(cast_list_commitment_trace, events_commitment_tape_trace).collect_vec()
 }

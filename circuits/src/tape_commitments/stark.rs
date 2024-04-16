@@ -112,6 +112,7 @@ mod tests {
     use plonky2::field::types::Field;
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_tape_commitment_stark() -> Result<(), anyhow::Error> {
         let cast_list_commitment_address = 0x100;
         let events_commitment_address = 0x200;
