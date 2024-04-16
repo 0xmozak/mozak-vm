@@ -176,9 +176,9 @@ mod tests {
             },
             ECALL,
         ];
-        let mut cast_list_commitment_tape = [0; 32];
-        let mut events_commitment_tape = [0; 32];
-        for i in 0..32 {
+        let mut cast_list_commitment_tape = [0; COMMITMENT_SIZE];
+        let mut events_commitment_tape = [0; COMMITMENT_SIZE];
+        for i in 0..COMMITMENT_SIZE {
             cast_list_commitment_tape[i] = u8::try_from(i).unwrap();
             events_commitment_tape[i] = u8::try_from(i).unwrap();
         }
