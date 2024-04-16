@@ -4,10 +4,10 @@ use mozak_runner::instruction::{Args, Instruction, Op};
 use starky::config::StarkConfig;
 
 #[allow(clippy::module_name_repetitions)]
+/// Benchmark almost every instruction.
+/// Important: when extending, don't mess with register 1, because we need it as the loop variable.
 pub fn omni_bench(iterations: u32) -> Result<(), anyhow::Error> {
     let instructions = [
-        // One of almost every instructions
-        // Important: don't mess with register 1, because we need it as the loop variable.
         Instruction {
             op: Op::ADD,
             args: Args {
