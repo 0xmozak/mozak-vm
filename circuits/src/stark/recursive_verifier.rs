@@ -28,7 +28,7 @@ use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
-use crate::columns_view::columns_view_impl;
+use crate::columns_view::{columns_view_impl, NumberOfColumns};
 use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
 };
@@ -54,7 +54,7 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///   `MozakMemoryInit trace cap`: 64
 ///   `event commitment_tape`: 32
 ///   `castlist_commitment_tape`: 32
-pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64 + 32 + 32;
+pub const VM_PUBLIC_INPUT_SIZE: usize = VMRecursiveProofPublicInputs::<()>::NUMBER_OF_COLUMNS;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 pub const VM_RECURSION_CONFIG_NUM_CAPS: usize = 1 << 4;
 
