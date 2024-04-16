@@ -82,6 +82,7 @@ macro_rules! columns_view_impl {
                 crate::columns_view::ColumnViewImplHider::<Self>::from_array(value)
             }
 
+            #[must_use]
             pub const fn into_array(self) -> [T; std::mem::size_of::<$s<u8>>()] {
                 crate::columns_view::ColumnViewImplHider::<Self>::into_array(self)
             }
@@ -90,6 +91,7 @@ macro_rules! columns_view_impl {
                 crate::columns_view::ColumnViewImplHider::<Self>::from_array_ref(value)
             }
 
+            #[must_use]
             pub const fn array_ref(&self) -> &[T; std::mem::size_of::<$s<u8>>()] {
                 crate::columns_view::ColumnViewImplHider::<Self>::array_ref(self)
             }

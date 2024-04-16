@@ -138,8 +138,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        // TODO(Matthias): check why Bing's trick to avoid the let binding doesn't work
-        // here?
         let vars = expr_builder.to_typed_starkframe(vars);
         let constraints = generate_constraints(&vars);
         build_ext(constraints, circuit_builder, constraint_consumer);

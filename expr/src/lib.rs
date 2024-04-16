@@ -192,13 +192,13 @@ impl ExprBuilder {
         vars: &'a StarkFrame<T, U, N, N2>,
     ) -> StarkFrameTyped<View, PublicInputs>
     where
-        T: Copy + Clone + Default,
+        T: Copy + Clone + Default + From<U>,
         U: Copy + Clone + Default,
         // We don't actually need the first constraint, but it's useful to make the compiler yell
         // at us, if we mix things up. See the TODO about fixing `StarkEvaluationFrame` to
         // give direct access to its contents.
         View: From<[Expr<'a, T>; N]> + FromIterator<Expr<'a, T>>,
-        PublicInputs: From<[Expr<'a, U>; N2]> + FromIterator<Expr<'a, U>>, {
+        PublicInputs: From<[Expr<'a, T>; N2]> + FromIterator<Expr<'a, T>>, {
         // TODO: Fix `StarkEvaluationFrame` to give direct access to its contents, no
         // need for the reference only access.
         StarkFrameTyped {
@@ -215,7 +215,7 @@ impl ExprBuilder {
             public_inputs: vars
                 .get_public_inputs()
                 .iter()
-                .map(|&v| self.lit(v))
+                .map(|&v| self.lit(T::from(v)))
                 .collect(),
         }
     }
