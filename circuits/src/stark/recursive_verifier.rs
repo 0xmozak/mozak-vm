@@ -5,11 +5,12 @@ use std::marker::PhantomData;
 use anyhow::Result;
 use itertools::{zip_eq, Itertools};
 use log::info;
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
-use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::challenger::RecursiveChallenger;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
@@ -26,6 +27,7 @@ use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
+use crate::columns_view::columns_view_impl;
 use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
 };
@@ -53,6 +55,47 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///   `castlist_commitment_tape`: 32
 pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64 + 32 + 32;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
+pub const VM_RECURSION_CONFIG_NUM_CAPS: usize = 1 << 4;
+
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct RecursiveProofPublicInputs<T, const NUM_CAPS: usize> {
+    pub entry_point: T,
+    pub program_trace_cap: [MyHash<T>; NUM_CAPS],
+    pub elf_memory_init_trace_cap: [MyHash<T>; NUM_CAPS],
+    pub mozak_memory_init_trace_cap: [MyHash<T>; NUM_CAPS],
+    pub event_commitment_tape: [T; COMMITMENT_SIZE],
+    pub castlist_commitment_tape: [T; COMMITMENT_SIZE],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct MyHash<T> {
+    hash: [T; NUM_HASH_OUT_ELTS],
+}
+
+impl<T: Default + Copy, const NUM_CAPS: usize> Default for RecursiveProofPublicInputs<T, NUM_CAPS> {
+    fn default() -> Self {
+        Self {
+            entry_point: Default::default(),
+            program_trace_cap: [MyHash::default(); NUM_CAPS],
+            elf_memory_init_trace_cap: [MyHash::default(); NUM_CAPS],
+            mozak_memory_init_trace_cap: [MyHash::default(); NUM_CAPS],
+            event_commitment_tape: Default::default(),
+            castlist_commitment_tape: Default::default(),
+        }
+    }
+}
+
+pub type VMRecursiveProofPublicInputs<T> =
+    RecursiveProofPublicInputs<T, VM_RECURSION_CONFIG_NUM_CAPS>;
+
+pub const TEST_RECURSION_CONFIG_NUM_CAPS: usize = 1 << 1;
+pub type TestRecursiveProofPublicInputs<T> =
+    RecursiveProofPublicInputs<T, TEST_RECURSION_CONFIG_NUM_CAPS>;
+columns_view_impl!(MyHash);
+columns_view_impl!(TestRecursiveProofPublicInputs);
+columns_view_impl!(VMRecursiveProofPublicInputs);
 
 /// Represents a circuit which recursively verifies STARK proofs.
 #[derive(Eq, PartialEq, Debug)]
@@ -633,6 +676,7 @@ where
 
 #[cfg(test)]
 mod tests {
+
     use std::panic;
     use std::panic::AssertUnwindSafe;
 
@@ -647,15 +691,13 @@ mod tests {
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
 
+    use crate::columns_view::NumberOfColumns;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::prover::prove;
     use crate::stark::recursive_verifier::{
         recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
-        verify_recursive_vm_proof, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
-        VM_RECURSION_THRESHOLD_DEGREE_BITS,
-    };
-    use crate::tape_commitments::columns::{
-        get_castlist_commitment_tape_from_proof, get_event_commitment_tape_from_proof,
+        verify_recursive_vm_proof, TestRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
+        VM_RECURSION_CONFIG, VM_RECURSION_THRESHOLD_DEGREE_BITS,
     };
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
@@ -707,15 +749,18 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+        let public_input_slice: [F; TestRecursiveProofPublicInputs::<()>::NUMBER_OF_COLUMNS] =
+            recursive_proof.public_inputs.as_slice().try_into().unwrap();
         let expected_event_commitment_tape = [F::ZERO; 32];
         let expected_castlist_commitment_tape = [F::ZERO; 32];
+        let recursive_proof_public_inputs: &TestRecursiveProofPublicInputs<F> =
+            &public_input_slice.into();
         assert_eq!(
-            get_event_commitment_tape_from_proof(&recursive_proof),
-            expected_event_commitment_tape,
+            recursive_proof_public_inputs.event_commitment_tape, expected_event_commitment_tape,
             "Could not find expected_event_commitment_tape in recursive proof's public inputs"
         );
         assert_eq!(
-            get_castlist_commitment_tape_from_proof(&recursive_proof),
+            recursive_proof_public_inputs.castlist_commitment_tape,
             expected_castlist_commitment_tape,
             "Could not find expected_castlist_commitment_tape in recursive proof's public inputs"
         );
