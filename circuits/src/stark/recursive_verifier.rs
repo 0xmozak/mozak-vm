@@ -50,10 +50,7 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///   `ElfMemoryInit trace cap`: 64
 ///   `MozakMemoryInit trace cap`: 64
 ///   `bitshift public sub table`: 2 rows * 32 columns = 64
-#[cfg(not(feature = "test_public_table"))]
 pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64;
-#[cfg(feature = "test_public_table")]
-pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64 + 64;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
@@ -662,11 +659,7 @@ mod tests {
     type S = MozakStark<F, D>;
 
     #[test]
-    #[cfg(feature = "test_public_table")]
     fn recursive_verify_mozak_starks() -> Result<()> {
-        use itertools::Itertools;
-        use plonky2::field::types::Field;
-
         use crate::stark::verifier::verify_proof;
 
         let stark = S::default();
@@ -708,14 +701,6 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
-        let expected_bitshift_subtable = (0..32)
-            .flat_map(|i| [F::from_canonical_u64(i), F::from_canonical_u64(1 << i)])
-            .collect_vec();
-        assert_eq!(
-            recursive_proof.public_inputs[25..].to_vec(),
-            expected_bitshift_subtable,
-            "Could not find bitshift subtable in recursive proof's public inputs"
-        );
 
         mozak_stark_circuit.circuit.verify(recursive_proof)
     }
