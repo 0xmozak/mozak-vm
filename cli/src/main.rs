@@ -28,9 +28,9 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
+use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_preinit_memory};
 use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
-use mozak_runner::elf::RuntimeArguments;
+use mozak_runner::elf::PreinitMemory;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
@@ -120,7 +120,7 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf, &PreinitMemory::default())?;
             debug!("{program:?}");
         }
         Command::Run(RunArgs {
@@ -129,7 +129,7 @@ fn main() -> Result<()> {
             self_prog_id,
         }) => {
             let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .map(|s| tapes_to_preinit_memory(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
             let state: State<F> = State::new(program.clone(), RawTapes::default());
@@ -141,7 +141,7 @@ fn main() -> Result<()> {
             self_prog_id,
         }) => {
             let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .map(|s| tapes_to_preinit_memory(s, self_prog_id))
                 .unwrap_or_default();
 
             let program = load_program(elf, &args).unwrap();
@@ -158,7 +158,7 @@ fn main() -> Result<()> {
             recursive_proof,
         }) => {
             let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .map(|s| tapes_to_preinit_memory(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
             let state = State::new(program.clone(), RawTapes::default());
@@ -245,7 +245,7 @@ fn main() -> Result<()> {
                             "Event tape not found for program id: {:?}",
                             plan.self_prog_id
                         ))?;
-                    let args = tapes_to_runtime_arguments(
+                    let args = tapes_to_preinit_memory(
                         Input::try_from(&plan.system_tape_filepath)?,
                         Some(plan.self_prog_id.to_string()),
                     );
@@ -350,7 +350,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf, &PreinitMemory::default())?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -367,7 +367,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf, &PreinitMemory::default())?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;

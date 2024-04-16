@@ -11,7 +11,7 @@ use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
-use crate::elf::{Data, Program, RuntimeArguments};
+use crate::elf::{Data, PreinitMemory, Program};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
 
@@ -220,12 +220,12 @@ pub struct RawTapes {
     pub event_tape: Vec<u8>,
 }
 
-/// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
+/// Converts pre-init memory compatible [`PreinitMemory`] into ecall
 /// compatible `RawTapes`.
 ///
 /// TODO(bing): Remove when we no longer rely on preinit memory.
-impl From<RuntimeArguments> for RawTapes {
-    fn from(args: RuntimeArguments) -> Self {
+impl From<PreinitMemory> for RawTapes {
+    fn from(args: PreinitMemory) -> Self {
         Self {
             private_tape: args.io_tape_private,
             public_tape: args.io_tape_public,

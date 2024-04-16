@@ -157,7 +157,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 mod tests {
     use mozak_runner::code::execute_code_with_ro_memory;
     use mozak_runner::decode::ECALL;
-    use mozak_runner::elf::{Program, RuntimeArguments};
+    use mozak_runner::elf::{PreinitMemory, Program};
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::state::State;
     use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
@@ -179,7 +179,7 @@ mod tests {
         code: impl IntoIterator<Item = Instruction>,
         rw_mem: &[(u32, u8)],
         regs: &[(u8, u32)],
-        runtime_args: RuntimeArguments,
+        runtime_args: PreinitMemory,
     ) -> (Program, ExecutionRecord<GoldilocksField>) {
         execute_code_with_ro_memory(code, &[], rw_mem, regs, runtime_args)
     }
@@ -194,7 +194,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            PreinitMemory::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -209,7 +209,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            PreinitMemory::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -224,7 +224,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            PreinitMemory::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -239,7 +239,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            PreinitMemory {
                 io_tape_private,
                 ..Default::default()
             },
@@ -264,7 +264,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            PreinitMemory {
                 io_tape_public,
                 ..Default::default()
             },
@@ -288,7 +288,7 @@ mod tests {
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            PreinitMemory {
                 call_tape,
                 ..Default::default()
             },
@@ -364,7 +364,7 @@ mod tests {
                 (address.wrapping_add(3), 0),
             ],
             &[],
-            RuntimeArguments {
+            PreinitMemory {
                 io_tape_private: vec![content, content, content, content],
                 ..Default::default()
             },

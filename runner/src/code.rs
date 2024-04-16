@@ -9,7 +9,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::{decode_instruction, ECALL};
-use crate::elf::{Program, RuntimeArguments};
+use crate::elf::{PreinitMemory, Program};
 use crate::instruction::{Args, DecodingError, Instruction, Op};
 use crate::state::{RawTapes, State};
 use crate::vm::{step, ExecutionRecord};
@@ -62,7 +62,7 @@ pub fn execute_code_with_ro_memory(
     ro_mem: &[(u32, u8)],
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
-    runtime_args: RuntimeArguments,
+    preinit_mem: PreinitMemory,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     let _ = env_logger::try_init();
     let ro_code = Code(
@@ -86,8 +86,8 @@ pub fn execute_code_with_ro_memory(
         .collect(),
     );
 
-    let program = Program::create(ro_mem, rw_mem, ro_code, &runtime_args);
-    let state0 = State::new(program.clone(), RawTapes::from(runtime_args));
+    let program = Program::create(ro_mem, rw_mem, ro_code, &preinit_mem);
+    let state0 = State::new(program.clone(), RawTapes::from(preinit_mem));
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
@@ -109,5 +109,5 @@ pub fn execute(
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    execute_code_with_ro_memory(code, &[], rw_mem, regs, RuntimeArguments::default())
+    execute_code_with_ro_memory(code, &[], rw_mem, regs, PreinitMemory::default())
 }

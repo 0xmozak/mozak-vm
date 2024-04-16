@@ -193,9 +193,14 @@ impl MozakMemory {
     }
 }
 
-/// A Mozak program runtime arguments, all fields are 4 LE bytes length prefixed
+/// The preinitialized memory of a Mozak program. This struct is used for the
+/// purpose of testing.
+///
+/// All fields are 4 LE bytes length prefixed.
+///
+/// TODO(bing): Remove when we move back to pure ecalls.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RuntimeArguments {
+pub struct PreinitMemory {
     pub self_prog_id: Vec<u8>,
     pub cast_list: Vec<u8>,
     pub io_tape_private: Vec<u8>,
@@ -204,7 +209,7 @@ pub struct RuntimeArguments {
     pub event_tape: Vec<u8>,
 }
 
-impl RuntimeArguments {
+impl PreinitMemory {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.self_prog_id.is_empty()
@@ -216,8 +221,8 @@ impl RuntimeArguments {
     }
 }
 
-impl From<&RuntimeArguments> for MozakMemory {
-    fn from(args: &RuntimeArguments) -> Self {
+impl From<&PreinitMemory> for MozakMemory {
+    fn from(args: &PreinitMemory) -> Self {
         let mut mozak_ro_memory = MozakMemory::default();
         mozak_ro_memory
             .self_prog_id
@@ -354,13 +359,13 @@ impl Program {
         (elf, entry_point, segments): (ElfBytes<LittleEndian>, u32, SegmentTable<LittleEndian>),
     ) -> Program {
         // Information related to the `check_program_flags`
-        // `&& (!mozak_memory.is_mozak_ro_memory_address(ph))` --> this line is used to
-        // filter RO-addresses related to the mozak-ROM. Currently we don't
-        // support filtering by sections and, we don't know if it even possible.
-        // Mozak-ROM address are RO address and will be filled by loader-code
-        // with arguments provided from outside. Mozak-ROM can be accessed as Read-ONLY
-        // from rust code and currently no init code to this section is
-        // supported.
+        // `&& (!m/Volumes/Zed/ozak_memory.is_mozak_ro_memory_address(ph))` --> this
+        // line is used to filter RO-addresses related to the mozak-ROM.
+        // Currently we don't support filtering by sections and, we don't know
+        // if it even possible. Mozak-ROM address are RO address and will be
+        // filled by loader-code with arguments provided from outside. Mozak-ROM
+        // can be accessed as Read-ONLY from rust code and currently no init
+        // code to this section is supported.
         Program::internal_load_elf(
             input,
             entry_point,
@@ -494,7 +499,7 @@ impl Program {
     /// # Panics
     /// When `Program::load_elf` or index as address is not cast-able to be u32
     /// cast-able
-    pub fn mozak_load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
+    pub fn mozak_load_program(elf_bytes: &[u8], args: &PreinitMemory) -> Result<Program> {
         let mut program =
             Program::mozak_load_elf(elf_bytes, Program::parse_and_validate_elf(elf_bytes)?);
         let mozak_ro_memory = program
@@ -521,7 +526,7 @@ impl Program {
     }
 
     /// Creates a [`Program`] with preinitialized mozak memory given its memory,
-    /// [`Code`] and [`RuntimeArguments`].
+    /// [`Code`] and [`PreinitMemory`].
     ///
     /// # Panics
     ///
@@ -533,14 +538,14 @@ impl Program {
         ro_mem: &[(u32, u8)],
         rw_mem: &[(u32, u8)],
         ro_code: Code,
-        args: &RuntimeArguments,
+        preinit_mem: &PreinitMemory,
     ) -> Program {
         let ro_memory = Data(ro_mem.iter().copied().collect());
         let rw_memory = Data(rw_mem.iter().copied().collect());
 
         // Non-strict behavior is to allow successful creation when arguments parameter
         // is empty
-        if args.is_empty() {
+        if preinit_mem.is_empty() {
             return Program {
                 ro_memory,
                 rw_memory,
@@ -550,7 +555,8 @@ impl Program {
             };
         }
 
-        let mozak_ro_memory = MozakMemory::from(args);
+        // TODO(bing): remove when preinit memory is deprecated.
+        let mozak_ro_memory = MozakMemory::from(preinit_mem);
         let mem_iters = chain!(ro_mem.iter(), rw_mem.iter()).map(|(addr, _)| addr);
         let code_iter = ro_code.iter().map(|(addr, _)| addr);
         chain!(mem_iters, code_iter).for_each(|addr| {
@@ -583,8 +589,7 @@ mod test {
 
     #[test]
     fn test_mozak_load_program_default() {
-        Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
-            .unwrap();
+        Program::mozak_load_program(mozak_examples::EMPTY_ELF, &PreinitMemory::default()).unwrap();
     }
 
     #[test]
@@ -592,7 +597,7 @@ mod test {
         let data = vec![0, 1, 2, 3];
 
         let mozak_ro_memory =
-            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &PreinitMemory {
                 self_prog_id: data.clone(),
                 cast_list: data.clone(),
                 io_tape_private: data.clone(),
