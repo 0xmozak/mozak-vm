@@ -7,7 +7,8 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{
-    CallTapeTable, IoMemoryPrivateTable, IoMemoryPublicTable, TableKind, TableWithTypedOutput,
+    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable, IoMemoryPrivateTable,
+    IoMemoryPublicTable, TableKind, TableWithTypedOutput,
 };
 
 /// Operations (one-hot encoded)
@@ -109,5 +110,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         IoMemoryPrivateTable::new(data, COL_MAP.ops.is_io_store),
         IoMemoryPublicTable::new(data, COL_MAP.ops.is_io_store),
         CallTapeTable::new(data, COL_MAP.ops.is_io_store),
+        EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
+        CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
     ]
 }
