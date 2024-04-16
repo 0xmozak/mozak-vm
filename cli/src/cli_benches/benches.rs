@@ -17,6 +17,7 @@ pub enum BenchFunction {
     XorBench { iterations: u32 },
     NopBench { iterations: u32 },
     Poseidon2Bench { input_len: u32 },
+    /// Benchmarks (almost) every instruction.
     OmniBench { iterations: u32 },
 }
 
@@ -26,7 +27,6 @@ impl BenchArgs {
             BenchFunction::XorBench { iterations } => xor_bench(iterations),
             BenchFunction::NopBench { iterations } => nop_bench(iterations),
             BenchFunction::Poseidon2Bench { input_len } => poseidon2_bench(input_len),
-            /// Benchmarks (almost) every instruction.
             BenchFunction::OmniBench { iterations } => omni_bench(iterations),
         }
     }
