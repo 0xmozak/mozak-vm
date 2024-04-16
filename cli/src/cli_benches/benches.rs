@@ -26,6 +26,7 @@ impl BenchArgs {
             BenchFunction::XorBench { iterations } => xor_bench(iterations),
             BenchFunction::NopBench { iterations } => nop_bench(iterations),
             BenchFunction::Poseidon2Bench { input_len } => poseidon2_bench(input_len),
+            /// Benchmarks (almost) every instruction.
             BenchFunction::OmniBench { iterations } => omni_bench(iterations),
         }
     }
