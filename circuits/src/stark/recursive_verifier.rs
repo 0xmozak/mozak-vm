@@ -663,8 +663,7 @@ mod tests {
         use crate::stark::verifier::verify_proof;
 
         let stark = S::default();
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 1;
+        let config = StarkConfig::standard_fast_config();
         let (program, record) = code::execute(
             [Instruction {
                 op: Op::ADD,
