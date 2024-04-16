@@ -62,26 +62,20 @@ pub const VM_RECURSION_CONFIG_NUM_CAPS: usize = 1 << 4;
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct RecursiveProofPublicInputs<T, const NUM_CAPS: usize> {
     pub entry_point: T,
-    pub program_trace_cap: [MyHash<T>; NUM_CAPS],
-    pub elf_memory_init_trace_cap: [MyHash<T>; NUM_CAPS],
-    pub mozak_memory_init_trace_cap: [MyHash<T>; NUM_CAPS],
+    pub program_trace_cap: [[T; NUM_HASH_OUT_ELTS]; NUM_CAPS],
+    pub elf_memory_init_trace_cap: [[T; NUM_HASH_OUT_ELTS]; NUM_CAPS],
+    pub mozak_memory_init_trace_cap: [[T; NUM_HASH_OUT_ELTS]; NUM_CAPS],
     pub event_commitment_tape: [T; COMMITMENT_SIZE],
     pub castlist_commitment_tape: [T; COMMITMENT_SIZE],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct MyHash<T> {
-    hash: [T; NUM_HASH_OUT_ELTS],
 }
 
 impl<T: Default + Copy, const NUM_CAPS: usize> Default for RecursiveProofPublicInputs<T, NUM_CAPS> {
     fn default() -> Self {
         Self {
             entry_point: Default::default(),
-            program_trace_cap: [MyHash::default(); NUM_CAPS],
-            elf_memory_init_trace_cap: [MyHash::default(); NUM_CAPS],
-            mozak_memory_init_trace_cap: [MyHash::default(); NUM_CAPS],
+            program_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS]; NUM_CAPS],
+            elf_memory_init_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS]; NUM_CAPS],
+            mozak_memory_init_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS]; NUM_CAPS],
             event_commitment_tape: Default::default(),
             castlist_commitment_tape: Default::default(),
         }
@@ -95,7 +89,6 @@ pub const TEST_RECURSION_CONFIG_NUM_CAPS: usize = 1 << 1;
 pub type TestRecursiveProofPublicInputs<T> =
     RecursiveProofPublicInputs<T, TEST_RECURSION_CONFIG_NUM_CAPS>;
 
-columns_view_impl!(MyHash);
 columns_view_impl!(TestRecursiveProofPublicInputs);
 columns_view_impl!(VMRecursiveProofPublicInputs);
 
