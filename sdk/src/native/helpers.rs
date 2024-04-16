@@ -76,7 +76,7 @@ pub fn rm_identity() {
 /// We use the well known "Bit padding scheme".
 pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
     let data_fields: Vec<GoldilocksField> =
-        mozak_poseidon2::pack_padded_input(&mozak_poseidon2::do_padding(input).as_slice());
+        mozak_poseidon2::pack_padded_input(mozak_poseidon2::do_padding(input).as_slice());
     Poseidon2Hash(
         Plonky2Poseidon2Hash::hash_no_pad(&data_fields)
             .to_bytes()
