@@ -7,6 +7,7 @@ use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +15,9 @@ use crate::code::Code;
 use crate::elf::{Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
+
+#[derive(Debug, Clone, Deref)]
+pub struct CommitmentTape(pub [u8; COMMITMENT_SIZE]);
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -63,6 +67,8 @@ pub struct State<F: RichField> {
     pub public_tape: IoTape,
     pub call_tape: IoTape,
     pub event_tape: IoTape,
+    pub events_commitment_tape: CommitmentTape,
+    pub cast_list_commitment_tape: CommitmentTape,
     _phantom: PhantomData<F>,
 }
 
@@ -132,6 +138,8 @@ impl<F: RichField> Default for State<F> {
             public_tape: IoTape::default(),
             call_tape: IoTape::default(),
             event_tape: IoTape::default(),
+            events_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
+            cast_list_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
             _phantom: PhantomData,
         }
     }
@@ -186,6 +194,8 @@ pub enum IoOpcode {
     StorePrivate,
     StorePublic,
     StoreCallTape,
+    StoreEventsCommitmentTape,
+    StoreCastListCommitmentTape,
 }
 
 #[derive(Debug, Default, Clone)]
