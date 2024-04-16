@@ -43,16 +43,12 @@ fn generate_constraints<'a, T: Copy>(
     // Check: the resulting sum is wrapped if necessary.
     // As the result is range checked, this make the choice deterministic,
     // even for a malicious prover.
-    for i in 1..4 {
-        let target = lv.addrs[0].add(i);
+    for i in 1..4_usize {
+        let target = lv.addrs[0].add(i64::try_from(i).unwrap());
         constraints.always(
             lv.is_executed()
-                .mul(lv.addrs[usize::try_from(i).unwrap()].sub(target))
-                .mul(
-                    lv.addrs[usize::try_from(i).unwrap()]
-                        .add(1 << 32)
-                        .sub(target),
-                ),
+                .mul(lv.addrs[i].sub(target))
+                .mul(lv.addrs[i].add(1 << 32).sub(target)),
         );
     }
 
