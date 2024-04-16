@@ -40,7 +40,6 @@ proptest = "1.4"
 [features]
 parallel = ["plonky2/parallel", "starky/parallel", "plonky2_maybe_rayon/parallel"]
 test = []
-test_public_table = []
 timing = ["plonky2/timing", "starky/timing"]
 
 [[test]]

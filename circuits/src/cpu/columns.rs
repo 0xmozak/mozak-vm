@@ -181,6 +181,8 @@ pub struct CpuState<T> {
     pub is_io_store_private: T,
     pub is_io_store_public: T,
     pub is_call_tape: T,
+    pub is_events_commitment_tape: T,
+    pub is_cast_list_commitment_tape: T,
     pub is_halt: T,
     pub is_poseidon2: T,
     // TODO: these two need constraints.
