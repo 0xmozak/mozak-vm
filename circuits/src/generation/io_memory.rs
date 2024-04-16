@@ -30,6 +30,16 @@ pub fn filter<F: RichField>(
             && matches!(row.instruction.op, Op::ECALL,)
     })
 }
+fn is_io_opcode<F: RichField>(op: IoOpcode) -> F {
+    F::from_bool(matches!(
+        op,
+        IoOpcode::StorePrivate
+            | IoOpcode::StorePublic
+            | IoOpcode::StoreCallTape
+            | IoOpcode::StoreEventsCommitmentTape
+            | IoOpcode::StoreCastListCommitmentTape
+    ))
+}
 
 #[must_use]
 pub fn generate_io_memory_trace<F: RichField>(
@@ -48,12 +58,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                         addr: F::from_canonical_u32(addr),
                         size: F::from_canonical_usize(len),
                         ops: Ops {
-                            is_io_store: F::from_bool(matches!(
-                                op,
-                                IoOpcode::StorePrivate
-                                    | IoOpcode::StorePublic
-                                    | IoOpcode::StoreCallTape
-                            )),
+                            is_io_store: is_io_opcode(op),
                             is_memory_store: F::ZERO,
                         },
                         is_lv_and_nv_are_memory_rows: F::from_bool(false),
@@ -70,12 +75,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                             value: F::from_canonical_u8(local_value),
                             ops: Ops {
                                 is_io_store: F::ZERO,
-                                is_memory_store: F::from_bool(matches!(
-                                    op,
-                                    IoOpcode::StorePrivate
-                                        | IoOpcode::StorePublic
-                                        | IoOpcode::StoreCallTape
-                                )),
+                                is_memory_store: is_io_opcode(op),
                             },
                             is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
                         }
@@ -103,4 +103,18 @@ pub fn generate_io_memory_public_trace<F: RichField>(
 #[must_use]
 pub fn generate_call_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<InputOutputMemory<F>> {
     generate_io_memory_trace(step_rows, IoOpcode::StoreCallTape)
+}
+
+#[must_use]
+pub fn generate_events_commitment_tape_trace<F: RichField>(
+    step_rows: &[Row<F>],
+) -> Vec<InputOutputMemory<F>> {
+    generate_io_memory_trace(step_rows, IoOpcode::StoreEventsCommitmentTape)
+}
+
+#[must_use]
+pub fn generate_cast_list_commitment_tape_trace<F: RichField>(
+    step_rows: &[Row<F>],
+) -> Vec<InputOutputMemory<F>> {
+    generate_io_memory_trace(step_rows, IoOpcode::StoreCastListCommitmentTape)
 }
