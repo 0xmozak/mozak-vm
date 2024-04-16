@@ -96,11 +96,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-    let io_memory_call_tape_rows = generate_call_tape_trace(&record.executed);
-    let io_memory_events_commitment_tape_rows =
-        generate_events_commitment_tape_trace(&record.executed);
-    let io_memory_cast_list_commitment_tape_rows =
-        generate_cast_list_commitment_tape_trace(&record.executed);
+    let call_tape_rows = generate_call_tape_trace(&record.executed);
+    let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
+    let cast_list_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
     let poseidon2_output_bytes_rows = generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
@@ -126,9 +124,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
             &cpu_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &io_memory_call_tape_rows,
-            &io_memory_events_commitment_tape_rows,
-            &io_memory_cast_list_commitment_tape_rows,
+            &call_tape_rows,
+            &events_commitment_tape_rows,
+            &cast_list_commitment_tape_rows,
             &register_init_rows,
         );
     // Generate rows for the looking values with their multiplicities.
@@ -158,13 +156,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),
         io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
         io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
-        call_tape_stark: trace_rows_to_poly_values(io_memory_call_tape_rows),
-        events_commitment_tape_stark: trace_rows_to_poly_values(
-            io_memory_events_commitment_tape_rows,
-        ),
-        cast_list_commitment_tape_stark: trace_rows_to_poly_values(
-            io_memory_cast_list_commitment_tape_rows,
-        ),
+        call_tape_stark: trace_rows_to_poly_values(call_tape_rows),
+        events_commitment_tape_stark: trace_rows_to_poly_values(events_commitment_tape_rows),
+        cast_list_commitment_tape_stark: trace_rows_to_poly_values(cast_list_commitment_tape_rows),
         register_init_stark: trace_rows_to_poly_values(register_init_rows),
         register_stark: trace_rows_to_poly_values(register_rows),
         register_zero_read_stark: trace_rows_to_poly_values(register_zero_read_rows),

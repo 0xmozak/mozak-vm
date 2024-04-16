@@ -108,10 +108,9 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
-        let io_memory_call_tape_rows = generate_call_tape_trace(&[]);
-        let io_memory_events_commitment_tape_rows =
-            generate_events_commitment_tape_trace(&record.executed);
-        let io_memory_castlist_commitment_tape_rows =
+        let call_tape = generate_call_tape_trace(&record.executed);
+        let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
+        let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
@@ -134,9 +133,9 @@ mod tests {
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,
-            &io_memory_call_tape_rows,
-            &io_memory_events_commitment_tape_rows,
-            &io_memory_castlist_commitment_tape_rows,
+            &call_tape,
+            &events_commitment_tape_rows,
+            &cast_list_commitment_tape_rows,
             &register_init,
         );
         let rangecheck_rows =
