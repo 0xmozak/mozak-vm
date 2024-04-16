@@ -191,8 +191,8 @@ mod tests {
             &[],
             &[(1, 0), (2, 0)],
             RuntimeArguments {
-                cast_list_commitment_tape,
                 events_commitment_tape,
+                cast_list_commitment_tape,
                 ..Default::default()
             },
         );

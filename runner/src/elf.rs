@@ -629,8 +629,8 @@ mod test {
         let mozak_ro_memory =
             Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
                 self_prog_id: data.clone(),
-                events_commitment_tape: commitment_data.clone(),
-                cast_list_commitment_tape: commitment_data.clone(),
+                events_commitment_tape: commitment_data,
+                cast_list_commitment_tape: commitment_data,
                 cast_list: data.clone(),
                 io_tape_private: data.clone(),
                 io_tape_public: data.clone(),
