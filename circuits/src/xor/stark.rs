@@ -15,6 +15,7 @@ use starky::stark::Stark;
 use super::columns::XorColumnsView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::unstark::NoColumns;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -29,8 +30,8 @@ impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy, U, const N2: usize>(
-    vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, [U; N2]>,
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values;
     let mut constraints = ConstraintBuilder::default();
