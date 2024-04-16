@@ -359,7 +359,7 @@ impl Program {
         (elf, entry_point, segments): (ElfBytes<LittleEndian>, u32, SegmentTable<LittleEndian>),
     ) -> Program {
         // Information related to the `check_program_flags`
-        // `&& (!m/Volumes/Zed/ozak_memory.is_mozak_ro_memory_address(ph))` --> this
+        // `&& (!mozak_memory.is_mozak_ro_memory_address(ph))` --> this
         // line is used to filter RO-addresses related to the mozak-ROM.
         // Currently we don't support filtering by sections and, we don't know
         // if it even possible. Mozak-ROM address are RO address and will be
