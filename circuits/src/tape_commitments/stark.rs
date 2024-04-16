@@ -124,7 +124,6 @@ mod tests {
                     rs1: 1,
                     rs2: 2,
                     imm: ecall::CAST_LIST_COMMITMENT_TAPE,
-                    ..Args::default()
                 },
             },
             Instruction {
@@ -134,7 +133,6 @@ mod tests {
                     rs1: 1,
                     rs2: 2,
                     imm: cast_list_commitment_address,
-                    ..Args::default()
                 },
             },
             Instruction {
@@ -143,8 +141,7 @@ mod tests {
                     rd: REG_A2,
                     rs1: 1,
                     rs2: 2,
-                    imm: COMMITMENT_SIZE as u32,
-                    ..Args::default()
+                    imm: u32::try_from(COMMITMENT_SIZE).expect("casting 32 to u32 should not fail"),
                 },
             },
             ECALL,
@@ -157,7 +154,6 @@ mod tests {
                     rs1: 1,
                     rs2: 2,
                     imm: ecall::EVENTS_COMMITMENT_TAPE,
-                    ..Args::default()
                 },
             },
             Instruction {
@@ -167,7 +163,6 @@ mod tests {
                     rs1: 1,
                     rs2: 2,
                     imm: events_commitment_address,
-                    ..Args::default()
                 },
             },
             Instruction {
@@ -176,8 +171,7 @@ mod tests {
                     rd: REG_A2,
                     rs1: 1,
                     rs2: 2,
-                    imm: COMMITMENT_SIZE as u32,
-                    ..Args::default()
+                    imm: u32::try_from(COMMITMENT_SIZE).expect("casting 32 to u32 should not fail"),
                 },
             },
             ECALL,
