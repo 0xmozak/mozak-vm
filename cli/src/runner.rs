@@ -7,12 +7,12 @@ use anyhow::Result;
 use clio::Input;
 use itertools::Itertools;
 use log::debug;
-use mozak_runner::elf::{PreinitMemory, Program};
+use mozak_runner::elf::{PreïnitMemory, Program};
 use mozak_sdk::common::types::{CanonicalOrderedTemporalHints, ProgramIdentifier, SystemTape};
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
 
-pub fn load_program(mut elf: Input, args: &PreinitMemory) -> Result<Program> {
+pub fn load_program(mut elf: Input, args: &PreïnitMemory) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
@@ -58,7 +58,7 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
 /// Panics if conversion from rkyv-serialized system tape to
 /// [`PreinitMemory`](mozak_runner::elf::PreinitMemory)
 /// fails.
-pub fn tapes_to_preinit_memory(tape_bin: Input, self_prog_id: Option<String>) -> PreinitMemory {
+pub fn tapes_to_preinit_memory(tape_bin: Input, self_prog_id: Option<String>) -> PreïnitMemory {
     let sys_tapes: SystemTape = deserialize_system_tape(tape_bin).unwrap();
     let self_prog_id: ProgramIdentifier = self_prog_id.unwrap_or_default().into();
 
@@ -90,7 +90,7 @@ pub fn tapes_to_preinit_memory(tape_bin: Input, self_prog_id: Option<String>) ->
             length_prefixed_bytes(tape_bytes, dgb_string)
         }
 
-        PreinitMemory {
+        PreïnitMemory {
             self_prog_id: self_prog_id.inner().to_vec(),
             cast_list: serialise(&cast_list, "CAST_LIST"),
             io_tape_public: length_prefixed_bytes(

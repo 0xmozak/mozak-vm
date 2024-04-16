@@ -11,7 +11,7 @@ use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
-use crate::elf::{Data, PreinitMemory, Program};
+use crate::elf::{Data, PreïnitMemory, Program};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
 
@@ -224,8 +224,8 @@ pub struct RawTapes {
 /// compatible `RawTapes`.
 ///
 /// TODO(bing): Remove when we no longer rely on preinit memory.
-impl From<PreinitMemory> for RawTapes {
-    fn from(args: PreinitMemory) -> Self {
+impl From<PreïnitMemory> for RawTapes {
+    fn from(args: PreïnitMemory) -> Self {
         Self {
             private_tape: args.io_tape_private,
             public_tape: args.io_tape_public,

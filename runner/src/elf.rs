@@ -200,7 +200,7 @@ impl MozakMemory {
 ///
 /// TODO(bing): Remove when we move back to pure ecalls.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct PreinitMemory {
+pub struct PreïnitMemory {
     pub self_prog_id: Vec<u8>,
     pub cast_list: Vec<u8>,
     pub io_tape_private: Vec<u8>,
@@ -209,7 +209,7 @@ pub struct PreinitMemory {
     pub event_tape: Vec<u8>,
 }
 
-impl PreinitMemory {
+impl PreïnitMemory {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.self_prog_id.is_empty()
@@ -221,8 +221,8 @@ impl PreinitMemory {
     }
 }
 
-impl From<&PreinitMemory> for MozakMemory {
-    fn from(args: &PreinitMemory) -> Self {
+impl From<&PreïnitMemory> for MozakMemory {
+    fn from(args: &PreïnitMemory) -> Self {
         let mut mozak_ro_memory = MozakMemory::default();
         mozak_ro_memory
             .self_prog_id
@@ -499,7 +499,7 @@ impl Program {
     /// # Panics
     /// When `Program::load_elf` or index as address is not cast-able to be u32
     /// cast-able
-    pub fn mozak_load_program(elf_bytes: &[u8], args: &PreinitMemory) -> Result<Program> {
+    pub fn mozak_load_program(elf_bytes: &[u8], args: &PreïnitMemory) -> Result<Program> {
         let mut program =
             Program::mozak_load_elf(elf_bytes, Program::parse_and_validate_elf(elf_bytes)?);
         let mozak_ro_memory = program
@@ -538,7 +538,7 @@ impl Program {
         ro_mem: &[(u32, u8)],
         rw_mem: &[(u32, u8)],
         ro_code: Code,
-        preinit_mem: &PreinitMemory,
+        preinit_mem: &PreïnitMemory,
     ) -> Program {
         let ro_memory = Data(ro_mem.iter().copied().collect());
         let rw_memory = Data(rw_mem.iter().copied().collect());
@@ -589,7 +589,7 @@ mod test {
 
     #[test]
     fn test_mozak_load_program_default() {
-        Program::mozak_load_program(mozak_examples::EMPTY_ELF, &PreinitMemory::default()).unwrap();
+        Program::mozak_load_program(mozak_examples::EMPTY_ELF, &PreïnitMemory::default()).unwrap();
     }
 
     #[test]
@@ -597,7 +597,7 @@ mod test {
         let data = vec![0, 1, 2, 3];
 
         let mozak_ro_memory =
-            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &PreinitMemory {
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &PreïnitMemory {
                 self_prog_id: data.clone(),
                 cast_list: data.clone(),
                 io_tape_private: data.clone(),
