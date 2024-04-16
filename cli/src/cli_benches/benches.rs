@@ -1,6 +1,7 @@
 use clap::{Args as Args_, Subcommand};
 
 use super::nop::nop_bench;
+use super::omni::omni_bench;
 use super::poseidon2::poseidon2_bench;
 use super::xor::xor_bench;
 
@@ -16,6 +17,7 @@ pub enum BenchFunction {
     XorBench { iterations: u32 },
     NopBench { iterations: u32 },
     Poseidon2Bench { input_len: u32 },
+    OmniBench { iterations: u32 },
 }
 
 impl BenchArgs {
@@ -24,6 +26,7 @@ impl BenchArgs {
             BenchFunction::XorBench { iterations } => xor_bench(iterations),
             BenchFunction::NopBench { iterations } => nop_bench(iterations),
             BenchFunction::Poseidon2Bench { input_len } => poseidon2_bench(input_len),
+            BenchFunction::OmniBench { iterations } => omni_bench(iterations),
         }
     }
 }
