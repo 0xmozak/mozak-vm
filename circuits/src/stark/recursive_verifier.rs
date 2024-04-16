@@ -1,3 +1,4 @@
+#![allow(clippy::iter_without_into_iter)]
 use std::borrow::Borrow;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -93,6 +94,7 @@ pub type VMRecursiveProofPublicInputs<T> =
 pub const TEST_RECURSION_CONFIG_NUM_CAPS: usize = 1 << 1;
 pub type TestRecursiveProofPublicInputs<T> =
     RecursiveProofPublicInputs<T, TEST_RECURSION_CONFIG_NUM_CAPS>;
+
 columns_view_impl!(MyHash);
 columns_view_impl!(TestRecursiveProofPublicInputs);
 columns_view_impl!(VMRecursiveProofPublicInputs);
