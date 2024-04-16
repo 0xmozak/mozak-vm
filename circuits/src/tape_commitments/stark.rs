@@ -176,8 +176,12 @@ mod tests {
             },
             ECALL,
         ];
-        let cast_list_commitment_tape = (0..32).collect_vec();
-        let events_commitment_tape = (32..64).collect_vec();
+        let mut cast_list_commitment_tape = [0; 32];
+        let mut events_commitment_tape = [0; 32];
+        for i in 0..32 {
+            cast_list_commitment_tape[i] = u8::try_from(i).unwrap();
+            events_commitment_tape[i] = u8::try_from(i).unwrap();
+        }
         let (program, record) = code::execute_code_with_ro_memory(
             chain!(
                 code_ecall_cast_list_commitment_tape.into_iter(),
@@ -187,8 +191,8 @@ mod tests {
             &[],
             &[(1, 0), (2, 0)],
             RuntimeArguments {
-                cast_list_commitment_tape: cast_list_commitment_tape.clone(),
-                events_commitment_tape: events_commitment_tape.clone(),
+                cast_list_commitment_tape,
+                events_commitment_tape,
                 ..Default::default()
             },
         );
