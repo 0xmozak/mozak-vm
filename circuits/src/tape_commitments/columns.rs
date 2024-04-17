@@ -1,3 +1,5 @@
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 use crate::public_sub_table::PublicSubTable;
