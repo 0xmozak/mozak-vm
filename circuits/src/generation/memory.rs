@@ -376,7 +376,6 @@ mod tests {
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&[], &program);
 
         let halfword_memory = generate_halfword_memory_trace(&[]);
-        // let fullword_memory = generate_fullword_memory_trace(&[]);
         let store_word_rows = ops::sw::generate(&[]);
         let load_word_rows = ops::lw::generate(&[]);
         let io_memory_private_rows = generate_io_memory_private_trace(&[]);
