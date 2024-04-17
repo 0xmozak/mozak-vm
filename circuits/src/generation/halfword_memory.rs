@@ -74,7 +74,9 @@ mod tests {
     use crate::generation::generate_poseidon2_output_bytes_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
+        generate_io_memory_public_trace,
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
@@ -163,6 +165,10 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+        let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
+        let cast_list_commitment_tape_rows =
+            generate_cast_list_commitment_tape_trace(&record.executed);
         let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_rows);
 
@@ -174,6 +180,9 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
+            &call_tape_rows,
+            &events_commitment_tape_rows,
+            &cast_list_commitment_tape_rows,
             &poseidon2_sponge_rows,
             &poseidon2_output_bytes,
         );

@@ -147,6 +147,9 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
+            &call_tape_rows,
+            &events_commitment_tape_rows,
+            &cast_list_commitment_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
