@@ -304,15 +304,17 @@ pub fn step<F: RichField>(
         }
     }
     if option_env!("MOZAK_COUNT_OPS").is_some() {
-        let counts: Vec<(usize, Op)> = executed
+        eprintln!("Instruction counts:");
+        for (count, op) in executed
             .iter()
             .map(|row| row.instruction.op)
             .sorted()
             .dedup_with_count()
             .sorted()
             .rev()
-            .collect::<Vec<_>>();
-        eprintln!("Counts: {counts:#?}");
+        {
+            eprintln!("{count:10} {op}");
+        }
     }
     Ok(ExecutionRecord::<F> {
         executed,
