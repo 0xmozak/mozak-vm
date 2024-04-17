@@ -24,13 +24,13 @@ use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
+use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::public_sub_table::public_sub_table_data_and_values;
-use crate::stark::mozak_stark::PublicInputs;
+use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 
@@ -156,7 +156,7 @@ where
             &trace_commitments,
             &ctl_data_per_table,
             &public_sub_table_data_per_table,
-            &challenger,
+            &mut challenger,
             timing
         )?
     );
@@ -192,7 +192,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
     public_sub_table_data: &CtlData<F>,
-    mut challenger: Challenger<F, C::Hasher>,
+    challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
 where
@@ -326,7 +326,7 @@ where
                 })
             ),
             &initial_merkle_trees,
-            &mut challenger,
+            challenger,
             &fri_params,
             timing,
         )
@@ -355,23 +355,20 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
-    challenger: &Challenger<F, C::Hasher>,
+    challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     let cpu_skeleton_stark = [public_inputs.entry_point];
-    let public_inputs = &TableKindSetBuilder::<&[_]> {
+    let public_inputs = TableKindSetBuilder::<&[_]> {
         cpu_skeleton_stark: &cpu_skeleton_stark,
         ..Default::default()
     }
     .build();
 
     Ok(all_starks!(mozak_stark, |stark, kind| {
-        // TODO: fix timing to work in parallel.
-        // let mut timing = TimingTree::new(&format!("{stark} Stark Prove"),
-        // log::Level::Debug);
         prove_single_table(
             stark,
             config,
@@ -380,10 +377,9 @@ where
             public_inputs[kind],
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
-            challenger.clone(),
+            challenger,
             timing,
-        )
-        .unwrap()
+        )?
     }))
 }
 
