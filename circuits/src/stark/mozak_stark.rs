@@ -447,8 +447,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2SpongeCpuTable::lookups(),
                 Poseidon2Poseidon2SpongeTable::lookups(),
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
-                EventCommitmentTapeTapeCommitmentsTable::lookups(),
-                CastlistCommitmentTapeTapeCommitmentsTable::lookups(),
+                EventCommitmentTapeIOLookupTable::lookups(),
+                CastlistCommitmentTapeIOLookupTable::lookups(),
             ],
             public_sub_tables: [
                 crate::tape_commitments::columns::make_event_commitment_tape_public(),
@@ -886,9 +886,9 @@ impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
     }
 }
 
-pub struct EventCommitmentTapeTapeCommitmentsTable;
+pub struct EventCommitmentTapeIOLookupTable;
 
-impl Lookups for EventCommitmentTapeTapeCommitmentsTable {
+impl Lookups for EventCommitmentTapeIOLookupTable {
     type Row = TapeCommitmentCTL<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
@@ -899,9 +899,9 @@ impl Lookups for EventCommitmentTapeTapeCommitmentsTable {
     }
 }
 
-pub struct CastlistCommitmentTapeTapeCommitmentsTable;
+pub struct CastlistCommitmentTapeIOLookupTable;
 
-impl Lookups for CastlistCommitmentTapeTapeCommitmentsTable {
+impl Lookups for CastlistCommitmentTapeIOLookupTable {
     type Row = TapeCommitmentCTL<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
