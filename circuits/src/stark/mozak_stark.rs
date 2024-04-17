@@ -64,6 +64,7 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = 17;
+const NUM_PUBLIC_SUB_TABLES: usize = 2;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -141,7 +142,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "TapeCommitments")]
     pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-    pub public_sub_tables: [PublicSubTable; 2],
+    pub public_sub_tables: [PublicSubTable; NUM_PUBLIC_SUB_TABLES],
     pub debug: bool,
 }
 
