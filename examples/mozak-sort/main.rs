@@ -1,13 +1,13 @@
 #![cfg_attr(target_os = "mozakvm", no_main)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-
 use core::hint::black_box;
 extern crate alloc;
 use alloc::vec::Vec;
 
 extern crate rand;
-use rand::{Rng, rngs::SmallRng, SeedableRng};
+use rand::rngs::SmallRng;
+use rand::{Rng, SeedableRng};
 
 fn main() {
     // let mut rng = rand::thread_rng();
@@ -19,6 +19,5 @@ fn main() {
 
     black_box(v.sort());
 }
-
 
 mozak_sdk::entry!(main);
