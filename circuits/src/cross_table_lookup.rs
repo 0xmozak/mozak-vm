@@ -168,22 +168,24 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_table_circuit<
     debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
 }
 
+fn combine_zs<F: Field>(xs: CtlZData<F>, ys: CtlZData<F>) -> CtlZData<F> {
+    CtlZData {
+        z: PolynomialValues::new(
+            izip!(xs.z.values, ys.z.values)
+                .map(|(x, y)| x + y)
+                .collect::<Vec<_>>(),
+        ),
+        challenge: xs.challenge,
+        tables: chain!(xs.tables, ys.tables).collect(),
+    }
+}
+
 #[must_use]
-fn chunk_it_up<F: Field>(
-    polys: impl Iterator<Item = PolynomialValues<F>>,
-) -> Vec<PolynomialValues<F>> {
+fn chunk_it_up<F: Field>(polys: impl Iterator<Item = CtlZData<F>>) -> Vec<CtlZData<F>> {
     polys
         .chunks(2)
         .into_iter()
-        .filter_map(|chunk| {
-            chunk.into_iter().reduce(|xs, ys| {
-                PolynomialValues::new(
-                    izip!(xs.values, ys.values)
-                        .map(|(x, y)| x + y)
-                        .collect::<Vec<_>>(),
-                )
-            })
-        })
+        .filter_map(|chunk| chunk.into_iter().reduce(combine_zs))
         .collect()
 }
 
@@ -226,16 +228,22 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     {
         // let mut ctl_data_per_table = all_kind!(|_kind| CtlData::default());
         for &challenge in &ctl_challenges.challenges {
-            let zsss: TableKindArray<Vec<PolynomialValues<F>>> = all_kind!(|kind| {
-                chunk_it_up(tables[kind].iter().map(|table| {
-                    // We can just call this one twice, and add it up elementwise!
-                    partial_sums(
-                        &trace_poly_values[kind],
-                        &table.columns,
-                        &table.filter_column,
-                        challenge,
-                    )
-                }))
+            let zsss: TableKindArray<CtlData<F>> = all_kind!(|kind| {
+                CtlData {
+                    zs_columns: chunk_it_up(tables[kind].iter().map(|table| {
+                        // We can just call this one twice, and add it up elementwise!
+                        CtlZData {
+                            z: partial_sums(
+                                &trace_poly_values[kind],
+                                &table.columns,
+                                &table.filter_column,
+                                challenge,
+                            ),
+                            challenge,
+                            tables: vec![(table.columns.clone(), table.filter_column.clone())],
+                        }
+                    })),
+                }
             });
         }
     }
