@@ -89,9 +89,11 @@ mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
+    use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
+    use rand::Rng;
     use starky::config::StarkConfig;
     use starky::stark_testing::test_stark_circuit_constraints;
 
@@ -109,102 +111,106 @@ mod tests {
     type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = super::TapeCommitmentsStark<F, D>;
-    use plonky2::field::types::Field;
+
+    const CAST_LIST_COMMITMENT_ADDRESS: u32 = 0x100;
+    const EVENTS_COMMITMENT_ADDRESS: u32 = 0x200;
+
+    fn io_read_tape_commitments_code() -> Vec<Instruction> {
+        fn io_read_ecall_code(ecall: u32, address: u32, num_bytes_read: usize) -> Vec<Instruction> {
+            vec![
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A0,
+                        imm: ecall,
+                        ..Default::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A1,
+                        imm: address,
+                        ..Default::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A2,
+                        imm: u32::try_from(num_bytes_read).expect("casting to u32 should not fail"),
+                        ..Default::default()
+                    },
+                },
+                ECALL,
+            ]
+        }
+        let code_ecall_cast_list_commitment_tape = io_read_ecall_code(
+            ecall::CAST_LIST_COMMITMENT_TAPE,
+            CAST_LIST_COMMITMENT_ADDRESS,
+            COMMITMENT_SIZE,
+        );
+        let code_ecall_events_commitment_tape = io_read_ecall_code(
+            ecall::EVENTS_COMMITMENT_TAPE,
+            EVENTS_COMMITMENT_ADDRESS,
+            COMMITMENT_SIZE,
+        );
+        chain!(
+            code_ecall_cast_list_commitment_tape,
+            code_ecall_events_commitment_tape
+        )
+        .collect()
+    }
 
     #[test]
-    #[allow(clippy::too_many_lines)]
     fn test_tape_commitment_stark() -> Result<(), anyhow::Error> {
-        let cast_list_commitment_address = 0x100;
-        let events_commitment_address = 0x200;
-        let code_ecall_cast_list_commitment_tape = [
-            Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: REG_A0,
-                    rs1: 1,
-                    rs2: 2,
-                    imm: ecall::CAST_LIST_COMMITMENT_TAPE,
-                },
-            },
-            Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: REG_A1,
-                    rs1: 1,
-                    rs2: 2,
-                    imm: cast_list_commitment_address,
-                },
-            },
-            Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: REG_A2,
-                    rs1: 1,
-                    rs2: 2,
-                    imm: u32::try_from(COMMITMENT_SIZE).expect("casting 32 to u32 should not fail"),
-                },
-            },
-            ECALL,
-        ];
-        let code_ecall_events_commitment_tape = [
-            Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: REG_A0,
-                    rs1: 1,
-                    rs2: 2,
-                    imm: ecall::EVENTS_COMMITMENT_TAPE,
-                },
-            },
-            Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: REG_A1,
-                    rs1: 1,
-                    rs2: 2,
-                    imm: events_commitment_address,
-                },
-            },
-            Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: REG_A2,
-                    rs1: 1,
-                    rs2: 2,
-                    imm: u32::try_from(COMMITMENT_SIZE).expect("casting 32 to u32 should not fail"),
-                },
-            },
-            ECALL,
-        ];
-        let mut cast_list_commitment_tape = [0; COMMITMENT_SIZE];
-        let mut events_commitment_tape = [0; COMMITMENT_SIZE];
-        for i in 0..COMMITMENT_SIZE {
-            cast_list_commitment_tape[i] = u8::try_from(i).unwrap();
-            events_commitment_tape[i] = u8::try_from(i).unwrap();
-        }
-        let (program, record) = code::execute_code_with_ro_memory(
-            chain!(
-                code_ecall_cast_list_commitment_tape.into_iter(),
-                code_ecall_events_commitment_tape.into_iter(),
-            ),
-            &[],
-            &[],
-            &[(1, 0), (2, 0)],
-            RuntimeArguments {
+        let mut rng = rand::thread_rng();
+        // generate tapes with random bytes
+        let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
+        let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
+        let code = io_read_tape_commitments_code();
+        let (program, record) =
+            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
                 events_commitment_tape,
                 cast_list_commitment_tape,
                 ..Default::default()
-            },
-        );
-        TapeCommitmentsStark::prove_and_verify(&program, &record)?;
+            });
+        TapeCommitmentsStark::prove_and_verify(&program, &record)
+    }
+    #[test]
+    fn test_tape_commitment_mozak_stark() -> Result<(), anyhow::Error> {
+        let mut rng = rand::thread_rng();
+        // generate tapes with random bytes
+        let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
+        let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
+        let code = io_read_tape_commitments_code();
+        let (program, record) =
+            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
+                events_commitment_tape,
+                cast_list_commitment_tape,
+                ..Default::default()
+            });
+        MozakStark::prove_and_verify(&program, &record)
+    }
 
+    #[test]
+    fn test_tape_commitment_recursive_prover() -> Result<(), anyhow::Error> {
+        let mut rng = rand::thread_rng();
+        // generate tapes with random bytes
+        let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
+        let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
+        let code = io_read_tape_commitments_code();
+        let (program, record) =
+            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
+                events_commitment_tape,
+                cast_list_commitment_tape,
+                ..Default::default()
+            });
         let stark = MozakStark::<F, D>::default();
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 1;
+        let config = StarkConfig::standard_fast_config();
         let public_inputs = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
-
         let mozak_proof = prove::<F, C, D>(
             &program,
             &record,
@@ -228,6 +234,8 @@ mod tests {
             recursive_proof.public_inputs.as_slice().try_into().unwrap();
         let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
             &public_input_slice.into();
+
+        // assert that the commitment tapes match those in pubilc inputs
         assert_eq!(
             recursive_proof_public_inputs.event_commitment_tape,
             events_commitment_tape.map(F::from_canonical_u8),
