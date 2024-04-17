@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::elf::Program;
@@ -301,6 +302,17 @@ pub fn step<F: RichField>(
                 "Looped for longer than MOZAK_MAX_LOOPS"
             );
         }
+    }
+    if option_env!("MOZAK_COUNT_OPS").is_some() {
+        let counts: Vec<(usize, Op)> = executed
+            .iter()
+            .map(|row| row.instruction.op)
+            .sorted()
+            .dedup_with_count()
+            .sorted()
+            .rev()
+            .collect::<Vec<_>>();
+        eprintln!("Counts: {counts:?}");
     }
     Ok(ExecutionRecord::<F> {
         executed,
