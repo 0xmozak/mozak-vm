@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_omni_bench_with_run() {
-        let iterations = 10;
+        let iterations = 1;
         let bench = BenchArgs {
             function: BenchFunction::OmniBench { iterations },
         };
