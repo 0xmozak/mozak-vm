@@ -1,5 +1,6 @@
-//! Subcircuits for recursively proving partial objects match a specific
-//! (summarized) state hash
+//! Subcircuits for recursively proving state delta objects match summarized
+//! state updates
+
 use enumflags2::BitFlags;
 use itertools::chain;
 use plonky2::field::extension::Extendable;
