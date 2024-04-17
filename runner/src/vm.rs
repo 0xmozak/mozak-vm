@@ -312,7 +312,7 @@ pub fn step<F: RichField>(
             .sorted()
             .rev()
             .collect::<Vec<_>>();
-        eprintln!("Counts: {counts:?}");
+        eprintln!("Counts: {counts:#?}");
     }
     Ok(ExecutionRecord::<F> {
         executed,
