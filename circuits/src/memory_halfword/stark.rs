@@ -39,12 +39,20 @@ fn generate_constraints<'a, T: Copy>(
     constraints.always(lv.ops.is_load.is_binary());
     constraints.always(lv.is_executed().is_binary());
 
-    let added = lv.addrs[0] + 1;
-    let wrapped = added - (1 << 32);
     // Check: the resulting sum is wrapped if necessary.
     // As the result is range checked, this make the choice deterministic,
     // even for a malicious prover.
-    constraints.always(lv.is_executed() * (lv.addrs[1] - added) * (lv.addrs[1] - wrapped));
+    constraints.always(
+        lv.is_executed()
+            * (
+                // added
+                lv.addrs[1] - (lv.addrs[0] + 1)
+            )
+            * (
+                // wrapped
+                lv.addrs[1] - (lv.addrs[0] + 1 - (1 << 32))
+            ),
+    );
 
     constraints
 }
