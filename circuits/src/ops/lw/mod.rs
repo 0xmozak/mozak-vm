@@ -9,7 +9,6 @@ pub mod columns {
     use crate::memory::columns::MemoryCtl;
     use crate::program::columns::InstructionRow;
     use crate::rangecheck::columns::RangeCheckCtl;
-    // use crate::rangecheck::columns::RangeCheckCtl;
     use crate::register::RegisterCtl;
     use crate::stark::mozak_stark::{LoadWordTable, TableWithTypedOutput};
 
