@@ -309,7 +309,7 @@ pub fn step<F: RichField>(
         eprintln!("{:6.2?}%\t{total:10} total", 100_f64);
         for (count, op) in executed
             .iter()
-            .map(|row| row.instruction.op)
+            .map(|row| (row.instruction.op, row.aux.branch_taken))
             .sorted()
             .dedup_with_count()
             .sorted()
@@ -317,7 +317,13 @@ pub fn step<F: RichField>(
         {
             let count: u32 = count.try_into().unwrap();
             let percentage = 100_f64 * f64::from(count) / f64::from(total);
-            eprintln!("{percentage:6.2?}%\t{count:10} {op}");
+            eprint!("{percentage:6.2?}%\t{count:10} {:?}", op.0);
+            match op.1 {
+                Some(true) => eprint!(" (branch taken)"),
+                Some(false) => eprint!(" (branch not taken)"),
+                None => {}
+            }
+            eprintln!();
         }
     }
     Ok(ExecutionRecord::<F> {
