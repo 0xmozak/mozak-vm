@@ -284,9 +284,8 @@ mod tests {
 
         let call_tape_rows = generate_call_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
-        let cast_list_commitment_tape_rows =
-            generate_cast_list_commitment_tape_trace(&record.executed);
-                let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let cast_list_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
+        let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(

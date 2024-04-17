@@ -67,7 +67,6 @@ pub fn generate_fullword_memory_trace<F: RichField>(
 }
 #[cfg(test)]
 mod tests {
-
     use mozak_runner::code;
     use mozak_runner::elf::Program;
     use mozak_runner::instruction::Op::{LW, SW};
@@ -175,7 +174,7 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows= generate_io_memory_public_trace(&record.executed);
-         let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let call_tape_rows = generate_call_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
