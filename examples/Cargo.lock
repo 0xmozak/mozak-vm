@@ -354,6 +354,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mozak-sort"
+version = "0.1.0"
+dependencies = [
+ "mozak-sdk",
+ "rand",
+]
+
+[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
