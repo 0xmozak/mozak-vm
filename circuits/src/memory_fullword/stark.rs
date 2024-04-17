@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::ops::{Add, Mul, Sub};
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
@@ -43,7 +42,7 @@ fn generate_constraints<'a, T: Copy>(
     // Check: the resulting sum is wrapped if necessary.
     // As the result is range checked, this make the choice deterministic,
     // even for a malicious prover.
-    for i in 1..4_usize {
+    for i in 1..4 {
         let target = lv.addrs[0] + i64::try_from(i).unwrap();
         constraints
             .always(lv.is_executed() * (lv.addrs[i] - target) * (lv.addrs[i] + (1 << 32) - target));
