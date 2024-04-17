@@ -104,7 +104,7 @@ pub mod columns {
                 // 'reduce_with_powers'.
                 inst_data: ColumnWithTypedInput::reduce_with_powers(
                     [
-                        // TODO: don't hard-code COL_MAP like this.
+                        // TODO: don't hard-code Ops like this.
                         ColumnWithTypedInput::constant(21),
                         // TODO: use a struct here to name the components, and make IntoIterator,
                         // like we do with our stark tables.
