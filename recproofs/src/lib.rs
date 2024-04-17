@@ -260,7 +260,7 @@ where
 }
 
 /// Computes `h0 == ZERO`.
-fn hash_is_zero<F, const D: usize>(
+pub fn hash_is_zero<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     h0: HashOutTarget,
 ) -> BoolTarget

@@ -47,6 +47,7 @@ lto = "fat"
 
 [profile.bench]
 lto = "thin"
+opt-level = 3
 
 [patch.crates-io]
 plonky2 = { path = "../plonky2/plonky2" }

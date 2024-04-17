@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-console_error_panic_hook = "0.1.7"
+console_error_panic_hook = "0.1"
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-runner = { path = "../runner" }
 starky = { version = "0", features = ["std"] }
