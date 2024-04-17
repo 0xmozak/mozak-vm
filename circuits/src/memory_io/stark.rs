@@ -260,8 +260,7 @@ mod tests {
             [ECALL],
             &[(address, 0)],
             &[
-                // TODO: this looks like a bug, it should be IO_READ_PUBLIC?
-                (REG_A0, ecall::IO_READ_CALL_TAPE),
+                (REG_A0, ecall::IO_READ_PUBLIC),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
@@ -319,7 +318,7 @@ mod tests {
                 (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
             RuntimeArguments {
-                events_commitment_tape,
+                events_commitment_tape: events_commitment_tape.to_vec(),
                 ..Default::default()
             },
         );
@@ -349,7 +348,7 @@ mod tests {
                 (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
             RuntimeArguments {
-                cast_list_commitment_tape,
+                cast_list_commitment_tape: cast_list_commitment_tape.to_vec(),
                 ..Default::default()
             },
         );
