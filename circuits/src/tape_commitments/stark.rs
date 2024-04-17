@@ -246,8 +246,7 @@ mod tests {
             cast_list_commitment_tape.map(F::from_canonical_u8),
             "Mismatch in cast list commitment tape in public inputs"
         );
-        mozak_stark_circuit.circuit.verify(recursive_proof)?;
-        Ok(())
+        mozak_stark_circuit.circuit.verify(recursive_proof)
     }
 
     #[test]
