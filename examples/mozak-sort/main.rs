@@ -9,6 +9,7 @@ extern crate rand;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 
+#[allow(clippy::unit_arg)]
 fn main() {
     // let mut rng = rand::thread_rng();
     let mut rng = SmallRng::seed_from_u64(0xdead_beef_feed_cafe);
