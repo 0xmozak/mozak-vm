@@ -738,8 +738,8 @@ mod tests {
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
         let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
             recursive_proof.public_inputs.as_slice().try_into().unwrap();
-        let expected_event_commitment_tape = [F::ZERO; 32];
-        let expected_castlist_commitment_tape = [F::ZERO; 32];
+        let expected_event_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
+        let expected_castlist_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
         let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
             &public_input_slice.into();
         assert_eq!(

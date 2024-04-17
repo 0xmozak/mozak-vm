@@ -73,7 +73,7 @@ pub fn make_event_commitment_tape_public() -> PublicSubTable {
             vec![TAPE_COMMITMENTS.commitment_byte_row.byte],
             TAPE_COMMITMENTS.is_event_commitment_tape_row,
         ),
-        num_rows: 32,
+        num_rows: COMMITMENT_SIZE,
     }
 }
 
@@ -84,6 +84,6 @@ pub fn make_castlist_commitment_tape_public() -> PublicSubTable {
             vec![TAPE_COMMITMENTS.commitment_byte_row.byte],
             TAPE_COMMITMENTS.is_castlist_commitment_tape_row,
         ),
-        num_rows: 32,
+        num_rows: COMMITMENT_SIZE,
     }
 }
