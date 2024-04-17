@@ -67,7 +67,6 @@ pub fn generate_fullword_memory_trace<F: RichField>(
 }
 #[cfg(test)]
 mod tests {
-
     use mozak_runner::code;
     use mozak_runner::elf::Program;
     use mozak_runner::instruction::Op::{LW, SW};

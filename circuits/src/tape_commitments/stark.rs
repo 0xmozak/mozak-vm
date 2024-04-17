@@ -82,7 +82,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for TapeCommitmen
 
 #[cfg(test)]
 mod tests {
-    use itertools::{chain, Itertools};
+    use itertools::chain;
     use mozak_runner::code;
     use mozak_runner::decode::ECALL;
     use mozak_runner::elf::RuntimeArguments;
@@ -98,11 +98,10 @@ mod tests {
     use super::TapeCommitmentsStark;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::prover::prove;
-    use crate::stark::recursive_verifier::recursive_mozak_stark_circuit;
-    use crate::stark::verifier::verify_proof;
-    use crate::tape_commitments::columns::{
-        get_castlist_commitment_tape_from_proof, get_event_commitment_tape_from_proof,
+    use crate::stark::recursive_verifier::{
+        recursive_mozak_stark_circuit, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
     };
+    use crate::stark::verifier::verify_proof;
     use crate::test_utils::ProveAndVerify;
     use crate::utils::from_u32;
 
@@ -225,21 +224,19 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+        let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
+            recursive_proof.public_inputs.as_slice().try_into().unwrap();
+        let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
+            &public_input_slice.into();
         assert_eq!(
-            get_event_commitment_tape_from_proof(&recursive_proof),
-            events_commitment_tape
-                .into_iter()
-                .map(F::from_canonical_u8)
-                .collect_vec(),
-            "Could not find expected_event_commitment_tape in recursive proof's public inputs"
+            recursive_proof_public_inputs.event_commitment_tape,
+            events_commitment_tape.map(F::from_canonical_u8),
+            "Mismatch in events commitment tape in public inputs"
         );
         assert_eq!(
-            get_castlist_commitment_tape_from_proof(&recursive_proof),
-            cast_list_commitment_tape
-                .into_iter()
-                .map(F::from_canonical_u8)
-                .collect_vec(),
-            "Could not find expected_castlist_commitment_tape in recursive proof's public inputs"
+            recursive_proof_public_inputs.castlist_commitment_tape,
+            cast_list_commitment_tape.map(F::from_canonical_u8),
+            "Mismatch in cast list commitment tape in public inputs"
         );
         mozak_stark_circuit.circuit.verify(recursive_proof)?;
         Ok(())

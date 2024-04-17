@@ -1,9 +1,3 @@
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::GenericConfig;
-use plonky2::plonk::proof::ProofWithPublicInputs;
-
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
 use crate::public_sub_table::PublicSubTable;
@@ -11,9 +5,6 @@ use crate::stark::mozak_stark::{TableWithTypedOutput, TapeCommitmentsTable};
 
 make_col_map!(TAPE_COMMITMENTS, TapeCommitments);
 columns_view_impl!(TapeCommitments);
-
-pub const EVENT_COMMITMENT_TAPE_OFFSET: usize = 25;
-pub const CASTLIST_COMMITMENT_TAPE_OFFSET: usize = 57;
 
 /// This stark table is used to store tape commitments
 /// which we want to make public in final recursive proof.
@@ -95,26 +86,4 @@ pub fn make_castlist_commitment_tape_public() -> PublicSubTable {
         ),
         num_rows: 32,
     }
-}
-
-pub fn get_event_commitment_tape_from_proof<F, const D: usize, C>(
-    proof: &ProofWithPublicInputs<F, C, D>,
-) -> Vec<F>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
-    proof.public_inputs
-        [EVENT_COMMITMENT_TAPE_OFFSET..EVENT_COMMITMENT_TAPE_OFFSET + COMMITMENT_SIZE]
-        .to_vec()
-}
-
-pub fn get_castlist_commitment_tape_from_proof<F, const D: usize, C>(
-    proof: &ProofWithPublicInputs<F, C, D>,
-) -> Vec<F>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
-    proof.public_inputs
-        [CASTLIST_COMMITMENT_TAPE_OFFSET..CASTLIST_COMMITMENT_TAPE_OFFSET + COMMITMENT_SIZE]
-        .to_vec()
 }
