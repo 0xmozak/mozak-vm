@@ -1,4 +1,4 @@
-//! Circuits for proving events can be accumulated to a partial object.
+//! Circuits for proving events can be accumulated to a state delta object.
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
@@ -10,8 +10,11 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use crate::subcircuits::unpruned::PartialAllowed;
-use crate::subcircuits::{state_from_event, unbounded, unpruned};
+use crate::subcircuits::{unbounded, unpruned};
 use crate::{hash_event, Event, EventType};
+
+// The core subcircuit for this circuit
+pub mod core;
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
@@ -24,7 +27,7 @@ where
     pub event_hash: unpruned::LeafSubCircuit,
 
     /// The event-to-state/partial-object translator
-    pub partial_state: state_from_event::LeafSubCircuit,
+    pub partial_state: core::LeafSubCircuit,
 
     pub circuit: CircuitData<F, C, D>,
 }
@@ -41,7 +44,7 @@ where
 
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let partial_state_inputs = state_from_event::SubCircuitInputs::default(&mut builder);
+        let partial_state_inputs = core::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets = unbounded_inputs.build_leaf::<F, C, D>(&mut builder);
         let event_hash_targets = event_hash_inputs.build_leaf(&mut builder);
@@ -102,7 +105,7 @@ where
     pub event_hash: unpruned::BranchSubCircuit<PartialAllowed>,
 
     /// The event-to-state/partial-object translator
-    pub partial_state: state_from_event::BranchSubCircuit,
+    pub partial_state: core::BranchSubCircuit,
 
     pub circuit: CircuitData<F, C, D>,
 }
@@ -119,7 +122,7 @@ where
 
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let partial_state_inputs = state_from_event::SubCircuitInputs::default(&mut builder);
+        let partial_state_inputs = core::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
