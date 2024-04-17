@@ -12,6 +12,7 @@ use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
+use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
@@ -86,6 +87,27 @@ where
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
+    let mut degree_logs: Vec<_> = traces_poly_values.iter().map(|t| t.len()).collect();
+    degree_logs.sort_unstable_by(|a, b| b.cmp(a));
+    degree_logs.dedup();
+
+    let mut all_trace_polys: Vec<_> = traces_poly_values.iter().flat_map(|v| v.clone()).collect();
+    all_trace_polys.sort_by(|a, b| b.len().cmp(&a.len()));
+    let all_trace_polys_len = all_trace_polys.len();
+
+    let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
+        timing,
+        "Compute trace commitments for all tables",
+        BatchFriOracle::from_values(
+            all_trace_polys,
+            rate_bits,
+            false,
+            cap_height,
+            timing,
+            &vec![None; all_trace_polys_len],
+        )
+    );
+
     let trace_commitments = timed!(
         timing,
         "Compute trace commitments for each table",
@@ -107,6 +129,8 @@ where
                 )
             })
     );
+
+    let trace_caps = batch_trace_commitments.field_merkle_tree.cap;
 
     let trace_caps = trace_commitments
         .each_ref()
