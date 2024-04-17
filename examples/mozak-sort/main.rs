@@ -15,7 +15,7 @@ fn main() {
 
     // TODO: take n from tape.
     let n = 100;
-    let mut v: Vec<u32> = (0..n).map(|_| rng.gen()).collect();
+    let mut v: Vec<u32> = (0..n).map(|_| black_box(rng.gen())).collect();
 
     black_box(v.sort());
 }
