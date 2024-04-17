@@ -44,12 +44,9 @@ fn generate_constraints<'a, T: Copy>(
     // As the result is range checked, this make the choice deterministic,
     // even for a malicious prover.
     for i in 1..4_usize {
-        let target = lv.addrs[0].add(i64::try_from(i).unwrap());
-        constraints.always(
-            lv.is_executed()
-                .mul(lv.addrs[i].sub(target))
-                .mul(lv.addrs[i].add(1 << 32).sub(target)),
-        );
+        let target = lv.addrs[0] + i64::try_from(i).unwrap();
+        constraints
+            .always(lv.is_executed() * (lv.addrs[i] - target) * (lv.addrs[i] + (1 << 32) - target));
     }
 
     constraints
