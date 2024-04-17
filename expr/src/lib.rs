@@ -4,65 +4,63 @@ use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
-/*
-
-NOTE: so far Expr type _belonged_ to Expr builder.  It could even be considered
-a singleton type per each expression instance.  However, now we want to relax
-that requirement, and have some expressions that are not tied to expression
-builders, so that we can have Default instance for expressions.
-
-The current API provided by Expr type are the trait instances, which are
-
-- Add
-    - Expr + Expr
-    - i64 + Expr
-    - Expr + i64
-- Sub
-    - Expr - Expr
-    - i64 - Expr
-    - Expr - i64
-- Mul
-    - Expr * Expr
-    - i64 * Expr
-    - Expr * i64
-- Neg
-    - (- Expr)
-
-Then, the current API for Expr builder was pretty much the ability to inject V
-and i64 into Exprs
-
-- (private) intern for internalising ExprTree
-- (private) binop helper method
-- (private) unop helper method
-- lit for V
-- constant for i64
-- helper methods
-    - add
-    - sub
-    - mul
-    - neg
-
-There is a private contract between ExprBuilder and Expr, as Expr is just a
-wrapper around ExprTree provided by ExprBuilder, as builder internally operates
-on ExprTree.
-
-Ideally, we want to provide a basic implementation of ExprBuilder for our end
-users to extend, but I am not sure how to do that efficiently in Rust yet.
-
-I also noticed that sometimes it is easier to extend the Expr type, rather that
-ExprBuilder.
-
-Finally, there is the case of Evaluator's, because they do form a contract with
-internal ExprTree, as they provide the semantics for the operations.  While 
-
-*/
-
-
+// NOTE: so far Expr type _belonged_ to Expr builder.  It could even be
+// considered a singleton type per each expression instance.  However, now we
+// want to relax that requirement, and have some expressions that are not tied
+// to expression builders, so that we can have Default instance for expressions.
+//
+// The current API provided by Expr type are the trait instances, which are
+//
+// - Add
+// - Expr + Expr
+// - i64 + Expr
+// - Expr + i64
+// - Sub
+// - Expr - Expr
+// - i64 - Expr
+// - Expr - i64
+// - Mul
+// - Expr * Expr
+// - i64 * Expr
+// - Expr * i64
+// - Neg
+// - (- Expr)
+//
+// Then, the current API for Expr builder was pretty much the ability to inject
+// V and i64 into Exprs
+//
+// - (private) intern for internalising ExprTree
+// - (private) binop helper method
+// - (private) unop helper method
+// - lit for V
+// - constant for i64
+// - helper methods
+// - add
+// - sub
+// - mul
+// - neg
+//
+// There is a private contract between ExprBuilder and Expr, as Expr is just a
+// wrapper around ExprTree provided by ExprBuilder, as builder internally
+// operates on ExprTree.
+//
+// Ideally, we want to provide a basic implementation of ExprBuilder for our end
+// users to extend, but I am not sure how to do that efficiently in Rust yet.
+//
+// I also noticed that sometimes it is easier to extend the Expr type, rather
+// that ExprBuilder.
+//
+// Finally, there is the case of Evaluator's, because they do form a contract
+// with internal ExprTree, as they provide the semantics for the operations.
+// While
+//
 
 /// Contains a reference to [`ExprTree`] that is managed by [`ExprBuilder`].
 #[derive(Clone, Copy, Debug)]
 pub enum Expr<'a, V> {
-    Basic { value: i64 },
+    Basic {
+        value: i64,
+    },
     Compound {
         expr_tree: &'a ExprTree<'a, V>,
         builder: &'a ExprBuilder,
@@ -70,15 +68,11 @@ pub enum Expr<'a, V> {
 }
 
 impl<'a, V> From<i64> for Expr<'a, V> {
-    fn from(value: i64) -> Self {
-        Expr::Basic { value }
-    }
-} 
+    fn from(value: i64) -> Self { Expr::Basic { value } }
+}
 
 impl<'a, V> Default for Expr<'a, V> {
-    fn default() -> Self {
-        Expr::from(0)
-    }
+    fn default() -> Self { Expr::from(0) }
 }
 
 // Base semantics of Expr
@@ -86,50 +80,61 @@ impl<'a, V> Expr<'a, V> {
     /// Handle binary operations
     fn bin_op(op: BinOp, lhs: Expr<'a, V>, rhs: Expr<'a, V>) -> Expr<'a, V> {
         match (lhs, rhs) {
-            (Expr::Basic { value: left }, Expr::Basic { value: right }) => Expr::from(PureEvaluator::default().bin_op(&op, left, right)),
-            (Expr::Basic { value: left_value }, Expr::Compound { expr_tree: right, builder }) => {
+            (Expr::Basic { value: left }, Expr::Basic { value: right }) =>
+                Expr::from(PureEvaluator::default().bin_op(&op, left, right)),
+            (
+                Expr::Basic { value: left_value },
+                Expr::Compound {
+                    expr_tree: right,
+                    builder,
+                },
+            ) => {
                 // TODO, do we need public API for constants?
                 let left: &ExprTree<'a, V> = builder.constant_tree(left_value);
                 builder.bin_op(op, left, right)
-            },
-            (Expr::Compound { expr_tree: left, builder }, Expr::Basic { value: right_value }) => {
+            }
+            (
+                Expr::Compound {
+                    expr_tree: left,
+                    builder,
+                },
+                Expr::Basic { value: right_value },
+            ) => {
                 let right: &ExprTree<'a, V> = builder.constant_tree(right_value);
                 builder.bin_op(op, left, right)
-            },
-            (Expr::Compound { expr_tree: left, builder }, Expr::Compound { expr_tree: right, builder: _ }) => 
-            builder.bin_op(op, left, right),
+            }
+            (
+                Expr::Compound {
+                    expr_tree: left,
+                    builder,
+                },
+                Expr::Compound {
+                    expr_tree: right,
+                    builder: _,
+                },
+            ) => builder.bin_op(op, left, right),
         }
     }
 
     /// Handle unary operations
     fn una_op(op: UnaOp, expr: Expr<'a, V>) -> Expr<'a, V> {
-       match expr {
-        Expr::Basic { value } => Expr::from(PureEvaluator::default().una_op(&op, value)),
-        Expr::Compound { expr_tree, builder } => {
-            builder.una_op(op, expr_tree)
+        match expr {
+            Expr::Basic { value } => Expr::from(PureEvaluator::default().una_op(&op, value)),
+            Expr::Compound { expr_tree, builder } => builder.una_op(op, expr_tree),
         }
-       } 
     }
 
     /// Add two expressions
-    fn add(self, rhs: Self) -> Self {
-        Self::bin_op(BinOp::Add, self, rhs)
-    }
+    fn add(self, rhs: Self) -> Self { Self::bin_op(BinOp::Add, self, rhs) }
 
     /// Subtract two expressions
-    fn sub(self, _rhs: Self) -> Self {
-        Self::bin_op(BinOp::Sub, self, _rhs)
-    }
+    fn sub(self, _rhs: Self) -> Self { Self::bin_op(BinOp::Sub, self, _rhs) }
 
     /// Multiply two expressions
-    fn mul(self, rhs: Self) -> Self {
-        Self::bin_op(BinOp::Mul, self, rhs)
-    }
+    fn mul(self, rhs: Self) -> Self { Self::bin_op(BinOp::Mul, self, rhs) }
 
     /// Negate an expression
-    fn neg(self) -> Self {
-        Self::una_op(UnaOp::Neg, self)
-    }
+    fn neg(self) -> Self { Self::una_op(UnaOp::Neg, self) }
 }
 
 // Adding functionality to Expr
@@ -153,7 +158,6 @@ impl<'a, V> Expr<'a, V> {
     }
 }
 
-
 impl<V> Expr<'_, V>
 where
     V: Copy,
@@ -164,7 +168,10 @@ where
         E: ?Sized, {
         match self {
             Expr::Basic { value } => evaluator.constant(*value),
-            Expr::Compound { expr_tree, builder: _ } => expr_tree.eval_with(evaluator),
+            Expr::Compound {
+                expr_tree,
+                builder: _,
+            } => expr_tree.eval_with(evaluator),
         }
     }
 }
@@ -178,9 +185,7 @@ impl<'a, V> Add for Expr<'a, V> {
 impl<'a, V> Add<i64> for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn add(self, rhs: i64) -> Self::Output {
-        self.add(Expr::from(rhs))
-    }
+    fn add(self, rhs: i64) -> Self::Output { self.add(Expr::from(rhs)) }
 }
 
 impl<'a, V> Add<Expr<'a, V>> for i64 {
@@ -204,9 +209,7 @@ impl<'a, V> Sub for Expr<'a, V> {
 impl<'a, V> Sub<i64> for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn sub(self, rhs: i64) -> Self::Output {
-        self.sub(Expr::from(rhs))
-    }
+    fn sub(self, rhs: i64) -> Self::Output { self.sub(Expr::from(rhs)) }
 }
 
 impl<'a, V> Sub<Expr<'a, V>> for i64 {
@@ -224,9 +227,7 @@ impl<'a, V> Mul for Expr<'a, V> {
 impl<'a, V> Mul<i64> for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn mul(self, rhs: i64) -> Self::Output {
-        self.mul(Expr::from(rhs))
-    }
+    fn mul(self, rhs: i64) -> Self::Output { self.mul(Expr::from(rhs)) }
 }
 
 impl<'a, V> Mul<Expr<'a, V>> for i64 {
@@ -261,11 +262,19 @@ impl ExprBuilder {
 
     fn wrap<'a, V>(&'a self, expr_tree: ExprTree<'a, V>) -> Expr<'a, V> {
         let expr_tree = self.intern(expr_tree);
-        Expr::Compound { expr_tree, builder: self }
+        Expr::Compound {
+            expr_tree,
+            builder: self,
+        }
     }
 
     /// Convenience method for creating `BinOp` nodes
-    fn bin_op<'a, V>(&'a self, op: BinOp, left: &'a ExprTree<'a, V>, right: &'a ExprTree<'a, V>) -> Expr<'a, V> {
+    fn bin_op<'a, V>(
+        &'a self,
+        op: BinOp,
+        left: &'a ExprTree<'a, V>,
+        right: &'a ExprTree<'a, V>,
+    ) -> Expr<'a, V> {
         let expr_tree = ExprTree::BinOp { op, left, right };
         self.wrap(expr_tree)
     }
@@ -276,17 +285,11 @@ impl ExprBuilder {
         self.wrap(expr_tree)
     }
 
-
     /// Create a `Literal` expression
-    pub fn lit<V>(&self, value: V) -> Expr<'_, V> {
-        self.wrap(ExprTree::Literal { value })
-    }
+    pub fn lit<V>(&self, value: V) -> Expr<'_, V> { self.wrap(ExprTree::Literal { value }) }
 
     /// Create a `Constant` expression
-    pub fn constant<V>(&self, value: i64) -> Expr<'_, V> {
-        self.wrap(ExprTree::Constant { value })
-    }
-
+    pub fn constant<V>(&self, value: i64) -> Expr<'_, V> { self.wrap(ExprTree::Constant { value }) }
 
     /// Convert from untyped `StarkFrame` to a typed representation.
     ///
