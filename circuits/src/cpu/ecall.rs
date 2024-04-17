@@ -66,7 +66,7 @@ pub(crate) fn io_constraints<'a, P: Copy>(
     cb.always(
         lv.is_cast_list_commitment_tape
             * (lv.op1_value - i64::from(ecall::CAST_LIST_COMMITMENT_TAPE)),
-    )
+    );
 }
 
 pub(crate) fn poseidon2_constraints<'a, P: Copy>(
