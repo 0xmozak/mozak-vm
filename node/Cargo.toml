@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "mozak-node"
-version = "0.1"
+version = "0.1.0"
 
 categories = ["cryptography", "rpc", "blockchain"]
 description = "Mozak protocol node implementation"

@@ -7,7 +7,7 @@ license = "All rights reserved"
 name = "wasm_demo"
 readme = "README.md"
 repository = "https://github.com/0xmozak/mozak-vm"
-version = "0.1"
+version = "0.1.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
