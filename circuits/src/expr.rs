@@ -30,6 +30,7 @@ where
     ) -> ExtensionTarget<D> {
         match op {
             BinOp::Add => self.builder.add_extension(left, right),
+            BinOp::Sub => self.builder.sub_extension(left, right),
             BinOp::Mul => self.builder.mul_extension(left, right),
         }
     }
@@ -65,6 +66,7 @@ where
         match op {
             BinOp::Add => left + right,
             BinOp::Mul => left * right,
+            BinOp::Sub => left - right,
         }
     }
 
