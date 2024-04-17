@@ -952,6 +952,7 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "mozak-circuits",
+ "mozak-examples",
  "mozak-node",
  "mozak-runner",
  "mozak-sdk",
