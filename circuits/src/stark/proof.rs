@@ -316,8 +316,7 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(bound = "")]
+#[derive(Clone, Debug)]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub proofs: TableKindArray<StarkProof<F, C, D>>,
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,

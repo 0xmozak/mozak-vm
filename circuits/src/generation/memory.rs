@@ -1,4 +1,6 @@
-use itertools::{chain, Itertools};
+use std::collections::HashSet;
+
+use itertools::chain;
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -8,6 +10,7 @@ use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_raw_value};
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
+use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::MemoryInit;
 use crate::ops::lw::columns::LoadWord;
 use crate::ops::sw::columns::StoreWord;
@@ -18,14 +21,14 @@ use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace.resize(
+        // We need to pad by at least one, because our constraints require at least one dummy row
+        // at the end.
         (trace.len() + 1).next_power_of_two().max(MIN_TRACE_LENGTH),
         Memory {
             // Some columns need special treatment..
             is_store: F::ZERO,
             is_load: F::ZERO,
             is_init: F::ZERO,
-            diff_clk: F::ZERO,
-            diff_addr_inv: F::ZERO,
             // .. and all other columns just have their last value duplicated.
             ..trace.last().copied().unwrap_or_default()
         },
@@ -73,6 +76,18 @@ pub fn transform_memory_init<F: RichField>(
         .filter_map(Option::<Memory<F>>::from)
 }
 
+/// Generates Memory trace from a memory zero init table.
+///
+/// These need to be further interleaved with runtime memory trace generated
+/// from VM execution for final memory trace.
+pub fn transform_memory_zero_init<F: RichField>(
+    memory_init_rows: &[MemoryZeroInit<F>],
+) -> impl Iterator<Item = Memory<F>> + '_ {
+    memory_init_rows
+        .iter()
+        .filter_map(Option::<Memory<F>>::from)
+}
+
 /// Generates Memory trace from a memory half-word table.
 ///
 /// These need to be further interleaved with runtime memory trace generated
@@ -85,14 +100,12 @@ pub fn transform_halfword<F: RichField>(
         .flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub fn transform_poseidon2_sponge<F: RichField>(
     sponge_data: &[Poseidon2Sponge<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
     sponge_data.iter().flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub fn transform_poseidon2_output_bytes<F: RichField>(
     output_bytes: &[Poseidon2OutputBytes<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
@@ -143,14 +156,16 @@ fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
 pub fn generate_memory_trace<F: RichField>(
     step_rows: &[Row<F>],
     memory_init_rows: &[MemoryInit<F>],
+    memory_zeroinit_rows: &[MemoryZeroInit<F>],
     halfword_memory_rows: &[HalfWordMemory<F>],
     store_word_rows: &[StoreWord<F>],
     load_word_rows: &[LoadWord<F>],
     io_memory_private_rows: &[InputOutputMemory<F>],
     io_memory_public_rows: &[InputOutputMemory<F>],
-    #[allow(unused)] //
+    io_memory_call_tape_rows: &[InputOutputMemory<F>],
+    io_memory_events_commitment_tape_rows: &[InputOutputMemory<F>],
+    io_memory_castlist_commitment_tape_rows: &[InputOutputMemory<F>],
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
-    #[allow(unused)] //
     poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
@@ -158,83 +173,38 @@ pub fn generate_memory_trace<F: RichField>(
     // `merge` operation is expected to be stable
     let mut merged_trace: Vec<Memory<F>> = chain!(
         transform_memory_init::<F>(memory_init_rows),
+        transform_memory_zero_init(memory_zeroinit_rows),
         generate_memory_trace_from_execution(step_rows),
         transform_halfword(halfword_memory_rows),
         transform_sw(store_word_rows),
         transform_lw(load_word_rows),
         transform_io(io_memory_private_rows),
         transform_io(io_memory_public_rows),
+        transform_io(io_memory_call_tape_rows),
+        transform_io(io_memory_events_commitment_tape_rows),
+        transform_io(io_memory_castlist_commitment_tape_rows),
+        transform_poseidon2_sponge(poseidon2_sponge_rows),
+        transform_poseidon2_output_bytes(poseidon2_output_bytes_rows,),
     )
     .collect();
 
-    #[cfg(feature = "enable_poseidon_starks")]
-    merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
-    #[cfg(feature = "enable_poseidon_starks")]
-    merged_trace.extend(transform_poseidon2_output_bytes(
-        poseidon2_output_bytes_rows,
-    ));
+    let read_only_addresses: HashSet<F> = memory_init_rows
+        .iter()
+        .filter(|row| row.filter.is_nonzero() && row.is_writable.is_zero())
+        .map(|row| row.element.address)
+        .collect();
 
     merged_trace.sort_by_key(key);
-    let mut merged_trace: Vec<_> = merged_trace
+    let merged_trace: Vec<_> = merged_trace
         .into_iter()
-        .group_by(|&mem| mem.addr)
-        .into_iter()
-        .flat_map(|(_addr, mem)| {
-            let mut mem_vec = vec![];
-            let mut prev_mem: Option<Memory<F>> = None;
-            for mut current_mem in mem {
-                match prev_mem {
-                    None => {
-                        // rows with is_init set are the source of truth about is_writable
-                        current_mem.is_writable = F::from_bool(
-                            current_mem.is_init.is_zero() | current_mem.is_writable.is_one(),
-                        );
-                    }
-                    Some(prev_mem_unwrapped) => {
-                        current_mem.is_writable = prev_mem_unwrapped.is_writable;
-                        current_mem.diff_clk = current_mem.clk - prev_mem_unwrapped.clk;
-                    }
-                }
-                if prev_mem.is_none()
-                    && (current_mem.is_load.is_one() || current_mem.is_store.is_one())
-                {
-                    mem_vec.push(Memory {
-                        clk: F::ZERO,
-                        is_store: F::ZERO,
-                        is_load: F::ZERO,
-                        is_init: F::ONE,
-                        diff_clk: F::ZERO,
-                        value: F::ZERO,
-                        ..current_mem
-                    });
-                    mem_vec.push(Memory {
-                        diff_clk: current_mem.clk,
-                        ..current_mem
-                    });
-                } else {
-                    mem_vec.push(current_mem);
-                }
-                prev_mem = Some(current_mem);
-            }
-            mem_vec
+        .map(|mem| Memory {
+            is_writable: F::from_bool(!read_only_addresses.contains(&mem.addr)),
+            ..mem
         })
         .collect();
 
-    let mut prev_mem_addr = F::ZERO;
-    for current_mem in &mut merged_trace {
-        current_mem.diff_addr_inv = (current_mem.addr - prev_mem_addr)
-            .try_inverse()
-            .unwrap_or_default();
-        prev_mem_addr = current_mem.addr;
-    }
-
-    // If the trace length is not a power of two, we need to extend the trace to the
-    // next power of two. The additional elements are filled with the last row
-    // of the trace.
-    dbg!(merged_trace.len());
-    let trace = pad_mem_trace(merged_trace);
-    log::trace!("trace {:?}", trace);
-    trace
+    log::trace!("trace {:?}", merged_trace);
+    pad_mem_trace(merged_trace)
 }
 
 #[cfg(test)]
@@ -250,17 +220,20 @@ mod tests {
     use super::pad_mem_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
+        generate_io_memory_public_trace,
     };
+    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::ops;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
-    use crate::test_utils::{fast_test_config, inv, prep_table};
+    use crate::test_utils::{fast_test_config, prep_table};
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -278,9 +251,9 @@ mod tests {
         let stark = S::default();
 
         let trace: Vec<Memory<GoldilocksField>> = prep_table(vec![
-            //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
-            [       0,     100,   1,     0,      0,       0,        1,       0,     inv::<F>(100)],
-            [       1,     100,   1,     0,      0,       0,        2,       0,     inv::<F>(0)],
+            //is_writable  addr  clk is_store, is_load, is_init  value
+            [       0,     100,   1,     0,      0,       0,        1],
+            [       1,     100,   1,     0,      0,       0,        2],
         ]);
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
@@ -296,45 +269,9 @@ mod tests {
         assert!(verify_stark_proof(stark, proof, &config).is_ok(), "failing constraint: init is required per memory address");
     }
 
-    #[rustfmt::skip]
-    fn double_init_trace() -> Vec<Memory<GoldilocksField>> {
-        prep_table(vec![
-            //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
-            [       0,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(100)],
-            [       1,     100,   1,     0,      0,       1,        2,       0,     inv::<F>(0)],
-        ])
-    }
-
-    /// Test that we have a constraint to catch if there are multiple inits per
-    /// memory address.
-    #[test]
-    #[cfg_attr(
-        not(debug_assertions),
-        should_panic = "failing constraint: only single init is allowed per memory address"
-    )]
-    #[cfg_attr(debug_assertions, should_panic = "Constraint failed in")]
-    fn double_init() {
-        let _ = env_logger::try_init();
-        let stark = S::default();
-
-        let trace: Vec<Memory<GoldilocksField>> = double_init_trace();
-        let trace = pad_mem_trace(trace);
-        let trace_poly_values = trace_rows_to_poly_values(trace);
-        let config = fast_test_config();
-        // This will fail, iff debug assertions are enabled.
-        let proof = prove_table::<F, C, S, D>(
-            stark,
-            &config,
-            trace_poly_values,
-            &[],
-            &mut TimingTree::default(),
-        )
-        .unwrap();
-        assert!(
-            verify_stark_proof(stark, proof, &config).is_ok(),
-            "failing constraint: only single init is allowed per memory address"
-        );
-    }
+    // TODO(Matthias): restore the test that shows that double-init is not allowed.
+    // The complication is that this is now caught by a range-check on the address
+    // difference, not by direct constraints.
 
     // This test simulates the scenario of a set of instructions
     // which perform store byte (SB) and load byte unsigned (LBU) operations
@@ -345,46 +282,73 @@ mod tests {
         let (program, record) = memory_trace_test_case(1);
 
         let memory_init = generate_memory_init_trace(&program);
+        let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
+
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let store_word_rows = ops::sw::generate(&record.executed);
         let load_word_rows = ops::lw::generate(&record.executed
         );
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
-        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
+
+        let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
+        let cast_list_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
+        let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &record.executed,
             &memory_init,
+            &memory_zeroinit_rows,
             &halfword_memory,
             &store_word_rows,
             &load_word_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseidon2_trace,
+            &call_tape_rows,
+            &events_commitment_tape_rows,
+            &cast_list_commitment_tape_rows,
+            &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
+        let last = u64::from(u32::MAX);
         assert_eq!(
             trace,
             prep_table(vec![
-                //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
-                [       1,     100,   0,     0,      0,       1,        0,       0,     inv::<F>(100)],  // Zero Init:   100
-                [       1,     100,   2,     1,      0,       0,      255,       2,     inv::<F>(0)  ],  // Operations:  100
-                [       1,     100,   3,     0,      1,       0,      255,       1,     inv::<F>(0)  ],  // Operations:  100
-                [       1,     100,   6,     1,      0,       0,       10,       3,     inv::<F>(0)  ],  // Operations:  100
-                [       1,     100,   7,     0,      1,       0,       10,       1,     inv::<F>(0)  ],  // Operations:  100
-                [       1,     101,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 101
-                [       1,     102,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 102
-                [       1,     103,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 103
-                [       1,     200,   0,     0,      0,       1,        0,       0,     inv::<F>(97) ],  // Zero Init:   200
-                [       1,     200,   4,     1,      0,       0,       15,       4,     inv::<F>(0)  ],  // Operations:  200
-                [       1,     200,   5,     0,      1,       0,       15,       1,     inv::<F>(0)  ],  // Operations:  200
-                [       1,     201,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 201
-                [       1,     202,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 202
-                [       1,     203,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 203
-                [       1,     203,   1,     0,      0,       0,        0,       0,     inv::<F>(0)  ],  // Padding
-                [       1,     203,   1,     0,      0,       0,        0,       0,     inv::<F>(0)  ],  // Padding
+                //is_writable  addr  clk is_store, is_load, is_init  value
+                [       1,     0,     0,     0,      0,       1,     0],  // Memory Init: 0
+                [       1,     100,   0,     0,      0,       1,     0],  // Zero Init:   100
+                [       1,     100,   2,     1,      0,       0,   255],  // Operations:  100
+                [       1,     100,   3,     0,      1,       0,   255],  // Operations:  100
+                [       1,     100,   6,     1,      0,       0,    10],  // Operations:  100
+                [       1,     100,   7,     0,      1,       0,    10],  // Operations:  100
+                [       1,     101,   1,     0,      0,       1,     0],  // Memory Init: 101
+                [       1,     102,   1,     0,      0,       1,     0],  // Memory Init: 102
+                [       1,     103,   1,     0,      0,       1,     0],  // Memory Init: 103
+                [       1,     200,   0,     0,      0,       1,     0],  // Zero Init:   200
+                [       1,     200,   4,     1,      0,       0,    15],  // Operations:  200
+                [       1,     200,   5,     0,      1,       0,    15],  // Operations:  200
+                [       1,     201,   1,     0,      0,       1,     0],  // Memory Init: 201
+                [       1,     202,   1,     0,      0,       1,     0],  // Memory Init: 202
+                [       1,     203,   1,     0,      0,       1,     0],  // Memory Init: 203
+                [       1,    last,   0,     0,      0,       1,     0],  // Memory Init: last
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
+                [       1,    last,   0,     0,      0,       0,     0],  // padding
             ])
         );
     }
@@ -409,36 +373,47 @@ mod tests {
         };
 
         let memory_init = generate_memory_init_trace(&program);
+        let memory_zeroinit_rows = generate_memory_zero_init_trace(&[], &program);
+
         let halfword_memory = generate_halfword_memory_trace(&[]);
         // let fullword_memory = generate_fullword_memory_trace(&[]);
         let store_word_rows = ops::sw::generate(&[]);
         let load_word_rows = ops::lw::generate(&[]);
         let io_memory_private_rows = generate_io_memory_private_trace(&[]);
         let io_memory_public_rows = generate_io_memory_public_trace(&[]);
+        let call_tape_rows = generate_call_tape_trace(&[]);
+        let events_commitment_tape_rows = generate_events_commitment_tape_trace(&[]);
+        let cast_list_commitment_tape_rows =
+            generate_cast_list_commitment_tape_trace(&[]);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&[]);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let trace = super::generate_memory_trace::<F>(
             &[],
             &memory_init,
+            &memory_zeroinit_rows,
             &halfword_memory,
             &store_word_rows,
             &load_word_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
+            &call_tape_rows,
+            &events_commitment_tape_rows,
+            &cast_list_commitment_tape_rows,
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
 
+        let last = u64::from(u32::MAX);
         assert_eq!(trace, prep_table(vec![
-            // is_writable   addr   clk  is_store, is_load, is_init  value  diff_clk      diff_addr_inv
-            [        0,      100,   1,      0,        0,      1,         5,        0,     inv::<F>(100) ],
-            [        0,      101,   1,      0,        0,      1,         6,        0,     inv::<F>(1)   ],
-            [        1,      200,   1,      0,        0,      1,         7,        0,     inv::<F>(99)  ],
-            [        1,      201,   1,      0,        0,      1,         8,        0,     inv::<F>(1)   ],
-            [        1,      201,   1,      0,        0,      0,         8,        0,     inv::<F>(0)   ],
-            [        1,      201,   1,      0,        0,      0,         8,        0,     inv::<F>(0)   ],
-            [        1,      201,   1,      0,        0,      0,         8,        0,     inv::<F>(0)   ],
-            [        1,      201,   1,      0,        0,      0,         8,        0,     inv::<F>(0)   ],
+            // is_writable   addr   clk  is_store, is_load, is_init  value
+            [        1,        0,    0,     0,        0,      1,         0],  // Memory Init: 0
+            [        0,      100,   1,      0,        0,      1,         5],
+            [        0,      101,   1,      0,        0,      1,         6],
+            [        1,      200,   1,      0,        0,      1,         7],
+            [        1,      201,   1,      0,        0,      1,         8],
+            [        1,     last,   0,      0,        0,      1,         0],  // Memory Init: last
+            [        1,     last,   0,      0,        0,      0,         0],  // padding
+            [        1,     last,   0,      0,        0,      0,         0],  // padding
         ]));
     }
 }

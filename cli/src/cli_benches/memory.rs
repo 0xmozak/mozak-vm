@@ -1,6 +1,6 @@
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
+use mozak_runner::code;
 use mozak_runner::instruction::{Args, Instruction, Op};
-use mozak_runner::util::execute_code;
 use starky::config::StarkConfig;
 
 // Stick some byte and word (and half-word?) memory operations in a big old
@@ -54,7 +54,7 @@ pub fn memory_bench(iterations: u32) -> Result<(), anyhow::Error> {
             },
         },
     ];
-    let (program, record) = execute_code(instructions, &[], &[(1, iterations)]);
+    let (program, record) = code::execute(instructions, &[], &[(1, iterations)]);
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
 

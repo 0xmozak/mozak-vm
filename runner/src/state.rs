@@ -7,12 +7,17 @@ use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::hash::hash_types::RichField;
-use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
-use crate::elf::{Code, Data, Program, RuntimeArguments};
+use crate::code::Code;
+use crate::elf::{Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
+use crate::poseidon2;
+
+#[derive(Debug, Clone, Deref)]
+pub struct CommitmentTape(pub [u8; COMMITMENT_SIZE]);
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -58,8 +63,12 @@ pub struct State<F: RichField> {
     pub registers: [u32; 32],
     pub pc: u32,
     pub memory: StateMemory,
-    pub io_tape: IoTape,
-    pub call_tape: IoTapeData,
+    pub private_tape: IoTape,
+    pub public_tape: IoTape,
+    pub call_tape: IoTape,
+    pub event_tape: IoTape,
+    pub events_commitment_tape: CommitmentTape,
+    pub cast_list_commitment_tape: CommitmentTape,
     _phantom: PhantomData<F>,
 }
 
@@ -88,30 +97,27 @@ impl StateMemory {
 }
 
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
-pub struct IoTapeData {
+pub struct IoTape {
     #[deref]
     pub data: Rc<[u8]>,
     pub read_index: usize,
 }
 
-#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
-pub struct IoTape {
-    #[deref]
-    pub private: IoTapeData,
-    pub public: IoTapeData,
+impl Default for IoTape {
+    fn default() -> Self {
+        Self {
+            data: [].into(),
+            read_index: 0,
+        }
+    }
 }
 
-impl From<(Vec<u8>, Vec<u8>)> for IoTape {
-    fn from(data: (Vec<u8>, Vec<u8>)) -> Self {
+/// Converts raw bytes in [`Data`] to an [`IoTape`] for consumption via ecalls.
+impl From<Data> for IoTape {
+    fn from(data: Data) -> Self {
         Self {
-            private: IoTapeData {
-                data: Rc::from(data.0),
-                read_index: 0,
-            },
-            public: IoTapeData {
-                data: Rc::from(data.1),
-                read_index: 0,
-            },
+            data: data.0.values().copied().collect::<Rc<[u8]>>(),
+            read_index: 0,
         }
     }
 }
@@ -128,11 +134,12 @@ impl<F: RichField> Default for State<F> {
             registers: Default::default(),
             pc: Default::default(),
             memory: StateMemory::default(),
-            io_tape: IoTape::from((vec![], vec![])),
-            call_tape: IoTapeData {
-                data: [].into(),
-                read_index: 0,
-            },
+            private_tape: IoTape::default(),
+            public_tape: IoTape::default(),
+            call_tape: IoTape::default(),
+            event_tape: IoTape::default(),
+            events_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
+            cast_list_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
             _phantom: PhantomData,
         }
     }
@@ -149,6 +156,15 @@ impl<F: RichField> From<Program> for State<F> {
             mozak_ro_memory,
         }: Program,
     ) -> Self {
+        let mut state: State<F> = State::default();
+
+        if let Some(ref mrm) = mozak_ro_memory {
+            state.private_tape = IoTape::from(mrm.io_tape_private.data.clone());
+            state.public_tape = IoTape::from(mrm.io_tape_public.data.clone());
+            state.call_tape = IoTape::from(mrm.call_tape.data.clone());
+            state.event_tape = IoTape::from(mrm.event_tape.data.clone());
+        };
+
         Self {
             pc,
             memory: StateMemory::new(
@@ -159,13 +175,9 @@ impl<F: RichField> From<Program> for State<F> {
                 .into_iter(),
                 [rw_memory].into_iter(),
             ),
-            ..Default::default()
+            ..state
         }
     }
-}
-
-impl<F: RichField> From<&Program> for State<F> {
-    fn from(program: &Program) -> Self { Self::from(program.clone()) }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -175,14 +187,15 @@ pub struct MemEntry {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum IoOpcode {
     #[default]
     None,
     StorePrivate,
     StorePublic,
-    StoreTranscript,
+    StoreCallTape,
+    StoreEventsCommitmentTape,
+    StoreCastListCommitmentTape,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -190,21 +203,6 @@ pub struct IoEntry {
     pub addr: u32,
     pub op: IoOpcode,
     pub data: Vec<u8>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Poseidon2SpongeData<F> {
-    pub preimage: [F; WIDTH],
-    pub output: [F; WIDTH],
-    pub gen_output: F,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Poseidon2Entry<F: RichField> {
-    pub addr: u32,
-    pub output_addr: u32,
-    pub len: u32,
-    pub sponge_data: Vec<Poseidon2SpongeData<F>>,
 }
 
 /// Auxiliary information about the instruction execution
@@ -215,53 +213,39 @@ pub struct Aux<F: RichField> {
     pub dst_val: u32,
     pub new_pc: u32,
     pub mem: Option<MemEntry>,
+    pub mem_addresses_used: Vec<u32>,
     pub will_halt: bool,
     pub op1: u32,
     pub op2: u32,
     pub op2_raw: u32,
-    pub poseidon2: Option<Poseidon2Entry<F>>,
+    pub poseidon2: Option<poseidon2::Entry<F>>,
     pub io: Option<IoEntry>,
 }
 
-impl<F: RichField> State<F> {
-    #[must_use]
-    #[allow(clippy::similar_names)]
-    // TODO(Roman): currently this function uses old io-tape mechanism (based on
-    // `ecall`) once a new stark mechanics related to io-tapes will be added, this
-    // function will be used only for old-io-tapes API, and another function
-    // `new_mozak_elf` will be added specifically for new io-tapes mechanism
-    // NOTE: currently, both mozak-elf and vanilla elf will use this API since there
-    // is still no stark-backend that supports new-io-tapes
-    pub fn legacy_ecall_api_new(
-        Program {
-            rw_memory: Data(rw_memory),
-            ro_memory: Data(ro_memory),
-            mozak_ro_memory,
-            entry_point: pc,
-            ..
-        }: Program,
-        RuntimeArguments { .. }: RuntimeArguments,
-    ) -> Self {
-        let memory = StateMemory::new(
-            [
-                ro_memory,
-                mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
-            ]
-            .into_iter(),
-            once(rw_memory),
-        );
+#[derive(Default)]
+pub struct RawTapes {
+    pub private_tape: Vec<u8>,
+    pub public_tape: Vec<u8>,
+    pub call_tape: Vec<u8>,
+    pub event_tape: Vec<u8>,
+}
+
+/// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
+/// compatible `RawTapes`.
+///
+/// TODO(bing): Remove when we no longer rely on preinit memory.
+impl From<RuntimeArguments> for RawTapes {
+    fn from(args: RuntimeArguments) -> Self {
         Self {
-            pc,
-            memory,
-            // TODO(bing): Handle the case where iotapes are
-            // in .mozak_global sections in the RISC-V binary.
-            // Now, the CLI simply does unwrap_or_default() to either
-            // use an iotape from file or default to an empty input.
-            io_tape: IoTape::from((vec![], vec![])),
-            ..Default::default()
+            private_tape: args.io_tape_private,
+            public_tape: args.io_tape_public,
+            call_tape: args.call_tape,
+            event_tape: args.event_tape,
         }
     }
+}
 
+impl<F: RichField> State<F> {
     #[must_use]
     #[allow(clippy::similar_names)]
     /// # Panics
@@ -275,6 +259,7 @@ impl<F: RichField> State<F> {
             mozak_ro_memory,
             ..
         }: Program,
+        raw_tapes: RawTapes,
     ) -> Self {
         Self {
             pc,
@@ -286,6 +271,22 @@ impl<F: RichField> State<F> {
                 .into_iter(),
                 once(rw_memory),
             ),
+            private_tape: IoTape {
+                data: raw_tapes.private_tape.into(),
+                read_index: 0,
+            },
+            public_tape: IoTape {
+                data: raw_tapes.public_tape.into(),
+                read_index: 0,
+            },
+            call_tape: IoTape {
+                data: raw_tapes.call_tape.into(),
+                read_index: 0,
+            },
+            event_tape: IoTape {
+                data: raw_tapes.event_tape.into(),
+                read_index: 0,
+            },
             ..Default::default()
         }
     }
@@ -307,21 +308,35 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
-    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> (u32, u32)) -> (Aux<F>, Self) {
+    /// # Panics
+    ///
+    /// Panics if conversion from `mem_addresses_used: Vec<u32>` into `mem: [u8;
+    /// 4]` fails, though, this should typically not fail since we iterate only
+    /// from (0..4).
+    pub fn memory_load(
+        self,
+        data: &Args,
+        bytes: u32,
+        op: fn(&[u8; 4]) -> (u32, u32),
+    ) -> (Aux<F>, Self) {
         let addr: u32 = self.get_register_value(data.rs2).wrapping_add(data.imm);
+        let mut mem_addresses_used: Vec<u32> = (0..4).map(|i| addr.wrapping_add(i)).collect();
 
-        let mem = [
-            self.load_u8(addr),
-            self.load_u8(addr.wrapping_add(1)),
-            self.load_u8(addr.wrapping_add(2)),
-            self.load_u8(addr.wrapping_add(3)),
-        ];
+        let mem = mem_addresses_used
+            .iter()
+            .map(|&addr| self.load_u8(addr))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+
+        mem_addresses_used.truncate(bytes as usize);
         let (raw_value, dst_val) = op(&mem);
 
         (
             Aux {
                 dst_val,
                 mem: Some(MemEntry { addr, raw_value }),
+                mem_addresses_used,
                 ..Default::default()
             },
             self.set_register_value(data.rd, dst_val).bump_pc(),
@@ -447,23 +462,5 @@ impl<F: RichField> State<F> {
         let clk = self.clk;
         trace!("CLK: {clk:#?}, PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::state::IoTape;
-
-    #[test]
-    fn test_io_tape_serialization() {
-        let io_tape = IoTape::from((vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10], vec![
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-        ]));
-        let serialized = serde_json::to_string(&io_tape).unwrap();
-        let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(io_tape.private.read_index, deserialized.private.read_index);
-        assert_eq!(io_tape.private.data, deserialized.private.data);
-        assert_eq!(io_tape.public.read_index, deserialized.public.read_index);
-        assert_eq!(io_tape.public.data, deserialized.public.data);
     }
 }

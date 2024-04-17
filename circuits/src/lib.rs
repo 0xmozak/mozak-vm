@@ -11,6 +11,7 @@ pub mod columns_view;
 pub mod cpu;
 pub mod cpu_skeleton;
 pub mod cross_table_lookup;
+pub mod expr;
 pub mod generation;
 pub mod linear_combination;
 pub mod linear_combination_typed;
@@ -29,7 +30,6 @@ pub mod program_multiplicities;
 pub mod public_sub_table;
 pub mod rangecheck;
 pub mod rangecheck_u8;
-pub mod recproof;
 pub mod register;
 pub mod stark;
 #[cfg(any(feature = "test", test))]

@@ -32,25 +32,41 @@ impl<F: RichField> State<F> {
 
         let data = match op {
             IoOpcode::StorePublic => read_bytes(
-                &self.io_tape.public.data,
-                &mut self.io_tape.public.read_index,
+                &self.public_tape.data,
+                &mut self.public_tape.read_index,
                 num_bytes_requested as usize,
             ),
             IoOpcode::StorePrivate => read_bytes(
-                &self.io_tape.private.data,
-                &mut self.io_tape.private.read_index,
+                &self.private_tape.data,
+                &mut self.private_tape.read_index,
                 num_bytes_requested as usize,
             ),
-            IoOpcode::StoreTranscript => read_bytes(
+            IoOpcode::StoreCallTape => read_bytes(
                 &self.call_tape.data,
                 &mut self.call_tape.read_index,
                 num_bytes_requested as usize,
             ),
+            IoOpcode::StoreEventsCommitmentTape => read_bytes(
+                &*self.events_commitment_tape,
+                &mut 0,
+                num_bytes_requested as usize,
+            ),
+            IoOpcode::StoreCastListCommitmentTape => read_bytes(
+                &*self.cast_list_commitment_tape,
+                &mut 0,
+                num_bytes_requested as usize,
+            ),
+
             IoOpcode::None => panic!(),
         };
+        let data_len = u32::try_from(data.len()).expect("cannot fit data.len() into u32");
+        let mem_addresses_used: Vec<u32> = (0..data_len)
+            .map(|i| buffer_start.wrapping_add(i))
+            .collect();
         (
             Aux {
-                dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                dst_val: data_len,
+                mem_addresses_used,
                 io: Some(IoEntry {
                     addr: buffer_start,
                     op,
@@ -116,7 +132,11 @@ impl<F: RichField> State<F> {
             ecall::HALT => self.ecall_halt(),
             ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
             ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
-            ecall::IO_READ_TRANSCRIPT => self.ecall_io_read(IoOpcode::StoreTranscript),
+            ecall::IO_READ_CALL_TAPE => self.ecall_io_read(IoOpcode::StoreCallTape),
+            ecall::EVENTS_COMMITMENT_TAPE =>
+                self.ecall_io_read(IoOpcode::StoreEventsCommitmentTape),
+            ecall::CAST_LIST_COMMITMENT_TAPE =>
+                self.ecall_io_read(IoOpcode::StoreCastListCommitmentTape),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             ecall::VM_TRACE_LOG => self.ecall_trace_log(),

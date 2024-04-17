@@ -1,3 +1,4 @@
+#![cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 #[cfg(target_os = "mozakvm")]
 use core::arch::asm;
 
@@ -6,9 +7,15 @@ pub const PANIC: u32 = 1;
 pub const IO_READ_PRIVATE: u32 = 2;
 pub const POSEIDON2: u32 = 3;
 pub const IO_READ_PUBLIC: u32 = 4;
-pub const IO_READ_TRANSCRIPT: u32 = 5;
+pub const IO_READ_CALL_TAPE: u32 = 5;
+pub const EVENTS_COMMITMENT_TAPE: u32 = 6;
+pub const CAST_LIST_COMMITMENT_TAPE: u32 = 7;
 /// Syscall to output the VM trace log at `clk`. Useful for debugging.
-pub const VM_TRACE_LOG: u32 = 6;
+pub const VM_TRACE_LOG: u32 = 8;
+
+/// The number of bytes requested for events commitment tape and
+/// cast list commitment tape is hardcoded to 32 bytes.
+pub const COMMITMENT_SIZE: usize = 32;
 
 #[must_use]
 pub fn log<'a>(raw_id: u32) -> &'a str {
@@ -18,14 +25,14 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
         IO_READ_PUBLIC => "ioread public tape",
         POSEIDON2 => "poseidon2",
         IO_READ_PRIVATE => "ioread private tape",
-        IO_READ_TRANSCRIPT => "ioread transcript",
+        IO_READ_CALL_TAPE => "ioread call tape",
+        EVENTS_COMMITMENT_TAPE => "ioread events commitment tape",
+        CAST_LIST_COMMITMENT_TAPE => "ioread cast list commitment tape",
         VM_TRACE_LOG => "vm trace log",
         _ => "",
     }
 }
 
-#[allow(dead_code)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -43,10 +50,6 @@ pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
     }
 }
 
-#[allow(dead_code)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[allow(clippy::ptr_as_ptr)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -63,10 +66,6 @@ pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[allow(clippy::ptr_as_ptr)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -83,16 +82,12 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[allow(clippy::ptr_as_ptr)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
-pub fn transcript_read(buf_ptr: *mut u8, buf_len: usize) {
+pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
-        in ("a0") IO_READ_TRANSCRIPT,
+        in ("a0") IO_READ_CALL_TAPE,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );
@@ -103,8 +98,38 @@ pub fn transcript_read(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
+pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
+    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") EVENTS_COMMITMENT_TAPE,
+        in ("a1") buf_ptr,
+        in ("a2") COMMITMENT_SIZE,
+        );
+    }
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        unimplemented!()
+    }
+}
+
+pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
+    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") CAST_LIST_COMMITMENT_TAPE,
+        in ("a1") buf_ptr,
+        in ("a2") COMMITMENT_SIZE,
+        );
+    }
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        unimplemented!()
+    }
+}
+
 pub fn panic(msg_ptr: *const u8, msg_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -121,8 +146,6 @@ pub fn panic(msg_ptr: *const u8, msg_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn trace(msg_ptr: *const u8, msg_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
@@ -139,16 +162,8 @@ pub fn trace(msg_ptr: *const u8, msg_len: usize) {
     }
 }
 
-#[allow(dead_code)]
-#[cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 pub fn halt(output: u8) {
     #[cfg(target_os = "mozakvm")]
-    // HALT ecall
-    //
-    // As per RISC-V Calling Convention a0/a1 (which are actually X10/X11) can be
-    // used as function argument/result.
-    // a0 is used to indicate that its HALT system call.
-    // a1 is used to pass output bytes.
     unsafe {
         asm!(
             "ecall",

@@ -131,13 +131,10 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             xor: generate_xor_row(inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
-            #[cfg(feature = "enable_poseidon_starks")]
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
-            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_input_addr: F::from_canonical_u32(
                 aux.poseidon2.clone().unwrap_or_default().addr,
             ),
-            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_input_len: F::from_canonical_u32(
                 aux.poseidon2.clone().unwrap_or_default().len,
             ),
@@ -151,11 +148,18 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
                 (inst.op, io.op),
                 (Op::ECALL, IoOpcode::StorePublic)
             )),
-            is_io_transcript: F::from_bool(matches!(
+            is_call_tape: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StoreTranscript)
+                (Op::ECALL, IoOpcode::StoreCallTape)
             )),
-
+            is_events_commitment_tape: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, IoOpcode::StoreEventsCommitmentTape)
+            )),
+            is_cast_list_commitment_tape: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, IoOpcode::StoreCastListCommitmentTape)
+            )),
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::from(REG_A0)]),
                 (Op::ECALL, ecall::HALT)

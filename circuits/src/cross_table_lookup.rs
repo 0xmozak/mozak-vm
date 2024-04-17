@@ -582,20 +582,15 @@ pub mod ctl_utils {
             row: &[F],
             looking_locations: &[(TableKind, F)],
             looked_locations: &[(TableKind, F)],
-            looking_multiset: &MultiSet<F>,
-            looked_multiset: &MultiSet<F>,
         ) -> Result<(), LookupError> {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
-                // let row: CpuSkeletonCtl<_> = row.iter().copied().collect();
-                println!(
+                eprintln!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\
                     Looking locations: {looking_locations:?}.\n\
-                    Looked locations: {looked_locations:?}.\n
-                    Looking muiltiset: {looking_multiset:?}.\n
-                    Looked muiltiset: {looked_multiset:?}.\n",
+                    Looked locations: {looked_locations:?}.\n",
                 );
                 return Err(LookupError::InconsistentTableRows);
             }
@@ -620,26 +615,22 @@ pub mod ctl_utils {
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(
-                row,
-                looking_locations,
-                looked_locations,
-                &looking_multiset,
-                &looked_multiset,
-            )?;
+            check_multiplicities(row, looking_locations, looked_locations).map_err(|e| {
+                eprintln!("Looking multiset: {looking_multiset:?}");
+                eprintln!("Looked multiset: {looked_multiset:?}");
+                e
+            })?;
         }
 
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
         for (row, looked_locations) in &looked_multiset.0 {
             let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(
-                row,
-                looking_locations,
-                looked_locations,
-                &looking_multiset,
-                &looked_multiset,
-            )?;
+            check_multiplicities(row, looking_locations, looked_locations).map_err(|e| {
+                eprintln!("Looking multiset: {looking_multiset:?}");
+                eprintln!("Looked multiset: {looked_multiset:?}");
+                e
+            })?;
         }
 
         Ok(())

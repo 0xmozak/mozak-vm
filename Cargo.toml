@@ -17,15 +17,17 @@
 [workspace]
 exclude = ["sdk"]
 members = [
+  "circuits",
   "cli",
   "examples-builder",
-  "runner",
-  "circuits",
+  "expr",
   "node-cli",
   "node",
+  "recproofs",
   "rpc",
-  "state",
+  "runner",
   "signatures",
+  "state",
   "wasm-demo",
 ]
 default-members = ["cli"]
@@ -46,6 +48,7 @@ lto = "fat"
 
 [profile.bench]
 lto = "thin"
+opt-level = 3
 
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }

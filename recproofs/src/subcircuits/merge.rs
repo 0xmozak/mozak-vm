@@ -13,7 +13,7 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{find_hash, hash_or_forward_zero, hashes_equal};
+use crate::{find_hash, hash_or_forward_zero, hashes_equal};
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
@@ -256,7 +256,7 @@ mod test {
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::recproof::bounded;
+    use crate::subcircuits::bounded;
     use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
 
     pub struct DummyLeafCircuit {

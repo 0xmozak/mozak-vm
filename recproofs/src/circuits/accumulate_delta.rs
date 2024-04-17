@@ -1,4 +1,4 @@
-//! Subcircuits for proving events can be accumulated to a partial object.
+//! Circuits for proving events can be accumulated to a state delta object.
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
@@ -9,8 +9,12 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::unpruned::PartialAllowed;
-use super::{hash_event, state_from_event, unbounded, unpruned, Event, EventType};
+use crate::subcircuits::unpruned::PartialAllowed;
+use crate::subcircuits::{unbounded, unpruned};
+use crate::{hash_event, Event, EventType};
+
+// The core subcircuit for this circuit
+pub mod core;
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
@@ -23,7 +27,7 @@ where
     pub event_hash: unpruned::LeafSubCircuit,
 
     /// The event-to-state/partial-object translator
-    pub partial_state: state_from_event::LeafSubCircuit,
+    pub partial_state: core::LeafSubCircuit,
 
     pub circuit: CircuitData<F, C, D>,
 }
@@ -40,7 +44,7 @@ where
 
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let partial_state_inputs = state_from_event::SubCircuitInputs::default(&mut builder);
+        let partial_state_inputs = core::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets = unbounded_inputs.build_leaf::<F, C, D>(&mut builder);
         let event_hash_targets = event_hash_inputs.build_leaf(&mut builder);
@@ -101,7 +105,7 @@ where
     pub event_hash: unpruned::BranchSubCircuit<PartialAllowed>,
 
     /// The event-to-state/partial-object translator
-    pub partial_state: state_from_event::BranchSubCircuit,
+    pub partial_state: core::BranchSubCircuit,
 
     pub circuit: CircuitData<F, C, D>,
 }
@@ -118,7 +122,7 @@ where
 
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let partial_state_inputs = state_from_event::SubCircuitInputs::default(&mut builder);
+        let partial_state_inputs = core::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
@@ -134,6 +138,11 @@ where
             &leaf.partial_state.indices,
             &unbounded_targets.left_proof,
             &unbounded_targets.right_proof,
+        );
+
+        builder.connect(
+            event_hash_targets.extension.partial.target,
+            partial_state_targets.partial.target,
         );
 
         let circuit = builder.build();
@@ -168,11 +177,16 @@ where
             right_proof,
         );
         self.event_hash.set_witness(&mut inputs, None, partial);
-        self.partial_state.set_witness_from_proofs(
-            &mut inputs,
-            &left_proof.public_inputs,
-            &right_proof.public_inputs,
-        );
+        if partial {
+            self.partial_state
+                .set_witness_from_proof(&mut inputs, &left_proof.public_inputs);
+        } else {
+            self.partial_state.set_witness_from_proofs(
+                &mut inputs,
+                &left_proof.public_inputs,
+                &right_proof.public_inputs,
+            );
+        }
         self.circuit.prove(inputs)
     }
 }
@@ -305,7 +319,13 @@ mod test {
         BRANCH.circuit.verify(branch_proof_1.clone())?;
 
         let branch_proof_2 = BRANCH.prove(false, &branch_proof_1, Some((true, &ensure_proof)))?;
-        BRANCH.circuit.verify(branch_proof_2)?;
+        BRANCH.circuit.verify(branch_proof_2.clone())?;
+
+        let branch_proof_3 = BRANCH.prove(false, &branch_proof_2, None)?;
+        BRANCH.circuit.verify(branch_proof_3)?;
+
+        let branch_proof_4 = BRANCH.prove(true, &read_proof, None)?;
+        BRANCH.circuit.verify(branch_proof_4)?;
 
         Ok(())
     }

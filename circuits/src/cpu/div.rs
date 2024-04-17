@@ -272,9 +272,9 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::u32_extra;
-    use mozak_runner::util::execute_code;
     use proptest::prelude::{prop_assert_eq, ProptestConfig};
     use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert, proptest};
@@ -330,7 +330,7 @@ mod tests {
     }
 
     fn prove_divu<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
-        let (program, record) = execute_code(divu_remu_instructions(rd), &[], &[(1, p), (2, q)]);
+        let (program, record) = code::execute(divu_remu_instructions(rd), &[], &[(1, p), (2, q)]);
         prop_assert_eq!(
             record.executed[0].aux.dst_val,
             if let 0 = q { 0xffff_ffff } else { p / q }
@@ -344,7 +344,7 @@ mod tests {
     }
 
     fn prove_div<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) {
-        let (program, record) = execute_code(div_rem_instructions(rd), &[], &[(1, p), (2, q)]);
+        let (program, record) = code::execute(div_rem_instructions(rd), &[], &[(1, p), (2, q)]);
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 

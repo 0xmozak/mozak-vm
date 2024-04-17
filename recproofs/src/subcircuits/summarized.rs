@@ -1,6 +1,7 @@
 //! Subcircuits for recursively proving partial contents of a merkle tree.
 //!
 //! These can be used to prove a subset of nodes belong to a tree.
+
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::target::{BoolTarget, Target};
@@ -8,7 +9,7 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{find_bool, find_hash, hash_or_forward};
+use crate::{find_bool, find_hash, hash_or_forward};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
@@ -237,7 +238,7 @@ mod test {
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::recproof::bounded;
+    use crate::subcircuits::bounded;
     use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
 
     pub struct DummyLeafCircuit {

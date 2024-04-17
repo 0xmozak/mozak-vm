@@ -95,6 +95,9 @@ pub fn tapes_to_runtime_arguments(
 
         RuntimeArguments {
             self_prog_id: self_prog_id.inner().to_vec(),
+            // TODO(bing): actually populate these
+            events_commitment_tape: vec![],
+            cast_list_commitment_tape: vec![],
             cast_list: serialise(&cast_list, "CAST_LIST"),
             io_tape_public: length_prefixed_bytes(
                 sys_tapes

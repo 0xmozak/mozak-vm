@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
-use itertools::zip_eq;
+use itertools::{zip_eq, Itertools};
 use log::info;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -50,10 +50,7 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///   `ElfMemoryInit trace cap`: 64
 ///   `MozakMemoryInit trace cap`: 64
 ///   `bitshift public sub table`: 2 rows * 32 columns = 64
-#[cfg(not(feature = "test_public_table"))]
 pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64;
-#[cfg(feature = "test_public_table")]
-pub const VM_PUBLIC_INPUT_SIZE: usize = 1 + 64 + 64 + 64 + 64;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 /// Represents a circuit which recursively verifies STARK proofs.
@@ -245,16 +242,16 @@ where
                 .collect::<Vec<_>>(),
         );
     }
-    for public_sub_table in &mozak_stark.public_sub_tables {
+    all_kind!(|kind| {
         builder.register_public_inputs(
-            &public_sub_table_values_targets[public_sub_table.table.kind]
+            &public_sub_table_values_targets[kind]
                 .clone()
                 .into_iter()
                 .flatten()
                 .flatten()
-                .collect::<Vec<_>>(),
+                .collect_vec(),
         );
-    }
+    });
 
     let circuit = builder.build();
     MozakStarkVerifierCircuit {
@@ -640,8 +637,8 @@ mod tests {
 
     use anyhow::Result;
     use log::info;
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -662,17 +659,12 @@ mod tests {
     type S = MozakStark<F, D>;
 
     #[test]
-    #[cfg(feature = "test_public_table")]
     fn recursive_verify_mozak_starks() -> Result<()> {
-        use itertools::Itertools;
-        use plonky2::field::types::Field;
-
         use crate::stark::verifier::verify_proof;
 
         let stark = S::default();
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 1;
-        let (program, record) = execute_code(
+        let config = StarkConfig::standard_fast_config();
+        let (program, record) = code::execute(
             [Instruction {
                 op: Op::ADD,
                 args: Args {
@@ -708,14 +700,6 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
-        let expected_bitshift_subtable = (0..32)
-            .flat_map(|i| [F::from_canonical_u64(i), F::from_canonical_u64(1 << i)])
-            .collect_vec();
-        assert_eq!(
-            recursive_proof.public_inputs[25..].to_vec(),
-            expected_bitshift_subtable,
-            "Could not find bitshift subtable in recursive proof's public inputs"
-        );
 
         mozak_stark_circuit.circuit.verify(recursive_proof)
     }
@@ -735,7 +719,7 @@ mod tests {
             },
         };
 
-        let (program0, record0) = execute_code([inst], &[], &[(6, 100), (7, 200)]);
+        let (program0, record0) = code::execute([inst], &[], &[(6, 100), (7, 200)]);
         let public_inputs = PublicInputs {
             entry_point: from_u32(program0.entry_point),
         };
@@ -749,7 +733,7 @@ mod tests {
             &mut TimingTree::default(),
         )?;
 
-        let (program1, record1) = execute_code(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
+        let (program1, record1) = code::execute(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
         let public_inputs = PublicInputs {
             entry_point: from_u32(program1.entry_point),
         };

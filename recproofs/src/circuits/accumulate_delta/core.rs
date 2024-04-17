@@ -1,4 +1,6 @@
-use enumflags2::{bitflags, BitFlags};
+//! Subcircuits for proving events can be accumulated to a state delta object.
+
+use enumflags2::BitFlags;
 use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -7,27 +9,10 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{find_target, find_targets, maybe_connect, Event, EventType};
+use crate::{find_target, find_targets, maybe_connect, Event, EventFlags, EventType};
 
 // Limit transfers to 2^40 credits to avoid overflow issues
 const MAX_LEAF_TRANSFER: usize = 40;
-
-#[bitflags]
-#[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum Flags {
-    WriteFlag = 1 << 0,
-    EnsureFlag = 1 << 1,
-    ReadFlag = 1 << 2,
-    GiveOwnerFlag = 1 << 3,
-    TakeOwnerFlag = 1 << 4,
-}
-
-impl Flags {
-    fn count() -> usize { BitFlags::<Self>::ALL.len() }
-
-    fn index(self) -> usize { (self as u8).trailing_zeros() as usize }
-}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
@@ -175,27 +160,28 @@ pub struct LeafTargets {
     pub event_value: [Target; 4],
 }
 
-struct SplitFlags {
-    new_data: Target,
-    owner: Target,
+pub struct SplitFlags {
+    pub new_data: Target,
+    pub owner: Target,
 
-    write: BoolTarget,
-    ensure: BoolTarget,
-    read: BoolTarget,
-    give_owner: BoolTarget,
-    take_owner: BoolTarget,
+    pub write: BoolTarget,
+    pub ensure: BoolTarget,
+    pub read: BoolTarget,
+    pub give_owner: BoolTarget,
+    pub take_owner: BoolTarget,
 }
 
 impl SplitFlags {
-    fn split<F, const D: usize>(builder: &mut CircuitBuilder<F, D>, flags: Target) -> Self
+    pub fn split<F, const D: usize>(builder: &mut CircuitBuilder<F, D>, flags: Target) -> Self
     where
         F: RichField + Extendable<D>, {
-        let new_data_flag_count = (Flags::WriteFlag | Flags::EnsureFlag).len();
-        let other_flag_count = Flags::count() - new_data_flag_count;
-        let owner_flag_count = (Flags::GiveOwnerFlag | Flags::TakeOwnerFlag).len();
+        let new_data_flag_count = (EventFlags::WriteFlag | EventFlags::EnsureFlag).len();
+        let other_flag_count = EventFlags::count() - new_data_flag_count;
+        let owner_flag_count = (EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag).len();
 
         // Split off the flags corresponding to changes to new_data
-        let (new_data, flags) = builder.split_low_high(flags, new_data_flag_count, Flags::count());
+        let (new_data, flags) =
+            builder.split_low_high(flags, new_data_flag_count, EventFlags::count());
         // Split  the flag corresponding to read from the owner flags
         let (read, owner) = builder.split_low_high(flags, 1, other_flag_count);
         let read = BoolTarget::new_unsafe(read);
@@ -208,11 +194,11 @@ impl SplitFlags {
         Self {
             new_data,
             owner,
-            write: flags[Flags::WriteFlag.index()],
-            ensure: flags[Flags::EnsureFlag.index()],
-            read: flags[Flags::ReadFlag.index()],
-            give_owner: flags[Flags::GiveOwnerFlag.index()],
-            take_owner: flags[Flags::TakeOwnerFlag.index()],
+            write: flags[EventFlags::WriteFlag.index()],
+            ensure: flags[EventFlags::EnsureFlag.index()],
+            read: flags[EventFlags::ReadFlag.index()],
+            give_owner: flags[EventFlags::GiveOwnerFlag.index()],
+            take_owner: flags[EventFlags::TakeOwnerFlag.index()],
         }
     }
 }
@@ -267,14 +253,14 @@ impl SubCircuitInputs {
         let event_value = builder.add_virtual_target_arr();
 
         let (write_flag, ensure_flag, read_flag, give_owner_flag, take_owner_flag) = {
-            let object_flags = builder.split_le(self.object_flags, Flags::count());
+            let object_flags = builder.split_le(self.object_flags, EventFlags::count());
 
             (
-                object_flags[Flags::WriteFlag.index()],
-                object_flags[Flags::EnsureFlag.index()],
-                object_flags[Flags::ReadFlag.index()],
-                object_flags[Flags::GiveOwnerFlag.index()],
-                object_flags[Flags::TakeOwnerFlag.index()],
+                object_flags[EventFlags::WriteFlag.index()],
+                object_flags[EventFlags::EnsureFlag.index()],
+                object_flags[EventFlags::ReadFlag.index()],
+                object_flags[EventFlags::GiveOwnerFlag.index()],
+                object_flags[EventFlags::TakeOwnerFlag.index()],
             )
         };
 
@@ -372,7 +358,7 @@ impl LeafTargets {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct LeafWitnessValue<F> {
     pub address: u64,
-    pub object_flags: BitFlags<Flags>,
+    pub object_flags: BitFlags<EventFlags>,
     pub old_owner: [F; 4],
     pub new_owner: [F; 4],
     pub old_data: [F; 4],
@@ -388,11 +374,11 @@ impl<F: RichField> LeafWitnessValue<F> {
         let zero = [F::ZERO; 4];
 
         let (object_flags, credit_delta) = match event.ty {
-            EventType::Write => (Flags::WriteFlag.into(), 0),
-            EventType::Read => (Flags::ReadFlag.into(), 0),
-            EventType::Ensure => (Flags::EnsureFlag.into(), 0),
-            EventType::GiveOwner => (Flags::GiveOwnerFlag.into(), 0),
-            EventType::TakeOwner => (Flags::TakeOwnerFlag.into(), 0),
+            EventType::Write => (EventFlags::WriteFlag.into(), 0),
+            EventType::Read => (EventFlags::ReadFlag.into(), 0),
+            EventType::Ensure => (EventFlags::EnsureFlag.into(), 0),
+            EventType::GiveOwner => (EventFlags::GiveOwnerFlag.into(), 0),
+            EventType::TakeOwner => (EventFlags::TakeOwnerFlag.into(), 0),
             EventType::CreditDelta => {
                 #[allow(clippy::cast_possible_wrap)]
                 let value = event.value[0].to_canonical_u64() as i64;
@@ -444,20 +430,18 @@ impl LeafSubCircuit {
         inputs: &mut PartialWitness<F>,
         v: LeafWitnessValue<F>,
     ) {
+        let targets = &self.targets.inputs;
+        inputs.set_target(targets.address, F::from_canonical_u64(v.address));
         inputs.set_target(
-            self.targets.inputs.address,
-            F::from_canonical_u64(v.address),
-        );
-        inputs.set_target(
-            self.targets.inputs.object_flags,
+            targets.object_flags,
             F::from_canonical_u8(v.object_flags.bits()),
         );
-        inputs.set_target_arr(&self.targets.inputs.old_owner, &v.old_owner);
-        inputs.set_target_arr(&self.targets.inputs.new_owner, &v.new_owner);
-        inputs.set_target_arr(&self.targets.inputs.old_data, &v.old_data);
-        inputs.set_target_arr(&self.targets.inputs.new_data, &v.new_data);
+        inputs.set_target_arr(&targets.old_owner, &v.old_owner);
+        inputs.set_target_arr(&targets.new_owner, &v.new_owner);
+        inputs.set_target_arr(&targets.old_data, &v.old_data);
+        inputs.set_target_arr(&targets.new_data, &v.new_data);
         inputs.set_target(
-            self.targets.inputs.credit_delta,
+            targets.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
         );
         inputs.set_target_arr(&self.targets.event_owner, &v.event_owner);
@@ -475,6 +459,9 @@ pub struct BranchTargets {
 
     /// The right direction
     pub right: SubCircuitInputs,
+
+    /// Whether or not the right direction is present
+    pub partial: BoolTarget,
 }
 
 impl SubCircuitInputs {
@@ -509,9 +496,17 @@ impl SubCircuitInputs {
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
     ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, indices);
-        let right = Self::direction_from_node(right_proof, indices);
+        let zero = builder.zero();
 
+        let left = Self::direction_from_node(left_proof, indices);
+        let mut right = Self::direction_from_node(right_proof, indices);
+
+        // Possibly clear the right side (partial)
+        let partial = builder.add_virtual_bool_target_safe();
+        right.object_flags = builder.select(partial, zero, right.object_flags);
+        right.credit_delta = builder.select(partial, zero, right.credit_delta);
+
+        // Match addresses
         builder.connect(self.address, left.address);
         builder.connect(self.address, right.address);
 
@@ -569,6 +564,7 @@ impl SubCircuitInputs {
             inputs: self,
             left,
             right,
+            partial,
         }
     }
 }
@@ -619,7 +615,7 @@ impl<F> From<LeafWitnessValue<F>> for BranchWitnessValue<F> {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct BranchWitnessValue<F> {
     pub address: u64,
-    pub object_flags: BitFlags<Flags>,
+    pub object_flags: BitFlags<EventFlags>,
     pub old_owner: [F; 4],
     pub new_owner: [F; 4],
     pub old_data: [F; 4],
@@ -631,18 +627,18 @@ fn merge_branch<F: RichField>(
     l: &BranchWitnessValue<F>,
     r: &BranchWitnessValue<F>,
     f: impl Fn(&BranchWitnessValue<F>) -> [F; 4],
-    flags: impl Into<BitFlags<Flags>>,
+    flags: impl Into<BitFlags<EventFlags>>,
 ) -> [F; 4] {
     merge_branch_helper(l, l.object_flags, r, r.object_flags, f, flags)
 }
 
 fn merge_branch_helper<F: RichField, W>(
     l: W,
-    l_flags: BitFlags<Flags>,
+    l_flags: BitFlags<EventFlags>,
     r: W,
-    r_flags: BitFlags<Flags>,
+    r_flags: BitFlags<EventFlags>,
     f: impl Fn(W) -> [F; 4],
-    flags: impl Into<BitFlags<Flags>>,
+    flags: impl Into<BitFlags<EventFlags>>,
 ) -> [F; 4] {
     let flags = flags.into();
     match (l_flags.intersects(flags), r_flags.intersects(flags)) {
@@ -662,10 +658,11 @@ impl<F: RichField> BranchWitnessValue<F> {
         let left: Self = left.into();
         let right: Self = right.into();
 
-        let old_owner = Flags::WriteFlag | Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
-        let new_owner = Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
-        let old_data = Flags::ReadFlag;
-        let new_data = Flags::WriteFlag | Flags::EnsureFlag;
+        let old_owner =
+            EventFlags::WriteFlag | EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag;
+        let new_owner = EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag;
+        let old_data = EventFlags::ReadFlag;
+        let new_data = EventFlags::WriteFlag | EventFlags::EnsureFlag;
 
         Self {
             address: left.address,
@@ -683,24 +680,40 @@ impl BranchSubCircuit {
     pub fn set_witness<F: RichField>(
         &self,
         witness: &mut PartialWitness<F>,
+        partial: bool,
         v: BranchWitnessValue<F>,
     ) {
+        let targets = &self.targets.inputs;
+        witness.set_target(targets.address, F::from_canonical_u64(v.address));
         witness.set_target(
-            self.targets.inputs.address,
-            F::from_canonical_u64(v.address),
-        );
-        witness.set_target(
-            self.targets.inputs.object_flags,
+            targets.object_flags,
             F::from_canonical_u8(v.object_flags.bits()),
         );
-        witness.set_target_arr(&self.targets.inputs.old_owner, &v.old_owner);
-        witness.set_target_arr(&self.targets.inputs.new_owner, &v.new_owner);
-        witness.set_target_arr(&self.targets.inputs.old_data, &v.old_data);
-        witness.set_target_arr(&self.targets.inputs.new_data, &v.new_data);
+        witness.set_target_arr(&targets.old_owner, &v.old_owner);
+        witness.set_target_arr(&targets.new_owner, &v.new_owner);
+        witness.set_target_arr(&targets.old_data, &v.old_data);
+        witness.set_target_arr(&targets.new_data, &v.new_data);
         witness.set_target(
-            self.targets.inputs.credit_delta,
+            targets.credit_delta,
             F::from_noncanonical_i64(v.credit_delta),
         );
+        witness.set_bool_target(self.targets.partial, partial);
+    }
+
+    pub fn set_witness_from_proof<F: RichField>(
+        &self,
+        witness: &mut PartialWitness<F>,
+        left_inputs: &[F],
+    ) {
+        let targets = &self.targets.inputs;
+        let indices = &self.indices;
+        witness.set_target(targets.object_flags, indices.get_object_flags(left_inputs));
+        witness.set_target_arr(&targets.old_owner, &indices.get_old_owner(left_inputs));
+        witness.set_target_arr(&targets.new_owner, &indices.get_new_owner(left_inputs));
+        witness.set_target_arr(&targets.old_data, &indices.get_old_data(left_inputs));
+        witness.set_target_arr(&targets.new_data, &indices.get_new_data(left_inputs));
+        witness.set_target(targets.credit_delta, indices.get_credit_delta(left_inputs));
+        witness.set_bool_target(self.targets.partial, true);
     }
 
     pub fn set_witness_from_proofs<F: RichField>(
@@ -709,31 +722,29 @@ impl BranchSubCircuit {
         left_inputs: &[F],
         right_inputs: &[F],
     ) {
+        let targets = &self.targets.inputs;
+        let indices = &self.indices;
+
         // Address can be derived, so we can skip it
 
         // Handle flags
-        let left_flags = self
-            .indices
-            .get_object_flags(left_inputs)
-            .to_canonical_u64();
-        let right_flags = self
-            .indices
-            .get_object_flags(right_inputs)
-            .to_canonical_u64();
+        let left_flags = indices.get_object_flags(left_inputs).to_canonical_u64();
+        let right_flags = indices.get_object_flags(right_inputs).to_canonical_u64();
         witness.set_target(
-            self.targets.inputs.object_flags,
+            targets.object_flags,
             F::from_canonical_u64(left_flags | right_flags),
         );
         #[allow(clippy::cast_possible_truncation)]
-        let left_flags = BitFlags::<Flags>::from_bits(left_flags as u8).unwrap();
+        let left_flags = BitFlags::<EventFlags>::from_bits(left_flags as u8).unwrap();
         #[allow(clippy::cast_possible_truncation)]
-        let right_flags = BitFlags::<Flags>::from_bits(right_flags as u8).unwrap();
+        let right_flags = BitFlags::<EventFlags>::from_bits(right_flags as u8).unwrap();
 
         // Setup the flags for each scenario
-        let old_owner = Flags::WriteFlag | Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
-        let new_owner = Flags::GiveOwnerFlag | Flags::TakeOwnerFlag;
-        let old_data = Flags::ReadFlag;
-        let new_data = Flags::WriteFlag | Flags::EnsureFlag;
+        let old_owner =
+            EventFlags::WriteFlag | EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag;
+        let new_owner = EventFlags::GiveOwnerFlag | EventFlags::TakeOwnerFlag;
+        let old_data = EventFlags::ReadFlag;
+        let new_data = EventFlags::WriteFlag | EventFlags::EnsureFlag;
 
         // Get the object fields based on the flags
         let old_owner = merge_branch_helper(
@@ -741,7 +752,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| self.indices.get_old_owner(inputs),
+            |inputs| indices.get_old_owner(inputs),
             old_owner,
         );
         let new_owner = merge_branch_helper(
@@ -749,7 +760,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| self.indices.get_new_owner(inputs),
+            |inputs| indices.get_new_owner(inputs),
             new_owner,
         );
         let old_data = merge_branch_helper(
@@ -757,7 +768,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| self.indices.get_old_data(inputs),
+            |inputs| indices.get_old_data(inputs),
             old_data,
         );
         let new_data = merge_branch_helper(
@@ -765,32 +776,26 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| self.indices.get_new_data(inputs),
+            |inputs| indices.get_new_data(inputs),
             new_data,
         );
 
         // Set the object fields
-        witness.set_target_arr(&self.targets.inputs.old_owner, &old_owner);
-        witness.set_target_arr(&self.targets.inputs.new_owner, &new_owner);
-        witness.set_target_arr(&self.targets.inputs.old_data, &old_data);
-        witness.set_target_arr(&self.targets.inputs.new_data, &new_data);
+        witness.set_target_arr(&targets.old_owner, &old_owner);
+        witness.set_target_arr(&targets.new_owner, &new_owner);
+        witness.set_target_arr(&targets.old_data, &old_data);
+        witness.set_target_arr(&targets.new_data, &new_data);
 
         // Handle the credits
         #[allow(clippy::cast_possible_wrap)]
-        let left_credits = self
-            .indices
-            .get_credit_delta(left_inputs)
-            .to_canonical_u64() as i64;
+        let left_credits = indices.get_credit_delta(left_inputs).to_canonical_u64() as i64;
         #[allow(clippy::cast_possible_wrap)]
-        let right_credits = self
-            .indices
-            .get_credit_delta(right_inputs)
-            .to_canonical_u64() as i64;
+        let right_credits = indices.get_credit_delta(right_inputs).to_canonical_u64() as i64;
         let credits = left_credits + right_credits;
-        witness.set_target(
-            self.targets.inputs.credit_delta,
-            F::from_noncanonical_i64(credits),
-        );
+        witness.set_target(targets.credit_delta, F::from_noncanonical_i64(credits));
+
+        // Both sides, so not partial
+        witness.set_bool_target(self.targets.partial, false);
     }
 }
 
@@ -806,7 +811,7 @@ mod test {
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::recproof::bounded;
+    use crate::subcircuits::bounded;
     use crate::test_utils::{fast_test_circuit_config, C, D, F};
 
     pub struct DummyLeafCircuit {
@@ -916,28 +921,37 @@ mod test {
             &self,
             v: BranchWitnessValue<F>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
-            right_proof: &ProofWithPublicInputs<F, C, D>,
+            right_proof: Option<&ProofWithPublicInputs<F, C, D>>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
+            let partial = right_proof.is_none();
+            let right_proof = right_proof.unwrap_or(left_proof);
             self.bounded
                 .set_witness(&mut inputs, left_proof, right_proof);
-            self.state_from_events.set_witness(&mut inputs, v);
+            self.state_from_events.set_witness(&mut inputs, partial, v);
             self.circuit.prove(inputs)
         }
 
         pub fn prove_implicit(
             &self,
             left_proof: &ProofWithPublicInputs<F, C, D>,
-            right_proof: &ProofWithPublicInputs<F, C, D>,
+            right_proof: Option<&ProofWithPublicInputs<F, C, D>>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
+            let partial = right_proof.is_none();
+            let right_proof = right_proof.unwrap_or(left_proof);
             self.bounded
                 .set_witness(&mut inputs, left_proof, right_proof);
-            self.state_from_events.set_witness_from_proofs(
-                &mut inputs,
-                &left_proof.public_inputs,
-                &right_proof.public_inputs,
-            );
+            if partial {
+                self.state_from_events
+                    .set_witness_from_proof(&mut inputs, &left_proof.public_inputs);
+            } else {
+                self.state_from_events.set_witness_from_proofs(
+                    &mut inputs,
+                    &left_proof.public_inputs,
+                    &right_proof.public_inputs,
+                );
+            }
             self.circuit.prove(inputs)
         }
     }
@@ -1052,7 +1066,7 @@ mod test {
             EventType::Write,
             [3, 1, 4, 15],
             |event, _, _| {
-                event.object_flags = Flags::EnsureFlag.into();
+                event.object_flags = EventFlags::EnsureFlag.into();
             },
         );
     }
@@ -1065,7 +1079,7 @@ mod test {
             EventType::Write,
             [3, 1, 4, 15],
             |event, _, _| {
-                event.object_flags = Flags::GiveOwnerFlag.into();
+                event.object_flags = EventFlags::GiveOwnerFlag.into();
             },
         );
     }
@@ -1078,7 +1092,7 @@ mod test {
             EventType::Write,
             [3, 1, 4, 15],
             |event, _, _| {
-                event.object_flags = Flags::EnsureFlag | Flags::WriteFlag;
+                event.object_flags = EventFlags::EnsureFlag | EventFlags::WriteFlag;
             },
         );
     }
@@ -1104,7 +1118,7 @@ mod test {
             EventType::Ensure,
             [3, 1, 4, 15],
             |event, _, _| {
-                event.object_flags = Flags::WriteFlag.into();
+                event.object_flags = EventFlags::WriteFlag.into();
             },
         );
     }
@@ -1225,7 +1239,7 @@ mod test {
             f(&mut event);
             move || {
                 let proof = BRANCHES[Self::HEIGHT]
-                    .prove(event, &self.0.proof, &self.1.proof)
+                    .prove(event, &self.0.proof, Some(&self.1.proof))
                     .unwrap();
                 EventProof { event, proof }
             }
@@ -1246,7 +1260,7 @@ mod test {
             f(&mut event);
             move || {
                 let proof = BRANCHES[Self::HEIGHT]
-                    .prove(event, &left.proof, &right.proof)
+                    .prove(event, &left.proof, Some(&right.proof))
                     .unwrap();
                 EventProof { event, proof }
             }
@@ -1432,7 +1446,7 @@ mod test {
         let branch_proof_1 = BRANCHES[0].prove(
             BranchWitnessValue {
                 address: 200,
-                object_flags: Flags::ReadFlag | Flags::WriteFlag,
+                object_flags: EventFlags::ReadFlag | EventFlags::WriteFlag,
                 old_owner: program_hash_1,
                 new_owner: zero_val,
                 old_data: non_zero_val_1,
@@ -1440,16 +1454,16 @@ mod test {
                 credit_delta: 0,
             },
             &read_proof,
-            &write_proof,
+            Some(&write_proof),
         )?;
         BRANCHES[0].circuit.verify(branch_proof_1.clone())?;
-        let branch_proof_1 = BRANCHES[0].prove_implicit(&read_proof, &write_proof)?;
+        let branch_proof_1 = BRANCHES[0].prove_implicit(&read_proof, Some(&write_proof))?;
         BRANCHES[0].circuit.verify(branch_proof_1.clone())?;
 
         let branch_proof_2 = BRANCHES[0].prove(
             BranchWitnessValue {
                 address: 200,
-                object_flags: Flags::EnsureFlag.into(),
+                object_flags: EventFlags::EnsureFlag.into(),
                 old_owner: zero_val,
                 new_owner: zero_val,
                 old_data: zero_val,
@@ -1457,16 +1471,16 @@ mod test {
                 credit_delta: 0,
             },
             &ensure_proof,
-            &ensure_proof,
+            Some(&ensure_proof),
         )?;
         BRANCHES[0].circuit.verify(branch_proof_2.clone())?;
-        let branch_proof_2 = BRANCHES[0].prove_implicit(&ensure_proof, &ensure_proof)?;
+        let branch_proof_2 = BRANCHES[0].prove_implicit(&ensure_proof, Some(&ensure_proof))?;
         BRANCHES[0].circuit.verify(branch_proof_2.clone())?;
 
         let double_branch_proof = BRANCHES[1].prove(
             BranchWitnessValue {
                 address: 200,
-                object_flags: Flags::ReadFlag | Flags::WriteFlag | Flags::EnsureFlag,
+                object_flags: EventFlags::ReadFlag | EventFlags::WriteFlag | EventFlags::EnsureFlag,
                 old_owner: program_hash_1,
                 new_owner: zero_val,
                 old_data: non_zero_val_1,
@@ -1474,10 +1488,28 @@ mod test {
                 credit_delta: 0,
             },
             &branch_proof_1,
-            &branch_proof_2,
+            Some(&branch_proof_2),
         )?;
         BRANCHES[1].circuit.verify(double_branch_proof)?;
-        let double_branch_proof = BRANCHES[1].prove_implicit(&branch_proof_1, &branch_proof_2)?;
+        let double_branch_proof =
+            BRANCHES[1].prove_implicit(&branch_proof_1, Some(&branch_proof_2))?;
+        BRANCHES[1].circuit.verify(double_branch_proof)?;
+
+        let double_branch_proof = BRANCHES[1].prove(
+            BranchWitnessValue {
+                address: 200,
+                object_flags: EventFlags::ReadFlag | EventFlags::WriteFlag,
+                old_owner: program_hash_1,
+                new_owner: zero_val,
+                old_data: non_zero_val_1,
+                new_data: non_zero_val_2,
+                credit_delta: 0,
+            },
+            &branch_proof_1,
+            None,
+        )?;
+        BRANCHES[1].circuit.verify(double_branch_proof)?;
+        let double_branch_proof = BRANCHES[1].prove_implicit(&branch_proof_1, None)?;
         BRANCHES[1].circuit.verify(double_branch_proof)?;
 
         Ok(())

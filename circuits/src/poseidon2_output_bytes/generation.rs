@@ -1,18 +1,8 @@
 use plonky2::hash::hash_types::RichField;
 
-use super::MIN_TRACE_LENGTH;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-
-fn pad_trace<F: RichField>(
-    mut trace: Vec<Poseidon2OutputBytes<F>>,
-) -> Vec<Poseidon2OutputBytes<F>> {
-    trace.resize(
-        trace.len().next_power_of_two().max(MIN_TRACE_LENGTH),
-        Poseidon2OutputBytes::default(),
-    );
-    trace
-}
+use crate::utils::pad_trace_with_default;
 
 pub fn generate_poseidon2_output_bytes_trace<F: RichField>(
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
@@ -21,7 +11,7 @@ pub fn generate_poseidon2_output_bytes_trace<F: RichField>(
         .iter()
         .flat_map(Into::<Vec<Poseidon2OutputBytes<F>>>::into)
         .collect();
-    let trace = pad_trace(trace);
+    let trace = pad_trace_with_default(trace);
     log::trace!("trace {:?}", trace);
     trace
 }
@@ -31,8 +21,8 @@ mod tests {
     use mozak_runner::vm::Row;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::MIN_TRACE_LENGTH;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
