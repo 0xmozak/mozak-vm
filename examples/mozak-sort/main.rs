@@ -5,6 +5,8 @@ use core::hint::black_box;
 extern crate alloc;
 use alloc::vec::Vec;
 
+use mozak_sdk::core::ecall::ioread_public;
+
 extern crate rand;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
@@ -15,7 +17,9 @@ fn main() {
     let mut rng = SmallRng::seed_from_u64(0xdead_beef_feed_cafe);
 
     // TODO: take n from tape.
-    let n = 100;
+    let mut bytes = [0u8; 4];
+    ioread_public(bytes.as_mut_ptr(), bytes.len());
+    let n = u32::from_le_bytes(bytes);
     let mut v: Vec<u32> = (0..n).map(|_| black_box(rng.gen())).collect();
 
     black_box(v.sort());
