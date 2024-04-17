@@ -46,6 +46,17 @@ impl<F: RichField> State<F> {
                 &mut self.call_tape.read_index,
                 num_bytes_requested as usize,
             ),
+            IoOpcode::StoreEventsCommitmentTape => read_bytes(
+                &*self.events_commitment_tape,
+                &mut 0,
+                num_bytes_requested as usize,
+            ),
+            IoOpcode::StoreCastListCommitmentTape => read_bytes(
+                &*self.cast_list_commitment_tape,
+                &mut 0,
+                num_bytes_requested as usize,
+            ),
+
             IoOpcode::None => panic!(),
         };
         let data_len = u32::try_from(data.len()).expect("cannot fit data.len() into u32");
@@ -122,6 +133,10 @@ impl<F: RichField> State<F> {
             ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
             ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
             ecall::IO_READ_CALL_TAPE => self.ecall_io_read(IoOpcode::StoreCallTape),
+            ecall::EVENTS_COMMITMENT_TAPE =>
+                self.ecall_io_read(IoOpcode::StoreEventsCommitmentTape),
+            ecall::CAST_LIST_COMMITMENT_TAPE =>
+                self.ecall_io_read(IoOpcode::StoreCastListCommitmentTape),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             ecall::VM_TRACE_LOG => self.ecall_trace_log(),

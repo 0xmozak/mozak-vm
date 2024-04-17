@@ -121,6 +121,14 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "CallTape")]
     pub call_tape_stark: InputOutputMemoryStark<F, D>,
+    // TODO(bing): This is known to be 32-bytes in length. Optimize with
+    // a fixed size version of this STARK.
+    #[StarkSet(stark_kind = "EventsCommitmentTape")]
+    pub events_commitment_tape_stark: InputOutputMemoryStark<F, D>,
+    // TODO(bing): This is known to be 32-bytes in length. Optimize with
+    // a fixed size version of this STARK.
+    #[StarkSet(stark_kind = "CastListCommitmentTape")]
+    pub cast_list_commitment_tape_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
@@ -142,9 +150,6 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "BltTaken")]
     pub blt_taken_stark: BltTakenStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-    #[cfg(feature = "test_public_table")]
-    pub public_sub_tables: [PublicSubTable; 1],
-    #[cfg(not(feature = "test_public_table"))]
     pub public_sub_tables: [PublicSubTable; 0],
     pub debug: bool,
 }
@@ -426,6 +431,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
             call_tape_stark: InputOutputMemoryStark::default(),
+            events_commitment_tape_stark: InputOutputMemoryStark::default(),
+            cast_list_commitment_tape_stark: InputOutputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
@@ -453,10 +460,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
                 CpuToSkeletonTable::lookups(),
             ],
-            #[cfg(not(feature = "test_public_table"))]
             public_sub_tables: [],
-            #[cfg(feature = "test_public_table")]
-            public_sub_tables: [crate::bitshift::columns::public_sub_table()],
             debug: false,
         }
     }
@@ -612,6 +616,16 @@ table_impl!(
 );
 table_impl!(CallTapeTable, TableKind::CallTape, InputOutputMemory);
 table_impl!(
+    EventsCommitmentTapeTable,
+    TableKind::EventsCommitmentTape,
+    InputOutputMemory
+);
+table_impl!(
+    CastListCommitmentTapeTable,
+    TableKind::CastListCommitmentTape,
+    InputOutputMemory
+);
+table_impl!(
     Poseidon2SpongeTable,
     TableKind::Poseidon2Sponge,
     Poseidon2Sponge
@@ -700,6 +714,9 @@ impl Lookups for IntoMemoryTable {
                 memory_fullword::columns::lookup_for_memory_limb(3),
                 memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
                 memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
+                memory_io::columns::lookup_for_memory(TableKind::CallTape),
+                memory_io::columns::lookup_for_memory(TableKind::EventsCommitmentTape),
+                memory_io::columns::lookup_for_memory(TableKind::CastListCommitmentTape),
             ],
             (0..8).map(poseidon2_sponge::columns::lookup_for_input_memory),
             (0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory),
@@ -847,7 +864,9 @@ impl Lookups for IoMemoryToCpuTable {
                 [
                     TableKind::IoMemoryPrivate,
                     TableKind::IoMemoryPublic,
-                    TableKind::CallTape
+                    TableKind::CallTape,
+                    TableKind::EventsCommitmentTape,
+                    TableKind::CastListCommitmentTape,
                 ],
                 0..
             )

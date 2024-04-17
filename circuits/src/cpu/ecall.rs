@@ -18,12 +18,16 @@ pub(crate) fn constraints<'a, P: Copy>(
     cb.always(lv.is_io_store_private.is_binary());
     cb.always(lv.is_io_store_public.is_binary());
     cb.always(lv.is_call_tape.is_binary());
+    cb.always(lv.is_events_commitment_tape.is_binary());
+    cb.always(lv.is_cast_list_commitment_tape.is_binary());
     cb.always(
         lv.inst.ops.ecall
             - (lv.is_halt
                 + lv.is_io_store_private
                 + lv.is_io_store_public
                 + lv.is_call_tape
+                + lv.is_events_commitment_tape
+                + lv.is_cast_list_commitment_tape
                 + lv.is_poseidon2),
     );
     halt_constraints(lv, cb);
@@ -56,6 +60,13 @@ pub(crate) fn io_constraints<'a, P: Copy>(
     cb.always(lv.is_io_store_private * (lv.op1_value - i64::from(ecall::IO_READ_PRIVATE)));
     cb.always(lv.is_io_store_public * (lv.op1_value - i64::from(ecall::IO_READ_PUBLIC)));
     cb.always(lv.is_call_tape * (lv.op1_value - i64::from(ecall::IO_READ_CALL_TAPE)));
+    cb.always(
+        lv.is_events_commitment_tape * (lv.op1_value - i64::from(ecall::EVENTS_COMMITMENT_TAPE)),
+    );
+    cb.always(
+        lv.is_cast_list_commitment_tape
+            * (lv.op1_value - i64::from(ecall::CAST_LIST_COMMITMENT_TAPE)),
+    )
 }
 
 pub(crate) fn poseidon2_constraints<'a, P: Copy>(

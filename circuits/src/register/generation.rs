@@ -89,6 +89,8 @@ pub fn generate_register_trace<F: RichField>(
     mem_private: &[InputOutputMemory<F>],
     mem_public: &[InputOutputMemory<F>],
     mem_call_tape: &[InputOutputMemory<F>],
+    mem_events_commitment_tape: &[InputOutputMemory<F>],
+    mem_cast_list_commitment_tape: &[InputOutputMemory<F>],
     reg_init: &[RegisterInit<F>],
 ) -> (
     Vec<RegisterZeroRead<F>>,
@@ -106,6 +108,9 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
             TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
             TableKind::CallTape => extract(mem_call_tape, &looking_table),
+            TableKind::EventsCommitmentTape => extract(mem_events_commitment_tape, &looking_table),
+            TableKind::CastListCommitmentTape =>
+                extract(mem_cast_list_commitment_tape, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
@@ -166,7 +171,9 @@ mod tests {
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::io_memory::{
-        generate_call_tape_trace, generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
+        generate_io_memory_public_trace,
     };
     use crate::test_utils::prep_table;
 
@@ -209,6 +216,10 @@ mod tests {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let call_tape = generate_call_tape_trace(&record.executed);
+        let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
+        let cast_list_commitment_tape_rows =
+            generate_cast_list_commitment_tape_trace(&record.executed);
+
         let register_init = generate_register_init_trace(&record);
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
@@ -217,6 +228,8 @@ mod tests {
             &io_memory_private,
             &io_memory_public,
             &call_tape,
+            &events_commitment_tape_rows,
+            &cast_list_commitment_tape_rows,
             &register_init,
         );
 

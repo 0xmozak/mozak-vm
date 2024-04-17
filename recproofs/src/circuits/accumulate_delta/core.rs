@@ -1,3 +1,5 @@
+//! Subcircuits for proving events can be accumulated to a state delta object.
+
 use enumflags2::BitFlags;
 use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
