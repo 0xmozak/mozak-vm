@@ -1,44 +1,19 @@
-use plonky2::field::extension::Extendable;
-use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use expr::Expr;
 
 use super::columns::CpuState;
+use crate::expr::ConstraintBuilder;
 
-pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
+pub(crate) fn constraints<'a, P: Copy>(
+    lv: &CpuState<Expr<'a, P>>,
+    cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     let expected_value = lv.op1_value - lv.op2_value;
-    let wrapped = P::Scalar::from_noncanonical_u64(1 << 32) + expected_value;
+    let wrapped = (1 << 32) + expected_value;
 
     // Check: the result of subtraction is wrapped if necessary.
     // As the result is range checked, this make the choice deterministic,
     // even for a malicious prover.
-    yield_constr
-        .constraint(lv.inst.ops.sub * ((lv.dst_value - expected_value) * (lv.dst_value - wrapped)));
-}
-
-pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let expected_value = builder.sub_extension(lv.op1_value, lv.op2_value);
-    let wrap_at = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
-    let wrapped = builder.add_extension(wrap_at, expected_value);
-    let dst_value_sub_expected_value = builder.sub_extension(lv.dst_value, expected_value);
-    let dst_value_sub_wrapped = builder.sub_extension(lv.dst_value, wrapped);
-    let dst_value_sub_expected_value_mul_dst_value_sub_wrapped =
-        builder.mul_extension(dst_value_sub_expected_value, dst_value_sub_wrapped);
-    let constr = builder.mul_extension(
-        lv.inst.ops.sub,
-        dst_value_sub_expected_value_mul_dst_value_sub_wrapped,
-    );
-    yield_constr.constraint(builder, constr);
+    cb.always(lv.inst.ops.sub * ((lv.dst_value - expected_value) * (lv.dst_value - wrapped)));
 }
 
 #[cfg(test)]

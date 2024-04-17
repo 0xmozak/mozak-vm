@@ -16,7 +16,7 @@ pub struct Args {
 }
 
 /// Operands of RV32I + RV32M
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Serialize, Deserialize, Ord, PartialOrd)]
 #[repr(u8)]
 pub enum Op {
     // RV32I Base Integer Instructions

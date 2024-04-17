@@ -1,3 +1,4 @@
+use expr::{Evaluator, ExprBuilder, PureEvaluator};
 use itertools::{chain, Itertools};
 use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
@@ -23,8 +24,12 @@ use crate::xor::columns::XorView;
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
-    let mut last = trace.last().copied().unwrap();
-    last.is_running = F::ZERO;
+    let last = CpuState {
+        product_high_limb_inv_helper: F::from_canonical_u32(u32::MAX).inverse(),
+        quotient_value: F::from_canonical_u32(u32::MAX),
+        ..Default::default()
+    };
+
     trace.resize(len, last);
     trace
 }
@@ -40,7 +45,7 @@ pub fn generate_program_mult_trace<F: RichField>(
 ) -> Vec<ProgramMult<F>> {
     let cpu_counts = trace
         .iter()
-        .filter(|row| row.is_running == F::ONE)
+        .filter(|&row| row.is_running() == F::ONE)
         .map(|row| row.inst.pc);
     let add_counts = add_trace
         .iter()
@@ -122,7 +127,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
                 + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
-            is_running: F::from_bool(!state.halted),
+            // is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
@@ -182,9 +187,19 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     pad_trace(trace)
 }
 
+/// This is a wrapper to make the Expr mechanics work directly with a Field.
+///
+/// TODO(Matthias): Make this more generally useful.
+fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
+    let expr_builder = ExprBuilder::default();
+    let row = row.map(|x| expr_builder.lit(x));
+    PureEvaluator(F::from_noncanonical_i64).eval(row.signed_diff())
+}
+
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
-    row.cmp_diff_inv = row.signed_diff().try_inverse().unwrap_or_default();
-    row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
+    let signed_diff = signed_diff(row);
+    row.cmp_diff_inv = signed_diff.try_inverse().unwrap_or_default();
+    row.normalised_diff = F::from_bool(signed_diff.is_nonzero());
 }
 
 /// Generates a bitshift row on a shift operation. This is used in the bitshift

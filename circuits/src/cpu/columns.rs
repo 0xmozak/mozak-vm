@@ -1,13 +1,8 @@
-use plonky2::field::extension::Extendable;
-use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
+use core::iter::Sum;
+use core::ops::{Add, Mul, Sub};
 
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cpu::stark::add_extension_vec;
 use crate::cpu_skeleton::columns::CpuSkeletonCtl;
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
@@ -103,9 +98,6 @@ pub struct CpuState<T> {
     pub new_pc: T,
     pub inst: Instruction<T>,
 
-    // Represents the end of the program. Also used as the filter column for cross checking Program
-    // ROM instructions.
-    pub is_running: T,
     // TODO(Matthias): we can remove this, once our 'halt' instruction is in its own table.
     pub next_is_running: T,
 
@@ -196,53 +188,51 @@ pub struct CpuState<T> {
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
-impl<T: PackedField> CpuState<T> {
-    #[must_use]
-    pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
+impl<T: Copy + Sum> CpuState<T> {
+    pub fn is_running(&self) -> T { self.inst.ops.into_iter().sum() }
+}
 
+impl<T: Copy> CpuState<T>
+where
+    T: Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
+{
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
     /// For signed operations: `Field::from_noncanonical_i64(op1 as i32 as i64)`
     ///
     /// So range is `i32::MIN..=u32::MAX` in Prime Field.
-    pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * Self::shifted(32) }
+    pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * (1 << 32) }
 
     /// Value of the second operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX` in Prime Field.
-    pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
+    pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * (1 << 32) }
 
     /// Difference between first and second operands, which works for both pairs
     /// of signed or pairs of unsigned values.
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-pub fn op1_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    cpu: &CpuState<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let shifted_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
-    let op1_sign_bit = builder.mul_extension(cpu.op1_sign_bit, shifted_32);
-    builder.sub_extension(cpu.op1_value, op1_sign_bit)
+impl<P> OpSelectors<P>
+where
+    P: Copy + Add<Output = P> + Sum + Sub<Output = P>,
+{
+    /// List of opcodes that only bump the program counter.
+    pub fn is_straightline(self) -> P { self.into_iter().sum::<P>() - self.is_jumping() }
 }
 
-pub fn op2_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    cpu: &CpuState<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let shifted_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
-    let op2_sign_bit = builder.mul_extension(cpu.op2_sign_bit, shifted_32);
-    builder.sub_extension(cpu.op2_value, op2_sign_bit)
-}
+impl<P: Copy + Add<Output = P>> OpSelectors<P> {
+    // List of opcodes that manipulated the program counter, instead of
+    // straight line incrementing it.
+    // Note: ecall is only 'jumping' in the sense that a 'halt'
+    // does not bump the PC. It sort-of jumps back to itself.
+    pub fn is_jumping(&self) -> P {
+        self.beq + self.bge + self.blt + self.bne + self.ecall + self.jalr
+    }
 
-pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    cpu: &CpuState<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let op1_full_range = op1_full_range_extension_target(builder, cpu);
-    let op2_full_range = op2_full_range_extension_target(builder, cpu);
-    builder.sub_extension(op1_full_range, op2_full_range)
+    /// List of opcodes that work with memory.
+    pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
 }
 
 /// Expressions we need to range check
@@ -380,17 +370,6 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     pub fn halfword_mem_ops(self) -> T { self.sh + self.lh }
 
     pub fn fullword_mem_ops(self) -> T { self.sw + self.lw }
-
-    pub fn is_mem_ops(self) -> T { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
-}
-
-pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    ops: &OpSelectors<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    add_extension_vec(builder, vec![
-        ops.sb, ops.lb, ops.sh, ops.lh, ops.sw, ops.lw,
-    ])
 }
 
 /// Lookup into `Bitshift` stark.
@@ -429,7 +408,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> 
                 1 << 5,
             ),
         },
-        CPU.is_running,
+        CPU.is_running(),
     )
 }
 
@@ -458,7 +437,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rs1_selected,
                 value: CPU.op1_value,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
         CpuTable::new(
             RegisterCtl {
@@ -467,7 +446,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rs2_selected,
                 value: CPU.op2_value_raw,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
         CpuTable::new(
             RegisterCtl {
@@ -476,7 +455,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rd_selected,
                 value: CPU.dst_value,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
     ]
 }
@@ -490,6 +469,6 @@ pub fn lookup_for_skeleton() -> TableWithTypedOutput<CpuSkeletonCtl<Column>> {
             new_pc: CPU.new_pc,
             will_halt: CPU.is_halt,
         },
-        CPU.is_running,
+        CPU.is_running(),
     )
 }
