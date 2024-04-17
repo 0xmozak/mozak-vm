@@ -122,7 +122,7 @@ pub fn event_commitment_lookup_in_tape_commitments(
 ) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
     let data = TapeCommitmentCTL {
         byte: COL_MAP.value,
-        index: -COL_MAP.size + i64::try_from(COMMITMENT_SIZE).unwrap() - 1,
+        index: i64::try_from(COMMITMENT_SIZE - 1).unwrap() - COL_MAP.size,
     };
     EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
 }
@@ -132,7 +132,7 @@ pub fn castlist_commitment_lookup_in_tape_commitments(
 ) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
     let data = TapeCommitmentCTL {
         byte: COL_MAP.value,
-        index: -COL_MAP.size + i64::try_from(COMMITMENT_SIZE).unwrap() - 1,
+        index: i64::try_from(COMMITMENT_SIZE - 1).unwrap() - COL_MAP.size,
     };
     CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
 }
