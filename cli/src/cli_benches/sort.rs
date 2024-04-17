@@ -1,11 +1,9 @@
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
+use mozak_examples::MOZAK_SORT_ELF;
 use mozak_runner::elf::Program;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use starky::config::StarkConfig;
-
-pub const MOZAK_SORT_ELF: &[u8] =
-    include_bytes!(r"../../../examples/target/riscv32im-mozak-mozakvm-elf/release/mozak-sort");
 
 pub fn sort_bench(n: u32) -> Result<(), anyhow::Error> {
     let program = Program::vanilla_load_elf(MOZAK_SORT_ELF)?;
