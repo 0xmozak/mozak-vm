@@ -944,7 +944,7 @@ dependencies = [
  "mozak-runner",
  "mozak-sdk",
  "plonky2",
- "plonky2_maybe_rayon",
+ "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git)",
  "proptest",
  "serde",
  "serde_json",
@@ -1016,7 +1016,7 @@ dependencies = [
  "itertools 0.12.1",
  "lazy_static",
  "plonky2",
- "plonky2_maybe_rayon",
+ "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git)",
 ]
 
 [[package]]
@@ -1169,7 +1169,6 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 [[package]]
 name = "plonky2"
 version = "0.2.1"
-source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1180,7 +1179,7 @@ dependencies = [
  "log",
  "num",
  "plonky2_field",
- "plonky2_maybe_rayon",
+ "plonky2_maybe_rayon 0.2.0",
  "plonky2_util",
  "rand",
  "rand_chacha",
@@ -1200,7 +1199,7 @@ dependencies = [
  "itertools 0.12.1",
  "num",
  "plonky2",
- "plonky2_maybe_rayon",
+ "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git)",
  "rand",
  "rayon",
  "serde",
@@ -1210,7 +1209,6 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.2.1"
-source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
@@ -1225,6 +1223,13 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
+dependencies = [
+ "rayon",
+]
+
+[[package]]
+name = "plonky2_maybe_rayon"
+version = "0.2.0"
 source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 dependencies = [
  "rayon",
@@ -1233,7 +1238,6 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 
 [[package]]
 name = "plotters"
@@ -1699,7 +1703,6 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.3.0"
-source = "git+https://github.com/0xmozak/plonky2.git#e4d5110fb3c8041f771e48f1a2e61b423fdccdbc"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1708,7 +1711,7 @@ dependencies = [
  "log",
  "num-bigint",
  "plonky2",
- "plonky2_maybe_rayon",
+ "plonky2_maybe_rayon 0.2.0",
  "plonky2_util",
 ]
 
