@@ -136,25 +136,6 @@ impl<F: RichField> From<&LoadWord<F>> for Vec<Memory<F>> {
     }
 }
 
-// impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
-//     fn from(val: &FullWordMemory<F>) -> Self {
-//         if (val.ops.is_load + val.ops.is_store).is_zero() {
-//             vec![]
-//         } else {
-//             (0..4)
-//                 .map(|i| Memory {
-//                     clk: val.clk,
-//                     addr: val.addrs[i],
-//                     value: val.limbs[i],
-//                     is_store: val.ops.is_store,
-//                     is_load: val.ops.is_load,
-//                     ..Default::default()
-//                 })
-//                 .collect()
-//         }
-//     }
-// }
-
 impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
     fn from(value: &Poseidon2Sponge<F>) -> Self {
         if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {
