@@ -156,7 +156,6 @@ pub fn omni_bench(iterations: u32) -> Result<(), anyhow::Error> {
         Instruction {
             op: Op::SW,
             args: Args {
-                rd: 4,
                 rs1: 1,
                 rs2: 2,
                 ..Args::default()
