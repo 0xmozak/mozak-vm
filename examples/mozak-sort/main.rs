@@ -3,7 +3,6 @@
 
 
 use core::hint::black_box;
-// import vec in no std
 extern crate alloc;
 use alloc::vec::Vec;
 
