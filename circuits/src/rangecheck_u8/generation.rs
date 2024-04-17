@@ -108,7 +108,7 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
-        let call_tape = generate_call_tape_trace(&record.executed);
+        let call_tape_rows = generate_call_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
@@ -122,6 +122,9 @@ mod tests {
             &fullword_memory,
             &io_memory_private,
             &io_memory_public,
+            &call_tape_rows,
+            &events_commitment_tape_rows,
+            &cast_list_commitment_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
@@ -130,7 +133,7 @@ mod tests {
             &cpu_rows,
             &io_memory_private,
             &io_memory_public,
-            &call_tape,
+            &call_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &register_init,
