@@ -122,7 +122,6 @@ pub fn omni_bench(iterations: u32) -> Result<(), anyhow::Error> {
             op: Op::LW,
             args: Args {
                 rd: 4,
-                rs1: 1,
                 rs2: 2,
                 ..Args::default()
             },

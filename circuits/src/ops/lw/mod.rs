@@ -161,10 +161,8 @@ pub fn generate<F: RichField>(executed: &[Row<F>]) -> Vec<LoadWord<F>> {
     } in executed
     {
         if let Op::LW = inst.op {
-            // let rs1_selected = inst.args.rs1;
             let rs2_selected = inst.args.rs2;
             let rd_selected = inst.args.rd;
-            // let op1_value = state.get_register_value(rs1_selected);
             let op2_value = state.get_register_value(rs2_selected);
             let imm_value = inst.args.imm;
             let address = aux.mem.unwrap().addr;
