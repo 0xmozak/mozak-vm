@@ -14,6 +14,7 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
+use plonky2::fri::proof::FriProof;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
@@ -31,7 +32,7 @@ use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::public_sub_table::public_sub_table_data_and_values;
-use crate::stark::mozak_stark::{all_starks, PublicInputs};
+use crate::stark::mozak_stark::{all_kind, all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 
@@ -87,24 +88,62 @@ where
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
-    let mut degree_logs: Vec<_> = traces_poly_values.iter().map(|t| t.len()).collect();
+    // We cannot batch prove these tables because trace caps are needed as public
+    // inputs for the following tables.
+    let public_table_kinds = vec![
+        TableKind::Program,
+        TableKind::ElfMemoryInit,
+        TableKind::MozakMemoryInit,
+    ];
+
+    let separate_trace_commitments = timed!(
+        timing,
+        "Compute trace commitments for separate tables",
+        all_kind!(|kind| if public_table_kinds.contains(&kind) {
+            Some(PolynomialBatch::<F, C, D>::from_values(
+                traces_poly_values[kind].clone(),
+                rate_bits,
+                false,
+                cap_height,
+                timing,
+                None,
+            ))
+        } else {
+            None
+        })
+    );
+
+    let mut batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
+        None
+    } else {
+        Some(&traces_poly_values[kind])
+    });
+    let mut degree_logs: Vec<usize> = batch_traces_poly_values
+        .iter()
+        .filter_map(|t| *t)
+        .map(|t| t.len())
+        .collect();
     degree_logs.sort_unstable_by(|a, b| b.cmp(a));
     degree_logs.dedup();
 
-    let mut all_trace_polys: Vec<_> = traces_poly_values.iter().flat_map(|v| v.clone()).collect();
-    all_trace_polys.sort_by(|a, b| b.len().cmp(&a.len()));
-    let all_trace_polys_len = all_trace_polys.len();
+    let mut batch_trace_polys: Vec<_> = batch_traces_poly_values
+        .iter()
+        .filter_map(|t| *t)
+        .flat_map(|v| v.clone())
+        .collect();
+    batch_trace_polys.sort_by(|a, b| b.len().cmp(&a.len()));
+    let bacth_trace_polys_len = batch_trace_polys.len();
 
     let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
-        "Compute trace commitments for all tables",
+        "Compute trace commitments for batch tables",
         BatchFriOracle::from_values(
-            all_trace_polys,
+            batch_trace_polys,
             rate_bits,
             false,
             cap_height,
             timing,
-            &vec![None; all_trace_polys_len],
+            &vec![None; bacth_trace_polys_len],
         )
     );
 
@@ -130,7 +169,8 @@ where
             })
     );
 
-    let trace_caps = batch_trace_commitments.field_merkle_tree.cap;
+    // TODO: todo
+    // let trace_caps = batch_trace_commitments.field_merkle_tree.cap;
 
     let trace_caps = trace_commitments
         .each_ref()
@@ -381,6 +421,120 @@ where
         ..Default::default()
     }
     .build();
+
+    Ok(all_starks!(mozak_stark, |stark, kind| {
+        prove_single_table(
+            stark,
+            config,
+            &traces_poly_values[kind],
+            &trace_commitments[kind],
+            public_inputs[kind],
+            &ctl_data_per_table[kind],
+            &public_sub_data_per_table[kind],
+            challenger,
+            timing,
+        )?
+    }))
+}
+
+/// Given the traces generated from [`generate_traces`] along with their
+/// commitments, prove a [`MozakStark`].
+///
+/// # Errors
+/// Errors if proving fails.
+#[allow(clippy::too_many_arguments)]
+pub fn batch_prove_with_commitments<F, C, const D: usize>(
+    mozak_stark: &MozakStark<F, D>,
+    config: &StarkConfig,
+    public_table_kinds: &[TableKind],
+    public_inputs: &PublicInputs<F>,
+    trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
+    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+    batch_trace_commitments: &BatchFriOracle<F, C, D>,
+    separate_trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
+    ctl_data_per_table: &TableKindArray<CtlData<F>>,
+    public_sub_data_per_table: &TableKindArray<CtlData<F>>,
+    challenger: &mut Challenger<F, C::Hasher>,
+    timing: &mut TimingTree,
+) -> Result<TableKindArray<StarkProof<F, C, D>>>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
+    let rate_bits = config.fri_config.rate_bits;
+    let cap_height = config.fri_config.cap_height;
+
+    let cpu_stark = [public_inputs.entry_point];
+    let public_inputs = TableKindSetBuilder::<&[_]> {
+        cpu_stark: &cpu_stark,
+        ..Default::default()
+    }
+    .build();
+
+    let separate_proofs = all_starks!(mozak_stark, |stark, kind| if public_table_kinds
+        .contains(&kind)
+    {
+        Some(prove_single_table(
+            stark,
+            config,
+            &traces_poly_values[kind],
+            &separate_trace_commitments[kind],
+            public_inputs[kind],
+            &ctl_data_per_table[kind],
+            &public_sub_data_per_table[kind],
+            challenger,
+            timing,
+        )?)
+    } else {
+        None
+    });
+
+    // TODO: we can remove duplicates in the ctl polynomials.
+    let batch_ctl_polys = all_kind!(|kind| {
+        if public_table_kinds.contains(&kind) {
+            None
+        } else {
+            let degree = traces_poly_values[kind][0].len();
+            let degree_bits = log2_strict(degree);
+            let fri_params = config.fri_params(degree_bits);
+            assert!(
+                fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
+                "FRI total reduction arity is too large.",
+            );
+
+            let z_poly_public_sub_table = ctl_data_per_table[kind].z_polys();
+
+            let z_polys = vec![ctl_data_per_table[kind].z_polys(), z_poly_public_sub_table]
+                .into_iter()
+                .flatten()
+                .collect_vec();
+
+            // TODO(Matthias): make the code work with empty z_polys, too.
+            assert!(!z_polys.is_empty());
+
+            Some(z_polys)
+        }
+    });
+
+    let mut batch_ctl_zs_polys: Vec<_> = batch_ctl_polys
+        .iter()
+        .filter_map(|t| t.as_ref())
+        .flat_map(|v| v.iter().cloned())
+        .collect();
+    batch_ctl_zs_polys.sort_by(|a, b| b.len().cmp(&a.len()));
+    let batch_ctl_zs_polys_len = batch_ctl_zs_polys.len();
+
+    let batch_ctl_zs_commitments: BatchFriOracle<F, C, D> = timed!(
+        timing,
+        "compute batch Zs commitment",
+        BatchFriOracle::from_values(
+            batch_ctl_zs_polys,
+            rate_bits,
+            false,
+            config.fri_config.cap_height,
+            timing,
+            &vec![None; batch_ctl_zs_polys_len],
+        )
+    );
 
     Ok(all_starks!(mozak_stark, |stark, kind| {
         prove_single_table(
