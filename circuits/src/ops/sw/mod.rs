@@ -1,6 +1,3 @@
-// TODO(Matthias): unify with Fullword memory.
-// Same for `lw`.
-
 pub mod stark;
 
 pub mod columns {
@@ -37,7 +34,6 @@ pub mod columns {
     #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
     pub struct StoreWord<T> {
         pub inst: Instruction<T>,
-        // TODO(Matthias): could we get rid of the clk here?
         pub clk: T,
         pub op1_limbs: [T; 4],
         pub op2_value: T,
