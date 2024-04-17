@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "fibonacci"
-version = "0.1.0"
+version = "0.1"
 
 [dependencies]
 mozak-sdk = { path = "../../sdk", default-features = false }

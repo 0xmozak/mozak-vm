@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "state"
-version = "0.1.0"
+version = "0.1"
 
 categories = ["cryptography", "state"]
 description = "Mozak protocol state layer"

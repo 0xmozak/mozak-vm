@@ -7,7 +7,7 @@ license = "All rights reserved"
 name = "mozak-circuits"
 readme = "README.md"
 repository = "https://github.com/0xmozak/mozak-vm"
-version = "0.1.0"
+version = "0.1"
 
 [dependencies]
 anyhow = { version = "1.0", default-features = false }

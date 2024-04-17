@@ -7,27 +7,27 @@ license = "All rights reserved"
 name = "signatures"
 readme = "README.md"
 repository = "https://github.com/0xmozak/mozak-vm"
-version = "0.1.0"
+version = "0.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0.82"
-hex = "0.4.3"
-itertools = "0.12.1"
+hex = "0.4"
+itertools = "0.12"
 log = "0.4"
-num = "0.4.2"
+num = "0.4"
 plonky2 = "0"
 plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
 serde = "1.0.197"
-sha2 = "0.10.8"
-sha3 = "0.10.8"
+sha2 = "0.10"
+sha3 = "0.10"
 
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 env_logger = { version = "0.11" }
-rand = "0.8.5"
+rand = "0.8"
 serde_json = "1.0"
 
 [[bench]]
