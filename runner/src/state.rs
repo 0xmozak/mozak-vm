@@ -7,6 +7,7 @@ use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +15,9 @@ use crate::code::Code;
 use crate::elf::{Data, PreinitMemory, Program};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
+
+#[derive(Debug, Clone, Deref)]
+pub struct CommitmentTape(pub [u8; COMMITMENT_SIZE]);
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -63,6 +67,8 @@ pub struct State<F: RichField> {
     pub public_tape: IoTape,
     pub call_tape: IoTape,
     pub event_tape: IoTape,
+    pub events_commitment_tape: CommitmentTape,
+    pub cast_list_commitment_tape: CommitmentTape,
     _phantom: PhantomData<F>,
 }
 
@@ -132,6 +138,8 @@ impl<F: RichField> Default for State<F> {
             public_tape: IoTape::default(),
             call_tape: IoTape::default(),
             event_tape: IoTape::default(),
+            events_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
+            cast_list_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
             _phantom: PhantomData,
         }
     }
@@ -186,6 +194,8 @@ pub enum IoOpcode {
     StorePrivate,
     StorePublic,
     StoreCallTape,
+    StoreEventsCommitmentTape,
+    StoreCastListCommitmentTape,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -218,6 +228,8 @@ pub struct RawTapes {
     pub public_tape: Vec<u8>,
     pub call_tape: Vec<u8>,
     pub event_tape: Vec<u8>,
+    pub events_commitment_tape: [u8; COMMITMENT_SIZE],
+    pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
 }
 
 /// Converts pre-init memory compatible [`PreinitMemory`] into ecall
@@ -231,6 +243,8 @@ impl From<PreinitMemory> for RawTapes {
             public_tape: args.io_tape_public,
             call_tape: args.call_tape,
             event_tape: args.event_tape,
+            cast_list_commitment_tape: args.cast_list_commitment_tape,
+            events_commitment_tape: args.events_commitment_tape,
         }
     }
 }
@@ -277,6 +291,8 @@ impl<F: RichField> State<F> {
                 data: raw_tapes.event_tape.into(),
                 read_index: 0,
             },
+            cast_list_commitment_tape: CommitmentTape(raw_tapes.cast_list_commitment_tape),
+            events_commitment_tape: CommitmentTape(raw_tapes.events_commitment_tape),
             ..Default::default()
         }
     }

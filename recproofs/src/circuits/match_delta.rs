@@ -1,5 +1,5 @@
-//! Circuits for recursively proving partial objects match specific
-//! summarized state updates
+//! Circuits for recursively proving state delta objects match summarized state
+//! updates
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
@@ -10,10 +10,14 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
-use super::accumulate_event;
+use super::accumulate_delta;
+use crate::circuits::accumulate_delta::core::SplitFlags;
 use crate::maybe_connect;
+use crate::subcircuits::unbounded;
 use crate::subcircuits::unpruned::{self, PartialAllowed};
-use crate::subcircuits::{compare_object, state_from_event, unbounded};
+
+// The core subcircuit for this circuit
+pub mod core;
 
 pub struct LeafTargets<const D: usize> {
     /// The proof of event accumulation
@@ -33,8 +37,8 @@ where
     /// The rp-style merkle hash of summarized state updates
     pub state_hash: unpruned::LeafSubCircuit,
 
-    /// The partial-object/state update comparator
-    pub compare_object: compare_object::LeafSubCircuit,
+    /// The delta/state update comparator
+    pub compare_delta: core::LeafSubCircuit,
 
     pub targets: LeafTargets<D>,
 
@@ -62,19 +66,19 @@ where
     #[must_use]
     pub fn new(
         circuit_config: &CircuitConfig,
-        accumulate_event_circuit: &accumulate_event::BranchCircuit<F, C, D>,
+        accumulate_event_circuit: &accumulate_delta::BranchCircuit<F, C, D>,
     ) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let state_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let compare_object_inputs = compare_object::SubCircuitInputs::default(&mut builder);
+        let compare_delta_inputs = core::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets = unbounded_inputs.build_leaf::<F, C, D>(&mut builder);
         let event_hash_targets = event_hash_inputs.build_leaf(&mut builder);
         let state_hash_targets = state_hash_inputs.build_leaf(&mut builder);
-        let compare_object_targets = compare_object_inputs.build_leaf(&mut builder);
+        let compare_delta_targets = compare_delta_inputs.build_leaf(&mut builder);
 
         let targets = LeafTargets {
             accumulate_event: builder
@@ -106,15 +110,15 @@ where
                 .partial_state
                 .indices
                 .get_address(&targets.accumulate_event.public_inputs);
-            builder.connect(compare_object_targets.address, acc_addr);
+            builder.connect(compare_delta_targets.address, acc_addr);
         }
         // flags
         let acc_flags = accumulate_event_circuit
             .partial_state
             .indices
             .get_object_flags(&targets.accumulate_event.public_inputs);
-        builder.connect(compare_object_targets.object_flags, acc_flags);
-        let acc_flags = state_from_event::SplitFlags::split(&mut builder, acc_flags);
+        builder.connect(compare_delta_targets.object_flags, acc_flags);
+        let acc_flags = SplitFlags::split(&mut builder, acc_flags);
         let has_owner = builder.is_nonzero(acc_flags.owner);
         // old owner
         {
@@ -124,7 +128,7 @@ where
                 .get_old_owner(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
-                compare_object_targets.old_owner,
+                compare_delta_targets.old_owner,
                 has_owner,
                 acc_old_owner,
             );
@@ -137,7 +141,7 @@ where
                 .get_new_owner(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
-                compare_object_targets.new_owner,
+                compare_delta_targets.new_owner,
                 has_owner,
                 acc_new_owner,
             );
@@ -150,7 +154,7 @@ where
                 .get_old_data(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
-                compare_object_targets.old_data,
+                compare_delta_targets.old_data,
                 acc_flags.read,
                 acc_old_data,
             );
@@ -163,7 +167,7 @@ where
                 .get_new_data(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
-                compare_object_targets.new_data,
+                compare_delta_targets.new_data,
                 acc_flags.write,
                 acc_new_data,
             );
@@ -175,15 +179,15 @@ where
                 .indices
                 .get_credit_delta(&targets.accumulate_event.public_inputs);
             let calc_credit_delta = builder.sub(
-                compare_object_targets.new_credits,
-                compare_object_targets.old_credits,
+                compare_delta_targets.new_credits,
+                compare_delta_targets.old_credits,
             );
             builder.connect(calc_credit_delta, acc_credit_delta);
         }
 
         // Connect the state hash
         builder.connect_hashes(
-            compare_object_targets.state_hash,
+            compare_delta_targets.state_hash,
             state_hash_targets.inputs.unpruned_hash,
         );
 
@@ -193,13 +197,13 @@ where
         let unbounded = unbounded_targets.build(public_inputs);
         let event_hash = event_hash_targets.build(public_inputs);
         let state_hash = state_hash_targets.build(public_inputs);
-        let compare_object = compare_object_targets.build(public_inputs);
+        let compare_delta = compare_delta_targets.build(public_inputs);
 
         Self {
             unbounded,
             event_hash,
             state_hash,
-            compare_object,
+            compare_delta,
             targets,
             circuit,
         }
@@ -214,25 +218,25 @@ where
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         inputs.set_target(
-            self.compare_object.targets.block_height,
+            self.compare_delta.targets.block_height,
             F::from_canonical_u64(v.block_height),
         );
         inputs.set_target(
-            self.compare_object.targets.last_updated,
+            self.compare_delta.targets.last_updated,
             F::from_canonical_u64(v.last_updated),
         );
         inputs.set_target(
-            self.compare_object.targets.old_credits,
+            self.compare_delta.targets.old_credits,
             F::from_canonical_u64(v.old_credits),
         );
         inputs.set_target(
-            self.compare_object.targets.new_credits,
+            self.compare_delta.targets.new_credits,
             F::from_canonical_u64(v.new_credits),
         );
-        inputs.set_target_arr(&self.compare_object.targets.old_owner, &v.old_owner);
-        inputs.set_target_arr(&self.compare_object.targets.new_owner, &v.new_owner);
-        inputs.set_target_arr(&self.compare_object.targets.old_data, &v.old_data);
-        inputs.set_target_arr(&self.compare_object.targets.new_data, &v.new_data);
+        inputs.set_target_arr(&self.compare_delta.targets.old_owner, &v.old_owner);
+        inputs.set_target_arr(&self.compare_delta.targets.new_owner, &v.new_owner);
+        inputs.set_target_arr(&self.compare_delta.targets.old_data, &v.old_data);
+        inputs.set_target_arr(&self.compare_delta.targets.new_data, &v.new_data);
         inputs.set_proof_with_pis_target(&self.targets.accumulate_event, &accumulate_event_proof);
         self.circuit.prove(inputs)
     }
@@ -252,7 +256,7 @@ where
     pub state_hash: unpruned::BranchSubCircuit<PartialAllowed>,
 
     /// The partial-object/state update comparator
-    pub compare_object: compare_object::BranchSubCircuit,
+    pub compare_delta: core::BranchSubCircuit,
 
     pub circuit: CircuitData<F, C, D>,
 }
@@ -270,7 +274,7 @@ where
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let state_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
-        let compare_object_inputs = compare_object::SubCircuitInputs::default(&mut builder);
+        let compare_delta_inputs = core::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
@@ -288,9 +292,9 @@ where
             &unbounded_targets.right_proof,
             false,
         );
-        let compare_object_targets = compare_object_inputs.build_branch(
+        let compare_delta_targets = compare_delta_inputs.build_branch(
             &mut builder,
-            &leaf.compare_object.indices,
+            &leaf.compare_delta.indices,
             &unbounded_targets.left_proof,
             &unbounded_targets.right_proof,
         );
@@ -307,14 +311,13 @@ where
         let unbounded = unbounded_targets.build(&leaf.unbounded, public_inputs);
         let event_hash = event_hash_targets.build(&leaf.event_hash.indices, public_inputs);
         let state_hash = state_hash_targets.build(&leaf.state_hash.indices, public_inputs);
-        let compare_object =
-            compare_object_targets.build(&leaf.compare_object.indices, public_inputs);
+        let compare_delta = compare_delta_targets.build(&leaf.compare_delta.indices, public_inputs);
 
         Self {
             unbounded,
             event_hash,
             state_hash,
-            compare_object,
+            compare_delta,
             circuit,
         }
     }
@@ -353,10 +356,10 @@ mod test {
     const CONFIG: CircuitConfig = fast_test_circuit_config();
 
     lazy_static! {
-        static ref ACC_LEAF: accumulate_event::LeafCircuit<F, C, D> =
-            accumulate_event::LeafCircuit::new(&CONFIG);
-        static ref ACC_BRANCH: accumulate_event::BranchCircuit<F, C, D> =
-            accumulate_event::BranchCircuit::new(&CONFIG, &ACC_LEAF);
+        static ref ACC_LEAF: accumulate_delta::LeafCircuit<F, C, D> =
+            accumulate_delta::LeafCircuit::new(&CONFIG);
+        static ref ACC_BRANCH: accumulate_delta::BranchCircuit<F, C, D> =
+            accumulate_delta::BranchCircuit::new(&CONFIG, &ACC_LEAF);
         static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG, &ACC_BRANCH);
         static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
     }
