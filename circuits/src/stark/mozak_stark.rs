@@ -33,6 +33,10 @@ use crate::poseidon2::columns::{Poseidon2State, Poseidon2StateCtl};
 use crate::poseidon2::stark::Poseidon2_12Stark;
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, Poseidon2OutputBytesCtl};
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
+use crate::poseidon2_preimage_pack::columns::{
+    Poseidon2PreimagePack, Poseidon2SpongePreimagePackCtl,
+};
+use crate::poseidon2_preimage_pack::stark::Poseidon2PreimagePackStark;
 use crate::poseidon2_sponge::columns::{Poseidon2Sponge, Poseidon2SpongeCtl};
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::columns::{InstructionRow, ProgramRom};
@@ -59,7 +63,7 @@ use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities,
+    memoryinit, poseidon2_output_bytes, poseidon2_preimage_pack, program, program_multiplicities,
     rangecheck, register, xor,
 };
 
