@@ -50,6 +50,6 @@ lto = "thin"
 opt-level = 3
 
 [patch.crates-io]
-plonky2 = { path = "../plonky2/plonky2" }
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_batch_fri" }
 plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
-starky = { path = "../plonky2/starky" }
+starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_batch_fri" }

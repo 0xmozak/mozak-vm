@@ -559,23 +559,25 @@ where
     let alphas = challenger.get_n_challenges(config.num_challenges);
 
     let batch_quotient_polys = all_starks!(mozak_stark, |stark, kind| {
-        if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind] {
+        if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind].as_ref() {
             let degree = traces_poly_values[kind][0].len();
             let degree_bits = log2_strict(degree);
             timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
-                Some(compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
-                    stark,
-                    &trace_commitments[kind],
-                    &ctl_zs_commitment,
-                    public_inputs[kind],
-                    &ctl_data_per_table[kind],
-                    &public_sub_data_per_table[kind],
-                    &alphas,
-                    degree_bits,
-                    config,
-                ))
+                Some(
+                    compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
+                        stark,
+                        &trace_commitments[kind],
+                        &ctl_zs_commitment,
+                        public_inputs[kind],
+                        &ctl_data_per_table[kind],
+                        &public_sub_data_per_table[kind],
+                        &alphas,
+                        degree_bits,
+                        config,
+                    )
+                )
             )
         } else {
             None
