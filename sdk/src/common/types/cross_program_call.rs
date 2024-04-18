@@ -49,10 +49,7 @@ impl SelfCallExtensionFlag {
     not(target_os = "mozakvm"),
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
-pub struct SelfCallExtendedProgramIdentifier(
-    pub ProgramIdentifier,
-    pub SelfCallExtensionFlag,
-);
+pub struct SelfCallExtendedProgramIdentifier(pub ProgramIdentifier, pub SelfCallExtensionFlag);
 
 #[derive(
     Default, Clone, Hash, PartialEq, PartialOrd, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
