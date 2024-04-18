@@ -7,13 +7,17 @@ use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
-use crate::elf::{Data, Program};
+use crate::elf::{Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
+
+#[derive(Debug, Clone, Deref)]
+pub struct CommitmentTape(pub [u8; COMMITMENT_SIZE]);
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -63,6 +67,8 @@ pub struct State<F: RichField> {
     pub public_tape: IoTape,
     pub call_tape: IoTape,
     pub event_tape: IoTape,
+    pub events_commitment_tape: CommitmentTape,
+    pub cast_list_commitment_tape: CommitmentTape,
     _phantom: PhantomData<F>,
 }
 
@@ -106,6 +112,16 @@ impl Default for IoTape {
     }
 }
 
+/// Converts raw bytes in [`Data`] to an [`IoTape`] for consumption via ecalls.
+impl From<Data> for IoTape {
+    fn from(data: Data) -> Self {
+        Self {
+            data: data.0.values().copied().collect::<Rc<[u8]>>(),
+            read_index: 0,
+        }
+    }
+}
+
 /// By default, all `State` start with `clk` 1. This is to differentiate
 /// execution clocks (1 and above) from `clk` value of 0 which is
 /// reserved for any initialisation concerns. e.g. memory initialization
@@ -122,6 +138,8 @@ impl<F: RichField> Default for State<F> {
             public_tape: IoTape::default(),
             call_tape: IoTape::default(),
             event_tape: IoTape::default(),
+            events_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
+            cast_list_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
             _phantom: PhantomData,
         }
     }
@@ -138,6 +156,15 @@ impl<F: RichField> From<Program> for State<F> {
             mozak_ro_memory,
         }: Program,
     ) -> Self {
+        let mut state: State<F> = State::default();
+
+        if let Some(ref mrm) = mozak_ro_memory {
+            state.private_tape = IoTape::from(mrm.io_tape_private.data.clone());
+            state.public_tape = IoTape::from(mrm.io_tape_public.data.clone());
+            state.call_tape = IoTape::from(mrm.call_tape.data.clone());
+            state.event_tape = IoTape::from(mrm.event_tape.data.clone());
+        };
+
         Self {
             pc,
             memory: StateMemory::new(
@@ -148,7 +175,7 @@ impl<F: RichField> From<Program> for State<F> {
                 .into_iter(),
                 [rw_memory].into_iter(),
             ),
-            ..Default::default()
+            ..state
         }
     }
 }
@@ -167,6 +194,8 @@ pub enum IoOpcode {
     StorePrivate,
     StorePublic,
     StoreCallTape,
+    StoreEventsCommitmentTape,
+    StoreCastListCommitmentTape,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -193,6 +222,33 @@ pub struct Aux<F: RichField> {
     pub io: Option<IoEntry>,
 }
 
+#[derive(Default)]
+pub struct RawTapes {
+    pub private_tape: Vec<u8>,
+    pub public_tape: Vec<u8>,
+    pub call_tape: Vec<u8>,
+    pub event_tape: Vec<u8>,
+    pub events_commitment_tape: [u8; COMMITMENT_SIZE],
+    pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
+}
+
+/// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
+/// compatible `RawTapes`.
+///
+/// TODO(bing): Remove when we no longer rely on preinit memory.
+impl From<RuntimeArguments> for RawTapes {
+    fn from(args: RuntimeArguments) -> Self {
+        Self {
+            private_tape: args.io_tape_private,
+            public_tape: args.io_tape_public,
+            call_tape: args.call_tape,
+            event_tape: args.event_tape,
+            cast_list_commitment_tape: args.cast_list_commitment_tape,
+            events_commitment_tape: args.events_commitment_tape,
+        }
+    }
+}
+
 impl<F: RichField> State<F> {
     #[must_use]
     #[allow(clippy::similar_names)]
@@ -207,6 +263,7 @@ impl<F: RichField> State<F> {
             mozak_ro_memory,
             ..
         }: Program,
+        raw_tapes: RawTapes,
     ) -> Self {
         Self {
             pc,
@@ -218,6 +275,24 @@ impl<F: RichField> State<F> {
                 .into_iter(),
                 once(rw_memory),
             ),
+            private_tape: IoTape {
+                data: raw_tapes.private_tape.into(),
+                read_index: 0,
+            },
+            public_tape: IoTape {
+                data: raw_tapes.public_tape.into(),
+                read_index: 0,
+            },
+            call_tape: IoTape {
+                data: raw_tapes.call_tape.into(),
+                read_index: 0,
+            },
+            event_tape: IoTape {
+                data: raw_tapes.event_tape.into(),
+                read_index: 0,
+            },
+            cast_list_commitment_tape: CommitmentTape(raw_tapes.cast_list_commitment_tape),
+            events_commitment_tape: CommitmentTape(raw_tapes.events_commitment_tape),
             ..Default::default()
         }
     }

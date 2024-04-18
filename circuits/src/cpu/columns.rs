@@ -181,6 +181,8 @@ pub struct CpuState<T> {
     pub is_io_store_private: T,
     pub is_io_store_public: T,
     pub is_call_tape: T,
+    pub is_events_commitment_tape: T,
+    pub is_cast_list_commitment_tape: T,
     pub is_halt: T,
     pub is_poseidon2: T,
     // TODO: these two need constraints.
@@ -342,6 +344,8 @@ pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCt
                 CPU.is_io_store_private,
                 CPU.is_io_store_public,
                 CPU.is_call_tape,
+                CPU.is_events_commitment_tape,
+                CPU.is_cast_list_commitment_tape,
             ]),
             clk: CPU.clk,
             addr: CPU.io_addr,
@@ -351,6 +355,8 @@ pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCt
             CPU.is_io_store_private,
             CPU.is_io_store_public,
             CPU.is_call_tape,
+            CPU.is_events_commitment_tape,
+            CPU.is_cast_list_commitment_tape,
         ]
         .iter()
         .sum(),

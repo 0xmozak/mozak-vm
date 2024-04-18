@@ -53,6 +53,8 @@ use crate::register::zero_read::stark::RegisterZeroReadStark;
 use crate::register::zero_write::columns::RegisterZeroWrite;
 use crate::register::zero_write::stark::RegisterZeroWriteStark;
 use crate::register::RegisterCtl;
+use crate::tape_commitments::columns::{TapeCommitmentCTL, TapeCommitments};
+use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
@@ -61,7 +63,8 @@ use crate::{
     rangecheck, register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 15;
+const NUM_CROSS_TABLE_LOOKUP: usize = 17;
+const NUM_PUBLIC_SUB_TABLES: usize = 2;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -114,6 +117,14 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "CallTape")]
     pub call_tape_stark: InputOutputMemoryStark<F, D>,
+    // TODO(bing): This is known to be 32-bytes in length. Optimize with
+    // a fixed size version of this STARK.
+    #[StarkSet(stark_kind = "EventsCommitmentTape")]
+    pub events_commitment_tape_stark: InputOutputMemoryStark<F, D>,
+    // TODO(bing): This is known to be 32-bytes in length. Optimize with
+    // a fixed size version of this STARK.
+    #[StarkSet(stark_kind = "CastListCommitmentTape")]
+    pub cast_list_commitment_tape_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
@@ -128,11 +139,10 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
     #[StarkSet(stark_kind = "Poseidon2OutputBytes")]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
+    #[StarkSet(stark_kind = "TapeCommitments")]
+    pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-    #[cfg(feature = "test_public_table")]
-    pub public_sub_tables: [PublicSubTable; 1],
-    #[cfg(not(feature = "test_public_table"))]
-    pub public_sub_tables: [PublicSubTable; 0],
+    pub public_sub_tables: [PublicSubTable; NUM_PUBLIC_SUB_TABLES],
     pub debug: bool,
 }
 
@@ -413,9 +423,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
             call_tape_stark: InputOutputMemoryStark::default(),
+            events_commitment_tape_stark: InputOutputMemoryStark::default(),
+            cast_list_commitment_tape_stark: InputOutputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
+            tape_commitments_stark: TapeCommitmentsStark::default(),
 
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.
@@ -435,11 +448,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2SpongeCpuTable::lookups(),
                 Poseidon2Poseidon2SpongeTable::lookups(),
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
+                EventCommitmentTapeIOLookupTable::lookups(),
+                CastlistCommitmentTapeIOLookupTable::lookups(),
             ],
-            #[cfg(not(feature = "test_public_table"))]
-            public_sub_tables: [],
-            #[cfg(feature = "test_public_table")]
-            public_sub_tables: [crate::bitshift::columns::public_sub_table()],
+            public_sub_tables: [
+                crate::tape_commitments::columns::make_event_commitment_tape_public(),
+                crate::tape_commitments::columns::make_castlist_commitment_tape_public(),
+            ],
             debug: false,
         }
     }
@@ -595,9 +610,24 @@ table_impl!(
 );
 table_impl!(CallTapeTable, TableKind::CallTape, InputOutputMemory);
 table_impl!(
+    EventsCommitmentTapeTable,
+    TableKind::EventsCommitmentTape,
+    InputOutputMemory
+);
+table_impl!(
+    CastListCommitmentTapeTable,
+    TableKind::CastListCommitmentTape,
+    InputOutputMemory
+);
+table_impl!(
     Poseidon2SpongeTable,
     TableKind::Poseidon2Sponge,
     Poseidon2Sponge
+);
+table_impl!(
+    TapeCommitmentsTable,
+    TableKind::TapeCommitments,
+    TapeCommitments
 );
 table_impl!(Poseidon2Table, TableKind::Poseidon2, Poseidon2State);
 table_impl!(
@@ -662,6 +692,9 @@ impl Lookups for IntoMemoryTable {
                 memory_fullword::columns::lookup_for_memory_limb(3),
                 memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
                 memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
+                memory_io::columns::lookup_for_memory(TableKind::CallTape),
+                memory_io::columns::lookup_for_memory(TableKind::EventsCommitmentTape),
+                memory_io::columns::lookup_for_memory(TableKind::CastListCommitmentTape),
             ],
             (0..8).map(poseidon2_sponge::columns::lookup_for_input_memory),
             (0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory),
@@ -802,7 +835,9 @@ impl Lookups for IoMemoryToCpuTable {
                 [
                     TableKind::IoMemoryPrivate,
                     TableKind::IoMemoryPublic,
-                    TableKind::CallTape
+                    TableKind::CallTape,
+                    TableKind::EventsCommitmentTape,
+                    TableKind::CastListCommitmentTape,
                 ],
                 0..
             )
@@ -848,6 +883,32 @@ impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
         CrossTableLookupWithTypedOutput::new(
             vec![crate::poseidon2_output_bytes::columns::lookup_for_poseidon2_sponge()],
             vec![crate::poseidon2_sponge::columns::lookup_for_poseidon2_output_bytes()],
+        )
+    }
+}
+
+pub struct EventCommitmentTapeIOLookupTable;
+
+impl Lookups for EventCommitmentTapeIOLookupTable {
+    type Row = TapeCommitmentCTL<Column>;
+
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
+        CrossTableLookupWithTypedOutput::new(
+            vec![crate::memory_io::columns::event_commitment_lookup_in_tape_commitments()],
+            vec![crate::tape_commitments::columns::lookup_for_event_tape_commitment()],
+        )
+    }
+}
+
+pub struct CastlistCommitmentTapeIOLookupTable;
+
+impl Lookups for CastlistCommitmentTapeIOLookupTable {
+    type Row = TapeCommitmentCTL<Column>;
+
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
+        CrossTableLookupWithTypedOutput::new(
+            vec![crate::memory_io::columns::castlist_commitment_lookup_in_tape_commitments()],
+            vec![crate::tape_commitments::columns::lookup_for_castlist_commitment()],
         )
     }
 }
