@@ -318,7 +318,7 @@ mod tests {
                 (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
             RuntimeArguments {
-                events_commitment_tape: events_commitment_tape.to_vec(),
+                events_commitment_tape,
                 ..Default::default()
             },
         );
@@ -348,7 +348,7 @@ mod tests {
                 (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
             RuntimeArguments {
-                cast_list_commitment_tape: cast_list_commitment_tape.to_vec(),
+                cast_list_commitment_tape,
                 ..Default::default()
             },
         );
