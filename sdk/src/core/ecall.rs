@@ -8,8 +8,14 @@ pub const IO_READ_PRIVATE: u32 = 2;
 pub const POSEIDON2: u32 = 3;
 pub const IO_READ_PUBLIC: u32 = 4;
 pub const IO_READ_CALL_TAPE: u32 = 5;
+pub const EVENTS_COMMITMENT_TAPE: u32 = 6;
+pub const CAST_LIST_COMMITMENT_TAPE: u32 = 7;
 /// Syscall to output the VM trace log at `clk`. Useful for debugging.
-pub const VM_TRACE_LOG: u32 = 6;
+pub const VM_TRACE_LOG: u32 = 8;
+
+/// The number of bytes requested for events commitment tape and
+/// cast list commitment tape is hardcoded to 32 bytes.
+pub const COMMITMENT_SIZE: usize = 32;
 
 #[must_use]
 pub fn log<'a>(raw_id: u32) -> &'a str {
@@ -20,6 +26,8 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
         POSEIDON2 => "poseidon2",
         IO_READ_PRIVATE => "ioread private tape",
         IO_READ_CALL_TAPE => "ioread call tape",
+        EVENTS_COMMITMENT_TAPE => "ioread events commitment tape",
+        CAST_LIST_COMMITMENT_TAPE => "ioread cast list commitment tape",
         VM_TRACE_LOG => "vm trace log",
         _ => "",
     }
@@ -82,6 +90,38 @@ pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
         in ("a0") IO_READ_CALL_TAPE,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
+        );
+    }
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        unimplemented!()
+    }
+}
+
+pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
+    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") EVENTS_COMMITMENT_TAPE,
+        in ("a1") buf_ptr,
+        in ("a2") COMMITMENT_SIZE,
+        );
+    }
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        unimplemented!()
+    }
+}
+
+pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
+    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") CAST_LIST_COMMITMENT_TAPE,
+        in ("a1") buf_ptr,
+        in ("a2") COMMITMENT_SIZE,
         );
     }
     #[cfg(not(target_os = "mozakvm"))]

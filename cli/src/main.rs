@@ -12,10 +12,9 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
-use mozak_circuits::generation::io_memory::{
-    generate_call_tape_trace, generate_io_memory_private_trace,
+use mozak_circuits::generation::memoryinit::{
+    generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_private_tape_init_trace,
 };
-use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
@@ -32,11 +31,10 @@ use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
 use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
 use mozak_runner::elf::RuntimeArguments;
-use mozak_runner::state::State;
+use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
 use mozak_sdk::native::{OrderedEvents, ProofBundle};
-use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -94,6 +92,8 @@ enum Command {
     VerifyRecursiveProof { proof: Input, verifier_key: Input },
     /// Builds a transaction bundle.
     BundleTransaction {
+        /// List of bundle plan(s) generated from native execution(s).
+        /// The first plan's call tape is used as the global call tape.
         #[arg(long)]
         bundle_plan: Vec<Input>,
         #[arg(long, required = true)]
@@ -132,7 +132,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone());
+            let state: State<F> = State::new(program.clone(), RawTapes::default());
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs {
@@ -145,7 +145,7 @@ fn main() -> Result<()> {
                 .unwrap_or_default();
 
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone());
+            let state = State::new(program.clone(), RawTapes::default());
 
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -161,7 +161,7 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone());
+            let state = State::new(program.clone(), RawTapes::default());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -226,89 +226,82 @@ fn main() -> Result<()> {
             bundle,
         } => {
             println!("Bundling transaction...");
-            let mut call_tape_hashes = Vec::with_capacity(cast_list.len());
-            let mut constituent_zs = Vec::with_capacity(cast_list.len());
-            for mut plan in bundle_plan {
-                let mut bundle_plan_bytes = Vec::new();
-                let _ = plan.read_to_end(&mut bundle_plan_bytes)?;
+            let zipped = bundle_plan
+                .into_iter()
+                .map(|mut plan| {
+                    let mut bundle_plan_bytes = Vec::new();
+                    let _ = plan.read_to_end(&mut bundle_plan_bytes)?;
+                    let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes)?;
 
-                let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes).unwrap();
+                    let sys_tapes: SystemTape =
+                        deserialize_system_tape(Input::try_from(&plan.system_tape_filepath)?)?;
 
-                let sys_tapes: SystemTape =
-                    deserialize_system_tape(Input::try_from(&plan.system_tape_filepath).unwrap())
-                        .unwrap();
-
-                let event_tape: OrderedEvents = sys_tapes
-                    .event_tape
-                    .writer
-                    .into_iter()
-                    .find_map(|t| {
-                        (t.0 == ProgramIdentifier::from(plan.self_prog_id.clone())).then_some(t.1)
-                    })
-                    .unwrap_or_default();
-
-                let args = tapes_to_runtime_arguments(
-                    Input::try_from(&plan.system_tape_filepath).unwrap(),
-                    Some(plan.self_prog_id.to_string()),
-                );
-
-                let program = load_program(
-                    Input::try_from(&plan.elf_filepath).unwrap_or_else(|_| {
-                        panic!("Elf filepath {:?} not found", plan.elf_filepath)
-                    }),
-                    &args,
-                )?;
-                let state = State::<GoldilocksField>::new(program.clone());
-                let record = step(&program, state)?;
-
-                let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
-                    let rate_bits = config.fri_config.rate_bits;
-                    let cap_height = config.fri_config.cap_height;
-                    let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                        poly_values,
-                        rate_bits,
-                        false, // blinding
-                        cap_height,
-                        &mut TimingTree::default(),
-                        None, // fft_root_table
+                    let event_tape: OrderedEvents = sys_tapes
+                        .event_tape
+                        .writer
+                        .get(&ProgramIdentifier::from(plan.self_prog_id.clone()))
+                        .cloned()
+                        .ok_or(anyhow::anyhow!(
+                            "Event tape not found for program id: {:?}",
+                            plan.self_prog_id
+                        ))?;
+                    let args = tapes_to_runtime_arguments(
+                        Input::try_from(&plan.system_tape_filepath)?,
+                        Some(plan.self_prog_id.to_string()),
                     );
-                    trace_commitment.merkle_tree.cap
-                };
 
-                // TODO(bing): These traces are currently empty, because the generation
-                // rely on the old ecall API. We need new init tables for this, and
-                // the hashes should be generated based on the new init tables.
-                // See: https://github.com/0xmozak/mozak-vm/pull/1335#issuecomment-2029402128
-                let trace = generate_io_memory_private_trace(&record.executed);
-                let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-                let trace = generate_call_tape_trace(&record.executed);
-                let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
+                    let program = load_program(
+                        Input::try_from(&plan.elf_filepath).unwrap_or_else(|_| {
+                            panic!("Elf filepath {:?} not found", plan.elf_filepath)
+                        }),
+                        &args,
+                    )?;
+                    let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
+                        let rate_bits = config.fri_config.rate_bits;
+                        let cap_height = config.fri_config.cap_height;
+                        let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                            poly_values,
+                            rate_bits,
+                            false, // blinding
+                            cap_height,
+                            &mut TimingTree::default(),
+                            None, // fft_root_table
+                        );
+                        trace_commitment.merkle_tree.cap
+                    };
 
-                let transparent_attestation = TransparentAttestation {
-                    public_tape: args.io_tape_public,
-                    event_tape,
-                };
+                    let trace = generate_private_tape_init_trace(&program);
+                    let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
-                let opaque_attestation: OpaqueAttestation<F, C, D> =
-                    OpaqueAttestation { private_tape_hash };
+                    let trace = generate_call_tape_init_trace(&program);
+                    let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
-                call_tape_hashes.push(call_tape_hash);
+                    let transparent_attestation = TransparentAttestation {
+                        public_tape: args.io_tape_public,
+                        event_tape,
+                    };
 
-                let attestation = Attestation {
-                    id: plan.self_prog_id.into(),
-                    opaque: opaque_attestation,
-                    transparent: transparent_attestation,
-                };
-                constituent_zs.push(attestation);
-            }
+                    let opaque_attestation: OpaqueAttestation<F, C, D> =
+                        OpaqueAttestation { private_tape_hash };
 
-            assert!(
-                call_tape_hashes.iter().all_equal(),
-                "Some call tape hashes are not the same"
-            );
+                    let attestation = Attestation {
+                        id: plan.self_prog_id.into(),
+                        opaque: opaque_attestation,
+                        transparent: transparent_attestation,
+                    };
+                    Ok((attestation, call_tape_hash))
+                })
+                .collect::<Result<Vec<(_, _)>>>()?;
+            let (constituent_zs, call_tape_hashes): (Vec<_>, Vec<_>) = zipped.into_iter().unzip();
+            let call_tape_hash = call_tape_hashes
+                .first()
+                .ok_or(anyhow::anyhow!(
+                    "No call tape hash found in the first bundle plan"
+                ))?
+                .clone();
 
             let transaction = Transaction {
-                call_tape_hash: call_tape_hashes[0].clone(),
+                call_tape_hash,
                 cast_list: cast_list
                     .clone()
                     .into_iter()
@@ -318,7 +311,7 @@ fn main() -> Result<()> {
                 constituent_zs,
             };
 
-            serde_json::to_writer(bundle, &transaction)?;
+            serde_json::to_writer_pretty(bundle, &transaction)?;
             println!("Transaction bundled: {transaction:?}");
         }
 

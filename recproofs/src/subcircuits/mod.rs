@@ -1,9 +1,7 @@
 pub mod bounded;
-pub mod compare_object;
 pub mod make_tree;
 pub mod merge;
 pub mod propagate;
-pub mod state_from_event;
 pub mod summarized;
 pub mod unbounded;
 pub mod unpruned;
