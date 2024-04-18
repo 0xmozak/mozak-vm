@@ -1,5 +1,7 @@
 #![allow(clippy::too_many_lines)]
 
+use std::cmp::Reverse;
+use std::collections::BTreeSet;
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
@@ -14,7 +16,6 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
-use plonky2::fri::proof::FriProof;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
@@ -90,51 +91,48 @@ where
 
     // We cannot batch prove these tables because trace caps are needed as public
     // inputs for the following tables.
-    let public_table_kinds = vec![
+    let public_table_kinds = [
         TableKind::Program,
         TableKind::ElfMemoryInit,
         TableKind::MozakMemoryInit,
     ];
 
-    let separate_trace_commitments = timed!(
+    let _separate_trace_commitments = timed!(
         timing,
         "Compute trace commitments for separate tables",
-        all_kind!(|kind| if public_table_kinds.contains(&kind) {
-            Some(PolynomialBatch::<F, C, D>::from_values(
+        all_kind!(|kind| public_table_kinds.contains(&kind).then(|| {
+            PolynomialBatch::<F, C, D>::from_values(
                 traces_poly_values[kind].clone(),
                 rate_bits,
                 false,
                 cap_height,
                 timing,
                 None,
-            ))
-        } else {
-            None
-        })
+            )
+        }))
     );
 
-    let mut batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
-        None
-    } else {
-        Some(&traces_poly_values[kind])
-    });
-    let mut degree_logs: Vec<usize> = batch_traces_poly_values
+    let batch_traces_poly_values = all_kind!(|kind| public_table_kinds
+        .contains(&kind)
+        .then_some(&traces_poly_values[kind]));
+    let _degree_logs: Vec<usize> = batch_traces_poly_values
         .iter()
-        .filter_map(|t| *t)
-        .map(|t| t.len())
+        .filter_map(|p| p.map(Vec::len))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .rev()
         .collect();
-    degree_logs.sort_unstable_by(|a, b| b.cmp(a));
-    degree_logs.dedup();
 
-    let mut batch_trace_polys: Vec<_> = batch_traces_poly_values
+    let batch_trace_polys: Vec<_> = batch_traces_poly_values
         .iter()
         .filter_map(|t| *t)
-        .flat_map(|v| v.clone())
+        .flatten()
+        .cloned()
+        .sorted_by_key(|p| Reverse(p.len()))
         .collect();
-    batch_trace_polys.sort_by(|a, b| b.len().cmp(&a.len()));
     let bacth_trace_polys_len = batch_trace_polys.len();
 
-    let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
+    let _batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "Compute trace commitments for batch tables",
         BatchFriOracle::from_values(
@@ -443,6 +441,7 @@ where
 /// # Errors
 /// Errors if proving fails.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::similar_names)]
 pub fn batch_prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
@@ -450,7 +449,7 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     public_inputs: &PublicInputs<F>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
-    batch_trace_commitments: &BatchFriOracle<F, C, D>,
+    _batch_trace_commitments: &BatchFriOracle<F, C, D>,
     separate_trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
@@ -470,7 +469,7 @@ where
     }
     .build();
 
-    let separate_proofs = all_starks!(mozak_stark, |stark, kind| if public_table_kinds
+    let _separate_proofs = all_starks!(mozak_stark, |stark, kind| if public_table_kinds
         .contains(&kind)
     {
         Some(prove_single_table(
@@ -515,12 +514,12 @@ where
     });
 
     // TODO: we can remove duplicates in the ctl polynomials.
-    let mut batch_ctl_zs_polys: Vec<_> = batch_ctl_z_polys
+    let batch_ctl_zs_polys: Vec<_> = batch_ctl_z_polys
         .iter()
         .filter_map(|t| t.as_ref())
         .flat_map(|v| v.iter().cloned())
+        .sorted_by_key(|b| Reverse(b.len()))
         .collect();
-    batch_ctl_zs_polys.sort_by(|a, b| b.len().cmp(&a.len()));
     let batch_ctl_zs_polys_len = batch_ctl_zs_polys.len();
 
     let batch_ctl_zs_commitments: BatchFriOracle<F, C, D> = timed!(
@@ -539,8 +538,9 @@ where
     let ctl_zs_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
-        if let Some(poly) = &batch_ctl_z_polys[kind] {
-            Some(PolynomialBatch::<F, C, D>::from_values(
+        batch_ctl_z_polys[kind]
+            .as_ref()
+            .map(|poly| PolynomialBatch::<F, C, D>::from_values(
                 poly.clone(),
                 rate_bits,
                 false,
@@ -548,9 +548,6 @@ where
                 timing,
                 None,
             ))
-        } else {
-            None
-        }
     ));
 
     let ctl_zs_cap = batch_ctl_zs_commitments.field_merkle_tree.cap.clone();
@@ -558,24 +555,26 @@ where
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
 
-    let batch_quotient_polys = all_starks!(mozak_stark, |stark, kind| {
-        if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind] {
+    let _batch_quotient_polys = all_starks!(mozak_stark, |stark, kind| {
+        if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind].as_ref() {
             let degree = traces_poly_values[kind][0].len();
             let degree_bits = log2_strict(degree);
             timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
-                Some(compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
-                    stark,
-                    &trace_commitments[kind],
-                    &ctl_zs_commitment,
-                    public_inputs[kind],
-                    &ctl_data_per_table[kind],
-                    &public_sub_data_per_table[kind],
-                    &alphas,
-                    degree_bits,
-                    config,
-                ))
+                Some(
+                    compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
+                        stark,
+                        &trace_commitments[kind],
+                        ctl_zs_commitment,
+                        public_inputs[kind],
+                        &ctl_data_per_table[kind],
+                        &public_sub_data_per_table[kind],
+                        &alphas,
+                        degree_bits,
+                        config,
+                    )
+                )
             )
         } else {
             None

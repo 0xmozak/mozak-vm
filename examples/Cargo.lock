@@ -77,12 +77,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
-name = "byteorder"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
-
-[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -167,15 +161,6 @@ name = "fibonacci"
 version = "0.1.0"
 dependencies = [
  "mozak-sdk",
-]
-
-[[package]]
-name = "fixed-hash"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "835c052cb0c08c1acf6ffd71c022172e18723949c8282f2b9f27efbc51e64534"
-dependencies = [
- "static_assertions",
 ]
 
 [[package]]
@@ -288,16 +273,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "keccak-hash"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b286e6b663fb926e1eeb68528e69cb70ed46c6d65871a21b2215ae8154c6d3c"
-dependencies = [
- "primitive-types",
- "tiny-keccak",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.153"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -351,6 +326,14 @@ dependencies = [
  "serde-hex",
  "serde_json",
  "toml",
+]
+
+[[package]]
+name = "mozak-sort"
+version = "0.1.0"
+dependencies = [
+ "mozak-sdk",
+ "rand",
 ]
 
 [[package]]
@@ -451,14 +434,13 @@ dependencies = [
 
 [[package]]
 name = "plonky2"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "ahash",
  "anyhow",
  "getrandom",
  "hashbrown",
  "itertools",
- "keccak-hash",
  "log",
  "num",
  "plonky2_field",
@@ -467,12 +449,13 @@ dependencies = [
  "rand",
  "serde",
  "static_assertions",
+ "tiny-keccak",
  "unroll",
 ]
 
 [[package]]
 name = "plonky2_field"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "itertools",
@@ -497,16 +480,6 @@ name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
-
-[[package]]
-name = "primitive-types"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b34d9fd68ae0b74a41b21c03c2f62847aa0ffea044eee893b4c140b37e244e2"
-dependencies = [
- "fixed-hash",
- "uint",
-]
 
 [[package]]
 name = "proc-macro-hack"
@@ -828,18 +801,6 @@ name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42ff0bf0c66b8238c6f3b578df37d0b7848e55df8577b3f74f92a69acceeb825"
-
-[[package]]
-name = "uint"
-version = "0.9.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76f64bba2c53b04fcab63c01a7d7427eadc821e3bc48c34dc9ba29c501164b52"
-dependencies = [
- "byteorder",
- "crunchy",
- "hex",
- "static_assertions",
-]
 
 [[package]]
 name = "unicode-ident"
