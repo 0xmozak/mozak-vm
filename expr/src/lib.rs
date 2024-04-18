@@ -82,37 +82,12 @@ impl<'a, V> Expr<'a, V> {
         match (lhs, rhs) {
             (Expr::Basic { value: left }, Expr::Basic { value: right }) =>
                 Expr::from(PureEvaluator::default().bin_op(&op, left, right)),
-            (
-                Expr::Basic { value: left_value },
-                Expr::Compound {
-                    expr_tree: right,
-                    builder,
-                },
-            ) => {
-                // TODO, do we need public API for constants?
-                let left: &ExprTree<'a, V> = builder.constant_tree(left_value);
+            (left @ Expr::Compound { builder, .. }, right)
+            | (left, right @ Expr::Compound { builder, .. }) => {
+                let left = builder.ensure_interned(left);
+                let right = builder.ensure_interned(right);
                 builder.wrap(builder.bin_op(op, left, right))
             }
-            (
-                Expr::Compound {
-                    expr_tree: left,
-                    builder,
-                },
-                Expr::Basic { value: right_value },
-            ) => {
-                let right: &ExprTree<'a, V> = builder.constant_tree(right_value);
-                builder.wrap(builder.bin_op(op, left, right))
-            }
-            (
-                Expr::Compound {
-                    expr_tree: left,
-                    builder,
-                },
-                Expr::Compound {
-                    expr_tree: right,
-                    builder: _,
-                },
-            ) => builder.wrap(builder.bin_op(op, left, right)),
         }
     }
 
@@ -124,16 +99,12 @@ impl<'a, V> Expr<'a, V> {
         }
     }
 
-    /// Add two expressions
     fn add(self, rhs: Self) -> Self { Self::bin_op(BinOp::Add, self, rhs) }
 
-    /// Subtract two expressions
     fn sub(self, rhs: Self) -> Self { Self::bin_op(BinOp::Sub, self, rhs) }
 
-    /// Multiply two expressions
     fn mul(self, rhs: Self) -> Self { Self::bin_op(BinOp::Mul, self, rhs) }
 
-    /// Negate an expression
     fn neg(self) -> Self { Self::una_op(UnaOp::Neg, self) }
 }
 
@@ -253,6 +224,13 @@ impl ExprBuilder {
     /// [`Bump`] arena owned by [`ExprBuilder`].
     fn intern<'a, V>(&'a self, expr_tree: ExprTree<'a, V>) -> &'a ExprTree<'a, V> {
         self.bump.alloc(expr_tree)
+    }
+
+    fn ensure_interned<'a, V>(&'a self, expr: Expr<'a, V>) -> &'a ExprTree<'a, V> {
+        match expr {
+            Expr::Compound { expr_tree, .. } => expr_tree,
+            Expr::Basic { value } => self.constant_tree(value),
+        }
     }
 
     /// Wrap [`ExprTree`] reference with an [`Expr`] wrapper
