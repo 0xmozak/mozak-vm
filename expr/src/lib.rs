@@ -128,7 +128,7 @@ impl<'a, V> Expr<'a, V> {
     fn add(self, rhs: Self) -> Self { Self::bin_op(BinOp::Add, self, rhs) }
 
     /// Subtract two expressions
-    fn sub(self, _rhs: Self) -> Self { Self::bin_op(BinOp::Sub, self, _rhs) }
+    fn sub(self, rhs: Self) -> Self { Self::bin_op(BinOp::Sub, self, rhs) }
 
     /// Multiply two expressions
     fn mul(self, rhs: Self) -> Self { Self::bin_op(BinOp::Mul, self, rhs) }
