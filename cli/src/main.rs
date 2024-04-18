@@ -10,7 +10,6 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
-use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::memoryinit::{
     generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_private_tape_init_trace,
@@ -33,7 +32,7 @@ use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, Transparent
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
-use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
+use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
 use mozak_sdk::native::{OrderedEvents, ProofBundle};
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
@@ -95,9 +94,6 @@ enum Command {
         /// List of bundle plan(s) generated from native execution(s).
         #[arg(long, required = true)]
         plan: Input,
-        /// List of program IDs of programs involved in this transaction.
-        #[arg(long, required = true)]
-        cast_list: Vec<String>,
         /// Output file path of the serialized bundle.
         #[arg(long, required = true)]
         bundle: Output,
@@ -221,11 +217,7 @@ fn main() -> Result<()> {
 
             debug!("proof generated successfully!");
         }
-        Command::BundleTransaction {
-            plan,
-            cast_list,
-            bundle,
-        } => {
+        Command::BundleTransaction { plan, bundle } => {
             println!("Bundling transaction...");
             let plan: ProofBundle = serde_json::from_reader(plan)?;
 
@@ -284,15 +276,21 @@ fn main() -> Result<()> {
                 opaque: opaque_attestation,
                 transparent: transparent_attestation,
             };
+            let mut cast_list = vec![];
+            sys_tapes.call_tape.writer.into_iter().for_each(
+                |CrossProgramCall { callee, caller, .. }| {
+                    if callee != ProgramIdentifier::default() {
+                        cast_list.push(callee)
+                    }
+                    if caller != ProgramIdentifier::default() {
+                        cast_list.push(caller)
+                    }
+                },
+            );
 
             let transaction = Transaction {
                 call_tape_hash,
-                cast_list: cast_list
-                    .clone()
-                    .into_iter()
-                    .unique()
-                    .map(ProgramIdentifier::from)
-                    .collect(),
+                cast_list,
                 // TODO(bing): This is supposed to be the attestations of ALL programs involved.
                 // Fix once extended SDK is ready.
                 constituent_zs: vec![attestation],
