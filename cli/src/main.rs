@@ -93,11 +93,12 @@ enum Command {
     /// Builds a transaction bundle.
     BundleTransaction {
         /// List of bundle plan(s) generated from native execution(s).
-        /// The first plan's call tape is used as the global call tape.
         #[arg(long, required = true)]
         plan: Input,
+        /// List of program IDs of programs involved in this transaction.
         #[arg(long, required = true)]
         cast_list: Vec<String>,
+        /// Output file path of the serialized bundle.
         #[arg(long, required = true)]
         bundle: Output,
     },
