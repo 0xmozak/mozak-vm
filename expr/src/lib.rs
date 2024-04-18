@@ -75,6 +75,127 @@ impl<'a, V> Default for Expr<'a, V> {
     fn default() -> Self { Expr::from(0) }
 }
 
+mod traits {
+    use std::marker::PhantomData;
+
+    use crate::ExprBuilder;
+
+    pub trait BinOp {
+        type Op;
+        type Term;
+
+        fn bin_op(op: Self::Op, lhs: Self::Term, rhs: Self::Term) -> Self::Term;
+    }
+
+    impl<'a, V> BinOp for super::Expr<'a, V> {
+        type Op = super::BinOp;
+        type Term = Self;
+
+        fn bin_op(op: Self::Op, lhs: Self::Term, rhs: Self::Term) -> Self::Term {
+            Self::bin_op(op, lhs, rhs)
+        }
+    }
+
+    pub trait BinOp_ {
+        type Op;
+        type Term<'a, V>
+        where
+            V: 'a,
+            Self: 'a;
+
+        fn bin_op<'a, V: 'a>(
+            self: &'a Self,
+            op: Self::Op,
+            lhs: Self::Term<'a, V>,
+            rhs: Self::Term<'a, V>,
+        ) -> Self::Term<'a, V>;
+    }
+
+    #[derive(Default)]
+    struct Pure<V> {
+        phantom: PhantomData<V>,
+    }
+
+    impl<V, W> BinOp_ for Pure<V>
+    where
+        V: BinOp<Term = W>,
+    {
+        type Op = V::Op;
+        type Term<'a, Z: 'a> = W where V: 'a;
+
+        fn bin_op<'a, Z: 'a>(
+            &'a self,
+            op: Self::Op,
+            lhs: Self::Term<'a, Z>,
+            rhs: Self::Term<'a, Z>,
+        ) -> Self::Term<'a, Z> {
+            V::bin_op(op, lhs, rhs)
+        }
+    }
+
+    impl BinOp_ for ExprBuilder {
+        type Op = super::BinOp;
+        type Term<'a, V: 'a> = &'a super::ExprTree<'a, V>;
+
+        fn bin_op<'a, V: 'a>(
+            self: &'a Self,
+            op: Self::Op,
+            lhs: Self::Term<'a, V>,
+            rhs: Self::Term<'a, V>,
+        ) -> Self::Term<'a, V> {
+            self.bin_op(op, lhs, rhs)
+        }
+    }
+
+    pub trait UnaOp {
+        type Op;
+        type Term;
+
+        fn una_op(op: Self::Op, arg: Self::Term) -> Self::Term;
+    }
+
+    impl<'a, V> UnaOp for super::Expr<'a, V> {
+        type Op = super::UnaOp;
+        type Term = Self;
+
+        fn una_op(op: Self::Op, arg: Self::Term) -> Self::Term { super::Expr::una_op(op, arg) }
+    }
+
+    pub trait UnaOp_ {
+        type Op;
+        type Term<'a, V: 'a>
+        where
+            Self: 'a;
+
+        fn una_op<'a, V: 'a>(&'a self, op: Self::Op, arg: Self::Term<'a, V>) -> Self::Term<'a, V>;
+    }
+
+    impl UnaOp_ for ExprBuilder {
+        type Op = super::UnaOp;
+        type Term<'a, V: 'a> = &'a super::ExprTree<'a, V>;
+
+        fn una_op<'a, V: 'a>(
+            self: &'a Self,
+            op: Self::Op,
+            arg: Self::Term<'a, V>,
+        ) -> Self::Term<'a, V> {
+            self.una_op(op, arg)
+        }
+    }
+
+    impl<V, W> UnaOp_ for Pure<V>
+    where
+        V: UnaOp<Term = W>,
+    {
+        type Op = V::Op;
+        type Term<'a, Z: 'a> = W where V: 'a;
+
+        fn una_op<'a, Z: 'a>(&'a self, op: Self::Op, arg: Self::Term<'a, Z>) -> Self::Term<'a, Z> {
+            V::una_op(op, arg)
+        }
+    }
+}
+
 // Base semantics of Expr
 impl<'a, V> Expr<'a, V> {
     /// Handle binary operations
