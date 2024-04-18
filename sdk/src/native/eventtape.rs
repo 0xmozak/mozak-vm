@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::common::traits::{EventEmit, SelfIdentify};
+use crate::common::types::cross_program_call::SelfCallExtendedProgramIdentifier;
 use crate::common::types::{
     CanonicalEvent, CanonicalOrderedTemporalHints, Event, ProgramIdentifier,
 };
@@ -124,14 +125,16 @@ impl std::fmt::Debug for EventTape {
 }
 
 impl SelfIdentify for EventTape {
-    fn set_self_identity(&mut self, _id: ProgramIdentifier) { unimplemented!() }
+    fn set_self_identity(&mut self, _id: SelfCallExtendedProgramIdentifier) { unimplemented!() }
 
-    fn get_self_identity(&self) -> ProgramIdentifier { self.identity_stack.borrow().top_identity() }
+    fn get_self_identity(&self) -> SelfCallExtendedProgramIdentifier {
+        self.identity_stack.borrow().top_identity()
+    }
 }
 
 impl EventEmit for EventTape {
     fn emit(&mut self, event: Event) {
-        let self_id = self.get_self_identity();
+        let self_id = self.get_self_identity().0;
         assert_ne!(self_id, ProgramIdentifier::default());
 
         self.writer

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::common::traits::SelfIdentify;
+use crate::common::types::cross_program_call::SelfCallExtendedProgramIdentifier;
 use crate::common::types::{ProgramIdentifier, RawMessage};
 use crate::native::helpers::IdentityStack;
 
@@ -20,11 +21,13 @@ impl std::fmt::Debug for RawTape {
 }
 
 impl SelfIdentify for RawTape {
-    fn set_self_identity(&mut self, id: ProgramIdentifier) {
+    fn set_self_identity(&mut self, id: SelfCallExtendedProgramIdentifier) {
         self.identity_stack.borrow_mut().add_identity(id);
     }
 
-    fn get_self_identity(&self) -> ProgramIdentifier { self.identity_stack.borrow().top_identity() }
+    fn get_self_identity(&self) -> SelfCallExtendedProgramIdentifier {
+        self.identity_stack.borrow().top_identity()
+    }
 }
 
 /// We have to implement `std::io::Write` in native context
@@ -33,7 +36,7 @@ impl SelfIdentify for RawTape {
 /// `stdread` or any other feature flag.
 impl std::io::Write for RawTape {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        let self_id = self.get_self_identity();
+        let self_id = self.get_self_identity().0;
         assert_ne!(self_id, ProgramIdentifier::default());
 
         self.writer.entry(self_id).or_default().0.extend(buf);

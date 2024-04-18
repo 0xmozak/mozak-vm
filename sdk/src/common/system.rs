@@ -7,6 +7,8 @@ use once_cell::unsync::Lazy;
 #[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
 
+#[cfg(target_os = "mozakvm")]
+use super::types::cross_program_call::{SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag};
 use super::types::{
     CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
 };
@@ -67,7 +69,10 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
             private_input_tape: PrivateInputTapeType::default(),
             public_input_tape: PublicInputTapeType::default(),
             call_tape: CallTapeType {
-                self_prog_id: get_self_prog_id(),
+                extended_self_prog_id: SelfCallExtendedProgramIdentifier(
+                    get_self_prog_id(),
+                    SelfCallExtensionFlag::default(),
+                ),
                 cast_list: get_rkyv_deserialized!(Vec<ProgramIdentifier>, _mozak_cast_list),
                 reader: Some(get_rkyv_archived!(Vec<CrossProgramCall>, _mozak_call_tape)),
                 index: 0,

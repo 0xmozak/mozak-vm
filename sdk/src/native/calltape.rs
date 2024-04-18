@@ -5,6 +5,9 @@ use rkyv::rancor::{Panic, Strategy};
 use rkyv::Deserialize;
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
+use crate::common::types::cross_program_call::{
+    SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag,
+};
 use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};
 use crate::native::helpers::IdentityStack;
 
@@ -22,14 +25,17 @@ impl std::fmt::Debug for CallTape {
 }
 
 impl SelfIdentify for CallTape {
-    fn set_self_identity(&mut self, id: ProgramIdentifier) {
+    fn set_self_identity(&mut self, id: SelfCallExtendedProgramIdentifier) {
         self.identity_stack.borrow_mut().add_identity(id);
     }
 
-    fn get_self_identity(&self) -> ProgramIdentifier { self.identity_stack.borrow().top_identity() }
+    fn get_self_identity(&self) -> SelfCallExtendedProgramIdentifier {
+        self.identity_stack.borrow().top_identity()
+    }
 }
 
 impl Call for CallTape {
+    #[allow(clippy::similar_names)]
     fn send<A, R>(
         &mut self,
         recipient_program: ProgramIdentifier,
@@ -41,12 +47,20 @@ impl Call for CallTape {
         R: CallReturn,
         <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
         <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+        let caller = self.get_self_identity();
+        let mut callee =
+            SelfCallExtendedProgramIdentifier(recipient_program, SelfCallExtensionFlag::default());
+        if callee.0 == caller.0 {
+            callee.1 = SelfCallExtensionFlag::differentiate_from(caller.1);
+        }
+        let unresolved_return_value = RawMessage::default();
+
         // Create a skeletal `CrossProgramCall` to be resolved via "resolver"
         let msg = CrossProgramCall {
-            caller: self.get_self_identity(),
-            callee: recipient_program,
+            caller,
+            callee: callee.clone(),
             argument: rkyv::to_bytes::<_, 256, _>(&argument).unwrap().into(),
-            return_: RawMessage::default(), // Unfilled: we have to still resolve it
+            return_: unresolved_return_value,
         };
 
         // Remember where in the "writer" are we pushing this.
@@ -58,7 +72,7 @@ impl Call for CallTape {
         self.writer.push(msg);
 
         // resolve the return value and add to where message was
-        self.set_self_identity(recipient_program);
+        self.set_self_identity(callee);
         let resolved_value = resolver(argument);
         self.writer[inserted_idx].return_ =
             rkyv::to_bytes::<_, 256, _>(&resolved_value).unwrap().into();
@@ -81,11 +95,11 @@ impl Call for CallTape {
 mod tests {
     use super::CallTape;
     use crate::common::traits::Call;
-    use crate::common::types::ProgramIdentifier;
+    use crate::common::types::cross_program_call::SelfCallExtendedProgramIdentifier;
 
-    fn test_pid_generator(val: u8) -> ProgramIdentifier {
-        let mut pid = ProgramIdentifier::default();
-        pid.0 .0[0] = val;
+    fn test_pid_generator(val: u8) -> SelfCallExtendedProgramIdentifier {
+        let mut pid = SelfCallExtendedProgramIdentifier::default();
+        pid.0 .0 .0[0] = val;
         pid
     }
 
@@ -98,10 +112,13 @@ mod tests {
 
         let resolver = |val: A| -> B { B::from(val + 1) };
 
-        let response = calltape.send(test_pid_generator(1), 1 as A, resolver);
+        let response = calltape.send(test_pid_generator(1).0, 1 as A, resolver);
         assert_eq!(response, 2);
         assert_eq!(calltape.writer.len(), 1);
-        assert_eq!(calltape.writer[0].caller, ProgramIdentifier::default());
+        assert_eq!(
+            calltape.writer[0].caller,
+            SelfCallExtendedProgramIdentifier::default()
+        );
         assert_eq!(calltape.writer[0].callee, test_pid_generator(1));
     }
 }

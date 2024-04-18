@@ -2,6 +2,9 @@ use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{EventEmit, SelfIdentify};
+use crate::common::types::cross_program_call::{
+    SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag,
+};
 use crate::common::types::{
     CanonicalEvent, CanonicalOrderedTemporalHints, Event, ProgramIdentifier,
 };
@@ -16,9 +19,16 @@ pub struct EventTape {
 }
 
 impl SelfIdentify for EventTape {
-    fn set_self_identity(&mut self, id: ProgramIdentifier) { self.self_prog_id = id }
+    fn set_self_identity(&mut self, id: SelfCallExtendedProgramIdentifier) {
+        self.self_prog_id = id.0;
+    }
 
-    fn get_self_identity(&self) -> ProgramIdentifier { self.self_prog_id }
+    // WARNING: returns from this function does not provide
+    // the correct `SelfCallExtensionFlag` simply because event
+    // tape doesn't need it for anything.
+    fn get_self_identity(&self) -> SelfCallExtendedProgramIdentifier {
+        SelfCallExtendedProgramIdentifier(self.self_prog_id, SelfCallExtensionFlag::default())
+    }
 }
 
 impl EventEmit for EventTape {
