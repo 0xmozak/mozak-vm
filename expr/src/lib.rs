@@ -148,13 +148,13 @@ impl<'a, V> Add<Self> for Expr<'a, V> {
 impl<'a, V> Add<i64> for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn add(self, rhs: i64) -> Self::Output { self.add(Expr::from(rhs)) }
+    fn add(self, rhs: i64) -> Self::Output { self + Expr::from(rhs) }
 }
 
 impl<'a, V> Add<Expr<'a, V>> for i64 {
     type Output = Expr<'a, V>;
 
-    fn add(self, rhs: Expr<'a, V>) -> Self::Output { Expr::from(self).add(rhs) }
+    fn add(self, rhs: Expr<'a, V>) -> Self::Output { Expr::from(self) + rhs }
 }
 
 impl<'a, V> Neg for Expr<'a, V> {
@@ -172,13 +172,13 @@ impl<'a, V> Sub for Expr<'a, V> {
 impl<'a, V> Sub<i64> for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn sub(self, rhs: i64) -> Self::Output { self.sub(Expr::from(rhs)) }
+    fn sub(self, rhs: i64) -> Self::Output { self - Expr::from(rhs) }
 }
 
 impl<'a, V> Sub<Expr<'a, V>> for i64 {
     type Output = Expr<'a, V>;
 
-    fn sub(self, rhs: Expr<'a, V>) -> Self::Output { Expr::from(self).sub(rhs) }
+    fn sub(self, rhs: Expr<'a, V>) -> Self::Output { Expr::from(self) - rhs }
 }
 
 impl<'a, V> Mul for Expr<'a, V> {
@@ -190,13 +190,13 @@ impl<'a, V> Mul for Expr<'a, V> {
 impl<'a, V> Mul<i64> for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn mul(self, rhs: i64) -> Self::Output { self.mul(Expr::from(rhs)) }
+    fn mul(self, rhs: i64) -> Self::Output { self * Expr::from(rhs) }
 }
 
 impl<'a, V> Mul<Expr<'a, V>> for i64 {
     type Output = Expr<'a, V>;
 
-    fn mul(self, rhs: Expr<'a, V>) -> Self::Output { Expr::from(self).mul(rhs) }
+    fn mul(self, rhs: Expr<'a, V>) -> Self::Output { Expr::from(self) * rhs }
 }
 
 // TODO: support `|` via multiplication.
