@@ -206,6 +206,7 @@ dependencies = [
  "itertools",
  "once_cell",
  "plonky2",
+ "poseidon2",
  "rand",
  "rand_chacha",
  "rkyv",
@@ -351,6 +352,13 @@ source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e6
 name = "plonky2_util"
 version = "0.2.0"
 source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
+
+[[package]]
+name = "poseidon2"
+version = "0.1.0"
+dependencies = [
+ "plonky2",
+]
 
 [[package]]
 name = "ppv-lite86"

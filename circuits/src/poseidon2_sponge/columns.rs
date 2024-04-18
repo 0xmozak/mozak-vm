@@ -2,6 +2,7 @@ use core::ops::Add;
 
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
+use poseidon2::mozak_poseidon2;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnWithTypedInput;
@@ -9,6 +10,7 @@ use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2::columns::Poseidon2StateCtl;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
+use crate::poseidon2_preimage_pack::columns::Poseidon2SpongePreimagePackCtl;
 use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableWithTypedOutput};
 
 #[repr(C)]
@@ -101,4 +103,25 @@ pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl
         },
         COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
     )
+}
+
+#[must_use]
+pub fn lookup_for_preimage_pack(
+) -> Vec<TableWithTypedOutput<Poseidon2SpongePreimagePackCtl<Column>>> {
+    (0..8)
+        .zip(COL_MAP.preimage)
+        .map(|(limb_index, value)| {
+            Poseidon2SpongeTable::new(
+                Poseidon2SpongePreimagePackCtl {
+                    clk: COL_MAP.clk,
+                    value,
+                    byte_addr: COL_MAP.input_addr
+                        + limb_index
+                            * i64::try_from(mozak_poseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                                .expect("Should be < 255"),
+                },
+                COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
+            )
+        })
+        .collect()
 }

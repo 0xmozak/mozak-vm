@@ -6,6 +6,7 @@ use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use poseidon2::mozak_poseidon2;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
@@ -14,7 +15,7 @@ use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
-use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
+use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{MemoryTable, TableWithTypedOutput};
@@ -123,16 +124,25 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
         if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {
             vec![]
         } else {
-            let rate = Poseidon2Permutation::<F>::RATE;
-            // each Field element in preimage represents a byte.
-            (0..rate)
-                .map(|i| Memory {
-                    clk: value.clk,
-                    addr: value.input_addr
-                        + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
-                    is_load: F::ONE,
-                    value: value.preimage[i],
-                    ..Default::default()
+            // each Field element in preimage represents packed data (packed bytes)
+            (0..Poseidon2Permutation::<F>::RATE)
+                .flat_map(|fe_index_inside_preimage| {
+                    let base_address = value.input_addr
+                        + mozak_poseidon2::data_capacity_fe::<F>()
+                            * F::from_canonical_usize(fe_index_inside_preimage);
+                    let unpacked = mozak_poseidon2::unpack_to_field_elements(
+                        &value.preimage[fe_index_inside_preimage],
+                    );
+
+                    (0..mozak_poseidon2::DATA_CAPACITY_PER_FIELD_ELEMENT)
+                        .map(|byte_index_inside_fe| Memory {
+                            clk: value.clk,
+                            addr: base_address + F::from_canonical_usize(byte_index_inside_fe),
+                            is_load: F::ONE,
+                            value: unpacked[byte_index_inside_fe],
+                            ..Default::default()
+                        })
+                        .collect::<Vec<_>>()
                 })
                 .collect()
         }
@@ -140,19 +150,17 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
 }
 
 impl<F: RichField> From<&Poseidon2OutputBytes<F>> for Vec<Memory<F>> {
-    fn from(value: &Poseidon2OutputBytes<F>) -> Self {
-        if value.is_executed.is_zero() {
+    fn from(output: &Poseidon2OutputBytes<F>) -> Self {
+        if output.is_executed.is_zero() {
             vec![]
         } else {
-            (0..BYTES_COUNT)
-                .map(|i| Memory {
-                    clk: value.clk,
-                    addr: value.output_addr
-                        + F::from_canonical_u8(u8::try_from(i).expect(
-                            "BYTES_COUNT of poseidon output should be representable by a u8",
-                        )),
+            (0..)
+                .zip(output.output_bytes)
+                .map(|(i, value)| Memory {
+                    clk: output.clk,
+                    addr: output.output_addr + F::from_canonical_usize(i),
                     is_store: F::ONE,
-                    value: value.output_bytes[i],
+                    value,
                     ..Default::default()
                 })
                 .collect()

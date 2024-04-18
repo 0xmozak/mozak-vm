@@ -920,6 +920,7 @@ dependencies = [
  "mozak-sdk",
  "plonky2",
  "plonky2_maybe_rayon",
+ "poseidon2",
  "proptest",
  "rand",
  "serde",
@@ -1017,6 +1018,7 @@ dependencies = [
  "mozak-examples",
  "mozak-sdk",
  "plonky2",
+ "poseidon2",
  "proptest",
  "serde",
  "serde_json",
@@ -1031,6 +1033,7 @@ dependencies = [
  "itertools 0.12.1",
  "once_cell",
  "plonky2",
+ "poseidon2",
  "rand",
  "rand_chacha",
  "rkyv",
@@ -1238,6 +1241,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38f6d39893cca0701371e3c27294f09797214b86f1fb951b89ade8ec04e2abab"
 dependencies = [
  "plotters-backend",
+]
+
+[[package]]
+name = "poseidon2"
+version = "0.1.0"
+dependencies = [
+ "plonky2",
 ]
 
 [[package]]

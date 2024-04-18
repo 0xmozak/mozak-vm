@@ -11,6 +11,7 @@ pub mod io_memory;
 pub mod memory;
 pub mod memory_zeroinit;
 pub mod memoryinit;
+pub mod poseidon2_preimage_pack;
 pub mod xor;
 use std::borrow::Borrow;
 use std::fmt::Display;
@@ -49,6 +50,7 @@ use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::{
     generate_elf_memory_init_trace, generate_mozak_memory_init_trace,
 };
+use crate::generation::poseidon2_preimage_pack::generate_poseidon2_preimage_pack_trace;
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
@@ -101,6 +103,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let cast_list_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
     let poseidon2_output_bytes_rows = generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
+    let poseidon2_preimage_pack_rows =
+        generate_poseidon2_preimage_pack_trace(&poseiden2_sponge_rows);
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
 
     let memory_rows = generate_memory_trace(
@@ -166,6 +170,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
+        poseidon2_preimage_pack: trace_rows_to_poly_values(poseidon2_preimage_pack_rows),
         tape_commitments_stark: trace_rows_to_poly_values(tape_commitments_rows),
     }
     .build()

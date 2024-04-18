@@ -18,6 +18,7 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
+use poseidon2::mozak_poseidon2;
 use starky::config::StarkConfig;
 use starky::prover::prove as prove_table;
 use starky::stark::Stark;
@@ -494,9 +495,7 @@ pub fn create_poseidon2_test(
     let mut memory: Vec<(u32, u8)> = vec![];
 
     for test_datum in test_data {
-        let mut data_bytes = test_datum.data.as_bytes().to_vec();
-        // VM expects input len to be multiple of RATE bits
-        data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
+        let data_bytes = mozak_poseidon2::do_padding(test_datum.data.as_bytes());
         let data_len = data_bytes.len();
         let input_memory: Vec<(u32, u8)> =
             izip!((test_datum.input_start_addr..), data_bytes).collect();

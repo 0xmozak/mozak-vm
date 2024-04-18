@@ -33,6 +33,10 @@ use crate::poseidon2::columns::{Poseidon2State, Poseidon2StateCtl};
 use crate::poseidon2::stark::Poseidon2_12Stark;
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, Poseidon2OutputBytesCtl};
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
+use crate::poseidon2_preimage_pack::columns::{
+    Poseidon2PreimagePack, Poseidon2SpongePreimagePackCtl,
+};
+use crate::poseidon2_preimage_pack::stark::Poseidon2PreimagePackStark;
 use crate::poseidon2_sponge::columns::{Poseidon2Sponge, Poseidon2SpongeCtl};
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::columns::{InstructionRow, ProgramRom};
@@ -59,11 +63,11 @@ use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities,
+    memoryinit, poseidon2_output_bytes, poseidon2_preimage_pack, program, program_multiplicities,
     rangecheck, register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 17;
+const NUM_CROSS_TABLE_LOOKUP: usize = 18;
 const NUM_PUBLIC_SUB_TABLES: usize = 2;
 
 /// STARK Gadgets of Mozak-VM
@@ -139,6 +143,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
     #[StarkSet(stark_kind = "Poseidon2OutputBytes")]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
+    #[StarkSet(stark_kind = "Poseidon2PreimagePack")]
+    pub poseidon2_preimage_pack: Poseidon2PreimagePackStark<F, D>,
     #[StarkSet(stark_kind = "TapeCommitments")]
     pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
@@ -428,6 +434,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
+            poseidon2_preimage_pack: Poseidon2PreimagePackStark::default(),
             tape_commitments_stark: TapeCommitmentsStark::default(),
 
             // These tables contain only descriptions of the tables.
@@ -448,6 +455,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2SpongeCpuTable::lookups(),
                 Poseidon2Poseidon2SpongeTable::lookups(),
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
+                Poseidon2Sponge2Poseidon2PreimagePackTable::lookups(),
                 EventCommitmentTapeIOLookupTable::lookups(),
                 CastlistCommitmentTapeIOLookupTable::lookups(),
             ],
@@ -635,6 +643,11 @@ table_impl!(
     TableKind::Poseidon2OutputBytes,
     Poseidon2OutputBytes
 );
+table_impl!(
+    Poseidon2PreimagePackTable,
+    TableKind::Poseidon2PreimagePack,
+    Poseidon2PreimagePack
+);
 
 pub trait Lookups {
     type Row: IntoIterator<Item = Column>;
@@ -696,7 +709,7 @@ impl Lookups for IntoMemoryTable {
                 memory_io::columns::lookup_for_memory(TableKind::EventsCommitmentTape),
                 memory_io::columns::lookup_for_memory(TableKind::CastListCommitmentTape),
             ],
-            (0..8).map(poseidon2_sponge::columns::lookup_for_input_memory),
+            poseidon2_preimage_pack::columns::lookup_for_input_memory(),
             (0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory),
         ]
         .collect();
@@ -909,6 +922,19 @@ impl Lookups for CastlistCommitmentTapeIOLookupTable {
         CrossTableLookupWithTypedOutput::new(
             vec![crate::memory_io::columns::castlist_commitment_lookup_in_tape_commitments()],
             vec![crate::tape_commitments::columns::lookup_for_castlist_commitment()],
+        )
+    }
+}
+
+pub struct Poseidon2Sponge2Poseidon2PreimagePackTable;
+
+impl Lookups for Poseidon2Sponge2Poseidon2PreimagePackTable {
+    type Row = Poseidon2SpongePreimagePackCtl<Column>;
+
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
+        CrossTableLookupWithTypedOutput::new(
+            crate::poseidon2_sponge::columns::lookup_for_preimage_pack(),
+            vec![poseidon2_preimage_pack::columns::lookup_for_poseidon2_sponge()],
         )
     }
 }

@@ -2,7 +2,9 @@
 
 use std::ptr::{addr_of, slice_from_raw_parts};
 
-use crate::common::types::poseidon2hash::{DIGEST_BYTES, RATE};
+use poseidon2::mozak_poseidon2;
+
+use crate::common::types::poseidon2hash::DIGEST_BYTES;
 use crate::common::types::{Poseidon2Hash, ProgramIdentifier};
 use crate::mozakvm::linker_symbols::_mozak_self_prog_id;
 
@@ -48,10 +50,7 @@ pub fn get_self_prog_id() -> ProgramIdentifier {
 /// We use the well known "Bit padding scheme".
 #[allow(dead_code)]
 pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
-    let mut padded_input = input.to_vec();
-    padded_input.push(1);
-
-    padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
+    let padded_input = mozak_poseidon2::do_padding(input);
 
     let mut output = [0; DIGEST_BYTES];
     crate::core::ecall::poseidon2(
@@ -70,7 +69,7 @@ pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
 /// would fail otherwise.
 #[allow(dead_code)]
 pub fn poseidon2_hash_no_pad(input: &[u8]) -> Poseidon2Hash {
-    assert!(input.len() % RATE == 0);
+    assert!(input.len() % mozak_poseidon2::DATA_PADDING == 0);
     let mut output = [0; DIGEST_BYTES];
     crate::core::ecall::poseidon2(input.as_ptr(), input.len(), output.as_mut_ptr());
     Poseidon2Hash(output)

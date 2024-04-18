@@ -29,6 +29,7 @@ members = [
   "signatures",
   "state",
   "wasm-demo",
+  "poseidon2",
 ]
 resolver = "2"
 

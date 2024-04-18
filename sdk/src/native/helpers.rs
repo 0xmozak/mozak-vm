@@ -3,11 +3,10 @@ use std::path::PathBuf;
 
 // This file contains code snippets used in native execution
 use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
+use poseidon2::mozak_poseidon2;
 
-use crate::common::types::poseidon2hash::RATE;
 use crate::common::types::{Poseidon2Hash, ProgramIdentifier};
 
 /// Represents a stack for call contexts during native execution.
@@ -76,15 +75,8 @@ pub fn rm_identity() {
 /// Hashes the input slice to `Poseidon2Hash` after padding.
 /// We use the well known "Bit padding scheme".
 pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
-    let mut padded_input = input.to_vec();
-    padded_input.push(1);
-
-    padded_input.resize(padded_input.len().next_multiple_of(RATE), 0);
-    let data_fields: Vec<GoldilocksField> = padded_input
-        .iter()
-        .map(|x| GoldilocksField::from_canonical_u8(*x))
-        .collect();
-
+    let data_fields: Vec<GoldilocksField> =
+        mozak_poseidon2::pack_padded_input(mozak_poseidon2::do_padding(input).as_slice());
     Poseidon2Hash(
         Plonky2Poseidon2Hash::hash_no_pad(&data_fields)
             .to_bytes()
@@ -101,11 +93,9 @@ pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
 /// would fail otherwise.
 #[allow(unused)]
 pub fn poseidon2_hash_no_pad(input: &[u8]) -> Poseidon2Hash {
-    assert!(input.len() % RATE == 0);
-    let data_fields: Vec<GoldilocksField> = input
-        .iter()
-        .map(|x| GoldilocksField::from_canonical_u8(*x))
-        .collect();
+    assert!(input.len() % mozak_poseidon2::DATA_PADDING == 0);
+
+    let data_fields: Vec<GoldilocksField> = mozak_poseidon2::pack_padded_input(input);
 
     Poseidon2Hash(
         Plonky2Poseidon2Hash::hash_no_pad(&data_fields)

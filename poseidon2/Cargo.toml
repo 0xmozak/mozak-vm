@@ -1,0 +1,14 @@
+[package]
+categories = ["development-tools"]
+description = "Provides poseidon2 utils for writing programs for mozak platform"
+edition = "2021"
+keywords = ["hash"]
+license = "Apache-2.0"
+name = "poseidon2"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-node/poseidon2"
+version = "0.1.0"
+
+[dependencies]
+[target.'cfg(not(target_os="mozakvm"))'.dependencies]
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }

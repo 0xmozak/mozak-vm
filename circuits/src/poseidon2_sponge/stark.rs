@@ -9,6 +9,7 @@ use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use poseidon2::mozak_poseidon2;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
@@ -55,6 +56,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         let rate = u8::try_from(Poseidon2Permutation::<F>::RATE).expect("rate > 255");
         let state_size = u8::try_from(Poseidon2Permutation::<F>::WIDTH).expect("state_size > 255");
         let rate_scalar = P::Scalar::from_canonical_u8(rate);
+        let padding_scalar = P::Scalar::from_canonical_u8(
+            u8::try_from(mozak_poseidon2::DATA_PADDING).expect("DATA_PADDING > 255"),
+        );
         let lv: &Poseidon2Sponge<P> = vars.get_local_values().into();
         let nv: &Poseidon2Sponge<P> = vars.get_next_values().into();
 
@@ -92,9 +96,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // input
         yield_constr
             .constraint_transition(not_last_sponge * (lv.input_len - (nv.input_len + rate_scalar)));
-        // and input_addr increases by RATE
+        // and input_addr increases by DATA_PADDING
         yield_constr.constraint_transition(
-            not_last_sponge * (lv.input_addr - (nv.input_addr - rate_scalar)),
+            not_last_sponge * (lv.input_addr - (nv.input_addr - padding_scalar)),
         );
 
         // For each init_permute capacity bits are zero.
@@ -141,6 +145,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // if row generates output then it must be last rate sized
         // chunk of input.
         let rate_ext = builder.constant_extension(F::Extension::from_canonical_u8(rate));
+        let padding_ext = builder.constant_extension(F::Extension::from_canonical_u8(
+            u8::try_from(mozak_poseidon2::DATA_PADDING).expect("DATA_PADDING > 255"),
+        ));
         let input_len_sub_rate = builder.sub_extension(lv.input_len, rate_ext);
         let gen_op_len_check = builder.mul_extension(lv.gen_output, input_len_sub_rate);
         yield_constr.constraint(builder, gen_op_len_check);
@@ -174,8 +181,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // length decreases by RATE, note that only actual execution row can consume
         // input
         yield_constr.constraint_transition(builder, len_check);
-        // and input_addr increases by RATE
-        let nv_input_addr_rate = builder.sub_extension(nv.input_addr, rate_ext);
+        // and input_addr increases by PADDING
+        let nv_input_addr_rate = builder.sub_extension(nv.input_addr, padding_ext);
         let input_addr_diff_rate = builder.sub_extension(lv.input_addr, nv_input_addr_rate);
         let addr_check = builder.mul_extension(not_last_sponge, input_addr_diff_rate);
         yield_constr.constraint_transition(builder, addr_check);
