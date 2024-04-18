@@ -70,7 +70,7 @@ pub fn tapes_to_runtime_arguments(
         .call_tape
         .writer
         .iter()
-        .map(|msg| msg.callee)
+        .map(|msg| msg.callee.0)
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect_vec();

@@ -50,8 +50,8 @@ impl SelfCallExtensionFlag {
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
 pub struct SelfCallExtendedProgramIdentifier(
-    pub(crate) ProgramIdentifier,
-    pub(crate) SelfCallExtensionFlag,
+    pub ProgramIdentifier,
+    pub SelfCallExtensionFlag,
 );
 
 #[derive(
