@@ -919,7 +919,7 @@ dependencies = [
  "mozak-runner",
  "mozak-sdk",
  "plonky2",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git)",
+ "plonky2_maybe_rayon",
  "proptest",
  "serde",
  "serde_json",
@@ -992,7 +992,7 @@ dependencies = [
  "itertools 0.12.1",
  "lazy_static",
  "plonky2",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git)",
+ "plonky2_maybe_rayon",
 ]
 
 [[package]]
@@ -1155,7 +1155,7 @@ dependencies = [
  "log",
  "num",
  "plonky2_field",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri)",
+ "plonky2_maybe_rayon",
  "plonky2_util",
  "rand",
  "rand_chacha",
@@ -1176,7 +1176,7 @@ dependencies = [
  "itertools 0.12.1",
  "num",
  "plonky2",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git)",
+ "plonky2_maybe_rayon",
  "rand",
  "rayon",
  "serde",
@@ -1202,14 +1202,6 @@ dependencies = [
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
 source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri#61f53c000f4a90737fa3e9eafd08c789106796c7"
-dependencies = [
- "rayon",
-]
-
-[[package]]
-name = "plonky2_maybe_rayon"
-version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#2481568e2591e92adae1b8ddef665505bfeb7181"
 dependencies = [
  "rayon",
 ]
@@ -1682,7 +1674,7 @@ dependencies = [
  "log",
  "num-bigint",
  "plonky2",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri)",
+ "plonky2_maybe_rayon",
  "plonky2_util",
 ]
 
