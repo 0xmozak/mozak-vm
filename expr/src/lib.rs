@@ -1,59 +1,65 @@
 //! Simple library for handling ASTs for polynomials for ZKP in Rust
+//! 
+//! NOTE: so far Expr type _belonged_ to Expr builder.  It could even be
+//! considered a singleton type per each expression instance.  However, now we
+//! want to relax that requirement, and have some expressions that are not tied
+//! to expression builders, so that we can have Default instance for expressions.
+//!
+//! The current API provided by Expr type are the trait instances, which are
+//!
+//! - [`Add`]
+//!   - [`Expr`] + [`Expr`]
+//!   - [`i64`] + [`Expr`]
+//!   - [`Expr`] + [`i64`]
+//! - [`Sub`]
+//!   - [`Expr`] - [`Expr`]
+//!   - [`i64`] - [`Expr`]
+//!   - [`Expr`] - [`i64`]
+//! - [`Mul`]
+//!   - [`Expr`] * [`Expr`]
+//!   - [`i64`] * [`Expr`]
+//!   - [`Expr`] * [`i64`]
+//! - [`Neg`]
+//!   - (- [`Expr`])
+//!
+//! Then, the current API for Expr builder was pretty much the ability to inject
+//! `V` and i64 into Exprs
+//!
+//! - (private) intern for internalising ExprTree
+//! - (private) binop helper method
+//! - (private) unop helper method
+//! - lit for V
+//! - constant for i64
+//! - helper methods
+//!   - add
+//!   - sub
+//!   - mul
+//!   - neg
+//!
+//! There is a private contract between ExprBuilder and Expr, as Expr is just a
+//! wrapper around ExprTree provided by ExprBuilder, as builder internally
+//! operates on ExprTree.
+//! 
+//! Ideally, we want to provide a basic implementation of ExprBuilder for our end
+//! users to extend, but I am not sure how to do that efficiently in Rust yet.
+//! 
+//! I also noticed that sometimes it is easier to extend the Expr type, rather
+//! than ExprBuilder.
+//! 
+//! Finally, there is the case of Evaluators, because they do form a contract
+//! with internal ExprTree, as they provide the semantics for the operations.
+//!
+//! # TODO
+//! 
+//! - [ ] TODO: support `|` via multiplication.
+//! - [ ] TODO support `&` via distributive law, and integration with constraint
+//! builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
+//! means split into multiple constraints.
 
 use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
-// NOTE: so far Expr type _belonged_ to Expr builder.  It could even be
-// considered a singleton type per each expression instance.  However, now we
-// want to relax that requirement, and have some expressions that are not tied
-// to expression builders, so that we can have Default instance for expressions.
-//
-// The current API provided by Expr type are the trait instances, which are
-//
-// - Add
-//   - Expr + Expr
-//   - i64 + Expr
-//   - Expr + i64
-// - Sub
-//   - Expr - Expr
-//   - i64 - Expr
-//   - Expr - i64
-// - Mul
-//   - Expr * Expr
-//   - i64 * Expr
-//   - Expr * i64
-// - Neg
-//   - (- Expr)
-//
-// Then, the current API for Expr builder was pretty much the ability to inject
-// V and i64 into Exprs
-//
-// - (private) intern for internalising ExprTree
-// - (private) binop helper method
-// - (private) unop helper method
-// - lit for V
-// - constant for i64
-// - helper methods
-//   - add
-//   - sub
-//   - mul
-//   - neg
-//
-// There is a private contract between ExprBuilder and Expr, as Expr is just a
-// wrapper around ExprTree provided by ExprBuilder, as builder internally
-// operates on ExprTree.
-//
-// Ideally, we want to provide a basic implementation of ExprBuilder for our end
-// users to extend, but I am not sure how to do that efficiently in Rust yet.
-//
-// I also noticed that sometimes it is easier to extend the Expr type, rather
-// that ExprBuilder.
-//
-// Finally, there is the case of Evaluator's, because they do form a contract
-// with internal ExprTree, as they provide the semantics for the operations.
-// While
-//
 
 /// Contains a reference to [`ExprTree`] that is managed by [`ExprBuilder`].
 #[derive(Clone, Copy, Debug)]
@@ -75,9 +81,9 @@ impl<'a, V> Default for Expr<'a, V> {
     fn default() -> Self { Expr::from(0) }
 }
 
-// Base semantics of Expr
+/// Main type to hold expression trees.  Contains Expressions defined on `V`
+/// with expression trees that will be alive for at last `'a`.
 impl<'a, V> Expr<'a, V> {
-    /// Handle binary operations
     fn bin_op(op: BinOp, lhs: Expr<'a, V>, rhs: Expr<'a, V>) -> Expr<'a, V> {
         match (lhs, rhs) {
             (Expr::Basic { value: left }, Expr::Basic { value: right }) =>
@@ -91,7 +97,6 @@ impl<'a, V> Expr<'a, V> {
         }
     }
 
-    /// Handle unary operations
     fn una_op(op: UnaOp, expr: Expr<'a, V>) -> Expr<'a, V> {
         match expr {
             Expr::Basic { value } => Expr::from(PureEvaluator::default().una_op(&op, value)),
@@ -100,7 +105,6 @@ impl<'a, V> Expr<'a, V> {
     }
 }
 
-// Adding functionality to Expr
 impl<'a, V> Expr<'a, V> {
     pub fn is_binary(self) -> Self
     where
@@ -173,10 +177,6 @@ impl<'a, V> Neg for Expr<'a, V> {
     fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
 }
 
-// TODO: support `|` via multiplication.
-// TODO support `&` via distributive law, and integration with constraint
-// builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)]
-// where [..] means split into multiple constraints.
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
 /// store all the [`ExprTree`]s.
