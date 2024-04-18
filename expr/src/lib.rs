@@ -12,19 +12,19 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 // The current API provided by Expr type are the trait instances, which are
 //
 // - Add
-// - Expr + Expr
-// - i64 + Expr
-// - Expr + i64
+//   - Expr + Expr
+//   - i64 + Expr
+//   - Expr + i64
 // - Sub
-// - Expr - Expr
-// - i64 - Expr
-// - Expr - i64
+//   - Expr - Expr
+//   - i64 - Expr
+//   - Expr - i64
 // - Mul
-// - Expr * Expr
-// - i64 * Expr
-// - Expr * i64
+//   - Expr * Expr
+//   - i64 * Expr
+//   - Expr * i64
 // - Neg
-// - (- Expr)
+//   - (- Expr)
 //
 // Then, the current API for Expr builder was pretty much the ability to inject
 // V and i64 into Exprs
@@ -35,10 +35,10 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 // - lit for V
 // - constant for i64
 // - helper methods
-// - add
-// - sub
-// - mul
-// - neg
+//   - add
+//   - sub
+//   - mul
+//   - neg
 //
 // There is a private contract between ExprBuilder and Expr, as Expr is just a
 // wrapper around ExprTree provided by ExprBuilder, as builder internally
