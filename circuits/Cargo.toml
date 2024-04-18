@@ -35,6 +35,7 @@ hex = "0.4"
 im = "15.1"
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
+rand = "0.8"
 
 [features]
 parallel = ["plonky2/parallel", "starky/parallel", "plonky2_maybe_rayon/parallel"]
