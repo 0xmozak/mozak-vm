@@ -16,6 +16,7 @@ members = [
   "token",
   "wallet",
   "inputtape",
+  "selfcaller",
 ]
 resolver = "2"
 

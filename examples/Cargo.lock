@@ -622,6 +622,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e86697c916019a8588c99b5fac3cead74ec0b4b819707a682fd4d23fa0ce1ba1"
 
 [[package]]
+name = "selfcaller"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "mozak-sdk",
+ "rand",
+ "rand_chacha",
+ "rkyv",
+ "rkyv_derive",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.198"
 source = "registry+https://github.com/rust-lang/crates.io-index"
