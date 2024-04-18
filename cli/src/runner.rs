@@ -9,6 +9,7 @@ use itertools::Itertools;
 use log::debug;
 use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::common::types::{CanonicalOrderedTemporalHints, ProgramIdentifier, SystemTape};
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
 
@@ -95,6 +96,9 @@ pub fn tapes_to_runtime_arguments(
 
         RuntimeArguments {
             self_prog_id: self_prog_id.inner().to_vec(),
+            // TODO(bing): actually populate these
+            events_commitment_tape: [0; COMMITMENT_SIZE],
+            cast_list_commitment_tape: [0; COMMITMENT_SIZE],
             cast_list: serialise(&cast_list, "CAST_LIST"),
             io_tape_public: length_prefixed_bytes(
                 sys_tapes
