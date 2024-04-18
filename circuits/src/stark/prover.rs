@@ -443,6 +443,7 @@ where
 /// # Errors
 /// Errors if proving fails.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::similar_names)]
 pub fn batch_prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
@@ -565,7 +566,7 @@ where
             timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
-                Some(compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
+                Some(compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
                     stark,
                     &trace_commitments[kind],
                     &ctl_zs_commitment,
