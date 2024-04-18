@@ -140,31 +140,33 @@ where
 }
 
 macro_rules! instances {
-    ($trait: ident, $fun: ident, $op: expr) => {
-        impl<'a, V> $trait<Self> for Expr<'a, V> {
+    ($op: ident, $fun: ident) => {
+        impl<'a, V> $op<Self> for Expr<'a, V> {
             type Output = Self;
 
-            fn $fun(self, rhs: Self) -> Self::Output { Self::bin_op($op, self, rhs) }
+            fn $fun(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::$op, self, rhs) }
         }
-        impl<'a, V> $trait<i64> for Expr<'a, V> {
+        impl<'a, V> $op<i64> for Expr<'a, V> {
             type Output = Expr<'a, V>;
 
-            fn $fun(self, rhs: i64) -> Self::Output { Self::bin_op($op, self, Expr::from(rhs)) }
+            fn $fun(self, rhs: i64) -> Self::Output {
+                Self::bin_op(BinOp::$op, self, Expr::from(rhs))
+            }
         }
 
-        impl<'a, V> $trait<Expr<'a, V>> for i64 {
+        impl<'a, V> $op<Expr<'a, V>> for i64 {
             type Output = Expr<'a, V>;
 
             fn $fun(self, rhs: Expr<'a, V>) -> Self::Output {
-                Self::Output::bin_op($op, Expr::from(self), rhs)
+                Self::Output::bin_op(BinOp::$op, Expr::from(self), rhs)
             }
         }
     };
 }
 
-instances!(Add, add, BinOp::Add);
-instances!(Sub, sub, BinOp::Sub);
-instances!(Mul, mul, BinOp::Mul);
+instances!(Add, add);
+instances!(Sub, sub);
+instances!(Mul, mul);
 
 impl<'a, V> Neg for Expr<'a, V> {
     type Output = Expr<'a, V>;
