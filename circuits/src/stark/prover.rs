@@ -117,8 +117,7 @@ where
         .then_some(&traces_poly_values[kind]));
     let _degree_logs: Vec<usize> = batch_traces_poly_values
         .iter()
-        .filter_map(|t| *t)
-        .map(Vec::len)
+        .filter_map(|p| p.map(Vec::len))
         .collect::<BTreeSet<_>>()
         .into_iter()
         .rev()
