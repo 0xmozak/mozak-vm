@@ -94,8 +94,8 @@ enum Command {
     BundleTransaction {
         /// List of bundle plan(s) generated from native execution(s).
         /// The first plan's call tape is used as the global call tape.
-        #[arg(long)]
-        bundle_plan: Vec<Input>,
+        #[arg(long, required = true)]
+        plan: Input,
         #[arg(long, required = true)]
         cast_list: Vec<String>,
         #[arg(long, required = true)]
@@ -221,84 +221,68 @@ fn main() -> Result<()> {
             debug!("proof generated successfully!");
         }
         Command::BundleTransaction {
-            bundle_plan,
+            plan,
             cast_list,
             bundle,
         } => {
             println!("Bundling transaction...");
-            let zipped = bundle_plan
-                .into_iter()
-                .map(|mut plan| {
-                    let mut bundle_plan_bytes = Vec::new();
-                    let _ = plan.read_to_end(&mut bundle_plan_bytes)?;
-                    let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes)?;
+            let plan: ProofBundle = serde_json::from_reader(plan)?;
 
-                    let sys_tapes: SystemTape =
-                        deserialize_system_tape(Input::try_from(&plan.system_tape_filepath)?)?;
+            let sys_tapes: SystemTape =
+                deserialize_system_tape(Input::try_from(&plan.system_tape_filepath)?)?;
 
-                    let event_tape: OrderedEvents = sys_tapes
-                        .event_tape
-                        .writer
-                        .get(&ProgramIdentifier::from(plan.self_prog_id.clone()))
-                        .cloned()
-                        .ok_or(anyhow::anyhow!(
-                            "Event tape not found for program id: {:?}",
-                            plan.self_prog_id
-                        ))?;
-                    let args = tapes_to_runtime_arguments(
-                        Input::try_from(&plan.system_tape_filepath)?,
-                        Some(plan.self_prog_id.to_string()),
-                    );
-
-                    let program = load_program(
-                        Input::try_from(&plan.elf_filepath).unwrap_or_else(|_| {
-                            panic!("Elf filepath {:?} not found", plan.elf_filepath)
-                        }),
-                        &args,
-                    )?;
-                    let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
-                        let rate_bits = config.fri_config.rate_bits;
-                        let cap_height = config.fri_config.cap_height;
-                        let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                            poly_values,
-                            rate_bits,
-                            false, // blinding
-                            cap_height,
-                            &mut TimingTree::default(),
-                            None, // fft_root_table
-                        );
-                        trace_commitment.merkle_tree.cap
-                    };
-
-                    let trace = generate_private_tape_init_trace(&program);
-                    let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-
-                    let trace = generate_call_tape_init_trace(&program);
-                    let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-
-                    let transparent_attestation = TransparentAttestation {
-                        public_tape: args.io_tape_public,
-                        event_tape,
-                    };
-
-                    let opaque_attestation: OpaqueAttestation<F, C, D> =
-                        OpaqueAttestation { private_tape_hash };
-
-                    let attestation = Attestation {
-                        id: plan.self_prog_id.into(),
-                        opaque: opaque_attestation,
-                        transparent: transparent_attestation,
-                    };
-                    Ok((attestation, call_tape_hash))
-                })
-                .collect::<Result<Vec<(_, _)>>>()?;
-            let (constituent_zs, call_tape_hashes): (Vec<_>, Vec<_>) = zipped.into_iter().unzip();
-            let call_tape_hash = call_tape_hashes
-                .first()
+            let event_tape: OrderedEvents = sys_tapes
+                .event_tape
+                .writer
+                .get(&ProgramIdentifier::from(plan.self_prog_id.clone()))
+                .cloned()
                 .ok_or(anyhow::anyhow!(
-                    "No call tape hash found in the first bundle plan"
-                ))?
-                .clone();
+                    "Event tape not found for program id: {:?}",
+                    plan.self_prog_id
+                ))?;
+            let args = tapes_to_runtime_arguments(
+                Input::try_from(&plan.system_tape_filepath)?,
+                Some(plan.self_prog_id.to_string()),
+            );
+
+            let program = load_program(
+                Input::try_from(&plan.elf_filepath)
+                    .unwrap_or_else(|_| panic!("Elf filepath {:?} not found", plan.elf_filepath)),
+                &args,
+            )?;
+            let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
+                let rate_bits = config.fri_config.rate_bits;
+                let cap_height = config.fri_config.cap_height;
+                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                    poly_values,
+                    rate_bits,
+                    false, // blinding
+                    cap_height,
+                    &mut TimingTree::default(),
+                    None, // fft_root_table
+                );
+                trace_commitment.merkle_tree.cap
+            };
+
+            let trace = generate_private_tape_init_trace(&program);
+            let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
+
+            let trace = generate_call_tape_init_trace(&program);
+            let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
+
+            let transparent_attestation = TransparentAttestation {
+                public_tape: args.io_tape_public,
+                event_tape,
+            };
+
+            let opaque_attestation: OpaqueAttestation<F, C, D> =
+                OpaqueAttestation { private_tape_hash };
+
+            let attestation = Attestation {
+                id: plan.self_prog_id.into(),
+                opaque: opaque_attestation,
+                transparent: transparent_attestation,
+            };
 
             let transaction = Transaction {
                 call_tape_hash,
@@ -308,7 +292,9 @@ fn main() -> Result<()> {
                     .unique()
                     .map(ProgramIdentifier::from)
                     .collect(),
-                constituent_zs,
+                // TODO(bing): This is supposed to be the attestations of ALL programs involved.
+                // Fix once extended SDK is ready.
+                constituent_zs: vec![attestation],
             };
 
             serde_json::to_writer_pretty(bundle, &transaction)?;

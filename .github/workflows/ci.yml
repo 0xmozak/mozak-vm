@@ -105,6 +105,9 @@ jobs:
           ARCH_TRIPLE="$(nixdo rustc --verbose --version | grep host | awk '{ print $2; }')"
           nixdo nice cargo test --locked --lib --target $ARCH_TRIPLE
 
+      - name: Test transaction bundling (CLI)
+        run: nixdo ./scripts/test_bundle_tx.sh
+
   run-examples:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
