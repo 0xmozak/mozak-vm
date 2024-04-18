@@ -196,12 +196,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
-name = "byteorder"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
-
-[[package]]
 name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -302,7 +296,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -484,7 +478,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim 0.10.0",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -495,7 +489,7 @@ checksum = "a668eda54683121533a393014d8692171709ff57a7d61f187b6e782719f8933f"
 dependencies = [
  "darling_core",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -526,7 +520,7 @@ dependencies = [
  "convert_case",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
  "unicode-xid",
 ]
 
@@ -569,7 +563,7 @@ checksum = "5c785274071b1b420972453b306eeca06acf4633829db4223b58a2a8c5953bc4"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -624,24 +618,6 @@ name = "fastrand"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "658bd65b1cf4c852a3cc96f18a8ce7b5640f6b703f905c7d74532294c2a63984"
-
-[[package]]
-name = "fixed-hash"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfcf0ed7fe52a17a03854ec54a9f76d6d84508d1c0e66bc1793301c73fc8493c"
-dependencies = [
- "static_assertions",
-]
-
-[[package]]
-name = "fixed-hash"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "835c052cb0c08c1acf6ffd71c022172e18723949c8282f2b9f27efbc51e64534"
-dependencies = [
- "static_assertions",
-]
 
 [[package]]
 name = "fnv"
@@ -824,15 +800,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
@@ -862,26 +829,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
 dependencies = [
  "cpufeatures",
-]
-
-[[package]]
-name = "keccak-hash"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce2bd4c29270e724d3eaadf7bdc8700af4221fc0ed771b855eadcd1b98d52851"
-dependencies = [
- "primitive-types 0.10.1",
- "tiny-keccak",
-]
-
-[[package]]
-name = "keccak-hash"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b286e6b663fb926e1eeb68528e69cb70ed46c6d65871a21b2215ae8154c6d3c"
-dependencies = [
- "primitive-types 0.12.2",
- "tiny-keccak",
 ]
 
 [[package]]
@@ -971,8 +918,8 @@ dependencies = [
  "mozak-circuits-derive",
  "mozak-runner",
  "mozak-sdk",
- "plonky2 0.2.1",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri)",
+ "plonky2",
+ "plonky2_maybe_rayon",
  "proptest",
  "rand",
  "serde",
@@ -990,7 +937,7 @@ dependencies = [
  "proc-macro-error",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -1010,7 +957,7 @@ dependencies = [
  "mozak-node",
  "mozak-runner",
  "mozak-sdk",
- "plonky2 0.2.1",
+ "plonky2",
  "proptest",
  "rkyv",
  "rkyv_derive",
@@ -1031,7 +978,7 @@ dependencies = [
  "mozak-circuits",
  "mozak-recproofs",
  "mozak-sdk",
- "plonky2 0.2.1",
+ "plonky2",
  "serde",
 ]
 
@@ -1045,8 +992,8 @@ dependencies = [
  "iter_fixed",
  "itertools 0.12.1",
  "lazy_static",
- "plonky2 0.2.1",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri)",
+ "plonky2",
+ "plonky2_maybe_rayon",
 ]
 
 [[package]]
@@ -1069,7 +1016,7 @@ dependencies = [
  "mimalloc",
  "mozak-examples",
  "mozak-sdk",
- "plonky2 0.2.1",
+ "plonky2",
  "proptest",
  "serde",
  "serde_json",
@@ -1083,7 +1030,7 @@ dependencies = [
  "hex",
  "itertools 0.12.1",
  "once_cell",
- "plonky2 0.2.2",
+ "plonky2",
  "rand",
  "rand_chacha",
  "rkyv",
@@ -1198,30 +1145,8 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 
 [[package]]
 name = "plonky2"
-version = "0.2.1"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri#c2168c5e42a75ff4bc8c63948706fd6c80d3d323"
-dependencies = [
- "ahash",
- "anyhow",
- "getrandom",
- "hashbrown 0.14.3",
- "itertools 0.12.1",
- "keccak-hash 0.10.0",
- "log",
- "num",
- "plonky2_field 0.2.1",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri)",
- "plonky2_util 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri)",
- "rand",
- "serde",
- "static_assertions",
- "unroll 0.2.0",
- "web-time",
-]
-
-[[package]]
-name = "plonky2"
 version = "0.2.2"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/sai/add_batch_fri#7d053980f33284de674114862c4348052eed05d1"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1230,52 +1155,29 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "num",
- "plonky2_field 0.2.2",
- "plonky2_maybe_rayon 0.2.0",
- "plonky2_util 0.2.0",
- "rand",
- "serde",
- "static_assertions",
- "tiny-keccak",
- "unroll 0.2.0",
-]
-
-[[package]]
-name = "plonky2"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85f26b090b989aebdeaf6a4eed748c1fbcabf67e7273a22e4e0c877b63846d0f"
-dependencies = [
- "ahash",
- "anyhow",
- "getrandom",
- "hashbrown 0.14.3",
- "itertools 0.11.0",
- "keccak-hash 0.8.0",
- "log",
- "num",
- "plonky2_field 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "plonky2_maybe_rayon 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "plonky2_util 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "plonky2_field",
+ "plonky2_maybe_rayon",
+ "plonky2_util",
  "rand",
  "rand_chacha",
  "serde",
  "static_assertions",
- "unroll 0.1.5",
+ "tiny-keccak",
+ "unroll",
  "web-time",
 ]
 
 [[package]]
 name = "plonky2_crypto"
 version = "0.1.0"
-source = "git+https://github.com/0xmozak/plonky2-crypto.git#49b2ea39eff2776e9c1c903ce4ca36c19a55d998"
+source = "git+https://github.com/0xmozak/plonky2-crypto.git#a9389c98fc53e07fd103a814377699524f0b1bd5"
 dependencies = [
  "anyhow",
  "hex",
  "itertools 0.12.1",
  "num",
- "plonky2 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "plonky2_maybe_rayon 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "plonky2",
+ "plonky2_maybe_rayon",
  "rand",
  "rayon",
  "serde",
@@ -1284,66 +1186,23 @@ dependencies = [
 
 [[package]]
 name = "plonky2_field"
-version = "0.2.1"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri#c2168c5e42a75ff4bc8c63948706fd6c80d3d323"
+version = "0.2.2"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/sai/add_batch_fri#7d053980f33284de674114862c4348052eed05d1"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
  "num",
- "plonky2_util 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri)",
+ "plonky2_util",
  "rand",
  "serde",
  "static_assertions",
- "unroll 0.2.0",
-]
-
-[[package]]
-name = "plonky2_field"
-version = "0.2.2"
-dependencies = [
- "anyhow",
- "itertools 0.12.1",
- "num",
- "plonky2_util 0.2.0",
- "rand",
- "serde",
- "static_assertions",
- "unroll 0.2.0",
-]
-
-[[package]]
-name = "plonky2_field"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a1dca60ad900d81b1fe2df3d0b88d43345988e2935e6709176e96573f4bcf5d"
-dependencies = [
- "anyhow",
- "itertools 0.11.0",
- "num",
- "plonky2_util 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand",
- "serde",
- "static_assertions",
- "unroll 0.1.5",
+ "unroll",
 ]
 
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-
-[[package]]
-name = "plonky2_maybe_rayon"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ff44a90aaca13e10e7ddf8fab815ba1b404c3f7c3ca82aaf11c46beabaa923"
-dependencies = [
- "rayon",
-]
-
-[[package]]
-name = "plonky2_maybe_rayon"
-version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri#c2168c5e42a75ff4bc8c63948706fd6c80d3d323"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/sai/add_batch_fri#7d053980f33284de674114862c4348052eed05d1"
 dependencies = [
  "rayon",
 ]
@@ -1351,17 +1210,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-
-[[package]]
-name = "plonky2_util"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b16136f5f3019c1e83035af76cccddd56d789a5e2933306270185c3f99f12259"
-
-[[package]]
-name = "plonky2_util"
-version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri#c2168c5e42a75ff4bc8c63948706fd6c80d3d323"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/sai/add_batch_fri#7d053980f33284de674114862c4348052eed05d1"
 
 [[package]]
 name = "plotters"
@@ -1404,26 +1253,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 
 [[package]]
-name = "primitive-types"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05e4722c697a58a99d5d06a08c30821d7c082a4632198de1eaa5a6c22ef42373"
-dependencies = [
- "fixed-hash 0.7.0",
- "uint",
-]
-
-[[package]]
-name = "primitive-types"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b34d9fd68ae0b74a41b21c03c2f62847aa0ffea044eee893b4c140b37e244e2"
-dependencies = [
- "fixed-hash 0.8.0",
- "uint",
-]
-
-[[package]]
 name = "proc-macro-error"
 version = "2.0.0"
 source = "git+https://github.com/staratlasmeta/proc-macro-error.git#32fb626a74daf1af81b28f9c41b296a19d92344f"
@@ -1431,7 +1260,7 @@ dependencies = [
  "proc-macro-error-attr",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
  "version_check",
 ]
 
@@ -1491,7 +1320,7 @@ checksum = "bb26b4ec087a56688b4dddd8c7bbed38ad1867042ba6e1314162e5b370edaaac"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -1650,7 +1479,7 @@ checksum = "5d936536583355d1ef18b9473dbe2a59d0c9ffff278a92c171feb30f2489dd0a"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -1721,7 +1550,7 @@ checksum = "e88edab869b01783ba905e7d0153f9fc1a6505a96e4ad3018011eedb838566d9"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -1771,7 +1600,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -1806,7 +1635,7 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "num",
- "plonky2 0.2.1",
+ "plonky2",
  "plonky2_crypto",
  "rand",
  "serde",
@@ -1836,8 +1665,8 @@ dependencies = [
 
 [[package]]
 name = "starky"
-version = "0.3.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri#c2168c5e42a75ff4bc8c63948706fd6c80d3d323"
+version = "0.4.0"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/sai/add_batch_fri#7d053980f33284de674114862c4348052eed05d1"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1845,9 +1674,9 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "num-bigint",
- "plonky2 0.2.1",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri)",
- "plonky2_util 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_fri)",
+ "plonky2",
+ "plonky2_maybe_rayon",
+ "plonky2_util",
 ]
 
 [[package]]
@@ -1874,17 +1703,6 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
-
-[[package]]
-name = "syn"
-version = "1.0.109"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
-dependencies = [
- "proc-macro2",
- "quote",
- "unicode-ident",
-]
 
 [[package]]
 name = "syn"
@@ -1933,7 +1751,7 @@ dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -1944,7 +1762,7 @@ checksum = "5c89e72a01ed4c579669add59014b9a524d609c0c88c6a585ce37485879f6ffb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
  "test-case-core",
 ]
 
@@ -1965,7 +1783,7 @@ checksum = "c61f3ba182994efc43764a46c018c347bc492c79f024e705f46567b418f6d4f7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -2080,18 +1898,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42ff0bf0c66b8238c6f3b578df37d0b7848e55df8577b3f74f92a69acceeb825"
 
 [[package]]
-name = "uint"
-version = "0.9.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76f64bba2c53b04fcab63c01a7d7427eadc821e3bc48c34dc9ba29c501164b52"
-dependencies = [
- "byteorder",
- "crunchy",
- "hex",
- "static_assertions",
-]
-
-[[package]]
 name = "unarray"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2132,21 +1938,11 @@ checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
 
 [[package]]
 name = "unroll"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ad948c1cb799b1a70f836077721a92a35ac177d4daddf4c20a633786d4cf618"
-dependencies = [
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "unroll"
 version = "0.2.0"
 source = "git+https://github.com/0xmozak/unroll.git#1602aa5cd0b9babacb883ae369389444071f0402"
 dependencies = [
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -2207,7 +2003,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
  "wasm-bindgen-shared",
 ]
 
@@ -2229,7 +2025,7 @@ checksum = "e94f17b526d0a461a191c78ea52bbce64071ed5c04c9ffe424dcb38f74171bb7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -2476,5 +2272,5 @@ checksum = "9ce1b18ccd8e73a9321186f97e46f9f04b778851177567b1975109d26a08d2a6"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
