@@ -260,8 +260,7 @@ mod tests {
             [ECALL],
             &[(address, 0)],
             &[
-                // TODO: this looks like a bug, it should be IO_READ_PUBLIC?
-                (REG_A0, ecall::IO_READ_CALL_TAPE),
+                (REG_A0, ecall::IO_READ_PUBLIC),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
@@ -305,7 +304,7 @@ mod tests {
 
     pub fn prove_events_commitment_tape<Stark: ProveAndVerify>(
         address: u32,
-        events_commitment_tape: Vec<u8>,
+        events_commitment_tape: [u8; 32],
     ) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
@@ -335,7 +334,7 @@ mod tests {
 
     pub fn prove_cast_list_commitment_tape<Stark: ProveAndVerify>(
         address: u32,
-        cast_list_commitment_tape: Vec<u8>,
+        cast_list_commitment_tape: [u8; 32],
     ) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
@@ -463,12 +462,12 @@ mod tests {
 
         #[test]
         fn prove_events_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_events_commitment_tape::<MozakStark<F, D>>(address, vec![content]);
+            prove_events_commitment_tape::<MozakStark<F, D>>(address, [content; 32]);
         }
 
         #[test]
         fn prove_cast_list_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_cast_list_commitment_tape::<MozakStark<F, D>>(address, vec![content]);
+            prove_cast_list_commitment_tape::<MozakStark<F, D>>(address, [content; 32]);
         }
 
         #[test]
@@ -476,7 +475,6 @@ mod tests {
             prove_io_read_explicit::<MozakStark<F, D>>(address, content);
         }
     }
-
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
         type C = Poseidon2GoldilocksConfig;
