@@ -192,9 +192,9 @@ pub struct CpuState<T> {
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
-impl<T: Copy> CpuState<T>
+impl<T> CpuState<T>
 where
-    T: Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
+    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
 {
     /// Value of the first operand, as if converted to i64.
     ///
