@@ -12,9 +12,9 @@ version = "0.2.0"
 [dependencies]
 itertools = { version = "0.12", default-features = false }
 once_cell = { version = "1.19", default-features = false, features = ["race"] }
+poseidon2 = { path = "../poseidon2" }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 rkyv_derive = "=0.8.0-alpha.1"
-poseidon2 = { path = "../poseidon2" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies]
 hex = "0.4"
