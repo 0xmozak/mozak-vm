@@ -228,6 +228,8 @@ pub struct RawTapes {
     pub public_tape: Vec<u8>,
     pub call_tape: Vec<u8>,
     pub event_tape: Vec<u8>,
+    pub events_commitment_tape: [u8; COMMITMENT_SIZE],
+    pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
 }
 
 /// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
@@ -241,6 +243,8 @@ impl From<RuntimeArguments> for RawTapes {
             public_tape: args.io_tape_public,
             call_tape: args.call_tape,
             event_tape: args.event_tape,
+            cast_list_commitment_tape: args.cast_list_commitment_tape,
+            events_commitment_tape: args.events_commitment_tape,
         }
     }
 }
@@ -287,6 +291,8 @@ impl<F: RichField> State<F> {
                 data: raw_tapes.event_tape.into(),
                 read_index: 0,
             },
+            cast_list_commitment_tape: CommitmentTape(raw_tapes.cast_list_commitment_tape),
+            events_commitment_tape: CommitmentTape(raw_tapes.events_commitment_tape),
             ..Default::default()
         }
     }

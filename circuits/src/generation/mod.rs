@@ -60,6 +60,7 @@ use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
 use crate::stark::utils::trace_rows_to_poly_values;
+use crate::tape_commitments::generation::generate_tape_commitments_trace;
 
 pub const MIN_TRACE_LENGTH: usize = 8;
 
@@ -133,6 +134,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
+    let tape_commitments_rows = generate_tape_commitments_trace(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
@@ -164,6 +166,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
+        tape_commitments_stark: trace_rows_to_poly_values(tape_commitments_rows),
     }
     .build()
 }
