@@ -113,11 +113,10 @@ impl<'a, V> Expr<'a, V> {
     where
         I: IntoIterator<Item = Self>,
         I::IntoIter: DoubleEndedIterator, {
-        let mut sum = Expr::from(0);
-        for term in terms.into_iter().rev() {
-            sum = sum * base + term;
-        }
-        sum
+        terms
+            .into_iter()
+            .rev()
+            .fold(Expr::from(0), |acc, term| acc * base + term)
     }
 }
 
