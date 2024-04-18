@@ -279,11 +279,11 @@ fn main() -> Result<()> {
             let mut cast_list = vec![];
             sys_tapes.call_tape.writer.into_iter().for_each(
                 |CrossProgramCall { callee, caller, .. }| {
-                    if callee != ProgramIdentifier::default() {
-                        cast_list.push(callee)
+                    if !callee.is_null_program() {
+                        cast_list.push(callee);
                     }
-                    if caller != ProgramIdentifier::default() {
-                        cast_list.push(caller)
+                    if !caller.is_null_program() {
+                        cast_list.push(caller);
                     }
                 },
             );
