@@ -38,13 +38,7 @@ pub struct CommitmentByteWithIndex<T> {
     pub index: T,
 }
 
-columns_view_impl!(TapeCommitmentCTL);
-#[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct TapeCommitmentCTL<T> {
-    pub byte: T,
-    pub index: T,
-}
+pub type TapeCommitmentCTL<T> = CommitmentByteWithIndex<T>;
 
 #[must_use]
 pub fn lookup_for_castlist_commitment() -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
