@@ -5,10 +5,10 @@ use rkyv::rancor::{Panic, Strategy};
 use rkyv::Deserialize;
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
-use crate::common::types::cross_program_call::{
-    SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag,
+use crate::common::types::{
+    CrossProgramCall, ProgramIdentifier, RawMessage, SelfCallExtendedProgramIdentifier,
+    SelfCallExtensionFlag,
 };
-use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};
 use crate::native::helpers::IdentityStack;
 
 /// Represents the `CallTape` under native execution

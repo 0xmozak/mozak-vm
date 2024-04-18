@@ -2,10 +2,9 @@ use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
-use crate::common::types::cross_program_call::{
-    SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag,
+use crate::common::types::{
+    CrossProgramCall, ProgramIdentifier, SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag,
 };
-use crate::common::types::{CrossProgramCall, ProgramIdentifier};
 
 /// Represents the `CallTape` under `mozak-vm`
 #[derive(Default, Clone)]

@@ -5,7 +5,9 @@ use super::ProgramIdentifier;
     Copy,
     Clone,
     Hash,
+    Eq,
     PartialEq,
+    Ord,
     PartialOrd,
     rkyv::Archive,
     rkyv::Serialize,
@@ -27,11 +29,21 @@ pub struct SelfCallExtensionFlag(pub u8);
 impl SelfCallExtensionFlag {
     /// Provides a flag different from given flag. In essence, if `0` is
     /// provided, `1` is returned and vice versa
+    #[must_use]
     pub fn differentiate_from(flag: Self) -> Self { Self(1 - flag.0) }
 }
 
 #[derive(
-    Default, Clone, Hash, PartialEq, PartialOrd, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
+    Default,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
 )]
 #[cfg_attr(
     not(target_os = "mozakvm"),

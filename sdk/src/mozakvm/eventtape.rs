@@ -2,11 +2,9 @@ use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{EventEmit, SelfIdentify};
-use crate::common::types::cross_program_call::{
-    SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag,
-};
 use crate::common::types::{
     CanonicalEvent, CanonicalOrderedTemporalHints, Event, ProgramIdentifier,
+    SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag,
 };
 
 /// Represents the `EventTape` under native execution

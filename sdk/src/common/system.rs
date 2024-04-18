@@ -7,11 +7,11 @@ use once_cell::unsync::Lazy;
 #[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
 
-#[cfg(target_os = "mozakvm")]
-use super::types::cross_program_call::{SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag};
 use super::types::{
     CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
 };
+#[cfg(target_os = "mozakvm")]
+use super::types::{SelfCallExtendedProgramIdentifier, SelfCallExtensionFlag};
 #[cfg(target_os = "mozakvm")]
 use crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, ProgramIdentifier};
 #[cfg(target_os = "mozakvm")]
