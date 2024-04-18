@@ -113,14 +113,12 @@ where
         })
     );
 
-    let mut batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
-        None
-    } else {
-        Some(&traces_poly_values[kind])
-    });
+    let mut batch_traces_poly_values = all_kind!(
+        |kind| (!public_table_kinds.contains(&kind)).then_some(&traces_poly_values[kind])
+    );
     let mut degree_logs: Vec<usize> = batch_traces_poly_values
         .iter()
-        .filter_map(|t| *t)
+        .filter_map(|&t| t)
         .map(|t| t.len())
         .collect();
     degree_logs.sort();
@@ -471,10 +469,9 @@ where
     }
     .build();
 
-    let separate_proofs = all_starks!(mozak_stark, |stark, kind| if public_table_kinds
+    let separate_proofs = all_starks!(mozak_stark, |stark, kind| public_table_kinds
         .contains(&kind)
-    {
-        Some(prove_single_table(
+        .then_some(prove_single_table(
             stark,
             config,
             &traces_poly_values[kind],
@@ -484,15 +481,10 @@ where
             &public_sub_data_per_table[kind],
             challenger,
             timing,
-        )?)
-    } else {
-        None
-    });
+        )?));
 
     let batch_ctl_z_polys = all_kind!(|kind| {
-        if public_table_kinds.contains(&kind) {
-            None
-        } else {
+        (!public_table_kinds.contains(&kind)).then_some({
             let degree = traces_poly_values[kind][0].len();
             let degree_bits = log2_strict(degree);
             let fri_params = config.fri_params(degree_bits);
@@ -510,8 +502,8 @@ where
 
             assert!(!z_polys.is_empty());
 
-            Some(z_polys)
-        }
+            z_polys
+        })
     });
 
     // TODO: we can remove duplicates in the ctl polynomials.
