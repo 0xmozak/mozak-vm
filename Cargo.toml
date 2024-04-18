@@ -49,7 +49,14 @@ lto = "fat"
 lto = "thin"
 opt-level = 3
 
-[patch.crates-io]
-plonky2 = { path = "../plonky2/plonky2" }
-plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
-starky = { path = "../plonky2/starky" }
+[workspace.dependencies]
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_batch_fri", default-features = false }
+plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_batch_fri", default-features = false }
+starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_batch_fri", default-features = false }
+
+plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
+
+# [patch.crates-io]
+# plonky2 = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_batch_fri" }
+# plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_batch_fri" }
+# starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_batch_fri" }

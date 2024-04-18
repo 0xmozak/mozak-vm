@@ -17,8 +17,8 @@ hex = "0.4"
 itertools = "0.12"
 log = "0.4"
 num = "0.4"
-plonky2 = "0"
-plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
+plonky2 = { workspace = true, default-features = false }
+plonky2_crypto = { workspace = true }
 serde = "1.0.197"
 sha2 = "0.10"
 sha3 = "0.10"

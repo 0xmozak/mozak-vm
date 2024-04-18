@@ -123,7 +123,8 @@ where
         .filter_map(|t| *t)
         .map(|t| t.len())
         .collect();
-    degree_logs.sort_unstable_by(|a, b| b.cmp(a));
+    degree_logs.sort();
+    degree_logs.reverse();
     degree_logs.dedup();
 
     let mut batch_trace_polys: Vec<_> = batch_traces_poly_values
@@ -560,7 +561,7 @@ where
     let alphas = challenger.get_n_challenges(config.num_challenges);
 
     let batch_quotient_polys = all_starks!(mozak_stark, |stark, kind| {
-        if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind] {
+        if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind].as_ref() {
             let degree = traces_poly_values[kind][0].len();
             let degree_bits = log2_strict(degree);
             timed!(
