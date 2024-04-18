@@ -83,11 +83,11 @@ impl<'a, V> Expr<'a, V> {
             (Expr::Basic { value: left }, Expr::Basic { value: right }) =>
                 Expr::from(PureEvaluator::default().bin_op(&op, left, right)),
             (left @ Expr::Compound { builder, .. }, right)
-            | (left, right @ Expr::Compound { builder, .. }) => {
-                let left = builder.ensure_interned(left);
-                let right = builder.ensure_interned(right);
-                builder.wrap(builder.bin_op(op, left, right))
-            }
+            | (left, right @ Expr::Compound { builder, .. }) => builder.wrap(builder.bin_op(
+                op,
+                builder.ensure_interned(left),
+                builder.ensure_interned(right),
+            )),
         }
     }
 
