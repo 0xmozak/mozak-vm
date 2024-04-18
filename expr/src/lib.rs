@@ -139,64 +139,37 @@ where
     }
 }
 
-impl<'a, V> Add<Self> for Expr<'a, V> {
-    type Output = Self;
+macro_rules! instances {
+    ($trait: ident, $fun: ident, $op: expr) => {
+        impl<'a, V> $trait<Self> for Expr<'a, V> {
+            type Output = Self;
 
-    fn add(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::Add, self, rhs) }
+            fn $fun(self, rhs: Self) -> Self::Output { Self::bin_op($op, self, rhs) }
+        }
+        impl<'a, V> $trait<i64> for Expr<'a, V> {
+            type Output = Expr<'a, V>;
+
+            fn $fun(self, rhs: i64) -> Self::Output { Self::bin_op($op, self, Expr::from(rhs)) }
+        }
+
+        impl<'a, V> $trait<Expr<'a, V>> for i64 {
+            type Output = Expr<'a, V>;
+
+            fn $fun(self, rhs: Expr<'a, V>) -> Self::Output {
+                Self::Output::bin_op($op, Expr::from(self), rhs)
+            }
+        }
+    };
 }
 
-impl<'a, V> Add<i64> for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn add(self, rhs: i64) -> Self::Output { self + Expr::from(rhs) }
-}
-
-impl<'a, V> Add<Expr<'a, V>> for i64 {
-    type Output = Expr<'a, V>;
-
-    fn add(self, rhs: Expr<'a, V>) -> Self::Output { Expr::from(self) + rhs }
-}
+instances!(Add, add, BinOp::Add);
+instances!(Sub, sub, BinOp::Sub);
+instances!(Mul, mul, BinOp::Mul);
 
 impl<'a, V> Neg for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
     fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
-}
-
-impl<'a, V> Sub for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn sub(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::Sub, self, rhs) }
-}
-
-impl<'a, V> Sub<i64> for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn sub(self, rhs: i64) -> Self::Output { self - Expr::from(rhs) }
-}
-
-impl<'a, V> Sub<Expr<'a, V>> for i64 {
-    type Output = Expr<'a, V>;
-
-    fn sub(self, rhs: Expr<'a, V>) -> Self::Output { Expr::from(self) - rhs }
-}
-
-impl<'a, V> Mul for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn mul(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::Mul, self, rhs) }
-}
-
-impl<'a, V> Mul<i64> for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn mul(self, rhs: i64) -> Self::Output { self * Expr::from(rhs) }
-}
-
-impl<'a, V> Mul<Expr<'a, V>> for i64 {
-    type Output = Expr<'a, V>;
-
-    fn mul(self, rhs: Expr<'a, V>) -> Self::Output { Expr::from(self) * rhs }
 }
 
 // TODO: support `|` via multiplication.
