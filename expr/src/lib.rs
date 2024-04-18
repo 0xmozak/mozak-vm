@@ -91,7 +91,7 @@ impl<'a, V> Expr<'a, V> {
             ) => {
                 // TODO, do we need public API for constants?
                 let left: &ExprTree<'a, V> = builder.constant_tree(left_value);
-                builder.bin_op(op, left, right)
+                builder.wrap(builder.bin_op(op, left, right))
             }
             (
                 Expr::Compound {
@@ -101,7 +101,7 @@ impl<'a, V> Expr<'a, V> {
                 Expr::Basic { value: right_value },
             ) => {
                 let right: &ExprTree<'a, V> = builder.constant_tree(right_value);
-                builder.bin_op(op, left, right)
+                builder.wrap(builder.bin_op(op, left, right))
             }
             (
                 Expr::Compound {
@@ -112,7 +112,7 @@ impl<'a, V> Expr<'a, V> {
                     expr_tree: right,
                     builder: _,
                 },
-            ) => builder.bin_op(op, left, right),
+            ) => builder.wrap(builder.bin_op(op, left, right)),
         }
     }
 
@@ -120,7 +120,7 @@ impl<'a, V> Expr<'a, V> {
     fn una_op(op: UnaOp, expr: Expr<'a, V>) -> Expr<'a, V> {
         match expr {
             Expr::Basic { value } => Expr::from(PureEvaluator::default().una_op(&op, value)),
-            Expr::Compound { expr_tree, builder } => builder.una_op(op, expr_tree),
+            Expr::Compound { expr_tree, builder } => builder.wrap(builder.una_op(op, expr_tree)),
         }
     }
 
@@ -255,13 +255,8 @@ impl ExprBuilder {
         self.bump.alloc(expr_tree)
     }
 
-    /// Allocate Constant Expression Tree in the Expr Builder
-    fn constant_tree<V>(&self, value: i64) -> &ExprTree<'_, V> {
-        self.intern(ExprTree::Constant { value })
-    }
-
-    fn wrap<'a, V>(&'a self, expr_tree: ExprTree<'a, V>) -> Expr<'a, V> {
-        let expr_tree = self.intern(expr_tree);
+    /// Wrap [`ExprTree`] reference with an [`Expr`] wrapper
+    fn wrap<'a, V>(&'a self, expr_tree: &'a ExprTree<'a, V>) -> Expr<'a, V> {
         Expr::Compound {
             expr_tree,
             builder: self,
@@ -274,22 +269,29 @@ impl ExprBuilder {
         op: BinOp,
         left: &'a ExprTree<'a, V>,
         right: &'a ExprTree<'a, V>,
-    ) -> Expr<'a, V> {
+    ) -> &'a ExprTree<'a, V> {
         let expr_tree = ExprTree::BinOp { op, left, right };
-        self.wrap(expr_tree)
+        self.intern(expr_tree)
     }
 
     /// Convenience method for creating `UnaOp` nodes
-    fn una_op<'a, V>(&'a self, op: UnaOp, expr: &'a ExprTree<'a, V>) -> Expr<'a, V> {
+    fn una_op<'a, V>(&'a self, op: UnaOp, expr: &'a ExprTree<'a, V>) -> &'a ExprTree<'a, V> {
         let expr_tree = ExprTree::UnaOp { op, expr };
-        self.wrap(expr_tree)
+        self.intern(expr_tree)
     }
 
-    /// Create a `Literal` expression
-    pub fn lit<V>(&self, value: V) -> Expr<'_, V> { self.wrap(ExprTree::Literal { value }) }
+    /// Allocate Constant Expression Tree in the Expr Builder
+    fn constant_tree<V>(&self, value: i64) -> &ExprTree<'_, V> {
+        self.intern(ExprTree::Constant { value })
+    }
+
+    fn lit_tree<V>(&self, value: V) -> &ExprTree<'_, V> { self.intern(ExprTree::Literal { value }) }
 
     /// Create a `Constant` expression
-    pub fn constant<V>(&self, value: i64) -> Expr<'_, V> { self.wrap(ExprTree::Constant { value }) }
+    pub fn constant<V>(&self, value: i64) -> Expr<'_, V> { self.wrap(self.constant_tree(value)) }
+
+    /// Create a `Literal` expression
+    pub fn lit<V>(&self, value: V) -> Expr<'_, V> { self.wrap(self.lit_tree(value)) }
 
     /// Convert from untyped `StarkFrame` to a typed representation.
     ///
