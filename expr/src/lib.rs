@@ -98,14 +98,6 @@ impl<'a, V> Expr<'a, V> {
             Expr::Compound { expr_tree, builder } => builder.wrap(builder.una_op(op, expr_tree)),
         }
     }
-
-    fn add(self, rhs: Self) -> Self { Self::bin_op(BinOp::Add, self, rhs) }
-
-    fn sub(self, rhs: Self) -> Self { Self::bin_op(BinOp::Sub, self, rhs) }
-
-    fn mul(self, rhs: Self) -> Self { Self::bin_op(BinOp::Mul, self, rhs) }
-
-    fn neg(self) -> Self { Self::una_op(UnaOp::Neg, self) }
 }
 
 // Adding functionality to Expr
@@ -147,10 +139,10 @@ where
     }
 }
 
-impl<'a, V> Add for Expr<'a, V> {
-    type Output = Expr<'a, V>;
+impl<'a, V> Add<Self> for Expr<'a, V> {
+    type Output = Self;
 
-    fn add(self, rhs: Self) -> Self::Output { self.add(rhs) }
+    fn add(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::Add, self, rhs) }
 }
 
 impl<'a, V> Add<i64> for Expr<'a, V> {
@@ -168,13 +160,13 @@ impl<'a, V> Add<Expr<'a, V>> for i64 {
 impl<'a, V> Neg for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn neg(self) -> Self::Output { self.neg() }
+    fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
 }
 
 impl<'a, V> Sub for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn sub(self, rhs: Self) -> Self::Output { self.sub(rhs) }
+    fn sub(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::Sub, self, rhs) }
 }
 
 impl<'a, V> Sub<i64> for Expr<'a, V> {
@@ -192,7 +184,7 @@ impl<'a, V> Sub<Expr<'a, V>> for i64 {
 impl<'a, V> Mul for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn mul(self, rhs: Self) -> Self::Output { self.mul(rhs) }
+    fn mul(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::Mul, self, rhs) }
 }
 
 impl<'a, V> Mul<i64> for Expr<'a, V> {
