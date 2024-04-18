@@ -1,9 +1,10 @@
 //! Simple library for handling ASTs for polynomials for ZKP in Rust
-//! 
+//!
 //! NOTE: so far Expr type _belonged_ to Expr builder.  It could even be
 //! considered a singleton type per each expression instance.  However, now we
 //! want to relax that requirement, and have some expressions that are not tied
-//! to expression builders, so that we can have Default instance for expressions.
+//! to expression builders, so that we can have Default instance for
+//! expressions.
 //!
 //! The current API provided by Expr type are the trait instances, which are
 //!
@@ -39,18 +40,19 @@
 //! There is a private contract between ExprBuilder and Expr, as Expr is just a
 //! wrapper around ExprTree provided by ExprBuilder, as builder internally
 //! operates on ExprTree.
-//! 
-//! Ideally, we want to provide a basic implementation of ExprBuilder for our end
-//! users to extend, but I am not sure how to do that efficiently in Rust yet.
-//! 
+//!
+//! Ideally, we want to provide a basic implementation of ExprBuilder for our
+//! end users to extend, but I am not sure how to do that efficiently in Rust
+//! yet.
+//!
 //! I also noticed that sometimes it is easier to extend the Expr type, rather
 //! than ExprBuilder.
-//! 
+//!
 //! Finally, there is the case of Evaluators, because they do form a contract
 //! with internal ExprTree, as they provide the semantics for the operations.
 //!
 //! # TODO
-//! 
+//!
 //! - [ ] TODO: support `|` via multiplication.
 //! - [ ] TODO support `&` via distributive law, and integration with constraint
 //! builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
@@ -176,7 +178,6 @@ impl<'a, V> Neg for Expr<'a, V> {
 
     fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
 }
-
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
 /// store all the [`ExprTree`]s.
