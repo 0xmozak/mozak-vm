@@ -72,6 +72,7 @@ impl ProgramIdentifier {
         le_bytes_array
     }
 
+    #[must_use]
     /// Checks if `self` is the null program, i.e. the program with ID
     /// `MZK-000000000000000000000000000000000000000000000000000000000000000`
     pub fn is_null_program(&self) -> bool { self == &Self::default() }

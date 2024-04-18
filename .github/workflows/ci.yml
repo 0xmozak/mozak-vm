@@ -105,9 +105,6 @@ jobs:
           ARCH_TRIPLE="$(nixdo rustc --verbose --version | grep host | awk '{ print $2; }')"
           nixdo nice cargo test --locked --lib --target $ARCH_TRIPLE
 
-      - name: Test transaction bundling (CLI)
-        run: nixdo ./scripts/test_bundle_tx.sh
-
   run-examples:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
@@ -203,3 +200,18 @@ jobs:
 
       - name: taplo fmt
         run: nixdo nice taplo fmt --check
+
+  test-transaction-bundling:
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
+        with:
+          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: test-transaction-bundling
+        run: nixdo ./scripts/test_bundle_tx.sh
