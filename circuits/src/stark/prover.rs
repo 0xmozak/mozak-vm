@@ -10,7 +10,7 @@ use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
-use plonky2::field::polynomial::PolynomialValues;
+use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
 use plonky2::field::types::Field;
 use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -550,11 +550,13 @@ where
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
 
-    let batch_quotient_polys = all_starks!(mozak_stark, |stark, kind| {
+    // TODO: we should be able to compute `quotient_polys` from
+    // `batch_trace_commitments` and `batch_ctl_zs_commitments`.
+    let quotient_chunks = all_starks!(mozak_stark, |stark, kind| {
         if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind].as_ref() {
             let degree = traces_poly_values[kind][0].len();
             let degree_bits = log2_strict(degree);
-            let quotient_poly = timed!(
+            let quotient_polys = timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
                 compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
@@ -569,12 +571,50 @@ where
                     config,
                 )
             );
-            assert!(!quotient_poly.is_empty());
-            Some(quotient_poly)
+            assert!(!quotient_polys.is_empty());
+
+            let quotient_chunks: Vec<PolynomialCoeffs<F>> = timed!(
+                timing,
+                format!("{stark}: split quotient polynomial").as_str(),
+                quotient_polys
+                    .into_par_iter()
+                    .flat_map(|mut quotient_poly| {
+                        quotient_poly
+                    .trim_to_len(degree * stark.quotient_degree_factor())
+                    .expect(
+                        "Quotient has failed, the vanishing polynomial is not divisible by Z_H",
+                    );
+                        // Split quotient into degree-n chunks.
+                        quotient_poly.chunks(degree)
+                    })
+                    .collect()
+            );
+            Some(quotient_chunks)
         } else {
             None
         }
     });
+
+    let mut batch_quotient_chunks: Vec<_> = quotient_chunks
+        .iter()
+        .filter_map(|t| t.as_ref())
+        .flat_map(|v| v.iter().cloned())
+        .collect();
+    batch_quotient_chunks.sort_by(|a, b| b.len().cmp(&a.len()));
+    let batch_quotient_chunks_len = batch_quotient_chunks.len();
+
+    let _batch_quotient_commitments: BatchFriOracle<F, C, D> = timed!(
+        timing,
+        "compute batch Zs commitment",
+        BatchFriOracle::from_coeffs(
+            batch_quotient_chunks,
+            rate_bits,
+            false,
+            config.fri_config.cap_height,
+            timing,
+            &vec![None; batch_quotient_chunks_len],
+        )
+    );
 
     Ok(all_starks!(mozak_stark, |stark, kind| {
         prove_single_table(
