@@ -123,8 +123,9 @@ where
         .filter_map(|t| *t)
         .map(|t| t.len())
         .collect();
-    degree_logs.sort_unstable_by(|a, b| b.cmp(a));
+    degree_logs.sort();
     degree_logs.dedup();
+    degree_logs.reverse();
 
     let mut batch_trace_polys: Vec<_> = batch_traces_poly_values
         .iter()
@@ -507,7 +508,6 @@ where
                 .flatten()
                 .collect_vec();
 
-            // TODO(Matthias): make the code work with empty z_polys, too.
             assert!(!z_polys.is_empty());
 
             Some(z_polys)
@@ -562,23 +562,23 @@ where
         if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind].as_ref() {
             let degree = traces_poly_values[kind][0].len();
             let degree_bits = log2_strict(degree);
-            timed!(
+            let quotient_poly = timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
-                Some(
-                    compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
-                        stark,
-                        &trace_commitments[kind],
-                        &ctl_zs_commitment,
-                        public_inputs[kind],
-                        &ctl_data_per_table[kind],
-                        &public_sub_data_per_table[kind],
-                        &alphas,
-                        degree_bits,
-                        config,
-                    )
+                compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
+                    stark,
+                    &trace_commitments[kind],
+                    &ctl_zs_commitment,
+                    public_inputs[kind],
+                    &ctl_data_per_table[kind],
+                    &public_sub_data_per_table[kind],
+                    &alphas,
+                    degree_bits,
+                    config,
                 )
-            )
+            );
+            assert!(!quotient_poly.is_empty());
+            Some(quotient_poly)
         } else {
             None
         }
