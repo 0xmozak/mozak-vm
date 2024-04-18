@@ -31,4 +31,4 @@ path = "core_logic.rs"
 
 # The following is read by `run_examples.py`
 [package.metadata.mozak]
-example_program_id = "MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb"
+example_program_id = "MZK-5b7b6135be198533f7c7ec46651216b762e6d47e69b408d1bc79d641f9ae06de"
