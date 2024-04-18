@@ -488,8 +488,7 @@ where
         None
     });
 
-    // TODO: we can remove duplicates in the ctl polynomials.
-    let batch_ctl_polys = all_kind!(|kind| {
+    let batch_ctl_z_polys = all_kind!(|kind| {
         if public_table_kinds.contains(&kind) {
             None
         } else {
@@ -515,7 +514,8 @@ where
         }
     });
 
-    let mut batch_ctl_zs_polys: Vec<_> = batch_ctl_polys
+    // TODO: we can remove duplicates in the ctl polynomials.
+    let mut batch_ctl_zs_polys: Vec<_> = batch_ctl_z_polys
         .iter()
         .filter_map(|t| t.as_ref())
         .flat_map(|v| v.iter().cloned())
@@ -535,6 +535,52 @@ where
             &vec![None; batch_ctl_zs_polys_len],
         )
     );
+
+    let ctl_zs_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
+        timing,
+        format!("{stark}: compute Zs commitment").as_str(),
+        if let Some(poly) = &batch_ctl_z_polys[kind] {
+            Some(PolynomialBatch::<F, C, D>::from_values(
+                poly.clone(),
+                rate_bits,
+                false,
+                config.fri_config.cap_height,
+                timing,
+                None,
+            ))
+        } else {
+            None
+        }
+    ));
+
+    let ctl_zs_cap = batch_ctl_zs_commitments.field_merkle_tree.cap.clone();
+    challenger.observe_cap(&ctl_zs_cap);
+
+    let alphas = challenger.get_n_challenges(config.num_challenges);
+
+    let batch_quotient_polys = all_starks!(mozak_stark, |stark, kind| {
+        if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind] {
+            let degree = traces_poly_values[kind][0].len();
+            let degree_bits = log2_strict(degree);
+            timed!(
+                timing,
+                format!("{stark}: compute quotient polynomial").as_str(),
+                Some(compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
+                    stark,
+                    &trace_commitments[kind],
+                    &ctl_zs_commitment,
+                    public_inputs[kind],
+                    &ctl_data_per_table[kind],
+                    &public_sub_data_per_table[kind],
+                    &alphas,
+                    degree_bits,
+                    config,
+                ))
+            )
+        } else {
+            None
+        }
+    });
 
     Ok(all_starks!(mozak_stark, |stark, kind| {
         prove_single_table(

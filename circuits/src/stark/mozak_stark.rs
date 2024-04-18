@@ -158,7 +158,7 @@ macro_rules! mozak_stark_helpers {
         }
 
         impl TableKind {
-            pub const COUNT: usize = $kind_count;
+            const COUNT: usize = $kind_count;
         }
 
         // Generate the set builder
