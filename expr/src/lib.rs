@@ -317,6 +317,7 @@ impl<V> ExprTree<'_, V>
 where
     V: Copy,
 {
+    #[inline]
     fn eval_with<E>(&self, evaluator: &mut E) -> V
     where
         E: Evaluator<V>,
