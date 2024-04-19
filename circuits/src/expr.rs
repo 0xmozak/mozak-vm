@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::panic::Location;
 
 use derive_more::Display;
-use expr::{BinOp, Evaluator, Expr};
+use expr::{BinOp, Evaluator, Expr, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -79,6 +79,35 @@ where
     fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
 }
 
+
+#[derive(Default)]
+pub(crate) struct RichFieldEvaluator<F> {
+    _marker: PhantomData<F>
+}
+
+impl<F>  Evaluator<F> for RichFieldEvaluator<F>
+where
+    F: RichField,
+{
+    fn bin_op(&mut self, op: &BinOp, left: F, right: F) -> F {
+        match op {
+            BinOp::Add => left + right,
+            BinOp::Mul => left * right,
+            BinOp::Sub => left - right,
+        }
+    }
+
+    fn una_op(&mut self, op: &expr::UnaOp, expr: F) -> F {
+        match op {
+            UnaOp::Neg => -expr,
+        }
+    }
+
+    fn constant(&mut self, value: i64) -> F {
+        F::from_noncanonical_i64(value)
+    }
+}
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Constraint<E> {
     constraint_type: ConstraintType,
@@ -108,7 +137,7 @@ enum ConstraintType {
 }
 
 pub struct ConstraintBuilder<E> {
-    constraints: Vec<Constraint<E>>,
+    pub constraints: Vec<Constraint<E>>,
 }
 impl<E> Default for ConstraintBuilder<E> {
     fn default() -> Self {
