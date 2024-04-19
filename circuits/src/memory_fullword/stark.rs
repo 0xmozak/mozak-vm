@@ -35,21 +35,21 @@ fn generate_constraints<'a, T: Copy>(
     vars: &StarkFrameTyped<FullWordMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values;
-    let mut constaints = ConstraintBuilder::default();
+    let mut constraints = ConstraintBuilder::default();
 
-    constaints.always(lv.ops.is_store.is_binary());
-    constaints.always(lv.ops.is_load.is_binary());
-    constaints.always(lv.is_executed().is_binary());
+    constraints.always(lv.ops.is_store.is_binary());
+    constraints.always(lv.ops.is_load.is_binary());
+    constraints.always(lv.is_executed().is_binary());
 
     // Check: the resulting sum is wrapped if necessary.
     // As the result is range checked, this make the choice deterministic,
     // even for a malicious prover.
     for (i, addr) in izip!(0.., lv.addrs).skip(1) {
         let target = lv.addrs[0] + i;
-        constaints.always(lv.is_executed() * (addr - target) * (addr + (1 << 32) - target));
+        constraints.always(lv.is_executed() * (addr - target) * (addr + (1 << 32) - target));
     }
 
-    constaints
+    constraints
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemoryStark<F, D> {
