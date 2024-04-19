@@ -42,6 +42,12 @@ where
     /// The event root verifier
     pub event_verifier: core::EventRootVerifierSubCircuit<D>,
 
+    /// The program verifier
+    pub program_verifier: core::ProgramVerifierSubCircuit<D>,
+
+    /// The event root verifier
+    pub event_verifier: core::EventRootVerifierSubCircuit<D>,
+
     pub circuit: CircuitData<F, C, D>,
 }
 

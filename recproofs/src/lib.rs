@@ -376,6 +376,17 @@ fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
         builder.connect(parent, child);
     }
 }
+/// Connects `x` to `y`
+fn connect_arrays<F: RichField + Extendable<D>, const D: usize, const N: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    x: [Target; N],
+    y: [Target; N],
+) {
+    // Loop over the limbs
+    for (x, y) in zip(x, y) {
+        builder.connect(x, y);
+    }
+}
 
 /// Connects `x` to `y`
 fn connect_arrays<F: RichField + Extendable<D>, const D: usize, const N: usize>(
