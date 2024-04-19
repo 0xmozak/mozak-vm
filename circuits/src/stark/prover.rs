@@ -16,6 +16,7 @@ use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::FriProof;
 use plonky2::hash::hash_types::RichField;
+use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
@@ -455,7 +456,7 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<TableKindArray<StarkProof<F, C, D>>>
+) -> Result<(TableKindArray<StarkProof<F, C, D>>, StarkProof<F, C, D>)>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
@@ -603,7 +604,24 @@ where
     batch_quotient_chunks.sort_by(|a, b| b.len().cmp(&a.len()));
     let batch_quotient_chunks_len = batch_quotient_chunks.len();
 
-    let _batch_quotient_commitments: BatchFriOracle<F, C, D> = timed!(
+    let quotient_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
+        timing,
+        format!("{stark}: compute quotient commitment").as_str(),
+        if let Some(poly) = &quotient_chunks[kind] {
+            Some(PolynomialBatch::<F, C, D>::from_coeffs(
+                poly.clone(),
+                rate_bits,
+                false,
+                config.fri_config.cap_height,
+                timing,
+                None,
+            ))
+        } else {
+            None
+        }
+    ));
+
+    let batch_quotient_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "compute batch Zs commitment",
         BatchFriOracle::from_coeffs(
@@ -616,19 +634,91 @@ where
         )
     );
 
-    Ok(all_starks!(mozak_stark, |stark, kind| {
-        prove_single_table(
-            stark,
-            config,
-            &traces_poly_values[kind],
-            &trace_commitments[kind],
-            public_inputs[kind],
-            &ctl_data_per_table[kind],
-            &public_sub_data_per_table[kind],
-            challenger,
-            timing,
-        )?
-    }))
+    let quotient_polys_cap = batch_quotient_commitments.field_merkle_tree.cap.clone();
+    challenger.observe_cap(&quotient_polys_cap);
+
+    let zeta = challenger.get_extension_challenge::<D>();
+
+    // TODO: compute `openings` from `batch_trace_commitments` and
+    // `batch_ctl_zs_commitments`.
+    let batch_openings = all_starks!(mozak_stark, |stark, kind| if let Some(ctl_zs_commitment) =
+        ctl_zs_commitments[kind].as_ref()
+    {
+        if let Some(quotient_commitment) = quotient_commitments[kind].as_ref() {
+            let degree = traces_poly_values[kind][0].len();
+            let degree_bits = log2_strict(degree);
+            // To avoid leaking witness data, we want to ensure that our opening locations,
+            // `zeta` and `g * zeta`, are not in our subgroup `H`. It suffices to check
+            // `zeta` only, since `(g * zeta)^n = zeta^n`, where `n` is the order of
+            // `g`.
+            let g = F::primitive_root_of_unity(degree_bits);
+            ensure!(
+                zeta.exp_power_of_2(degree_bits) != F::Extension::ONE,
+                "Opening point is in the subgroup."
+            );
+            let openings = StarkOpeningSet::new(
+                zeta,
+                g,
+                &trace_commitments[kind],
+                &ctl_zs_commitment,
+                &quotient_commitment,
+                degree_bits,
+            );
+
+            challenger.observe_openings(&openings.to_fri_openings());
+            Some(openings)
+        } else {
+            None
+        }
+    } else {
+        None
+    });
+
+    let initial_merkle_trees = vec![
+        batch_trace_commitments,
+        &batch_ctl_zs_commitments,
+        &batch_quotient_commitments,
+    ];
+
+    let empty_fri_proof = FriProof {
+        commit_phase_merkle_caps: vec![],
+        query_round_proofs: vec![],
+        final_poly: PolynomialCoeffs { coeffs: vec![] },
+        pow_witness: F::ZERO,
+    };
+    Ok((
+        all_kind!(|kind| {
+            if public_table_kinds.contains(&kind) {
+                <Option<StarkProof<F, C, D>> as Clone>::clone(&separate_proofs[kind])
+                    .expect("No Proof")
+            } else {
+                StarkProof {
+                    trace_cap: MerkleCap::default(),
+                    ctl_zs_cap: MerkleCap::default(),
+                    quotient_polys_cap: MerkleCap::default(),
+                    openings: <Option<StarkOpeningSet<F, D>> as Clone>::clone(
+                        &batch_openings[kind],
+                    )
+                    .expect("No Openings"),
+                    opening_proof: empty_fri_proof.clone(),
+                }
+            }
+        }),
+        StarkProof {
+            trace_cap: batch_trace_commitments.field_merkle_tree.cap.clone(),
+            ctl_zs_cap,
+            quotient_polys_cap,
+            openings: StarkOpeningSet {
+                local_values: vec![],
+                next_values: vec![],
+                ctl_zs: vec![],
+                ctl_zs_next: vec![],
+                ctl_zs_last: vec![],
+                quotient_polys: vec![],
+            },
+            opening_proof: empty_fri_proof.clone(),
+        },
+    ))
 }
 
 #[cfg(test)]
