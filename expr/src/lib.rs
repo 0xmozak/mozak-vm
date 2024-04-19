@@ -132,14 +132,10 @@ where
 {
     fn eval_with<E>(&self, evaluator: &mut E) -> V
     where
-        E: Evaluator<V>,
-        E: ?Sized, {
+        E: Evaluator<V> + ?Sized, {
         match self {
             Expr::Basic { value } => evaluator.constant(*value),
-            Expr::Compound {
-                expr_tree,
-                builder: _,
-            } => expr_tree.eval_with(evaluator),
+            Expr::Compound { expr_tree, .. } => expr_tree.eval_with(evaluator),
         }
     }
 }
