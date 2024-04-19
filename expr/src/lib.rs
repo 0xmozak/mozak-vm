@@ -75,12 +75,8 @@ pub enum Expr<'a, V> {
     },
 }
 
-/// Blanket implementation of [`From`] instance for [`Expr`]; as long as a type
-/// can be converted to [`i64`], then it can be converted to [`Expr`].
-impl<'a, V, W: Into<i64>> From<W> for Expr<'a, V> {
-    fn from(value: W) -> Self {
-        Expr::Basic { value: value.into() }
-    }
+impl<'a, V> From<i64> for Expr<'a, V> {
+    fn from(value: i64) -> Self { Expr::Basic { value } }
 }
 
 impl<'a, V> Default for Expr<'a, V> {
@@ -413,9 +409,9 @@ mod tests {
 
     #[test]
     fn basic_expressions_with_no_annotations() {
-        let a: Expr<'_, i64> = Expr::from(7_i32);
-        let b = Expr::from(5_i64);
-        let c = Expr::from(3_u8);
+        let a: Expr<'_, i64> = Expr::from(7);
+        let b = Expr::from(5);
+        let c = Expr::from(3);
 
         let mut p = PureEvaluator::default();
 

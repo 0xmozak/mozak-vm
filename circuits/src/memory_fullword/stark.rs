@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use itertools::izip;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -39,14 +40,13 @@ fn generate_constraints<'a, T: Copy>(
     constaints.always(lv.ops.is_store.is_binary());
     constaints.always(lv.ops.is_load.is_binary());
     constaints.always(lv.is_executed().is_binary());
-    
+
     // Check: the resulting sum is wrapped if necessary.
     // As the result is range checked, this make the choice deterministic,
     // even for a malicious prover.
-    let wrap_at = Expr::from(1i64 << 32);
-    for i in 1..4 {
-        let target = lv.addrs[0] + i64::try_from(i).unwrap();
-        constaints.always(lv.is_executed() * (lv.addrs[i] - target) * (lv.addrs[i] + wrap_at - target))
+    for (i, addr) in izip!(0.., lv.addrs).skip(1) {
+        let target = lv.addrs[0] + i;
+        constaints.always(lv.is_executed() * (addr - target) * (addr + (1 << 32) - target));
     }
 
     constaints
