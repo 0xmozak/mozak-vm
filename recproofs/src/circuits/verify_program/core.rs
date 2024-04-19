@@ -7,10 +7,15 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
+use crate::circuits::build_event_root;
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct CircuitPublicIndices {
     /// The indices of each of the elements of the program hash
     pub program_hash: [usize; 4],
+
+    /// The indices of each of the elements of event root
+    pub event_root: [usize; NUM_HASH_OUT_ELTS],
 
     /// The indices of each of the elements of cast root
     pub cast_root: [usize; NUM_HASH_OUT_ELTS],
@@ -29,13 +34,25 @@ impl CircuitPublicIndices {
         }
     }
 
+    /// Extract `event_root` from an array of public inputs.
+    pub fn get_event_root<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
+        self.event_root.map(|i| public_inputs[i])
+    }
+
+    /// Insert `event_root` into an array of public inputs.
+    pub fn set_event_root<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
+        for (i, v) in v.into_iter().enumerate() {
+            public_inputs[self.event_root[i]] = v;
+        }
+    }
+
     /// Extract `cast_root` from an array of public inputs.
-    pub fn get_cast_root<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
+    pub fn get_cast_root<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
         self.cast_root.map(|i| public_inputs[i])
     }
 
     /// Insert `cast_root` into an array of public inputs.
-    pub fn set_cast_root<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
+    pub fn set_cast_root<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
         for (i, v) in v.into_iter().enumerate() {
             public_inputs[self.cast_root[i]] = v;
         }
@@ -50,80 +67,66 @@ where
     fn get_indices(&self) -> CircuitPublicIndices;
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub struct PublicIndices;
-
-pub struct SubCircuitInputs;
-
-pub struct LeafTargets<const D: usize> {
-    /// The public inputs
-    pub inputs: SubCircuitInputs,
-
+pub struct ProgramVerifierTargets<const D: usize> {
     /// The program proof
     pub program_proof: ProofWithPublicInputsTarget<D>,
 
     /// The program hash
     pub program_hash: [Target; 4],
 
-    /// The value to be propagated throughout the produced tree
+    /// The event root
+    pub event_root: HashOutTarget,
+
+    /// The cast list root
     pub cast_root: HashOutTarget,
 }
 
-impl SubCircuitInputs {
-    pub fn default<F, const D: usize>(_builder: &mut CircuitBuilder<F, D>) -> Self
-    where
-        F: RichField + Extendable<D>, {
-        Self {}
-    }
+pub struct ProgramVerifierSubCircuit<const D: usize> {
+    pub targets: ProgramVerifierTargets<D>,
+}
 
+impl<const D: usize> ProgramVerifierTargets<D> {
     #[must_use]
-    pub fn build_leaf<F, C, const D: usize>(
-        self,
+    pub fn build_targets<F, C>(
         builder: &mut CircuitBuilder<F, D>,
-        program: &impl Circuit<F, C, D>,
-    ) -> LeafTargets<D>
+        program_circuit: &impl Circuit<F, C, D>,
+    ) -> Self
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
-        let circuit = program.get_circuit_data();
-        let public_inputs = program.get_indices();
+        let circuit = program_circuit.get_circuit_data();
+        let public_inputs = program_circuit.get_indices();
         let program_proof = builder.add_virtual_proof_with_pis(&circuit.common);
         let verifier = builder.constant_verifier_data(&circuit.verifier_only);
 
         builder.verify_proof::<C>(&program_proof, &verifier, &circuit.common);
 
         let program_hash = public_inputs.get_program_hash(&program_proof.public_inputs);
+        let event_root = HashOutTarget {
+            elements: public_inputs.get_event_root(&program_proof.public_inputs),
+        };
         let cast_root = HashOutTarget {
             elements: public_inputs.get_cast_root(&program_proof.public_inputs),
         };
 
-        LeafTargets {
-            inputs: self,
+        Self {
             program_proof,
             program_hash,
+            event_root,
             cast_root,
         }
     }
 }
 
-pub struct LeafSubCircuit<const D: usize> {
-    pub targets: LeafTargets<D>,
-    pub indices: PublicIndices,
-}
-
-impl<const D: usize> LeafTargets<D> {
+impl<const D: usize> ProgramVerifierTargets<D> {
     #[must_use]
-    pub fn build(self, _public_inputs: &[Target]) -> LeafSubCircuit<D> {
-        let indices = PublicIndices;
-        LeafSubCircuit {
-            targets: self,
-            indices,
-        }
+    pub fn build(self, _public_inputs: &[Target]) -> ProgramVerifierSubCircuit<D> {
+        ProgramVerifierSubCircuit { targets: self }
     }
 }
 
-impl<const D: usize> LeafSubCircuit<D> {
+impl<const D: usize> ProgramVerifierSubCircuit<D> {
     pub fn set_witness<F, C>(
         &self,
         inputs: &mut PartialWitness<F>,
@@ -136,62 +139,82 @@ impl<const D: usize> LeafSubCircuit<D> {
     }
 }
 
-pub struct BranchTargets {
-    /// The public inputs
-    pub inputs: SubCircuitInputs,
+pub struct EventRootVerifierTargets<const D: usize> {
+    /// The event root proof
+    pub event_root_proof: ProofWithPublicInputsTarget<D>,
 
-    /// The left direction
-    pub left: SubCircuitInputs,
+    /// The event owner
+    pub event_owner: [Target; 4],
 
-    /// The right direction
-    pub right: SubCircuitInputs,
+    /// The event root (rp_hash)
+    pub event_root: HashOutTarget,
+
+    /// The event root (vm hash)
+    pub vm_event_root: HashOutTarget,
 }
 
-impl SubCircuitInputs {
-    fn direction_from_node<const D: usize>(
-        _proof: &ProofWithPublicInputsTarget<D>,
-        _indices: &PublicIndices,
-    ) -> SubCircuitInputs {
-        SubCircuitInputs
-    }
+pub struct EventRootVerifierSubCircuit<const D: usize> {
+    pub targets: EventRootVerifierTargets<D>,
+}
 
+impl<const D: usize> EventRootVerifierTargets<D> {
     #[must_use]
-    pub fn build_branch<F: RichField + Extendable<D>, const D: usize>(
-        self,
-        _builder: &mut CircuitBuilder<F, D>,
-        indices: &PublicIndices,
-        left_proof: &ProofWithPublicInputsTarget<D>,
-        right_proof: &ProofWithPublicInputsTarget<D>,
-    ) -> BranchTargets {
-        let left = Self::direction_from_node(left_proof, indices);
-        let right = Self::direction_from_node(right_proof, indices);
+    pub fn build_targets<F, C>(
+        builder: &mut CircuitBuilder<F, D>,
+        event_root_circuit: &build_event_root::BranchCircuit<F, C, D>,
+    ) -> Self
+    where
+        F: RichField + Extendable<D>,
+        C: GenericConfig<D, F = F>,
+        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
+        let circuit = &event_root_circuit.circuit;
+        let event_root_proof = builder.add_virtual_proof_with_pis(&circuit.common);
+        let verifier = builder.constant_verifier_data(&circuit.verifier_only);
 
-        BranchTargets {
-            inputs: self,
-            left,
-            right,
+        builder.verify_proof::<C>(&event_root_proof, &verifier, &circuit.common);
+
+        let event_owner = event_root_circuit
+            .event_owner
+            .indices
+            .get_values(&event_root_proof.public_inputs);
+        let event_root = HashOutTarget {
+            elements: event_root_circuit
+                .hash
+                .indices
+                .get_unpruned_hash(&event_root_proof.public_inputs),
+        };
+        let vm_event_root = HashOutTarget {
+            elements: event_root_circuit
+                .vm_hash
+                .indices
+                .get_unpruned_hash(&event_root_proof.public_inputs),
+        };
+
+        Self {
+            event_root_proof,
+            event_owner,
+            event_root,
+            vm_event_root,
         }
     }
 }
 
-pub struct BranchSubCircuit {
-    pub targets: BranchTargets,
-    pub indices: PublicIndices,
-}
-
-impl BranchTargets {
+impl<const D: usize> EventRootVerifierTargets<D> {
     #[must_use]
-    pub fn build(self, child: &PublicIndices, _public_inputs: &[Target]) -> BranchSubCircuit {
-        let indices = PublicIndices;
-        debug_assert_eq!(indices, *child);
-
-        BranchSubCircuit {
-            indices,
-            targets: self,
-        }
+    pub fn build(self, _public_inputs: &[Target]) -> EventRootVerifierSubCircuit<D> {
+        EventRootVerifierSubCircuit { targets: self }
     }
 }
 
-impl BranchSubCircuit {
-    pub fn set_witness<F: RichField>(&self, _inputs: &mut PartialWitness<F>) {}
+impl<const D: usize> EventRootVerifierSubCircuit<D> {
+    pub fn set_witness<F, C>(
+        &self,
+        inputs: &mut PartialWitness<F>,
+        event_root_proof: &ProofWithPublicInputs<F, C, D>,
+    ) where
+        F: RichField + Extendable<D>,
+        C: GenericConfig<D, F = F>,
+        <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
+        inputs.set_proof_with_pis_target(&self.targets.event_root_proof, event_root_proof);
+    }
 }
