@@ -32,6 +32,14 @@ use crate::xor::columns::XorView;
 pub struct BinaryOp<P> {
     pub input_a: P,
     pub input_b: P,
+    /// Our constraints naturally give us the doubled output; currently our
+    /// `Expr` mechanism doesn't support multiplicative inverses of constants,
+    /// so we work with doubled output, and just also double the other side of
+    /// our equations.
+    ///
+    /// If necessary, we can fix the `Expr` mechanism later, but there's no
+    /// hurry.  (Do keep in mind that `PackedField` does not support
+    /// multiplicative inverses.)
     pub doubled_output: P,
 }
 
