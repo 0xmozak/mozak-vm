@@ -921,6 +921,7 @@ dependencies = [
  "plonky2",
  "plonky2_maybe_rayon",
  "proptest",
+ "rand",
  "serde",
  "serde_json",
  "starky",

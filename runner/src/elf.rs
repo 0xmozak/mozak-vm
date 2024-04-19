@@ -12,6 +12,7 @@ use elf::symbol::SymbolTable;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{chain, iproduct, izip, Itertools};
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
@@ -197,8 +198,8 @@ impl MozakMemory {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RuntimeArguments {
     pub self_prog_id: Vec<u8>,
-    pub events_commitment_tape: Vec<u8>,
-    pub cast_list_commitment_tape: Vec<u8>,
+    pub events_commitment_tape: [u8; COMMITMENT_SIZE],
+    pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
     pub cast_list: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
@@ -595,13 +596,12 @@ mod test {
         let mozak_ro_memory =
             Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
                 self_prog_id: data.clone(),
-                events_commitment_tape: data.clone(),
-                cast_list_commitment_tape: data.clone(),
                 cast_list: data.clone(),
                 io_tape_private: data.clone(),
                 io_tape_public: data.clone(),
                 event_tape: data.clone(),
                 call_tape: data.clone(),
+                ..Default::default()
             })
             .unwrap()
             .mozak_ro_memory
