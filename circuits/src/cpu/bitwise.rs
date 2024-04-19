@@ -18,6 +18,11 @@
 //!  x & y := (x + y - (x ^ y)) / 2
 //!  x | y := (x + y + (x ^ y)) / 2
 //! `
+//! Or, without division:
+//! `
+//!  2 * (x & y) := (x + y - (x ^ y))
+//!  2 * (x | y) := (x + y + (x ^ y))
+//! `
 
 use expr::Expr;
 
@@ -45,7 +50,7 @@ pub struct BinaryOp<P> {
 
 /// Re-usable gadget for AND constraints.
 /// It has access to already constrained XOR evaluation and based on that
-/// constrains the AND evaluation: `x & y := (x + y - xor(x,y)) / 2`
+/// constrains the AND evaluation: `2 * (x & y) := x + y - xor(x,y)`
 /// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn and_gadget<'a, P: Copy>(xor: &XorView<Expr<'a, P>>) -> BinaryOp<Expr<'a, P>> {
     BinaryOp {
@@ -57,7 +62,7 @@ pub(crate) fn and_gadget<'a, P: Copy>(xor: &XorView<Expr<'a, P>>) -> BinaryOp<Ex
 
 /// Re-usable gadget for OR constraints
 /// It has access to already constrained XOR evaluation and based on that
-/// constrains the OR evaluation: `x | y := (x + y + xor(x,y)) / 2`
+/// constrains the OR evaluation: `2 * (x | y) := x + y + xor(x,y)`
 /// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn or_gadget<'a, P: Copy>(xor: &XorView<Expr<'a, P>>) -> BinaryOp<Expr<'a, P>> {
     BinaryOp {
