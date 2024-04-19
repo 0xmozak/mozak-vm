@@ -304,9 +304,9 @@ pub fn step<F: RichField>(
         }
     }
     if option_env!("MOZAK_COUNT_OPS").is_some() {
-        eprintln!("Instruction counts:");
+        println!("Instruction counts:");
         let total: u32 = executed.len().try_into().unwrap();
-        eprintln!("{:6.2?}%\t{total:10} total", 100_f64);
+        println!("{:6.2?}%\t{total:10} total", 100_f64);
         for (count, op) in executed
             .iter()
             .map(|row| row.instruction.op)
@@ -317,7 +317,7 @@ pub fn step<F: RichField>(
         {
             let count: u32 = count.try_into().unwrap();
             let percentage = 100_f64 * f64::from(count) / f64::from(total);
-            eprintln!("{percentage:6.2?}%\t{count:10} {op}");
+            println!("{percentage:6.2?}%\t{count:10} {op}");
         }
     }
     Ok(ExecutionRecord::<F> {
