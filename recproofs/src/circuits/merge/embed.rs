@@ -1,6 +1,6 @@
 //! Subcircuits embedding the merge of two binary merkle trees.
 //!
-//! This lets you do the merge externally in however many recursive steps an
+//! This lets you do the merge externally in however many recursive steps and
 //! just embed the proof of the final merge in another circuit.
 
 use plonky2::field::extension::Extendable;
@@ -17,7 +17,7 @@ use crate::{find_bool, find_hash};
 /// `ProofWithPublicInputs`
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
-    /// The index for the presence of the a hash
+    /// The index for the presence of the hash
     pub hash_present: usize,
 
     /// The indices of each of the elements of the hash
