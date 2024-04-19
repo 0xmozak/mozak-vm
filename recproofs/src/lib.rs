@@ -300,21 +300,6 @@ where
     select_hash(builder, both_present, hash_both, hash_absent)
 }
 
-/// `hash_or_forward` but using non-zero to determine presence
-fn hash_or_forward_zero<F, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    left: [Target; NUM_HASH_OUT_ELTS],
-    right: [Target; NUM_HASH_OUT_ELTS],
-) -> HashOutTarget
-where
-    F: RichField + Extendable<D>, {
-    let left_non_zero = hash_is_nonzero(builder, left);
-    let right_non_zero = hash_is_nonzero(builder, right);
-
-    // Select the hash based on presence
-    hash_or_forward(builder, left_non_zero, left, right_non_zero, right)
-}
-
 /// Guarantee at least one `BoolTarget` is `true`.
 /// Does nothing if no targets are provided
 fn at_least_one_true<F, const D: usize>(

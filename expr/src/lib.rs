@@ -1,4 +1,62 @@
 //! Simple library for handling ASTs for polynomials for ZKP in Rust
+//!
+//! NOTE: so far Expr type _belonged_ to Expr builder.  It could even be
+//! considered a singleton type per each expression instance.  However, now we
+//! want to relax that requirement, and have some expressions that are not tied
+//! to expression builders, so that we can have Default instance for
+//! expressions.
+//!
+//! The current API provided by Expr type are the trait instances, which are
+//!
+//! - [`Add`]
+//!   - [`Expr`] + [`Expr`]
+//!   - [`i64`] + [`Expr`]
+//!   - [`Expr`] + [`i64`]
+//! - [`Sub`]
+//!   - [`Expr`] - [`Expr`]
+//!   - [`i64`] - [`Expr`]
+//!   - [`Expr`] - [`i64`]
+//! - [`Mul`]
+//!   - [`Expr`] * [`Expr`]
+//!   - [`i64`] * [`Expr`]
+//!   - [`Expr`] * [`i64`]
+//! - [`Neg`]
+//!   - (- [`Expr`])
+//!
+//! Then, the current API for Expr builder was pretty much the ability to inject
+//! `V` and i64 into Exprs
+//!
+//! - (private) intern for internalising ExprTree
+//! - (private) binop helper method
+//! - (private) unop helper method
+//! - lit for V
+//! - constant for i64
+//! - helper methods
+//!   - add
+//!   - sub
+//!   - mul
+//!   - neg
+//!
+//! There is a private contract between ExprBuilder and Expr, as Expr is just a
+//! wrapper around ExprTree provided by ExprBuilder, as builder internally
+//! operates on ExprTree.
+//!
+//! Ideally, we want to provide a basic implementation of ExprBuilder for our
+//! end users to extend, but I am not sure how to do that efficiently in Rust
+//! yet.
+//!
+//! I also noticed that sometimes it is easier to extend the Expr type, rather
+//! than ExprBuilder.
+//!
+//! Finally, there is the case of Evaluators, because they do form a contract
+//! with internal ExprTree, as they provide the semantics for the operations.
+//!
+//! # TODO
+//!
+//! - [ ] TODO: support `|` via multiplication.
+//! - [ ] TODO support `&` via distributive law, and integration with constraint
+//! builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
+//! means split into multiple constraints.
 
 use core::ops::{Add, Mul, Neg, Sub};
 
@@ -7,9 +65,46 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 
 /// Contains a reference to [`ExprTree`] that is managed by [`ExprBuilder`].
 #[derive(Clone, Copy, Debug)]
-pub struct Expr<'a, V> {
-    expr_tree: &'a ExprTree<'a, V>,
-    builder: &'a ExprBuilder,
+pub enum Expr<'a, V> {
+    Basic {
+        value: i64,
+    },
+    Compound {
+        expr_tree: &'a ExprTree<'a, V>,
+        builder: &'a ExprBuilder,
+    },
+}
+
+impl<'a, V> From<i64> for Expr<'a, V> {
+    fn from(value: i64) -> Self { Expr::Basic { value } }
+}
+
+impl<'a, V> Default for Expr<'a, V> {
+    fn default() -> Self { Expr::from(0) }
+}
+
+/// Main type to hold expression trees.  Contains Expressions defined on `V`
+/// with expression trees that will be alive for at last `'a`.
+impl<'a, V> Expr<'a, V> {
+    fn bin_op(op: BinOp, lhs: Expr<'a, V>, rhs: Expr<'a, V>) -> Expr<'a, V> {
+        match (lhs, rhs) {
+            (Expr::Basic { value: left }, Expr::Basic { value: right }) =>
+                Expr::from(PureEvaluator::default().bin_op(&op, left, right)),
+            (left @ Expr::Compound { builder, .. }, right)
+            | (left, right @ Expr::Compound { builder, .. }) => builder.wrap(builder.bin_op(
+                op,
+                builder.ensure_interned(left),
+                builder.ensure_interned(right),
+            )),
+        }
+    }
+
+    fn una_op(op: UnaOp, expr: Expr<'a, V>) -> Expr<'a, V> {
+        match expr {
+            Expr::Basic { value } => Expr::from(PureEvaluator::default().una_op(&op, value)),
+            Expr::Compound { expr_tree, builder } => builder.wrap(builder.una_op(op, expr_tree)),
+        }
+    }
 }
 
 impl<'a, V> Expr<'a, V> {
@@ -20,99 +115,65 @@ impl<'a, V> Expr<'a, V> {
     }
 
     /// Reduce a sequence of terms into a single term using powers of `base`.
-    ///
-    /// For typing convenience, this only works for non-empty list of terms.
     pub fn reduce_with_powers<I>(terms: I, base: i64) -> Self
     where
         I: IntoIterator<Item = Self>,
         I::IntoIter: DoubleEndedIterator, {
-        let mut terms = terms.into_iter().rev().peekable();
-        let builder = terms
-            .peek()
-            .unwrap_or_else(|| panic!("At least one term is required for an expression to be reduced, for type system reasons."))
-            .builder;
-        let mut sum = builder.constant(0);
-        for term in terms {
-            sum = sum * base + term;
+        terms
+            .into_iter()
+            .rev()
+            .fold(Expr::from(0), |acc, term| acc * base + term)
+    }
+}
+
+impl<V> Expr<'_, V>
+where
+    V: Copy,
+{
+    fn eval_with<E>(&self, evaluator: &mut E) -> V
+    where
+        E: Evaluator<V> + ?Sized, {
+        match self {
+            Expr::Basic { value } => evaluator.constant(*value),
+            Expr::Compound { expr_tree, .. } => expr_tree.eval_with(evaluator),
         }
-        sum
     }
 }
 
-impl<'a, V> Add for Expr<'a, V> {
-    type Output = Expr<'a, V>;
+macro_rules! instances {
+    ($op: ident, $fun: ident) => {
+        impl<'a, V> $op<Self> for Expr<'a, V> {
+            type Output = Self;
 
-    fn add(self, rhs: Self) -> Self::Output { self.builder.add(self, rhs) }
+            fn $fun(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::$op, self, rhs) }
+        }
+        impl<'a, V> $op<i64> for Expr<'a, V> {
+            type Output = Expr<'a, V>;
+
+            fn $fun(self, rhs: i64) -> Self::Output {
+                Self::bin_op(BinOp::$op, self, Expr::from(rhs))
+            }
+        }
+
+        impl<'a, V> $op<Expr<'a, V>> for i64 {
+            type Output = Expr<'a, V>;
+
+            fn $fun(self, rhs: Expr<'a, V>) -> Self::Output {
+                Self::Output::bin_op(BinOp::$op, Expr::from(self), rhs)
+            }
+        }
+    };
 }
 
-impl<'a, V> Add<i64> for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn add(self, rhs: i64) -> Self::Output {
-        let rhs = self.builder.constant(rhs);
-        self + rhs
-    }
-}
-
-impl<'a, V> Add<Expr<'a, V>> for i64 {
-    type Output = Expr<'a, V>;
-
-    fn add(self, rhs: Expr<'a, V>) -> Self::Output { rhs + self }
-}
+instances!(Add, add);
+instances!(Sub, sub);
+instances!(Mul, mul);
 
 impl<'a, V> Neg for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
-    fn neg(self) -> Self::Output { self.builder.neg(self) }
+    fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
 }
-
-impl<'a, V> Sub for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn sub(self, rhs: Self) -> Self::Output { self.builder.sub(self, rhs) }
-}
-
-impl<'a, V> Sub<i64> for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn sub(self, rhs: i64) -> Self::Output {
-        let rhs = self.builder.constant(-rhs);
-        self + rhs
-    }
-}
-
-impl<'a, V> Sub<Expr<'a, V>> for i64 {
-    type Output = Expr<'a, V>;
-
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn sub(self, rhs: Expr<'a, V>) -> Self::Output { self + rhs.builder.neg(rhs) }
-}
-
-impl<'a, V> Mul for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn mul(self, rhs: Self) -> Self::Output { self.builder.mul(self, rhs) }
-}
-
-impl<'a, V> Mul<i64> for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn mul(self, rhs: i64) -> Self::Output {
-        let rhs = self.builder.constant(rhs);
-        self.builder.mul(self, rhs)
-    }
-}
-
-impl<'a, V> Mul<Expr<'a, V>> for i64 {
-    type Output = Expr<'a, V>;
-
-    fn mul(self, rhs: Expr<'a, V>) -> Self::Output { rhs * self }
-}
-
-// TODO: support `|` via multiplication.
-// TODO support `&` via distributive law, and integration with constraint
-// builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)]
-// where [..] means split into multiple constraints.
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
 /// store all the [`ExprTree`]s.
@@ -124,55 +185,54 @@ pub struct ExprBuilder {
 impl ExprBuilder {
     /// Internalise an [`ExprTree`] by moving it to memory allocated by the
     /// [`Bump`] arena owned by [`ExprBuilder`].
-    fn intern<'a, V>(&'a self, expr_tree: ExprTree<'a, V>) -> Expr<'a, V> {
-        let expr_tree = self.bump.alloc(expr_tree);
-        Expr {
+    fn intern<'a, V>(&'a self, expr_tree: ExprTree<'a, V>) -> &'a ExprTree<'a, V> {
+        self.bump.alloc(expr_tree)
+    }
+
+    fn ensure_interned<'a, V>(&'a self, expr: Expr<'a, V>) -> &'a ExprTree<'a, V> {
+        match expr {
+            Expr::Compound { expr_tree, .. } => expr_tree,
+            Expr::Basic { value } => self.constant_tree(value),
+        }
+    }
+
+    /// Wrap [`ExprTree`] reference with an [`Expr`] wrapper
+    fn wrap<'a, V>(&'a self, expr_tree: &'a ExprTree<'a, V>) -> Expr<'a, V> {
+        Expr::Compound {
             expr_tree,
             builder: self,
         }
     }
 
     /// Convenience method for creating `BinOp` nodes
-    fn bin_op<'a, V>(&'a self, op: BinOp, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        let left = left.expr_tree;
-        let right = right.expr_tree;
+    fn bin_op<'a, V>(
+        &'a self,
+        op: BinOp,
+        left: &'a ExprTree<'a, V>,
+        right: &'a ExprTree<'a, V>,
+    ) -> &'a ExprTree<'a, V> {
         let expr_tree = ExprTree::BinOp { op, left, right };
-
         self.intern(expr_tree)
     }
 
     /// Convenience method for creating `UnaOp` nodes
-    fn una_op<'a, V>(&'a self, op: UnaOp, expr: Expr<'a, V>) -> Expr<'a, V> {
-        let expr = expr.expr_tree;
+    fn una_op<'a, V>(&'a self, op: UnaOp, expr: &'a ExprTree<'a, V>) -> &'a ExprTree<'a, V> {
         let expr_tree = ExprTree::UnaOp { op, expr };
-
         self.intern(expr_tree)
     }
 
-    /// Create a `Literal` expression
-    pub fn lit<V>(&self, value: V) -> Expr<'_, V> { self.intern(ExprTree::Literal { value }) }
-
-    /// Create a `Constant` expression
-    pub fn constant<V>(&self, value: i64) -> Expr<'_, V> {
+    /// Allocate Constant Expression Tree in the Expr Builder
+    fn constant_tree<V>(&self, value: i64) -> &ExprTree<'_, V> {
         self.intern(ExprTree::Constant { value })
     }
 
-    /// Create an `Add` expression
-    pub fn add<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        self.bin_op(BinOp::Add, left, right)
-    }
+    fn lit_tree<V>(&self, value: V) -> &ExprTree<'_, V> { self.intern(ExprTree::Literal { value }) }
 
-    pub fn neg<'a, V>(&'a self, x: Expr<'a, V>) -> Expr<'a, V> { self.una_op(UnaOp::Neg, x) }
+    /// Create a `Constant` expression
+    pub fn constant<V>(&self, value: i64) -> Expr<'_, V> { self.wrap(self.constant_tree(value)) }
 
-    /// Create a `Sub` expression
-    pub fn sub<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        self.bin_op(BinOp::Add, left, self.una_op(UnaOp::Neg, right))
-    }
-
-    /// Create a `Mul` expression
-    pub fn mul<'a, V>(&'a self, left: Expr<'a, V>, right: Expr<'a, V>) -> Expr<'a, V> {
-        self.bin_op(BinOp::Mul, left, right)
-    }
+    /// Create a `Literal` expression
+    pub fn lit<V>(&self, value: V) -> Expr<'_, V> { self.wrap(self.lit_tree(value)) }
 
     /// Convert from untyped `StarkFrame` to a typed representation.
     ///
@@ -223,6 +283,7 @@ pub struct StarkFrameTyped<Row, PublicInputs> {
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash)]
 pub enum BinOp {
     Add,
+    Sub,
     Mul,
 }
 
@@ -234,7 +295,7 @@ pub enum UnaOp {
 
 /// Internal type to represent the expression trees
 #[derive(Debug)]
-enum ExprTree<'a, V> {
+pub enum ExprTree<'a, V> {
     BinOp {
         op: BinOp,
         left: &'a ExprTree<'a, V>,
@@ -284,7 +345,7 @@ where
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
     fn una_op(&mut self, op: &UnaOp, expr: V) -> V;
     fn constant(&mut self, value: i64) -> V;
-    fn eval(&mut self, expr: Expr<'_, V>) -> V { expr.expr_tree.eval_with(self) }
+    fn eval(&mut self, expr: Expr<'_, V>) -> V { expr.eval_with(self) }
 }
 
 /// Default evaluator for pure values.
@@ -293,11 +354,12 @@ pub struct PureEvaluator {}
 
 impl<V> Evaluator<V> for PureEvaluator
 where
-    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + From<i64>,
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
 {
     fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V {
         match op {
             BinOp::Add => left + right,
+            BinOp::Sub => left - right,
             BinOp::Mul => left * right,
         }
     }
@@ -327,5 +389,34 @@ mod tests {
         assert_eq!(p.eval(a + b), 12);
         assert_eq!(p.eval(a - b), 2);
         assert_eq!(p.eval(a * b), 35);
+    }
+
+    #[test]
+    fn basic_expressions_work() {
+        let expr = ExprBuilder::default();
+
+        let a = expr.lit(7_i64);
+        let b = expr.lit(5_i64);
+
+        let c: Expr<'_, i64> = Expr::from(3);
+
+        let mut p = PureEvaluator::default();
+
+        assert_eq!((a + b * c).eval_with(&mut p), 22);
+        assert_eq!((a - b * c).eval_with(&mut p), -8);
+        assert_eq!((a * b * c).eval_with(&mut p), 105);
+    }
+
+    #[test]
+    fn basic_expressions_with_no_annotations() {
+        let a: Expr<'_, i64> = Expr::from(7);
+        let b = Expr::from(5);
+        let c = Expr::from(3);
+
+        let mut p = PureEvaluator::default();
+
+        assert_eq!((a + b * c).eval_with(&mut p), 22);
+        assert_eq!((a - b * c).eval_with(&mut p), -8);
+        assert_eq!((a * b * c).eval_with(&mut p), 105);
     }
 }
