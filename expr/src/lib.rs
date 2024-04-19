@@ -177,9 +177,7 @@ impl<'a, V> Neg for Expr<'a, V> {
 }
 
 impl<'a, V> Sum for Expr<'a, V> {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Expr::from(0), Add::add)
-    }
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Expr::from(0), Add::add) }
 }
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
