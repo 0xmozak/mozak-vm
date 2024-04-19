@@ -18,6 +18,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 use crate::subcircuits::unbounded;
 
 pub mod core;
+pub mod embed;
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
