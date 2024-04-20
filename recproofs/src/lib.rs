@@ -19,6 +19,7 @@ pub mod subcircuits;
 
 #[cfg(any(feature = "test", test))]
 pub mod test_utils {
+    use itertools::{chain, Itertools};
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::{HashOut, RichField};
     use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -45,6 +46,14 @@ pub mod test_utils {
         let [l0, l1, l2, l3] = left.elements;
         let [r0, r1, r2, r3] = right.elements;
         Poseidon2Hash::hash_no_pad(&[l0, l1, l2, l3, r0, r1, r2, r3])
+    }
+
+    pub fn hash_branch_bytes<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
+        let bytes = chain!(left.elements, right.elements)
+            .flat_map(|v| v.to_canonical_u64().to_le_bytes())
+            .map(|v| F::from_canonical_u8(v))
+            .collect_vec();
+        Poseidon2Hash::hash_no_pad(&bytes)
     }
 
     pub const D: usize = 2;
@@ -355,6 +364,7 @@ fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
         builder.connect(parent, child);
     }
 }
+
 /// Connects `x` to `y`
 fn connect_arrays<F: RichField + Extendable<D>, const D: usize, const N: usize>(
     builder: &mut CircuitBuilder<F, D>,

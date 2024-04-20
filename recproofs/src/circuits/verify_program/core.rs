@@ -1,6 +1,6 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
-use plonky2::iop::target::Target;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::CircuitData;
@@ -13,6 +13,9 @@ use crate::circuits::build_event_root;
 pub struct CircuitPublicIndices {
     /// The indices of each of the elements of the program hash
     pub program_hash: [usize; 4],
+
+    /// The index of the presence flag for the event root
+    pub events_present: usize,
 
     /// The indices of each of the elements of event root
     pub event_root: [usize; NUM_HASH_OUT_ELTS],
@@ -32,6 +35,14 @@ impl CircuitPublicIndices {
         for (i, v) in v.into_iter().enumerate() {
             public_inputs[self.program_hash[i]] = v;
         }
+    }
+
+    pub fn get_events_present<T: Copy>(&self, public_inputs: &[T]) -> T {
+        public_inputs[self.events_present]
+    }
+
+    pub fn set_events_present<T>(&self, public_inputs: &mut [T], v: T) {
+        public_inputs[self.events_present] = v;
     }
 
     /// Extract `event_root` from an array of public inputs.
@@ -63,7 +74,7 @@ pub trait Circuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    fn get_circuit_data(&self) -> CircuitData<F, C, D>;
+    fn get_circuit_data(&self) -> &CircuitData<F, C, D>;
     fn get_indices(&self) -> CircuitPublicIndices;
 }
 
@@ -73,6 +84,9 @@ pub struct ProgramVerifierTargets<const D: usize> {
 
     /// The program hash
     pub program_hash: [Target; 4],
+
+    /// The presence flag for the event root
+    pub events_present: BoolTarget,
 
     /// The event root
     pub event_root: HashOutTarget,
@@ -89,7 +103,7 @@ impl<const D: usize> ProgramVerifierTargets<D> {
     #[must_use]
     pub fn build_targets<F, C>(
         builder: &mut CircuitBuilder<F, D>,
-        program_circuit: &impl Circuit<F, C, D>,
+        program_circuit: &dyn Circuit<F, C, D>,
     ) -> Self
     where
         F: RichField + Extendable<D>,
@@ -103,6 +117,8 @@ impl<const D: usize> ProgramVerifierTargets<D> {
         builder.verify_proof::<C>(&program_proof, &verifier, &circuit.common);
 
         let program_hash = public_inputs.get_program_hash(&program_proof.public_inputs);
+        let events_present =
+            BoolTarget::new_unsafe(public_inputs.get_events_present(&program_proof.public_inputs));
         let event_root = HashOutTarget {
             elements: public_inputs.get_event_root(&program_proof.public_inputs),
         };
@@ -113,6 +129,7 @@ impl<const D: usize> ProgramVerifierTargets<D> {
         Self {
             program_proof,
             program_hash,
+            events_present,
             event_root,
             cast_root,
         }
