@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_lines)]
 
+use std::collections::HashMap;
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
@@ -15,6 +16,7 @@ use plonky2::field::types::Field;
 use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::FriProof;
+use plonky2::fri::structure::{FriBatchInfo, FriInstanceInfo, FriOracleInfo};
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
@@ -36,6 +38,55 @@ use crate::public_sub_table::public_sub_table_data_and_values;
 use crate::stark::mozak_stark::{all_kind, all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
+
+pub(crate) fn merge_fri_instances<F, const D: usize>(
+    instances: &[&FriInstanceInfo<F, D>],
+) -> FriInstanceInfo<F, D>
+where
+    F: RichField + Extendable<D>, {
+    assert!(!instances.is_empty());
+    let base_instance = &instances[0];
+    assert_eq!(base_instance.oracles.len(), 3);
+    assert_eq!(base_instance.batches.len(), 3);
+
+    let mut res = FriInstanceInfo {
+        oracles: Vec::with_capacity(3),
+        batches: Vec::with_capacity(3),
+    };
+
+    for i in 0..3 {
+        res.oracles.push(FriOracleInfo {
+            num_polys: 0,
+            blinding: base_instance.oracles[i].blinding,
+        });
+        res.batches.push(FriBatchInfo {
+            point: base_instance.batches[i].point,
+            polynomials: vec![],
+        });
+    }
+
+    let mut polynomial_index_start = vec![0; 3];
+    for ins in instances {
+        assert_eq!(ins.oracles.len(), 3);
+        assert_eq!(ins.batches.len(), 3);
+
+        for i in 0..3 {
+            assert_eq!(res.oracles[i].blinding, ins.oracles[i].blinding);
+            res.oracles[i].num_polys += ins.oracles[i].num_polys;
+
+            assert_eq!(res.batches[i].point, ins.batches[i].point);
+            for poly in ins.batches[i].polynomials.iter().cloned() {
+                let mut poly = poly;
+                poly.polynomial_index += polynomial_index_start[i];
+                res.batches[i].polynomials.push(poly);
+            }
+
+            polynomial_index_start[i] += ins.oracles[i].num_polys;
+        }
+    }
+
+    res
+}
 
 /// Prove the execution of a given [Program]
 ///
@@ -97,34 +148,44 @@ where
         TableKind::MozakMemoryInit,
     ];
 
-    let separate_trace_commitments = timed!(
-        timing,
-        "Compute trace commitments for separate tables",
-        all_kind!(|kind| if public_table_kinds.contains(&kind) {
-            Some(PolynomialBatch::<F, C, D>::from_values(
-                traces_poly_values[kind].clone(),
-                rate_bits,
-                false,
-                cap_height,
-                timing,
-                None,
-            ))
-        } else {
-            None
-        })
-    );
+    // let separate_trace_commitments = timed!(
+    //     timing,
+    //     "Compute trace commitments for separate tables",
+    //     all_kind!(|kind| if public_table_kinds.contains(&kind) {
+    //         Some(PolynomialBatch::<F, C, D>::from_values(
+    //             traces_poly_values[kind].clone(),
+    //             rate_bits,
+    //             false,
+    //             cap_height,
+    //             timing,
+    //             None,
+    //         ))
+    //     } else {
+    //         None
+    //     })
+    // );
 
-    let mut batch_traces_poly_values = all_kind!(
-        |kind| (!public_table_kinds.contains(&kind)).then_some(&traces_poly_values[kind])
-    );
-    let mut degree_logs: Vec<usize> = batch_traces_poly_values
-        .iter()
-        .filter_map(|&t| t)
-        .map(|t| t.len())
-        .collect();
-    degree_logs.sort();
-    degree_logs.dedup();
-    degree_logs.reverse();
+    let mut degree_log_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
+    let mut batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
+        None
+    } else {
+        degree_log_map
+            .entry(log2_strict(traces_poly_values[kind][0].len()))
+            .or_insert(Vec::new())
+            .push(kind);
+        Some(&traces_poly_values[kind])
+    });
+    // let degree_logs: Vec<usize> = batch_traces_poly_values
+    //     .iter()
+    //     .filter_map(|&t| t)
+    //     .map(|t| t[0].len())
+    //     .collect();
+    // let mut degree_logs_sorted = degree_logs.clone();
+    // degree_logs_sorted.sort();
+    // degree_logs_sorted.dedup();
+    // degree_logs_sorted.reverse();
+    // let degree_to_index_lookup = vec![0;32];
+    // degree_logs.iter().enumerate(|i, d| degree_to_index_lookup[i] = );
 
     let mut batch_trace_polys: Vec<_> = batch_traces_poly_values
         .iter()
@@ -198,6 +259,22 @@ where
             &mozak_stark.public_sub_tables,
             &ctl_challenges,
         );
+
+    let _ = batch_prove_with_commitments(
+        mozak_stark,
+        config,
+        &public_table_kinds,
+        &public_inputs,
+        degree_log_map,
+        traces_poly_values,
+        &trace_commitments,
+        &batch_trace_commitments,
+        &ctl_data_per_table,
+        &public_sub_table_data_per_table,
+        // todo: remove clone()
+        &mut challenger.clone(),
+        timing,
+    );
 
     let proofs = timed!(
         timing,
@@ -448,10 +525,11 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     config: &StarkConfig,
     public_table_kinds: &[TableKind],
     public_inputs: &PublicInputs<F>,
-    trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
+    degree_log_map: HashMap<usize, Vec<TableKind>>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+    trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     batch_trace_commitments: &BatchFriOracle<F, C, D>,
-    separate_trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
+    // separate_trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
@@ -476,7 +554,7 @@ where
             stark,
             config,
             &traces_poly_values[kind],
-            &separate_trace_commitments[kind],
+            &trace_commitments[kind],
             public_inputs[kind],
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
@@ -674,17 +752,72 @@ where
         None
     });
 
+    let fri_instances = all_starks!(mozak_stark, |stark, kind| (!public_table_kinds
+        .contains(&kind))
+    .then_some({
+        let degree = traces_poly_values[kind][0].len();
+        let degree_bits = log2_strict(degree);
+        let g = F::primitive_root_of_unity(degree_bits);
+
+        stark.fri_instance(
+            zeta,
+            g,
+            0,
+            vec![],
+            config,
+            Some(&LookupConfig {
+                degree_bits,
+                num_zs: ctl_data_per_table[kind].len() + public_sub_data_per_table[kind].len(),
+            }),
+        )
+    }));
+
+    // Merge FRI instances by its polynomial degree
+    let mut degree_logs: Vec<&usize> = degree_log_map.keys().collect();
+    degree_logs.sort();
+    degree_logs.reverse();
+
+    let fri_instance_groups = degree_logs
+        .iter()
+        .map(|degree_log| {
+            degree_log_map[degree_log]
+                .iter()
+                .filter_map(|kind| fri_instances[*kind].as_ref())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let batch_fri_instances = fri_instance_groups
+        .iter()
+        .map(|ins| merge_fri_instances(ins))
+        .collect::<Vec<_>>();
+
     let initial_merkle_trees = vec![
         batch_trace_commitments,
         &batch_ctl_zs_commitments,
         &batch_quotient_commitments,
     ];
 
+    // let opening_proof = timed!(
+    //     timing,
+    //     format!("compute batch opening proofs").as_str(),
+    //   BatchFriOracle::prove_openings(
+    //
+    //     ));
+
     let empty_fri_proof = FriProof {
         commit_phase_merkle_caps: vec![],
         query_round_proofs: vec![],
         final_poly: PolynomialCoeffs { coeffs: vec![] },
         pow_witness: F::ZERO,
+    };
+    let empty_opening_set = StarkOpeningSet {
+        local_values: vec![],
+        next_values: vec![],
+        ctl_zs: vec![],
+        ctl_zs_next: vec![],
+        ctl_zs_last: vec![],
+        quotient_polys: vec![],
     };
     Ok((
         all_kind!(|kind| {
@@ -708,14 +841,7 @@ where
             trace_cap: batch_trace_commitments.field_merkle_tree.cap.clone(),
             ctl_zs_cap,
             quotient_polys_cap,
-            openings: StarkOpeningSet {
-                local_values: vec![],
-                next_values: vec![],
-                ctl_zs: vec![],
-                ctl_zs_next: vec![],
-                ctl_zs_last: vec![],
-                quotient_polys: vec![],
-            },
+            openings: empty_opening_set,
             opening_proof: empty_fri_proof.clone(),
         },
     ))
