@@ -585,7 +585,7 @@ where
         })
     });
 
-    // TODO: we can remove duplicates in the ctl polynomials.
+    // TODO: can we remove duplicates in the ctl polynomials?
     let mut batch_ctl_zs_polys: Vec<_> = batch_ctl_z_polys
         .iter()
         .filter_map(|t| t.as_ref())
@@ -798,12 +798,17 @@ where
         &batch_quotient_commitments,
     ];
 
-    // let opening_proof = timed!(
-    //     timing,
-    //     format!("compute batch opening proofs").as_str(),
-    //   BatchFriOracle::prove_openings(
-    //
-    //     ));
+    let _opening_proof = timed!(
+        timing,
+        format!("compute batch opening proofs").as_str(),
+        BatchFriOracle::prove_openings(
+            &batch_fri_instances,
+            &initial_merkle_trees,
+            challenger,
+            &config.fri_params(*degree_logs[0]),
+            timing,
+        )
+    );
 
     let empty_fri_proof = FriProof {
         commit_phase_merkle_caps: vec![],
