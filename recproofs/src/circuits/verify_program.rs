@@ -13,6 +13,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::{build_event_root, merge};
 use crate::connect_arrays;
+use crate::subcircuits::unpruned::PartialAllowed;
 use crate::subcircuits::{propagate, unbounded, unpruned};
 
 pub mod core;
@@ -190,7 +191,7 @@ where
     pub unbounded: unbounded::BranchSubCircuit<D>,
 
     /// The program identifier
-    pub program_id: unpruned::BranchSubCircuit,
+    pub program_id: unpruned::BranchSubCircuit<PartialAllowed>,
 
     // The events list
     pub events: merge::embed::BranchSubCircuit<D>,
