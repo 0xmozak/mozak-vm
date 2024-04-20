@@ -27,7 +27,7 @@ pub mod test_utils {
     use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 
     #[must_use]
-    pub const fn fast_test_circuit_config() -> CircuitConfig {
+    const fn fast_test_circuit_config() -> CircuitConfig {
         let mut config = CircuitConfig::standard_recursion_config();
         config.security_bits = 1;
         config.num_challenges = 1;
@@ -36,6 +36,8 @@ pub mod test_utils {
         config.fri_config.num_query_rounds = 1;
         config
     }
+
+    pub const CONFIG: CircuitConfig = fast_test_circuit_config();
 
     pub fn hash_str(v: &str) -> HashOut<F> {
         let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();

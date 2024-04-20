@@ -251,7 +251,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use std::panic::catch_unwind;
 
     use lazy_static::lazy_static;
@@ -259,14 +259,12 @@ mod test {
     use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 
     use super::*;
-    use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_branch_bytes, C, D, F};
+    use crate::test_utils::{hash_branch, hash_branch_bytes, C, CONFIG, D, F};
     use crate::EventType;
 
-    const CONFIG: CircuitConfig = fast_test_circuit_config();
-
     lazy_static! {
-        static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
-        static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
+        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
+        pub static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
     }
 
     fn assert_hash(h: HashOut<F>, v: [u64; NUM_HASH_OUT_ELTS]) {

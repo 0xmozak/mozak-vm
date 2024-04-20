@@ -145,19 +145,17 @@ where
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 
     use super::*;
-    use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
-
-    const CONFIG: CircuitConfig = fast_test_circuit_config();
+    use crate::test_utils::{hash_branch, hash_str, C, CONFIG, D, F};
 
     lazy_static! {
-        static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
-        static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
+        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
+        pub static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
     }
 
     #[test]
