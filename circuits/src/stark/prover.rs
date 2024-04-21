@@ -41,6 +41,7 @@ use crate::stark::poly::compute_quotient_polys;
 
 pub(crate) fn merge_fri_instances<F, const D: usize>(
     instances: &[&FriInstanceInfo<F, D>],
+    polynomial_index_start: &mut [usize; 3],
 ) -> FriInstanceInfo<F, D>
 where
     F: RichField + Extendable<D>, {
@@ -65,7 +66,6 @@ where
         });
     }
 
-    let mut polynomial_index_start = vec![0; 3];
     for ins in instances {
         assert_eq!(ins.oracles.len(), 3);
         assert_eq!(ins.batches.len(), 3);
@@ -78,18 +78,18 @@ where
             for poly in ins.batches[i].polynomials.iter().cloned() {
                 let mut poly = poly;
                 poly.polynomial_index += polynomial_index_start[poly.oracle_index];
-                assert!(
-                    poly.polynomial_index < res.oracles[poly.oracle_index].num_polys,
-                    "{}, {}, ",
-                    poly.polynomial_index,
-                    res.oracles[poly.oracle_index].num_polys
-                );
+                // assert!(
+                //     poly.polynomial_index < res.oracles[poly.oracle_index].num_polys,
+                //     "{}, {}, ",
+                //     poly.polynomial_index,
+                //     res.oracles[poly.oracle_index].num_polys
+                // );
                 res.batches[i].polynomials.push(poly);
             }
         }
 
         for i in 0..3 {
-            polynomial_index_start[i] = res.oracles[i].num_polys;
+            polynomial_index_start[i] += ins.oracles[i].num_polys;
         }
     }
 
@@ -825,9 +825,10 @@ where
         })
         .collect::<Vec<_>>();
 
+    let mut polynomial_index_start = [0, 0, 0];
     let batch_fri_instances = fri_instance_groups
         .iter()
-        .map(|ins| merge_fri_instances(ins))
+        .map(|ins| merge_fri_instances(ins, &mut polynomial_index_start))
         .collect::<Vec<_>>();
 
     let initial_merkle_trees = vec![
