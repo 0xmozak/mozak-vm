@@ -6,7 +6,7 @@ use std::fmt::Display;
 use anyhow::{ensure, Result};
 use itertools::Itertools;
 use log::Level::Debug;
-use log::{debug, log_enabled};
+use log::{debug, info, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -77,11 +77,19 @@ where
             assert_eq!(res.batches[i].point, ins.batches[i].point);
             for poly in ins.batches[i].polynomials.iter().cloned() {
                 let mut poly = poly;
-                poly.polynomial_index += polynomial_index_start[i];
+                poly.polynomial_index += polynomial_index_start[poly.oracle_index];
+                assert!(
+                    poly.polynomial_index < res.oracles[poly.oracle_index].num_polys,
+                    "{}, {}, ",
+                    poly.polynomial_index,
+                    res.oracles[poly.oracle_index].num_polys
+                );
                 res.batches[i].polynomials.push(poly);
             }
+        }
 
-            polynomial_index_start[i] += ins.oracles[i].num_polys;
+        for i in 0..3 {
+            polynomial_index_start[i] = res.oracles[i].num_polys;
         }
     }
 
@@ -441,21 +449,33 @@ where
     assert!(!stark.requires_ctls());
     assert!(!stark.uses_lookups());
     let num_make_rows_public_data = public_sub_table_data.len();
+    let fri_instance = &stark.fri_instance(
+        zeta,
+        g,
+        0,
+        vec![],
+        config,
+        Some(&LookupConfig {
+            degree_bits,
+            num_zs: ctl_data.len() + num_make_rows_public_data,
+        }),
+    );
+    for i in 0..3 {
+        assert_eq!(
+            initial_merkle_trees[i].polynomials.len(),
+            fri_instance.oracles[i].num_polys,
+        );
+    }
+
+    info!(
+        "{stark} ctl polys {}",
+        initial_merkle_trees[1].polynomials.len()
+    );
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
         PolynomialBatch::prove_openings(
-            &stark.fri_instance(
-                zeta,
-                g,
-                0,
-                vec![],
-                config,
-                Some(&LookupConfig {
-                    degree_bits,
-                    num_zs: ctl_data.len() + num_make_rows_public_data
-                })
-            ),
+            fri_instance,
             &initial_merkle_trees,
             challenger,
             &fri_params,
@@ -548,9 +568,10 @@ where
     }
     .build();
 
-    let separate_proofs = all_starks!(mozak_stark, |stark, kind| public_table_kinds
+    let separate_proofs = all_starks!(mozak_stark, |stark, kind| if public_table_kinds
         .contains(&kind)
-        .then_some(prove_single_table(
+    {
+        Some(prove_single_table(
             stark,
             config,
             &traces_poly_values[kind],
@@ -560,29 +581,42 @@ where
             &public_sub_data_per_table[kind],
             challenger,
             timing,
-        )?));
+        )?)
+    } else {
+        None
+    });
 
     let batch_ctl_z_polys = all_kind!(|kind| {
-        (!public_table_kinds.contains(&kind)).then_some({
-            let degree = traces_poly_values[kind][0].len();
-            let degree_bits = log2_strict(degree);
-            let fri_params = config.fri_params(degree_bits);
-            assert!(
-                fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
-                "FRI total reduction arity is too large.",
-            );
+        if !public_table_kinds.contains(&kind) {
+            Some({
+                let degree = traces_poly_values[kind][0].len();
+                let degree_bits = log2_strict(degree);
+                let fri_params = config.fri_params(degree_bits);
+                assert!(
+                    fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
+                    "FRI total reduction arity is too large.",
+                );
 
-            let z_poly_public_sub_table = ctl_data_per_table[kind].z_polys();
+                let z_poly_public_sub_table = public_sub_data_per_table[kind].z_polys();
 
-            let z_polys = vec![ctl_data_per_table[kind].z_polys(), z_poly_public_sub_table]
-                .into_iter()
-                .flatten()
-                .collect_vec();
+                let z_polys = vec![ctl_data_per_table[kind].z_polys(), z_poly_public_sub_table]
+                    .into_iter()
+                    .flatten()
+                    .collect_vec();
 
-            assert!(!z_polys.is_empty());
+                assert!(!z_polys.is_empty());
 
-            z_polys
-        })
+                info!(
+                    "ctl_data_per_table len {}",
+                    ctl_data_per_table[kind].zs_columns.len()
+                );
+                info!("z_poly len {}", z_polys.len());
+
+                z_polys
+            })
+        } else {
+            None
+        }
     });
 
     // TODO: can we remove duplicates in the ctl polynomials?
@@ -752,25 +786,29 @@ where
         None
     });
 
-    let fri_instances = all_starks!(mozak_stark, |stark, kind| (!public_table_kinds
-        .contains(&kind))
-    .then_some({
-        let degree = traces_poly_values[kind][0].len();
-        let degree_bits = log2_strict(degree);
-        let g = F::primitive_root_of_unity(degree_bits);
+    let fri_instances = all_starks!(mozak_stark, |stark, kind| if !public_table_kinds
+        .contains(&kind)
+    {
+        Some({
+            let degree = traces_poly_values[kind][0].len();
+            let degree_bits = log2_strict(degree);
+            let g = F::primitive_root_of_unity(degree_bits);
 
-        stark.fri_instance(
-            zeta,
-            g,
-            0,
-            vec![],
-            config,
-            Some(&LookupConfig {
-                degree_bits,
-                num_zs: ctl_data_per_table[kind].len() + public_sub_data_per_table[kind].len(),
-            }),
-        )
-    }));
+            stark.fri_instance(
+                zeta,
+                g,
+                0,
+                vec![],
+                config,
+                Some(&LookupConfig {
+                    degree_bits,
+                    num_zs: ctl_data_per_table[kind].len() + public_sub_data_per_table[kind].len(),
+                }),
+            )
+        })
+    } else {
+        None
+    });
 
     // Merge FRI instances by its polynomial degree
     let mut degree_logs: Vec<&usize> = degree_log_map.keys().collect();
@@ -797,6 +835,18 @@ where
         &batch_ctl_zs_commitments,
         &batch_quotient_commitments,
     ];
+
+    for i in 0..3 {
+        assert_eq!(
+            initial_merkle_trees[i].polynomials.len(),
+            batch_fri_instances
+                .iter()
+                .map(|ins| ins.oracles[i].num_polys)
+                .collect::<Vec<usize>>()
+                .iter()
+                .sum::<usize>(),
+        );
+    }
 
     let _opening_proof = timed!(
         timing,
