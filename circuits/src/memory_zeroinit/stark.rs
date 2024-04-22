@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -7,12 +8,13 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use super::columns::MemoryZeroInit;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::stark::utils::{is_binary, is_binary_ext_circuit};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::unstark::NoColumns;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -27,6 +29,17 @@ impl<F, const D: usize> HasNamedColumns for MemoryZeroInitStark<F, D> {
 const COLUMNS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<MemoryZeroInit<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv = vars.local_values;
+    let mut constraints = ConstraintBuilder::default();
+
+    constraints.always(lv.filter.is_binary());
+
+    constraints
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryZeroInitStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
@@ -39,22 +52,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryZeroIni
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &MemoryZeroInit<P> = vars.get_local_values().into();
-        is_binary(yield_constr, lv.filter);
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_packed(constraints, consumer);
     }
 
     fn eval_ext_circuit(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &MemoryZeroInit<ExtensionTarget<D>> = vars.get_local_values().into();
-        is_binary_ext_circuit(builder, lv.filter, yield_constr);
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_ext(constraints, builder, consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
