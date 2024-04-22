@@ -13,6 +13,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::cross_table_lookup as starky_ctl;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 use thiserror::Error;
@@ -233,6 +234,15 @@ pub struct CrossTableLookupWithTypedOutput<Row> {
 #[allow(clippy::module_name_repetitions)]
 pub type CrossTableLookupUntyped = CrossTableLookupWithTypedOutput<Vec<Column>>;
 pub use CrossTableLookupUntyped as CrossTableLookup;
+
+impl CrossTableLookup {
+    #[must_use]
+    pub fn to_starky<F: Field>(&self) -> starky_ctl::CrossTableLookup<F> {
+        starky_ctl::CrossTableLookup::new_no_looked_table(
+            self.looking_tables.iter().map(Table::to_starky).collect(),
+        )
+    }
+}
 
 impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> CrossTableLookup {

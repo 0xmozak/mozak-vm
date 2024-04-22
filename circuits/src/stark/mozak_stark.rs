@@ -9,6 +9,7 @@ use plonky2::hash::hash_types::RichField;
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
+use starky::{cross_table_lookup as starky_ctl, lookup as starky_lookup};
 
 use crate::bitshift::columns::{Bitshift, BitshiftView};
 use crate::bitshift::stark::BitshiftStark;
@@ -497,6 +498,20 @@ pub struct TableWithTypedOutput<Row> {
 
 pub type TableUntyped = TableWithTypedOutput<Vec<Column>>;
 pub use TableUntyped as Table;
+
+impl Table {
+    #[must_use]
+    pub fn to_starky<F: Field>(&self) -> starky_ctl::TableWithColumns<F> {
+        let columns = self
+            .columns
+            .iter()
+            .map(Column::to_starky)
+            .collect::<Vec<_>>();
+        // TODO(Matthias): figure out why they take a vector of filters.
+        let filter = starky_lookup::Filter::new(vec![], vec![self.filter_column.to_starky()]);
+        starky_ctl::TableWithColumns::new(self.kind as usize, columns, filter)
+    }
+}
 
 impl<Row: IntoIterator<Item = Column>> TableWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> Table {
