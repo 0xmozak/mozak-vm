@@ -938,10 +938,55 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::poseidon2::Poseidon2Hash;
-    use plonky2::plonk::config::{GenericHashOut, Hasher};
+    use plonky2::plonk::config::{GenericConfig, GenericHashOut, Hasher, PoseidonGoldilocksConfig};
+    use plonky2::util::timing::TimingTree;
 
-    use crate::stark::mozak_stark::MozakStark;
-    use crate::test_utils::{create_poseidon2_test, Poseidon2Test, ProveAndVerify};
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
+    use crate::stark::proof::AllProof;
+    use crate::stark::prover::prove;
+    use crate::stark::verifier::verify_proof;
+    use crate::test_utils::{
+        create_poseidon2_test, fast_test_config, Poseidon2Test, ProveAndVerify,
+    };
+    use crate::utils::from_u32;
+
+    #[test]
+    fn batch_prove() {
+        let (program, record) = code::execute(
+            [Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, 3), (7, 4)],
+        );
+        let config = fast_test_config();
+
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let stark: MozakStark<F, D> = MozakStark::default();
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
+
+        let all_proof: AllProof<F, C, D> = prove(
+            &program,
+            &record,
+            &stark,
+            &config,
+            public_inputs,
+            &mut TimingTree::default(),
+        )
+        .unwrap();
+        verify_proof(&stark, all_proof, &config).unwrap();
+    }
 
     #[test]
     fn prove_halt() {
