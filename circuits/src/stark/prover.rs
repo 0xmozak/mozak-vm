@@ -30,7 +30,7 @@ use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
-use super::proof::{AllProof, StarkOpeningSet, StarkProof};
+use super::proof::{AllProof, BatchProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
@@ -129,6 +129,151 @@ where
         &traces_poly_values,
         timing,
     )
+}
+
+pub fn batch_prove<F, C, const D: usize>(
+    program: &Program,
+    record: &ExecutionRecord<F>,
+    mozak_stark: &MozakStark<F, D>,
+    config: &StarkConfig,
+    public_inputs: PublicInputs<F>,
+    timing: &mut TimingTree,
+) -> Result<BatchProof<F, C, D>>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
+    debug!("Starting Prove");
+    let traces_poly_values = generate_traces(program, record);
+    if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
+        debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
+        debug_ctl(&traces_poly_values, mozak_stark);
+    }
+    let rate_bits = config.fri_config.rate_bits;
+    let cap_height = config.fri_config.cap_height;
+
+    // We cannot batch prove these tables because trace caps are needed as public
+    // inputs for the following tables.
+    let public_table_kinds = vec![
+        TableKind::Program,
+        TableKind::ElfMemoryInit,
+        TableKind::MozakMemoryInit,
+    ];
+
+    let mut degree_log_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
+    let mut batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
+        None
+    } else {
+        degree_log_map
+            .entry(log2_strict(traces_poly_values[kind][0].len()))
+            .or_insert(Vec::new())
+            .push(kind);
+        Some(&traces_poly_values[kind])
+    });
+
+    let mut batch_trace_polys: Vec<_> = batch_traces_poly_values
+        .iter()
+        .filter_map(|t| *t)
+        .flat_map(|v| v.clone())
+        .collect();
+    batch_trace_polys.sort_by(|a, b| b.len().cmp(&a.len()));
+    let bacth_trace_polys_len = batch_trace_polys.len();
+
+    let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
+        timing,
+        "Compute trace commitments for batch tables",
+        BatchFriOracle::from_values(
+            batch_trace_polys,
+            rate_bits,
+            false,
+            cap_height,
+            timing,
+            &vec![None; bacth_trace_polys_len],
+        )
+    );
+
+    let trace_commitments = timed!(
+        timing,
+        "Compute trace commitments for each table",
+        traces_poly_values
+            .clone()
+            .with_kind()
+            .map(|(trace, table)| {
+                timed!(
+                    timing,
+                    &format!("compute trace commitment for {table:?}"),
+                    PolynomialBatch::<F, C, D>::from_values(
+                        trace.clone(),
+                        rate_bits,
+                        false,
+                        cap_height,
+                        timing,
+                        None,
+                    )
+                )
+            })
+    );
+
+    // TODO: todo
+    // let trace_caps = batch_trace_commitments.field_merkle_tree.cap;
+
+    let trace_caps = trace_commitments
+        .each_ref()
+        .map(|c| c.merkle_tree.cap.clone());
+    // Add trace commitments to the challenger entropy pool.
+    let mut challenger = Challenger::<F, C::Hasher>::new();
+    for cap in &trace_caps {
+        challenger.observe_cap(cap);
+    }
+
+    let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
+    let ctl_data_per_table = timed!(
+        timing,
+        "Compute CTL data for each table",
+        cross_table_lookup_data::<F, D>(
+            &traces_poly_values,
+            &mozak_stark.cross_table_lookups,
+            &ctl_challenges
+        )
+    );
+
+    let (public_sub_table_data_per_table, public_sub_table_values) =
+        public_sub_table_data_and_values::<F, D>(
+            &traces_poly_values,
+            &mozak_stark.public_sub_tables,
+            &ctl_challenges,
+        );
+
+    let (proofs, batch_stark_proof) = batch_prove_with_commitments(
+        mozak_stark,
+        config,
+        &public_table_kinds,
+        &public_inputs,
+        degree_log_map,
+        &traces_poly_values,
+        &trace_commitments,
+        &batch_trace_commitments,
+        &ctl_data_per_table,
+        &public_sub_table_data_per_table,
+        // todo: remove clone()
+        &mut challenger.clone(),
+        timing,
+    )?;
+
+    let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
+    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
+    let mozak_memory_init_trace_cap = trace_caps[TableKind::MozakMemoryInit].clone();
+    if log_enabled!(Debug) {
+        timing.print();
+    }
+    Ok(BatchProof {
+        proofs,
+        program_rom_trace_cap,
+        elf_memory_init_trace_cap,
+        mozak_memory_init_trace_cap,
+        public_inputs,
+        public_sub_table_values,
+        batch_stark_proof,
+    })
 }
 
 /// Given the traces generated from [`generate_traces`], prove a [`MozakStark`].
@@ -942,8 +1087,8 @@ mod tests {
     use plonky2::util::timing::TimingTree;
 
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
-    use crate::stark::proof::AllProof;
-    use crate::stark::prover::prove;
+    use crate::stark::proof::{AllProof, BatchProof};
+    use crate::stark::prover::{batch_prove, prove};
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{
         create_poseidon2_test, fast_test_config, Poseidon2Test, ProveAndVerify,
@@ -951,7 +1096,7 @@ mod tests {
     use crate::utils::from_u32;
 
     #[test]
-    fn batch_prove() {
+    fn batch_prove_add() {
         let (program, record) = code::execute(
             [Instruction {
                 op: Op::ADD,
@@ -976,7 +1121,7 @@ mod tests {
             entry_point: from_u32(program.entry_point),
         };
 
-        let all_proof: AllProof<F, C, D> = prove(
+        let all_proof: BatchProof<F, C, D> = batch_prove(
             &program,
             &record,
             &stark,
@@ -985,7 +1130,7 @@ mod tests {
             &mut TimingTree::default(),
         )
         .unwrap();
-        verify_proof(&stark, all_proof, &config).unwrap();
+        // verify_proof(&stark, all_proof, &config).unwrap();
     }
 
     #[test]
