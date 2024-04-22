@@ -58,8 +58,8 @@
 //! builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
 //! means split into multiple constraints.
 
-use core::ops::{Add, Mul, Neg, Sub};
 use core::iter::Sum;
+use core::ops::{Add, Mul, Neg, Sub};
 
 use bumpalo::Bump;
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
