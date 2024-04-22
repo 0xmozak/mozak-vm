@@ -267,6 +267,8 @@ where
 
 #[cfg(test)]
 mod test {
+    use std::panic::catch_unwind;
+
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::HashOutTarget;
@@ -277,7 +279,7 @@ mod test {
     use super::*;
     use crate::circuits::build_event_root::test::{BRANCH as EVENT_BRANCH, LEAF as EVENT_LEAF};
     use crate::circuits::merge::test::{BRANCH as MERGE_BRANCH, LEAF as MERGE_LEAF};
-    use crate::test_utils::{hash_branch, hash_branch_bytes, C, CONFIG, D, F};
+    use crate::test_utils::{hash_branch, hash_branch_bytes, make_fs, C, CONFIG, D, F};
     use crate::{find_bool, find_hash, find_targets, Event, EventType};
 
     struct DummyCircuit<F, C, const D: usize>
@@ -370,10 +372,12 @@ mod test {
             BranchCircuit::new(&CONFIG, &MERGE_BRANCH, &LEAF);
     }
 
-    fn build_event(e: Event<F>) -> Result<ProofWithPublicInputs<F, C, D>> {
-        let proof = EVENT_LEAF.prove(e, Some(e.hash()), Some(e.byte_wise_hash()), &EVENT_BRANCH)?;
-        EVENT_LEAF.circuit.verify(proof.clone())?;
-        Ok(proof)
+    fn build_event(e: Event<F>) -> ProofWithPublicInputs<F, C, D> {
+        let proof = EVENT_LEAF
+            .prove(e, Some(e.hash()), Some(e.byte_wise_hash()), &EVENT_BRANCH)
+            .unwrap();
+        EVENT_LEAF.circuit.verify(proof.clone()).unwrap();
+        proof
     }
 
     pub struct BuiltEvent {
@@ -382,49 +386,50 @@ mod test {
         pub vm_hash: HashOut<F>,
     }
 
-    fn build_events(l: Event<F>, r: Event<F>) -> Result<BuiltEvent> {
-        let l_proof = build_event(l)?;
-        let r_proof = build_event(r)?;
+    fn build_events(l: Event<F>, r: Event<F>) -> BuiltEvent {
+        let l_proof = build_event(l);
+        let r_proof = build_event(r);
         let branch_hash = hash_branch(&l.hash(), &r.hash());
         let branch_bytes_hash = hash_branch_bytes(&l.byte_wise_hash(), &r.byte_wise_hash());
 
-        let branch_proof = EVENT_BRANCH.prove(
-            Some(branch_hash),
-            Some(branch_bytes_hash),
-            Some(l.owner),
-            true,
-            &l_proof,
-            Some((true, &r_proof)),
-        )?;
-        EVENT_BRANCH.circuit.verify(branch_proof.clone())?;
+        let branch_proof = EVENT_BRANCH
+            .prove(
+                Some(branch_hash),
+                Some(branch_bytes_hash),
+                Some(l.owner),
+                true,
+                &l_proof,
+                Some((true, &r_proof)),
+            )
+            .unwrap();
+        EVENT_BRANCH.circuit.verify(branch_proof.clone()).unwrap();
 
-        Ok(BuiltEvent {
+        BuiltEvent {
             proof: branch_proof,
             hash: branch_hash,
             vm_hash: branch_bytes_hash,
-        })
+        }
     }
 
     fn make_program(
         program_hash: [F; 4],
         event_root: Option<HashOut<F>>,
         cast_root: HashOut<F>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
-        let program_proof = PROGRAM.prove(program_hash, event_root, cast_root)?;
-        PROGRAM.circuit.verify(program_proof.clone())?;
-        Ok(program_proof)
+    ) -> ProofWithPublicInputs<F, C, D> {
+        let program_proof = PROGRAM.prove(program_hash, event_root, cast_root).unwrap();
+        PROGRAM.circuit.verify(program_proof.clone()).unwrap();
+        program_proof
     }
 
-    fn merge_events(
-        a: Event<F>,
-        b: Event<F>,
-    ) -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
+    fn merge_events(a: Event<F>, b: Event<F>) -> ProofWithPublicInputs<F, C, D> {
         let a = a.hash();
         let b = b.hash();
         let merged_hash = hash_branch(&a, &b);
-        let merge_proof = MERGE_LEAF.prove(&MERGE_BRANCH, Some(a), Some(b), Some(merged_hash))?;
-        MERGE_LEAF.circuit.verify(merge_proof.clone())?;
-        Ok((merge_proof, merged_hash))
+        let merge_proof = MERGE_LEAF
+            .prove(&MERGE_BRANCH, Some(a), Some(b), Some(merged_hash))
+            .unwrap();
+        MERGE_LEAF.circuit.verify(merge_proof.clone()).unwrap();
+        merge_proof
     }
 
     fn merge_merges(
@@ -432,73 +437,171 @@ mod test {
         l: &ProofWithPublicInputs<F, C, D>,
         r_leaf: bool,
         r: &ProofWithPublicInputs<F, C, D>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
-        let merge_proof = MERGE_BRANCH.prove(l_leaf, l, r_leaf, r)?;
-        MERGE_BRANCH.circuit.verify(merge_proof.clone())?;
-        Ok(merge_proof)
+    ) -> ProofWithPublicInputs<F, C, D> {
+        let merge_proof = MERGE_BRANCH.prove(l_leaf, l, r_leaf, r).unwrap();
+        MERGE_BRANCH.circuit.verify(merge_proof.clone()).unwrap();
+        merge_proof
+    }
+
+    const ZERO_VAL: [F; 4] = [F::ZERO; 4];
+    const PROGRAM_1_HASH: [F; 4] = make_fs([4, 8, 15, 16]);
+    const PROGRAM_2_HASH: [F; 4] = make_fs([2, 3, 4, 2]);
+    const NON_ZERO_VAL_1: [F; 4] = make_fs([3, 1, 4, 15]);
+    const NON_ZERO_VAL_2: [F; 4] = make_fs([1, 6, 180, 33]);
+
+    // Duplicate or conflicting events are actually fine as far as this circuit
+    // cares
+    const P1_EVENTS: [Event<F>; 2] = [
+        Event {
+            address: 42,
+            owner: PROGRAM_1_HASH,
+            ty: EventType::Read,
+            value: ZERO_VAL,
+        },
+        Event {
+            address: 84,
+            owner: PROGRAM_1_HASH,
+            ty: EventType::Write,
+            value: ZERO_VAL,
+        },
+    ];
+    const P2_EVENTS: [Event<F>; 2] = [
+        Event {
+            address: 42,
+            owner: PROGRAM_2_HASH,
+            ty: EventType::Write,
+            value: NON_ZERO_VAL_2,
+        },
+        Event {
+            address: 84,
+            owner: PROGRAM_2_HASH,
+            ty: EventType::Ensure,
+            value: NON_ZERO_VAL_1,
+        },
+    ];
+
+    lazy_static! {
+        static ref P1_BUILT_EVENTS: BuiltEvent = build_events(P1_EVENTS[0], P1_EVENTS[1]);
+        static ref P2_BUILT_EVENTS: BuiltEvent = build_events(P2_EVENTS[0], P2_EVENTS[1]);
+    }
+
+    /// Helpers with P1 to the left of P2
+    pub mod p1_p2 {
+        use super::*;
+
+        lazy_static! {
+            pub static ref CAST_ROOT: HashOut<F> =
+                hash_branch_bytes(&PROGRAM_1_HASH.into(), &PROGRAM_2_HASH.into());
+        }
+
+        lazy_static! {
+            pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> =
+                make_program(PROGRAM_1_HASH, Some(P1_BUILT_EVENTS.vm_hash), *CAST_ROOT);
+            pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> =
+                make_program(PROGRAM_2_HASH, Some(P2_BUILT_EVENTS.vm_hash), *CAST_ROOT);
+        }
+
+        lazy_static! {
+            pub static ref MERGE_42: ProofWithPublicInputs<F, C, D> =
+                merge_events(P1_EVENTS[0], P2_EVENTS[0]);
+            pub static ref MERGE_80: ProofWithPublicInputs<F, C, D> =
+                merge_events(P1_EVENTS[1], P2_EVENTS[1]);
+            pub static ref MERGE_PROOF: ProofWithPublicInputs<F, C, D> =
+                merge_merges(true, &MERGE_42, true, &MERGE_80);
+        }
+    }
+
+    /// Helpers with P2 to the left of P1
+    pub mod p2_p1 {
+        use super::*;
+
+        lazy_static! {
+            pub static ref CAST_ROOT: HashOut<F> =
+                hash_branch_bytes(&PROGRAM_2_HASH.into(), &PROGRAM_1_HASH.into());
+        }
+
+        lazy_static! {
+            pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> =
+                make_program(PROGRAM_1_HASH, Some(P1_BUILT_EVENTS.vm_hash), *CAST_ROOT);
+            pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> =
+                make_program(PROGRAM_2_HASH, Some(P2_BUILT_EVENTS.vm_hash), *CAST_ROOT);
+        }
+
+        lazy_static! {
+            pub static ref MERGE_42: ProofWithPublicInputs<F, C, D> =
+                merge_events(P2_EVENTS[0], P1_EVENTS[0]);
+            pub static ref MERGE_80: ProofWithPublicInputs<F, C, D> =
+                merge_events(P2_EVENTS[1], P1_EVENTS[1]);
+            pub static ref MERGE_PROOF: ProofWithPublicInputs<F, C, D> =
+                merge_merges(true, &MERGE_42, true, &MERGE_80);
+        }
     }
 
     #[test]
     fn verify_leaf() -> Result<()> {
-        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
-        let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
+        let proof = LEAF.prove(&BRANCH, &p1_p2::PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        let zero_val = [F::ZERO; 4];
-        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
-        let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
+        let proof = LEAF.prove(&BRANCH, &p1_p2::PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        // Duplicate or conflicting events are actually fine as far as this circuit
-        // cares
-        let p1_events = [
-            Event {
-                address: 42,
-                owner: program_hash_1,
-                ty: EventType::Read,
-                value: zero_val,
-            },
-            Event {
-                address: 84,
-                owner: program_hash_1,
-                ty: EventType::Write,
-                value: non_zero_val_1,
-            },
-        ];
-        let p1_built_events = build_events(p1_events[0], p1_events[1])?;
-        let p2_events = [
-            Event {
-                address: 42,
-                owner: program_hash_2,
-                ty: EventType::Write,
-                value: non_zero_val_2,
-            },
-            Event {
-                address: 84,
-                owner: program_hash_2,
-                ty: EventType::Ensure,
-                value: non_zero_val_1,
-            },
-        ];
-        let p2_built_events = build_events(p2_events[0], p2_events[1])?;
-        let cast_root = hash_branch_bytes(&program_hash_1.into(), &program_hash_2.into());
+        let proof = LEAF.prove(&BRANCH, &p2_p1::PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        let program_1_proof =
-            make_program(program_hash_1, Some(p1_built_events.vm_hash), cast_root)?;
-        let program_2_proof =
-            make_program(program_hash_2, Some(p2_built_events.vm_hash), cast_root)?;
+        let proof = LEAF.prove(&BRANCH, &p2_p1::PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
+        LEAF.circuit.verify(proof)?;
 
-        let (merge_42, _hash_42) = merge_events(p1_events[0], p2_events[0])?;
-        let (merge_80, _hash_80) = merge_events(p1_events[1], p2_events[1])?;
+        Ok(())
+    }
 
-        let merge_proof = merge_merges(true, &merge_42, true, &merge_80)?;
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_wrong_events_1() {
+        let proof = LEAF
+            .prove(&BRANCH, &p1_p2::PROGRAM_1_PROOF, &P2_BUILT_EVENTS.proof)
+            .unwrap();
+        LEAF.circuit.verify(proof).unwrap();
+    }
 
-        let leaf_1_proof = LEAF.prove(&BRANCH, &program_1_proof, &p1_built_events.proof)?;
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_wrong_events_2() {
+        let proof = LEAF
+            .prove(&BRANCH, &p1_p2::PROGRAM_2_PROOF, &P1_BUILT_EVENTS.proof)
+            .unwrap();
+        LEAF.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_wrong_events_3() {
+        let proof = LEAF
+            .prove(&BRANCH, &p2_p1::PROGRAM_1_PROOF, &P2_BUILT_EVENTS.proof)
+            .unwrap();
+        LEAF.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_wrong_events_4() {
+        let proof = LEAF
+            .prove(&BRANCH, &p2_p1::PROGRAM_2_PROOF, &P1_BUILT_EVENTS.proof)
+            .unwrap();
+        LEAF.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn verify_branch() -> Result<()> {
+        use p1_p2::{MERGE_PROOF, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
+
+        let leaf_1_proof = LEAF.prove(&BRANCH, &PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
         LEAF.circuit.verify(leaf_1_proof.clone())?;
 
-        let leaf_2_proof = LEAF.prove(&BRANCH, &program_2_proof, &p2_built_events.proof)?;
+        let leaf_2_proof = LEAF.prove(&BRANCH, &PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
         LEAF.circuit.verify(leaf_2_proof.clone())?;
 
         let branch_proof = BRANCH.prove(
-            &merge_proof,
+            &MERGE_PROOF,
             true,
             &leaf_1_proof,
             Some((true, &leaf_2_proof)),
@@ -506,5 +609,68 @@ mod test {
         BRANCH.circuit.verify(branch_proof.clone())?;
 
         Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_hash_merge_1() {
+        let (merge_proof, leaf_1_proof, leaf_2_proof) = catch_unwind(|| {
+            use p1_p2::{MERGE_80, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
+            // Flip the merge to break stuff
+            use p2_p1::MERGE_42;
+
+            let merge_proof = merge_merges(true, &MERGE_42, true, &MERGE_80);
+
+            let leaf_1_proof = LEAF.prove(&BRANCH, &PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
+            LEAF.circuit.verify(leaf_1_proof.clone())?;
+
+            let leaf_2_proof = LEAF.prove(&BRANCH, &PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
+            LEAF.circuit.verify(leaf_2_proof.clone())?;
+
+            Result::<_>::Ok((merge_proof, leaf_1_proof, leaf_2_proof))
+        })
+        .expect("shouldn't fail")
+        .unwrap();
+
+        let branch_proof = BRANCH
+            .prove(
+                &merge_proof,
+                true,
+                &leaf_1_proof,
+                Some((true, &leaf_2_proof)),
+            )
+            .unwrap();
+        BRANCH.circuit.verify(branch_proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_hash_merge_2() {
+        let (merge_proof, leaf_1_proof, leaf_2_proof) = catch_unwind(|| {
+            use p1_p2::{MERGE_42, MERGE_80, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
+
+            // Flip the merge of the merge to break stuff
+            let merge_proof = merge_merges(true, &MERGE_80, true, &MERGE_42);
+
+            let leaf_1_proof = LEAF.prove(&BRANCH, &PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
+            LEAF.circuit.verify(leaf_1_proof.clone())?;
+
+            let leaf_2_proof = LEAF.prove(&BRANCH, &PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
+            LEAF.circuit.verify(leaf_2_proof.clone())?;
+
+            Result::<_>::Ok((merge_proof, leaf_1_proof, leaf_2_proof))
+        })
+        .expect("shouldn't fail")
+        .unwrap();
+
+        let branch_proof = BRANCH
+            .prove(
+                &merge_proof,
+                true,
+                &leaf_1_proof,
+                Some((true, &leaf_2_proof)),
+            )
+            .unwrap();
+        BRANCH.circuit.verify(branch_proof.clone()).unwrap();
     }
 }
