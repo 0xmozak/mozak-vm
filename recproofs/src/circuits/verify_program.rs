@@ -275,10 +275,8 @@ mod test {
 
     use self::core::{Circuit, CircuitPublicIndices};
     use super::*;
-    use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_branch_bytes, C, D, F};
+    use crate::test_utils::{hash_branch, hash_branch_bytes, C, CONFIG, D, F};
     use crate::{find_bool, find_hash, find_targets, Event, EventType};
-
-    const CONFIG: CircuitConfig = fast_test_circuit_config();
 
     struct DummyCircuit<F, C, const D: usize>
     where

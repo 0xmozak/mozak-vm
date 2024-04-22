@@ -258,7 +258,7 @@ mod test {
         BranchCircuit as MergeBranchCircuit, LeafCircuit as MergeLeafCircuit,
     };
     use crate::subcircuits::bounded;
-    use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
+    use crate::test_utils::{hash_branch, hash_str, C, CONFIG, D, F};
 
     pub struct DummyLeafCircuit {
         pub bounded: bounded::LeafSubCircuit,
@@ -398,8 +398,6 @@ mod test {
             self.circuit.prove(inputs)
         }
     }
-
-    const CONFIG: CircuitConfig = fast_test_circuit_config();
 
     lazy_static! {
         static ref MC_LEAF: MergeLeafCircuit<F, C, D> = MergeLeafCircuit::new(&CONFIG);
