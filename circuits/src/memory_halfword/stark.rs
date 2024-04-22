@@ -37,9 +37,8 @@ fn generate_constraints<'a, T: Copy>(
     constraints.always(lv.ops.is_load.is_binary());
     constraints.always(lv.is_executed().is_binary());
 
-    let wrap_at = Expr::from(1i64 << 32);
-    let added = lv.addrs[0] + Expr::from(1);
-    let wrapped = added - wrap_at;
+    let added = lv.addrs[0] + 1;
+    let wrapped = added - (1 << 32);
 
     // Check: the resulting sum is wrapped if necessary.
     // As the result is range checked, this make the choice deterministic,
