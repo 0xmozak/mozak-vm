@@ -961,6 +961,7 @@ dependencies = [
  "proptest",
  "rkyv",
  "rkyv_derive",
+ "serde",
  "serde_json",
  "starky",
  "tempfile",
@@ -977,9 +978,11 @@ dependencies = [
  "itertools 0.12.1",
  "mozak-circuits",
  "mozak-recproofs",
+ "mozak-runner",
  "mozak-sdk",
  "plonky2",
  "serde",
+ "starky",
 ]
 
 [[package]]

@@ -4,6 +4,7 @@
 // Remove when `clio` updates, or if `clio` is no longer needed.
 #![allow(clippy::multiple_crate_versions)]
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -12,7 +13,7 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::memoryinit::{
-    generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_private_tape_init_trace,
+    generate_call_tape_init_trace, generate_elf_memory_init_trace,
 };
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -33,7 +34,7 @@ use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
-use mozak_sdk::native::{OrderedEvents, ProofBundle};
+use mozak_sdk::native::OrderedEvents;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -91,11 +92,11 @@ enum Command {
     VerifyRecursiveProof { proof: Input, verifier_key: Input },
     /// Builds a transaction bundle.
     BundleTransaction {
-        /// List of bundle plan(s) generated from native execution(s).
+        /// System tape generated from native execution.
         #[arg(long, required = true)]
-        plan: Input,
+        system_tape: Input,
         /// Output file path of the serialized bundle.
-        #[arg(long, required = true)]
+        #[arg(long, default_value = "bundle")]
         bundle: Output,
     },
     /// Compute the Program Rom Hash of the given ELF.
@@ -217,32 +218,99 @@ fn main() -> Result<()> {
 
             debug!("proof generated successfully!");
         }
-        Command::BundleTransaction { plan, bundle } => {
+        Command::BundleTransaction {
+            system_tape: system_tape_path,
+            bundle,
+        } => {
+            /// Returns mapping of program ID to elf path.
+            fn paths_from_cast_list(
+                entrypoint_program_id: ProgramIdentifier,
+                cast_list: &[ProgramIdentifier],
+            ) -> (PathBuf, Vec<(ProgramIdentifier, PathBuf)>) {
+                /// A `MappedProgram` is a (name, path) tuple of a MozakVM
+                /// program, where the name
+                /// is the [`ProgramIdentifier`] and the path is the expected
+                /// path of the compiled MozakVM binary,
+                /// relative to the examples directory.
+                #[derive(serde::Deserialize, serde::Serialize)]
+                struct MappedProgram {
+                    name: String,
+                    path: String,
+                }
+
+                let curr_dir = std::env::current_dir().unwrap();
+                let mapping =
+                    std::fs::File::open(curr_dir.join("examples").join("programs_map.json"))
+                        .unwrap();
+
+                let mut mapping: Vec<MappedProgram> = serde_json::from_reader(mapping).unwrap();
+
+                let mut ids_and_paths = vec![];
+                let mut entrypoint_program_path: Option<PathBuf> = None;
+                for id in cast_list {
+                    if let Some(program) = mapping
+                        .iter_mut()
+                        .find(|m| ProgramIdentifier::from(m.name.clone()) == *id)
+                    {
+                        if ProgramIdentifier::from(program.name.clone()) == entrypoint_program_id {
+                            entrypoint_program_path = Some(curr_dir.join(program.path.clone()));
+                        } else {
+                            ids_and_paths.push((
+                                program.name.clone().into(),
+                                curr_dir.join(program.path.clone()),
+                            ));
+                        }
+                    }
+                }
+
+                return (entrypoint_program_path.unwrap(), ids_and_paths);
+            }
+
             println!("Bundling transaction...");
-            let plan: ProofBundle = serde_json::from_reader(plan)?;
 
-            let sys_tapes: SystemTape =
-                deserialize_system_tape(Input::try_from(&plan.system_tape_filepath)?)?;
+            let system_tape: SystemTape = deserialize_system_tape(system_tape_path.clone())?;
 
-            let event_tape: OrderedEvents = sys_tapes
+            // Q: will first call always be null program calling the program's entrypoint?
+            let entrypoint_program_id = system_tape.call_tape.writer[0].callee;
+
+            let mut cast_list = vec![];
+            system_tape.call_tape.writer.into_iter().for_each(
+                |CrossProgramCall { caller, callee, .. }| {
+                    if !callee.is_null_program() {
+                        cast_list.push(callee)
+                    }
+                    if !caller.is_null_program() {
+                        cast_list.push(caller)
+                    }
+                },
+            );
+            cast_list.sort();
+            cast_list.dedup();
+
+            let event_tape: OrderedEvents = system_tape
                 .event_tape
                 .writer
-                .get(&ProgramIdentifier::from(plan.self_prog_id.clone()))
+                .get(&entrypoint_program_id)
                 .cloned()
                 .ok_or(anyhow::anyhow!(
                     "Event tape not found for program id: {:?}",
-                    plan.self_prog_id
+                    entrypoint_program_id
                 ))?;
-            let args = tapes_to_runtime_arguments(
-                Input::try_from(&plan.system_tape_filepath)?,
-                Some(plan.self_prog_id.to_string()),
-            );
 
-            let program = load_program(
-                Input::try_from(&plan.elf_filepath)
-                    .unwrap_or_else(|_| panic!("Elf filepath {:?} not found", plan.elf_filepath)),
+            let (entrypoint_program_path, elf_paths) =
+                paths_from_cast_list(entrypoint_program_id, &cast_list);
+
+            let args = tapes_to_runtime_arguments(
+                system_tape_path,
+                Some(format!("{:?}", entrypoint_program_id)),
+            );
+            let entrypoint_program = load_program(
+                Input::try_from(&entrypoint_program_path).unwrap_or_else(|_| {
+                    panic!("Elf filepath {:?} not found", entrypoint_program_path)
+                }),
                 &args,
             )?;
+
             let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
                 let rate_bits = config.fri_config.rate_bits;
                 let cap_height = config.fri_config.cap_height;
@@ -257,43 +325,44 @@ fn main() -> Result<()> {
                 trace_commitment.merkle_tree.cap
             };
 
-            let trace = generate_private_tape_init_trace(&program);
-            let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-
-            let trace = generate_call_tape_init_trace(&program);
+            let trace = generate_call_tape_init_trace(&entrypoint_program);
             let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
+            let public_tape = serde_json::to_vec(&system_tape.public_input_tape.writer)?;
+
             let transparent_attestation = TransparentAttestation {
-                public_tape: args.io_tape_public,
+                public_tape,
                 event_tape,
             };
 
-            let opaque_attestation: OpaqueAttestation<F, C, D> =
-                OpaqueAttestation { private_tape_hash };
-
-            let attestation = Attestation {
-                id: plan.self_prog_id.into(),
-                opaque: opaque_attestation,
-                transparent: transparent_attestation,
+            let attestation: Attestation<F, C, D> = Attestation {
+                id: entrypoint_program_id,
+                opaque: OpaqueAttestation::from_program(entrypoint_program, &config),
+                transparent: transparent_attestation.clone(),
             };
-            let mut cast_list = vec![];
-            sys_tapes.call_tape.writer.into_iter().for_each(
-                |CrossProgramCall { callee, caller, .. }| {
-                    if !callee.is_null_program() {
-                        cast_list.push(callee);
-                    }
-                    if !caller.is_null_program() {
-                        cast_list.push(caller);
-                    }
-                },
-            );
+
+            let mut attestations = vec![attestation];
+
+            for (program_id, elf) in elf_paths {
+                let program = load_program(
+                    Input::try_from(&elf)
+                        .unwrap_or_else(|_| panic!("Elf filepath {:?} not found", elf)),
+                    &args,
+                )?;
+
+                let attestation = Attestation {
+                    id: program_id,
+                    opaque: OpaqueAttestation::from_program(program, &config),
+                    transparent: transparent_attestation.clone(),
+                };
+
+                attestations.push(attestation);
+            }
 
             let transaction = Transaction {
                 call_tape_hash,
                 cast_list,
-                // TODO(bing): This is supposed to be the attestations of ALL programs involved.
-                // Fix once extended SDK is ready.
-                constituent_zs: vec![attestation],
+                constituent_zs: attestations,
             };
 
             serde_json::to_writer_pretty(bundle, &transaction)?;

@@ -176,14 +176,14 @@ pub(crate) fn get_mozak_binary_name() -> String {
         .name
 }
 
-/// This functions dumps 3 files of the currently running guest program:
+/// This functions dumps 2 files of the currently running guest program:
 ///   1. the actual system tape (JSON),
 ///   2. the debug dump of the system tape,
-///   3. the transaction bundle plan (JSON).
 ///
 /// These are all dumped in a sub-directory named `out` in the project root. The
-/// user must be cautious to not move the files, as the system tape and the
-/// bundle plan are used by the CLI in proving and in transaction bundling.
+/// user must be cautious to not move at least the system tape, as the system
+/// tape is used by the CLI in proving and in transaction bundling, and the SDK
+/// makes some assumptions about where to find the ELF for proving.
 pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) {
     fs::create_dir_all("out").unwrap();
     let sys_tape_path = format!("out/{file_template}");
