@@ -39,7 +39,6 @@ use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::program_multiplicities::stark::ProgramMultStark;
-use crate::public_sub_table::PublicSubTable;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
@@ -64,7 +63,6 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = 17;
-const NUM_PUBLIC_SUB_TABLES: usize = 2;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -142,7 +140,6 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "TapeCommitments")]
     pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-    pub public_sub_tables: [PublicSubTable; NUM_PUBLIC_SUB_TABLES],
     pub debug: bool,
 }
 
@@ -450,10 +447,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
                 EventCommitmentTapeIOLookupTable::lookups(),
                 CastlistCommitmentTapeIOLookupTable::lookups(),
-            ],
-            public_sub_tables: [
-                crate::tape_commitments::columns::make_event_commitment_tape_public(),
-                crate::tape_commitments::columns::make_castlist_commitment_tape_public(),
             ],
             debug: false,
         }

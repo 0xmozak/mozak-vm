@@ -3,7 +3,6 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
 use log::Level::Debug;
 use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
@@ -29,7 +28,6 @@ use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
-use crate::public_sub_table::public_sub_table_data_and_values;
 use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
@@ -128,16 +126,10 @@ where
         )
     );
 
-    let (public_sub_table_data_per_table, public_sub_table_values) =
-        public_sub_table_data_and_values::<F, D>(
-            traces_poly_values,
-            &mozak_stark.public_sub_tables,
-            &ctl_challenges,
-        );
-
     let proofs = timed!(
         timing,
         "compute all proofs given commitments",
+        // TODO: use starky's `prove_with_commitments`
         prove_with_commitments(
             mozak_stark,
             config,
@@ -145,7 +137,6 @@ where
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
-            &public_sub_table_data_per_table,
             &mut challenger,
             timing
         )?
@@ -163,7 +154,6 @@ where
         elf_memory_init_trace_cap,
         mozak_memory_init_trace_cap,
         public_inputs,
-        public_sub_table_values,
     })
 }
 
@@ -181,7 +171,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    public_sub_table_data: &CtlData<F>,
+    // public_sub_table_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
@@ -199,13 +189,10 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    let z_poly_public_sub_table = public_sub_table_data.z_polys();
+    // let z_poly_public_sub_table = public_sub_table_data.z_polys();
 
     // commit to both z poly of ctl and open public
-    let z_polys = vec![ctl_data.z_polys(), z_poly_public_sub_table]
-        .into_iter()
-        .flatten()
-        .collect_vec();
+    let z_polys = ctl_data.z_polys();
     // TODO(Matthias): make the code work with empty z_polys, too.
     assert!(!z_polys.is_empty(), "No CTL? {stark}");
 
@@ -234,7 +221,6 @@ where
             &ctl_zs_commitment,
             public_inputs,
             ctl_data,
-            public_sub_table_data,
             &alphas,
             degree_bits,
             config,
@@ -299,7 +285,6 @@ where
     // Make sure that we do not use Starky's lookups.
     assert!(!stark.requires_ctls());
     assert!(!stark.uses_lookups());
-    let num_make_rows_public_data = public_sub_table_data.len();
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
@@ -312,7 +297,7 @@ where
                 config,
                 Some(&LookupConfig {
                     degree_bits,
-                    num_zs: ctl_data.len() + num_make_rows_public_data
+                    num_zs: ctl_data.len()
                 })
             ),
             &initial_merkle_trees,
@@ -344,7 +329,6 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
-    public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
@@ -366,7 +350,6 @@ where
             &trace_commitments[kind],
             public_inputs[kind],
             &ctl_data_per_table[kind],
-            &public_sub_data_per_table[kind],
             challenger,
             timing,
         )?

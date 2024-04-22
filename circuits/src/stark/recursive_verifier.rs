@@ -4,7 +4,6 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
-use itertools::{zip_eq, Itertools};
 use log::info;
 use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::field::extension::Extendable;
@@ -31,9 +30,6 @@ use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::columns_view::{columns_view_impl, NumberOfColumns};
 use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
-};
-use crate::public_sub_table::{
-    public_sub_table_values_and_reduced_targets, PublicSubTable, PublicSubTableValuesTarget,
 };
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
@@ -95,7 +91,6 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
     pub targets: TableKindArray<StarkVerifierTargets<F, C, D>>,
-    pub public_sub_table_values_targets: TableKindArray<Vec<PublicSubTableValuesTarget>>,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -134,22 +129,9 @@ where
     pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
 
+        // TODO(Matthias): not sure we need this, if we don't have the pub sub feature?
         all_kind!(|kind| {
             self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
-
-            // set public_sub_table_values targets
-            for (public_sub_table_values_target, public_sub_table_values) in zip_eq(
-                &self.public_sub_table_values_targets[kind],
-                &all_proof.public_sub_table_values[kind],
-            ) {
-                for (row_target, row) in
-                    zip_eq(public_sub_table_values_target, public_sub_table_values)
-                {
-                    for (&values_target, &values) in zip_eq(row_target, row) {
-                        inputs.set_target(values_target, values);
-                    }
-                }
-            }
         });
 
         // Set public inputs
@@ -187,17 +169,12 @@ where
             kind,
             inner_config.num_challenges,
         );
-        let num_make_row_public_zs = PublicSubTable::num_zs(
-            &mozak_stark.public_sub_tables,
-            kind,
-            inner_config.num_challenges,
-        );
         add_virtual_stark_proof_with_pis(
             &mut builder,
             stark,
             inner_config,
             degree_bits[kind],
-            num_ctl_zs + num_make_row_public_zs,
+            num_ctl_zs,
         )
     });
 
@@ -211,18 +188,9 @@ where
         inner_config.num_challenges,
     );
 
-    let (public_sub_table_values_targets, reduced_public_sub_table_targets) =
-        public_sub_table_values_and_reduced_targets(
-            &mut builder,
-            &mozak_stark.public_sub_tables,
-            &ctl_challenges,
-        );
-
     verify_cross_table_lookups_and_public_sub_table_circuit(
         &mut builder,
         &mozak_stark.cross_table_lookups,
-        &mozak_stark.public_sub_tables,
-        &reduced_public_sub_table_targets,
         &stark_proof_with_pis_target
             .clone()
             .map(|p| p.proof.openings.ctl_zs_last),
@@ -234,7 +202,6 @@ where
             kind,
             &stark_proof_with_pis_target[kind].proof,
             &mozak_stark.cross_table_lookups,
-            &mozak_stark.public_sub_tables,
             &ctl_challenges,
         );
 
@@ -275,23 +242,9 @@ where
                 .collect::<Vec<_>>(),
         );
     }
-    all_kind!(|kind| {
-        builder.register_public_inputs(
-            &public_sub_table_values_targets[kind]
-                .clone()
-                .into_iter()
-                .flatten()
-                .flatten()
-                .collect_vec(),
-        );
-    });
 
     let circuit = builder.build();
-    MozakStarkVerifierCircuit {
-        circuit,
-        targets,
-        public_sub_table_values_targets,
-    }
+    MozakStarkVerifierCircuit { circuit, targets }
 }
 
 /// Recursively verifies an inner proof.
