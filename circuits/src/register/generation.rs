@@ -107,6 +107,8 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::CastListCommitmentTape =>
                 extract(mem_cast_list_commitment_tape, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
+            // We are trying to build the Register table, so we don't have the values to extract.
+            TableKind::Register => vec![],
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
         .collect();
