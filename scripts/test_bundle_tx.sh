@@ -11,5 +11,4 @@ cd examples/token && cargo run --release \
 # Run CLI
 cd ../../
 cargo run --bin mozak-cli -- bundle-transaction -vvv \
-    --plan examples/token/out/token_bundle.json \
-    --bundle bundle
+    --system-tape examples/token/out/token.tape.json
