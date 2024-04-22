@@ -811,11 +811,11 @@ where
     });
 
     // Merge FRI instances by its polynomial degree
-    let mut degree_logs: Vec<&usize> = degree_log_map.keys().collect();
-    degree_logs.sort();
-    degree_logs.reverse();
+    let mut degree_bits: Vec<usize> = degree_log_map.keys().cloned().collect();
+    degree_bits.sort();
+    degree_bits.reverse();
 
-    let fri_instance_groups = degree_logs
+    let fri_instance_groups = degree_bits
         .iter()
         .map(|degree_log| {
             degree_log_map[degree_log]
@@ -849,6 +849,9 @@ where
         );
     }
 
+    let mut fri_params = config.fri_params(degree_bits[0]);
+    fri_params.reduction_arity_bits =
+        batch_reduction_arity_bits(degree_bits, rate_bits, cap_height);
     let _opening_proof = timed!(
         timing,
         format!("compute batch opening proofs").as_str(),
@@ -856,7 +859,7 @@ where
             &batch_fri_instances,
             &initial_merkle_trees,
             challenger,
-            &config.fri_params(*degree_logs[0]),
+            &fri_params,
             timing,
         )
     );
@@ -901,6 +904,30 @@ where
             opening_proof: empty_fri_proof.clone(),
         },
     ))
+}
+
+// TODO: find a better place for this function
+fn batch_reduction_arity_bits(
+    degree_bits: Vec<usize>,
+    rate_bits: usize,
+    cap_height: usize,
+) -> Vec<usize> {
+    let mut result = Vec::new();
+    let arity_bits = 3;
+    let mut cur_index = 0;
+    let mut cur_degree_bits = degree_bits[cur_index];
+    while cur_degree_bits + rate_bits >= cap_height + arity_bits {
+        let mut cur_arity_bits = arity_bits;
+        let target_degree_bits = cur_degree_bits - arity_bits;
+        if cur_index < degree_bits.len() - 1 && target_degree_bits < degree_bits[cur_index + 1] {
+            cur_arity_bits = cur_degree_bits - degree_bits[cur_index + 1];
+            cur_index += 1;
+        }
+        result.push(cur_arity_bits);
+        cur_degree_bits -= cur_arity_bits;
+        assert!(cur_degree_bits >= 0);
+    }
+    result
 }
 
 #[cfg(test)]
