@@ -171,7 +171,6 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    // public_sub_table_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
@@ -188,8 +187,6 @@ where
         fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
         "FRI total reduction arity is too large.",
     );
-
-    // let z_poly_public_sub_table = public_sub_table_data.z_polys();
 
     // commit to both z poly of ctl and open public
     let z_polys = ctl_data.z_polys();
