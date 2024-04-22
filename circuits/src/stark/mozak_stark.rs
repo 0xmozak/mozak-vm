@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, Neg};
 
 use cpu::columns::CpuState;
 use itertools::{chain, izip};
@@ -525,6 +525,18 @@ impl<Row> TableWithTypedOutput<Row> {
     }
 }
 
+impl<Row> Neg for TableWithTypedOutput<Row> {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Self::Output {
+            kind: self.kind,
+            columns: self.columns,
+            filter_column: -self.filter_column,
+        }
+    }
+}
+
 /// Macro to instantiate a new table for cross table lookups.
 // OK, `table_kind` determines the input type of the table.
 // But input type could relate to multiple kinds.
@@ -667,10 +679,9 @@ impl Lookups for XorCpuTable {
     type Row = XorView<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput {
-            looking_tables: vec![cpu::columns::lookup_for_xor()],
-            looked_tables: vec![xor::columns::lookup_for_cpu()],
-        }
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_xor()], vec![
+            xor::columns::lookup_for_cpu(),
+        ])
     }
 }
 
