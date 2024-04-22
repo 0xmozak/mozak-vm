@@ -7,7 +7,7 @@ use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
+use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::{build_event_root, merge};
 use crate::connect_arrays;
@@ -15,10 +15,6 @@ use crate::subcircuits::unpruned::PartialAllowed;
 use crate::subcircuits::{propagate, unbounded, unpruned};
 
 pub mod core;
-
-pub struct LeafTargets<const D: usize> {
-    pub event_proof: ProofWithPublicInputsTarget<D>,
-}
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
