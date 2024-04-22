@@ -1,3 +1,5 @@
+use core::ops::Neg;
+
 use anyhow::{ensure, Result};
 use itertools::{chain, iproduct, izip, zip_eq};
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -71,27 +73,17 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_tables<
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter().copied());
     for _ in 0..config.num_challenges {
-        for CrossTableLookup {
-            looking_tables,
-            looked_tables,
-        } in cross_table_lookups
-        {
+        for CrossTableLookup { looking_tables } in cross_table_lookups {
             let looking_zs_sum = looking_tables
-                .iter()
-                .map(|table| ctl_zs_openings[table.kind].next().unwrap())
-                .sum::<F>();
-            let looked_zs_sum = looked_tables
                 .iter()
                 .map(|table| ctl_zs_openings[table.kind].next().unwrap())
                 .sum::<F>();
 
             ensure!(
-                looking_zs_sum == looked_zs_sum,
-                "Cross-table lookup verification failed for {:?}->{:?} ({} != {})",
+                looking_zs_sum == F::ZERO,
+                "Cross-table lookup verification failed for {:?} ({} != 0)",
                 looking_tables.iter().map(|table| table.kind),
-                looked_tables.iter().map(|table| table.kind),
                 looking_zs_sum,
-                looked_zs_sum,
             );
         }
     }
@@ -125,24 +117,16 @@ pub(crate) fn verify_cross_table_lookups_and_public_sub_table_circuit<
 ) {
     let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
     for _ in 0..config.num_challenges {
-        for CrossTableLookup {
-            looking_tables,
-            looked_tables,
-        } in cross_table_lookups
-        {
+        for CrossTableLookup { looking_tables } in cross_table_lookups {
             let looking_zs_sum = builder.add_many(
                 looking_tables
                     .iter()
                     .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
             );
 
-            let looked_zs_sum = builder.add_many(
-                looked_tables
-                    .iter()
-                    .map(|table| *ctl_zs_openings[table.kind].next().unwrap()),
-            );
+            let zero = builder.zero();
 
-            builder.connect(looked_zs_sum, looking_zs_sum);
+            builder.connect(zero, looking_zs_sum);
         }
     }
 
@@ -170,14 +154,10 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
 ) -> TableKindArray<CtlData<F>> {
     let mut ctl_data_per_table = all_kind!(|_kind| CtlData::default());
     for &challenge in &ctl_challenges.challenges {
-        for CrossTableLookup {
-            looking_tables,
-            looked_tables,
-        } in cross_table_lookups
-        {
+        for CrossTableLookup { looking_tables } in cross_table_lookups {
             log::debug!(
                 "Processing CTL for {:?}",
-                looked_tables
+                looking_tables
                     .iter()
                     .map(|table| table.kind)
                     .collect::<Vec<_>>()
@@ -192,23 +172,16 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 )
             };
             let zs_looking = looking_tables.iter().map(make_z);
-            let zs_looked = looked_tables.iter().map(make_z);
 
             debug_assert_eq!(
                 zs_looking
                     .clone()
                     .map(|z| *z.values.last().unwrap())
                     .sum::<F>(),
-                zs_looked
-                    .clone()
-                    .map(|z| *z.values.last().unwrap())
-                    .sum::<F>(),
+                F::ZERO
             );
 
-            for (table, z) in chain!(
-                izip!(looking_tables, zs_looking),
-                izip!(looked_tables, zs_looked)
-            ) {
+            for (table, z) in izip!(looking_tables, zs_looking) {
                 ctl_data_per_table[table.kind].zs_columns.push(CtlZData {
                     z,
                     challenge,
@@ -282,7 +255,6 @@ pub fn partial_sums<F: Field>(
 #[derive(Clone, Debug)]
 pub struct CrossTableLookupWithTypedOutput<Row> {
     pub looking_tables: Vec<TableWithTypedOutput<Row>>,
-    pub looked_tables: Vec<TableWithTypedOutput<Row>>,
 }
 
 // This is a little trick, so that we can use `CrossTableLookup` as a
@@ -294,20 +266,12 @@ pub use CrossTableLookupUntyped as CrossTableLookup;
 
 impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> CrossTableLookup {
-        let looked_tables = self
-            .looked_tables
-            .into_iter()
-            .map(TableWithTypedOutput::to_untyped_output)
-            .collect();
         let looking_tables = self
             .looking_tables
             .into_iter()
             .map(TableWithTypedOutput::to_untyped_output)
             .collect();
-        CrossTableLookup {
-            looking_tables,
-            looked_tables,
-        }
+        CrossTableLookup { looking_tables }
     }
 }
 
@@ -318,19 +282,17 @@ impl<Row> CrossTableLookupWithTypedOutput<Row> {
     /// Panics if the two tables do not have equal number of columns.
     #[must_use]
     pub fn new(
-        looking_tables: Vec<TableWithTypedOutput<Row>>,
+        mut looking_tables: Vec<TableWithTypedOutput<Row>>,
         looked_tables: Vec<TableWithTypedOutput<Row>>,
     ) -> Self {
-        Self {
-            looking_tables,
-            looked_tables,
-        }
+        looking_tables.extend(looked_tables.into_iter().map(Neg::neg));
+        Self { looking_tables }
     }
 
     #[must_use]
     pub fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
         ctls.iter()
-            .flat_map(|ctl| chain!(&ctl.looked_tables, &ctl.looking_tables))
+            .flat_map(|ctl| &ctl.looking_tables)
             .filter(|twc| twc.kind == table)
             .count()
             * num_challenges
@@ -364,12 +326,9 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .map(|p| izip!(&p.openings.ctl_zs, &p.openings.ctl_zs_next));
 
         let mut ctl_vars_per_table = all_kind!(|_kind| vec![]);
-        let ctl_chain = cross_table_lookups.iter().flat_map(
-            |CrossTableLookup {
-                 looking_tables,
-                 looked_tables,
-             }| chain!(looking_tables, looked_tables),
-        );
+        let ctl_chain = cross_table_lookups
+            .iter()
+            .flat_map(|ctl| &ctl.looking_tables);
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
             let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
             ctl_vars_per_table[table.kind].push(Self {
@@ -452,12 +411,9 @@ impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
     ) -> Vec<Self> {
         let ctl_zs = izip!(&proof.openings.ctl_zs, &proof.openings.ctl_zs_next);
 
-        let ctl_chain = cross_table_lookups.iter().flat_map(
-            |CrossTableLookup {
-                 looking_tables,
-                 looked_tables,
-             }| chain!(looking_tables, looked_tables).filter(|twc| twc.kind == table),
-        );
+        let ctl_chain = cross_table_lookups
+            .iter()
+            .flat_map(|ctl| ctl.looking_tables.iter().filter(|twc| twc.kind == table));
         let public_sub_table_chain = public_sub_tables.iter().filter_map(|twc| {
             if twc.table.kind == table {
                 Some(&twc.table)
@@ -580,16 +536,12 @@ pub mod ctl_utils {
         fn check_multiplicities<F: RichField>(
             row: &[u64],
             looking_locations: &[(TableKind, F)],
-            looked_locations: &[(TableKind, F)],
         ) -> Result<(), LookupError> {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
-            let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
-            if looking_multiplicity != looked_multiplicity {
+            if looking_multiplicity != F::ZERO {
                 eprintln!(
-                    "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
-                    {looked_multiplicity} in the looked table.\n\
-                    Looking locations: {looking_locations:?}.\n\
-                    Looked locations: {looked_locations:?}.",
+                    "Row {row:?} has multiplicity {looking_multiplicity} != 0 in the looking tables.\n\
+                    Looking locations: {looking_locations:?}."
                 );
                 return Err(LookupError::InconsistentTableRows);
             }
@@ -599,35 +551,16 @@ pub mod ctl_utils {
 
         // Maps `m` with `(table.kind, multiplicity) in m[row]`
         let mut looking_multiset = MultiSet::<F>::default();
-        let mut looked_multiset = MultiSet::<F>::default();
 
         for looking_table in &ctl.looking_tables {
             looking_multiset.process_row(trace_poly_values, looking_table);
         }
 
-        for looked_table in &ctl.looked_tables {
-            looked_multiset.process_row(trace_poly_values, looked_table);
-        }
-
-        let empty = &vec![];
         // Check that every row in the looking tables appears in the looked table the
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
-            let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations).map_err(|e| {
+            check_multiplicities(row, looking_locations).map_err(|e| {
                 eprintln!("Looking multiset: {looking_multiset:?}");
-                eprintln!("Looked multiset: {looked_multiset:?}");
-                e
-            })?;
-        }
-
-        // Check that every row in the looked tables appears in the looking table the
-        // same number of times.
-        for (row, looked_locations) in &looked_multiset.0 {
-            let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations).map_err(|e| {
-                eprintln!("Looking multiset: {looking_multiset:?}");
-                eprintln!("Looked multiset: {looked_multiset:?}");
                 e
             })?;
         }
