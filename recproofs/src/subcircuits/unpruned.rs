@@ -279,16 +279,14 @@ impl BranchSubCircuit<PartialAllowed> {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use itertools::Itertools;
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-    use plonky2::plonk::config::Hasher;
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
     use crate::subcircuits::bounded;
-    use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
+    use crate::test_utils::{hash_branch, hash_branch_bytes, hash_str, C, CONFIG, D, F};
 
     pub struct DummyLeafCircuit {
         pub bounded: bounded::LeafSubCircuit,
@@ -462,8 +460,6 @@ mod test {
         }
     }
 
-    const CONFIG: CircuitConfig = fast_test_circuit_config();
-
     lazy_static! {
         static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
         static ref BRANCH_1: DummyBranchCircuit<OnlyFull> =
@@ -526,14 +522,6 @@ mod test {
         BRANCH_2.circuit.verify(double_branch_proof)?;
 
         Ok(())
-    }
-
-    fn hash_branch_bytes<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
-        let bytes = chain!(left.elements, right.elements)
-            .flat_map(|v| v.to_canonical_u64().to_le_bytes())
-            .map(|v| F::from_canonical_u8(v))
-            .collect_vec();
-        Poseidon2Hash::hash_no_pad(&bytes)
     }
 
     #[test]
