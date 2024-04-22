@@ -430,42 +430,42 @@ fn generate_constraints<'a, T: Copy, U: Poseidon2>(
         }
     }
 
-    // partial rounds
-    for i in 0..ROUNDS_P {
-        // TODO: Figure out how to migrate this to Expr...
-        // state[0] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12_MID[i]));
-        // TODO: Implement _Assign traits
-        // TODO: This cast is unsafe...
-        state[0] = state[0] + Expr::from(<U as Poseidon2>::RC12_MID[i] as i64);
-        sbox_p_expr(&mut state[0], &lv.s_box_input_qube_partial_rounds[i]);
-        matmul_internal12_expr::<T, U, STATE_SIZE>(&mut state);
-        constraints.always(state[0] - lv.state0_after_partial_rounds[i]);
-        state[0] = lv.state0_after_partial_rounds[i];
-    }
+    // // partial rounds
+    // for i in 0..ROUNDS_P {
+    //     // TODO: Figure out how to migrate this to Expr...
+    //     // state[0] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12_MID[i]));
+    //     // TODO: Implement _Assign traits
+    //     // TODO: This cast is unsafe...
+    //     state[0] = state[0] + Expr::from(<U as Poseidon2>::RC12_MID[i] as i64);
+    //     sbox_p_expr(&mut state[0], &lv.s_box_input_qube_partial_rounds[i]);
+    //     matmul_internal12_expr::<T, U, STATE_SIZE>(&mut state);
+    //     constraints.always(state[0] - lv.state0_after_partial_rounds[i]);
+    //     state[0] = lv.state0_after_partial_rounds[i];
+    // }
 
-    // the state before last full rounds
-    for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
-        constraints.always(*state_i - lv.state_after_partial_rounds[i]);
-        *state_i = lv.state_after_partial_rounds[i];
-    }
+    // // the state before last full rounds
+    // for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
+    //     constraints.always(*state_i - lv.state_after_partial_rounds[i]);
+    //     *state_i = lv.state_after_partial_rounds[i];
+    // }
 
-    // last full rounds
-    for i in 0..(ROUNDS_F / 2) {
-        let r = (ROUNDS_F / 2) + i;
-        add_rc_expr::<T, U, STATE_SIZE>(&mut state, r);
-        for (j, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
-            sbox_p_expr(
-                item,
-                &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
-            );
-        }
-        matmul_external12_expr(&mut state);
-        for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
-            constraints
-                .always(*state_j - lv.state_after_second_full_rounds[i * STATE_SIZE + j]);
-            *state_j = lv.state_after_second_full_rounds[i * STATE_SIZE + j];
-        }
-    }
+    // // last full rounds
+    // for i in 0..(ROUNDS_F / 2) {
+    //     let r = (ROUNDS_F / 2) + i;
+    //     add_rc_expr::<T, U, STATE_SIZE>(&mut state, r);
+    //     for (j, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
+    //         sbox_p_expr(
+    //             item,
+    //             &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
+    //         );
+    //     }
+    //     matmul_external12_expr(&mut state);
+    //     for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
+    //         constraints
+    //             .always(*state_j - lv.state_after_second_full_rounds[i * STATE_SIZE + j]);
+    //         *state_j = lv.state_after_second_full_rounds[i * STATE_SIZE + j];
+    //     }
+    // }
 
     constraints
 }
