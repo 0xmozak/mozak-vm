@@ -59,7 +59,7 @@
 //! means split into multiple constraints.
 
 use core::ops::{Add, Mul, Neg, Sub};
-use std::iter::Sum;
+use core::iter::Sum;
 
 use bumpalo::Bump;
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
