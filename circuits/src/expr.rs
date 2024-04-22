@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::panic::Location;
 
 use derive_more::Display;
-use expr::{BinOp, Evaluator, Expr};
+use expr::{BinOp, Cached, Evaluator, Expr, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -17,14 +17,21 @@ where
     builder: &'a mut CircuitBuilder<F, D>,
 }
 
-impl<'a, F, const D: usize> Evaluator<ExtensionTarget<D>> for CircuitBuilderEvaluator<'a, F, D>
+impl<'a, F, const D: usize> Evaluator<'a, ExtensionTarget<D>> for CircuitBuilderEvaluator<'a, F, D>
 where
     F: RichField,
     F: Extendable<D>,
 {
+    #[inline]
+    fn constant(&mut self, value: i64) -> ExtensionTarget<D> {
+        let f = F::from_noncanonical_i64(value);
+        self.builder.constant_extension(f.into())
+    }
+
+    #[inline]
     fn bin_op(
         &mut self,
-        op: &BinOp,
+        op: BinOp,
         left: ExtensionTarget<D>,
         right: ExtensionTarget<D>,
     ) -> ExtensionTarget<D> {
@@ -35,34 +42,35 @@ where
         }
     }
 
-    fn una_op(&mut self, op: &expr::UnaOp, expr: ExtensionTarget<D>) -> ExtensionTarget<D> {
+    #[inline]
+    fn una_op(&mut self, op: UnaOp, expr: ExtensionTarget<D>) -> ExtensionTarget<D> {
         match op {
-            expr::UnaOp::Neg => {
+            UnaOp::Neg => {
                 let neg_one = self.builder.neg_one();
                 self.builder.scalar_mul_ext(neg_one, expr)
             }
         }
     }
-
-    fn constant(&mut self, value: i64) -> ExtensionTarget<D> {
-        let f = F::from_noncanonical_i64(value);
-        self.builder.constant_extension(f.into())
-    }
 }
 
 #[derive(Default)]
-struct PackedFieldEvaluator<P, const D: usize, const D2: usize> {
-    _marker: PhantomData<P>,
+struct PackedFieldEvaluator<'a, P, const D: usize, const D2: usize> {
+    _marker: PhantomData<&'a P>,
 }
 
-impl<F, FE, P, const D: usize, const D2: usize> Evaluator<P> for PackedFieldEvaluator<P, D, D2>
+impl<'a, F, FE, P, const D: usize, const D2: usize> Evaluator<'a, P>
+    for PackedFieldEvaluator<'a, P, D, D2>
 where
     F: RichField,
     F: Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
 {
-    fn bin_op(&mut self, op: &BinOp, left: P, right: P) -> P {
+    #[inline]
+    fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
+
+    #[inline]
+    fn bin_op(&mut self, op: BinOp, left: P, right: P) -> P {
         match op {
             BinOp::Add => left + right,
             BinOp::Mul => left * right,
@@ -70,13 +78,12 @@ where
         }
     }
 
-    fn una_op(&mut self, op: &expr::UnaOp, expr: P) -> P {
+    #[inline]
+    fn una_op(&mut self, op: UnaOp, expr: P) -> P {
         match op {
-            expr::UnaOp::Neg => -expr,
+            UnaOp::Neg => -expr,
         }
     }
-
-    fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -159,9 +166,9 @@ pub fn build_ext<F, const D: usize>(
     F: RichField,
     F: Extendable<D>, {
     for constraint in cb.constraints {
-        let mut evaluator = CircuitBuilderEvaluator {
+        let mut evaluator = Cached::from(CircuitBuilderEvaluator {
             builder: circuit_builder,
-        };
+        });
         let constraint = constraint.map(|constraint| evaluator.eval(constraint));
         (match constraint.constraint_type {
             ConstraintType::FirstRow => RecursiveConstraintConsumer::constraint_first_row,
@@ -180,7 +187,7 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     F: Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    let mut evaluator = PackedFieldEvaluator::default();
+    let mut evaluator = Cached::from(PackedFieldEvaluator::default());
     let evaluated = cb
         .constraints
         .into_iter()
