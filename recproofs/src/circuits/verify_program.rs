@@ -275,6 +275,8 @@ mod test {
 
     use self::core::{Circuit, CircuitPublicIndices};
     use super::*;
+    use crate::circuits::build_event_root::test::{BRANCH as EVENT_BRANCH, LEAF as EVENT_LEAF};
+    use crate::circuits::merge::test::{BRANCH as MERGE_BRANCH, LEAF as MERGE_LEAF};
     use crate::test_utils::{hash_branch, hash_branch_bytes, C, CONFIG, D, F};
     use crate::{find_bool, find_hash, find_targets, Event, EventType};
 
@@ -362,13 +364,6 @@ mod test {
     }
 
     lazy_static! {
-        static ref EVENT_LEAF: build_event_root::LeafCircuit<F, C, D> =
-            build_event_root::LeafCircuit::new(&CONFIG);
-        static ref EVENT_BRANCH: build_event_root::BranchCircuit<F, C, D> =
-            build_event_root::BranchCircuit::new(&CONFIG, &EVENT_LEAF);
-        static ref MERGE_LEAF: merge::LeafCircuit<F, C, D> = merge::LeafCircuit::new(&CONFIG);
-        static ref MERGE_BRANCH: merge::BranchCircuit<F, C, D> =
-            merge::BranchCircuit::new(&CONFIG, &MERGE_LEAF);
         static ref PROGRAM: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG);
         static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG, &*PROGRAM, &EVENT_BRANCH);
         static ref BRANCH: BranchCircuit<F, C, D> =
