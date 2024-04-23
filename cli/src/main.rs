@@ -323,8 +323,6 @@ fn main() -> Result<()> {
                         .cloned()
                         .unwrap_or_default()
                         .to_vec(),
-                    // Technically we don't require other tapes,
-                    // we are just intererested in the private tape here.
                     ..Default::default()
                 };
                 if i == 0 {
