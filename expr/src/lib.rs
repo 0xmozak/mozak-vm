@@ -410,7 +410,7 @@ where
         *self
             .constant_cache
             .entry(k)
-            .or_insert_with_key(|k| self.evaluator.constant(*k))
+            .or_insert_with(|| self.evaluator.constant(k))
     }
 
     fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) -> V {
