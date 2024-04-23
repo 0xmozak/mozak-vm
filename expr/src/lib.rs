@@ -408,24 +408,19 @@ where
     fn una_op(&mut self, op: UnaOp, expr: V) -> V { self.evaluator.una_op(op, expr) }
 
     fn constant(&mut self, k: i64) -> V {
-        if let Entry::Vacant(e) = self.constant_cache.entry(k) {
-            let v = self.evaluator.constant(k);
-            e.insert(v);
-        }
-
-        *(self.constant_cache.get(&k).unwrap())
+        *self
+            .constant_cache
+            .entry(k)
+            .or_insert_with_key(|k| self.evaluator.constant(*k))
     }
 
     fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) -> V {
         let expr_tree = expr.0;
-        let k = expr_tree as *const ExprTree<'_, V>;
 
-        if let Entry::Vacant(e) = self.value_cache.entry(k) {
-            let v = self.evaluator.expr_tree(expr_tree);
-            e.insert(v);
-        }
-
-        *(self.value_cache.get(&k).unwrap())
+        *self
+            .value_cache
+            .entry(expr_tree as *const ExprTree<'_, V>)
+            .or_insert_with(|| self.evaluator.expr_tree(expr_tree))
     }
 }
 
