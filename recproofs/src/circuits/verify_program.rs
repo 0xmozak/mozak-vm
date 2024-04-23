@@ -1,4 +1,4 @@
-//! Circuits for proving events correspond to a proof
+//! Circuits for proving events correspond to a program proof
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
