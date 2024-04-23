@@ -13,7 +13,7 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::memoryinit::{
-    generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_public_tape_init_trace,
+    generate_call_tape_init_trace, generate_elf_memory_init_trace,
 };
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -226,7 +226,7 @@ fn main() -> Result<()> {
             fn paths_from_cast_list(
                 entrypoint_program_id: ProgramIdentifier,
                 cast_list: &[ProgramIdentifier],
-            ) -> (PathBuf, Vec<(ProgramIdentifier, PathBuf)>) {
+            ) -> Vec<(ProgramIdentifier, PathBuf)> {
                 /// A `MappedProgram` is a (name, path) tuple of a MozakVM
                 /// program, where the name
                 /// is the [`ProgramIdentifier`] and the path is the expected
@@ -246,14 +246,19 @@ fn main() -> Result<()> {
                 let mut mapping: Vec<MappedProgram> = serde_json::from_reader(mapping).unwrap();
 
                 let mut ids_and_paths = vec![];
-                let mut entrypoint_program_path: Option<PathBuf> = None;
                 for id in cast_list {
                     if let Some(program) = mapping
                         .iter_mut()
                         .find(|m| ProgramIdentifier::from(m.name.clone()) == *id)
                     {
                         if ProgramIdentifier::from(program.name.clone()) == entrypoint_program_id {
-                            entrypoint_program_path = Some(curr_dir.join(program.path.clone()));
+                            ids_and_paths.insert(
+                                0,
+                                (
+                                    program.name.clone().into(),
+                                    curr_dir.join(program.path.clone()),
+                                ),
+                            );
                         } else {
                             ids_and_paths.push((
                                 program.name.clone().into(),
@@ -263,7 +268,7 @@ fn main() -> Result<()> {
                     }
                 }
 
-                return (entrypoint_program_path.unwrap(), ids_and_paths);
+                return ids_and_paths;
             }
 
             println!("Bundling transaction...");
@@ -287,29 +292,12 @@ fn main() -> Result<()> {
             cast_list.sort();
             cast_list.dedup();
 
-            let event_tape: OrderedEvents = system_tape
-                .event_tape
-                .writer
-                .get(&entrypoint_program_id)
-                .cloned()
-                .ok_or(anyhow::anyhow!(
-                    "Event tape not found for program id: {:?}",
-                    entrypoint_program_id
-                ))?;
-
-            let (entrypoint_program_path, elf_paths) =
-                paths_from_cast_list(entrypoint_program_id, &cast_list);
+            let elf_paths = paths_from_cast_list(entrypoint_program_id, &cast_list);
 
             let args = tapes_to_runtime_arguments(
                 system_tape_path,
                 Some(format!("{:?}", entrypoint_program_id)),
             );
-            let entrypoint_program = load_program(
-                Input::try_from(&entrypoint_program_path).unwrap_or_else(|_| {
-                    panic!("Elf filepath {:?} not found", entrypoint_program_path)
-                }),
-                &args,
-            )?;
 
             let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
                 let rate_bits = config.fri_config.rate_bits;
@@ -325,31 +313,27 @@ fn main() -> Result<()> {
                 trace_commitment.merkle_tree.cap
             };
 
-            let trace = generate_call_tape_init_trace(&entrypoint_program);
-            let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
+            let entrypoint_program = load_program(
+                Input::try_from(&elf_paths[0].1)
+                    .unwrap_or_else(|_| panic!("Elf filepath {:?} not found", &elf_paths[0].1)),
+                &args,
+            )?;
 
-            let public_tape = serde_json::to_vec(&system_tape.public_input_tape.writer)?;
+            let mut attestations: Vec<Attestation<F, C, D>> = vec![];
 
-            let transparent_attestation = TransparentAttestation {
-                public_tape: public_tape.clone(),
-                event_tape,
-            };
+            let mut call_tape_hash = None;
 
-            let attestation: Attestation<F, C, D> = Attestation {
-                id: entrypoint_program_id,
-                opaque: OpaqueAttestation::from_program(&entrypoint_program, &config),
-                transparent: transparent_attestation.clone(),
-            };
-
-            let mut attestations = vec![attestation];
-
-            for (program_id, elf) in elf_paths {
+            for (i, (program_id, elf)) in elf_paths.iter().enumerate() {
                 let program = load_program(
-                    Input::try_from(&elf)
+                    Input::try_from(elf)
                         .unwrap_or_else(|_| panic!("Elf filepath {:?} not found", elf)),
                     &args,
                 )?;
 
+                if i == 0 {
+                    let trace = generate_call_tape_init_trace(&entrypoint_program);
+                    call_tape_hash = Some(hash_from_poly_values(trace_rows_to_poly_values(trace)));
+                }
                 let event_tape: OrderedEvents = system_tape
                     .event_tape
                     .writer
@@ -373,7 +357,7 @@ fn main() -> Result<()> {
                 };
 
                 let attestation = Attestation {
-                    id: program_id,
+                    id: *program_id,
                     opaque: OpaqueAttestation::from_program(&program, &config),
                     transparent: transparent_attestation.clone(),
                 };
@@ -382,7 +366,7 @@ fn main() -> Result<()> {
             }
 
             let transaction = Transaction {
-                call_tape_hash,
+                call_tape_hash: call_tape_hash.expect("system tape generated from entrypoint program's native execution should contain a call tape"),
                 cast_list,
                 constituent_zs: attestations,
             };
