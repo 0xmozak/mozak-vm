@@ -33,7 +33,6 @@ use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
-use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
@@ -41,7 +40,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
-const PROGRAMS_MAP_JSON: &'static str = "examples/programs_map.json";
+const PROGRAMS_MAP_JSON: &str = "examples/programs_map.json";
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
