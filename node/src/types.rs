@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 
-use mozak_circuits::generation::memoryinit::generate_private_tape_init_trace;
+use mozak_circuits::generation::io_memory::generate_io_memory_private_trace;
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_runner::elf::Program;
+use mozak_runner::state::{RawTapes, State};
+use mozak_runner::vm::step;
 use mozak_sdk::common::types::ProgramIdentifier;
 use mozak_sdk::native::OrderedEvents;
 use plonky2::field::extension::Extendable;
@@ -29,8 +31,18 @@ pub struct OpaqueAttestation<
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
     OpaqueAttestation<F, C, D>
 {
-    pub fn from_program(program: &Program, config: &StarkConfig) -> Self {
-        let trace = generate_private_tape_init_trace(&program);
+    #[must_use]
+    /// Create a [`OpaqueAttestation`] from a [`Program`] and [`RawTapes`].
+    /// This leverages ecalls to populate the required private tape within the
+    /// [`State`].
+    ///
+    /// # Panics
+    /// Panics if the runner fails to step through the [`Program`] to the last
+    /// state.
+    pub fn new(program: &Program, config: &StarkConfig, raw_tapes: RawTapes) -> Self {
+        let state = State::new(program.clone(), raw_tapes);
+        let record = step(program, state).expect("Could not step through the given program");
+        let trace = generate_io_memory_private_trace(&record.executed);
         let poly_values = trace_rows_to_poly_values(trace);
 
         let rate_bits = config.fri_config.rate_bits;

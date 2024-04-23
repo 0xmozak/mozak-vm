@@ -34,7 +34,6 @@ use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
-use mozak_sdk::native::OrderedEvents;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -223,14 +222,16 @@ fn main() -> Result<()> {
             bundle,
         } => {
             /// Returns mapping of program ID to elf path.
+            ///
+            /// The first entry is always the entrypoint program.
             fn paths_from_cast_list(
                 entrypoint_program_id: ProgramIdentifier,
                 cast_list: &[ProgramIdentifier],
             ) -> Vec<(ProgramIdentifier, PathBuf)> {
-                /// A `MappedProgram` is a (name, path) tuple of a MozakVM
+                /// A `MappedProgram` is a (name, path) tuple of a `MozakVM`
                 /// program, where the name
                 /// is the [`ProgramIdentifier`] and the path is the expected
-                /// path of the compiled MozakVM binary,
+                /// path of the compiled `MozakVM` binary,
                 /// relative to the examples directory.
                 #[derive(serde::Deserialize, serde::Serialize)]
                 struct MappedProgram {
@@ -268,7 +269,7 @@ fn main() -> Result<()> {
                     }
                 }
 
-                return ids_and_paths;
+                ids_and_paths
             }
 
             println!("Bundling transaction...");
@@ -282,21 +283,21 @@ fn main() -> Result<()> {
             system_tape.call_tape.writer.into_iter().for_each(
                 |CrossProgramCall { caller, callee, .. }| {
                     if !callee.is_null_program() {
-                        cast_list.push(callee)
+                        cast_list.push(callee);
                     }
                     if !caller.is_null_program() {
-                        cast_list.push(caller)
+                        cast_list.push(caller);
                     }
                 },
             );
             cast_list.sort();
             cast_list.dedup();
 
-            let elf_paths = paths_from_cast_list(entrypoint_program_id, &cast_list);
+            let ids_and_paths = paths_from_cast_list(entrypoint_program_id, &cast_list);
 
             let args = tapes_to_runtime_arguments(
                 system_tape_path,
-                Some(format!("{:?}", entrypoint_program_id)),
+                Some(format!("{entrypoint_program_id:?}")),
             );
 
             let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
@@ -313,53 +314,50 @@ fn main() -> Result<()> {
                 trace_commitment.merkle_tree.cap
             };
 
-            let entrypoint_program = load_program(
-                Input::try_from(&elf_paths[0].1)
-                    .unwrap_or_else(|_| panic!("Elf filepath {:?} not found", &elf_paths[0].1)),
-                &args,
-            )?;
-
             let mut attestations: Vec<Attestation<F, C, D>> = vec![];
-
             let mut call_tape_hash = None;
 
-            for (i, (program_id, elf)) in elf_paths.iter().enumerate() {
+            for (i, (program_id, elf)) in ids_and_paths.iter().enumerate() {
                 let program = load_program(
                     Input::try_from(elf)
-                        .unwrap_or_else(|_| panic!("Elf filepath {:?} not found", elf)),
+                        .unwrap_or_else(|_| panic!("Elf filepath {elf:?} not found")),
                     &args,
                 )?;
 
                 if i == 0 {
-                    let trace = generate_call_tape_init_trace(&entrypoint_program);
+                    let trace = generate_call_tape_init_trace(&program);
                     call_tape_hash = Some(hash_from_poly_values(trace_rows_to_poly_values(trace)));
                 }
-                let event_tape: OrderedEvents = system_tape
-                    .event_tape
-                    .writer
-                    .get(&program_id)
-                    .cloned()
-                    // If no program has no events, we assume it to be empty.
-                    .unwrap_or_default();
-
-                let public_tape: Vec<u8> = system_tape
-                    .public_input_tape
-                    .writer
-                    .get(&program_id)
-                    .cloned()
-                    // If no program has no events, we assume it to be empty.
-                    .unwrap_or_default()
-                    .to_vec();
-
-                let transparent_attestation = TransparentAttestation {
-                    public_tape: public_tape.clone(),
-                    event_tape,
-                };
 
                 let attestation = Attestation {
                     id: *program_id,
-                    opaque: OpaqueAttestation::from_program(&program, &config),
-                    transparent: transparent_attestation.clone(),
+                    opaque: OpaqueAttestation::new(&program, &config, RawTapes {
+                        private_tape: system_tape
+                            .private_input_tape
+                            .writer
+                            .get(program_id)
+                            .cloned()
+                            .unwrap_or_default()
+                            .to_vec(),
+                        // Technically we don't require other tapes,
+                        // we are just intererested in the private tape here.
+                        ..Default::default()
+                    }),
+                    transparent: TransparentAttestation {
+                        public_tape: system_tape
+                            .public_input_tape
+                            .writer
+                            .get(program_id)
+                            .cloned()
+                            .unwrap_or_default()
+                            .to_vec(),
+                        event_tape: system_tape
+                            .event_tape
+                            .writer
+                            .get(program_id)
+                            .cloned()
+                            .unwrap_or_default(),
+                    },
                 };
 
                 attestations.push(attestation);
