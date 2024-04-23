@@ -353,8 +353,6 @@ where
 #[derive(Default)]
 pub struct PureEvaluator {}
 
-impl PureEvaluator {}
-
 impl<'a, V> Evaluator<'a, V> for PureEvaluator
 where
     V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
