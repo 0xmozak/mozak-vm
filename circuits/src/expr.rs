@@ -48,7 +48,6 @@ where
         let f = F::from_noncanonical_i64(value);
         self.builder.constant_extension(f.into())
     }
-
 }
 
 #[derive(Default)]
@@ -79,7 +78,6 @@ where
     }
 
     fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
-
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
