@@ -29,7 +29,7 @@ pub struct OpaqueAttestation<
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
     OpaqueAttestation<F, C, D>
 {
-    pub fn from_program(program: Program, config: &StarkConfig) -> Self {
+    pub fn from_program(program: &Program, config: &StarkConfig) -> Self {
         let trace = generate_private_tape_init_trace(&program);
         let poly_values = trace_rows_to_poly_values(trace);
 

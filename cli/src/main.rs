@@ -13,7 +13,7 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::memoryinit::{
-    generate_call_tape_init_trace, generate_elf_memory_init_trace,
+    generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_public_tape_init_trace,
 };
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -331,13 +331,13 @@ fn main() -> Result<()> {
             let public_tape = serde_json::to_vec(&system_tape.public_input_tape.writer)?;
 
             let transparent_attestation = TransparentAttestation {
-                public_tape,
+                public_tape: public_tape.clone(),
                 event_tape,
             };
 
             let attestation: Attestation<F, C, D> = Attestation {
                 id: entrypoint_program_id,
-                opaque: OpaqueAttestation::from_program(entrypoint_program, &config),
+                opaque: OpaqueAttestation::from_program(&entrypoint_program, &config),
                 transparent: transparent_attestation.clone(),
             };
 
@@ -350,9 +350,31 @@ fn main() -> Result<()> {
                     &args,
                 )?;
 
+                let event_tape: OrderedEvents = system_tape
+                    .event_tape
+                    .writer
+                    .get(&program_id)
+                    .cloned()
+                    // If no program has no events, we assume it to be empty.
+                    .unwrap_or_default();
+
+                let public_tape: Vec<u8> = system_tape
+                    .public_input_tape
+                    .writer
+                    .get(&program_id)
+                    .cloned()
+                    // If no program has no events, we assume it to be empty.
+                    .unwrap_or_default()
+                    .to_vec();
+
+                let transparent_attestation = TransparentAttestation {
+                    public_tape: public_tape.clone(),
+                    event_tape,
+                };
+
                 let attestation = Attestation {
                     id: program_id,
-                    opaque: OpaqueAttestation::from_program(program, &config),
+                    opaque: OpaqueAttestation::from_program(&program, &config),
                     transparent: transparent_attestation.clone(),
                 };
 
