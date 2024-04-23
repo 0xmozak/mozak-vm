@@ -169,9 +169,9 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
-    public_inputs: &[F],
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
+    public_inputs: &[F],
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
 where
@@ -345,9 +345,9 @@ where
             config,
             &traces_poly_values[kind],
             &trace_commitments[kind],
-            public_inputs[kind],
             &ctl_data_per_table[kind],
             challenger,
+            public_inputs[kind],
             timing,
         )?
     }))
