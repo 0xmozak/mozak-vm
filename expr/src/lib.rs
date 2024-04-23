@@ -60,6 +60,7 @@
 
 use core::ops::{Add, Mul, Neg, Sub};
 use std::collections::HashMap;
+use std::iter::Sum;
 
 use bumpalo::Bump;
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
@@ -160,6 +161,10 @@ impl<'a, V> Neg for Expr<'a, V> {
     type Output = Expr<'a, V>;
 
     fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
+}
+
+impl<'a, V> Sum for Expr<'a, V> {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Expr::from(0), Add::add) }
 }
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
