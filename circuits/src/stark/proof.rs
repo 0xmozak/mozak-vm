@@ -322,7 +322,6 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
     pub proofs: TableKindArray<StarkProof<F, C, D>>,
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
     pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
-    pub mozak_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
     pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
 }
