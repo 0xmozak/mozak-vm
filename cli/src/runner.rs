@@ -133,8 +133,7 @@ pub fn tapes_to_runtime_arguments(
 
 /// Computes `[ProgramIdentifer]` from hash of entry point and merkle caps
 /// of `ElfMemoryInit` and `ProgramRom` tables.
-pub fn get_self_prog_id(elf: Input, config: StarkConfig) -> Result<ProgramIdentifier> {
-    let program = load_program(elf, &RuntimeArguments::default())?;
+pub fn get_self_prog_id(program: Program, config: StarkConfig) -> ProgramIdentifier {
     let entry_point = program.entry_point;
 
     let elf_memory_init_trace = generate_elf_memory_init_trace(&program);
@@ -142,9 +141,5 @@ pub fn get_self_prog_id(elf: Input, config: StarkConfig) -> Result<ProgramIdenti
 
     let elf_memory_init_hash = get_trace_commitment_hash(elf_memory_init_trace, &config);
     let program_rom_hash = get_trace_commitment_hash(program_rom_trace, &config);
-    Ok(ProgramIdentifier::new(
-        program_rom_hash,
-        elf_memory_init_hash,
-        entry_point,
-    ))
+    ProgramIdentifier::new(program_rom_hash, elf_memory_init_hash, entry_point)
 }

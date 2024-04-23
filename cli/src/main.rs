@@ -389,7 +389,9 @@ fn main() -> Result<()> {
         }
 
         Command::SelfProgId { elf } => {
-            get_self_prog_id(elf, config)?;
+            let program = load_program(elf, &RuntimeArguments::default())?;
+            let self_prog_id = get_self_prog_id(program, config);
+            println!("{self_prog_id:?}");
         }
         Command::Bench(bench) => {
             /// Times a function and returns the `Duration`.
