@@ -22,7 +22,6 @@ where
     F: RichField,
     F: Extendable<D>,
 {
-    #[inline]
     fn bin_op(
         &mut self,
         op: BinOp,
@@ -36,7 +35,6 @@ where
         }
     }
 
-    #[inline]
     fn una_op(&mut self, op: UnaOp, expr: ExtensionTarget<D>) -> ExtensionTarget<D> {
         match op {
             UnaOp::Neg => {
@@ -46,7 +44,6 @@ where
         }
     }
 
-    #[inline]
     fn constant(&mut self, value: i64) -> ExtensionTarget<D> {
         let f = F::from_noncanonical_i64(value);
         self.builder.constant_extension(f.into())
@@ -67,7 +64,6 @@ where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
 {
-    #[inline]
     fn bin_op(&mut self, op: BinOp, left: P, right: P) -> P {
         match op {
             BinOp::Add => left + right,
@@ -76,14 +72,12 @@ where
         }
     }
 
-    #[inline]
     fn una_op(&mut self, op: UnaOp, expr: P) -> P {
         match op {
             UnaOp::Neg => -expr,
         }
     }
 
-    #[inline]
     fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
 
 }
