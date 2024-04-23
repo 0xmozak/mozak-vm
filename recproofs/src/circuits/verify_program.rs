@@ -249,7 +249,6 @@ where
             right_is_leaf,
             right_proof,
         );
-        // self.program_id.set_witness(&mut inputs, None);
         self.events.set_witness(&mut inputs, merge);
         self.circuit.prove(inputs)
     }
