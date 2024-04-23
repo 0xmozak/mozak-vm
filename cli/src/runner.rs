@@ -7,11 +7,16 @@ use anyhow::Result;
 use clio::Input;
 use itertools::Itertools;
 use log::debug;
+use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
+use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::common::types::{CanonicalOrderedTemporalHints, ProgramIdentifier, SystemTape};
 use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
+use starky::config::StarkConfig;
+
+use crate::trace_utils::get_trace_commitment_hash;
 
 pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> {
     let mut elf_bytes = Vec::new();
@@ -124,4 +129,22 @@ pub fn tapes_to_runtime_arguments(
             event_tape: serialise(&canonical_order_temporal_hints, "EVENT_TAPE"),
         }
     }
+}
+
+/// Computes `[ProgramIdentifer]` from entry point and merkle caps
+/// of `ElfMemoryInit` and `ProgramRom` tables.
+pub fn get_self_prog_id(elf: Input, config: StarkConfig) -> Result<ProgramIdentifier> {
+    let program = load_program(elf, &RuntimeArguments::default())?;
+    let entry_point = program.entry_point;
+
+    let elf_memory_init_trace = generate_elf_memory_init_trace(&program);
+    let program_rom_trace = generate_program_rom_trace(&program);
+
+    let elf_memory_init_hash = get_trace_commitment_hash(elf_memory_init_trace, &config);
+    let program_rom_hash = get_trace_commitment_hash(program_rom_trace, &config);
+    Ok(ProgramIdentifier::new(
+        program_rom_hash,
+        elf_memory_init_hash,
+        entry_point,
+    ))
 }

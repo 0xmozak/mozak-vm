@@ -28,7 +28,9 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
+use mozak_cli::runner::{
+    deserialize_system_tape, get_self_prog_id, load_program, tapes_to_runtime_arguments,
+};
 use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
@@ -105,6 +107,8 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
+    /// Compute the Self Program Id of the given ELF,
+    SelfProgId { elf: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -382,6 +386,10 @@ fn main() -> Result<()> {
             );
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
+        }
+
+        Command::SelfProgId { elf } => {
+            get_self_prog_id(elf, config)?;
         }
         Command::Bench(bench) => {
             /// Times a function and returns the `Duration`.
