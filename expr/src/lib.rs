@@ -375,10 +375,7 @@ where
 }
 
 #[derive(Default)]
-pub struct Cached<'a, V, E>
-where
-    E: Evaluator<'a, V>,
-    V: Copy, {
+pub struct Cached<'a, V, E> {
     constant_cache: HashMap<i64, V>,
     value_cache: HashMap<*const ExprTree<'a, V>, V>,
     evaluator: E,
