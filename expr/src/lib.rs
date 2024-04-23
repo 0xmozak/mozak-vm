@@ -59,8 +59,8 @@
 //! means split into multiple constraints.
 
 use core::ops::{Add, Mul, Neg, Sub};
+use core::iter::Sum;
 use std::collections::HashMap;
-use std::iter::Sum;
 
 use bumpalo::Bump;
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
