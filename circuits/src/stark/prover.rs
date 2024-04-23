@@ -293,74 +293,6 @@ where
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
-    // We cannot batch prove these tables because trace caps are needed as public
-    // inputs for the following tables.
-    let public_table_kinds = vec![
-        TableKind::Program,
-        TableKind::ElfMemoryInit,
-        TableKind::MozakMemoryInit,
-    ];
-
-    // let separate_trace_commitments = timed!(
-    //     timing,
-    //     "Compute trace commitments for separate tables",
-    //     all_kind!(|kind| if public_table_kinds.contains(&kind) {
-    //         Some(PolynomialBatch::<F, C, D>::from_values(
-    //             traces_poly_values[kind].clone(),
-    //             rate_bits,
-    //             false,
-    //             cap_height,
-    //             timing,
-    //             None,
-    //         ))
-    //     } else {
-    //         None
-    //     })
-    // );
-
-    let mut degree_log_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
-    let mut batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
-        None
-    } else {
-        degree_log_map
-            .entry(log2_strict(traces_poly_values[kind][0].len()))
-            .or_insert(Vec::new())
-            .push(kind);
-        Some(&traces_poly_values[kind])
-    });
-    // let degree_logs: Vec<usize> = batch_traces_poly_values
-    //     .iter()
-    //     .filter_map(|&t| t)
-    //     .map(|t| t[0].len())
-    //     .collect();
-    // let mut degree_logs_sorted = degree_logs.clone();
-    // degree_logs_sorted.sort();
-    // degree_logs_sorted.dedup();
-    // degree_logs_sorted.reverse();
-    // let degree_to_index_lookup = vec![0;32];
-    // degree_logs.iter().enumerate(|i, d| degree_to_index_lookup[i] = );
-
-    let mut batch_trace_polys: Vec<_> = batch_traces_poly_values
-        .iter()
-        .filter_map(|t| *t)
-        .flat_map(|v| v.clone())
-        .collect();
-    batch_trace_polys.sort_by(|a, b| b.len().cmp(&a.len()));
-    let bacth_trace_polys_len = batch_trace_polys.len();
-
-    let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
-        timing,
-        "Compute trace commitments for batch tables",
-        BatchFriOracle::from_values(
-            batch_trace_polys,
-            rate_bits,
-            false,
-            cap_height,
-            timing,
-            &vec![None; bacth_trace_polys_len],
-        )
-    );
-
     let trace_commitments = timed!(
         timing,
         "Compute trace commitments for each table",
@@ -382,9 +314,6 @@ where
                 )
             })
     );
-
-    // TODO: todo
-    // let trace_caps = batch_trace_commitments.field_merkle_tree.cap;
 
     let trace_caps = trace_commitments
         .each_ref()
@@ -412,22 +341,6 @@ where
             &mozak_stark.public_sub_tables,
             &ctl_challenges,
         );
-
-    let _ = batch_prove_with_commitments(
-        mozak_stark,
-        config,
-        &public_table_kinds,
-        &public_inputs,
-        degree_log_map,
-        traces_poly_values,
-        &trace_commitments,
-        &batch_trace_commitments,
-        &ctl_data_per_table,
-        &public_sub_table_data_per_table,
-        // todo: remove clone()
-        &mut challenger.clone(),
-        timing,
-    );
 
     let proofs = timed!(
         timing,
@@ -997,7 +910,7 @@ where
     let mut fri_params = config.fri_params(degree_bits[0]);
     fri_params.reduction_arity_bits =
         batch_reduction_arity_bits(degree_bits, rate_bits, cap_height);
-    let _opening_proof = timed!(
+    let opening_proof = timed!(
         timing,
         format!("compute batch opening proofs").as_str(),
         BatchFriOracle::prove_openings(
@@ -1046,7 +959,7 @@ where
             ctl_zs_cap,
             quotient_polys_cap,
             openings: empty_opening_set,
-            opening_proof: empty_fri_proof.clone(),
+            opening_proof,
         },
     ))
 }
