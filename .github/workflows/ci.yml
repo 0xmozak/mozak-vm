@@ -214,4 +214,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: test-transaction-bundling
-        run: nixdo ./scripts/test_bundle_tx.sh
+        run: nixdo nice ./scripts/test_bundle_tx.sh
