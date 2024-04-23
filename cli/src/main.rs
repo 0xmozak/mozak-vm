@@ -13,9 +13,7 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::io_memory::generate_call_tape_trace;
-use mozak_circuits::generation::memoryinit::{
-    generate_call_tape_init_trace, generate_elf_memory_init_trace,
-};
+use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
