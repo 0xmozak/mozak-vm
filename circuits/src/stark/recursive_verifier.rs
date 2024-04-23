@@ -51,7 +51,6 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///   `Program trace cap`: 16 (hash count with `cap_height` = 4) * 4 (size of a
 ///                          hash) = 64
 ///   `ElfMemoryInit trace cap`: 64
-///   `MozakMemoryInit trace cap`: 64
 ///   `event commitment_tape`: 32
 ///   `castlist_commitment_tape`: 32
 pub const VM_PUBLIC_INPUT_SIZE: usize = VMRecursiveProofPublicInputs::<()>::NUMBER_OF_COLUMNS;
@@ -64,7 +63,6 @@ pub struct VMRecursiveProofPublicInputs<T> {
     pub entry_point: T,
     pub program_trace_cap: [[T; NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
     pub elf_memory_init_trace_cap: [[T; NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
-    pub mozak_memory_init_trace_cap: [[T; NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
     pub event_commitment_tape: [T; COMMITMENT_SIZE],
     pub castlist_commitment_tape: [T; COMMITMENT_SIZE],
 }
@@ -75,8 +73,6 @@ impl<T: Default + Copy> Default for VMRecursiveProofPublicInputs<T> {
             entry_point: Default::default(),
             program_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
             elf_memory_init_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS];
-                VM_RECURSION_CONFIG_NUM_CAPS],
-            mozak_memory_init_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS];
                 VM_RECURSION_CONFIG_NUM_CAPS],
             event_commitment_tape: Default::default(),
             castlist_commitment_tape: Default::default(),
@@ -259,11 +255,7 @@ where
     });
 
     // Register program ROM and memory init trace cap as public inputs.
-    for kind in [
-        TableKind::Program,
-        TableKind::ElfMemoryInit,
-        TableKind::MozakMemoryInit,
-    ] {
+    for kind in [TableKind::Program, TableKind::ElfMemoryInit] {
         builder.register_public_inputs(
             &targets[kind]
                 .stark_proof_with_pis_target
