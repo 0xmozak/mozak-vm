@@ -11,7 +11,6 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::{build_event_root, merge};
 use crate::connect_arrays;
-use crate::subcircuits::unpruned::PartialAllowed;
 use crate::subcircuits::{propagate, unbounded, unpruned};
 
 pub mod core;
@@ -162,7 +161,7 @@ where
     pub unbounded: unbounded::BranchSubCircuit<D>,
 
     /// The program identifier
-    pub program_id: unpruned::BranchSubCircuit<PartialAllowed>,
+    pub program_id: unpruned::BranchSubCircuit,
 
     // The events list
     pub events: merge::embed::BranchSubCircuit<D>,
@@ -194,7 +193,7 @@ where
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
-        let program_id_targets = program_id_inputs.build_extended_branch(
+        let program_id_targets = program_id_inputs.build_branch(
             &mut builder,
             &leaf.program_id.indices,
             &unbounded_targets.left_proof,
@@ -239,15 +238,10 @@ where
         merge: &ProofWithPublicInputs<F, C, D>,
         left_is_leaf: bool,
         left_proof: &ProofWithPublicInputs<F, C, D>,
-        right_proof: Option<(bool, &ProofWithPublicInputs<F, C, D>)>,
+        right_is_leaf: bool,
+        right_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        let partial = right_proof.is_none();
-        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
-            right_proof
-        } else {
-            (left_is_leaf, left_proof)
-        };
         self.unbounded.set_witness(
             &mut inputs,
             left_is_leaf,
@@ -255,7 +249,7 @@ where
             right_is_leaf,
             right_proof,
         );
-        self.program_id.set_witness(&mut inputs, None, partial);
+        // self.program_id.set_witness(&mut inputs, None);
         self.events.set_witness(&mut inputs, merge);
         self.circuit.prove(inputs)
     }
@@ -596,12 +590,7 @@ mod test {
         let leaf_2_proof = LEAF.prove(&BRANCH, &PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
         LEAF.circuit.verify(leaf_2_proof.clone())?;
 
-        let branch_proof = BRANCH.prove(
-            &MERGE_PROOF,
-            true,
-            &leaf_1_proof,
-            Some((true, &leaf_2_proof)),
-        )?;
+        let branch_proof = BRANCH.prove(&MERGE_PROOF, true, &leaf_1_proof, true, &leaf_2_proof)?;
         BRANCH.circuit.verify(branch_proof.clone())?;
 
         Ok(())
@@ -629,12 +618,7 @@ mod test {
         .unwrap();
 
         let branch_proof = BRANCH
-            .prove(
-                &merge_proof,
-                true,
-                &leaf_1_proof,
-                Some((true, &leaf_2_proof)),
-            )
+            .prove(&merge_proof, true, &leaf_1_proof, true, &leaf_2_proof)
             .unwrap();
         BRANCH.circuit.verify(branch_proof.clone()).unwrap();
     }
@@ -660,12 +644,7 @@ mod test {
         .unwrap();
 
         let branch_proof = BRANCH
-            .prove(
-                &merge_proof,
-                true,
-                &leaf_1_proof,
-                Some((true, &leaf_2_proof)),
-            )
+            .prove(&merge_proof, true, &leaf_1_proof, true, &leaf_2_proof)
             .unwrap();
         BRANCH.circuit.verify(branch_proof.clone()).unwrap();
     }
