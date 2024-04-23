@@ -125,7 +125,7 @@ where
     ];
 
     let mut degree_log_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
-    let mut batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
+    let batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
         None
     } else {
         degree_log_map
@@ -460,7 +460,7 @@ where
 
     // TODO: compute `openings` from `batch_trace_commitments` and
     // `batch_ctl_zs_commitments`.
-    let batch_openings = all_starks!(mozak_stark, |stark, kind| if let Some(ctl_zs_commitment) =
+    let batch_openings = all_starks!(mozak_stark, |_stark, kind| if let Some(ctl_zs_commitment) =
         ctl_zs_commitments[kind].as_ref()
     {
         if let Some(quotient_commitment) = quotient_commitments[kind].as_ref() {
@@ -676,7 +676,7 @@ mod tests {
             entry_point: from_u32(program.entry_point),
         };
 
-        let all_proof: BatchProof<F, C, D> = batch_prove(
+        let _all_proof: BatchProof<F, C, D> = batch_prove(
             &program,
             &record,
             &stark,
