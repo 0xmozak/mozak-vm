@@ -413,13 +413,22 @@ where
             .or_insert_with(|| self.evaluator.constant(k))
     }
 
+    // NOTE: We disable clippy warning about map entry becasue it is impossible
+    // to implement the following function using entry(k).or_insert_with, due to
+    // the closue argument to or_insert_with needing to mutably borrow self for
+    // expr_tree, which would be already mutably borrowed by
+    // self.value_cache.entry.
+    #[allow(clippy::map_entry)]
     fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) -> V {
         let expr_tree = expr.0;
+        let k = expr_tree as *const ExprTree<'_, V>;
 
-        *self
-            .value_cache
-            .entry(expr_tree as *const ExprTree<'_, V>)
-            .or_insert_with(|| self.evaluator.expr_tree(expr_tree))
+        if !self.value_cache.contains_key(&k) {
+            let v = self.expr_tree(expr_tree);
+            self.value_cache.insert(k, v);
+        }
+
+        *self.value_cache.get(&k).unwrap()
     }
 }
 
@@ -481,5 +490,18 @@ mod tests {
         assert_eq!(p.eval(a + b * c), 22);
         assert_eq!(p.eval(a - b * c), -8);
         assert_eq!(p.eval(a * b * c), 105);
+    }
+
+    #[test]
+    fn avoids_exponential_blowup() {
+        let eb = ExprBuilder::default();
+        let mut one = eb.lit(1i64);
+        // This should timout most modern machines if executed without caching
+        for _ in 0..64 {
+            one = one * one;
+        }
+
+        let mut p = Cached::from(PureEvaluator::default());
+        assert_eq!(p.eval(one), 1);
     }
 }
