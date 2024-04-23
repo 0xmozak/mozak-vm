@@ -322,9 +322,9 @@ pub enum ExprTree<'a, V> {
 pub trait Evaluator<'a, V>
 where
     V: Copy, {
-    fn constant(&mut self, value: i64) -> V;
     fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V;
     fn una_op(&mut self, op: UnaOp, expr: V) -> V;
+    fn constant(&mut self, value: i64) -> V;
     fn expr_tree(&mut self, expr_tree: &'a ExprTree<'a, V>) -> V {
         match expr_tree {
             ExprTree::BinOp { op, left, right } => {
@@ -357,8 +357,6 @@ impl<'a, V> Evaluator<'a, V> for PureEvaluator
 where
     V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
 {
-    fn constant(&mut self, value: i64) -> V { value.into() }
-
     fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
         match op {
             BinOp::Add => left + right,
@@ -372,6 +370,8 @@ where
             UnaOp::Neg => -expr,
         }
     }
+
+    fn constant(&mut self, value: i64) -> V { value.into() }
 }
 
 #[derive(Default)]

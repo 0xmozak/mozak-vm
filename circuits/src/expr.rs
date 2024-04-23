@@ -23,12 +23,6 @@ where
     F: Extendable<D>,
 {
     #[inline]
-    fn constant(&mut self, value: i64) -> ExtensionTarget<D> {
-        let f = F::from_noncanonical_i64(value);
-        self.builder.constant_extension(f.into())
-    }
-
-    #[inline]
     fn bin_op(
         &mut self,
         op: BinOp,
@@ -51,6 +45,13 @@ where
             }
         }
     }
+
+    #[inline]
+    fn constant(&mut self, value: i64) -> ExtensionTarget<D> {
+        let f = F::from_noncanonical_i64(value);
+        self.builder.constant_extension(f.into())
+    }
+
 }
 
 #[derive(Default)]
@@ -67,9 +68,6 @@ where
     P: PackedField<Scalar = FE>,
 {
     #[inline]
-    fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
-
-    #[inline]
     fn bin_op(&mut self, op: BinOp, left: P, right: P) -> P {
         match op {
             BinOp::Add => left + right,
@@ -84,6 +82,10 @@ where
             UnaOp::Neg => -expr,
         }
     }
+
+    #[inline]
+    fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
+
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
