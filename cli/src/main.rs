@@ -41,6 +41,8 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
+const PROGRAMS_MAP_JSON: &'static str = "examples/programs_map.json";
+
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -239,11 +241,10 @@ fn main() -> Result<()> {
                 }
 
                 let curr_dir = std::env::current_dir().unwrap();
-                let mapping =
-                    std::fs::File::open(curr_dir.join("examples").join("programs_map.json"))
-                        .unwrap();
-
-                let mut mapping: Vec<MappedProgram> = serde_json::from_reader(mapping).unwrap();
+                let mapping = std::fs::File::open(curr_dir.join(PROGRAMS_MAP_JSON))
+                    .expect("could not open programs map");
+                let mut mapping: Vec<MappedProgram> = serde_json::from_reader(mapping)
+                    .expect("Could not deserialize Vec<MappedProgram> from programs map");
 
                 let mut ids_and_paths = vec![];
                 for id in cast_list {
@@ -294,24 +295,13 @@ fn main() -> Result<()> {
 
             let ids_and_paths = paths_from_cast_list(entrypoint_program_id, &cast_list);
 
+            // This does nothing - we rely entirely on ecalls.
+            // TODO(bing): Refactor `load_program` to not take this as a param, in a
+            // separate PR.
             let args = tapes_to_runtime_arguments(
                 system_tape_path,
                 Some(format!("{entrypoint_program_id:?}")),
             );
-
-            let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
-                let rate_bits = config.fri_config.rate_bits;
-                let cap_height = config.fri_config.cap_height;
-                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                    poly_values,
-                    rate_bits,
-                    false, // blinding
-                    cap_height,
-                    &mut TimingTree::default(),
-                    None, // fft_root_table
-                );
-                trace_commitment.merkle_tree.cap
-            };
 
             let mut attestations: Vec<Attestation<F, C, D>> = vec![];
             let mut call_tape_hash = None;
@@ -339,13 +329,26 @@ fn main() -> Result<()> {
                     ..Default::default()
                 };
                 if i == 0 {
+                    let rate_bits = config.fri_config.rate_bits;
+                    let cap_height = config.fri_config.cap_height;
+
                     let state: State<F> = State::new(program.clone(), raw_tapes.clone());
                     let record =
                         step(&program, state).expect("Could not step through the given program");
 
                     let trace = generate_call_tape_trace(&record.executed);
                     let poly_values = trace_rows_to_poly_values(trace);
-                    call_tape_hash = Some(hash_from_poly_values(poly_values));
+
+                    let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                        poly_values,
+                        rate_bits,
+                        false, // blinding
+                        cap_height,
+                        &mut TimingTree::default(),
+                        None, // fft_root_table
+                    );
+
+                    call_tape_hash = Some(trace_commitment.merkle_tree.cap);
                 }
 
                 let attestation = Attestation {
