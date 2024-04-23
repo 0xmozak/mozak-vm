@@ -59,7 +59,6 @@
 //! means split into multiple constraints.
 
 use core::ops::{Add, Mul, Neg, Sub};
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 use bumpalo::Bump;
