@@ -224,7 +224,7 @@ fn main() -> Result<()> {
             /// Returns mapping of program ID to elf path.
             ///
             /// The first entry is always the entrypoint program.
-            fn paths_from_cast_list(
+            fn ids_and_paths_from_cast_list(
                 entrypoint_program_id: ProgramIdentifier,
                 cast_list: &[ProgramIdentifier],
             ) -> Vec<(ProgramIdentifier, PathBuf)> {
@@ -292,7 +292,7 @@ fn main() -> Result<()> {
             cast_list.sort();
             cast_list.dedup();
 
-            let ids_and_paths = paths_from_cast_list(entrypoint_program_id, &cast_list);
+            let ids_and_paths = ids_and_paths_from_cast_list(entrypoint_program_id, &cast_list);
 
             // This does nothing - we rely entirely on ecalls.
             // TODO(bing): Refactor `load_program` to not take this as a param, in a
