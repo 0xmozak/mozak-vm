@@ -22,14 +22,6 @@ impl IdentityStack {
     pub fn rm_identity(&mut self) { self.0.truncate(self.0.len().saturating_sub(1)); }
 }
 
-/// A bundle that declares the elf and system tape to be proven together.
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct ProofBundle {
-    pub self_prog_id: String,
-    pub elf_filepath: PathBuf,
-    pub system_tape_filepath: PathBuf,
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GuestProgramTomlCfg {
     bin: Vec<Bin>,
@@ -188,35 +180,4 @@ pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) 
     fs::create_dir_all("out").unwrap();
     let sys_tape_path = format!("out/{file_template}");
     dump_system_tape(&sys_tape_path, true);
-    let bin_filename = format!("out/{file_template}.tape.json");
-
-    let curr_dir = std::env::current_dir().unwrap();
-
-    let bin_filepath_absolute = curr_dir.join(bin_filename);
-
-    let native_exe = std::env::current_exe().unwrap();
-    let mut components = native_exe.components();
-
-    // Advance back by 3 iterations within the path components
-    // to get to the target/ directory. In essence this gets rid of:
-    // riscv32im-mozak-mozakvm-elf/release/<ELF_NAME>
-    (0..3).for_each(|_| {
-        components.next_back();
-    });
-
-    let elf_filepath = components.as_path().join(format!(
-        "riscv32im-mozak-mozakvm-elf/release/{}",
-        get_mozak_binary_name()
-    ));
-
-    let bundle = ProofBundle {
-        self_prog_id: format!("{self_prog_id:?}"),
-        elf_filepath,
-        system_tape_filepath: bin_filepath_absolute,
-    };
-    println!("[BNDLDMP] Bundle dump: {bundle:?}");
-
-    let bundle_filename = format!("out/{file_template}_bundle.json");
-    let bundle_json = serde_json::to_string_pretty(&bundle).unwrap();
-    write_to_file(&bundle_filename, bundle_json.as_bytes());
 }
