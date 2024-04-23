@@ -161,7 +161,7 @@ macro_rules! mozak_stark_helpers {
         }
 
         impl TableKind {
-            const COUNT: usize = $kind_count;
+            pub const COUNT: usize = $kind_count;
         }
 
         // Generate the set builder
@@ -498,6 +498,23 @@ pub struct TableWithTypedOutput<Row> {
 
 pub type TableUntyped = TableWithTypedOutput<Vec<Column>>;
 pub use TableUntyped as Table;
+
+impl<F: Field> From<&Table> for starky_ctl::TableWithColumns<F> {
+    fn from(table: &Table) -> Self {
+        let columns = table
+            .columns
+            .iter()
+            .map(Column::to_starky)
+            .collect::<Vec<_>>();
+        // TODO(Matthias): figure out why they take a vector of filters.
+        let filter = starky_lookup::Filter::new(vec![], vec![table.filter_column.to_starky()]);
+        starky_ctl::TableWithColumns::new(table.kind as usize, columns, filter)
+    }
+}
+
+impl<F: Field> From<Table> for starky_ctl::TableWithColumns<F> {
+    fn from(table: Table) -> Self { Self::from(&table) }
+}
 
 impl Table {
     #[must_use]

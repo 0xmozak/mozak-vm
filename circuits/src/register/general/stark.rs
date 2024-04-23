@@ -37,6 +37,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
+    fn requires_ctls(&self) -> bool { true }
+
     /// Constraints for the [`RegisterStark`]:
     ///
     /// 1) `is_init`, `is_read`, `is_write`, and the virtual `is_used` column

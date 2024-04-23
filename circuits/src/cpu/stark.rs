@@ -256,6 +256,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
+    fn requires_ctls(&self) -> bool { true }
+
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,

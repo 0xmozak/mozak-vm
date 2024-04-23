@@ -235,13 +235,16 @@ pub struct CrossTableLookupWithTypedOutput<Row> {
 pub type CrossTableLookupUntyped = CrossTableLookupWithTypedOutput<Vec<Column>>;
 pub use CrossTableLookupUntyped as CrossTableLookup;
 
-impl CrossTableLookup {
-    #[must_use]
-    pub fn to_starky<F: Field>(&self) -> starky_ctl::CrossTableLookup<F> {
+impl<F: Field> From<&CrossTableLookup> for starky_ctl::CrossTableLookup<F> {
+    fn from(ctl: &CrossTableLookup) -> Self {
         starky_ctl::CrossTableLookup::new_no_looked_table(
-            self.looking_tables.iter().map(Table::to_starky).collect(),
+            ctl.looking_tables.iter().map(Table::to_starky).collect(),
         )
     }
+}
+
+impl<F: Field> From<CrossTableLookup> for starky_ctl::CrossTableLookup<F> {
+    fn from(ctl: CrossTableLookup) -> Self { Self::from(&ctl) }
 }
 
 impl<Row: IntoIterator<Item = Column>> CrossTableLookupWithTypedOutput<Row> {

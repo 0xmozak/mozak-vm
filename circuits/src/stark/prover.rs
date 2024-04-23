@@ -114,8 +114,24 @@ where
     for cap in &trace_caps {
         challenger.observe_cap(cap);
     }
+    let starky_cross_table_lookups = mozak_stark
+        .cross_table_lookups
+        .clone()
+        .map(starky::cross_table_lookup::CrossTableLookup::from);
+    let (starky_ctl_challenges, starky_ctl_datas) = {
+        let mut challenger = challenger.clone();
+        starky::cross_table_lookup::get_ctl_data::<F, C, D, { TableKind::COUNT }>(
+            config,
+            &traces_poly_values.0,
+            &starky_cross_table_lookups,
+            &mut challenger,
+            3,
+        )
+    };
 
     let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
+    // TODO(Matthias): should we observe all ctl data here globally for all?  To
+    // better parallelise later.
     let ctl_data_per_table = timed!(
         timing,
         "Compute CTL data for each table",
@@ -138,7 +154,9 @@ where
             &trace_commitments,
             &ctl_data_per_table,
             &mut challenger,
-            timing
+            timing,
+            &starky_ctl_challenges,
+            &starky_ctl_datas,
         )?
     );
 
@@ -169,15 +187,60 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
+    // This is our CtlData, we need to match starky.
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     public_inputs: &[F],
     timing: &mut TimingTree,
+    starky_ctl_challenges: &starky::lookup::GrandProductChallengeSet<F>,
+    starky_ctl_data: &starky::cross_table_lookup::CtlData<'_, F>,
+    // Of course, we need to match the output, too.
+    // Ok, looks doable.
 ) -> Result<StarkProof<F, C, D>>
 where
-    F: RichField + Extendable<D>,
+    F: RichField + Extendable<D> + Copy + Eq + core::fmt::Debug,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D> + Display, {
+    {
+        let degree = trace_poly_values[0].len();
+        let degree_bits = log2_strict(degree);
+        let fri_params = config.fri_params(degree_bits);
+        let rate_bits = config.fri_config.rate_bits;
+        let cap_height = config.fri_config.cap_height;
+        assert!(
+            fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
+            "FRI total reduction arity is too large.",
+        );
+
+        let trace_commitment = timed!(
+            timing,
+            "compute trace commitment",
+            PolynomialBatch::<F, C, D>::from_values(
+                trace_poly_values.to_vec(),
+                rate_bits,
+                false,
+                cap_height,
+                timing,
+                None,
+            )
+        );
+
+        let trace_cap = trace_commitment.merkle_tree.cap.clone();
+        let mut challenger = challenger.clone();
+        challenger.observe_cap(&trace_cap);
+        let _ = starky::prover::prove_with_commitment(
+            stark,
+            config,
+            trace_poly_values,
+            &trace_commitment,
+            Some(starky_ctl_data),
+            Some(starky_ctl_challenges),
+            &mut challenger,
+            public_inputs,
+            timing,
+        );
+    }
+
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
@@ -328,6 +391,8 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
+    starky_ctl_challenges: &starky::lookup::GrandProductChallengeSet<F>,
+    starky_ctl_datas: &[starky::cross_table_lookup::CtlData<'_, F>; TableKind::COUNT],
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
@@ -349,6 +414,8 @@ where
             challenger,
             public_inputs[kind],
             timing,
+            starky_ctl_challenges,
+            &starky_ctl_datas[kind as usize],
         )?
     }))
 }

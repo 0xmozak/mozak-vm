@@ -39,6 +39,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
+    fn requires_ctls(&self) -> bool { true }
+
     // For design check https://docs.google.com/presentation/d/10Dv00xL3uggWTPc0L91cgu_dWUzhM7l1EQ5uDEI_cjg/edit?usp=sharing
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,

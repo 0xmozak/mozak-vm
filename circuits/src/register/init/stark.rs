@@ -36,6 +36,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
+    fn requires_ctls(&self) -> bool { true }
+
     /// Constraints for the [`RegisterInitStark`].
     ///
     /// For sanity check, we can constrain the register address column to be in
