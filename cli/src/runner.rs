@@ -131,7 +131,7 @@ pub fn tapes_to_runtime_arguments(
     }
 }
 
-/// Computes `[ProgramIdentifer]` from entry point and merkle caps
+/// Computes `[ProgramIdentifer]` from hash of entry point and merkle caps
 /// of `ElfMemoryInit` and `ProgramRom` tables.
 pub fn get_self_prog_id(elf: Input, config: StarkConfig) -> Result<ProgramIdentifier> {
     let program = load_program(elf, &RuntimeArguments::default())?;
