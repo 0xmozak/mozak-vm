@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::PathBuf;
 
 // This file contains code snippets used in native execution
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -141,33 +140,6 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
     );
 }
 
-/// Gets the mozakvm binary name via reading the guest program's Cargo.toml,
-/// and searching for a bin entry with path "..._mozak.rs".
-pub(crate) fn get_mozak_binary_name() -> String {
-    let toml_str = fs::read_to_string("Cargo.toml").expect(
-        "Could not find the program's Cargo.toml. Are you running from within the
-    project root?",
-    );
-
-    let toml: GuestProgramTomlCfg = toml::from_str(&toml_str).unwrap();
-
-    // TODO(bing): Currently, this is used to derive the name of the mozakvm
-    // binary based on the name declared alongside some path declared as
-    // "..._mozak.rs" in the project's `Cargo.toml`. The purpose of that is so
-    // we can dump the absolute path of the mozakvm ELF binary in our bundle
-    // plan (JSON).
-    //
-    // It might be prudent to come up with a more robust solution than this.
-    toml.bin
-        .into_iter()
-        .find(|b| b.path.contains("_mozak"))
-        .expect(
-            "Guest program does not have a mozakvm bin with path
- *_mozak.rs declared",
-        )
-        .name
-}
-
 /// This functions dumps 2 files of the currently running guest program:
 ///   1. the actual system tape (JSON),
 ///   2. the debug dump of the system tape,
@@ -176,7 +148,7 @@ pub(crate) fn get_mozak_binary_name() -> String {
 /// user must be cautious to not move at least the system tape, as the system
 /// tape is used by the CLI in proving and in transaction bundling, and the SDK
 /// makes some assumptions about where to find the ELF for proving.
-pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) {
+pub fn dump_proving_files(file_template: &str) {
     fs::create_dir_all("out").unwrap();
     let sys_tape_path = format!("out/{file_template}");
     dump_system_tape(&sys_tape_path, true);

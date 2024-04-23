@@ -222,7 +222,7 @@ pub struct Aux<F: RichField> {
     pub io: Option<IoEntry>,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RawTapes {
     pub private_tape: Vec<u8>,
     pub public_tape: Vec<u8>,

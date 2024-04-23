@@ -12,6 +12,7 @@ use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
 use log::debug;
+use mozak_circuits::generation::io_memory::generate_call_tape_trace;
 use mozak_circuits::generation::memoryinit::{
     generate_call_tape_init_trace, generate_elf_memory_init_trace,
 };
@@ -280,7 +281,7 @@ fn main() -> Result<()> {
             let entrypoint_program_id = system_tape.call_tape.writer[0].callee;
 
             let mut cast_list = vec![];
-            system_tape.call_tape.writer.into_iter().for_each(
+            system_tape.call_tape.writer.clone().into_iter().for_each(
                 |CrossProgramCall { caller, callee, .. }| {
                     if !callee.is_null_program() {
                         cast_list.push(callee);
@@ -324,25 +325,34 @@ fn main() -> Result<()> {
                     &args,
                 )?;
 
+                let raw_call_tape: Vec<u8> =
+                    serde_json::to_vec(&system_tape.call_tape.writer).unwrap();
+                let raw_tapes = RawTapes {
+                    call_tape: raw_call_tape,
+                    private_tape: system_tape
+                        .private_input_tape
+                        .writer
+                        .get(program_id)
+                        .cloned()
+                        .unwrap_or_default()
+                        .to_vec(),
+                    // Technically we don't require other tapes,
+                    // we are just intererested in the private tape here.
+                    ..Default::default()
+                };
                 if i == 0 {
-                    let trace = generate_call_tape_init_trace(&program);
-                    call_tape_hash = Some(hash_from_poly_values(trace_rows_to_poly_values(trace)));
+                    let state: State<F> = State::new(program.clone(), raw_tapes.clone());
+                    let record =
+                        step(&program, state).expect("Could not step through the given program");
+
+                    let trace = generate_call_tape_trace(&record.executed);
+                    let poly_values = trace_rows_to_poly_values(trace);
+                    call_tape_hash = Some(hash_from_poly_values(poly_values));
                 }
 
                 let attestation = Attestation {
                     id: *program_id,
-                    opaque: OpaqueAttestation::new(&program, &config, RawTapes {
-                        private_tape: system_tape
-                            .private_input_tape
-                            .writer
-                            .get(program_id)
-                            .cloned()
-                            .unwrap_or_default()
-                            .to_vec(),
-                        // Technically we don't require other tapes,
-                        // we are just intererested in the private tape here.
-                        ..Default::default()
-                    }),
+                    opaque: OpaqueAttestation::new(&program, &config, raw_tapes),
                     transparent: TransparentAttestation {
                         public_tape: system_tape
                             .public_input_tape
