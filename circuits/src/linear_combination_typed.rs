@@ -7,7 +7,7 @@ use crate::columns_view::Zip;
 
 /// Represent a linear combination of columns.
 ///
-/// `InputColumns` could be eg `InputOutputMemory<i64>` or other stark.  We use
+/// `InputColumns` could be eg `StorageDevice<i64>` or other stark.  We use
 /// a 'dense' representation.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]

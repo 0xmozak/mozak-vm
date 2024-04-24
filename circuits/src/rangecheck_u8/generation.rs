@@ -44,6 +44,8 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::RangeCheck => extract_with_mul(rangecheck_trace, &looking_table),
             TableKind::Memory => extract_with_mul(memory_trace, &looking_table),
+            // We are trying to build this table, so we have to ignore it here.
+            TableKind::RangeCheckU8 => vec![],
             other => unimplemented!("Can't range check {other:?} tables"),
         })
         .for_each(|(multiplicity, limb)| {

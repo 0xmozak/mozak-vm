@@ -63,10 +63,10 @@ pub struct State<F: RichField> {
     pub registers: [u32; 32],
     pub pc: u32,
     pub memory: StateMemory,
-    pub private_tape: IoTape,
-    pub public_tape: IoTape,
-    pub call_tape: IoTape,
-    pub event_tape: IoTape,
+    pub private_tape: StorageDeviceTape,
+    pub public_tape: StorageDeviceTape,
+    pub call_tape: StorageDeviceTape,
+    pub event_tape: StorageDeviceTape,
     pub events_commitment_tape: CommitmentTape,
     pub cast_list_commitment_tape: CommitmentTape,
     _phantom: PhantomData<F>,
@@ -97,13 +97,13 @@ impl StateMemory {
 }
 
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
-pub struct IoTape {
+pub struct StorageDeviceTape {
     #[deref]
     pub data: Rc<[u8]>,
     pub read_index: usize,
 }
 
-impl Default for IoTape {
+impl Default for StorageDeviceTape {
     fn default() -> Self {
         Self {
             data: [].into(),
@@ -112,8 +112,9 @@ impl Default for IoTape {
     }
 }
 
-/// Converts raw bytes in [`Data`] to an [`IoTape`] for consumption via ecalls.
-impl From<Data> for IoTape {
+/// Converts raw bytes in [`Data`] to an [`StorageDeviceTape`] for consumption
+/// via ecalls.
+impl From<Data> for StorageDeviceTape {
     fn from(data: Data) -> Self {
         Self {
             data: data.0.values().copied().collect::<Rc<[u8]>>(),
@@ -134,10 +135,10 @@ impl<F: RichField> Default for State<F> {
             registers: Default::default(),
             pc: Default::default(),
             memory: StateMemory::default(),
-            private_tape: IoTape::default(),
-            public_tape: IoTape::default(),
-            call_tape: IoTape::default(),
-            event_tape: IoTape::default(),
+            private_tape: StorageDeviceTape::default(),
+            public_tape: StorageDeviceTape::default(),
+            call_tape: StorageDeviceTape::default(),
+            event_tape: StorageDeviceTape::default(),
             events_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
             cast_list_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
             _phantom: PhantomData,
@@ -159,10 +160,10 @@ impl<F: RichField> From<Program> for State<F> {
         let mut state: State<F> = State::default();
 
         if let Some(ref mrm) = mozak_ro_memory {
-            state.private_tape = IoTape::from(mrm.io_tape_private.data.clone());
-            state.public_tape = IoTape::from(mrm.io_tape_public.data.clone());
-            state.call_tape = IoTape::from(mrm.call_tape.data.clone());
-            state.event_tape = IoTape::from(mrm.event_tape.data.clone());
+            state.private_tape = StorageDeviceTape::from(mrm.io_tape_private.data.clone());
+            state.public_tape = StorageDeviceTape::from(mrm.io_tape_public.data.clone());
+            state.call_tape = StorageDeviceTape::from(mrm.call_tape.data.clone());
+            state.event_tape = StorageDeviceTape::from(mrm.event_tape.data.clone());
         };
 
         Self {
@@ -188,7 +189,7 @@ pub struct MemEntry {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
 #[repr(u8)]
-pub enum IoOpcode {
+pub enum StorageDeviceOpcode {
     #[default]
     None,
     StorePrivate,
@@ -199,9 +200,9 @@ pub enum IoOpcode {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct IoEntry {
+pub struct StorageDeviceEntry {
     pub addr: u32,
-    pub op: IoOpcode,
+    pub op: StorageDeviceOpcode,
     pub data: Vec<u8>,
 }
 
@@ -219,7 +220,7 @@ pub struct Aux<F: RichField> {
     pub op2: u32,
     pub op2_raw: u32,
     pub poseidon2: Option<poseidon2::Entry<F>>,
-    pub io: Option<IoEntry>,
+    pub io: Option<StorageDeviceEntry>,
 }
 
 #[derive(Default)]
@@ -228,6 +229,8 @@ pub struct RawTapes {
     pub public_tape: Vec<u8>,
     pub call_tape: Vec<u8>,
     pub event_tape: Vec<u8>,
+    pub events_commitment_tape: [u8; COMMITMENT_SIZE],
+    pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
 }
 
 /// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
@@ -241,6 +244,8 @@ impl From<RuntimeArguments> for RawTapes {
             public_tape: args.io_tape_public,
             call_tape: args.call_tape,
             event_tape: args.event_tape,
+            cast_list_commitment_tape: args.cast_list_commitment_tape,
+            events_commitment_tape: args.events_commitment_tape,
         }
     }
 }
@@ -271,22 +276,24 @@ impl<F: RichField> State<F> {
                 .into_iter(),
                 once(rw_memory),
             ),
-            private_tape: IoTape {
+            private_tape: StorageDeviceTape {
                 data: raw_tapes.private_tape.into(),
                 read_index: 0,
             },
-            public_tape: IoTape {
+            public_tape: StorageDeviceTape {
                 data: raw_tapes.public_tape.into(),
                 read_index: 0,
             },
-            call_tape: IoTape {
+            call_tape: StorageDeviceTape {
                 data: raw_tapes.call_tape.into(),
                 read_index: 0,
             },
-            event_tape: IoTape {
+            event_tape: StorageDeviceTape {
                 data: raw_tapes.event_tape.into(),
                 read_index: 0,
             },
+            cast_list_commitment_tape: CommitmentTape(raw_tapes.cast_list_commitment_tape),
+            events_commitment_tape: CommitmentTape(raw_tapes.events_commitment_tape),
             ..Default::default()
         }
     }

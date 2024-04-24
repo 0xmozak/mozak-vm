@@ -345,23 +345,18 @@ where
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
 
     use super::*;
-    use crate::test_utils::{fast_test_circuit_config, C, D, F};
+    use crate::circuits::accumulate_delta::test::{BRANCH as ACC_BRANCH, LEAF as ACC_LEAF};
+    use crate::test_utils::{C, CONFIG, D, F};
     use crate::EventType;
 
-    const CONFIG: CircuitConfig = fast_test_circuit_config();
-
     lazy_static! {
-        static ref ACC_LEAF: accumulate_delta::LeafCircuit<F, C, D> =
-            accumulate_delta::LeafCircuit::new(&CONFIG);
-        static ref ACC_BRANCH: accumulate_delta::BranchCircuit<F, C, D> =
-            accumulate_delta::BranchCircuit::new(&CONFIG, &ACC_LEAF);
-        static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG, &ACC_BRANCH);
-        static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
+        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG, &ACC_BRANCH);
+        pub static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
     }
 
     fn make_acc_proof(

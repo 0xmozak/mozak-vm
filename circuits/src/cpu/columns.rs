@@ -6,7 +6,7 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cpu_skeleton::columns::CpuSkeletonCtl;
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-use crate::memory_io::columns::InputOutputMemoryCtl;
+use crate::memory_io::columns::StorageDeviceCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::InstructionRow;
 use crate::rangecheck::columns::RangeCheckCtl;
@@ -192,9 +192,9 @@ impl<T: Copy + Sum> CpuState<T> {
     pub fn is_running(&self) -> T { self.inst.ops.into_iter().sum() }
 }
 
-impl<T: Copy> CpuState<T>
+impl<T> CpuState<T>
 where
-    T: Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
+    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
 {
     /// Value of the first operand, as if converted to i64.
     ///
@@ -331,9 +331,9 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 /// Column containing the data to be matched against IO Memory starks.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     CpuTable::new(
-        InputOutputMemoryCtl {
+        StorageDeviceCtl {
             op: ColumnWithTypedInput::ascending_sum([
                 CPU.is_io_store_private,
                 CPU.is_io_store_public,

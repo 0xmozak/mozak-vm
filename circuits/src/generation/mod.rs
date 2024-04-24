@@ -64,6 +64,7 @@ use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
 use crate::stark::utils::trace_rows_to_poly_values;
+use crate::tape_commitments::generation::generate_tape_commitments_trace;
 
 pub const MIN_TRACE_LENGTH: usize = 8;
 
@@ -149,6 +150,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     let add_trace = ops::add::generate(record);
     let blt_trace = ops::blt_taken::generate(record);
+    let tape_commitments_rows = generate_tape_commitments_trace(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
@@ -183,6 +185,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         cpu_skeleton_stark: trace_rows_to_poly_values(skeleton_rows),
         add_stark: trace_rows_to_poly_values(add_trace),
         blt_taken_stark: trace_rows_to_poly_values(blt_trace),
+        tape_commitments_stark: trace_rows_to_poly_values(tape_commitments_rows),
     }
     .build()
 }

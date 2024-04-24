@@ -32,6 +32,7 @@ pub mod rangecheck;
 pub mod rangecheck_u8;
 pub mod register;
 pub mod stark;
+pub mod tape_commitments;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;
 pub mod unstark;

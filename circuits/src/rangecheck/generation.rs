@@ -63,6 +63,8 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                 TableKind::Memory => extract(memory_trace, &looking_table),
                 TableKind::Register => extract(register_trace, &looking_table),
                 TableKind::Add => extract(add_trace, &looking_table),
+                // We are trying to build the RangeCheck table, so we have to ignore it here.
+                TableKind::RangeCheck => vec![],
                 other => unimplemented!("Can't range check {other:#?} tables"),
             }
             .into_iter()

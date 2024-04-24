@@ -1,8 +1,8 @@
-use expr::{Evaluator, ExprBuilder, PureEvaluator};
+use expr::{Evaluator, ExprBuilder};
 use itertools::{chain, Itertools};
 use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
-use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
+use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 use mozak_runner::vm::{ExecutionRecord, Row};
 use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::REG_A0;
@@ -12,6 +12,7 @@ use super::MIN_TRACE_LENGTH;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
+use crate::expr::ConversionEvaluator;
 use crate::ops::add::columns::Add;
 use crate::ops::blt_taken::columns::BltTaken;
 use crate::program::columns::ProgramRom;
@@ -73,7 +74,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     debug!("Starting CPU Trace Generation");
     let mut trace: Vec<CpuState<F>> = vec![];
 
-    let default_io_entry = IoEntry::default();
+    let default_io_entry = StorageDeviceEntry::default();
     for Row {
         state,
         instruction,
@@ -128,23 +129,23 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store_private: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StorePrivate)
+                (Op::ECALL, StorageDeviceOpcode::StorePrivate)
             )),
             is_io_store_public: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StorePublic)
+                (Op::ECALL, StorageDeviceOpcode::StorePublic)
             )),
             is_call_tape: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StoreCallTape)
+                (Op::ECALL, StorageDeviceOpcode::StoreCallTape)
             )),
             is_events_commitment_tape: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StoreEventsCommitmentTape)
+                (Op::ECALL, StorageDeviceOpcode::StoreEventsCommitmentTape)
             )),
             is_cast_list_commitment_tape: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StoreCastListCommitmentTape)
+                (Op::ECALL, StorageDeviceOpcode::StoreCastListCommitmentTape)
             )),
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::from(REG_A0)]),
@@ -173,7 +174,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
     let expr_builder = ExprBuilder::default();
     let row = row.map(|x| expr_builder.lit(x));
-    PureEvaluator(F::from_noncanonical_i64).eval(row.signed_diff())
+    ConversionEvaluator::new(F::from_noncanonical_i64).eval(row.signed_diff())
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {

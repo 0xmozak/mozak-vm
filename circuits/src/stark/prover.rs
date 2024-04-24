@@ -163,7 +163,6 @@ where
 
     let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
     let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
-    let mozak_memory_init_trace_cap = trace_caps[TableKind::MozakMemoryInit].clone();
     if log_enabled!(Debug) {
         timing.print();
     }
@@ -171,7 +170,6 @@ where
         proofs,
         program_rom_trace_cap,
         elf_memory_init_trace_cap,
-        mozak_memory_init_trace_cap,
         public_inputs,
         public_sub_table_values,
     })

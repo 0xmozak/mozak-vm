@@ -47,12 +47,6 @@ where
         "Mismatch between ElfMemoryInit trace caps"
     );
 
-    ensure!(
-        all_proof.proofs[TableKind::MozakMemoryInit].trace_cap
-            == all_proof.mozak_memory_init_trace_cap,
-        "Mismatch between MozakMemoryInit trace caps"
-    );
-
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.proofs,
         &mozak_stark.cross_table_lookups,
