@@ -5,7 +5,7 @@ use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
-use crate::memory_io::columns::InputOutputMemory;
+use crate::memory_io::columns::StorageDevice;
 use crate::ops;
 use crate::register::general::columns::{Ops, Register};
 use crate::register::init::columns::RegisterInit;
@@ -90,11 +90,11 @@ pub fn generate_register_trace<F: RichField>(
     store_word_trace: &[ops::sw::columns::StoreWord<F>],
     load_word_trace: &[ops::lw::columns::LoadWord<F>],
     blt_trace: &[ops::blt_taken::columns::BltTaken<F>],
-    mem_private: &[InputOutputMemory<F>],
-    mem_public: &[InputOutputMemory<F>],
-    mem_call_tape: &[InputOutputMemory<F>],
-    mem_events_commitment_tape: &[InputOutputMemory<F>],
-    mem_cast_list_commitment_tape: &[InputOutputMemory<F>],
+    mem_private: &[StorageDevice<F>],
+    mem_public: &[StorageDevice<F>],
+    mem_call_tape: &[StorageDevice<F>],
+    mem_events_commitment_tape: &[StorageDevice<F>],
+    mem_cast_list_commitment_tape: &[StorageDevice<F>],
     reg_init: &[RegisterInit<F>],
 ) -> (
     Vec<RegisterZeroRead<F>>,

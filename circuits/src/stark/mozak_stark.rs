@@ -24,7 +24,7 @@ use crate::memory::columns::{Memory, MemoryCtl};
 use crate::memory::stark::MemoryStark;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::columns::{InputOutputMemory, InputOutputMemoryCtl};
+use crate::memory_io::columns::{InputOutputMemoryCtl, StorageDevice};
 use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
@@ -608,23 +608,23 @@ table_impl!(
 table_impl!(
     IoMemoryPrivateTable,
     TableKind::IoMemoryPrivate,
-    InputOutputMemory
+    StorageDevice
 );
 table_impl!(
     IoMemoryPublicTable,
     TableKind::IoMemoryPublic,
-    InputOutputMemory
+    StorageDevice
 );
-table_impl!(CallTapeTable, TableKind::CallTape, InputOutputMemory);
+table_impl!(CallTapeTable, TableKind::CallTape, StorageDevice);
 table_impl!(
     EventsCommitmentTapeTable,
     TableKind::EventsCommitmentTape,
-    InputOutputMemory
+    StorageDevice
 );
 table_impl!(
     CastListCommitmentTapeTable,
     TableKind::CastListCommitmentTape,
-    InputOutputMemory
+    StorageDevice
 );
 table_impl!(
     Poseidon2SpongeTable,

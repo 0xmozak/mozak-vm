@@ -6,16 +6,14 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory::trace::get_memory_inst_clk;
-use crate::memory_io::columns::{InputOutputMemory, Ops};
+use crate::memory_io::columns::{Ops, StorageDevice};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
-fn pad_io_mem_trace<F: RichField>(
-    mut trace: Vec<InputOutputMemory<F>>,
-) -> Vec<InputOutputMemory<F>> {
+fn pad_io_mem_trace<F: RichField>(mut trace: Vec<StorageDevice<F>>) -> Vec<StorageDevice<F>> {
     trace.resize(
         trace.len().max(MIN_TRACE_LENGTH).next_power_of_two(),
-        InputOutputMemory::default(),
+        StorageDevice::default(),
     );
     trace
 }
@@ -45,7 +43,7 @@ fn is_io_opcode<F: RichField>(op: IoOpcode) -> F {
 pub fn generate_io_memory_trace<F: RichField>(
     step_rows: &[Row<F>],
     which_tape: IoOpcode,
-) -> Vec<InputOutputMemory<F>> {
+) -> Vec<StorageDevice<F>> {
     pad_io_mem_trace(
         filter(step_rows, which_tape)
             .flat_map(|s| {
@@ -53,7 +51,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                 let len = data.len();
                 chain!(
                     // initial io-element
-                    [InputOutputMemory {
+                    [StorageDevice {
                         clk: get_memory_inst_clk(s),
                         addr: F::from_canonical_u32(addr),
                         size: F::from_canonical_usize(len),
@@ -68,7 +66,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                     data.into_iter().enumerate().map(move |(i, local_value)| {
                         let local_address = addr.wrapping_add(u32::try_from(i).unwrap());
                         let local_size = len - i - 1;
-                        InputOutputMemory {
+                        StorageDevice {
                             clk: get_memory_inst_clk(s),
                             addr: F::from_canonical_u32(local_address),
                             size: F::from_canonical_usize(local_size),
@@ -82,39 +80,39 @@ pub fn generate_io_memory_trace<F: RichField>(
                     })
                 )
             })
-            .collect::<Vec<InputOutputMemory<F>>>(),
+            .collect::<Vec<StorageDevice<F>>>(),
     )
 }
 
 #[must_use]
 pub fn generate_io_memory_private_trace<F: RichField>(
     step_rows: &[Row<F>],
-) -> Vec<InputOutputMemory<F>> {
+) -> Vec<StorageDevice<F>> {
     generate_io_memory_trace(step_rows, IoOpcode::StorePrivate)
 }
 
 #[must_use]
 pub fn generate_io_memory_public_trace<F: RichField>(
     step_rows: &[Row<F>],
-) -> Vec<InputOutputMemory<F>> {
+) -> Vec<StorageDevice<F>> {
     generate_io_memory_trace(step_rows, IoOpcode::StorePublic)
 }
 
 #[must_use]
-pub fn generate_call_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<InputOutputMemory<F>> {
+pub fn generate_call_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
     generate_io_memory_trace(step_rows, IoOpcode::StoreCallTape)
 }
 
 #[must_use]
 pub fn generate_events_commitment_tape_trace<F: RichField>(
     step_rows: &[Row<F>],
-) -> Vec<InputOutputMemory<F>> {
+) -> Vec<StorageDevice<F>> {
     generate_io_memory_trace(step_rows, IoOpcode::StoreEventsCommitmentTape)
 }
 
 #[must_use]
 pub fn generate_cast_list_commitment_tape_trace<F: RichField>(
     step_rows: &[Row<F>],
-) -> Vec<InputOutputMemory<F>> {
+) -> Vec<StorageDevice<F>> {
     generate_io_memory_trace(step_rows, IoOpcode::StoreCastListCommitmentTape)
 }

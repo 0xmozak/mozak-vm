@@ -12,7 +12,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
-use crate::memory_io::columns::{InputOutputMemory, NUM_IO_MEM_COLS};
+use crate::memory_io::columns::{StorageDevice, NUM_IO_MEM_COLS};
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -22,7 +22,7 @@ pub struct InputOutputMemoryStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> HasNamedColumns for InputOutputMemoryStark<F, D> {
-    type Columns = InputOutputMemory<F>;
+    type Columns = StorageDevice<F>;
 }
 
 const COLUMNS: usize = NUM_IO_MEM_COLS;
@@ -46,8 +46,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &InputOutputMemory<P> = vars.get_local_values().into();
-        let nv: &InputOutputMemory<P> = vars.get_next_values().into();
+        let lv: &StorageDevice<P> = vars.get_local_values().into();
+        let nv: &StorageDevice<P> = vars.get_next_values().into();
 
         is_binary(yield_constr, lv.ops.is_memory_store);
         is_binary(yield_constr, lv.ops.is_io_store);
@@ -101,8 +101,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &InputOutputMemory<ExtensionTarget<D>> = vars.get_local_values().into();
-        let nv: &InputOutputMemory<ExtensionTarget<D>> = vars.get_next_values().into();
+        let lv: &StorageDevice<ExtensionTarget<D>> = vars.get_local_values().into();
+        let nv: &StorageDevice<ExtensionTarget<D>> = vars.get_next_values().into();
 
         let is_executed = builder.add_extension(lv.ops.is_memory_store, lv.ops.is_io_store);
 

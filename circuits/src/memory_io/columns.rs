@@ -23,7 +23,7 @@ pub struct Ops<T> {
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct InputOutputMemory<T> {
+pub struct StorageDevice<T> {
     /// Clock at memory access.
     pub clk: T,
     /// Address: start-address
@@ -38,15 +38,15 @@ pub struct InputOutputMemory<T> {
     pub is_lv_and_nv_are_memory_rows: T,
 }
 
-columns_view_impl!(InputOutputMemory);
-make_col_map!(InputOutputMemory);
+columns_view_impl!(StorageDevice);
+make_col_map!(StorageDevice);
 
-impl<T: Copy + Add<Output = T>> InputOutputMemory<T> {
+impl<T: Copy + Add<Output = T>> StorageDevice<T> {
     pub fn is_executed(&self) -> T { self.ops.is_io_store + self.ops.is_memory_store }
 }
 
 /// Total number of columns.
-pub const NUM_IO_MEM_COLS: usize = InputOutputMemory::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_IO_MEM_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
 
 columns_view_impl!(InputOutputMemoryCtl);
 #[repr(C)]
