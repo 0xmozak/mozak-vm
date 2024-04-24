@@ -42,7 +42,7 @@ where
     *x = *x_qube * *x_qube * *x;
 }
 
-fn matmul_m4<'a, V, const STATE_SIZE: usize>(state: &mut [Expr<'a, V>; STATE_SIZE])
+fn matmul_m4<V, const STATE_SIZE: usize>(state: &mut [Expr<'_, V>; STATE_SIZE])
 where
     V: Copy, {
     // input x = (x0, x1, x2, x3)
@@ -87,7 +87,7 @@ where
     }
 }
 
-fn matmul_external12<'a, V>(state: &mut [Expr<'a, V>; STATE_SIZE])
+fn matmul_external12<V>(state: &mut [Expr<'_, V>; STATE_SIZE])
 where
     V: Copy, {
     assert_eq!(STATE_SIZE, 12);
