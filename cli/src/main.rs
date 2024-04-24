@@ -247,7 +247,8 @@ fn main() -> Result<()> {
 
                     let attestation = Attestation {
                         id: plan.self_prog_id.into(),
-                        public_tape: args.io_tape_public,
+                        // TODO(bing): use tape from system tape.
+                        public_tape: vec![],
                         event_tape,
                     };
                     Ok((attestation, call_tape_hash))
