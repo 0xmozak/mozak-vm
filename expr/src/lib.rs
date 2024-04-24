@@ -446,6 +446,8 @@ pub struct Cached<'a, V, E> {
     // Hmm, we want an order of evaluation.
     // values: Vec<ExprTree<'a, V>>,
     value_cache: HashMap<*const ExprTree<'a, V>, V>,
+    /// This could be used to do a 'dynamic programming' style bottom up
+    /// evaluation, intead of doing recursion + memoisation.
     #[allow(dead_code)]
     order: Numbered<'a, V>,
     evaluator: E,
