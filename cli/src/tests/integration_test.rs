@@ -29,8 +29,6 @@ fn test_prove_and_verify_recursive_proof_command() {
             "prove",
             elf_file,
             &proof_file.to_string_lossy(),
-            "--self-prog-id",
-            &format!("{:?}", &ProgramIdentifier::default()),
             &recursive_proof_file.to_string_lossy(),
         ])
         .output()
