@@ -20,7 +20,6 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTa
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use starky::config::StarkConfig;
-use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
 use super::mozak_stark::{all_starks, TableKindArray};
