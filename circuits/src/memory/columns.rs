@@ -9,11 +9,12 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
-use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::StorageDevice;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
+use crate::ops::lw::columns::LoadWord;
+use crate::ops::sw::columns::StoreWord;
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::rangecheck::columns::RangeCheckCtl;
@@ -99,18 +100,35 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
     }
 }
 
-impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
-    fn from(val: &FullWordMemory<F>) -> Self {
-        if (val.ops.is_load + val.ops.is_store).is_zero() {
+impl<F: RichField> From<&StoreWord<F>> for Vec<Memory<F>> {
+    fn from(val: &StoreWord<F>) -> Self {
+        if (val.is_running).is_zero() {
             vec![]
         } else {
             (0..4)
                 .map(|i| Memory {
                     clk: val.clk,
-                    addr: val.addrs[i],
-                    value: val.limbs[i],
-                    is_store: val.ops.is_store,
-                    is_load: val.ops.is_load,
+                    addr: val.address + F::from_canonical_usize(i),
+                    value: val.op1_limbs[i],
+                    is_store: F::ONE,
+                    ..Default::default()
+                })
+                .collect()
+        }
+    }
+}
+
+impl<F: RichField> From<&LoadWord<F>> for Vec<Memory<F>> {
+    fn from(val: &LoadWord<F>) -> Self {
+        if (val.is_running).is_zero() {
+            vec![]
+        } else {
+            (0..4)
+                .map(|i| Memory {
+                    clk: val.clk,
+                    addr: val.address + F::from_canonical_usize(i),
+                    value: val.dst_limbs[i],
+                    is_load: F::ONE,
                     ..Default::default()
                 })
                 .collect()

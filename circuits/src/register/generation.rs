@@ -6,6 +6,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::memory_io::columns::StorageDevice;
+use crate::ops;
 use crate::register::general::columns::{Ops, Register};
 use crate::register::init::columns::RegisterInit;
 use crate::register::zero_read::columns::RegisterZeroRead;
@@ -81,8 +82,14 @@ where
 /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
 ///    2.
 #[allow(clippy::type_complexity)]
+// TODO(Matthias): rework the args, perhaps pass table kind with Option or so?
+#[allow(clippy::too_many_arguments)]
 pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
+    add_trace: &[ops::add::columns::Add<F>],
+    store_word_trace: &[ops::sw::columns::StoreWord<F>],
+    load_word_trace: &[ops::lw::columns::LoadWord<F>],
+    blt_trace: &[ops::blt_taken::columns::BltTaken<F>],
     mem_private: &[StorageDevice<F>],
     mem_public: &[StorageDevice<F>],
     mem_call_tape: &[StorageDevice<F>],
@@ -100,6 +107,10 @@ pub fn generate_register_trace<F: RichField>(
         .into_iter()
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::Cpu => extract(cpu_trace, &looking_table),
+            TableKind::Add => extract(add_trace, &looking_table),
+            TableKind::BltTaken => extract(blt_trace, &looking_table),
+            TableKind::StoreWord => extract(store_word_trace, &looking_table),
+            TableKind::LoadWord => extract(load_word_trace, &looking_table),
             TableKind::StorageDevicePrivate => extract(mem_private, &looking_table),
             TableKind::StorageDevicePublic => extract(mem_public, &looking_table),
             TableKind::CallTape => extract(mem_call_tape, &looking_table),
@@ -209,6 +220,10 @@ mod tests {
         let record = setup();
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
+        let add_rows = ops::add::generate(&record);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
+        let blt_rows = ops::blt_taken::generate(&record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let call_tape = generate_call_tape_trace(&record.executed);
@@ -219,6 +234,10 @@ mod tests {
         let register_init = generate_register_init_trace(&record);
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
+            &add_rows,
+            &store_word_rows,
+            &load_word_rows,
+            &blt_rows,
             &io_memory_private,
             &io_memory_public,
             &call_tape,

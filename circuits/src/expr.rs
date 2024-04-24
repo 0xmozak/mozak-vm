@@ -1,3 +1,4 @@
+use core::ops::{Add, Mul, Neg, Sub};
 use std::marker::PhantomData;
 use std::panic::Location;
 
@@ -50,18 +51,45 @@ where
     }
 }
 
-#[derive(Default)]
-struct PackedFieldEvaluator<'a, P, const D: usize, const D2: usize> {
-    _marker: PhantomData<&'a P>,
+pub struct ConversionEvaluator<'a, P> {
+    pub convert: fn(i64) -> P,
+    pub _phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, F, FE, P, const D: usize, const D2: usize> Evaluator<'a, P>
-    for PackedFieldEvaluator<'a, P, D, D2>
+impl<'a, P> ConversionEvaluator<'a, P> {
+    pub fn new(convert: fn(i64) -> P) -> Self {
+        Self {
+            convert,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+#[must_use]
+pub fn packed_field_evaluator<'a, F, FE, P, const D: usize, const D2: usize>(
+) -> ConversionEvaluator<'a, P>
 where
     F: RichField,
     F: Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
-    P: PackedField<Scalar = FE>,
+    P: PackedField<Scalar = FE>, {
+    fn convert<F, FE, P, const D: usize, const D2: usize>(value: i64) -> P
+    where
+        F: RichField,
+        F: Extendable<D>,
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>, {
+        P::from(FE::from_noncanonical_i64(value))
+    }
+    ConversionEvaluator {
+        convert,
+        _phantom: PhantomData,
+    }
+}
+
+impl<'a, P> Evaluator<'a, P> for ConversionEvaluator<'a, P>
+where
+    P: Copy + Add<Output = P> + Mul<Output = P> + Sub<Output = P> + Neg<Output = P> + Default,
 {
     fn bin_op(&mut self, op: BinOp, left: P, right: P) -> P {
         match op {
@@ -77,7 +105,7 @@ where
         }
     }
 
-    fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
+    fn constant(&mut self, value: i64) -> P { (self.convert)(value) }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -109,7 +137,7 @@ enum ConstraintType {
 }
 
 pub struct ConstraintBuilder<E> {
-    constraints: Vec<Constraint<E>>,
+    pub constraints: Vec<Constraint<E>>,
 }
 impl<E> Default for ConstraintBuilder<E> {
     fn default() -> Self {
@@ -181,7 +209,7 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     F: Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    let mut evaluator = Cached::from(PackedFieldEvaluator::default());
+    let mut evaluator = Cached::from(packed_field_evaluator());
     let evaluated = cb
         .constraints
         .into_iter()
