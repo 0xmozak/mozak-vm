@@ -14,13 +14,17 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{all_kind, PublicInputs, TableKindArray};
 
 #[allow(clippy::module_name_repetitions)]
-impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
+impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D>
+where
+    for<'a> <C::Hasher as Hasher<F>>::Permutation: Deserialize<'a> + Serialize,
+{
     pub fn degree_bits(&self, config: &StarkConfig) -> TableKindArray<usize> {
         all_kind!(|kind| self.proofs[kind].proof.recover_degree_bits(config))
     }
@@ -269,8 +273,10 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(bound = "<C::Hasher as Hasher<F>>::Permutation: for<'a> Deserialize<'a> + Serialize")]
-pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
+#[serde(bound = "")]
+pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
+where
+    F: DeserializeOwned + Serialize, {
     pub proofs: TableKindArray<starky::proof::StarkProofWithMetadata<F, C, D>>,
     pub ctl_challenges: starky::lookup::GrandProductChallengeSet<F>,
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
