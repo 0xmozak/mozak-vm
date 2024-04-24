@@ -643,237 +643,248 @@ where
 #[cfg(test)]
 mod tests {
 
-    use anyhow::Result;
+    use std::panic;
+    use std::panic::AssertUnwindSafe;
 
-    use crate::stark::mozak_stark::MozakStark;
-    use crate::test_utils::{D, F};
+    use anyhow::Result;
+    use log::info;
+    use mozak_runner::code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+    use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::plonk::circuit_data::CircuitConfig;
+    use plonky2::util::timing::TimingTree;
+    use starky::config::StarkConfig;
+
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
+    use crate::stark::prover::prove;
+    use crate::stark::recursive_verifier::{
+        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
+        verify_recursive_vm_proof, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
+        VM_RECURSION_CONFIG, VM_RECURSION_THRESHOLD_DEGREE_BITS,
+    };
+    use crate::test_utils::{C, D, F};
+    use crate::utils::from_u32;
 
     type S = MozakStark<F, D>;
 
     #[test]
     fn recursive_verify_mozak_starks() -> Result<()> {
-        todo!()
-        // use plonky2::field::types::Field;
+        use plonky2::field::types::Field;
 
-        // use crate::stark::verifier::verify_proof;
+        use crate::stark::verifier::verify_proof;
 
-        // let stark = S::default();
-        // let config = StarkConfig::standard_fast_config();
-        // let (program, record) = code::execute(
-        //     [Instruction {
-        //         op: Op::ADD,
-        //         args: Args {
-        //             rd: 5,
-        //             rs1: 6,
-        //             rs2: 7,
-        //             ..Args::default()
-        //         },
-        //     }],
-        //     &[],
-        //     &[(6, 100), (7, 200)],
-        // );
-        // let public_inputs = PublicInputs {
-        //     entry_point: from_u32(program.entry_point),
-        // };
+        let stark = S::default();
+        let config = StarkConfig::standard_fast_config();
+        let (program, record) = code::execute(
+            [Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, 100), (7, 200)],
+        );
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
 
-        // let mozak_proof = prove::<F, C, D>(
-        //     &program,
-        //     &record,
-        //     &stark,
-        //     &config,
-        //     public_inputs,
-        //     &mut TimingTree::default(),
-        // )?;
-        // verify_proof(&stark, mozak_proof.clone(), &config)?;
+        let mozak_proof = prove::<F, C, D>(
+            &program,
+            &record,
+            &stark,
+            &config,
+            public_inputs,
+            &mut TimingTree::default(),
+        )?;
+        verify_proof(&stark, &mozak_proof.clone(), &config)?;
 
-        // let circuit_config = CircuitConfig::standard_recursion_config();
-        // let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
-        //     &stark,
-        //     &mozak_proof.degree_bits(&config),
-        //     &circuit_config,
-        //     &config,
-        // );
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+            &stark,
+            &mozak_proof.degree_bits(&config),
+            &circuit_config,
+            &config,
+        );
 
-        // let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
-        // let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
-        //     recursive_proof.public_inputs.as_slice().try_into().unwrap();
-        // let expected_event_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
-        // let expected_castlist_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
-        // let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
-        //     &public_input_slice.into();
-        // assert_eq!(
-        //     recursive_proof_public_inputs.event_commitment_tape,
-        // expected_event_commitment_tape,     "Could not find
-        // expected_event_commitment_tape in recursive proof's public inputs"
-        // );
-        // assert_eq!(
-        //     recursive_proof_public_inputs.castlist_commitment_tape,
-        //     expected_castlist_commitment_tape,
-        //     "Could not find expected_castlist_commitment_tape in recursive
-        // proof's public inputs" );
+        let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+        let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
+            recursive_proof.public_inputs.as_slice().try_into().unwrap();
+        let expected_event_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
+        let expected_castlist_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
+        let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
+            &public_input_slice.into();
+        assert_eq!(
+            recursive_proof_public_inputs.event_commitment_tape, expected_event_commitment_tape,
+            "Could not find
+        expected_event_commitment_tape in recursive proof's public inputs"
+        );
+        assert_eq!(
+            recursive_proof_public_inputs.castlist_commitment_tape,
+            expected_castlist_commitment_tape,
+            "Could not find expected_castlist_commitment_tape in recursive
+        proof's public inputs"
+        );
 
-        // mozak_stark_circuit.circuit.verify(recursive_proof)
+        mozak_stark_circuit.circuit.verify(recursive_proof)
     }
 
     #[test]
     #[ignore]
     #[allow(clippy::too_many_lines)]
     fn same_circuit_verify_different_vm_proofs() -> Result<()> {
-        todo!()
-        // let stark = S::default();
-        // let inst = Instruction {
-        //     op: Op::ADD,
-        //     args: Args {
-        //         rd: 5,
-        //         rs1: 6,
-        //         rs2: 7,
-        //         ..Args::default()
-        //     },
-        // };
+        let stark = S::default();
+        let inst = Instruction {
+            op: Op::ADD,
+            args: Args {
+                rd: 5,
+                rs1: 6,
+                rs2: 7,
+                ..Args::default()
+            },
+        };
 
-        // let (program0, record0) = code::execute([inst], &[], &[(6, 100), (7,
-        // 200)]); let public_inputs = PublicInputs {
-        //     entry_point: from_u32(program0.entry_point),
-        // };
-        // let stark_config0 = StarkConfig::standard_fast_config();
-        // let mozak_proof0 = prove::<F, C, D>(
-        //     &program0,
-        //     &record0,
-        //     &stark,
-        //     &stark_config0,
-        //     public_inputs,
-        //     &mut TimingTree::default(),
-        // )?;
+        let (program0, record0) = code::execute([inst], &[], &[(6, 100), (7, 200)]);
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program0.entry_point),
+        };
+        let stark_config0 = StarkConfig::standard_fast_config();
+        let mozak_proof0 = prove::<F, C, D>(
+            &program0,
+            &record0,
+            &stark,
+            &stark_config0,
+            public_inputs,
+            &mut TimingTree::default(),
+        )?;
 
-        // let (program1, record1) = code::execute(vec![inst; 128], &[], &[(6,
-        // 100), (7, 200)]); let public_inputs = PublicInputs {
-        //     entry_point: from_u32(program1.entry_point),
-        // };
-        // let stark_config1 = StarkConfig::standard_fast_config();
-        // let mozak_proof1 = prove::<F, C, D>(
-        //     &program1,
-        //     &record1,
-        //     &stark,
-        //     &stark_config1,
-        //     public_inputs,
-        //     &mut TimingTree::default(),
-        // )?;
+        let (program1, record1) = code::execute(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program1.entry_point),
+        };
+        let stark_config1 = StarkConfig::standard_fast_config();
+        let mozak_proof1 = prove::<F, C, D>(
+            &program1,
+            &record1,
+            &stark,
+            &stark_config1,
+            public_inputs,
+            &mut TimingTree::default(),
+        )?;
 
-        // // The degree bits should be different for the two proofs.
-        // assert_ne!(
-        //     mozak_proof0.degree_bits(&stark_config0),
-        //     mozak_proof1.degree_bits(&stark_config1)
-        // );
+        // The degree bits should be different for the two proofs.
+        assert_ne!(
+            mozak_proof0.degree_bits(&stark_config0),
+            mozak_proof1.degree_bits(&stark_config1)
+        );
 
-        // let recursion_circuit_config =
-        // CircuitConfig::standard_recursion_config();
-        // let recursion_circuit0 = recursive_mozak_stark_circuit::<F, C, D>(
-        //     &stark,
-        //     &mozak_proof0.degree_bits(&stark_config0),
-        //     &recursion_circuit_config,
-        //     &stark_config0,
-        // );
-        // let recursion_proof0 = recursion_circuit0.prove(&mozak_proof0)?;
+        let recursion_circuit_config = CircuitConfig::standard_recursion_config();
+        let recursion_circuit0 = recursive_mozak_stark_circuit::<F, C, D>(
+            &stark,
+            &mozak_proof0.degree_bits(&stark_config0),
+            &recursion_circuit_config,
+            &stark_config0,
+        );
+        let recursion_proof0 = recursion_circuit0.prove(&mozak_proof0)?;
 
-        // let recursion_circuit1 = recursive_mozak_stark_circuit::<F, C, D>(
-        //     &stark,
-        //     &mozak_proof1.degree_bits(&stark_config1),
-        //     &recursion_circuit_config,
-        //     &stark_config1,
-        // );
-        // let recursion_proof1 = recursion_circuit1.prove(&mozak_proof1)?;
+        let recursion_circuit1 = recursive_mozak_stark_circuit::<F, C, D>(
+            &stark,
+            &mozak_proof1.degree_bits(&stark_config1),
+            &recursion_circuit_config,
+            &stark_config1,
+        );
+        let recursion_proof1 = recursion_circuit1.prove(&mozak_proof1)?;
 
-        // // recursion_circuit0
-        // //     .circuit
-        // //     .verify(recursion_proof0.clone())?;
+        // recursion_circuit0
+        //     .circuit
+        //     .verify(recursion_proof0.clone())?;
 
-        // let public_inputs_size = recursion_proof0.public_inputs.len();
-        // assert_eq!(VM_PUBLIC_INPUT_SIZE, public_inputs_size);
-        // assert_eq!(public_inputs_size, recursion_proof1.public_inputs.len());
+        let public_inputs_size = recursion_proof0.public_inputs.len();
+        assert_eq!(VM_PUBLIC_INPUT_SIZE, public_inputs_size);
+        assert_eq!(public_inputs_size, recursion_proof1.public_inputs.len());
 
-        // // It is not possible to verify different VM proofs with the same
-        // recursion // circuit.
-        // let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        //     recursion_circuit0
-        //         .circuit
-        //         .verify(recursion_proof1.clone())
-        //         .expect("Verification failed");
-        // }));
-        // assert!(result.is_err(), "Verification did not failed as expected");
+        // It is not possible to verify different VM proofs with the same recursion
+        // circuit.
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            recursion_circuit0
+                .circuit
+                .verify(recursion_proof1.clone())
+                .expect("Verification failed");
+        }));
+        assert!(result.is_err(), "Verification did not failed as expected");
 
-        // let recursion_degree_bits0 =
-        // recursion_circuit0.circuit.common.degree_bits();
-        // let recursion_degree_bits1 =
-        // recursion_circuit1.circuit.common.degree_bits();
-        // assert_ne!(recursion_degree_bits0, recursion_degree_bits1);
-        // info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
-        // info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
+        let recursion_degree_bits0 = recursion_circuit0.circuit.common.degree_bits();
+        let recursion_degree_bits1 = recursion_circuit1.circuit.common.degree_bits();
+        assert_ne!(recursion_degree_bits0, recursion_degree_bits1);
+        info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
+        info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
 
-        // let target_degree_bits = VM_RECURSION_THRESHOLD_DEGREE_BITS;
-        // let (final_circuit0, final_proof0) =
-        // shrink_to_target_degree_bits_circuit(
-        //     &recursion_circuit0.circuit,
-        //     &VM_RECURSION_CONFIG,
-        //     target_degree_bits,
-        //     &recursion_proof0,
-        // )?;
-        // let (final_circuit1, final_proof1) =
-        // shrink_to_target_degree_bits_circuit(
-        //     &recursion_circuit1.circuit,
-        //     &VM_RECURSION_CONFIG,
-        //     target_degree_bits,
-        //     &recursion_proof1,
-        // )?;
-        // assert_eq!(
-        //     final_circuit0.circuit.common.degree_bits(),
-        //     target_degree_bits
-        // );
-        // assert_eq!(
-        //     final_circuit1.circuit.common.degree_bits(),
-        //     target_degree_bits
-        // );
+        let target_degree_bits = VM_RECURSION_THRESHOLD_DEGREE_BITS;
+        let (final_circuit0, final_proof0) = shrink_to_target_degree_bits_circuit(
+            &recursion_circuit0.circuit,
+            &VM_RECURSION_CONFIG,
+            target_degree_bits,
+            &recursion_proof0,
+        )?;
+        let (final_circuit1, final_proof1) = shrink_to_target_degree_bits_circuit(
+            &recursion_circuit1.circuit,
+            &VM_RECURSION_CONFIG,
+            target_degree_bits,
+            &recursion_proof1,
+        )?;
+        assert_eq!(
+            final_circuit0.circuit.common.degree_bits(),
+            target_degree_bits
+        );
+        assert_eq!(
+            final_circuit1.circuit.common.degree_bits(),
+            target_degree_bits
+        );
 
-        // final_circuit0.circuit.verify(final_proof0.clone())?;
-        // final_circuit1.circuit.verify(final_proof1.clone())?;
+        final_circuit0.circuit.verify(final_proof0.clone())?;
+        final_circuit1.circuit.verify(final_proof1.clone())?;
 
-        // // It is still not possible to verify different VM proofs with the
-        // same // recursion circuit at this point. But the final proofs
-        // now have the same // degree bits.
-        // let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        //     final_circuit0
-        //         .circuit
-        //         .verify(final_proof1.clone())
-        //         .expect("Verification failed");
-        // }));
-        // assert!(result.is_err(), "Verification did not failed as expected");
+        // It is still not possible to verify different VM proofs with the same
+        // recursion circuit at this point. But the final proofs now have the same
+        // degree bits.
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            final_circuit0
+                .circuit
+                .verify(final_proof1.clone())
+                .expect("Verification failed");
+        }));
+        assert!(result.is_err(), "Verification did not failed as expected");
 
-        // // Let's build a circuit to verify the final proofs.
-        // let mut builder =
-        // CircuitBuilder::new(CircuitConfig::standard_recursion_config());
-        // let targets = verify_recursive_vm_proof::<GoldilocksField, C, D>(
-        //     &mut builder,
-        //     public_inputs_size,
-        //     &VM_RECURSION_CONFIG,
-        //     target_degree_bits,
-        // );
-        // let circuit = builder.build::<C>();
+        // Let's build a circuit to verify the final proofs.
+        let mut builder = CircuitBuilder::new(CircuitConfig::standard_recursion_config());
+        let targets = verify_recursive_vm_proof::<GoldilocksField, C, D>(
+            &mut builder,
+            public_inputs_size,
+            &VM_RECURSION_CONFIG,
+            target_degree_bits,
+        );
+        let circuit = builder.build::<C>();
 
-        // // This time, we can verify the final proofs from two different VM
-        // programs in // the same circuit.
-        // let mut pw = PartialWitness::new();
-        // pw.set_proof_with_pis_target(&targets.proof_with_pis_target,
-        // &final_proof0); pw.set_verifier_data_target(&targets.
-        // vk_target, &final_circuit0.circuit.verifier_only);
-        // let proof = circuit.prove(pw)?;
-        // circuit.verify(proof)?;
+        // This time, we can verify the final proofs from two different VM programs in
+        // the same circuit.
+        let mut pw = PartialWitness::new();
+        pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof0);
+        pw.set_verifier_data_target(&targets.vk_target, &final_circuit0.circuit.verifier_only);
+        let proof = circuit.prove(pw)?;
+        circuit.verify(proof)?;
 
-        // let mut pw = PartialWitness::new();
-        // pw.set_proof_with_pis_target(&targets.proof_with_pis_target,
-        // &final_proof1); pw.set_verifier_data_target(&targets.
-        // vk_target, &final_circuit1.circuit.verifier_only);
-        // let proof = circuit.prove(pw)?;
-        // circuit.verify(proof)?;
+        let mut pw = PartialWitness::new();
+        pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof1);
+        pw.set_verifier_data_target(&targets.vk_target, &final_circuit1.circuit.verifier_only);
+        let proof = circuit.prove(pw)?;
+        circuit.verify(proof)?;
 
-        // Ok(())
+        Ok(())
     }
 }
