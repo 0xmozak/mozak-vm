@@ -124,7 +124,9 @@ where
         .clone()
         .map(starky::cross_table_lookup::CrossTableLookup::from);
     // TODO(Matthias): parallelise `get_ctl_data` in starky.
-    let (starky_ctl_challenges, starky_ctl_datas) = {
+    let (starky_ctl_challenges, starky_ctl_datas) = timed!(
+        timing,
+        "CTL data generation",
         starky::cross_table_lookup::get_ctl_data::<F, C, D, { TableKind::COUNT }>(
             config,
             &traces_poly_values.0,
@@ -132,7 +134,7 @@ where
             &mut challenger,
             3,
         )
-    };
+    );
 
     let proofs = timed!(
         timing,
