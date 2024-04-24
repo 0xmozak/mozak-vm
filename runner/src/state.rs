@@ -199,7 +199,7 @@ pub enum StorageDeviceOpcode {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct IoEntry {
+pub struct StorageDeviceEntry {
     pub addr: u32,
     pub op: StorageDeviceOpcode,
     pub data: Vec<u8>,
@@ -219,7 +219,7 @@ pub struct Aux<F: RichField> {
     pub op2: u32,
     pub op2_raw: u32,
     pub poseidon2: Option<poseidon2::Entry<F>>,
-    pub io: Option<IoEntry>,
+    pub io: Option<StorageDeviceEntry>,
     pub branch_taken: Option<bool>,
 }
 
