@@ -37,7 +37,7 @@ use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::stark::InputOutputMemoryStark;
+use crate::memory_io::stark::StorageDeviceStark;
 use crate::ops;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
@@ -298,9 +298,9 @@ impl ProveAndVerify for HalfWordMemoryStark<F, D> {
     }
 }
 
-impl ProveAndVerify for InputOutputMemoryStark<F, D> {
+impl ProveAndVerify for StorageDeviceStark<F, D> {
     fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
-        type S = InputOutputMemoryStark<F, D>;
+        type S = StorageDeviceStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();

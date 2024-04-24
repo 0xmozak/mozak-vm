@@ -25,7 +25,7 @@ use crate::memory::stark::MemoryStark;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::columns::{InputOutputMemoryCtl, StorageDevice};
-use crate::memory_io::stark::InputOutputMemoryStark;
+use crate::memory_io::stark::StorageDeviceStark;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
@@ -116,19 +116,19 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "HalfWordMemory")]
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPrivate")]
-    pub io_memory_private_stark: InputOutputMemoryStark<F, D>,
+    pub io_memory_private_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPublic")]
-    pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
+    pub io_memory_public_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "CallTape")]
-    pub call_tape_stark: InputOutputMemoryStark<F, D>,
+    pub call_tape_stark: StorageDeviceStark<F, D>,
     // TODO(bing): This is known to be 32-bytes in length. Optimize with
     // a fixed size version of this STARK.
     #[StarkSet(stark_kind = "EventsCommitmentTape")]
-    pub events_commitment_tape_stark: InputOutputMemoryStark<F, D>,
+    pub events_commitment_tape_stark: StorageDeviceStark<F, D>,
     // TODO(bing): This is known to be 32-bytes in length. Optimize with
     // a fixed size version of this STARK.
     #[StarkSet(stark_kind = "CastListCommitmentTape")]
-    pub cast_list_commitment_tape_stark: InputOutputMemoryStark<F, D>,
+    pub cast_list_commitment_tape_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
@@ -433,11 +433,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             register_stark: RegisterStark::default(),
             register_zero_read_stark: RegisterZeroReadStark::default(),
             register_zero_write_stark: RegisterZeroWriteStark::default(),
-            io_memory_private_stark: InputOutputMemoryStark::default(),
-            io_memory_public_stark: InputOutputMemoryStark::default(),
-            call_tape_stark: InputOutputMemoryStark::default(),
-            events_commitment_tape_stark: InputOutputMemoryStark::default(),
-            cast_list_commitment_tape_stark: InputOutputMemoryStark::default(),
+            io_memory_private_stark: StorageDeviceStark::default(),
+            io_memory_public_stark: StorageDeviceStark::default(),
+            call_tape_stark: StorageDeviceStark::default(),
+            events_commitment_tape_stark: StorageDeviceStark::default(),
+            cast_list_commitment_tape_stark: StorageDeviceStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
