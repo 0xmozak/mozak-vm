@@ -20,10 +20,12 @@ use starky::config::StarkConfig;
 use starky::proof::StarkProofWithMetadata;
 use starky::stark::Stark;
 
-use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
+use super::mozak_stark::{
+    all_starks_par, MozakStark, TableKind, TableKindArray, TableKindSetBuilder,
+};
 use super::proof::AllProof;
 use crate::generation::{debug_traces, generate_traces};
-use crate::stark::mozak_stark::{all_starks, PublicInputs};
+use crate::stark::mozak_stark::PublicInputs;
 
 /// Prove the execution of a given [Program]
 ///
@@ -92,7 +94,8 @@ where
         traces_poly_values
             .clone()
             .with_kind()
-            .map(|(trace, table)| {
+            .par_map(|(trace, table)| {
+                let mut timing = TimingTree::default();
                 timed!(
                     timing,
                     &format!("compute trace commitment for {table:?}"),
@@ -101,7 +104,7 @@ where
                         rate_bits,
                         false,
                         cap_height,
-                        timing,
+                        &mut timing,
                         None,
                     )
                 )
@@ -120,6 +123,7 @@ where
         .cross_table_lookups
         .clone()
         .map(starky::cross_table_lookup::CrossTableLookup::from);
+    // TODO(Matthias): parallelise `get_ctl_data` in starky.
     let (starky_ctl_challenges, starky_ctl_datas) = {
         starky::cross_table_lookup::get_ctl_data::<F, C, D, { TableKind::COUNT }>(
             config,
@@ -228,7 +232,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     challenger: &mut Challenger<F, C::Hasher>,
-    timing: &mut TimingTree,
+    _timing: &mut TimingTree,
     starky_ctl_challenges: &starky::lookup::GrandProductChallengeSet<F>,
     starky_ctl_datas: &[starky::cross_table_lookup::CtlData<'_, F>; TableKind::COUNT],
 ) -> Result<TableKindArray<starky::proof::StarkProofWithMetadata<F, C, D>>>
@@ -244,8 +248,12 @@ where
 
     // Clear buffered outputs.
     challenger.compact();
-    Ok(all_starks!(mozak_stark, |stark, kind| {
-        let mut challenger = challenger.clone();
+    // let challenger = challenger.clone();
+    let challenger = &challenger;
+    let public_inputs = &public_inputs;
+    Ok(all_starks_par!(mozak_stark, |stark, kind| {
+        let mut timing = TimingTree::default();
+        let mut challenger = (*challenger).clone();
         prove_single_table(
             stark,
             config,
@@ -253,7 +261,7 @@ where
             &trace_commitments[kind],
             &mut challenger,
             public_inputs[kind],
-            timing,
+            &mut timing,
             starky_ctl_challenges,
             &starky_ctl_datas[kind as usize],
         )
