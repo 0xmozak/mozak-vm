@@ -526,8 +526,7 @@ impl Table {
             .iter()
             .map(Column::to_starky)
             .collect::<Vec<_>>();
-        // TODO(Matthias): figure out why they take a vector of filters.
-        let filter = starky_lookup::Filter::new(vec![], vec![self.filter_column.to_starky()]);
+        let filter = starky_lookup::Filter::new_simple(self.filter_column.to_starky());
         starky_ctl::TableWithColumns::new(self.kind as usize, columns, filter)
     }
 }
