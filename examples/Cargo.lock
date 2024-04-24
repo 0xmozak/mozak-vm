@@ -157,7 +157,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
-name = "fibonacci-mozak-guest"
+name = "fibonacci"
 version = "0.1.0"
 dependencies = [
  "mozak-sdk",
@@ -239,12 +239,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "inputtape-mozak-guest"
+name = "inputtape"
 version = "0.1.0"
 dependencies = [
  "hex",
  "mozak-sdk",
  "rkyv",
+ "rkyv_derive",
 ]
 
 [[package]]
@@ -296,14 +297,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
 
 [[package]]
-name = "memory-access-mozak-guest"
+name = "memory-access"
 version = "0.1.0"
 dependencies = [
  "mozak-sdk",
 ]
 
 [[package]]
-name = "min-max-mozak-guest"
+name = "min-max"
 version = "0.1.0"
 dependencies = [
  "mozak-sdk",
@@ -320,11 +321,19 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rkyv",
+ "rkyv_derive",
  "serde",
  "serde-hex",
  "serde_json",
- "slice-group-by",
  "toml",
+]
+
+[[package]]
+name = "mozak-sort"
+version = "0.1.0"
+dependencies = [
+ "mozak-sdk",
+ "rand",
 ]
 
 [[package]]
@@ -425,8 +434,8 @@ dependencies = [
 
 [[package]]
 name = "plonky2"
-version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git#681505ec6d799c7e7e87f43fc2ea76cf00740fbb"
+version = "0.2.1"
+source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
 dependencies = [
  "ahash",
  "anyhow",
@@ -447,8 +456,8 @@ dependencies = [
 
 [[package]]
 name = "plonky2_field"
-version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git#681505ec6d799c7e7e87f43fc2ea76cf00740fbb"
+version = "0.2.1"
+source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
 dependencies = [
  "anyhow",
  "itertools",
@@ -463,12 +472,12 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#681505ec6d799c7e7e87f43fc2ea76cf00740fbb"
+source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
 
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#681505ec6d799c7e7e87f43fc2ea76cf00740fbb"
+source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
 
 [[package]]
 name = "ppv-lite86"
@@ -573,9 +582,9 @@ checksum = "7f02fc3227b019649985d2f89e254e345f027cc58af7bbf5faa4f3f7271bc4cc"
 
 [[package]]
 name = "rkyv"
-version = "0.8.0-alpha.2"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d125265f4bf0016653476f0e6f33757f4d5ce34447473c2b317c1bb28766481"
+checksum = "f11954ea56d7bfee4022704c89d997ca15659bff852ab06dbee5cbeffdc723ed"
 dependencies = [
  "bitvec",
  "hashbrown",
@@ -587,18 +596,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "rkyv-serialization-mozak-guest"
+name = "rkyv-serialization"
 version = "0.1.0"
 dependencies = [
  "mozak-sdk",
  "rkyv",
+ "rkyv_derive",
 ]
 
 [[package]]
 name = "rkyv_derive"
-version = "0.8.0-alpha.2"
+version = "0.8.0-alpha.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670836f48c7644bc9f68e507064f0a83984e910a5a5515ac5f496ccf4e109e6b"
+checksum = "5d936536583355d1ef18b9473dbe2a59d0c9ffff278a92c171feb30f2489dd0a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -664,6 +674,15 @@ dependencies = [
 
 [[package]]
 name = "sha2"
+version = "0.1.0"
+dependencies = [
+ "hex-literal",
+ "mozak-sdk",
+ "sha2 0.10.8",
+]
+
+[[package]]
+name = "sha2"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
@@ -672,21 +691,6 @@ dependencies = [
  "cpufeatures",
  "digest",
 ]
-
-[[package]]
-name = "sha2-example-mozak-guest"
-version = "0.1.0"
-dependencies = [
- "hex-literal",
- "mozak-sdk",
- "sha2",
-]
-
-[[package]]
-name = "slice-group-by"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
 
 [[package]]
 name = "smallvec"
@@ -712,9 +716,9 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "syn"
-version = "2.0.60"
+version = "2.0.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "909518bc7b1c9b779f1bbf07f2929d35af9f0f37e47c6e9ef7f9dddc1e1821f3"
+checksum = "4a6531ffc7b071655e4ce2e04bd464c4830bb585a61cabb96cf808f05172615a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -752,13 +756,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
-name = "token-mozak-guest"
+name = "token"
 version = "0.1.0"
 dependencies = [
  "hex",
  "mozak-sdk",
  "rkyv",
- "wallet-mozak-guest",
+ "rkyv_derive",
+ "wallet",
 ]
 
 [[package]]
@@ -784,9 +789,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.12"
+version = "0.22.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3328d4f68a705b2a4498da1d580585d39a6510f98318a2cec3018a7ec61ddef"
+checksum = "8e40bb779c5187258fd7aad0eb68cb8706a0a81fa712fbea808ab43c4b8374c4"
 dependencies = [
  "indexmap",
  "serde",
@@ -823,7 +828,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
-name = "wallet-mozak-guest"
+name = "wallet"
 version = "0.1.0"
 dependencies = [
  "hex",
@@ -831,6 +836,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rkyv",
+ "rkyv_derive",
 ]
 
 [[package]]
