@@ -58,7 +58,9 @@
 //! builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
 //! means split into multiple constraints.
 
+use core::iter::Sum;
 use core::ops::{Add, Mul, Neg, Sub};
+use std::collections::HashMap;
 
 use bumpalo::Bump;
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
@@ -70,7 +72,7 @@ pub enum Expr<'a, V> {
         value: i64,
     },
     Compound {
-        expr_tree: &'a ExprTree<'a, V>,
+        expr: CompoundExpr<'a, V>,
         builder: &'a ExprBuilder,
     },
 }
@@ -89,7 +91,7 @@ impl<'a, V> Expr<'a, V> {
     fn bin_op(op: BinOp, lhs: Expr<'a, V>, rhs: Expr<'a, V>) -> Expr<'a, V> {
         match (lhs, rhs) {
             (Expr::Basic { value: left }, Expr::Basic { value: right }) =>
-                Expr::from(PureEvaluator::default().bin_op(&op, left, right)),
+                Expr::from(PureEvaluator::default().bin_op(op, left, right)),
             (left @ Expr::Compound { builder, .. }, right)
             | (left, right @ Expr::Compound { builder, .. }) => builder.wrap(builder.bin_op(
                 op,
@@ -101,8 +103,8 @@ impl<'a, V> Expr<'a, V> {
 
     fn una_op(op: UnaOp, expr: Expr<'a, V>) -> Expr<'a, V> {
         match expr {
-            Expr::Basic { value } => Expr::from(PureEvaluator::default().una_op(&op, value)),
-            Expr::Compound { expr_tree, builder } => builder.wrap(builder.una_op(op, expr_tree)),
+            Expr::Basic { value } => Expr::from(PureEvaluator::default().una_op(op, value)),
+            Expr::Compound { expr, builder } => builder.wrap(builder.una_op(op, expr)),
         }
     }
 }
@@ -123,20 +125,6 @@ impl<'a, V> Expr<'a, V> {
             .into_iter()
             .rev()
             .fold(Expr::from(0), |acc, term| acc * base + term)
-    }
-}
-
-impl<V> Expr<'_, V>
-where
-    V: Copy,
-{
-    fn eval_with<E>(&self, evaluator: &mut E) -> V
-    where
-        E: Evaluator<V> + ?Sized, {
-        match self {
-            Expr::Basic { value } => evaluator.constant(*value),
-            Expr::Compound { expr_tree, .. } => expr_tree.eval_with(evaluator),
-        }
     }
 }
 
@@ -175,6 +163,10 @@ impl<'a, V> Neg for Expr<'a, V> {
     fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
 }
 
+impl<'a, V> Sum for Expr<'a, V> {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Expr::from(0), Add::add) }
+}
+
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
 /// store all the [`ExprTree`]s.
 #[derive(Debug, Default)]
@@ -185,21 +177,21 @@ pub struct ExprBuilder {
 impl ExprBuilder {
     /// Internalise an [`ExprTree`] by moving it to memory allocated by the
     /// [`Bump`] arena owned by [`ExprBuilder`].
-    fn intern<'a, V>(&'a self, expr_tree: ExprTree<'a, V>) -> &'a ExprTree<'a, V> {
-        self.bump.alloc(expr_tree)
+    fn intern<'a, V>(&'a self, expr_tree: ExprTree<'a, V>) -> CompoundExpr<'a, V> {
+        self.bump.alloc(expr_tree).into()
     }
 
-    fn ensure_interned<'a, V>(&'a self, expr: Expr<'a, V>) -> &'a ExprTree<'a, V> {
+    fn ensure_interned<'a, V>(&'a self, expr: Expr<'a, V>) -> CompoundExpr<'a, V> {
         match expr {
-            Expr::Compound { expr_tree, .. } => expr_tree,
+            Expr::Compound { expr, .. } => expr,
             Expr::Basic { value } => self.constant_tree(value),
         }
     }
 
     /// Wrap [`ExprTree`] reference with an [`Expr`] wrapper
-    fn wrap<'a, V>(&'a self, expr_tree: &'a ExprTree<'a, V>) -> Expr<'a, V> {
+    fn wrap<'a, V>(&'a self, expr: CompoundExpr<'a, V>) -> Expr<'a, V> {
         Expr::Compound {
-            expr_tree,
+            expr,
             builder: self,
         }
     }
@@ -208,25 +200,27 @@ impl ExprBuilder {
     fn bin_op<'a, V>(
         &'a self,
         op: BinOp,
-        left: &'a ExprTree<'a, V>,
-        right: &'a ExprTree<'a, V>,
-    ) -> &'a ExprTree<'a, V> {
+        left: CompoundExpr<'a, V>,
+        right: CompoundExpr<'a, V>,
+    ) -> CompoundExpr<'a, V> {
         let expr_tree = ExprTree::BinOp { op, left, right };
         self.intern(expr_tree)
     }
 
     /// Convenience method for creating `UnaOp` nodes
-    fn una_op<'a, V>(&'a self, op: UnaOp, expr: &'a ExprTree<'a, V>) -> &'a ExprTree<'a, V> {
+    fn una_op<'a, V>(&'a self, op: UnaOp, expr: CompoundExpr<'a, V>) -> CompoundExpr<'a, V> {
         let expr_tree = ExprTree::UnaOp { op, expr };
         self.intern(expr_tree)
     }
 
     /// Allocate Constant Expression Tree in the Expr Builder
-    fn constant_tree<V>(&self, value: i64) -> &ExprTree<'_, V> {
+    fn constant_tree<V>(&self, value: i64) -> CompoundExpr<'_, V> {
         self.intern(ExprTree::Constant { value })
     }
 
-    fn lit_tree<V>(&self, value: V) -> &ExprTree<'_, V> { self.intern(ExprTree::Literal { value }) }
+    fn lit_tree<V>(&self, value: V) -> CompoundExpr<'_, V> {
+        self.intern(ExprTree::Literal { value })
+    }
 
     /// Create a `Constant` expression
     pub fn constant<V>(&self, value: i64) -> Expr<'_, V> { self.wrap(self.constant_tree(value)) }
@@ -293,17 +287,28 @@ pub enum UnaOp {
     Neg,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct CompoundExpr<'a, V>(&'a ExprTree<'a, V>);
+
+impl<'a, V> From<&'a ExprTree<'a, V>> for CompoundExpr<'a, V> {
+    fn from(value: &'a ExprTree<'a, V>) -> Self { CompoundExpr(value) }
+}
+
+impl<'a, V> From<&'a mut ExprTree<'a, V>> for CompoundExpr<'a, V> {
+    fn from(value: &'a mut ExprTree<'a, V>) -> Self { CompoundExpr(value) }
+}
+
 /// Internal type to represent the expression trees
 #[derive(Debug)]
 pub enum ExprTree<'a, V> {
     BinOp {
         op: BinOp,
-        left: &'a ExprTree<'a, V>,
-        right: &'a ExprTree<'a, V>,
+        left: CompoundExpr<'a, V>,
+        right: CompoundExpr<'a, V>,
     },
     UnaOp {
         op: UnaOp,
-        expr: &'a ExprTree<'a, V>,
+        expr: CompoundExpr<'a, V>,
     },
     Literal {
         value: V,
@@ -313,50 +318,46 @@ pub enum ExprTree<'a, V> {
     },
 }
 
-impl<V> ExprTree<'_, V>
-where
-    V: Copy,
-{
-    fn eval_with<E>(&self, evaluator: &mut E) -> V
-    where
-        E: Evaluator<V>,
-        E: ?Sized, {
-        match self {
-            ExprTree::BinOp { op, left, right } => {
-                let left = left.eval_with(evaluator);
-                let right = right.eval_with(evaluator);
-
-                evaluator.bin_op(op, left, right)
-            }
-            ExprTree::UnaOp { op, expr } => {
-                let expr = expr.eval_with(evaluator);
-                evaluator.una_op(op, expr)
-            }
-            ExprTree::Literal { value } => *value,
-            ExprTree::Constant { value } => evaluator.constant(*value),
-        }
-    }
-}
-
 /// Evaluator that can evaluate [`Expr`] to `V`.
-pub trait Evaluator<V>
+pub trait Evaluator<'a, V>
 where
     V: Copy, {
-    fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
-    fn una_op(&mut self, op: &UnaOp, expr: V) -> V;
+    fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V;
+    fn una_op(&mut self, op: UnaOp, expr: V) -> V;
     fn constant(&mut self, value: i64) -> V;
-    fn eval(&mut self, expr: Expr<'_, V>) -> V { expr.eval_with(self) }
+    fn expr_tree(&mut self, expr_tree: &'a ExprTree<'a, V>) -> V {
+        match expr_tree {
+            ExprTree::BinOp { op, left, right } => {
+                let left = self.compound_expr(*left);
+                let right = self.compound_expr(*right);
+                self.bin_op(*op, left, right)
+            }
+            ExprTree::UnaOp { op, expr } => {
+                let expr = self.compound_expr(*expr);
+                self.una_op(*op, expr)
+            }
+            ExprTree::Literal { value } => *value,
+            ExprTree::Constant { value } => self.constant(*value),
+        }
+    }
+    fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) -> V { self.expr_tree(expr.0) }
+    fn eval(&mut self, expr: Expr<'a, V>) -> V {
+        match expr {
+            Expr::Basic { value } => self.constant(value),
+            Expr::Compound { expr, builder: _ } => self.compound_expr(expr),
+        }
+    }
 }
 
 /// Default evaluator for pure values.
 #[derive(Default)]
 pub struct PureEvaluator {}
 
-impl<V> Evaluator<V> for PureEvaluator
+impl<'a, V> Evaluator<'a, V> for PureEvaluator
 where
     V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
 {
-    fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V {
+    fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
         match op {
             BinOp::Add => left + right,
             BinOp::Sub => left - right,
@@ -364,13 +365,62 @@ where
         }
     }
 
-    fn una_op(&mut self, op: &UnaOp, expr: V) -> V {
+    fn una_op(&mut self, op: UnaOp, expr: V) -> V {
         match op {
             UnaOp::Neg => -expr,
         }
     }
 
     fn constant(&mut self, value: i64) -> V { value.into() }
+}
+
+#[derive(Default)]
+pub struct Cached<'a, V, E> {
+    constant_cache: HashMap<i64, V>,
+    value_cache: HashMap<*const ExprTree<'a, V>, V>,
+    evaluator: E,
+}
+
+impl<'a, V, E> From<E> for Cached<'a, V, E>
+where
+    E: Evaluator<'a, V>,
+    V: Copy,
+{
+    fn from(value: E) -> Self {
+        Cached {
+            constant_cache: HashMap::default(),
+            value_cache: HashMap::default(),
+            evaluator: value,
+        }
+    }
+}
+
+impl<'a, V, E> Evaluator<'a, V> for Cached<'a, V, E>
+where
+    V: Copy,
+    E: Evaluator<'a, V>,
+{
+    fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
+        self.evaluator.bin_op(op, left, right)
+    }
+
+    fn una_op(&mut self, op: UnaOp, expr: V) -> V { self.evaluator.una_op(op, expr) }
+
+    fn constant(&mut self, k: i64) -> V {
+        *self
+            .constant_cache
+            .entry(k)
+            .or_insert_with(|| self.evaluator.constant(k))
+    }
+
+    fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) -> V {
+        let expr_tree = expr.0;
+
+        *self
+            .value_cache
+            .entry(expr_tree as *const ExprTree<'_, V>)
+            .or_insert_with(|| self.evaluator.expr_tree(expr_tree))
+    }
 }
 
 #[cfg(test)]
@@ -402,9 +452,9 @@ mod tests {
 
         let mut p = PureEvaluator::default();
 
-        assert_eq!((a + b * c).eval_with(&mut p), 22);
-        assert_eq!((a - b * c).eval_with(&mut p), -8);
-        assert_eq!((a * b * c).eval_with(&mut p), 105);
+        assert_eq!(p.eval(a + b * c), 22);
+        assert_eq!(p.eval(a - b * c), -8);
+        assert_eq!(p.eval(a * b * c), 105);
     }
 
     #[test]
@@ -415,8 +465,21 @@ mod tests {
 
         let mut p = PureEvaluator::default();
 
-        assert_eq!((a + b * c).eval_with(&mut p), 22);
-        assert_eq!((a - b * c).eval_with(&mut p), -8);
-        assert_eq!((a * b * c).eval_with(&mut p), 105);
+        assert_eq!(p.eval(a + b * c), 22);
+        assert_eq!(p.eval(a - b * c), -8);
+        assert_eq!(p.eval(a * b * c), 105);
+    }
+
+    #[test]
+    fn basic_caching_expressions() {
+        let a: Expr<'_, i64> = Expr::from(7);
+        let b = Expr::from(5);
+        let c = Expr::from(3);
+
+        let mut p = Cached::from(PureEvaluator::default());
+
+        assert_eq!(p.eval(a + b * c), 22);
+        assert_eq!(p.eval(a - b * c), -8);
+        assert_eq!(p.eval(a * b * c), 105);
     }
 }
