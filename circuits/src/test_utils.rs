@@ -126,7 +126,7 @@ impl ProveAndVerify for CpuStark<F, D> {
 
         let config = fast_test_config();
 
-        let mut stark = S {
+        let stark = S {
             standalone_proving: true,
             ..S::default()
         };
@@ -153,7 +153,10 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 
         let config = fast_test_config();
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let cpu_trace = generate_cpu_trace(record);
 
         let memory_init = generate_memory_init_trace(program);
@@ -216,7 +219,10 @@ impl ProveAndVerify for XorStark<F, D> {
 
         let config = fast_test_config();
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let cpu_trace = generate_cpu_trace(record);
         let trace_poly_values = trace_rows_to_poly_values(generate_xor_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
@@ -236,7 +242,10 @@ impl ProveAndVerify for MemoryStark<F, D> {
         type S = MemoryStark<F, D>;
         let config = fast_test_config();
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
 
         let memory_init = generate_memory_init_trace(program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, program);
@@ -282,7 +291,10 @@ impl ProveAndVerify for HalfWordMemoryStark<F, D> {
         type S = HalfWordMemoryStark<F, D>;
         let config = fast_test_config();
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let trace_poly_values =
             trace_rows_to_poly_values(generate_halfword_memory_trace(&record.executed));
         let proof = prove_table::<F, C, S, D>(
@@ -302,7 +314,10 @@ impl ProveAndVerify for FullWordMemoryStark<F, D> {
         type S = FullWordMemoryStark<F, D>;
         let config = fast_test_config();
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let trace_poly_values =
             trace_rows_to_poly_values(generate_fullword_memory_trace(&record.executed));
         let proof = prove_table::<F, C, S, D>(
@@ -322,7 +337,10 @@ impl ProveAndVerify for InputOutputMemoryStark<F, D> {
         type S = InputOutputMemoryStark<F, D>;
         let config = fast_test_config();
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let trace_poly_values =
             trace_rows_to_poly_values(generate_io_memory_private_trace(&record.executed));
         let proof = prove_table::<F, C, S, D>(
@@ -342,7 +360,10 @@ impl ProveAndVerify for BitshiftStark<F, D> {
         type S = BitshiftStark<F, D>;
         let config = fast_test_config();
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let cpu_rows = generate_cpu_trace::<F>(record);
         let trace = generate_shift_amount_trace(&cpu_rows);
         let trace_poly_values = trace_rows_to_poly_values(trace);
@@ -363,7 +384,10 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
         type S = RegisterInitStark<F, D>;
         let config = fast_test_config();
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let trace = generate_register_init_trace::<F>(record);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
@@ -383,7 +407,10 @@ impl ProveAndVerify for RegisterStark<F, D> {
         type S = RegisterStark<F, D>;
         let config = fast_test_config();
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let cpu_trace = generate_cpu_trace(record);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
@@ -418,7 +445,10 @@ impl ProveAndVerify for RegisterStark<F, D> {
 impl ProveAndVerify for TapeCommitmentsStark<F, D> {
     fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = TapeCommitmentsStark<F, D>;
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let config = fast_test_config();
         let trace = generate_tape_commitments_trace(record);
         let trace_poly_values = trace_rows_to_poly_values(trace);
