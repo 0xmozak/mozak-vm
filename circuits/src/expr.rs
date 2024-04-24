@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::panic::Location;
 
 use derive_more::Display;
-use expr::{BinOp, Cached, Evaluator, Expr, UnaOp};
+use expr::{BinOp, Cached, Evaluator2, Expr, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -17,11 +17,14 @@ where
     builder: &'a mut CircuitBuilder<F, D>,
 }
 
-impl<'a, F, const D: usize> Evaluator<'a, ExtensionTarget<D>> for CircuitBuilderEvaluator<'a, F, D>
+impl<'a, F, const D: usize> Evaluator2<'a, ExtensionTarget<D>, ExtensionTarget<D>>
+    for CircuitBuilderEvaluator<'a, F, D>
 where
     F: RichField,
     F: Extendable<D>,
 {
+    fn literal(&mut self, &value: &ExtensionTarget<D>) -> ExtensionTarget<D> { value }
+
     fn bin_op(
         &mut self,
         op: BinOp,
@@ -55,7 +58,7 @@ struct PackedFieldEvaluator<'a, P, const D: usize, const D2: usize> {
     _marker: PhantomData<&'a P>,
 }
 
-impl<'a, F, FE, P, const D: usize, const D2: usize> Evaluator<'a, P>
+impl<'a, F, FE, P, const D: usize, const D2: usize> Evaluator2<'a, P, P>
     for PackedFieldEvaluator<'a, P, D, D2>
 where
     F: RichField,
@@ -63,6 +66,8 @@ where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
 {
+    fn literal(&mut self, &literal: &P) -> P { literal }
+
     fn bin_op(&mut self, op: BinOp, left: P, right: P) -> P {
         match op {
             BinOp::Add => left + right,

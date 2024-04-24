@@ -60,7 +60,7 @@
 
 use core::iter::Sum;
 use core::ops::{Add, Mul, Neg, Sub};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use bumpalo::Bump;
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
@@ -318,14 +318,21 @@ pub enum ExprTree<'a, V> {
     },
 }
 
+pub trait Evaluator<'a, V: Copy>: Evaluator2<'a, V, V> {}
+
+// TODO(Matthias): we introduce W, so we can have evaluators that go purely for
+// side-effects etc. How does bin_op etc work here?
 /// Evaluator that can evaluate [`Expr`] to `V`.
-pub trait Evaluator<'a, V>
+pub trait Evaluator2<'a, V, W>
 where
     V: Copy, {
-    fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V;
-    fn una_op(&mut self, op: UnaOp, expr: V) -> V;
-    fn constant(&mut self, value: i64) -> V;
-    fn expr_tree(&mut self, expr_tree: &'a ExprTree<'a, V>) -> V {
+    fn bin_op(&mut self, op: BinOp, left: W, right: W) -> W;
+    fn una_op(&mut self, op: UnaOp, expr: W) -> W;
+    fn constant(&mut self, value: i64) -> W;
+    fn literal(&mut self, literal: &V) -> W;
+    // We need to open the recursion in expr_tree, if we want to override,
+    // ie do only one level.
+    fn expr_tree(&mut self, expr_tree: &'a ExprTree<'a, V>) -> W {
         match expr_tree {
             ExprTree::BinOp { op, left, right } => {
                 let left = self.compound_expr(*left);
@@ -336,12 +343,28 @@ where
                 let expr = self.compound_expr(*expr);
                 self.una_op(*op, expr)
             }
-            ExprTree::Literal { value } => *value,
+            ExprTree::Literal { value } => self.literal(value),
             ExprTree::Constant { value } => self.constant(*value),
         }
     }
-    fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) -> V { self.expr_tree(expr.0) }
-    fn eval(&mut self, expr: Expr<'a, V>) -> V {
+    // fn expr_tree_open<E: Evaluator<'a, V, >>(&mut self, e: &mut E, expr_tree: &'a
+    // ExprTree<'a, V>) -> V {     match expr_tree {
+    //         ExprTree::BinOp { op, left, right } => {
+    //             let left = e.compound_expr(*left);
+    //             let right = e.compound_expr(*right);
+    //             self.bin_op(*op, left, right)
+    //         }
+    //         ExprTree::UnaOp { op, expr } => {
+    //             let expr = e.compound_expr(*expr);
+    //             self.una_op(*op, expr)
+    //         }
+    //         ExprTree::Literal { value } => *value,
+    //         ExprTree::Constant { value } => self.constant(*value),
+    //     }
+    // }
+
+    fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) -> W { self.expr_tree(expr.0) }
+    fn eval(&mut self, expr: Expr<'a, V>) -> W {
         match expr {
             Expr::Basic { value } => self.constant(value),
             Expr::Compound { expr, builder: _ } => self.compound_expr(expr),
@@ -353,10 +376,12 @@ where
 #[derive(Default)]
 pub struct PureEvaluator {}
 
-impl<'a, V> Evaluator<'a, V> for PureEvaluator
+impl<'a, V> Evaluator2<'a, V, V> for PureEvaluator
 where
     V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
 {
+    fn literal(&mut self, literal: &V) -> V { *literal }
+
     fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
         match op {
             BinOp::Add => left + right,
@@ -375,15 +400,47 @@ where
 }
 
 #[derive(Default)]
+pub struct Numbered<'a, V> {
+    // constants: Vec<i64>,
+    // constant_cache: HashMap<i64, V>,
+    // Hmm, we want an order of evaluation.
+    pub values: Vec<*const ExprTree<'a, V>>,
+    pub value_cache: HashSet<*const ExprTree<'a, V>>,
+}
+
+impl<'a, V> Evaluator2<'a, V, ()> for Numbered<'a, V>
+where
+    V: Copy,
+{
+    fn literal(&mut self, _literal: &V) {}
+
+    fn una_op(&mut self, _op: UnaOp, _expr: ()) {}
+
+    fn bin_op(&mut self, _op: BinOp, _left: (), _right: ()) {}
+
+    fn constant(&mut self, _value: i64) {}
+
+    fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) {
+        self.expr_tree(expr.0);
+        if self.value_cache.insert(expr.0) {
+            self.values.push(expr.0);
+        }
+    }
+}
+
+#[derive(Default)]
 pub struct Cached<'a, V, E> {
+    // constants: Vec<i64>,
     constant_cache: HashMap<i64, V>,
+    // Hmm, we want an order of evaluation.
+    // values: Vec<ExprTree<'a, V>>,
     value_cache: HashMap<*const ExprTree<'a, V>, V>,
     evaluator: E,
 }
 
 impl<'a, V, E> From<E> for Cached<'a, V, E>
 where
-    E: Evaluator<'a, V>,
+    E: Evaluator2<'a, V, V>,
     V: Copy,
 {
     fn from(value: E) -> Self {
@@ -395,11 +452,13 @@ where
     }
 }
 
-impl<'a, V, E> Evaluator<'a, V> for Cached<'a, V, E>
+impl<'a, V, E> Evaluator2<'a, V, V> for Cached<'a, V, E>
 where
     V: Copy,
-    E: Evaluator<'a, V>,
+    E: Evaluator2<'a, V, V>,
 {
+    fn literal(&mut self, literal: &V) -> V { *literal }
+
     fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
         self.evaluator.bin_op(op, left, right)
     }
@@ -420,12 +479,27 @@ where
     // self.value_cache.entry.
     #[allow(clippy::map_entry)]
     fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) -> V {
-        let expr_tree = expr.0;
+        // TODO(Matthias): perhaps use 'dynamic programming' approach here, instead of
+        // recursive descent? Or we use opne-recursion?
+        // That's probably the way to go?
+        let expr_tree: &ExprTree<'a, V> = expr.0;
         let k = expr_tree as *const ExprTree<'_, V>;
 
+        // let len = self.value_cache.len();
+        // let entry = self.value_cache.entry(k);
+        // *entry.or_insert_with(|| {
+        //     println!("miss\tCache size: {len}");
+        //     let evaluator = &mut self.evaluator;
+        //     evaluator.expr_tree_open(&mut self, expr_tree)
+        // })
+
         if !self.value_cache.contains_key(&k) {
+            // let evaluator = &mut self.evaluator;
             let v = self.expr_tree(expr_tree);
             self.value_cache.insert(k, v);
+            println!("miss\tCache size: {}", self.value_cache.len());
+        } else {
+            println!("hit\tCache size: {}", self.value_cache.len());
         }
 
         *self.value_cache.get(&k).unwrap()
