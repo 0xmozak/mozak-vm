@@ -21,7 +21,7 @@ use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 use crate::unstark::NoColumns;
 
 // degree: 1
-fn add_rc_expr<'a, V, W, const STATE_SIZE: usize>(
+fn add_rc<'a, V, W, const STATE_SIZE: usize>(
     state: &mut [Expr<'a, V>; STATE_SIZE],
     r: usize,
     from_u64: &mut impl FnMut(u64) -> Expr<'a, V>,
@@ -37,13 +37,13 @@ fn add_rc_expr<'a, V, W, const STATE_SIZE: usize>(
 }
 
 // degree: 3
-fn sbox_p_expr<'a, V>(x: &mut Expr<'a, V>, x_qube: &Expr<'a, V>)
+fn sbox_p<'a, V>(x: &mut Expr<'a, V>, x_qube: &Expr<'a, V>)
 where
     V: Copy, {
     *x = *x_qube * *x_qube * *x;
 }
 
-fn matmul_m4_expr<'a, V, const STATE_SIZE: usize>(state: &mut [Expr<'a, V>; STATE_SIZE])
+fn matmul_m4<'a, V, const STATE_SIZE: usize>(state: &mut [Expr<'a, V>; STATE_SIZE])
 where
     V: Copy, {
     // input x = (x0, x1, x2, x3)
@@ -88,11 +88,11 @@ where
     }
 }
 
-fn matmul_external12_expr<'a, V>(state: &mut [Expr<'a, V>; STATE_SIZE])
+fn matmul_external12<'a, V>(state: &mut [Expr<'a, V>; STATE_SIZE])
 where
     V: Copy, {
     assert_eq!(STATE_SIZE, 12);
-    matmul_m4_expr(state);
+    matmul_m4(state);
 
     let t4 = STATE_SIZE / 4;
     let mut stored = [Expr::from(0); 4];
@@ -110,7 +110,7 @@ where
 }
 
 // degree: 1
-fn matmul_internal12_expr<'a, V, U, const STATE_SIZE: usize>(
+fn matmul_internal12<'a, V, U, const STATE_SIZE: usize>(
     state: &mut [Expr<'a, V>; STATE_SIZE],
     from_u64: &mut impl FnMut(u64) -> Expr<'a, V>,
 ) where
@@ -155,17 +155,17 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     constraints.always(lv.is_exe.is_binary());
 
     let mut state = lv.input;
-    matmul_external12_expr(&mut state);
+    matmul_external12(&mut state);
     // first full rounds
     for r in 0..(ROUNDS_F / 2) {
-        add_rc_expr::<V, U, STATE_SIZE>(&mut state, r, from_u64);
+        add_rc::<V, U, STATE_SIZE>(&mut state, r, from_u64);
         for (i, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
-            sbox_p_expr(
+            sbox_p(
                 item,
                 &lv.s_box_input_qube_first_full_rounds[r * STATE_SIZE + i],
             );
         }
-        matmul_external12_expr(&mut state);
+        matmul_external12(&mut state);
         for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
             constraints.always(*state_i - lv.state_after_first_full_rounds[r * STATE_SIZE + i]);
             *state_i = lv.state_after_first_full_rounds[r * STATE_SIZE + i];
@@ -179,8 +179,8 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
         // Poseidon2>::RC12_MID[i])); TODO: Implement _Assign traits
         // TODO: This cast is unsafe...
         state[0] = state[0] + from_u64(<U as Poseidon2>::RC12_MID[i]);
-        sbox_p_expr(&mut state[0], &lv.s_box_input_qube_partial_rounds[i]);
-        matmul_internal12_expr::<V, U, STATE_SIZE>(&mut state, from_u64);
+        sbox_p(&mut state[0], &lv.s_box_input_qube_partial_rounds[i]);
+        matmul_internal12::<V, U, STATE_SIZE>(&mut state, from_u64);
         constraints.always(state[0] - lv.state0_after_partial_rounds[i]);
         state[0] = lv.state0_after_partial_rounds[i];
     }
@@ -194,14 +194,14 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     // last full rounds
     for i in 0..(ROUNDS_F / 2) {
         let r = (ROUNDS_F / 2) + i;
-        add_rc_expr::<V, U, STATE_SIZE>(&mut state, r, from_u64);
+        add_rc::<V, U, STATE_SIZE>(&mut state, r, from_u64);
         for (j, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
-            sbox_p_expr(
+            sbox_p(
                 item,
                 &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
             );
         }
-        matmul_external12_expr(&mut state);
+        matmul_external12(&mut state);
         for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
             constraints.always(*state_j - lv.state_after_second_full_rounds[i * STATE_SIZE + j]);
             *state_j = lv.state_after_second_full_rounds[i * STATE_SIZE + j];
