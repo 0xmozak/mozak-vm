@@ -7,12 +7,10 @@ use anyhow::Result;
 use log::info;
 use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::field::extension::Extendable;
-use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::challenger::RecursiveChallenger;
-use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -24,10 +22,9 @@ use starky::stark::Stark;
 
 use super::mozak_stark::{all_starks, TableKindArray};
 use crate::columns_view::{columns_view_impl, NumberOfColumns};
-use crate::cross_table_lookup::CtlCheckVarsTarget;
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::proof::{
-    AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
+    AllProof, StarkOpeningSetTarget, StarkProof, StarkProofTarget,
     StarkProofWithPublicInputsTarget,
 };
 
@@ -121,6 +118,24 @@ where
 {
     pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
+
+        // all_kind!(|kind| {
+        //     self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
+
+        //     // set public_sub_table_values targets
+        //     for (public_sub_table_values_target, public_sub_table_values) in zip_eq(
+        //         &self.public_sub_table_values_targets[kind],
+        //         &all_proof.public_sub_table_values[kind],
+        //     ) {
+        //         for (row_target, row) in
+        //             zip_eq(public_sub_table_values_target, public_sub_table_values)
+        //         {
+        //             for (&values_target, &values) in zip_eq(row_target, row) {
+        //                 inputs.set_target(values_target, values);
+        //             }
+        //         }
+        //     }
+        // });
 
         // How are zk_evm handling their public inputs?
         // // let proof = starky::proof::StarkProof::from(proof);
@@ -263,136 +278,6 @@ where
 
     let circuit = builder.build();
     MozakStarkVerifierCircuit { circuit, targets }
-}
-
-/// Recursively verifies an inner proof.
-fn verify_stark_proof_with_challenges_circuit<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    S: Stark<F, D>,
-    const D: usize,
->(
-    builder: &mut CircuitBuilder<F, D>,
-    stark: &S,
-    proof_with_public_inputs: &StarkProofWithPublicInputsTarget<D>,
-    challenges: &StarkProofChallengesTarget<D>,
-    ctl_vars: &[CtlCheckVarsTarget<D>],
-    inner_config: &StarkConfig,
-) where
-    C::Hasher: AlgebraicHasher<F>, {
-    todo!()
-    // let zero = builder.zero();
-    // let one = builder.one_extension();
-
-    // let StarkOpeningSetTarget {
-    //     local_values,
-    //     next_values,
-    //     ctl_zs: _,
-    //     ctl_zs_next: _,
-    //     ctl_zs_last,
-    //     quotient_polys,
-    // } = &proof_with_public_inputs.proof.openings;
-
-    // let converted_public_inputs: Vec<ExtensionTarget<D>> =
-    // proof_with_public_inputs     .public_inputs
-    //     .iter()
-    //     .map(|target| builder.convert_to_ext(*target)) // replace with actual
-    // conversion function/method     .collect();
-
-    // let vars =
-    //     S::EvaluationFrameTarget::from_values(local_values, next_values,
-    // &converted_public_inputs);
-
-    // let degree_bits = proof_with_public_inputs
-    //     .proof
-    //     .recover_degree_bits(inner_config);
-    // let zeta_pow_deg =
-    // builder.exp_power_of_2_extension(challenges.stark_zeta, degree_bits);
-    // let z_h_zeta = builder.sub_extension(zeta_pow_deg, one);
-    // let (l_0, l_last) =
-    //     eval_l_0_and_l_last_circuit(builder, degree_bits,
-    // challenges.stark_zeta, z_h_zeta); let last =
-    //     builder.
-    // constant_extension(F::Extension::primitive_root_of_unity(degree_bits).
-    // inverse()); let z_last = builder.sub_extension(challenges.stark_zeta,
-    // last);
-
-    // let mut consumer = RecursiveConstraintConsumer::<F, D>::new(
-    //     builder.zero_extension(),
-    //     challenges.stark_alphas.clone(),
-    //     z_last,
-    //     l_0,
-    //     l_last,
-    // );
-
-    // with_context!(
-    //     builder,
-    //     "evaluate vanishing polynomial",
-    //     eval_vanishing_poly_circuit::<F, S, D>(builder, stark, &vars,
-    // ctl_vars, &mut consumer,) );
-    // let vanishing_polys_zeta = consumer.accumulators();
-
-    // // Check each polynomial identity, of the form `vanishing(x) = Z_H(x)
-    // // quotient(x)`, at zeta.
-    // let mut scale = ReducingFactorTarget::new(zeta_pow_deg);
-    // for (i, chunk) in quotient_polys
-    //     .chunks(stark.quotient_degree_factor())
-    //     .enumerate()
-    // {
-    //     let recombined_quotient = scale.reduce(chunk, builder);
-    //     let computed_vanishing_poly = builder.mul_extension(z_h_zeta,
-    // recombined_quotient);     builder.
-    // connect_extension(vanishing_polys_zeta[i], computed_vanishing_poly);
-    // }
-
-    // let merkle_caps = vec![
-    //     proof_with_public_inputs.proof.trace_cap.clone(),
-    //     proof_with_public_inputs.proof.ctl_zs_cap.clone(),
-    //     proof_with_public_inputs.proof.quotient_polys_cap.clone(),
-    // ];
-
-    // let fri_instance = stark.fri_instance_target(
-    //     builder,
-    //     challenges.stark_zeta,
-    //     F::primitive_root_of_unity(degree_bits),
-    //     0,
-    //     0,
-    //     inner_config,
-    //     Some(&LookupConfig {
-    //         degree_bits,
-    //         num_zs: ctl_zs_last.len(),
-    //     }),
-    // );
-    // builder.verify_fri_proof::<C>(
-    //     &fri_instance,
-    //     &proof_with_public_inputs
-    //         .proof
-    //         .openings
-    //         .to_fri_openings(zero),
-    //     &challenges.fri_challenges,
-    //     &merkle_caps,
-    //     &proof_with_public_inputs.proof.opening_proof,
-    //     &inner_config.fri_params(degree_bits),
-    // );
-}
-
-fn eval_l_0_and_l_last_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    log_n: usize,
-    x: ExtensionTarget<D>,
-    z_x: ExtensionTarget<D>,
-) -> (ExtensionTarget<D>, ExtensionTarget<D>) {
-    let n = builder.constant_extension(F::Extension::from_canonical_usize(1 << log_n));
-    let g = builder.constant_extension(F::Extension::primitive_root_of_unity(log_n));
-    let one = builder.one_extension();
-    let l_0_deno = builder.mul_sub_extension(n, x, n);
-    let l_last_deno = builder.mul_sub_extension(g, x, one);
-    let l_last_deno = builder.mul_extension(n, l_last_deno);
-
-    (
-        builder.div_extension(z_x, l_0_deno),
-        builder.div_extension(z_x, l_last_deno),
-    )
 }
 
 pub fn add_virtual_stark_proof_with_pis<
