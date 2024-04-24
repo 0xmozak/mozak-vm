@@ -188,7 +188,7 @@ pub struct MemEntry {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
 #[repr(u8)]
-pub enum IoOpcode {
+pub enum StorageDeviceOpcode {
     #[default]
     None,
     StorePrivate,
@@ -201,7 +201,7 @@ pub enum IoOpcode {
 #[derive(Debug, Default, Clone)]
 pub struct IoEntry {
     pub addr: u32,
-    pub op: IoOpcode,
+    pub op: StorageDeviceOpcode,
     pub data: Vec<u8>,
 }
 

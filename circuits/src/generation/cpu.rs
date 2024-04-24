@@ -2,7 +2,7 @@ use expr::{Evaluator, ExprBuilder, PureEvaluator};
 use itertools::{chain, Itertools};
 use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
-use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
+use mozak_runner::state::{Aux, IoEntry, State, StorageDeviceOpcode};
 use mozak_runner::vm::{ExecutionRecord, Row};
 use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::REG_A0;
@@ -147,23 +147,23 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store_private: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StorePrivate)
+                (Op::ECALL, StorageDeviceOpcode::StorePrivate)
             )),
             is_io_store_public: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StorePublic)
+                (Op::ECALL, StorageDeviceOpcode::StorePublic)
             )),
             is_call_tape: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StoreCallTape)
+                (Op::ECALL, StorageDeviceOpcode::StoreCallTape)
             )),
             is_events_commitment_tape: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StoreEventsCommitmentTape)
+                (Op::ECALL, StorageDeviceOpcode::StoreEventsCommitmentTape)
             )),
             is_cast_list_commitment_tape: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StoreCastListCommitmentTape)
+                (Op::ECALL, StorageDeviceOpcode::StoreCastListCommitmentTape)
             )),
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::from(REG_A0)]),
