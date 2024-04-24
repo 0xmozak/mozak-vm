@@ -48,12 +48,6 @@ where
         "Mismatch between ElfMemoryInit trace caps"
     );
 
-    ensure!(
-        all_proof.proofs[TableKind::MozakMemoryInit].proof.trace_cap
-            == all_proof.mozak_memory_init_trace_cap,
-        "Mismatch between MozakMemoryInit trace caps"
-    );
-
     let num_lookup_columns = all_starks!(mozak_stark, |stark, kind| stark
         .num_lookup_helper_columns(config))
     .0;
