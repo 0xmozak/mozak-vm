@@ -77,7 +77,6 @@ where
         }
     }
 
-    #[inline]
     fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
 }
 
