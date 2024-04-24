@@ -13,7 +13,7 @@ use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::memoryinit::{
-    generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_private_tape_init_trace,
+    generate_call_tape_init_trace, generate_elf_memory_init_trace,
 };
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -29,7 +29,7 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
-use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
+use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
@@ -270,24 +270,13 @@ fn main() -> Result<()> {
                         trace_commitment.merkle_tree.cap
                     };
 
-                    let trace = generate_private_tape_init_trace(&program);
-                    let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-
                     let trace = generate_call_tape_init_trace(&program);
                     let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
-                    let transparent_attestation = TransparentAttestation {
-                        public_tape: args.io_tape_public,
-                        event_tape,
-                    };
-
-                    let opaque_attestation: OpaqueAttestation<F, C, D> =
-                        OpaqueAttestation { private_tape_hash };
-
                     let attestation = Attestation {
                         id: plan.self_prog_id.into(),
-                        opaque: opaque_attestation,
-                        transparent: transparent_attestation,
+                        public_tape: args.io_tape_public,
+                        event_tape,
                     };
                     Ok((attestation, call_tape_hash))
                 })
@@ -300,7 +289,7 @@ fn main() -> Result<()> {
                 ))?
                 .clone();
 
-            let transaction = Transaction {
+            let transaction: Transaction<F, C, D> = Transaction {
                 call_tape_hash,
                 cast_list: cast_list
                     .clone()

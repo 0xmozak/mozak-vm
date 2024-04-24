@@ -111,13 +111,16 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::BltTaken => extract(blt_trace, &looking_table),
             TableKind::StoreWord => extract(store_word_trace, &looking_table),
             TableKind::LoadWord => extract(load_word_trace, &looking_table),
-            TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
-            TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
+            TableKind::StorageDevicePrivate => extract(mem_private, &looking_table),
+            TableKind::StorageDevicePublic => extract(mem_public, &looking_table),
             TableKind::CallTape => extract(mem_call_tape, &looking_table),
             TableKind::EventsCommitmentTape => extract(mem_events_commitment_tape, &looking_table),
             TableKind::CastListCommitmentTape =>
                 extract(mem_cast_list_commitment_tape, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
+            // We are trying to build the Register tables, so we don't have the values to extract.
+            TableKind::Register | TableKind::RegisterZeroRead | TableKind::RegisterZeroWrite =>
+                vec![],
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
         .collect();

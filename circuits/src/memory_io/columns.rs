@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use mozak_sdk::core::reg_abi::REG_A1;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -7,9 +8,10 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{
-    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable, IoMemoryPrivateTable,
-    IoMemoryPublicTable, TableKind, TableWithTypedOutput,
+    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable,
+    StorageDevicePrivateTable, StorageDevicePublicTable, TableKind, TableWithTypedOutput,
 };
+use crate::tape_commitments::columns::TapeCommitmentCTL;
 
 /// Operations (one-hot encoded)
 #[repr(C)]
@@ -48,10 +50,10 @@ impl<T: Copy + Add<Output = T>> StorageDevice<T> {
 /// Total number of columns.
 pub const NUM_IO_MEM_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
 
-columns_view_impl!(InputOutputMemoryCtl);
+columns_view_impl!(StorageDeviceCtl);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct InputOutputMemoryCtl<T> {
+pub struct StorageDeviceCtl<T> {
     pub op: T,
     pub clk: T,
     pub addr: T,
@@ -60,13 +62,10 @@ pub struct InputOutputMemoryCtl<T> {
 
 /// Lookup between CPU table and Memory stark table.
 #[must_use]
-pub fn lookup_for_cpu(
-    kind: TableKind,
-    op: i64,
-) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_cpu(kind: TableKind, op: i64) -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     TableWithTypedOutput {
         kind,
-        columns: InputOutputMemoryCtl {
+        columns: StorageDeviceCtl {
             op: ColumnWithTypedInput::constant(op),
             clk: COL_MAP.clk,
             addr: COL_MAP.addr,
@@ -107,10 +106,30 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         value: COL_MAP.addr,
     };
     vec![
-        IoMemoryPrivateTable::new(data, COL_MAP.ops.is_io_store),
-        IoMemoryPublicTable::new(data, COL_MAP.ops.is_io_store),
+        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_io_store),
+        StorageDevicePublicTable::new(data, COL_MAP.ops.is_io_store),
         CallTapeTable::new(data, COL_MAP.ops.is_io_store),
         EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
         CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
     ]
+}
+
+#[must_use]
+pub fn event_commitment_lookup_in_tape_commitments(
+) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
+    let data = TapeCommitmentCTL {
+        byte: COL_MAP.value,
+        index: i64::try_from(COMMITMENT_SIZE - 1).unwrap() - COL_MAP.size,
+    };
+    EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
+}
+
+#[must_use]
+pub fn castlist_commitment_lookup_in_tape_commitments(
+) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
+    let data = TapeCommitmentCTL {
+        byte: COL_MAP.value,
+        index: i64::try_from(COMMITMENT_SIZE - 1).unwrap() - COL_MAP.size,
+    };
+    CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
 }

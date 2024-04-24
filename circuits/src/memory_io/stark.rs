@@ -1,19 +1,20 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::memory_io::columns::{StorageDevice, NUM_IO_MEM_COLS};
-use crate::stark::utils::{is_binary, is_binary_ext_circuit};
+use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -28,6 +29,54 @@ impl<F, const D: usize> HasNamedColumns for StorageDeviceStark<F, D> {
 const COLUMNS: usize = NUM_IO_MEM_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
+// Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<StorageDevice<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv = vars.local_values;
+    let nv = vars.next_values;
+    let mut constraints = ConstraintBuilder::default();
+
+    constraints.always(lv.ops.is_memory_store.is_binary());
+    constraints.always(lv.ops.is_io_store.is_binary());
+    constraints.always(lv.is_executed().is_binary());
+
+    // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
+    // This constraints ensures loop unrolling was done correctly
+    constraints.always(nv.ops.is_io_store * lv.size);
+    // If lv.is_lv_and_nv_are_memory_rows == 1:
+    //    nv.address == lv.address + 1 (wrapped)
+    //    nv.size == lv.size - 1 (not-wrapped)
+    let added = lv.addr + 1;
+    let wrapped = added - (1 << 32);
+    // nv.address == lv.address + 1 (wrapped)
+    constraints.always(lv.is_lv_and_nv_are_memory_rows * (nv.addr - added) * (nv.addr - wrapped));
+    // nv.size == lv.size - 1 (not-wrapped)
+    constraints.transition(nv.is_lv_and_nv_are_memory_rows * (nv.size - (lv.size - 1)));
+    // Edge cases:
+    //  a) - io_store with size = 0: <-- this case is solved since CTL from CPU
+    //        a.1) is_lv_and_nv_are_memory_rows = 0 (no memory rows inserted)
+    //  b) - io_store with size = 1: <-- this case needs to be solved separately
+    //        b.1) is_lv_and_nv_are_memory_rows = 0 (only one memory row inserted)
+    // To solve case-b:
+    // If lv.is_io() == 1 && lv.size != 0:
+    //      lv.addr == nv.addr       <-- next row address must be the same !!!
+    //      lv.size === nv.size - 1  <-- next row size is decreased
+    constraints.transition(lv.ops.is_io_store * lv.size * (nv.addr - lv.addr));
+    constraints.transition(lv.ops.is_io_store * lv.size * (nv.size - (lv.size - 1)));
+    // If lv.is_io() == 1 && lv.size == 0:
+    //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
+    // This one is ensured by:
+    //  1) is_binary(io or memory)
+    //  2) if nv.is_io() == 1: lv.size == 0
+
+    // If lv.is_io() == 1 && nv.size != 0:
+    //      nv.is_lv_and_nv_are_memory_rows == 1
+    constraints.always(lv.ops.is_io_store * nv.size * (nv.is_lv_and_nv_are_memory_rows - 1));
+
+    constraints
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for StorageDeviceStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
@@ -37,117 +86,27 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for StorageDevice
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
-    #[rustfmt::skip]
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &StorageDevice<P> = vars.get_local_values().into();
-        let nv: &StorageDevice<P> = vars.get_next_values().into();
-
-        is_binary(yield_constr, lv.ops.is_memory_store);
-        is_binary(yield_constr, lv.ops.is_io_store);
-        is_binary(yield_constr, lv.is_executed());
-
-        // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
-        // This constraints ensures loop unrolling was done correctly
-        yield_constr.constraint(nv.ops.is_io_store * lv.size);
-        // If lv.is_lv_and_nv_are_memory_rows == 1:
-        //    nv.address == lv.address + 1 (wrapped)
-        //    nv.size == lv.size - 1 (not-wrapped)
-        let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        let added = lv.addr + P::ONES;
-        let wrapped = added - wrap_at;
-        // nv.address == lv.address + 1 (wrapped)
-        yield_constr
-            .constraint(lv.is_lv_and_nv_are_memory_rows * (nv.addr - added) * (nv.addr - wrapped));
-        // nv.size == lv.size - 1 (not-wrapped)
-        yield_constr.constraint_transition(
-            nv.is_lv_and_nv_are_memory_rows * (nv.size - (lv.size - P::ONES)),
-        );
-        // Edge cases:
-        //  a) - io_store with size = 0: <-- this case is solved since CTL from CPU
-        //        a.1) is_lv_and_nv_are_memory_rows = 0 (no memory rows inserted)
-        //  b) - io_store with size = 1: <-- this case needs to be solved separately
-        //        b.1) is_lv_and_nv_are_memory_rows = 0 (only one memory row inserted)
-        // To solve case-b:
-        // If lv.is_io() == 1 && lv.size != 0:
-        //      lv.addr == nv.addr       <-- next row address must be the same !!!
-        //      lv.size === nv.size - 1  <-- next row size is decreased
-        yield_constr.constraint_transition(
-            lv.ops.is_io_store * lv.size * (nv.addr - lv.addr),
-        );
-        yield_constr.constraint_transition(
-            lv.ops.is_io_store * lv.size * (nv.size - (lv.size - P::ONES)),
-        );
-        // If lv.is_io() == 1 && lv.size == 0:
-        //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
-        // This one is ensured by:
-        //  1) is_binary(io or memory)
-        //  2) if nv.is_io() == 1: lv.size == 0
-
-        // If lv.is_io() == 1 && nv.size != 0:
-        //      nv.is_lv_and_nv_are_memory_rows == 1
-        yield_constr.constraint(lv.ops.is_io_store * nv.size * (nv.is_lv_and_nv_are_memory_rows - P::ONES));
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_packed(constraints, consumer);
     }
 
     fn eval_ext_circuit(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &StorageDevice<ExtensionTarget<D>> = vars.get_local_values().into();
-        let nv: &StorageDevice<ExtensionTarget<D>> = vars.get_next_values().into();
-
-        let is_executed = builder.add_extension(lv.ops.is_memory_store, lv.ops.is_io_store);
-
-        is_binary_ext_circuit(builder, lv.ops.is_memory_store, yield_constr);
-        is_binary_ext_circuit(builder, lv.ops.is_io_store, yield_constr);
-        is_binary_ext_circuit(builder, is_executed, yield_constr);
-
-        let is_io_mul_lv_size = builder.mul_extension(nv.ops.is_io_store, lv.size);
-        yield_constr.constraint(builder, is_io_mul_lv_size);
-
-        let wrap_at = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
-        let one = builder.one_extension();
-        let added = builder.add_extension(lv.addr, one);
-        let wrapped = builder.sub_extension(added, wrap_at);
-
-        let nv_addr_sub_added = builder.sub_extension(nv.addr, added);
-        let is_lv_and_nv_are_memory_rows_mul_nv_addr_sub_added =
-            builder.mul_extension(lv.is_lv_and_nv_are_memory_rows, nv_addr_sub_added);
-        let nv_addr_sub_wrapped = builder.sub_extension(nv.addr, wrapped);
-        let constraint = builder.mul_extension(
-            is_lv_and_nv_are_memory_rows_mul_nv_addr_sub_added,
-            nv_addr_sub_wrapped,
-        );
-        yield_constr.constraint(builder, constraint);
-
-        let lv_size_sub_one = builder.sub_extension(lv.size, one);
-        let nv_size_sub_lv_size_sub_one = builder.sub_extension(nv.size, lv_size_sub_one);
-        let constraint =
-            builder.mul_extension(nv.is_lv_and_nv_are_memory_rows, nv_size_sub_lv_size_sub_one);
-        yield_constr.constraint_transition(builder, constraint);
-
-        let nv_addr_sub_lv_addr = builder.sub_extension(nv.addr, lv.addr);
-        let is_io_mul_lv_size = builder.mul_extension(lv.ops.is_io_store, lv.size);
-        let constraint = builder.mul_extension(is_io_mul_lv_size, nv_addr_sub_lv_addr);
-        yield_constr.constraint_transition(builder, constraint);
-
-        let constraint = builder.mul_extension(is_io_mul_lv_size, nv_size_sub_lv_size_sub_one);
-        yield_constr.constraint_transition(builder, constraint);
-
-        let lv_is_io_mul_nv_size = builder.mul_extension(lv.ops.is_io_store, nv.size);
-        let is_lv_and_nv_are_memory_rows_sub_one =
-            builder.sub_extension(nv.is_lv_and_nv_are_memory_rows, one);
-        let constraint =
-            builder.mul_extension(lv_is_io_mul_nv_size, is_lv_and_nv_are_memory_rows_sub_one);
-        yield_constr.constraint(builder, constraint);
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_ext(constraints, builder, consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -318,7 +277,7 @@ mod tests {
                 (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
             RuntimeArguments {
-                events_commitment_tape: events_commitment_tape.to_vec(),
+                events_commitment_tape,
                 ..Default::default()
             },
         );
@@ -348,7 +307,7 @@ mod tests {
                 (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
             ],
             RuntimeArguments {
-                cast_list_commitment_tape: cast_list_commitment_tape.to_vec(),
+                cast_list_commitment_tape,
                 ..Default::default()
             },
         );

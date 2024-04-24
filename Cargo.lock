@@ -203,9 +203,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.0.94"
+version = "1.0.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17f6e324229dc011159fcc089755d1e2e216a90d43a7dea6853ca740b84f35e7"
+checksum = "d32a725bc159af97c3e629873bb9f88fb8cf8a4867175f76dc987815ea07c83b"
 
 [[package]]
 name = "cfg-if"
@@ -921,6 +921,7 @@ dependencies = [
  "plonky2",
  "plonky2_maybe_rayon",
  "proptest",
+ "rand",
  "serde",
  "serde_json",
  "starky",
@@ -1144,8 +1145,8 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 
 [[package]]
 name = "plonky2"
-version = "0.2.1"
-source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
+version = "0.2.2"
+source = "git+https://github.com/0xmozak/plonky2.git#76e42a132e0938954ff7bc27649474ed875a5c1a"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1169,7 +1170,7 @@ dependencies = [
 [[package]]
 name = "plonky2_crypto"
 version = "0.1.0"
-source = "git+https://github.com/0xmozak/plonky2-crypto.git#49b2ea39eff2776e9c1c903ce4ca36c19a55d998"
+source = "git+https://github.com/0xmozak/plonky2-crypto.git#5e2315718c61daada8974cf11f6238c6c25d7bcd"
 dependencies = [
  "anyhow",
  "hex",
@@ -1185,8 +1186,8 @@ dependencies = [
 
 [[package]]
 name = "plonky2_field"
-version = "0.2.1"
-source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
+version = "0.2.2"
+source = "git+https://github.com/0xmozak/plonky2.git#76e42a132e0938954ff7bc27649474ed875a5c1a"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
@@ -1201,7 +1202,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
+source = "git+https://github.com/0xmozak/plonky2.git#76e42a132e0938954ff7bc27649474ed875a5c1a"
 dependencies = [
  "rayon",
 ]
@@ -1209,7 +1210,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
+source = "git+https://github.com/0xmozak/plonky2.git#76e42a132e0938954ff7bc27649474ed875a5c1a"
 
 [[package]]
 name = "plotters"
@@ -1483,9 +1484,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.32"
+version = "0.38.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65e04861e65f21776e67888bfbea442b3642beaa0138fdb1dd7a84a52dffdb89"
+checksum = "e3cc72858054fcff6d7dea32df2aeaee6a7c24227366d7ea429aada2f26b16ad"
 dependencies = [
  "bitflags",
  "errno",
@@ -1664,8 +1665,8 @@ dependencies = [
 
 [[package]]
 name = "starky"
-version = "0.3.0"
-source = "git+https://github.com/0xmozak/plonky2.git#51f540a0e2a9bd9d6fc6234c6e62d167eaa7c707"
+version = "0.4.0"
+source = "git+https://github.com/0xmozak/plonky2.git#76e42a132e0938954ff7bc27649474ed875a5c1a"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1705,9 +1706,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "syn"
-version = "2.0.59"
+version = "2.0.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a6531ffc7b071655e4ce2e04bd464c4830bb585a61cabb96cf808f05172615a"
+checksum = "909518bc7b1c9b779f1bbf07f2929d35af9f0f37e47c6e9ef7f9dddc1e1821f3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1767,18 +1768,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.58"
+version = "1.0.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03468839009160513471e86a034bb2c5c0e4baae3b43f79ffc55c4a5427b3297"
+checksum = "f0126ad08bff79f29fc3ae6a55cc72352056dfff61e3ff8bb7129476d44b23aa"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.58"
+version = "1.0.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c61f3ba182994efc43764a46c018c347bc492c79f024e705f46567b418f6d4f7"
+checksum = "d1cd413b5d558b4c5bf3680e324a6fa5014e7b7c067a51e69dbdf47eb7148b66"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1873,9 +1874,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.9"
+version = "0.22.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e40bb779c5187258fd7aad0eb68cb8706a0a81fa712fbea808ab43c4b8374c4"
+checksum = "d3328d4f68a705b2a4498da1d580585d39a6510f98318a2cec3018a7ec61ddef"
 dependencies = [
  "indexmap 2.2.6",
  "serde",

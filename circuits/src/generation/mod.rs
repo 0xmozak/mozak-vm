@@ -62,6 +62,7 @@ use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
 use crate::stark::utils::trace_rows_to_poly_values;
+use crate::tape_commitments::generation::generate_tape_commitments_trace;
 
 pub const MIN_TRACE_LENGTH: usize = 8;
 
@@ -166,6 +167,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let blt_trace = ops::blt_taken::generate(record);
     let store_word_trace = ops::sw::generate(&record.executed);
     let load_word_trace = ops::lw::generate(&record.executed);
+    let tape_commitments_rows = generate_tape_commitments_trace(record);
 
     TableKindSetBuilder {
         cpu_stark: trace_rows_to_poly_values(cpu_rows),
@@ -201,6 +203,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         blt_taken_stark: trace_rows_to_poly_values(blt_trace),
         store_word_stark: trace_rows_to_poly_values(store_word_trace),
         load_word_stark: trace_rows_to_poly_values(load_word_trace),
+        tape_commitments_stark: trace_rows_to_poly_values(tape_commitments_rows),
     }
     .build()
 }

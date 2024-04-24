@@ -1,4 +1,4 @@
-use expr::{Evaluator, ExprBuilder, PureEvaluator};
+use expr::{Evaluator, ExprBuilder};
 use itertools::{chain, Itertools};
 use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
@@ -12,6 +12,7 @@ use super::MIN_TRACE_LENGTH;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
+use crate::expr::ConversionEvaluator;
 use crate::ops::add::columns::Add;
 use crate::ops::blt_taken::columns::BltTaken;
 use crate::ops::lw::columns::LoadWord;
@@ -193,7 +194,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
     let expr_builder = ExprBuilder::default();
     let row = row.map(|x| expr_builder.lit(x));
-    PureEvaluator(F::from_noncanonical_i64).eval(row.signed_diff())
+    ConversionEvaluator::new(F::from_noncanonical_i64).eval(row.signed_diff())
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
