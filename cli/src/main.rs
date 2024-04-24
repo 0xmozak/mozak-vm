@@ -13,7 +13,7 @@ use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::memoryinit::{
-    generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_private_tape_init_trace,
+    generate_call_tape_init_trace, generate_elf_memory_init_trace,
 };
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -270,9 +270,6 @@ fn main() -> Result<()> {
                         trace_commitment.merkle_tree.cap
                     };
 
-                    let trace = generate_private_tape_init_trace(&program);
-                    let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-
                     let trace = generate_call_tape_init_trace(&program);
                     let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
@@ -292,7 +289,7 @@ fn main() -> Result<()> {
                 ))?
                 .clone();
 
-            let transaction = Transaction {
+            let transaction: Transaction<F, C, D> = Transaction {
                 call_tape_hash,
                 cast_list: cast_list
                     .clone()
