@@ -24,8 +24,7 @@ use super::mozak_stark::{all_starks, TableKindArray};
 use crate::columns_view::{columns_view_impl, NumberOfColumns};
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::proof::{
-    AllProof, StarkOpeningSetTarget, StarkProof, StarkProofTarget,
-    StarkProofWithPublicInputsTarget,
+    AllProof, StarkOpeningSetTarget, StarkProof, StarkProofTarget, StarkProofWithPublicInputsTarget,
 };
 
 /// Plonky2's recursion threshold is 2^12 gates.
@@ -201,7 +200,7 @@ where
         &mut challenger,
         inner_config.num_challenges,
     );
-    // TODO(Matthias): use
+    // TODO(Matthias): use verify_stark_proof_with_challenges_circuit from upstream.
 
     // starky::recursive_verifier::verify_stark_proof_with_challenges_circuit(
     //     &mut builder,
@@ -218,7 +217,9 @@ where
     );
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
-        let (total_num_helpers, num_ctl_zs, num_helpers_by_ctl) =
+        // TODO(Matthias): we are already doing this above?
+        let num_lookup_columns = stark.num_lookup_helper_columns(inner_config);
+        let (total_num_helpers, _num_ctl_zs, num_helpers_by_ctl) =
             starky::cross_table_lookup::CrossTableLookup::num_ctl_helpers_zs_all(
                 &mozak_stark.cross_table_lookups,
                 kind as usize,
@@ -230,7 +231,7 @@ where
             &stark_proof_with_pis_target[kind].proof,
             &mozak_stark.cross_table_lookups,
             &ctl_challenges,
-            num_ctl_zs,
+            num_lookup_columns,
             total_num_helpers,
             &num_helpers_by_ctl,
         );
