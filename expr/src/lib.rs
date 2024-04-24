@@ -351,7 +351,7 @@ where
 
 /// Default evaluator for pure values.
 #[derive(Default)]
-pub struct PureEvaluator {}
+pub struct PureEvaluator();
 
 impl<'a, V> Evaluator<'a, V> for PureEvaluator
 where

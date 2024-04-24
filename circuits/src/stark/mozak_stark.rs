@@ -1,4 +1,3 @@
-use std::array;
 use std::array::from_fn;
 use std::ops::{Index, IndexMut, Neg};
 extern crate serde;
@@ -76,7 +75,7 @@ use crate::{
     register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 18;
+const NUM_CROSS_TABLE_LOOKUP: usize = 17;
 const NUM_PUBLIC_SUB_TABLES: usize = 2;
 
 /// STARK Gadgets of Mozak-VM
@@ -359,10 +358,6 @@ pub struct TableKindArray<T>(#[serde(with = "BigArray")] pub [T; TableKind::COUN
 
 impl<T: Default> Default for TableKindArray<T> {
     fn default() -> Self { TableKindArray(from_fn(|_| T::default())) }
-}
-
-impl<T: Default> Default for TableKindArray<T> {
-    fn default() -> Self { Self(array::from_fn(|_| Default::default())) }
 }
 
 impl<T> Index<TableKind> for TableKindArray<T> {
