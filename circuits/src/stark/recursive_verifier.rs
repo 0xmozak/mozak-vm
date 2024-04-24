@@ -174,13 +174,14 @@ where
     let mut challenger = RecursiveChallenger::<F, C::Hasher, D>::new(&mut builder);
 
     let stark_proof_with_pis_target = all_starks!(mozak_stark, |stark, kind| {
-        let (num_ctl_helper_zs, num_ctl_zs, _) =
+        let (total_num_helpers, num_ctl_zs, _) =
             starky::cross_table_lookup::CrossTableLookup::num_ctl_helpers_zs_all(
                 &mozak_stark.cross_table_lookups,
                 kind as usize,
                 inner_config.num_challenges,
                 stark.constraint_degree(),
             );
+        let num_ctl_helper_zs = num_ctl_zs + total_num_helpers;
         starky::recursive_verifier::add_virtual_stark_proof_with_pis(
             &mut builder,
             stark,
