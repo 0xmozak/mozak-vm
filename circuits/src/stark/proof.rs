@@ -11,14 +11,13 @@ use plonky2::iop::challenger::{Challenger, RecursiveChallenger};
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{all_kind, PublicInputs, TableKindArray};
-use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
 #[allow(clippy::module_name_repetitions)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
@@ -55,52 +54,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
     }
 
     pub fn num_ctl_zs(&self) -> usize { self.openings.ctl_zs_last.len() }
-
-    /// Computes all Fiat-Shamir challenges used in the STARK proof.
-    pub(crate) fn get_challenges(
-        &self,
-        challenger: &mut Challenger<F, C::Hasher>,
-        config: &StarkConfig,
-    ) -> StarkProofChallenges<F, D> {
-        let degree_bits = self.recover_degree_bits(config);
-
-        let StarkProof {
-            ctl_zs_cap,
-            quotient_polys_cap,
-            openings,
-            opening_proof:
-                FriProof {
-                    commit_phase_merkle_caps,
-                    final_poly,
-                    pow_witness,
-                    ..
-                },
-            ..
-        } = &self;
-
-        let num_challenges = config.num_challenges;
-
-        challenger.observe_cap(ctl_zs_cap);
-
-        let stark_alphas = challenger.get_n_challenges(num_challenges);
-
-        challenger.observe_cap(quotient_polys_cap);
-        let stark_zeta = challenger.get_extension_challenge::<D>();
-
-        challenger.observe_openings(&openings.to_fri_openings());
-
-        StarkProofChallenges {
-            stark_alphas,
-            stark_zeta,
-            fri_challenges: challenger.fri_challenges::<C, D>(
-                commit_phase_merkle_caps,
-                final_poly,
-                *pow_witness,
-                degree_bits,
-                &config.fri_config,
-            ),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -315,7 +268,8 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(bound = "<C::Hasher as Hasher<F>>::Permutation: for<'a> Deserialize<'a> + Serialize")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub proofs: TableKindArray<starky::proof::StarkProofWithMetadata<F, C, D>>,
     pub ctl_challenges: starky::lookup::GrandProductChallengeSet<F>,
@@ -359,13 +313,5 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
             }),
             ctl_challenges,
         }
-    }
-
-    /// Returns the ordered openings of cross-table lookups `Z` polynomials at
-    /// `g^-1`. The order corresponds to the order declared in
-    /// [`TableKind`](crate::cross_table_lookup::TableKind).
-    pub(crate) fn all_ctl_zs_last(self) -> TableKindArray<Vec<F>> {
-        // TODO(Matthias): remove, we shouldn't need this.
-        self.proofs.map(|p| p.proof.openings.ctl_zs_first.unwrap())
     }
 }

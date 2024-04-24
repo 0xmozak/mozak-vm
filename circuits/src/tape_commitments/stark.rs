@@ -91,23 +91,13 @@ mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
-    use plonky2::field::types::Field;
-    use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-    use plonky2::util::timing::TimingTree;
     use rand::Rng;
-    use starky::config::StarkConfig;
     use starky::stark_testing::test_stark_circuit_constraints;
 
     use super::TapeCommitmentsStark;
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
-    use crate::stark::prover::prove;
-    use crate::stark::recursive_verifier::{
-        recursive_mozak_stark_circuit, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
-    };
-    use crate::stark::verifier::verify_proof;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
-    use crate::utils::from_u32;
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;

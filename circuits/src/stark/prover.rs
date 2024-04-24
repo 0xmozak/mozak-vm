@@ -17,7 +17,7 @@ use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
-use starky::proof::{StarkProofWithMetadata, StarkProofWithPublicInputs};
+use starky::proof::StarkProofWithMetadata;
 use starky::stark::Stark;
 
 use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
@@ -194,7 +194,7 @@ where
         stark,
         config,
         trace_poly_values,
-        &trace_commitment,
+        trace_commitment,
         Some(starky_ctl_data),
         Some(starky_ctl_challenges),
         &mut challenger,
