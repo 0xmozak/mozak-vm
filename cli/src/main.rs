@@ -3,6 +3,7 @@
 // TODO(bing): `clio` uses an older `windows-sys` vs other dependencies.
 // Remove when `clio` updates, or if `clio` is no longer needed.
 #![allow(clippy::multiple_crate_versions)]
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -11,6 +12,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
+use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::io_memory::generate_call_tape_trace;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
@@ -28,7 +30,7 @@ use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
-use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
+use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
@@ -242,33 +244,19 @@ fn main() -> Result<()> {
                 let curr_dir = std::env::current_dir().unwrap();
                 let mapping = std::fs::File::open(curr_dir.join(PROGRAMS_MAP_JSON))
                     .expect("could not open programs map");
-                let mut mapping: Vec<MappedProgram> = serde_json::from_reader(mapping)
+                let mapping: Vec<MappedProgram> = serde_json::from_reader(mapping)
                     .expect("Could not deserialize Vec<MappedProgram> from programs map");
-
-                let mut ids_and_paths = vec![];
-                for id in cast_list {
-                    if let Some(program) = mapping
-                        .iter_mut()
-                        .find(|m| ProgramIdentifier::from(m.name.clone()) == *id)
-                    {
-                        if ProgramIdentifier::from(program.name.clone()) == entrypoint_program_id {
-                            ids_and_paths.insert(
-                                0,
-                                (
-                                    program.name.clone().into(),
-                                    curr_dir.join(program.path.clone()),
-                                ),
-                            );
-                        } else {
-                            ids_and_paths.push((
-                                program.name.clone().into(),
-                                curr_dir.join(program.path.clone()),
-                            ));
-                        }
-                    }
-                }
-
-                ids_and_paths
+                let mapping: HashMap<ProgramIdentifier, String> = mapping
+                    .into_iter()
+                    .map(|mp| (ProgramIdentifier::from(mp.name), mp.path))
+                    .collect();
+                cast_list
+                    .iter()
+                    .filter_map(|id: &ProgramIdentifier| {
+                        mapping.get(id).map(|path| (*id, curr_dir.join(path)))
+                    })
+                    .sorted_by_key(|(id, _)| id != &entrypoint_program_id)
+                    .collect()
             }
 
             println!("Bundling transaction...");
@@ -278,19 +266,16 @@ fn main() -> Result<()> {
             // Q: will first call always be null program calling the program's entrypoint?
             let entrypoint_program_id = system_tape.call_tape.writer[0].callee;
 
-            let mut cast_list = vec![];
-            system_tape.call_tape.writer.clone().into_iter().for_each(
-                |CrossProgramCall { caller, callee, .. }| {
-                    if !callee.is_null_program() {
-                        cast_list.push(callee);
-                    }
-                    if !caller.is_null_program() {
-                        cast_list.push(caller);
-                    }
-                },
-            );
-            cast_list.sort();
-            cast_list.dedup();
+            let cast_list: Vec<_> = system_tape
+                .call_tape
+                .writer
+                .clone()
+                .into_iter()
+                .flat_map(|CrossProgramCall { callee, caller, .. }| [callee, caller])
+                .filter(|prog| !prog.is_null_program())
+                .sorted()
+                .dedup()
+                .collect();
 
             let ids_and_paths = ids_and_paths_from_cast_list(entrypoint_program_id, &cast_list);
 
@@ -302,7 +287,7 @@ fn main() -> Result<()> {
                 Some(format!("{entrypoint_program_id:?}")),
             );
 
-            let mut attestations: Vec<Attestation<F, C, D>> = vec![];
+            let mut attestations: Vec<Attestation> = vec![];
             let mut call_tape_hash = None;
 
             for (i, (program_id, elf)) in ids_and_paths.iter().enumerate() {
@@ -348,33 +333,61 @@ fn main() -> Result<()> {
                     call_tape_hash = Some(trace_commitment.merkle_tree.cap);
                 }
 
+<<<<<<< HEAD
                 let attestation = Attestation {
                     id: *program_id,
-                    opaque: OpaqueAttestation::new(&program, &config, raw_tapes),
-                    transparent: TransparentAttestation {
-                        public_tape: system_tape
-                            .public_input_tape
-                            .writer
-                            .get(program_id)
-                            .cloned()
-                            .unwrap_or_default()
-                            .to_vec(),
-                        event_tape: system_tape
-                            .event_tape
-                            .writer
-                            .get(program_id)
-                            .cloned()
-                            .unwrap_or_default(),
-                    },
+                    public_tape: system_tape
+                        .public_input_tape
+                        .writer
+                        .get(program_id)
+                        .cloned()
+                        .unwrap_or_default()
+                        .to_vec(),
+                    event_tape: system_tape
+                        .event_tape
+                        .writer
+                        .get(program_id)
+                        .cloned()
+                        .unwrap_or_default(),
                 };
 
                 attestations.push(attestation);
             }
 
-            let transaction = Transaction {
+            let transaction: Transaction<F, C, D> = Transaction {
                 call_tape_hash: call_tape_hash.expect("system tape generated from entrypoint program's native execution should contain a call tape"),
                 cast_list,
                 constituent_zs: attestations,
+=======
+                    let trace = generate_call_tape_init_trace(&program);
+                    let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
+
+                    let attestation = Attestation {
+                        id: plan.self_prog_id.into(),
+                        public_tape: args.io_tape_public,
+                        event_tape,
+                    };
+                    Ok((attestation, call_tape_hash))
+                })
+                .collect::<Result<Vec<(_, _)>>>()?;
+            let (constituent_zs, call_tape_hashes): (Vec<_>, Vec<_>) = zipped.into_iter().unzip();
+            let call_tape_hash = call_tape_hashes
+                .first()
+                .ok_or(anyhow::anyhow!(
+                    "No call tape hash found in the first bundle plan"
+                ))?
+                .clone();
+
+            let transaction: Transaction<F, C, D> = Transaction {
+                call_tape_hash,
+                cast_list: cast_list
+                    .clone()
+                    .into_iter()
+                    .unique()
+                    .map(ProgramIdentifier::from)
+                    .collect(),
+                constituent_zs,
+>>>>>>> 1e99bb722 (tx-bundle: Remove `OpaqueAttestation` entirely. (#1613))
             };
 
             serde_json::to_writer_pretty(bundle, &transaction)?;

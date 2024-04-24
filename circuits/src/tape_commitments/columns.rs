@@ -28,7 +28,7 @@ columns_view_impl!(CommitmentByteWithIndex);
 
 /// We store indices with the byte so that
 /// we can do CTL against corresponding
-/// [`InputOutputMemoryStark`](crate::memory_io::stark::InputOutputMemoryStark),
+/// [`StorageDeviceStark`](crate::memory_io::stark::StorageDeviceStark),
 /// stark, while enforcing the original order in which bytes
 /// are to be read.
 #[repr(C)]

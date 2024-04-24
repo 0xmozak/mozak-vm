@@ -1,70 +1,20 @@
 #![allow(dead_code)]
 
-use mozak_circuits::generation::io_memory::generate_io_memory_private_trace;
-use mozak_circuits::stark::utils::trace_rows_to_poly_values;
-use mozak_runner::elf::Program;
-use mozak_runner::state::{RawTapes, State};
-use mozak_runner::vm::step;
 use mozak_sdk::common::types::ProgramIdentifier;
 use mozak_sdk::native::OrderedEvents;
 use plonky2::field::extension::Extendable;
-use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::plonk::config::GenericConfig;
-use plonky2::util::timing::TimingTree;
 use serde::{Deserialize, Serialize};
-use starky::config::StarkConfig;
 
-/// Attestation provided opaquely.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+/// An attestion to the correct execution of a `MozakVM` program, denoted by its
+/// [`ProgramIdentifier`](mozak_sdk::coretypes::ProgramIdentifier).
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(bound = "")]
-pub struct OpaqueAttestation<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    const D: usize,
-> {
-    /// Hash of the private inputs in the execution of a `MozakVM` program.
-    pub private_tape_hash: MerkleCap<F, C::Hasher>,
-}
-
-impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
-    OpaqueAttestation<F, C, D>
-{
-    #[must_use]
-    /// Create a [`OpaqueAttestation`] from a [`Program`] and [`RawTapes`].
-    /// This leverages ecalls to populate the required private tape within the
-    /// [`State`].
-    ///
-    /// # Panics
-    /// Panics if the runner fails to step through the [`Program`] to the last
-    /// state.
-    pub fn new(program: &Program, config: &StarkConfig, raw_tapes: RawTapes) -> Self {
-        let state = State::new(program.clone(), raw_tapes);
-        let record = step(program, state).expect("Could not step through the given program");
-        let trace = generate_io_memory_private_trace(&record.executed);
-        let poly_values = trace_rows_to_poly_values(trace);
-
-        let rate_bits = config.fri_config.rate_bits;
-        let cap_height = config.fri_config.cap_height;
-        let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-            poly_values,
-            rate_bits,
-            false, // blinding
-            cap_height,
-            &mut TimingTree::default(),
-            None, // fft_root_table
-        );
-        Self {
-            private_tape_hash: trace_commitment.merkle_tree.cap,
-        }
-    }
-}
-
-/// Attestation provided in the clear.
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(bound = "")]
-pub struct TransparentAttestation {
+pub struct Attestation {
+    /// The ID of the program that this attestation is associated with.
+    pub id: ProgramIdentifier,
     // TODO(bing): Attest to its commitment
     /// Public inputs to the execution of a `MozakVM` program, provided in the
     /// clear.
@@ -73,17 +23,6 @@ pub struct TransparentAttestation {
     /// Events emitted during the execution of a `MozakVM` program, provided in
     /// the clear.
     pub event_tape: OrderedEvents,
-}
-
-/// An attestion to the correct execution of a `MozakVM` program, denoted by its
-/// [`ProgramIdentifier`](mozak_sdk::coretypes::ProgramIdentifier).
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound = "")]
-pub struct Attestation<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    /// The ID of the program that this attestation is associated with.
-    pub id: ProgramIdentifier,
-    pub opaque: OpaqueAttestation<F, C, D>,
-    pub transparent: TransparentAttestation,
 }
 
 /// The transaction sent across to sequencer
@@ -99,5 +38,5 @@ pub struct Transaction<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>,
     pub call_tape_hash: MerkleCap<F, C::Hasher>,
     /// The list of attestation(s) of the correct execution of the program(s)
     /// involved in this `Transaction`.
-    pub constituent_zs: Vec<Attestation<F, C, D>>,
+    pub constituent_zs: Vec<Attestation>,
 }

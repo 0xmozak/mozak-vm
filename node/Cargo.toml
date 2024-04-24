@@ -14,13 +14,10 @@ repository = "https://github.com/0xmozak/mozak-node"
 
 [dependencies]
 itertools = "0.12"
-mozak-circuits = { path = '../circuits' }
 mozak-recproofs = { path = '../recproofs' }
-mozak-runner = { path = '../runner' }
 mozak-sdk = { path = '../sdk' }
 plonky2 = "0"
 serde = { version = "1.0", features = ["derive"] }
-starky = { version = "0", default-features = false }
 
 [dev-dependencies]
 mozak-circuits = { path = '../circuits', features = ["test"] }
