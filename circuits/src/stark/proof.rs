@@ -5,13 +5,13 @@ use plonky2::fri::proof::{FriChallenges, FriChallengesTarget, FriProof, FriProof
 use plonky2::fri::structure::{
     FriOpeningBatch, FriOpeningBatchTarget, FriOpenings, FriOpeningsTarget,
 };
-use plonky2::hash::hash_types::{HashOut, MerkleCapTarget, RichField};
+use plonky2::hash::hash_types::{MerkleCapTarget, RichField};
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::{Challenger, RecursiveChallenger};
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
@@ -320,10 +320,6 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub proofs: TableKindArray<StarkProof<F, C, D>>,
-    /// Hash of `ProgramRom` table's merkle cap
-    pub program_rom_hash: <C::Hasher as Hasher<F>>::Hash,
-    /// Hash of `ElfMemoryInit` table's merkle cap
-    pub elf_memory_init_hash: <C::Hasher as Hasher<F>>::Hash,
     pub public_inputs: PublicInputs<F>,
     pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
 }

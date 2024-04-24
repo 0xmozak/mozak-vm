@@ -7,14 +7,14 @@ use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{GenericConfig, Hasher};
+use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::plonk_common::reduce_with_powers;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindSetBuilder};
+use super::mozak_stark::{all_starks, MozakStark, TableKindSetBuilder};
 use super::proof::AllProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
 use crate::public_sub_table::reduce_public_sub_tables_values;
@@ -36,21 +36,6 @@ where
         stark_challenges,
         ctl_challenges,
     } = all_proof.get_challenges(config);
-
-    ensure!(
-        C::Hasher::hash_no_pad(&all_proof.proofs[TableKind::Program].trace_cap.flatten())
-            == all_proof.program_rom_hash,
-        "Mismatch between Program ROM trace caps and its claimed hash"
-    );
-
-    ensure!(
-        C::Hasher::hash_no_pad(
-            &all_proof.proofs[TableKind::ElfMemoryInit]
-                .trace_cap
-                .flatten()
-        ) == all_proof.elf_memory_init_hash,
-        "Mismatch between ElfMemoryInit trace caps and its claimed hash"
-    );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.proofs,

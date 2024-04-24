@@ -15,7 +15,7 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::{GenericConfig, Hasher};
+use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -24,7 +24,7 @@ use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
+use super::mozak_stark::{MozakStark, TableKindArray, TableKindSetBuilder};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -151,16 +151,11 @@ where
         )?
     );
 
-    let program_rom_hash = C::Hasher::hash_no_pad(&trace_caps[TableKind::Program].flatten());
-    let elf_memory_init_hash =
-        C::Hasher::hash_no_pad(&trace_caps[TableKind::ElfMemoryInit].flatten());
     if log_enabled!(Debug) {
         timing.print();
     }
     Ok(AllProof {
         proofs,
-        program_rom_hash,
-        elf_memory_init_hash,
         public_inputs,
         public_sub_table_values,
     })

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
-use itertools::{zip_eq, Itertools};
+use itertools::{chain, zip_eq, Itertools};
 use log::info;
 use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::field::extension::Extendable;
@@ -55,14 +55,12 @@ pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 ///   `castlist_commitment_tape`: 32
 pub const VM_PUBLIC_INPUT_SIZE: usize = VMRecursiveProofPublicInputs::<()>::NUMBER_OF_COLUMNS;
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
-pub const VM_RECURSION_CONFIG_NUM_CAPS: usize = 1 << 4;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct VMRecursiveProofPublicInputs<T> {
     pub entry_point: T,
-    pub program_trace_cap: [[T; NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
-    pub elf_memory_init_trace_cap: [[T; NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
+    pub program_rom_hash: [T; NUM_HASH_OUT_ELTS],
     pub event_commitment_tape: [T; COMMITMENT_SIZE],
     pub castlist_commitment_tape: [T; COMMITMENT_SIZE],
 }
@@ -71,9 +69,7 @@ impl<T: Default + Copy> Default for VMRecursiveProofPublicInputs<T> {
     fn default() -> Self {
         Self {
             entry_point: Default::default(),
-            program_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
-            elf_memory_init_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS];
-                VM_RECURSION_CONFIG_NUM_CAPS],
+            program_rom_hash: Default::default(),
             event_commitment_tape: Default::default(),
             castlist_commitment_tape: Default::default(),
         }
@@ -257,19 +253,45 @@ where
     // compute hashes of Program and ElfMemoryInit table's merkle caps
     // and make them public
 
-    // Register program ROM and memory init trace cap as public inputs.
-    for kind in [TableKind::Program, TableKind::ElfMemoryInit] {
-        builder.register_public_inputs(
-            &targets[kind]
-                .stark_proof_with_pis_target
-                .proof
-                .trace_cap
-                .0
-                .iter()
-                .flat_map(|h| h.elements)
-                .collect::<Vec<_>>(),
-        );
-    }
+    let program_rom_trace_cap_hash = builder.hash_or_noop::<C::Hasher>(
+        targets[TableKind::Program]
+            .stark_proof_with_pis_target
+            .proof
+            .trace_cap
+            .0
+            .iter()
+            .flat_map(|hash| hash.elements)
+            .collect_vec(),
+    );
+
+    let elf_memory_init_trace_cap_hash = builder.hash_n_to_hash_no_pad::<C::InnerHasher>(
+        targets[TableKind::ElfMemoryInit]
+            .stark_proof_with_pis_target
+            .proof
+            .trace_cap
+            .0
+            .iter()
+            .flat_map(|hash| hash.elements)
+            .collect_vec(),
+    );
+
+    let entry_point = targets[TableKind::Cpu]
+        .stark_proof_with_pis_target
+        .public_inputs
+        .clone();
+
+    let program_rom_hash = builder.hash_n_to_hash_no_pad::<C::Hasher>(
+        chain!(
+            program_rom_trace_cap_hash.elements.into_iter(),
+            elf_memory_init_trace_cap_hash.elements.into_iter(),
+            entry_point.into_iter()
+        )
+        .collect_vec(),
+    );
+
+    // register all public inputs
+    builder.register_public_inputs(&program_rom_hash.elements);
+
     all_kind!(|kind| {
         builder.register_public_inputs(
             &public_sub_table_values_targets[kind]
@@ -665,6 +687,7 @@ mod tests {
     use std::panic::AssertUnwindSafe;
 
     use anyhow::Result;
+    use itertools::{chain, Itertools};
     use log::info;
     use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
@@ -673,10 +696,12 @@ mod tests {
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
+    use plonky2::plonk::config::GenericConfig;
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
 
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
+    use crate::stark::proof::AllProof;
     use crate::stark::prover::prove;
     use crate::stark::recursive_verifier::{
         recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
@@ -685,8 +710,41 @@ mod tests {
     };
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
+    type H = <C as GenericConfig<D>>::InnerHasher;
+    type Hash = <H as Hasher<F>>::Hash;
+    use plonky2::plonk::config::Hasher;
 
     type S = MozakStark<F, D>;
+
+    fn get_program_rom_hash(all_proof: &AllProof<F, C, D>) -> Hash {
+        let entry_point = all_proof.public_inputs.entry_point;
+        let elf_memory_init_trace_cap_hash = H::hash_no_pad(
+            &all_proof.proofs[TableKind::ElfMemoryInit]
+                .trace_cap
+                .0
+                .clone()
+                .into_iter()
+                .flat_map(|hash| hash.elements)
+                .collect_vec(),
+        );
+        let program_rom_trace_cap_hash = H::hash_no_pad(
+            &all_proof.proofs[TableKind::Program]
+                .trace_cap
+                .0
+                .clone()
+                .into_iter()
+                .flat_map(|hash| hash.elements)
+                .collect_vec(),
+        );
+        H::hash_no_pad(
+            &chain!(
+                program_rom_trace_cap_hash.elements,
+                elf_memory_init_trace_cap_hash.elements,
+                [entry_point],
+            )
+            .collect_vec(),
+        )
+    }
 
     #[test]
     fn recursive_verify_mozak_starks() -> Result<()> {
@@ -732,12 +790,19 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+        println!("len {:?}", recursive_proof.public_inputs.len());
         let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
             recursive_proof.public_inputs.as_slice().try_into().unwrap();
+
+        let expected_program_hash = get_program_rom_hash(&mozak_proof).elements;
         let expected_event_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
         let expected_castlist_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
         let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
             &public_input_slice.into();
+        assert_eq!(
+            recursive_proof_public_inputs.program_rom_hash,
+            expected_program_hash
+        );
         assert_eq!(
             recursive_proof_public_inputs.event_commitment_tape, expected_event_commitment_tape,
             "Could not find expected_event_commitment_tape in recursive proof's public inputs"
