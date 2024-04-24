@@ -117,14 +117,11 @@ mod tests {
     use itertools::Itertools;
     use mozak_runner::code::execute_code_with_ro_memory;
     use mozak_runner::decode::ECALL;
-    use mozak_runner::elf::RawTapes;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::state::{RawTapes, State};
     use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
-    use mozak_runner::vm::ExecutionRecord;
     use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
-    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -198,12 +195,12 @@ mod tests {
                 ..Default::default()
             },
         );
-        let state: State<F> = State::from(program.clone());
         assert_ne!(
-            state.private_tape.data.len(),
+            record.executed.last().unwrap().state.private_tape.data.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
+
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -223,12 +220,13 @@ mod tests {
                 ..Default::default()
             },
         );
-        let state: State<F> = State::from(program.clone());
+
         assert_ne!(
-            state.public_tape.data.len(),
+            record.executed.last().unwrap().state.public_tape.data.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
+
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -248,9 +246,8 @@ mod tests {
                 ..Default::default()
             },
         );
-        let state: State<F> = State::from(program.clone());
         assert_ne!(
-            state.call_tape.data.len(),
+            record.executed.last().unwrap().state.call_tape.data.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
@@ -278,9 +275,9 @@ mod tests {
                 ..Default::default()
             },
         );
-        let state: State<F> = State::from(program.clone());
+
         assert_ne!(
-            state.events_commitment_tape.0.len(),
+            record.executed.last().unwrap().state.events_commitment_tape.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
@@ -311,12 +308,12 @@ mod tests {
         );
         Stark::prove_and_verify(&program, &record).unwrap();
 
-        let state: State<F> = State::from(program.clone());
         assert_ne!(
-            state.cast_list_commitment_tape.0.len(),
+            record.executed.last().unwrap().state.cast_list_commitment_tape.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
+
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
