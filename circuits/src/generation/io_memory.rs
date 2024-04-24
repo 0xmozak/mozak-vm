@@ -6,13 +6,11 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory::trace::get_memory_inst_clk;
-use crate::memory_io::columns::{StorageDevice, Ops};
+use crate::memory_io::columns::{Ops, StorageDevice};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
-fn pad_io_mem_trace<F: RichField>(
-    mut trace: Vec<StorageDevice<F>>,
-) -> Vec<StorageDevice<F>> {
+fn pad_io_mem_trace<F: RichField>(mut trace: Vec<StorageDevice<F>>) -> Vec<StorageDevice<F>> {
     trace.resize(
         trace.len().max(MIN_TRACE_LENGTH).next_power_of_two(),
         StorageDevice::default(),
@@ -49,7 +47,8 @@ pub fn generate_io_memory_trace<F: RichField>(
     pad_io_mem_trace(
         filter(step_rows, which_tape)
             .flat_map(|s| {
-                let StorageDeviceEntry { op, data, addr }: StorageDeviceEntry = s.aux.io.clone().unwrap_or_default();
+                let StorageDeviceEntry { op, data, addr }: StorageDeviceEntry =
+                    s.aux.io.clone().unwrap_or_default();
                 let len = data.len();
                 chain!(
                     // initial io-element

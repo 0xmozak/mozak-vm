@@ -21,8 +21,10 @@ pub fn generate_tape_commitment_trace_with_op_code<F: RichField>(
     // TODO: Maybe we should have better ways to identify Tapes which
     // refer to commitment?
     let tape = match which_tape_commitment {
-        StorageDeviceOpcode::StoreCastListCommitmentTape => &execution.last_state.cast_list_commitment_tape,
-        StorageDeviceOpcode::StoreEventsCommitmentTape => &execution.last_state.events_commitment_tape,
+        StorageDeviceOpcode::StoreCastListCommitmentTape =>
+            &execution.last_state.cast_list_commitment_tape,
+        StorageDeviceOpcode::StoreEventsCommitmentTape =>
+            &execution.last_state.events_commitment_tape,
         _ => unreachable!(),
     };
     // theoretically, we have no restriction on number of ecalls made,
@@ -73,8 +75,10 @@ pub fn generate_tape_commitments_trace<F: RichField>(
         StorageDeviceOpcode::StoreCastListCommitmentTape,
     );
     log::trace!("{cast_list_commitment_trace:?}");
-    let events_commitment_tape_trace =
-        generate_tape_commitment_trace_with_op_code(execution, StorageDeviceOpcode::StoreEventsCommitmentTape);
+    let events_commitment_tape_trace = generate_tape_commitment_trace_with_op_code(
+        execution,
+        StorageDeviceOpcode::StoreEventsCommitmentTape,
+    );
     log::trace!("{events_commitment_tape_trace:?}");
     // Note that the final trace length is 64, hence no need to pad.
     chain(cast_list_commitment_trace, events_commitment_tape_trace).collect_vec()

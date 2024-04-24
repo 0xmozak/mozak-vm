@@ -112,7 +112,8 @@ impl Default for StorageDeviceTape {
     }
 }
 
-/// Converts raw bytes in [`Data`] to an [`StorageDeviceTape`] for consumption via ecalls.
+/// Converts raw bytes in [`Data`] to an [`StorageDeviceTape`] for consumption
+/// via ecalls.
 impl From<Data> for StorageDeviceTape {
     fn from(data: Data) -> Self {
         Self {

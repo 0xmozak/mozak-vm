@@ -8,8 +8,8 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{
-    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable, StorageDevicePrivateTable,
-    StorageDevicePublicTable, TableKind, TableWithTypedOutput,
+    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable,
+    StorageDevicePrivateTable, StorageDevicePublicTable, TableKind, TableWithTypedOutput,
 };
 use crate::tape_commitments::columns::TapeCommitmentCTL;
 
@@ -62,10 +62,7 @@ pub struct StorageDeviceCtl<T> {
 
 /// Lookup between CPU table and Memory stark table.
 #[must_use]
-pub fn lookup_for_cpu(
-    kind: TableKind,
-    op: i64,
-) -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
+pub fn lookup_for_cpu(kind: TableKind, op: i64) -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     TableWithTypedOutput {
         kind,
         columns: StorageDeviceCtl {

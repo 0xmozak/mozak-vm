@@ -1,6 +1,6 @@
 use itertools::{chain, Itertools};
 use mozak_runner::instruction::{Instruction, Op};
-use mozak_runner::state::{Aux, StorageDeviceEntry, StorageDeviceOpcode, State};
+use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 use mozak_runner::vm::{ExecutionRecord, Row};
 use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::REG_A0;

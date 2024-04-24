@@ -6,7 +6,7 @@ use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
 use plonky2::hash::hash_types::RichField;
 
-use crate::state::{read_bytes, Aux, StorageDeviceEntry, StorageDeviceOpcode, State};
+use crate::state::{read_bytes, Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 
 impl<F: RichField> State<F> {
     fn ecall_halt(self) -> (Aux<F>, Self) {
