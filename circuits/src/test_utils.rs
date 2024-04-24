@@ -126,7 +126,11 @@ impl ProveAndVerify for CpuStark<F, D> {
 
         let config = fast_test_config();
 
-        let stark = S::default();
+        let mut stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
+
         let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(record));
         let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),

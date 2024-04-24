@@ -45,7 +45,7 @@ impl<
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    fn requires_ctls(&self) -> bool { true }
+    fn requires_ctls(&self) -> bool { !self.standalone_proving }
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,

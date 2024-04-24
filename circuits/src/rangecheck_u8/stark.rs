@@ -18,6 +18,7 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckU8Stark<F, const D: usize> {
     pub _f: PhantomData<F>,
+    pub standalone_proving: bool,
 }
 
 impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
@@ -36,7 +37,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU8S
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    fn requires_ctls(&self) -> bool { true }
+    fn requires_ctls(&self) -> bool { !self.standalone_proving }
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
