@@ -10,14 +10,13 @@ use plonky2::hash::poseidon2::Poseidon2;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use super::columns::Poseidon2State;
 use crate::columns_view::HasNamedColumns;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SIZE};
-use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 use crate::unstark::NoColumns;
 
 // degree: 1
