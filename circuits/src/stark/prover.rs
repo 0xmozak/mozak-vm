@@ -15,7 +15,7 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -151,15 +151,16 @@ where
         )?
     );
 
-    let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
-    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
+    let program_rom_hash = C::Hasher::hash_no_pad(&trace_caps[TableKind::Program].flatten());
+    let elf_memory_init_hash =
+        C::Hasher::hash_no_pad(&trace_caps[TableKind::ElfMemoryInit].flatten());
     if log_enabled!(Debug) {
         timing.print();
     }
     Ok(AllProof {
         proofs,
-        program_rom_trace_cap,
-        elf_memory_init_trace_cap,
+        program_rom_hash,
+        elf_memory_init_hash,
         public_inputs,
         public_sub_table_values,
     })

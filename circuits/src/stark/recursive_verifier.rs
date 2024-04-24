@@ -254,6 +254,9 @@ where
         }
     });
 
+    // compute hashes of Program and ElfMemoryInit table's merkle caps
+    // and make them public
+
     // Register program ROM and memory init trace cap as public inputs.
     for kind in [TableKind::Program, TableKind::ElfMemoryInit] {
         builder.register_public_inputs(
