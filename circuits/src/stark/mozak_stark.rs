@@ -24,8 +24,8 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::columns::{InputOutputMemory, InputOutputMemoryCtl};
-use crate::memory_io::stark::InputOutputMemoryStark;
+use crate::memory_io::columns::{StorageDevice, StorageDeviceCtl};
+use crate::memory_io::stark::StorageDeviceStark;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
@@ -110,20 +110,20 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
-    #[StarkSet(stark_kind = "IoMemoryPrivate")]
-    pub io_memory_private_stark: InputOutputMemoryStark<F, D>,
-    #[StarkSet(stark_kind = "IoMemoryPublic")]
-    pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "StorageDevicePrivate")]
+    pub io_memory_private_stark: StorageDeviceStark<F, D>,
+    #[StarkSet(stark_kind = "StorageDevicePublic")]
+    pub io_memory_public_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "CallTape")]
-    pub call_tape_stark: InputOutputMemoryStark<F, D>,
+    pub call_tape_stark: StorageDeviceStark<F, D>,
     // TODO(bing): This is known to be 32-bytes in length. Optimize with
     // a fixed size version of this STARK.
     #[StarkSet(stark_kind = "EventsCommitmentTape")]
-    pub events_commitment_tape_stark: InputOutputMemoryStark<F, D>,
+    pub events_commitment_tape_stark: StorageDeviceStark<F, D>,
     // TODO(bing): This is known to be 32-bytes in length. Optimize with
     // a fixed size version of this STARK.
     #[StarkSet(stark_kind = "CastListCommitmentTape")]
-    pub cast_list_commitment_tape_stark: InputOutputMemoryStark<F, D>,
+    pub cast_list_commitment_tape_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
@@ -419,11 +419,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             register_stark: RegisterStark::default(),
             register_zero_read_stark: RegisterZeroReadStark::default(),
             register_zero_write_stark: RegisterZeroWriteStark::default(),
-            io_memory_private_stark: InputOutputMemoryStark::default(),
-            io_memory_public_stark: InputOutputMemoryStark::default(),
-            call_tape_stark: InputOutputMemoryStark::default(),
-            events_commitment_tape_stark: InputOutputMemoryStark::default(),
-            cast_list_commitment_tape_stark: InputOutputMemoryStark::default(),
+            io_memory_private_stark: StorageDeviceStark::default(),
+            io_memory_public_stark: StorageDeviceStark::default(),
+            call_tape_stark: StorageDeviceStark::default(),
+            events_commitment_tape_stark: StorageDeviceStark::default(),
+            cast_list_commitment_tape_stark: StorageDeviceStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
@@ -443,7 +443,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 RegisterLookups::lookups(),
-                IoMemoryToCpuTable::lookups(),
+                StorageDeviceToCpuTable::lookups(),
                 Poseidon2SpongeCpuTable::lookups(),
                 Poseidon2Poseidon2SpongeTable::lookups(),
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
@@ -637,25 +637,25 @@ table_impl!(
     RegisterZeroWrite
 );
 table_impl!(
-    IoMemoryPrivateTable,
-    TableKind::IoMemoryPrivate,
-    InputOutputMemory
+    StorageDevicePrivateTable,
+    TableKind::StorageDevicePrivate,
+    StorageDevice
 );
 table_impl!(
-    IoMemoryPublicTable,
-    TableKind::IoMemoryPublic,
-    InputOutputMemory
+    StorageDevicePublicTable,
+    TableKind::StorageDevicePublic,
+    StorageDevice
 );
-table_impl!(CallTapeTable, TableKind::CallTape, InputOutputMemory);
+table_impl!(CallTapeTable, TableKind::CallTape, StorageDevice);
 table_impl!(
     EventsCommitmentTapeTable,
     TableKind::EventsCommitmentTape,
-    InputOutputMemory
+    StorageDevice
 );
 table_impl!(
     CastListCommitmentTapeTable,
     TableKind::CastListCommitmentTape,
-    InputOutputMemory
+    StorageDevice
 );
 table_impl!(
     Poseidon2SpongeTable,
@@ -727,8 +727,8 @@ impl Lookups for IntoMemoryTable {
                 memory_fullword::columns::lookup_for_memory_limb(1),
                 memory_fullword::columns::lookup_for_memory_limb(2),
                 memory_fullword::columns::lookup_for_memory_limb(3),
-                memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
-                memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
+                memory_io::columns::lookup_for_memory(TableKind::StorageDevicePrivate),
+                memory_io::columns::lookup_for_memory(TableKind::StorageDevicePublic),
                 memory_io::columns::lookup_for_memory(TableKind::CallTape),
                 memory_io::columns::lookup_for_memory(TableKind::EventsCommitmentTape),
                 memory_io::columns::lookup_for_memory(TableKind::CastListCommitmentTape),
@@ -861,17 +861,17 @@ impl Lookups for RegisterLookups {
     }
 }
 
-pub struct IoMemoryToCpuTable;
+pub struct StorageDeviceToCpuTable;
 
-impl Lookups for IoMemoryToCpuTable {
-    type Row = InputOutputMemoryCtl<Column>;
+impl Lookups for StorageDeviceToCpuTable {
+    type Row = StorageDeviceCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             izip!(
                 [
-                    TableKind::IoMemoryPrivate,
-                    TableKind::IoMemoryPublic,
+                    TableKind::StorageDevicePrivate,
+                    TableKind::StorageDevicePublic,
                     TableKind::CallTape,
                     TableKind::EventsCommitmentTape,
                     TableKind::CastListCommitmentTape,
