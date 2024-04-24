@@ -24,15 +24,13 @@ use plonky2::with_context;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
+use starky::proof::StarkProofWithMetadata;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::columns_view::{columns_view_impl, NumberOfColumns};
-use crate::cross_table_lookup::{
-    verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
-};
+use crate::cross_table_lookup::CtlCheckVarsTarget;
 use crate::stark::mozak_stark::{MozakStark, TableKind};
-use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
 use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
     AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
@@ -99,7 +97,7 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
-    pub stark_proof_with_pis_target: StarkProofWithPublicInputsTarget<D>,
+    pub stark_proof_with_pis_target: starky::proof::StarkProofWithPublicInputsTarget<D>,
     pub zero_target: Target,
     pub _f: PhantomData<(F, C)>,
 }
@@ -110,25 +108,31 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
-    pub fn set_targets(&self, witness: &mut PartialWitness<F>, proof: &StarkProof<F, C, D>) {
-        set_stark_proof_with_pis_target(
+    pub fn set_targets(
+        &self,
+        witness: &mut PartialWitness<F>,
+        proof: &starky::proof::StarkProofWithPublicInputs<F, C, D>,
+    ) {
+        starky::recursive_verifier::set_stark_proof_with_pis_target(
             witness,
-            &self.stark_proof_with_pis_target.proof,
+            &self.stark_proof_with_pis_target,
             proof,
             self.zero_target,
         );
     }
 }
 
+// TODO(Matthias): this is equivalent to zk_evm's `StarkWrapperCircuit`
 impl<F, C, const D: usize> MozakStarkVerifierCircuit<F, C, D>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
-    pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
+    pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<StarkProofWithMetadata<F, C, D>> {
         let mut inputs = PartialWitness::new();
 
+        // let proof = starky::proof::StarkProof::from(proof);
         // TODO(Matthias): not sure we need this, if we don't have the pub sub feature?
         all_kind!(|kind| {
             self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
@@ -145,6 +149,7 @@ where
     }
 }
 
+// TODO(Matthias): learn from zk_evm `recursive_stark_circuit`
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn recursive_mozak_stark_circuit<
@@ -164,16 +169,19 @@ where
     let mut challenger = RecursiveChallenger::<F, C::Hasher, D>::new(&mut builder);
 
     let stark_proof_with_pis_target = all_starks!(mozak_stark, |stark, kind| {
-        let num_ctl_zs = CrossTableLookup::num_ctl_zs(
-            &mozak_stark.cross_table_lookups,
-            kind,
-            inner_config.num_challenges,
-        );
-        add_virtual_stark_proof_with_pis(
+        let (num_ctl_helper_zs, num_ctl_zs, _) =
+            starky::cross_table_lookup::CrossTableLookup::num_ctl_helpers_zs_all(
+                &mozak_stark.cross_table_lookups,
+                kind as usize,
+                inner_config.num_challenges,
+                stark.constraint_degree(),
+            );
+        starky::recursive_verifier::add_virtual_stark_proof_with_pis(
             &mut builder,
             stark,
             inner_config,
             degree_bits[kind],
+            num_ctl_helper_zs,
             num_ctl_zs,
         )
     });
@@ -182,39 +190,62 @@ where
         challenger.observe_cap(&pi.proof.trace_cap);
     }
 
-    let ctl_challenges = get_grand_product_challenge_set_target(
+    let ctl_challenges = starky::lookup::get_grand_product_challenge_set_target(
         &mut builder,
         &mut challenger,
         inner_config.num_challenges,
     );
+    // TODO(Matthias): use
 
-    verify_cross_table_lookups_and_public_sub_table_circuit(
+    // starky::recursive_verifier::verify_stark_proof_with_challenges_circuit(
+    //     &mut builder,
+    // );
+    starky::cross_table_lookup::verify_cross_table_lookups_circuit(
         &mut builder,
-        &mozak_stark.cross_table_lookups,
-        &stark_proof_with_pis_target
-            .clone()
-            .map(|p| p.proof.openings.ctl_zs_last),
+        mozak_stark.cross_table_lookups.to_vec(),
+        stark_proof_with_pis_target
+            .each_ref()
+            .map(|p| p.proof.openings.ctl_zs_first.clone().unwrap())
+            .0,
+        None,
         inner_config,
     );
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
-        let ctl_vars = CtlCheckVarsTarget::from_proof(
-            kind,
+        let (total_num_helpers, num_ctl_zs, num_helpers_by_ctl) =
+            starky::cross_table_lookup::CrossTableLookup::num_ctl_helpers_zs_all(
+                &mozak_stark.cross_table_lookups,
+                kind as usize,
+                inner_config.num_challenges,
+                stark.constraint_degree(),
+            );
+        let ctl_vars = starky::cross_table_lookup::CtlCheckVarsTarget::from_proof(
+            kind as usize,
             &stark_proof_with_pis_target[kind].proof,
             &mozak_stark.cross_table_lookups,
             &ctl_challenges,
+            num_ctl_zs,
+            total_num_helpers,
+            &num_helpers_by_ctl,
         );
 
         let challenges_target = stark_proof_with_pis_target[kind]
             .proof
-            .get_challenges::<F, C>(&mut builder, &mut challenger, inner_config);
+            .get_challenges::<F, C>(
+                &mut builder,
+                &mut challenger,
+                Some(&ctl_challenges),
+                true,
+                &inner_config,
+            );
 
-        verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
+        starky::recursive_verifier::verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
             &mut builder,
             stark,
-            &stark_proof_with_pis_target[kind],
-            &challenges_target,
-            &ctl_vars,
+            &stark_proof_with_pis_target[kind].proof,
+            &stark_proof_with_pis_target[kind].public_inputs,
+            challenges_target,
+            Some(&ctl_vars),
             inner_config,
         );
 
@@ -648,217 +679,228 @@ mod tests {
 
     #[test]
     fn recursive_verify_mozak_starks() -> Result<()> {
-        use plonky2::field::types::Field;
+        todo!()
+        // use plonky2::field::types::Field;
 
-        use crate::stark::verifier::verify_proof;
+        // use crate::stark::verifier::verify_proof;
 
-        let stark = S::default();
-        let config = StarkConfig::standard_fast_config();
-        let (program, record) = code::execute(
-            [Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: 5,
-                    rs1: 6,
-                    rs2: 7,
-                    ..Args::default()
-                },
-            }],
-            &[],
-            &[(6, 100), (7, 200)],
-        );
-        let public_inputs = PublicInputs {
-            entry_point: from_u32(program.entry_point),
-        };
+        // let stark = S::default();
+        // let config = StarkConfig::standard_fast_config();
+        // let (program, record) = code::execute(
+        //     [Instruction {
+        //         op: Op::ADD,
+        //         args: Args {
+        //             rd: 5,
+        //             rs1: 6,
+        //             rs2: 7,
+        //             ..Args::default()
+        //         },
+        //     }],
+        //     &[],
+        //     &[(6, 100), (7, 200)],
+        // );
+        // let public_inputs = PublicInputs {
+        //     entry_point: from_u32(program.entry_point),
+        // };
 
-        let mozak_proof = prove::<F, C, D>(
-            &program,
-            &record,
-            &stark,
-            &config,
-            public_inputs,
-            &mut TimingTree::default(),
-        )?;
-        verify_proof(&stark, mozak_proof.clone(), &config)?;
+        // let mozak_proof = prove::<F, C, D>(
+        //     &program,
+        //     &record,
+        //     &stark,
+        //     &config,
+        //     public_inputs,
+        //     &mut TimingTree::default(),
+        // )?;
+        // verify_proof(&stark, mozak_proof.clone(), &config)?;
 
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
-            &stark,
-            &mozak_proof.degree_bits(&config),
-            &circuit_config,
-            &config,
-        );
+        // let circuit_config = CircuitConfig::standard_recursion_config();
+        // let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+        //     &stark,
+        //     &mozak_proof.degree_bits(&config),
+        //     &circuit_config,
+        //     &config,
+        // );
 
-        let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
-        let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
-            recursive_proof.public_inputs.as_slice().try_into().unwrap();
-        let expected_event_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
-        let expected_castlist_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
-        let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
-            &public_input_slice.into();
-        assert_eq!(
-            recursive_proof_public_inputs.event_commitment_tape, expected_event_commitment_tape,
-            "Could not find expected_event_commitment_tape in recursive proof's public inputs"
-        );
-        assert_eq!(
-            recursive_proof_public_inputs.castlist_commitment_tape,
-            expected_castlist_commitment_tape,
-            "Could not find expected_castlist_commitment_tape in recursive proof's public inputs"
-        );
+        // let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+        // let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
+        //     recursive_proof.public_inputs.as_slice().try_into().unwrap();
+        // let expected_event_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
+        // let expected_castlist_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
+        // let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
+        //     &public_input_slice.into();
+        // assert_eq!(
+        //     recursive_proof_public_inputs.event_commitment_tape,
+        // expected_event_commitment_tape,     "Could not find
+        // expected_event_commitment_tape in recursive proof's public inputs"
+        // );
+        // assert_eq!(
+        //     recursive_proof_public_inputs.castlist_commitment_tape,
+        //     expected_castlist_commitment_tape,
+        //     "Could not find expected_castlist_commitment_tape in recursive
+        // proof's public inputs" );
 
-        mozak_stark_circuit.circuit.verify(recursive_proof)
+        // mozak_stark_circuit.circuit.verify(recursive_proof)
     }
 
     #[test]
     #[ignore]
     #[allow(clippy::too_many_lines)]
     fn same_circuit_verify_different_vm_proofs() -> Result<()> {
-        let stark = S::default();
-        let inst = Instruction {
-            op: Op::ADD,
-            args: Args {
-                rd: 5,
-                rs1: 6,
-                rs2: 7,
-                ..Args::default()
-            },
-        };
+        todo!()
+        // let stark = S::default();
+        // let inst = Instruction {
+        //     op: Op::ADD,
+        //     args: Args {
+        //         rd: 5,
+        //         rs1: 6,
+        //         rs2: 7,
+        //         ..Args::default()
+        //     },
+        // };
 
-        let (program0, record0) = code::execute([inst], &[], &[(6, 100), (7, 200)]);
-        let public_inputs = PublicInputs {
-            entry_point: from_u32(program0.entry_point),
-        };
-        let stark_config0 = StarkConfig::standard_fast_config();
-        let mozak_proof0 = prove::<F, C, D>(
-            &program0,
-            &record0,
-            &stark,
-            &stark_config0,
-            public_inputs,
-            &mut TimingTree::default(),
-        )?;
+        // let (program0, record0) = code::execute([inst], &[], &[(6, 100), (7,
+        // 200)]); let public_inputs = PublicInputs {
+        //     entry_point: from_u32(program0.entry_point),
+        // };
+        // let stark_config0 = StarkConfig::standard_fast_config();
+        // let mozak_proof0 = prove::<F, C, D>(
+        //     &program0,
+        //     &record0,
+        //     &stark,
+        //     &stark_config0,
+        //     public_inputs,
+        //     &mut TimingTree::default(),
+        // )?;
 
-        let (program1, record1) = code::execute(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
-        let public_inputs = PublicInputs {
-            entry_point: from_u32(program1.entry_point),
-        };
-        let stark_config1 = StarkConfig::standard_fast_config();
-        let mozak_proof1 = prove::<F, C, D>(
-            &program1,
-            &record1,
-            &stark,
-            &stark_config1,
-            public_inputs,
-            &mut TimingTree::default(),
-        )?;
+        // let (program1, record1) = code::execute(vec![inst; 128], &[], &[(6,
+        // 100), (7, 200)]); let public_inputs = PublicInputs {
+        //     entry_point: from_u32(program1.entry_point),
+        // };
+        // let stark_config1 = StarkConfig::standard_fast_config();
+        // let mozak_proof1 = prove::<F, C, D>(
+        //     &program1,
+        //     &record1,
+        //     &stark,
+        //     &stark_config1,
+        //     public_inputs,
+        //     &mut TimingTree::default(),
+        // )?;
 
-        // The degree bits should be different for the two proofs.
-        assert_ne!(
-            mozak_proof0.degree_bits(&stark_config0),
-            mozak_proof1.degree_bits(&stark_config1)
-        );
+        // // The degree bits should be different for the two proofs.
+        // assert_ne!(
+        //     mozak_proof0.degree_bits(&stark_config0),
+        //     mozak_proof1.degree_bits(&stark_config1)
+        // );
 
-        let recursion_circuit_config = CircuitConfig::standard_recursion_config();
-        let recursion_circuit0 = recursive_mozak_stark_circuit::<F, C, D>(
-            &stark,
-            &mozak_proof0.degree_bits(&stark_config0),
-            &recursion_circuit_config,
-            &stark_config0,
-        );
-        let recursion_proof0 = recursion_circuit0.prove(&mozak_proof0)?;
+        // let recursion_circuit_config =
+        // CircuitConfig::standard_recursion_config();
+        // let recursion_circuit0 = recursive_mozak_stark_circuit::<F, C, D>(
+        //     &stark,
+        //     &mozak_proof0.degree_bits(&stark_config0),
+        //     &recursion_circuit_config,
+        //     &stark_config0,
+        // );
+        // let recursion_proof0 = recursion_circuit0.prove(&mozak_proof0)?;
 
-        let recursion_circuit1 = recursive_mozak_stark_circuit::<F, C, D>(
-            &stark,
-            &mozak_proof1.degree_bits(&stark_config1),
-            &recursion_circuit_config,
-            &stark_config1,
-        );
-        let recursion_proof1 = recursion_circuit1.prove(&mozak_proof1)?;
+        // let recursion_circuit1 = recursive_mozak_stark_circuit::<F, C, D>(
+        //     &stark,
+        //     &mozak_proof1.degree_bits(&stark_config1),
+        //     &recursion_circuit_config,
+        //     &stark_config1,
+        // );
+        // let recursion_proof1 = recursion_circuit1.prove(&mozak_proof1)?;
 
-        recursion_circuit0
-            .circuit
-            .verify(recursion_proof0.clone())?;
+        // // recursion_circuit0
+        // //     .circuit
+        // //     .verify(recursion_proof0.clone())?;
 
-        let public_inputs_size = recursion_proof0.public_inputs.len();
-        assert_eq!(VM_PUBLIC_INPUT_SIZE, public_inputs_size);
-        assert_eq!(public_inputs_size, recursion_proof1.public_inputs.len());
+        // let public_inputs_size = recursion_proof0.public_inputs.len();
+        // assert_eq!(VM_PUBLIC_INPUT_SIZE, public_inputs_size);
+        // assert_eq!(public_inputs_size, recursion_proof1.public_inputs.len());
 
-        // It is not possible to verify different VM proofs with the same recursion
-        // circuit.
-        let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            recursion_circuit0
-                .circuit
-                .verify(recursion_proof1.clone())
-                .expect("Verification failed");
-        }));
-        assert!(result.is_err(), "Verification did not failed as expected");
+        // // It is not possible to verify different VM proofs with the same
+        // recursion // circuit.
+        // let result = panic::catch_unwind(AssertUnwindSafe(|| {
+        //     recursion_circuit0
+        //         .circuit
+        //         .verify(recursion_proof1.clone())
+        //         .expect("Verification failed");
+        // }));
+        // assert!(result.is_err(), "Verification did not failed as expected");
 
-        let recursion_degree_bits0 = recursion_circuit0.circuit.common.degree_bits();
-        let recursion_degree_bits1 = recursion_circuit1.circuit.common.degree_bits();
-        assert_ne!(recursion_degree_bits0, recursion_degree_bits1);
-        info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
-        info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
+        // let recursion_degree_bits0 =
+        // recursion_circuit0.circuit.common.degree_bits();
+        // let recursion_degree_bits1 =
+        // recursion_circuit1.circuit.common.degree_bits();
+        // assert_ne!(recursion_degree_bits0, recursion_degree_bits1);
+        // info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
+        // info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
 
-        let target_degree_bits = VM_RECURSION_THRESHOLD_DEGREE_BITS;
-        let (final_circuit0, final_proof0) = shrink_to_target_degree_bits_circuit(
-            &recursion_circuit0.circuit,
-            &VM_RECURSION_CONFIG,
-            target_degree_bits,
-            &recursion_proof0,
-        )?;
-        let (final_circuit1, final_proof1) = shrink_to_target_degree_bits_circuit(
-            &recursion_circuit1.circuit,
-            &VM_RECURSION_CONFIG,
-            target_degree_bits,
-            &recursion_proof1,
-        )?;
-        assert_eq!(
-            final_circuit0.circuit.common.degree_bits(),
-            target_degree_bits
-        );
-        assert_eq!(
-            final_circuit1.circuit.common.degree_bits(),
-            target_degree_bits
-        );
+        // let target_degree_bits = VM_RECURSION_THRESHOLD_DEGREE_BITS;
+        // let (final_circuit0, final_proof0) =
+        // shrink_to_target_degree_bits_circuit(
+        //     &recursion_circuit0.circuit,
+        //     &VM_RECURSION_CONFIG,
+        //     target_degree_bits,
+        //     &recursion_proof0,
+        // )?;
+        // let (final_circuit1, final_proof1) =
+        // shrink_to_target_degree_bits_circuit(
+        //     &recursion_circuit1.circuit,
+        //     &VM_RECURSION_CONFIG,
+        //     target_degree_bits,
+        //     &recursion_proof1,
+        // )?;
+        // assert_eq!(
+        //     final_circuit0.circuit.common.degree_bits(),
+        //     target_degree_bits
+        // );
+        // assert_eq!(
+        //     final_circuit1.circuit.common.degree_bits(),
+        //     target_degree_bits
+        // );
 
-        final_circuit0.circuit.verify(final_proof0.clone())?;
-        final_circuit1.circuit.verify(final_proof1.clone())?;
+        // final_circuit0.circuit.verify(final_proof0.clone())?;
+        // final_circuit1.circuit.verify(final_proof1.clone())?;
 
-        // It is still not possible to verify different VM proofs with the same
-        // recursion circuit at this point. But the final proofs now have the same
-        // degree bits.
-        let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            final_circuit0
-                .circuit
-                .verify(final_proof1.clone())
-                .expect("Verification failed");
-        }));
-        assert!(result.is_err(), "Verification did not failed as expected");
+        // // It is still not possible to verify different VM proofs with the
+        // same // recursion circuit at this point. But the final proofs
+        // now have the same // degree bits.
+        // let result = panic::catch_unwind(AssertUnwindSafe(|| {
+        //     final_circuit0
+        //         .circuit
+        //         .verify(final_proof1.clone())
+        //         .expect("Verification failed");
+        // }));
+        // assert!(result.is_err(), "Verification did not failed as expected");
 
-        // Let's build a circuit to verify the final proofs.
-        let mut builder = CircuitBuilder::new(CircuitConfig::standard_recursion_config());
-        let targets = verify_recursive_vm_proof::<GoldilocksField, C, D>(
-            &mut builder,
-            public_inputs_size,
-            &VM_RECURSION_CONFIG,
-            target_degree_bits,
-        );
-        let circuit = builder.build::<C>();
+        // // Let's build a circuit to verify the final proofs.
+        // let mut builder =
+        // CircuitBuilder::new(CircuitConfig::standard_recursion_config());
+        // let targets = verify_recursive_vm_proof::<GoldilocksField, C, D>(
+        //     &mut builder,
+        //     public_inputs_size,
+        //     &VM_RECURSION_CONFIG,
+        //     target_degree_bits,
+        // );
+        // let circuit = builder.build::<C>();
 
-        // This time, we can verify the final proofs from two different VM programs in
-        // the same circuit.
-        let mut pw = PartialWitness::new();
-        pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof0);
-        pw.set_verifier_data_target(&targets.vk_target, &final_circuit0.circuit.verifier_only);
-        let proof = circuit.prove(pw)?;
-        circuit.verify(proof)?;
+        // // This time, we can verify the final proofs from two different VM
+        // programs in // the same circuit.
+        // let mut pw = PartialWitness::new();
+        // pw.set_proof_with_pis_target(&targets.proof_with_pis_target,
+        // &final_proof0); pw.set_verifier_data_target(&targets.
+        // vk_target, &final_circuit0.circuit.verifier_only);
+        // let proof = circuit.prove(pw)?;
+        // circuit.verify(proof)?;
 
-        let mut pw = PartialWitness::new();
-        pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof1);
-        pw.set_verifier_data_target(&targets.vk_target, &final_circuit1.circuit.verifier_only);
-        let proof = circuit.prove(pw)?;
-        circuit.verify(proof)?;
+        // let mut pw = PartialWitness::new();
+        // pw.set_proof_with_pis_target(&targets.proof_with_pis_target,
+        // &final_proof1); pw.set_verifier_data_target(&targets.
+        // vk_target, &final_circuit1.circuit.verifier_only);
+        // let proof = circuit.prove(pw)?;
+        // circuit.verify(proof)?;
 
-        Ok(())
+        // Ok(())
     }
 }

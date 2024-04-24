@@ -180,43 +180,43 @@ fn main() -> Result<()> {
                 &mut TimingTree::default(),
             )?;
 
-            let serialized = serde_json::to_string(&all_proof).unwrap();
-            proof.write_all(serialized.as_bytes())?;
+            // let serialized = serde_json::to_string(&all_proof).unwrap();
+            // proof.write_all(serialized.as_bytes())?;
 
-            // Generate recursive proof
-            if let Some(mut recursive_proof_output) = recursive_proof {
-                let degree_bits = all_proof.degree_bits(&config);
-                let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
-                    &stark,
-                    &degree_bits,
-                    &VM_RECURSION_CONFIG,
-                    &config,
-                );
+            // // Generate recursive proof
+            // if let Some(mut recursive_proof_output) = recursive_proof {
+            //     let degree_bits = all_proof.degree_bits(&config);
+            //     let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+            //         &stark,
+            //         &degree_bits,
+            //         &VM_RECURSION_CONFIG,
+            //         &config,
+            //     );
 
-                let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
+            //     let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
 
-                let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
-                    &recursive_circuit.circuit,
-                    &VM_RECURSION_CONFIG,
-                    VM_RECURSION_THRESHOLD_DEGREE_BITS,
-                    &recursive_all_proof,
-                )?;
-                assert_eq!(
-                    final_circuit.circuit.common.num_public_inputs,
-                    VM_PUBLIC_INPUT_SIZE
-                );
+            //     let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
+            //         &recursive_circuit.circuit,
+            //         &VM_RECURSION_CONFIG,
+            //         VM_RECURSION_THRESHOLD_DEGREE_BITS,
+            //         &recursive_all_proof,
+            //     )?;
+            //     assert_eq!(
+            //         final_circuit.circuit.common.num_public_inputs,
+            //         VM_PUBLIC_INPUT_SIZE
+            //     );
 
-                let s = final_proof.to_bytes();
-                recursive_proof_output.write_all(&s)?;
+            //     let s = final_proof.to_bytes();
+            //     recursive_proof_output.write_all(&s)?;
 
-                // Generate the verifier key file
-                let mut vk_output_path = recursive_proof_output.path().clone();
-                vk_output_path.set_extension("vk");
-                let mut vk_output = vk_output_path.create()?;
+            //     // Generate the verifier key file
+            //     let mut vk_output_path = recursive_proof_output.path().clone();
+            //     vk_output_path.set_extension("vk");
+            //     let mut vk_output = vk_output_path.create()?;
 
-                let bytes = final_circuit.circuit.verifier_only.to_bytes().unwrap();
-                vk_output.write_all(&bytes)?;
-            }
+            //     let bytes = final_circuit.circuit.verifier_only.to_bytes().unwrap();
+            //     vk_output.write_all(&bytes)?;
+            // }
 
             debug!("proof generated successfully!");
         }
@@ -316,12 +316,14 @@ fn main() -> Result<()> {
         }
 
         Command::Verify { mut proof } => {
-            let stark = S::default();
-            let mut buffer: Vec<u8> = vec![];
-            proof.read_to_end(&mut buffer)?;
-            let all_proof: AllProof<F, C, D> = serde_json::from_slice(&buffer)?;
-            verify_proof(&stark, all_proof, &config)?;
-            println!("proof verified successfully!");
+            todo!()
+            // let stark = S::default();
+            // let mut buffer: Vec<u8> = vec![];
+            // proof.read_to_end(&mut buffer)?;
+            // let all_proof: AllProof<F, C, D> =
+            // serde_json::from_slice(&buffer)?; verify_proof(&
+            // stark, all_proof, &config)?; println!("proof verified
+            // successfully!");
         }
         Command::VerifyRecursiveProof {
             mut proof,

@@ -23,7 +23,7 @@ use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProduc
 #[allow(clippy::module_name_repetitions)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     pub fn degree_bits(&self, config: &StarkConfig) -> TableKindArray<usize> {
-        all_kind!(|kind| self.proofs[kind].recover_degree_bits(config))
+        all_kind!(|kind| self.proofs[kind].proof.recover_degree_bits(config))
     }
 }
 
@@ -315,10 +315,10 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(bound = "")]
+#[derive(Clone, Debug)]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub proofs: TableKindArray<StarkProof<F, C, D>>,
+    pub proofs: TableKindArray<starky::proof::StarkProofWithMetadata<F, C, D>>,
+    pub ctl_challenges: starky::lookup::GrandProductChallengeSet<F>,
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
     pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub mozak_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
@@ -326,8 +326,8 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
-    pub stark_challenges: TableKindArray<StarkProofChallenges<F, D>>,
-    pub ctl_challenges: GrandProductChallengeSet<F>,
+    pub stark_challenges: TableKindArray<starky::proof::StarkProofChallenges<F, D>>,
+    pub ctl_challenges: starky::lookup::GrandProductChallengeSet<F>,
 }
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
@@ -336,17 +336,27 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
         for proof in &self.proofs {
-            challenger.observe_cap(&proof.trace_cap);
+            challenger.observe_cap(&proof.proof.trace_cap);
         }
 
         // TODO: Observe public values.
 
-        let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
+        let ctl_challenges =
+            starky::lookup::get_grand_product_challenge_set(&mut challenger, config.num_challenges);
 
+        // TODO(Matthias): consider moving to observing all ctl caps at once, so we can
+        // use the same `alphas` for the whole set of starks. That would need
+        // changes in plonky2.
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
+                let mut challenger = challenger.clone();
                 challenger.compact();
-                self.proofs[kind].get_challenges(&mut challenger, config)
+                self.proofs[kind].proof.get_challenges(
+                    &mut challenger,
+                    Some(&ctl_challenges),
+                    false,
+                    config,
+                )
             }),
             ctl_challenges,
         }
@@ -356,6 +366,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     /// `g^-1`. The order corresponds to the order declared in
     /// [`TableKind`](crate::cross_table_lookup::TableKind).
     pub(crate) fn all_ctl_zs_last(self) -> TableKindArray<Vec<F>> {
-        self.proofs.map(|p| p.openings.ctl_zs_last)
+        // TODO(Matthias): remove, we shouldn't need this.
+        self.proofs.map(|p| p.proof.openings.ctl_zs_first.unwrap())
     }
 }

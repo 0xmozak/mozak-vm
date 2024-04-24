@@ -140,7 +140,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     #[StarkSet(stark_kind = "TapeCommitments")]
     pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
+    pub cross_table_lookups:
+        [starky::cross_table_lookup::CrossTableLookup<F>; NUM_CROSS_TABLE_LOOKUP],
     pub debug: bool,
 }
 
@@ -448,7 +449,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
                 EventCommitmentTapeIOLookupTable::lookups(),
                 CastlistCommitmentTapeIOLookupTable::lookups(),
-            ],
+            ]
+            .map(starky::cross_table_lookup::CrossTableLookup::from),
             debug: false,
         }
     }
