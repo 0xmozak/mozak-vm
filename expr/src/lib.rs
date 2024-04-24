@@ -399,13 +399,22 @@ where
     fn constant(&mut self, value: i64) -> V { value.into() }
 }
 
-#[derive(Default)]
 pub struct Numbered<'a, V> {
     // constants: Vec<i64>,
     // constant_cache: HashMap<i64, V>,
     // Hmm, we want an order of evaluation.
-    pub values: Vec<*const ExprTree<'a, V>>,
-    pub value_cache: HashSet<*const ExprTree<'a, V>>,
+    pub eval_order: Vec<*const ExprTree<'a, V>>,
+    pub seen: HashSet<*const ExprTree<'a, V>>,
+}
+
+// Alas, Rust is too stupid to derive this instance.
+impl<'a, V> Default for Numbered<'a, V> {
+    fn default() -> Self {
+        Numbered {
+            eval_order: Vec::default(),
+            seen: HashSet::default(),
+        }
+    }
 }
 
 impl<'a, V> Evaluator2<'a, V, ()> for Numbered<'a, V>
@@ -421,9 +430,11 @@ where
     fn constant(&mut self, _value: i64) {}
 
     fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) {
+        // Important: we go down first, and then we assign a number.
+        // That way, our values vector is in topological order.
         self.expr_tree(expr.0);
-        if self.value_cache.insert(expr.0) {
-            self.values.push(expr.0);
+        if self.seen.insert(expr.0) {
+            self.eval_order.push(expr.0);
         }
     }
 }
@@ -435,6 +446,8 @@ pub struct Cached<'a, V, E> {
     // Hmm, we want an order of evaluation.
     // values: Vec<ExprTree<'a, V>>,
     value_cache: HashMap<*const ExprTree<'a, V>, V>,
+    #[allow(dead_code)]
+    order: Numbered<'a, V>,
     evaluator: E,
 }
 
@@ -447,6 +460,7 @@ where
         Cached {
             constant_cache: HashMap::default(),
             value_cache: HashMap::default(),
+            order: Numbered::default(),
             evaluator: value,
         }
     }
