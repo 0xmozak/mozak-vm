@@ -125,14 +125,15 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
-    pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<StarkProofWithMetadata<F, C, D>> {
+    pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
 
-        // let proof = starky::proof::StarkProof::from(proof);
-        // TODO(Matthias): not sure we need this, if we don't have the pub sub feature?
-        all_kind!(|kind| {
-            self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
-        });
+        // How are zk_evm handling their public inputs?
+        // // let proof = starky::proof::StarkProof::from(proof);
+        // // TODO(Matthias): not sure we need this, if we don't have the pub sub feature?
+        // all_kind!(|kind| {
+        //     self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
+        // });
 
         // Set public inputs
         let cpu_target = &self.targets[TableKind::Cpu].stark_proof_with_pis_target;
