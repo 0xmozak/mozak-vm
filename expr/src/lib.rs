@@ -432,6 +432,41 @@ where
     }
 }
 
+#[derive(Default)]
+pub struct Counting<E> {
+    count: u64,
+    evaluator: E,
+}
+
+impl<E> Counting<E> {
+    fn inc(&mut self) { self.count += 1; }
+
+    pub fn count(&self) -> u64 { self.count }
+
+    pub fn reset(&mut self) { self.count = 0; }
+}
+
+impl<'a, V, E> Evaluator<'a, V> for Counting<E>
+where
+    E: Evaluator<'a, V>,
+    V: Copy,
+{
+    fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
+        self.inc();
+        self.evaluator.bin_op(op, left, right)
+    }
+
+    fn una_op(&mut self, op: UnaOp, expr: V) -> V {
+        self.inc();
+        self.evaluator.una_op(op, expr)
+    }
+
+    fn constant(&mut self, value: i64) -> V {
+        self.inc();
+        self.evaluator.constant(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -493,6 +528,30 @@ mod tests {
     }
 
     #[test]
+    fn count_depth() {
+        let eb = ExprBuilder::default();
+
+        let mut c = Counting::<PureEvaluator>::default();
+        let mut one = eb.lit(1i64);
+
+        assert_eq!(c.eval(one), 1);
+        assert_eq!(c.count(), 0);
+        c.reset();
+
+        for _ in 0..10 {
+            one = one * one;
+        }
+
+        assert_eq!(c.eval(one), 1);
+        assert_eq!(c.count(), 1023);
+        c.reset();
+
+        let mut c = Cached::from(c);
+        assert_eq!(c.eval(one), 1);
+        assert_eq!(c.evaluator.count(), 10);
+    }
+
+    #[test]
     fn avoids_exponential_blowup() {
         let eb = ExprBuilder::default();
         let mut one = eb.lit(1i64);
@@ -501,7 +560,8 @@ mod tests {
             one = one * one;
         }
 
-        let mut p = Cached::from(PureEvaluator::default());
+        let mut p = Cached::<i64, Counting<PureEvaluator>>::default();
         assert_eq!(p.eval(one), 1);
+        assert_eq!(p.evaluator.count(), 64);
     }
 }
