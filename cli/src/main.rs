@@ -17,7 +17,7 @@ use mozak_circuits::generation::memoryinit::{
 };
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
-// use mozak_circuits::stark::proof::AllProof;
+use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
     circuit_data_for_recursion, recursive_mozak_stark_circuit,
@@ -25,8 +25,8 @@ use mozak_circuits::stark::recursive_verifier::{
     VM_RECURSION_THRESHOLD_DEGREE_BITS,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
-// use mozak_circuits::stark::verifier::verify_proof;
-use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F};
+use mozak_circuits::stark::verifier::verify_proof;
+use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
 use mozak_node::types::{Attestation, Transaction};
@@ -86,8 +86,8 @@ enum Command {
     ProveAndVerify(RunArgs),
     /// Prove the execution of given ELF and write proof to file.
     Prove(ProveArgs),
-    // /// Verify the given proof from file.
-    // Verify { proof: Input },
+    /// Verify the given proof from file.
+    Verify { proof: Input },
     /// Verify the given recursive proof from file.
     VerifyRecursiveProof { proof: Input, verifier_key: Input },
     /// Builds a transaction bundle.
@@ -154,7 +154,7 @@ fn main() -> Result<()> {
             elf,
             system_tape,
             self_prog_id,
-            proof: _proof,
+            mut proof,
             recursive_proof,
         }) => {
             let args = system_tape
@@ -180,8 +180,8 @@ fn main() -> Result<()> {
                 &mut TimingTree::default(),
             )?;
 
-            // let serialized = serde_json::to_string(&all_proof).unwrap();
-            // proof.write_all(serialized.as_bytes())?;
+            let serialized = serde_json::to_string(&all_proof).unwrap();
+            proof.write_all(serialized.as_bytes())?;
 
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
@@ -304,14 +304,14 @@ fn main() -> Result<()> {
             println!("Transaction bundled: {transaction:?}");
         }
 
-        // Command::Verify { mut proof } => {
-        //     let stark = S::default();
-        //     let mut buffer: Vec<u8> = vec![];
-        //     proof.read_to_end(&mut buffer)?;
-        //     let all_proof: AllProof<F, C, D> = serde_json::from_slice(&buffer)?;
-        //     verify_proof(&stark, all_proof, &config)?;
-        //     println!("proof verified successfully!");
-        // }
+        Command::Verify { mut proof } => {
+            let stark = S::default();
+            let mut buffer: Vec<u8> = vec![];
+            proof.read_to_end(&mut buffer)?;
+            let all_proof: AllProof<F, C, D> = serde_json::from_slice(&buffer)?;
+            verify_proof(&stark, all_proof, &config)?;
+            println!("proof verified successfully!");
+        }
         Command::VerifyRecursiveProof {
             mut proof,
             mut verifier_key,
