@@ -1,7 +1,6 @@
 use std::fs;
 use std::process::Command;
 
-use mozak_sdk::common::types::ProgramIdentifier;
 use tempfile::TempDir;
 
 #[test]
