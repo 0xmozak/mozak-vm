@@ -41,9 +41,11 @@ fn add_rc_constraints<
     }
 }
 
+// degree: 1
 fn add_rc_expr<'a, V, W, const STATE_SIZE: usize>(
     state: &mut [Expr<'a, V>; STATE_SIZE],
     r: usize,
+    from_u64: &impl Fn(u64) -> Expr<'a, V>,
 )
 where V : Copy,
       W : Poseidon2,
@@ -52,7 +54,7 @@ where V : Copy,
 
     for (i, val) in state.iter_mut().enumerate().take(STATE_SIZE) {
         // TODO: This probably needs fixing
-        *val = *val + Expr::from(<W as Poseidon2>::RC12[r + i] as i64);
+        *val = *val + from_u64(<W as Poseidon2>::RC12[r + i]);
     }
 }
 
@@ -66,6 +68,7 @@ fn sbox_p_constraints<F: RichField + Extendable<D>, const D: usize, FE, P, const
     *x = *x_qube * *x_qube * *x;
 }
 
+// degree: 3
 fn sbox_p_expr<'a, V>(x: &mut Expr<'a, V>, x_qube: &Expr<'a, V>)
 where V : Copy,
 {
@@ -252,8 +255,11 @@ fn matmul_internal12_constraints<
         *val += sum;
     }
 }
+
+// degree: 1
 fn matmul_internal12_expr<'a, V, U, const STATE_SIZE: usize>(
     state: &mut [Expr<'a, V>; STATE_SIZE],
+    from_u64: &impl Fn(u64) -> Expr<'a, V>,
 )
 where V: Copy,
       U: Poseidon2,
@@ -268,7 +274,7 @@ where V: Copy,
     for (i, val) in state.iter_mut().enumerate().take(STATE_SIZE) {
         // TODO: Fix once MulAssign is implemented
         *val = *val * (
-            (<U as Poseidon2>::MAT_DIAG12_M_1[i] as i64 ) - 1
+            from_u64(<U as Poseidon2>::MAT_DIAG12_M_1[i]) - 1
         );
         *val = *val + sum;
     }
@@ -401,9 +407,10 @@ const COLUMNS: usize = NUM_POSEIDON2_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
 // NOTE: This one has extra constraints...
-fn generate_constraints<'a, T: Copy, U: Poseidon2>(
-    vars: &StarkFrameTyped<Poseidon2State<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> 
+fn generate_constraints<'a, V: Copy, U: Poseidon2>(
+    vars: &StarkFrameTyped<Poseidon2State<Expr<'a, V>>, NoColumns<Expr<'a, V>>>,
+    from_u64: &impl Fn(u64) -> Expr<'a, V>,
+) -> ConstraintBuilder<Expr<'a, V>> 
 {
     let lv = vars.local_values;
     let mut constraints = ConstraintBuilder::default();
@@ -415,7 +422,7 @@ fn generate_constraints<'a, T: Copy, U: Poseidon2>(
     matmul_external12_expr(&mut state);
     // first full rounds
     for r in 0..(ROUNDS_F / 2) {
-        add_rc_expr::<T,U,STATE_SIZE>(&mut state, r);
+        add_rc_expr::<V,U,STATE_SIZE>(&mut state, r, from_u64);
         for (i, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
             sbox_p_expr(
                 item,
@@ -436,9 +443,9 @@ fn generate_constraints<'a, T: Copy, U: Poseidon2>(
         // state[0] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12_MID[i]));
         // TODO: Implement _Assign traits
         // TODO: This cast is unsafe...
-        state[0] = state[0] + Expr::from(<U as Poseidon2>::RC12_MID[i] as i64);
+        state[0] = state[0] + from_u64(<U as Poseidon2>::RC12_MID[i]);
         sbox_p_expr(&mut state[0], &lv.s_box_input_qube_partial_rounds[i]);
-        matmul_internal12_expr::<T, U, STATE_SIZE>(&mut state);
+        matmul_internal12_expr::<V, U, STATE_SIZE>(&mut state, from_u64);
         constraints.always(state[0] - lv.state0_after_partial_rounds[i]);
         state[0] = lv.state0_after_partial_rounds[i];
     }
@@ -452,7 +459,7 @@ fn generate_constraints<'a, T: Copy, U: Poseidon2>(
     // last full rounds
     for i in 0..(ROUNDS_F / 2) {
         let r = (ROUNDS_F / 2) + i;
-        add_rc_expr::<T, U, STATE_SIZE>(&mut state, r);
+        add_rc_expr::<V, U, STATE_SIZE>(&mut state, r, from_u64);
         for (j, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
             sbox_p_expr(
                 item,
@@ -486,7 +493,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints::<P, F>(&eb.to_typed_starkframe(vars));
+        let constraints =
+            generate_constraints::<P, F>(&eb.to_typed_starkframe(vars),
+            &|u| {
+                eb.lit(P::from(FE::from_basefield(F::from_canonical_u64(u))))
+            });
         build_packed(constraints, consumer);
     }
 
