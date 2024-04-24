@@ -558,11 +558,12 @@ where
 
     let mut fri_params = config.fri_params(degree_bits[0]);
     fri_params.reduction_arity_bits =
-        batch_reduction_arity_bits(degree_bits, rate_bits, cap_height);
+        batch_reduction_arity_bits(degree_bits.clone(), rate_bits, cap_height);
     let opening_proof = timed!(
         timing,
         format!("compute batch opening proofs").as_str(),
         BatchFriOracle::prove_openings(
+            &degree_bits,
             &batch_fri_instances,
             &initial_merkle_trees,
             challenger,
