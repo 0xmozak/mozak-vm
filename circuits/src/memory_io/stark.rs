@@ -13,17 +13,17 @@ use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
-use crate::memory_io::columns::{InputOutputMemory, NUM_IO_MEM_COLS};
+use crate::memory_io::columns::{StorageDevice, NUM_IO_MEM_COLS};
 use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct InputOutputMemoryStark<F, const D: usize> {
+pub struct StorageDeviceStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> HasNamedColumns for InputOutputMemoryStark<F, D> {
-    type Columns = InputOutputMemory<F>;
+impl<F, const D: usize> HasNamedColumns for StorageDeviceStark<F, D> {
+    type Columns = StorageDevice<F>;
 }
 
 const COLUMNS: usize = NUM_IO_MEM_COLS;
@@ -31,7 +31,7 @@ const PUBLIC_INPUTS: usize = 0;
 
 // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
 fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<InputOutputMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+    vars: &StarkFrameTyped<StorageDevice<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = vars.local_values;
     let nv = vars.next_values;
@@ -77,7 +77,7 @@ fn generate_constraints<'a, T: Copy>(
     constraints
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMemoryStark<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for StorageDeviceStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
         where
@@ -130,7 +130,7 @@ mod tests {
     use proptest::proptest;
     use starky::stark_testing::test_stark_circuit_constraints;
 
-    use crate::memory_io::stark::InputOutputMemoryStark;
+    use crate::memory_io::stark::StorageDeviceStark;
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{ProveAndVerify, D, F};
 
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
         type C = Poseidon2GoldilocksConfig;
-        type S = InputOutputMemoryStark<F, D>;
+        type S = StorageDeviceStark<F, D>;
 
         let stark = S::default();
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;
