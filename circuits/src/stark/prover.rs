@@ -185,11 +185,9 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    let trace_cap = trace_commitment.merkle_tree.cap.clone();
-    let mut challenger = challenger.clone();
-    let init_challenger_state = challenger.compact();
     // Clear buffered outputs.
-    challenger.observe_cap(&trace_cap);
+    let init_challenger_state = challenger.compact();
+
     starky::prover::prove_with_commitment(
         stark,
         config,
@@ -197,7 +195,7 @@ where
         trace_commitment,
         Some(starky_ctl_data),
         Some(starky_ctl_challenges),
-        &mut challenger,
+        challenger,
         public_inputs,
         timing,
     )
@@ -234,13 +232,16 @@ where
     }
     .build();
 
+    // Clear buffered outputs.
+    let init_challenger_state = challenger.compact();
     Ok(all_starks!(mozak_stark, |stark, kind| {
+        let mut challenger = challenger.clone();
         prove_single_table(
             stark,
             config,
             &traces_poly_values[kind],
             &trace_commitments[kind],
-            challenger,
+            &mut challenger,
             public_inputs[kind],
             timing,
             starky_ctl_challenges,
