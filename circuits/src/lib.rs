@@ -38,3 +38,8 @@ pub mod test_utils;
 pub mod unstark;
 pub mod utils;
 pub mod xor;
+
+extern crate serde;
+extern crate serde_big_array;
+extern crate serde_derive;
+extern crate serde_json;

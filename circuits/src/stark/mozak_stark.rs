@@ -1,5 +1,7 @@
+use std::array::from_fn;
 use std::ops::{Index, IndexMut, Neg};
-
+extern crate serde;
+extern crate serde_json;
 use cpu::columns::CpuState;
 use itertools::{chain, izip};
 use mozak_circuits_derive::StarkSet;
@@ -8,7 +10,9 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 
 use crate::bitshift::columns::{Bitshift, BitshiftView};
 use crate::bitshift::stark::BitshiftStark;
@@ -345,9 +349,14 @@ tt_call::tt_call! {
     ~~> mozak_stark_helpers
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
-pub struct TableKindArray<T>(pub [T; TableKind::COUNT]);
+#[serde(bound = "T: Serialize + DeserializeOwned")]
+pub struct TableKindArray<T>(#[serde(with = "BigArray")] pub [T; TableKind::COUNT]);
+
+impl<T: Default> Default for TableKindArray<T> {
+    fn default() -> Self { TableKindArray(from_fn(|_| T::default())) }
+}
 
 impl<T> Index<TableKind> for TableKindArray<T> {
     type Output = T;
