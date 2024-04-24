@@ -17,15 +17,17 @@
 [workspace]
 exclude = ["sdk"]
 members = [
+  "circuits",
   "cli",
   "examples-builder",
-  "runner",
-  "circuits",
+  "expr",
   "node-cli",
   "node",
+  "recproofs",
   "rpc",
-  "state",
+  "runner",
   "signatures",
+  "state",
   "wasm-demo",
 ]
 resolver = "2"
@@ -45,7 +47,16 @@ lto = "fat"
 
 [profile.bench]
 lto = "thin"
+opt-level = 3
+
+[workspace.dependencies]
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }
+plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }
+starky = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }
+
+plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
 
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
 starky = { git = "https://github.com/0xmozak/plonky2.git" }
