@@ -8,8 +8,8 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{
-    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable, IoMemoryPrivateTable,
-    IoMemoryPublicTable, TableKind, TableWithTypedOutput,
+    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable,
+    StorageDevicePrivateTable, StorageDevicePublicTable, TableKind, TableWithTypedOutput,
 };
 use crate::tape_commitments::columns::TapeCommitmentCTL;
 
@@ -25,7 +25,7 @@ pub struct Ops<T> {
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct InputOutputMemory<T> {
+pub struct StorageDevice<T> {
     /// Clock at memory access.
     pub clk: T,
     /// Address: start-address
@@ -40,20 +40,20 @@ pub struct InputOutputMemory<T> {
     pub is_lv_and_nv_are_memory_rows: T,
 }
 
-columns_view_impl!(InputOutputMemory);
-make_col_map!(InputOutputMemory);
+columns_view_impl!(StorageDevice);
+make_col_map!(StorageDevice);
 
-impl<T: Copy + Add<Output = T>> InputOutputMemory<T> {
+impl<T: Copy + Add<Output = T>> StorageDevice<T> {
     pub fn is_executed(&self) -> T { self.ops.is_io_store + self.ops.is_memory_store }
 }
 
 /// Total number of columns.
-pub const NUM_IO_MEM_COLS: usize = InputOutputMemory::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_IO_MEM_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
 
-columns_view_impl!(InputOutputMemoryCtl);
+columns_view_impl!(StorageDeviceCtl);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct InputOutputMemoryCtl<T> {
+pub struct StorageDeviceCtl<T> {
     pub op: T,
     pub clk: T,
     pub addr: T,
@@ -62,13 +62,10 @@ pub struct InputOutputMemoryCtl<T> {
 
 /// Lookup between CPU table and Memory stark table.
 #[must_use]
-pub fn lookup_for_cpu(
-    kind: TableKind,
-    op: i64,
-) -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_cpu(kind: TableKind, op: i64) -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     TableWithTypedOutput {
         kind,
-        columns: InputOutputMemoryCtl {
+        columns: StorageDeviceCtl {
             op: ColumnWithTypedInput::constant(op),
             clk: COL_MAP.clk,
             addr: COL_MAP.addr,
@@ -109,8 +106,8 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         value: COL_MAP.addr,
     };
     vec![
-        IoMemoryPrivateTable::new(data, COL_MAP.ops.is_io_store),
-        IoMemoryPublicTable::new(data, COL_MAP.ops.is_io_store),
+        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_io_store),
+        StorageDevicePublicTable::new(data, COL_MAP.ops.is_io_store),
         CallTapeTable::new(data, COL_MAP.ops.is_io_store),
         EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
         CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
