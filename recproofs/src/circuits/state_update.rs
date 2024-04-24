@@ -274,7 +274,7 @@ mod test {
     use plonky2::plonk::config::Hasher;
 
     use super::*;
-    use crate::test_utils::{fast_test_circuit_config, hash_branch, hash_str, C, D, F};
+    use crate::test_utils::{hash_branch, hash_str, C, CONFIG, D, F};
 
     fn hash_write<F: RichField>(address: u64, left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
         let address = F::from_canonical_u64(address);
@@ -282,8 +282,6 @@ mod test {
         let [r0, r1, r2, r3] = right.elements;
         Poseidon2Hash::hash_no_pad(&[address, l0, l1, l2, l3, r0, r1, r2, r3])
     }
-
-    const CONFIG: CircuitConfig = fast_test_circuit_config();
 
     lazy_static! {
         static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);

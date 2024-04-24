@@ -331,7 +331,7 @@ mod test {
 
     use super::*;
     use crate::subcircuits::bounded;
-    use crate::test_utils::{fast_test_circuit_config, C, D, F};
+    use crate::test_utils::{C, CONFIG, D, F};
 
     pub struct DummyLeafCircuit {
         pub bounded: bounded::LeafSubCircuit,
@@ -449,8 +449,6 @@ mod test {
             self.circuit.prove(inputs)
         }
     }
-
-    const CONFIG: CircuitConfig = fast_test_circuit_config();
 
     lazy_static! {
         static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);

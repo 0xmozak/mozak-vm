@@ -50,6 +50,8 @@ use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
 use crate::stark::utils::trace_rows_to_poly_values;
 use crate::stark::verifier::verify_proof;
+use crate::tape_commitments::generation::generate_tape_commitments_trace;
+use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::utils::from_u32;
 use crate::xor::stark::XorStark;
 
@@ -400,6 +402,24 @@ impl ProveAndVerify for RegisterStark<F, D> {
             &mut TimingTree::default(),
         )?;
 
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
+impl ProveAndVerify for TapeCommitmentsStark<F, D> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+        type S = TapeCommitmentsStark<F, D>;
+        let stark = S::default();
+        let config = fast_test_config();
+        let trace = generate_tape_commitments_trace(record);
+        let trace_poly_values = trace_rows_to_poly_values(trace);
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            &[],
+            &mut TimingTree::default(),
+        )?;
         verify_stark_proof(stark, proof, &config)
     }
 }
