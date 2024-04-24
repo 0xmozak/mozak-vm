@@ -12,7 +12,7 @@ use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
-use crate::elf::{Data, Program, RuntimeArguments};
+use crate::elf::{Data, Program};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
 
@@ -230,23 +230,6 @@ pub struct RawTapes {
     pub event_tape: Vec<u8>,
     pub events_commitment_tape: [u8; COMMITMENT_SIZE],
     pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
-}
-
-/// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
-/// compatible `RawTapes`.
-///
-/// TODO(bing): Remove when we no longer rely on preinit memory.
-impl From<RuntimeArguments> for RawTapes {
-    fn from(args: RuntimeArguments) -> Self {
-        Self {
-            private_tape: args.io_tape_private,
-            public_tape: args.io_tape_public,
-            call_tape: args.call_tape,
-            event_tape: args.event_tape,
-            cast_list_commitment_tape: args.cast_list_commitment_tape,
-            events_commitment_tape: args.events_commitment_tape,
-        }
-    }
 }
 
 impl<F: RichField> State<F> {

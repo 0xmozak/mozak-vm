@@ -1,5 +1,6 @@
 use super::helpers::owned_buffer;
 use super::linker_symbols::{_mozak_private_io_tape, _mozak_public_io_tape};
+use crate::core::ecall;
 use crate::mozakvm::helpers::get_owned_buffer;
 
 #[derive(Default, Clone)]
@@ -143,9 +144,10 @@ impl Default for PrivateInputTape {
         }
         #[cfg(not(feature = "preinitmem_inputtape"))]
         {
-            // TODO: Implement this when we want to revert back to
-            // ecall based systems. Unimplemented for now.
-            unimplemented!()
+            Self(FreeformTape {
+                ecall_id: ecall::IO_READ_PRIVATE,
+                read_offset: 0,
+            })
         }
     }
 }
@@ -161,9 +163,10 @@ impl Default for PublicInputTape {
         }
         #[cfg(not(feature = "preinitmem_inputtape"))]
         {
-            // TODO: Implement this when we want to revert back to
-            // ecall based systems. Unimplemented for now.
-            unimplemented!()
+            Self(FreeformTape {
+                ecall_id: ecall::IO_READ_PUBLIC,
+                read_offset: 0,
+            })
         }
     }
 }

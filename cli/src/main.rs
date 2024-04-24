@@ -28,9 +28,8 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
+use mozak_cli::runner::{deserialize_system_tape, load_program};
 use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
-use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
@@ -60,8 +59,6 @@ pub struct RunArgs {
     elf: Input,
     #[arg(long)]
     system_tape: Option<Input>,
-    #[arg(long)]
-    self_prog_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -70,8 +67,6 @@ pub struct ProveArgs {
     proof: Output,
     #[arg(long)]
     system_tape: Option<Input>,
-    #[arg(long)]
-    self_prog_id: Option<String>,
     recursive_proof: Option<Output>,
 }
 
@@ -120,31 +115,18 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run(RunArgs {
-            elf,
-            system_tape,
-            self_prog_id,
-        }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
-                .unwrap_or_default();
-            let program = load_program(elf, &args).unwrap();
+        Command::Run(RunArgs { elf, system_tape }) => {
+            let system_tape: SystemTape = deserialize_system_tape(system_tape.unwrap())?;
+
+            let program = load_program(elf).unwrap();
             let state: State<F> = State::new(program.clone(), RawTapes::default());
             step(&program, state)?;
         }
-        Command::ProveAndVerify(RunArgs {
-            elf,
-            system_tape,
-            self_prog_id,
-        }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
-                .unwrap_or_default();
-
-            let program = load_program(elf, &args).unwrap();
+        Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
+            let program = load_program(elf).unwrap();
             let state = State::new(program.clone(), RawTapes::default());
 
             let record = step(&program, state)?;
@@ -153,14 +135,10 @@ fn main() -> Result<()> {
         Command::Prove(ProveArgs {
             elf,
             system_tape,
-            self_prog_id,
             mut proof,
             recursive_proof,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
-                .unwrap_or_default();
-            let program = load_program(elf, &args).unwrap();
+            let program = load_program(elf).unwrap();
             let state = State::new(program.clone(), RawTapes::default());
             let record = step(&program, state)?;
             let stark = if cli.debug {
@@ -245,17 +223,11 @@ fn main() -> Result<()> {
                             "Event tape not found for program id: {:?}",
                             plan.self_prog_id
                         ))?;
-                    let args = tapes_to_runtime_arguments(
-                        Input::try_from(&plan.system_tape_filepath)?,
-                        Some(plan.self_prog_id.to_string()),
-                    );
 
-                    let program = load_program(
-                        Input::try_from(&plan.elf_filepath).unwrap_or_else(|_| {
+                    let program =
+                        load_program(Input::try_from(&plan.elf_filepath).unwrap_or_else(|_| {
                             panic!("Elf filepath {:?} not found", plan.elf_filepath)
-                        }),
-                        &args,
-                    )?;
+                        }))?;
                     let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
                         let rate_bits = config.fri_config.rate_bits;
                         let cap_height = config.fri_config.cap_height;
@@ -277,7 +249,7 @@ fn main() -> Result<()> {
                     let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
 
                     let transparent_attestation = TransparentAttestation {
-                        public_tape: args.io_tape_public,
+                        public_tape: vec![],
                         event_tape,
                     };
 
@@ -350,7 +322,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -367,7 +339,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
