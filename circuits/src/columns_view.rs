@@ -78,19 +78,21 @@ macro_rules! columns_view_impl {
         }
 
         impl<T> $s<T> {
-            const fn from_array(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self {
+            pub const fn from_array(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self {
                 crate::columns_view::ColumnViewImplHider::<Self>::from_array(value)
             }
 
-            const fn into_array(self) -> [T; std::mem::size_of::<$s<u8>>()] {
+            #[must_use]
+            pub const fn into_array(self) -> [T; std::mem::size_of::<$s<u8>>()] {
                 crate::columns_view::ColumnViewImplHider::<Self>::into_array(self)
             }
 
-            const fn from_array_ref(value: &[T; std::mem::size_of::<$s<u8>>()]) -> &Self {
+            pub const fn from_array_ref(value: &[T; std::mem::size_of::<$s<u8>>()]) -> &Self {
                 crate::columns_view::ColumnViewImplHider::<Self>::from_array_ref(value)
             }
 
-            const fn array_ref(&self) -> &[T; std::mem::size_of::<$s<u8>>()] {
+            #[must_use]
+            pub const fn array_ref(&self) -> &[T; std::mem::size_of::<$s<u8>>()] {
                 crate::columns_view::ColumnViewImplHider::<Self>::array_ref(self)
             }
 
@@ -223,10 +225,13 @@ pub(crate) use columns_view_impl;
 /// crosstable lookups
 macro_rules! make_col_map {
     ($s: ident) => {
+        make_col_map!(COL_MAP, $s);
+    };
+    ($name: ident, $s: ident) => {
         // TODO: clean this up once https://github.com/rust-lang/rust/issues/109341 is resolved.
         #[allow(dead_code)]
         #[allow(clippy::large_stack_arrays)]
-        pub(crate) const COL_MAP: $s<
+        pub(crate) const $name: $s<
             crate::linear_combination_typed::ColumnWithTypedInput<$s<i64>>,
         > = {
             use crate::columns_view::NumberOfColumns;

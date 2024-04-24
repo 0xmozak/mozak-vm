@@ -1,6 +1,6 @@
 use itertools::{chain, Itertools};
 use mozak_runner::instruction::{Instruction, Op};
-use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
+use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 use mozak_runner::vm::{ExecutionRecord, Row};
 use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::REG_A0;
@@ -56,7 +56,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         ..executed.last().unwrap().clone()
     }];
 
-    let default_io_entry = IoEntry::default();
+    let default_io_entry = StorageDeviceEntry::default();
     for Row {
         state,
         instruction,
@@ -84,13 +84,10 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
-            #[cfg(feature = "enable_poseidon_starks")]
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
-            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_input_addr: F::from_canonical_u32(
                 aux.poseidon2.clone().unwrap_or_default().addr,
             ),
-            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_input_len: F::from_canonical_u32(
                 aux.poseidon2.clone().unwrap_or_default().len,
             ),
@@ -98,17 +95,24 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store_private: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StorePrivate)
+                (Op::ECALL, StorageDeviceOpcode::StorePrivate)
             )),
             is_io_store_public: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StorePublic)
+                (Op::ECALL, StorageDeviceOpcode::StorePublic)
             )),
-            is_io_transcript: F::from_bool(matches!(
+            is_call_tape: F::from_bool(matches!(
                 (inst.op, io.op),
-                (Op::ECALL, IoOpcode::StoreTranscript)
+                (Op::ECALL, StorageDeviceOpcode::StoreCallTape)
             )),
-
+            is_events_commitment_tape: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, StorageDeviceOpcode::StoreEventsCommitmentTape)
+            )),
+            is_cast_list_commitment_tape: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, StorageDeviceOpcode::StoreCastListCommitmentTape)
+            )),
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::from(REG_A0)]),
                 (Op::ECALL, ecall::HALT)

@@ -7,7 +7,7 @@ use crate::columns_view::Zip;
 
 /// Represent a linear combination of columns.
 ///
-/// `InputColumns` could be eg `InputOutputMemory<i64>` or other stark.  We use
+/// `InputColumns` could be eg `StorageDevice<i64>` or other stark.  We use
 /// a 'dense' representation.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
@@ -30,6 +30,15 @@ impl<InputColumns> ColumnWithTypedInput<InputColumns> {
             constant: self.constant,
         }
     }
+}
+
+impl<InputColumns> ColumnWithTypedInput<InputColumns>
+where
+    Self: Copy + Sub<Self, Output = Self>,
+{
+    // TODO(Consider requiring that nv is empty beforehand?
+    #[must_use]
+    pub fn diff(self) -> Self { self.flip() - self }
 }
 
 impl<C> Neg for ColumnWithTypedInput<C>
@@ -80,6 +89,15 @@ where
     }
 }
 
+impl<C> Add<ColumnWithTypedInput<C>> for i64
+where
+    C: Add<Output = C>,
+{
+    type Output = ColumnWithTypedInput<C>;
+
+    fn add(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> { other + self }
+}
+
 impl<C> Sub<Self> for ColumnWithTypedInput<C>
 where
     C: Sub<Output = C>,
@@ -95,6 +113,35 @@ where
                 .checked_sub(other.constant)
                 .expect("subtraction overflow"),
         }
+    }
+}
+
+impl<C> Sub<i64> for ColumnWithTypedInput<C>
+where
+    C: Sub<Output = C>,
+{
+    type Output = Self;
+
+    fn sub(self, other: i64) -> Self {
+        Self {
+            lv_linear_combination: self.lv_linear_combination,
+            nv_linear_combination: self.nv_linear_combination,
+            constant: self
+                .constant
+                .checked_sub(other)
+                .expect("subtraction overflow"),
+        }
+    }
+}
+
+impl<C> Sub<ColumnWithTypedInput<C>> for i64
+where
+    C: Sub<Output = C> + Default,
+{
+    type Output = ColumnWithTypedInput<C>;
+
+    fn sub(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> {
+        ColumnWithTypedInput::constant(self) - other
     }
 }
 
@@ -114,6 +161,15 @@ where
                 .expect("multiplication overflow"),
         }
     }
+}
+
+impl<C> Mul<ColumnWithTypedInput<C>> for i64
+where
+    C: Mul<i64, Output = C>,
+{
+    type Output = ColumnWithTypedInput<C>;
+
+    fn mul(self, other: ColumnWithTypedInput<C>) -> ColumnWithTypedInput<C> { other * self }
 }
 
 impl<C> Sum<ColumnWithTypedInput<C>> for ColumnWithTypedInput<C>

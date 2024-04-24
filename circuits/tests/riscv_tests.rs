@@ -24,7 +24,7 @@ use starky::config::StarkConfig;
 fn run_test(elf: &[u8]) -> Result<()> {
     let _ = env_logger::try_init();
     let program = Program::vanilla_load_elf(elf)?;
-    let state = State::<GoldilocksField>::from(&program);
+    let state = State::<GoldilocksField>::from(program.clone());
     let record = step(&program, state)?;
     let state = record.last_state.clone();
     // At the end of every test,

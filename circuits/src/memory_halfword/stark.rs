@@ -1,19 +1,20 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::memory_halfword::columns::{HalfWordMemory, NUM_HW_MEM_COLS};
-use crate::stark::utils::{is_binary, is_binary_ext_circuit};
+use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -23,6 +24,28 @@ pub struct HalfWordMemoryStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
     type Columns = HalfWordMemory<F>;
+}
+
+// Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<HalfWordMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv = vars.local_values;
+    let mut constraints = ConstraintBuilder::default();
+
+    constraints.always(lv.ops.is_store.is_binary());
+    constraints.always(lv.ops.is_load.is_binary());
+    constraints.always(lv.is_executed().is_binary());
+
+    let added = lv.addrs[0] + 1;
+    let wrapped = added - (1 << 32);
+
+    // Check: the resulting sum is wrapped if necessary.
+    // As the result is range checked, this make the choice deterministic,
+    // even for a malicious prover.
+    constraints.always(lv.is_executed() * (lv.addrs[1] - added) * (lv.addrs[1] - wrapped));
+
+    constraints
 }
 
 const COLUMNS: usize = NUM_HW_MEM_COLS;
@@ -36,55 +59,27 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &HalfWordMemory<P> = vars.get_local_values().into();
-
-        is_binary(yield_constr, lv.ops.is_store);
-        is_binary(yield_constr, lv.ops.is_load);
-        is_binary(yield_constr, lv.is_executed());
-
-        let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        let added = lv.addrs[0] + P::ONES;
-        let wrapped = added - wrap_at;
-
-        // Check: the resulting sum is wrapped if necessary.
-        // As the result is range checked, this make the choice deterministic,
-        // even for a malicious prover.
-        yield_constr.constraint(lv.is_executed() * (lv.addrs[1] - added) * (lv.addrs[1] - wrapped));
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_packed(constraints, consumer);
     }
 
     fn eval_ext_circuit(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &HalfWordMemory<ExtensionTarget<D>> = vars.get_local_values().into();
-        let is_executed = builder.add_extension(lv.ops.is_load, lv.ops.is_store);
-
-        is_binary_ext_circuit(builder, lv.ops.is_store, yield_constr);
-        is_binary_ext_circuit(builder, lv.ops.is_load, yield_constr);
-        is_binary_ext_circuit(builder, is_executed, yield_constr);
-
-        let wrap_at = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
-        let one = builder.one_extension();
-        let added = builder.add_extension(lv.addrs[0], one);
-        let wrapped = builder.sub_extension(added, wrap_at);
-
-        let addr_1_sub_added = builder.sub_extension(lv.addrs[1], added);
-        let addr_1_sub_wrapped = builder.sub_extension(lv.addrs[1], wrapped);
-        let is_executed_mul_addr_1_sub_added = builder.mul_extension(is_executed, addr_1_sub_added);
-        let constraint =
-            builder.mul_extension(is_executed_mul_addr_1_sub_added, addr_1_sub_wrapped);
-
-        yield_constr.constraint(builder, constraint);
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_ext(constraints, builder, consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -92,9 +87,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
 
 #[cfg(test)]
 mod tests {
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{u32_extra, u8_extra};
-    use mozak_runner::util::execute_code;
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -110,7 +105,7 @@ mod tests {
         content: u8,
         is_unsigned: bool,
     ) {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [
                 Instruction {
                     op: Op::SH,

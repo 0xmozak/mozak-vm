@@ -1,19 +1,21 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use itertools::izip;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::memory_fullword::columns::{FullWordMemory, NUM_HW_MEM_COLS};
-use crate::stark::utils::{is_binary, is_binary_ext_circuit};
+use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -27,6 +29,29 @@ impl<F, const D: usize> HasNamedColumns for FullWordMemoryStark<F, D> {
 
 const COLUMNS: usize = NUM_HW_MEM_COLS;
 const PUBLIC_INPUTS: usize = 0;
+
+// Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<FullWordMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv = vars.local_values;
+    let mut constraints = ConstraintBuilder::default();
+
+    constraints.always(lv.ops.is_store.is_binary());
+    constraints.always(lv.ops.is_load.is_binary());
+    constraints.always(lv.is_executed().is_binary());
+
+    // Check: the resulting sum is wrapped if necessary.
+    // As the result is range checked, this make the choice deterministic,
+    // even for a malicious prover.
+    for (i, addr) in izip!(0.., lv.addrs).skip(1) {
+        let target = lv.addrs[0] + i;
+        constraints.always(lv.is_executed() * (addr - target) * (addr + (1 << 32) - target));
+    }
+
+    constraints
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemoryStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
@@ -40,56 +65,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemor
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &FullWordMemory<P> = vars.get_local_values().into();
-
-        is_binary(yield_constr, lv.ops.is_store);
-        is_binary(yield_constr, lv.ops.is_load);
-        is_binary(yield_constr, lv.is_executed());
-
-        // Check: the resulting sum is wrapped if necessary.
-        // As the result is range checked, this make the choice deterministic,
-        // even for a malicious prover.
-        let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        for i in 1..4 {
-            let target = lv.addrs[0] + P::Scalar::from_canonical_usize(i);
-            yield_constr.constraint(
-                lv.is_executed() * (lv.addrs[i] - target) * (lv.addrs[i] + wrap_at - target),
-            );
-        }
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_packed(constraints, consumer);
     }
 
     fn eval_ext_circuit(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &FullWordMemory<ExtensionTarget<D>> = vars.get_local_values().into();
-        let is_executed = builder.add_extension(lv.ops.is_load, lv.ops.is_store);
-
-        is_binary_ext_circuit(builder, lv.ops.is_store, yield_constr);
-        is_binary_ext_circuit(builder, lv.ops.is_load, yield_constr);
-        is_binary_ext_circuit(builder, is_executed, yield_constr);
-
-        let wrap_at = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
-        for i in 1..4 {
-            let i_target = builder.constant_extension(F::Extension::from_canonical_usize(i));
-            let target = builder.add_extension(lv.addrs[0], i_target);
-            let addr_i_sub_target = builder.sub_extension(lv.addrs[i], target);
-            let is_executed_mul_addr_i_sub_target =
-                builder.mul_extension(is_executed, addr_i_sub_target);
-            let addr_i_add_wrap_at = builder.add_extension(lv.addrs[i], wrap_at);
-            let addr_i_add_wrap_at_sub_target = builder.sub_extension(addr_i_add_wrap_at, target);
-            let constraint = builder.mul_extension(
-                is_executed_mul_addr_i_sub_target,
-                addr_i_add_wrap_at_sub_target,
-            );
-            yield_constr.constraint(builder, constraint);
-        }
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_ext(constraints, builder, consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -97,9 +90,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemor
 
 #[cfg(test)]
 mod tests {
+    use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{u32_extra, u8_extra};
-    use mozak_runner::util::execute_code;
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -110,7 +103,7 @@ mod tests {
     use crate::test_utils::{ProveAndVerify, D, F};
 
     pub fn prove_mem_read_write<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = execute_code(
+        let (program, record) = code::execute(
             [
                 Instruction {
                     op: Op::SW,

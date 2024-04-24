@@ -63,21 +63,92 @@ pub fn generate_halfword_memory_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
 
+    use mozak_runner::code;
+    use mozak_runner::elf::Program;
+    use mozak_runner::instruction::Op::{LH, LHU, SH};
+    use mozak_runner::instruction::{Args, Instruction};
+    use mozak_runner::vm::ExecutionRecord;
     use plonky2::field::goldilocks_field::GoldilocksField;
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::generate_poseidon2_output_bytes_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
+        generate_io_memory_public_trace,
     };
     use crate::generation::memory::generate_memory_trace;
+    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
-    use crate::memory_halfword::test_utils::halfword_memory_trace_test_case;
-    use crate::test_utils::{inv, prep_table};
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
+    use crate::test_utils::prep_table;
 
-    type F = GoldilocksField;
+    // TODO(Matthias): Consider unifying with the byte memory example?
+    #[must_use]
+    fn halfword_memory_trace_test_case(
+        repeats: usize,
+    ) -> (Program, ExecutionRecord<GoldilocksField>) {
+        let new = Instruction::new;
+        let instructions = [
+            new(SH, Args {
+                // addr = rs2 + imm, value = rs1-value
+                // store-full-word of address = 100, value 0x0102
+                rs1: 1,
+                imm: 400,
+                ..Args::default()
+            }),
+            new(LH, Args {
+                // addr = rs2 + imm, value = rd-value
+                // load-full-word from address = 100 to reg-3, value of 0x0102
+                rd: 3,
+                imm: 400,
+                ..Args::default()
+            }),
+            new(SH, Args {
+                // addr = rs2 + imm, value = rs1
+                // store-full-word of address = 200, value 0x0304
+                rs1: 2,
+                imm: 500,
+                ..Args::default()
+            }),
+            new(LHU, Args {
+                // addr = rs2 + imm, value = rd
+                // load-full-word from address = 200 to reg-4, value of 0x0304
+                rd: 4,
+                imm: 500,
+                ..Args::default()
+            }),
+        ];
+        let code = std::iter::repeat(&instructions)
+            .take(repeats)
+            .flatten()
+            .copied()
+            .collect::<Vec<_>>();
+        let (program, record) = code::execute(
+            code,
+            &[
+                (400, 0),
+                (401, 0),
+                (402, 0),
+                (403, 0),
+                (500, 0),
+                (501, 0),
+                (502, 0),
+            ],
+            &[(1, 0x0102), (2, 0x0304), (3, 0xFFFF), (4, 0x0000_FFFF)],
+        );
+
+        if repeats > 0 {
+            let state = &record.last_state;
+            assert_eq!(state.load_u32(400), 0x0102);
+            assert_eq!(state.get_register_value(3), 0x0102);
+            assert_eq!(state.load_u32(500), 0x0304);
+            assert_eq!(state.get_register_value(4), 0x0304);
+        }
+        (program, record)
+    }
+
     // This test simulates the scenario of a set of instructions
     // which perform store byte (SH) and load byte signed / unsigned (LH/LHU)
     // operations to memory and then checks if the memory trace is generated
@@ -88,42 +159,69 @@ mod tests {
         let (program, record) = halfword_memory_trace_test_case(1);
 
         let memory_init = generate_memory_init_trace(&program);
+        let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
+
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
-        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_rows);
+        let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
+        let cast_list_commitment_tape_rows =
+            generate_cast_list_commitment_tape_trace(&record.executed);
+        let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_rows);
 
         let trace = generate_memory_trace::<GoldilocksField>(
             &record.executed,
             &memory_init,
+            &memory_zeroinit_rows,
             &halfword_memory,
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            &poseidon2_rows,
+            &call_tape_rows,
+            &events_commitment_tape_rows,
+            &cast_list_commitment_tape_rows,
+            &poseidon2_sponge_rows,
             &poseidon2_output_bytes,
         );
+        let last = u64::from(u32::MAX);
         assert_eq!(trace,
             prep_table(vec![
-                //is_writable  addr   clk  is_store, is_load, is_init  value  diff_clk      diff_addr_inv
-                [       1,     400,   1,      0,        0,       1,        0,        0,     inv::<F>(400)],// Memory Init: 400
-                [       1,     400,   2,      1,        0,       0,        2,        1,     inv::<F>(0)],  // Operations:  400
-                [       1,     400,   3,      0,        1,       0,        2,        1,     inv::<F>(0)],  // Operations:  400
-                [       1,     401,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 401
-                [       1,     401,   2,      1,        0,       0,        1,        1,     inv::<F>(0)],  // Operations:  401
-                [       1,     401,   3,      0,        1,       0,        1,        1,     inv::<F>(0)],  // Operations:  401
-                [       1,     402,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 402
-                [       1,     403,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 403
-                [       1,     500,   1,      0,        0,       1,        0,        0,     inv::<F>(97)], // Memory Init: 500
-                [       1,     500,   4,      1,        0,       0,        4,        3,     inv::<F>(0)],  // Operations:  500
-                [       1,     500,   5,      0,        1,       0,        4,        1,     inv::<F>(0)],  // Operations:  500
-                [       1,     501,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 501
-                [       1,     501,   4,      1,        0,       0,        3,        3,     inv::<F>(0)],  // Operations:  501
-                [       1,     501,   5,      0,        1,       0,        3,        1,     inv::<F>(0)],  // Operations:  501
-                [       1,     502,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 502
-                [       1,     502,   1,      0,        0,       0,        0,        0,     inv::<F>(0)],  // padding
+                //is_writable  addr   clk  is_store, is_load, is_init  value
+                [       1,     0,     0,     0,         0,       1,        0],  // Memory Init: 0
+                [       1,     400,   1,      0,        0,       1,        0],  // Memory Init: 400
+                [       1,     400,   2,      1,        0,       0,        2],  // Operations:  400
+                [       1,     400,   3,      0,        1,       0,        2],  // Operations:  400
+                [       1,     401,   1,      0,        0,       1,        0],  // Memory Init: 401
+                [       1,     401,   2,      1,        0,       0,        1],  // Operations:  401
+                [       1,     401,   3,      0,        1,       0,        1],  // Operations:  401
+                [       1,     402,   1,      0,        0,       1,        0],  // Memory Init: 402
+                [       1,     403,   1,      0,        0,       1,        0],  // Memory Init: 403
+                [       1,     500,   1,      0,        0,       1,        0],  // Memory Init: 500
+                [       1,     500,   4,      1,        0,       0,        4],  // Operations:  500
+                [       1,     500,   5,      0,        1,       0,        4],  // Operations:  500
+                [       1,     501,   1,      0,        0,       1,        0],  // Memory Init: 501
+                [       1,     501,   4,      1,        0,       0,        3],  // Operations:  501
+                [       1,     501,   5,      0,        1,       0,        3],  // Operations:  501
+                [       1,     502,   1,      0,        0,       1,        0],  // Memory Init: 502
+                [       1,    last,   0,     0,         0,       1,        0],  // Memory Init: last
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
+                [       1,    last,   0,     0,         0,       0,        0],  // padding
             ])
         );
     }

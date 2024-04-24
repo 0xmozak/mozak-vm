@@ -12,21 +12,19 @@ version = "0.1.0"
 [dependencies]
 anyhow = { version = "1.0", default-features = false }
 arrayvec = { version = "0.7", default-features = false }
-bitfield = "0.14"
+bitfield = "0.15"
 derive_more = { version = "1.0.0-beta.6", features = ["full"] }
-enumflags2 = "0.7.9"
-iter_fixed = "0.3.1"
+expr = { path = "../expr" }
 itertools = "0.12"
-lazy_static = "1.4.0"
 log = "0.4"
 mozak-circuits-derive = { path = "./derive" }
 mozak-runner = { path = "../runner" }
 mozak-sdk = { path = "../sdk" }
-plonky2 = { version = "0", default-features = false }
-rayon = "1.10"
+plonky2 = { workspace = true, default-features = false }
+plonky2_maybe_rayon = { workspace = true, default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-starky = { version = "0", default-features = false, features = ["std"] }
+starky = { workspace = true, default-features = false, features = ["std"] }
 thiserror = "1.0"
 tt-call = "1.0"
 
@@ -37,9 +35,10 @@ hex = "0.4"
 im = "15.1"
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
+rand = "0.8"
 
 [features]
-enable_poseidon_starks = []
+parallel = ["plonky2/parallel", "starky/parallel", "plonky2_maybe_rayon/parallel"]
 test = []
 timing = ["plonky2/timing", "starky/timing"]
 
@@ -50,9 +49,4 @@ required-features = ["test"]
 [[bench]]
 harness = false
 name = "simple_prover"
-required-features = ["test"]
-
-[[bench]]
-harness = false
-name = "recproof"
 required-features = ["test"]

@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, Neg};
 
 use cpu::columns::CpuState;
 use itertools::{chain, izip};
@@ -6,6 +6,8 @@ use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+#[allow(clippy::wildcard_imports)]
+use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
 
 use crate::bitshift::columns::{Bitshift, BitshiftView};
@@ -21,30 +23,17 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::columns::{InputOutputMemory, InputOutputMemoryCtl};
-use crate::memory_io::stark::InputOutputMemoryStark;
+use crate::memory_io::columns::{StorageDevice, StorageDeviceCtl};
+use crate::memory_io::stark::StorageDeviceStark;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::memoryinit::stark::MemoryInitStark;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2::columns::Poseidon2State;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2::columns::Poseidon2StateCtl;
+use crate::poseidon2::columns::{Poseidon2State, Poseidon2StateCtl};
 use crate::poseidon2::stark::Poseidon2_12Stark;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_output_bytes;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
+use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, Poseidon2OutputBytesCtl};
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_sponge;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-#[cfg(feature = "enable_poseidon_starks")]
-use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
+use crate::poseidon2_sponge::columns::{Poseidon2Sponge, Poseidon2SpongeCtl};
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::program::stark::ProgramStark;
@@ -55,20 +44,27 @@ use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, Rang
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
-use crate::register::columns::{Register, RegisterCtl};
-use crate::register::stark::RegisterStark;
-use crate::register_zero::columns::RegisterZero;
-use crate::register_zero::stark::RegisterZeroStark;
-use crate::registerinit::columns::RegisterInit;
-use crate::registerinit::stark::RegisterInitStark;
+use crate::register::general::columns::Register;
+use crate::register::general::stark::RegisterStark;
+use crate::register::init::columns::RegisterInit;
+use crate::register::init::stark::RegisterInitStark;
+use crate::register::zero_read::columns::RegisterZeroRead;
+use crate::register::zero_read::stark::RegisterZeroReadStark;
+use crate::register::zero_write::columns::RegisterZeroWrite;
+use crate::register::zero_write::stark::RegisterZeroWriteStark;
+use crate::register::RegisterCtl;
+use crate::tape_commitments::columns::{TapeCommitmentCTL, TapeCommitments};
+use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, program, program_multiplicities, rangecheck, register, xor,
+    memoryinit, poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities,
+    rangecheck, register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 12 + cfg!(feature = "enable_poseidon_starks") as usize * 3;
+const NUM_CROSS_TABLE_LOOKUP: usize = 17;
+const NUM_PUBLIC_SUB_TABLES: usize = 2;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -115,32 +111,38 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
-    #[StarkSet(stark_kind = "IoMemoryPrivate")]
-    pub io_memory_private_stark: InputOutputMemoryStark<F, D>,
-    #[StarkSet(stark_kind = "IoMemoryPublic")]
-    pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
-    #[StarkSet(stark_kind = "IoTranscript")]
-    pub io_transcript_stark: InputOutputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "StorageDevicePrivate")]
+    pub io_memory_private_stark: StorageDeviceStark<F, D>,
+    #[StarkSet(stark_kind = "StorageDevicePublic")]
+    pub io_memory_public_stark: StorageDeviceStark<F, D>,
+    #[StarkSet(stark_kind = "CallTape")]
+    pub call_tape_stark: StorageDeviceStark<F, D>,
+    // TODO(bing): This is known to be 32-bytes in length. Optimize with
+    // a fixed size version of this STARK.
+    #[StarkSet(stark_kind = "EventsCommitmentTape")]
+    pub events_commitment_tape_stark: StorageDeviceStark<F, D>,
+    // TODO(bing): This is known to be 32-bytes in length. Optimize with
+    // a fixed size version of this STARK.
+    #[StarkSet(stark_kind = "CastListCommitmentTape")]
+    pub cast_list_commitment_tape_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
-    #[StarkSet(stark_kind = "RegisterZero")]
-    pub register_zero_stark: RegisterZeroStark<F, D>,
-    #[cfg_attr(feature = "enable_poseidon_starks", StarkSet(stark_kind = "Poseidon2"))]
+    #[StarkSet(stark_kind = "RegisterZeroRead")]
+    pub register_zero_read_stark: RegisterZeroReadStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterZeroWrite")]
+    pub register_zero_write_stark: RegisterZeroWriteStark<F, D>,
+    #[StarkSet(stark_kind = "Poseidon2")]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
-    #[cfg_attr(
-        feature = "enable_poseidon_starks",
-        StarkSet(stark_kind = "Poseidon2Sponge")
-    )]
+    #[StarkSet(stark_kind = "Poseidon2Sponge")]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
-    #[cfg_attr(
-        feature = "enable_poseidon_starks",
-        StarkSet(stark_kind = "Poseidon2OutputBytes")
-    )]
+    #[StarkSet(stark_kind = "Poseidon2OutputBytes")]
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
+    #[StarkSet(stark_kind = "TapeCommitments")]
+    pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-    pub public_sub_tables: [PublicSubTable; 0],
+    pub public_sub_tables: [PublicSubTable; NUM_PUBLIC_SUB_TABLES],
     pub debug: bool,
 }
 
@@ -301,6 +303,25 @@ macro_rules! mozak_stark_helpers {
         }
         pub(crate) use all_starks;
 
+        #[allow(unused_macros)]
+        macro_rules! all_starks_par {
+            ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
+                use core::borrow::Borrow;
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
+                let all_stark = $all_stark.borrow();
+                TableKindArray([$(
+                    {
+                        let $stark = &all_stark.$fields;
+                        let $kind = $kind_names;
+                        let f: Box<dyn Fn() -> _ + Send + Sync> = Box::new(move || $val);
+                        f
+                    },)*
+                ]).par_map(|f| f())
+            }};
+        }
+        #[allow(unused_imports)]
+        pub(crate) use all_starks_par;
+
     };
 }
 
@@ -311,7 +332,7 @@ tt_call::tt_call! {
     ~~> mozak_stark_helpers
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct TableKindArray<T>(pub [T; TableKind::COUNT]);
 
@@ -330,6 +351,22 @@ impl<'a, T> IntoIterator for &'a TableKindArray<T> {
     type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+}
+
+impl<T: Send> TableKindArray<T> {
+    pub fn par_map<F, U>(self, f: F) -> TableKindArray<U>
+    where
+        F: Fn(T) -> U + Send + Sync,
+        U: Send + core::fmt::Debug, {
+        TableKindArray(
+            self.0
+                .into_par_iter()
+                .map(f)
+                .collect::<Vec<U>>()
+                .try_into()
+                .unwrap(),
+        )
+    }
 }
 
 impl<T> TableKindArray<T> {
@@ -381,13 +418,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
-            register_zero_stark: RegisterZeroStark::default(),
-            io_memory_private_stark: InputOutputMemoryStark::default(),
-            io_memory_public_stark: InputOutputMemoryStark::default(),
-            io_transcript_stark: InputOutputMemoryStark::default(),
+            register_zero_read_stark: RegisterZeroReadStark::default(),
+            register_zero_write_stark: RegisterZeroWriteStark::default(),
+            io_memory_private_stark: StorageDeviceStark::default(),
+            io_memory_public_stark: StorageDeviceStark::default(),
+            call_tape_stark: StorageDeviceStark::default(),
+            events_commitment_tape_stark: StorageDeviceStark::default(),
+            cast_list_commitment_tape_stark: StorageDeviceStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
+            tape_commitments_stark: TapeCommitmentsStark::default(),
 
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.
@@ -403,15 +444,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 RegisterLookups::lookups(),
-                IoMemoryToCpuTable::lookups(),
-                #[cfg(feature = "enable_poseidon_starks")]
+                StorageDeviceToCpuTable::lookups(),
                 Poseidon2SpongeCpuTable::lookups(),
-                #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2Poseidon2SpongeTable::lookups(),
-                #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
+                EventCommitmentTapeIOLookupTable::lookups(),
+                CastlistCommitmentTapeIOLookupTable::lookups(),
             ],
-            public_sub_tables: [],
+            public_sub_tables: [
+                crate::tape_commitments::columns::make_event_commitment_tape_public(),
+                crate::tape_commitments::columns::make_castlist_commitment_tape_public(),
+            ],
             debug: false,
         }
     }
@@ -482,6 +525,18 @@ impl<Row> TableWithTypedOutput<Row> {
     }
 }
 
+impl<Row> Neg for TableWithTypedOutput<Row> {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Self::Output {
+            kind: self.kind,
+            columns: self.columns,
+            filter_column: -self.filter_column,
+        }
+    }
+}
+
 /// Macro to instantiate a new table for cross table lookups.
 // OK, `table_kind` determines the input type of the table.
 // But input type could relate to multiple kinds.
@@ -545,31 +600,48 @@ table_impl!(
 );
 table_impl!(RegisterInitTable, TableKind::RegisterInit, RegisterInit);
 table_impl!(RegisterTable, TableKind::Register, Register);
-table_impl!(RegisterZeroTable, TableKind::RegisterZero, RegisterZero);
 table_impl!(
-    IoMemoryPrivateTable,
-    TableKind::IoMemoryPrivate,
-    InputOutputMemory
+    RegisterZeroReadTable,
+    TableKind::RegisterZeroRead,
+    RegisterZeroRead
 );
 table_impl!(
-    IoMemoryPublicTable,
-    TableKind::IoMemoryPublic,
-    InputOutputMemory
+    RegisterZeroWriteTable,
+    TableKind::RegisterZeroWrite,
+    RegisterZeroWrite
 );
 table_impl!(
-    IoTranscriptTable,
-    TableKind::IoTranscript,
-    InputOutputMemory
+    StorageDevicePrivateTable,
+    TableKind::StorageDevicePrivate,
+    StorageDevice
 );
-#[cfg(feature = "enable_poseidon_starks")]
+table_impl!(
+    StorageDevicePublicTable,
+    TableKind::StorageDevicePublic,
+    StorageDevice
+);
+table_impl!(CallTapeTable, TableKind::CallTape, StorageDevice);
+table_impl!(
+    EventsCommitmentTapeTable,
+    TableKind::EventsCommitmentTape,
+    StorageDevice
+);
+table_impl!(
+    CastListCommitmentTapeTable,
+    TableKind::CastListCommitmentTape,
+    StorageDevice
+);
 table_impl!(
     Poseidon2SpongeTable,
     TableKind::Poseidon2Sponge,
     Poseidon2Sponge
 );
-#[cfg(feature = "enable_poseidon_starks")]
+table_impl!(
+    TapeCommitmentsTable,
+    TableKind::TapeCommitments,
+    TapeCommitments
+);
 table_impl!(Poseidon2Table, TableKind::Poseidon2, Poseidon2State);
-#[cfg(feature = "enable_poseidon_starks")]
 table_impl!(
     Poseidon2OutputBytesTable,
     TableKind::Poseidon2OutputBytes,
@@ -589,7 +661,7 @@ impl Lookups for RangecheckTable {
     type Row = RangeCheckCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let register = register::columns::rangecheck_looking();
+        let register = register::general::columns::rangecheck_looking();
 
         let looking: Vec<TableWithTypedOutput<_>> = chain![
             memory::columns::rangecheck_looking(),
@@ -607,10 +679,9 @@ impl Lookups for XorCpuTable {
     type Row = XorView<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput {
-            looking_tables: vec![cpu::columns::lookup_for_xor()],
-            looked_tables: vec![xor::columns::lookup_for_cpu()],
-        }
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_xor()], vec![
+            xor::columns::lookup_for_cpu(),
+        ])
     }
 }
 
@@ -621,23 +692,25 @@ impl Lookups for IntoMemoryTable {
 
     #[allow(clippy::too_many_lines)]
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        let mut tables = vec![];
-        tables.extend([
-            cpu::columns::lookup_for_memory(),
-            memory_halfword::columns::lookup_for_memory_limb(0),
-            memory_halfword::columns::lookup_for_memory_limb(1),
-            memory_fullword::columns::lookup_for_memory_limb(0),
-            memory_fullword::columns::lookup_for_memory_limb(1),
-            memory_fullword::columns::lookup_for_memory_limb(2),
-            memory_fullword::columns::lookup_for_memory_limb(3),
-            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPrivate),
-            memory_io::columns::lookup_for_memory(TableKind::IoMemoryPublic),
-        ]);
-        #[cfg(feature = "enable_poseidon_starks")]
-        {
-            tables.extend((0..8).map(poseidon2_sponge::columns::lookup_for_input_memory));
-            tables.extend((0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory));
-        }
+        let tables = chain![
+            [
+                cpu::columns::lookup_for_memory(),
+                memory_halfword::columns::lookup_for_memory_limb(0),
+                memory_halfword::columns::lookup_for_memory_limb(1),
+                memory_fullword::columns::lookup_for_memory_limb(0),
+                memory_fullword::columns::lookup_for_memory_limb(1),
+                memory_fullword::columns::lookup_for_memory_limb(2),
+                memory_fullword::columns::lookup_for_memory_limb(3),
+                memory_io::columns::lookup_for_memory(TableKind::StorageDevicePrivate),
+                memory_io::columns::lookup_for_memory(TableKind::StorageDevicePublic),
+                memory_io::columns::lookup_for_memory(TableKind::CallTape),
+                memory_io::columns::lookup_for_memory(TableKind::EventsCommitmentTape),
+                memory_io::columns::lookup_for_memory(TableKind::CastListCommitmentTape),
+            ],
+            (0..8).map(poseidon2_sponge::columns::lookup_for_input_memory),
+            (0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory),
+        ]
+        .collect();
         CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])
     }
 }
@@ -681,7 +754,7 @@ impl Lookups for InnerCpuTable {
     type Row = InstructionRow<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_inst()], vec![
+        CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_program_rom()], vec![
             program_multiplicities::columns::lookup_for_cpu(),
         ])
     }
@@ -750,29 +823,32 @@ impl Lookups for RegisterLookups {
             chain![
                 crate::cpu::columns::register_looking(),
                 crate::memory_io::columns::register_looking(),
-                vec![crate::registerinit::columns::lookup_for_register()],
+                vec![crate::register::init::columns::lookup_for_register()],
             ]
             .collect(),
             vec![
-                crate::register::columns::register_looked(),
-                crate::register_zero::columns::register_looked(),
+                crate::register::general::columns::register_looked(),
+                crate::register::zero_read::columns::register_looked(),
+                crate::register::zero_write::columns::register_looked(),
             ],
         )
     }
 }
 
-pub struct IoMemoryToCpuTable;
+pub struct StorageDeviceToCpuTable;
 
-impl Lookups for IoMemoryToCpuTable {
-    type Row = InputOutputMemoryCtl<Column>;
+impl Lookups for StorageDeviceToCpuTable {
+    type Row = StorageDeviceCtl<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             izip!(
                 [
-                    TableKind::IoMemoryPrivate,
-                    TableKind::IoMemoryPublic,
-                    TableKind::IoTranscript
+                    TableKind::StorageDevicePrivate,
+                    TableKind::StorageDevicePublic,
+                    TableKind::CallTape,
+                    TableKind::EventsCommitmentTape,
+                    TableKind::CastListCommitmentTape,
                 ],
                 0..
             )
@@ -783,9 +859,8 @@ impl Lookups for IoMemoryToCpuTable {
     }
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub struct Poseidon2SpongeCpuTable;
-#[cfg(feature = "enable_poseidon_starks")]
+
 impl Lookups for Poseidon2SpongeCpuTable {
     type Row = Poseidon2SpongeCtl<Column>;
 
@@ -797,9 +872,8 @@ impl Lookups for Poseidon2SpongeCpuTable {
     }
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub struct Poseidon2Poseidon2SpongeTable;
-#[cfg(feature = "enable_poseidon_starks")]
+
 impl Lookups for Poseidon2Poseidon2SpongeTable {
     type Row = Poseidon2StateCtl<Column>;
 
@@ -811,9 +885,8 @@ impl Lookups for Poseidon2Poseidon2SpongeTable {
     }
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 pub struct Poseidon2OutputBytesPoseidon2SpongeTable;
-#[cfg(feature = "enable_poseidon_starks")]
+
 impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
     type Row = Poseidon2OutputBytesCtl<Column>;
 
@@ -821,6 +894,32 @@ impl Lookups for Poseidon2OutputBytesPoseidon2SpongeTable {
         CrossTableLookupWithTypedOutput::new(
             vec![crate::poseidon2_output_bytes::columns::lookup_for_poseidon2_sponge()],
             vec![crate::poseidon2_sponge::columns::lookup_for_poseidon2_output_bytes()],
+        )
+    }
+}
+
+pub struct EventCommitmentTapeIOLookupTable;
+
+impl Lookups for EventCommitmentTapeIOLookupTable {
+    type Row = TapeCommitmentCTL<Column>;
+
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
+        CrossTableLookupWithTypedOutput::new(
+            vec![crate::memory_io::columns::event_commitment_lookup_in_tape_commitments()],
+            vec![crate::tape_commitments::columns::lookup_for_event_tape_commitment()],
+        )
+    }
+}
+
+pub struct CastlistCommitmentTapeIOLookupTable;
+
+impl Lookups for CastlistCommitmentTapeIOLookupTable {
+    type Row = TapeCommitmentCTL<Column>;
+
+    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
+        CrossTableLookupWithTypedOutput::new(
+            vec![crate::memory_io::columns::castlist_commitment_lookup_in_tape_commitments()],
+            vec![crate::tape_commitments::columns::lookup_for_castlist_commitment()],
         )
     }
 }

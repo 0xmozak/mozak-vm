@@ -11,7 +11,8 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
-use crate::memory_io::columns::InputOutputMemory;
+use crate::memory_io::columns::StorageDevice;
+use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
@@ -47,15 +48,9 @@ pub struct Memory<T> {
 
     /// Value of memory access.
     pub value: T,
-
-    /// Difference between current and previous clock.
-    pub diff_clk: T,
-
-    /// Difference between current and previous addresses inversion
-    pub diff_addr_inv: T,
 }
 columns_view_impl!(Memory);
-make_col_map!(Memory);
+make_col_map!(MEM, Memory);
 
 impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
     /// All other fields are intentionally set to defaults, and clk is
@@ -67,6 +62,19 @@ impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
             is_init: F::ONE,
             value: row.element.value,
             clk: F::ONE,
+            ..Default::default()
+        })
+    }
+}
+
+impl<F: RichField> From<&MemoryZeroInit<F>> for Option<Memory<F>> {
+    /// Clock `clk` is deliberately set to zero, to come before 'real' init
+    /// rows.
+    fn from(row: &MemoryZeroInit<F>) -> Self {
+        row.filter.is_one().then(|| Memory {
+            is_writable: F::ONE,
+            addr: row.addr,
+            is_init: F::ONE,
             ..Default::default()
         })
     }
@@ -152,8 +160,8 @@ impl<F: RichField> From<&Poseidon2OutputBytes<F>> for Vec<Memory<F>> {
     }
 }
 
-impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
-    fn from(val: &InputOutputMemory<F>) -> Self {
+impl<F: RichField> From<&StorageDevice<F>> for Option<Memory<F>> {
+    fn from(val: &StorageDevice<F>) -> Self {
         (val.ops.is_memory_store).is_one().then(|| Memory {
             clk: val.clk,
             addr: val.addr,
@@ -178,17 +186,31 @@ pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
 
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
-    [COL_MAP.addr, COL_MAP.addr, COL_MAP.diff_clk]
-        .into_iter()
-        .map(|addr| MemoryTable::new(RangeCheckCtl(addr), COL_MAP.is_executed()))
-        .collect()
+    vec![
+        MemoryTable::new(
+            // We treat `is_init` on the next line special, to make sure that inits change the
+            // address.
+            RangeCheckCtl(MEM.addr.diff() - MEM.is_init.flip()),
+            MEM.is_executed(),
+        ),
+        // Anything but an init has a non-negative clock difference.
+        // We augment the clock difference, to make sure that for the same clock cycle the order is
+        // as follows: init, load, store, dummy.
+        // Specifically, loads should come before stores, so that eg a poseidon ecall that reads
+        // and writes to the same memory addresses will do the Right Thing.
+        MemoryTable::new(
+            // TODO: put augmented_clock function into columns, like for registers.
+            RangeCheckCtl((MEM.clk * 4 - MEM.is_store - MEM.is_load * 2 - MEM.is_init * 3).diff()),
+            (1 - MEM.is_init).flip(),
+        ),
+    ]
 }
 
 #[must_use]
 pub fn rangecheck_u8_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
     vec![MemoryTable::new(
-        RangeCheckCtl(COL_MAP.value),
-        COL_MAP.is_executed(),
+        RangeCheckCtl(MEM.value),
+        MEM.is_executed(),
     )]
 }
 
@@ -209,13 +231,13 @@ pub struct MemoryCtl<T> {
 pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
     MemoryTable::new(
         MemoryCtl {
-            clk: COL_MAP.clk,
-            is_store: COL_MAP.is_store,
-            is_load: COL_MAP.is_load,
-            addr: COL_MAP.addr,
-            value: COL_MAP.value,
+            clk: MEM.clk,
+            is_store: MEM.is_store,
+            is_load: MEM.is_load,
+            addr: MEM.addr,
+            value: MEM.value,
         },
-        COL_MAP.is_store + COL_MAP.is_load,
+        MEM.is_store + MEM.is_load,
     )
 }
 
@@ -224,12 +246,12 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
 pub fn lookup_for_memoryinit() -> TableWithTypedOutput<MemoryInitCtl<Column>> {
     MemoryTable::new(
         MemoryInitCtl {
-            is_writable: COL_MAP.is_writable,
-            address: COL_MAP.addr,
-            clk: COL_MAP.clk,
-            value: COL_MAP.value,
+            is_writable: MEM.is_writable,
+            address: MEM.addr,
+            clk: MEM.clk,
+            value: MEM.value,
         },
-        COL_MAP.is_init,
+        MEM.is_init,
     )
 }
 
