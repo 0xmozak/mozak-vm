@@ -19,6 +19,7 @@ pub mod subcircuits;
 
 #[cfg(any(feature = "test", test))]
 pub mod test_utils {
+    use itertools::{chain, Itertools};
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::{HashOut, RichField};
     use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -26,7 +27,7 @@ pub mod test_utils {
     use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 
     #[must_use]
-    pub const fn fast_test_circuit_config() -> CircuitConfig {
+    const fn fast_test_circuit_config() -> CircuitConfig {
         let mut config = CircuitConfig::standard_recursion_config();
         config.security_bits = 1;
         config.num_challenges = 1;
@@ -35,6 +36,8 @@ pub mod test_utils {
         config.fri_config.num_query_rounds = 1;
         config
     }
+
+    pub const CONFIG: CircuitConfig = fast_test_circuit_config();
 
     pub fn hash_str(v: &str) -> HashOut<F> {
         let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
@@ -45,6 +48,14 @@ pub mod test_utils {
         let [l0, l1, l2, l3] = left.elements;
         let [r0, r1, r2, r3] = right.elements;
         Poseidon2Hash::hash_no_pad(&[l0, l1, l2, l3, r0, r1, r2, r3])
+    }
+
+    pub fn hash_branch_bytes<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
+        let bytes = chain!(left.elements, right.elements)
+            .flat_map(|v| v.to_canonical_u64().to_le_bytes())
+            .map(|v| F::from_canonical_u8(v))
+            .collect_vec();
+        Poseidon2Hash::hash_no_pad(&bytes)
     }
 
     pub const D: usize = 2;
@@ -298,21 +309,6 @@ where
 
     // Select the hash based on presence
     select_hash(builder, both_present, hash_both, hash_absent)
-}
-
-/// `hash_or_forward` but using non-zero to determine presence
-fn hash_or_forward_zero<F, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    left: [Target; NUM_HASH_OUT_ELTS],
-    right: [Target; NUM_HASH_OUT_ELTS],
-) -> HashOutTarget
-where
-    F: RichField + Extendable<D>, {
-    let left_non_zero = hash_is_nonzero(builder, left);
-    let right_non_zero = hash_is_nonzero(builder, right);
-
-    // Select the hash based on presence
-    hash_or_forward(builder, left_non_zero, left, right_non_zero, right)
 }
 
 /// Guarantee at least one `BoolTarget` is `true`.

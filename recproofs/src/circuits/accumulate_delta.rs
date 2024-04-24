@@ -192,18 +192,16 @@ where
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
 
     use super::*;
-    use crate::test_utils::{fast_test_circuit_config, C, D, F};
-
-    const CONFIG: CircuitConfig = fast_test_circuit_config();
+    use crate::test_utils::{C, CONFIG, D, F};
 
     lazy_static! {
-        static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
-        static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
+        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
+        pub static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
     }
 
     #[test]

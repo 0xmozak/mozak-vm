@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::elf::Program;
@@ -300,6 +301,23 @@ pub fn step<F: RichField>(
                 last_state.clk != limit,
                 "Looped for longer than MOZAK_MAX_LOOPS"
             );
+        }
+    }
+    if option_env!("MOZAK_COUNT_OPS").is_some() {
+        println!("Instruction counts:");
+        let total: u32 = executed.len().try_into().unwrap();
+        println!("{:6.2?}%\t{total:10} total", 100_f64);
+        for (count, op) in executed
+            .iter()
+            .map(|row| row.instruction.op)
+            .sorted()
+            .dedup_with_count()
+            .sorted()
+            .rev()
+        {
+            let count: u32 = count.try_into().unwrap();
+            let percentage = 100_f64 * f64::from(count) / f64::from(total);
+            println!("{percentage:6.2?}%\t{count:10} {op}");
         }
     }
     Ok(ExecutionRecord::<F> {
