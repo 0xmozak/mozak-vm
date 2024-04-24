@@ -357,7 +357,10 @@ mod tests {
         type F = <C as GenericConfig<D>>::F;
         type S = CpuStark<F, D>;
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_low_degree(stark)
     }
 
@@ -368,7 +371,10 @@ mod tests {
         type F = <C as GenericConfig<D>>::F;
         type S = CpuStark<F, D>;
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;
 
         Ok(())

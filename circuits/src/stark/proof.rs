@@ -303,14 +303,14 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         // TODO(Matthias): consider moving to observing all ctl caps at once, so we can
         // use the same `alphas` for the whole set of starks. That would need
         // changes in plonky2.
+        challenger.compact();
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
                 let mut challenger = challenger.clone();
-                challenger.compact();
                 self.proofs[kind].proof.get_challenges(
                     &mut challenger,
                     Some(&ctl_challenges),
-                    false,
+                    true,
                     config,
                 )
             }),

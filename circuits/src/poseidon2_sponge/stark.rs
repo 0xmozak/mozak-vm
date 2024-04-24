@@ -236,7 +236,10 @@ mod tests {
 
         let step_rows = record.executed;
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let trace = generate_poseidon2_sponge_trace(&step_rows);
         let trace_poly_values = trace_rows_to_poly_values(trace);
 
@@ -279,12 +282,18 @@ mod tests {
 
     #[test]
     fn poseidon2_stark_degree() -> Result<()> {
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_low_degree(stark)
     }
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;
 
         Ok(())

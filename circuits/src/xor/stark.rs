@@ -116,7 +116,10 @@ mod tests {
     type S = XorStark<F, D>;
     #[test]
     fn test_degree() -> Result<()> {
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_low_degree(stark)
     }
 
@@ -161,7 +164,10 @@ mod tests {
         let cpu_trace = generate_cpu_trace(&record);
         let trace = timed!(timing, "generate_xor_trace", generate_xor_trace(&cpu_trace));
         let trace_poly_values = timed!(timing, "trace to poly", trace_rows_to_poly_values(trace));
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
 
         let proof = timed!(
             timing,
@@ -193,7 +199,10 @@ mod tests {
 
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;
 
         Ok(())

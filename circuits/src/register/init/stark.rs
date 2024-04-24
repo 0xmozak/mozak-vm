@@ -89,7 +89,10 @@ mod tests {
 
     #[test]
     fn test_degree() -> Result<()> {
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_low_degree(stark)
     }
 

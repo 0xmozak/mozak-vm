@@ -233,7 +233,7 @@ where
     .build();
 
     // Clear buffered outputs.
-    let init_challenger_state = challenger.compact();
+    challenger.compact();
     Ok(all_starks!(mozak_stark, |stark, kind| {
         let mut challenger = challenger.clone();
         prove_single_table(

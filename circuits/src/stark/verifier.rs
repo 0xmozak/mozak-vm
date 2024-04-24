@@ -66,6 +66,8 @@ where
         ..Default::default()
     }
     .build();
+    // TODO(Matthias): we still need to make sure that all the challenges are
+    // correct, via our own observing etc.
     all_starks!(mozak_stark, |stark, kind| {
         starky::verifier::verify_stark_proof_with_challenges(
             stark,
@@ -74,7 +76,8 @@ where
             Some(&ctl_vars_per_table[kind as usize]),
             public_inputs[kind],
             config,
-        )?;
+        )
+        .unwrap_or_else(|e| panic!("Failed to verify stark proof for {kind:?}: {e}"));
     });
     starky::cross_table_lookup::verify_cross_table_lookups(
         &mozak_stark.cross_table_lookups,
