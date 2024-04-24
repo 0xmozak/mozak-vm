@@ -3,6 +3,7 @@
 // TODO(bing): `clio` uses an older `windows-sys` vs other dependencies.
 // Remove when `clio` updates, or if `clio` is no longer needed.
 #![allow(clippy::multiple_crate_versions)]
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -11,6 +12,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
+use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::io_memory::generate_call_tape_trace;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
@@ -242,33 +244,19 @@ fn main() -> Result<()> {
                 let curr_dir = std::env::current_dir().unwrap();
                 let mapping = std::fs::File::open(curr_dir.join(PROGRAMS_MAP_JSON))
                     .expect("could not open programs map");
-                let mut mapping: Vec<MappedProgram> = serde_json::from_reader(mapping)
+                let mapping: Vec<MappedProgram> = serde_json::from_reader(mapping)
                     .expect("Could not deserialize Vec<MappedProgram> from programs map");
-
-                let mut ids_and_paths = vec![];
-                for id in cast_list {
-                    if let Some(program) = mapping
-                        .iter_mut()
-                        .find(|m| ProgramIdentifier::from(m.name.clone()) == *id)
-                    {
-                        if ProgramIdentifier::from(program.name.clone()) == entrypoint_program_id {
-                            ids_and_paths.insert(
-                                0,
-                                (
-                                    program.name.clone().into(),
-                                    curr_dir.join(program.path.clone()),
-                                ),
-                            );
-                        } else {
-                            ids_and_paths.push((
-                                program.name.clone().into(),
-                                curr_dir.join(program.path.clone()),
-                            ));
-                        }
-                    }
-                }
-
-                ids_and_paths
+                let mapping: HashMap<ProgramIdentifier, String> = mapping
+                    .into_iter()
+                    .map(|mp| (ProgramIdentifier::from(mp.name), mp.path))
+                    .collect();
+                cast_list
+                    .iter()
+                    .filter_map(|id: &ProgramIdentifier| {
+                        mapping.get(id).map(|path| (*id, curr_dir.join(path)))
+                    })
+                    .sorted_by_key(|(id, _)| id != &entrypoint_program_id)
+                    .collect()
             }
 
             println!("Bundling transaction...");
@@ -278,19 +266,16 @@ fn main() -> Result<()> {
             // Q: will first call always be null program calling the program's entrypoint?
             let entrypoint_program_id = system_tape.call_tape.writer[0].callee;
 
-            let mut cast_list = vec![];
-            system_tape.call_tape.writer.clone().into_iter().for_each(
-                |CrossProgramCall { caller, callee, .. }| {
-                    if !callee.is_null_program() {
-                        cast_list.push(callee);
-                    }
-                    if !caller.is_null_program() {
-                        cast_list.push(caller);
-                    }
-                },
-            );
-            cast_list.sort();
-            cast_list.dedup();
+            let cast_list: Vec<_> = system_tape
+                .call_tape
+                .writer
+                .clone()
+                .into_iter()
+                .flat_map(|CrossProgramCall { callee, caller, .. }| [callee, caller])
+                .filter(|prog| !prog.is_null_program())
+                .sorted()
+                .dedup()
+                .collect();
 
             let ids_and_paths = ids_and_paths_from_cast_list(entrypoint_program_id, &cast_list);
 
