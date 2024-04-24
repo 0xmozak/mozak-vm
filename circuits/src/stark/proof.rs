@@ -21,10 +21,7 @@ use starky::config::StarkConfig;
 use super::mozak_stark::{all_kind, PublicInputs, TableKindArray};
 
 #[allow(clippy::module_name_repetitions)]
-impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D>
-where
-    for<'a> <C::Hasher as Hasher<F>>::Permutation: Deserialize<'a> + Serialize,
-{
+impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     pub fn degree_bits(&self, config: &StarkConfig) -> TableKindArray<usize> {
         all_kind!(|kind| self.proofs[kind].proof.recover_degree_bits(config))
     }
