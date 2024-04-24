@@ -36,6 +36,7 @@ fn generate_constraints<'a, T: Copy>(
 #[allow(clippy::module_name_repetitions)]
 pub struct TapeCommitmentsStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+    pub standalone_proving: bool,
 }
 
 impl<F, const D: usize> HasNamedColumns for TapeCommitmentsStark<F, D> {

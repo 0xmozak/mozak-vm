@@ -22,6 +22,7 @@ use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2SpongeStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+    pub standalone_proving: bool,
 }
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2SpongeStark<F, D> {

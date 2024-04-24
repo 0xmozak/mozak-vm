@@ -17,6 +17,7 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 #[allow(clippy::module_name_repetitions)]
 pub struct ProgramMultStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+    pub standalone_proving: bool,
 }
 
 impl<F, const D: usize> HasNamedColumns for ProgramMultStark<F, D> {
