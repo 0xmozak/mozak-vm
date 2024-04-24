@@ -30,7 +30,6 @@ fn add_rc<'a, V, W, const STATE_SIZE: usize>(
     assert_eq!(STATE_SIZE, 12);
 
     for (i, val) in state.iter_mut().enumerate().take(STATE_SIZE) {
-        // TODO: This probably needs fixing
         *val = *val + from_u64(<W as Poseidon2>::RC12[r + i]);
     }
 }
@@ -173,10 +172,6 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
 
     // partial rounds
     for i in 0..ROUNDS_P {
-        // TODO: Figure out how to migrate this to Expr...
-        // state[0] += FE::from_basefield(F::from_canonical_u64(<F as
-        // Poseidon2>::RC12_MID[i])); TODO: Implement _Assign traits
-        // TODO: This cast is unsafe...
         state[0] = state[0] + from_u64(<U as Poseidon2>::RC12_MID[i]);
         sbox_p(&mut state[0], &lv.s_box_input_qube_partial_rounds[i]);
         matmul_internal12::<V, U, STATE_SIZE>(&mut state, from_u64);
