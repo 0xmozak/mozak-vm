@@ -11,7 +11,7 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
-use crate::memory_io::columns::InputOutputMemory;
+use crate::memory_io::columns::StorageDevice;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
@@ -160,8 +160,8 @@ impl<F: RichField> From<&Poseidon2OutputBytes<F>> for Vec<Memory<F>> {
     }
 }
 
-impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
-    fn from(val: &InputOutputMemory<F>) -> Self {
+impl<F: RichField> From<&StorageDevice<F>> for Option<Memory<F>> {
+    fn from(val: &StorageDevice<F>) -> Self {
         (val.ops.is_memory_store).is_one().then(|| Memory {
             clk: val.clk,
             addr: val.addr,

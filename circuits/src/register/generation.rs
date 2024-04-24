@@ -5,7 +5,7 @@ use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
-use crate::memory_io::columns::InputOutputMemory;
+use crate::memory_io::columns::StorageDevice;
 use crate::register::general::columns::{Ops, Register};
 use crate::register::init::columns::RegisterInit;
 use crate::register::zero_read::columns::RegisterZeroRead;
@@ -83,11 +83,11 @@ where
 #[allow(clippy::type_complexity)]
 pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
-    mem_private: &[InputOutputMemory<F>],
-    mem_public: &[InputOutputMemory<F>],
-    mem_call_tape: &[InputOutputMemory<F>],
-    mem_events_commitment_tape: &[InputOutputMemory<F>],
-    mem_cast_list_commitment_tape: &[InputOutputMemory<F>],
+    mem_private: &[StorageDevice<F>],
+    mem_public: &[StorageDevice<F>],
+    mem_call_tape: &[StorageDevice<F>],
+    mem_events_commitment_tape: &[StorageDevice<F>],
+    mem_cast_list_commitment_tape: &[StorageDevice<F>],
     reg_init: &[RegisterInit<F>],
 ) -> (
     Vec<RegisterZeroRead<F>>,
@@ -100,13 +100,16 @@ pub fn generate_register_trace<F: RichField>(
         .into_iter()
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::Cpu => extract(cpu_trace, &looking_table),
-            TableKind::IoMemoryPrivate => extract(mem_private, &looking_table),
-            TableKind::IoMemoryPublic => extract(mem_public, &looking_table),
+            TableKind::StorageDevicePrivate => extract(mem_private, &looking_table),
+            TableKind::StorageDevicePublic => extract(mem_public, &looking_table),
             TableKind::CallTape => extract(mem_call_tape, &looking_table),
             TableKind::EventsCommitmentTape => extract(mem_events_commitment_tape, &looking_table),
             TableKind::CastListCommitmentTape =>
                 extract(mem_cast_list_commitment_tape, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
+            // We are trying to build the Register tables, so we don't have the values to extract.
+            TableKind::Register | TableKind::RegisterZeroRead | TableKind::RegisterZeroWrite =>
+                vec![],
             other => unimplemented!("Can't extract register ops from {other:#?} tables"),
         })
         .collect();
