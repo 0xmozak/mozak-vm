@@ -19,10 +19,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
-use plonky2::util::reducing::ReducingFactorTarget;
-use plonky2::with_context;
 use starky::config::StarkConfig;
-use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
@@ -231,7 +228,7 @@ where
                 &mut challenger,
                 Some(&ctl_challenges),
                 true,
-                &inner_config,
+                inner_config,
             );
 
         starky::recursive_verifier::verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
@@ -647,30 +644,10 @@ where
 #[cfg(test)]
 mod tests {
 
-    use std::panic;
-    use std::panic::AssertUnwindSafe;
-
     use anyhow::Result;
-    use log::info;
-    use mozak_runner::code;
-    use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_sdk::core::ecall::COMMITMENT_SIZE;
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-    use plonky2::plonk::circuit_builder::CircuitBuilder;
-    use plonky2::plonk::circuit_data::CircuitConfig;
-    use plonky2::util::timing::TimingTree;
-    use starky::config::StarkConfig;
 
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
-    use crate::stark::prover::prove;
-    use crate::stark::recursive_verifier::{
-        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
-        verify_recursive_vm_proof, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
-        VM_RECURSION_CONFIG, VM_RECURSION_THRESHOLD_DEGREE_BITS,
-    };
-    use crate::test_utils::{C, D, F};
-    use crate::utils::from_u32;
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::{D, F};
 
     type S = MozakStark<F, D>;
 
