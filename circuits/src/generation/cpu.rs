@@ -2,7 +2,7 @@ use expr::{Evaluator, ExprBuilder, PureEvaluator};
 use itertools::{chain, Itertools};
 use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
-use mozak_runner::state::{Aux, IoEntry, State, StorageDeviceOpcode};
+use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 use mozak_runner::vm::{ExecutionRecord, Row};
 use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::REG_A0;
@@ -92,7 +92,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     debug!("Starting CPU Trace Generation");
     let mut trace: Vec<CpuState<F>> = vec![];
 
-    let default_io_entry = IoEntry::default();
+    let default_io_entry = StorageDeviceEntry::default();
     for Row {
         state,
         instruction,

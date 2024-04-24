@@ -1,6 +1,6 @@
 use itertools::chain;
 use mozak_runner::instruction::Op;
-use mozak_runner::state::{IoEntry, StorageDeviceOpcode};
+use mozak_runner::state::{StorageDeviceEntry, StorageDeviceOpcode};
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
@@ -47,7 +47,8 @@ pub fn generate_io_memory_trace<F: RichField>(
     pad_io_mem_trace(
         filter(step_rows, which_tape)
             .flat_map(|s| {
-                let IoEntry { op, data, addr }: IoEntry = s.aux.io.clone().unwrap_or_default();
+                let StorageDeviceEntry { op, data, addr }: StorageDeviceEntry =
+                    s.aux.io.clone().unwrap_or_default();
                 let len = data.len();
                 chain!(
                     // initial io-element
