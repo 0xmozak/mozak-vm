@@ -317,8 +317,7 @@ pub fn step<F: RichField>(
         {
             let count: u32 = count.try_into().unwrap();
             let percentage = 100_f64 * f64::from(count) / f64::from(total);
-            print!("{percentage:6.2?}%\t{count:10} {op:?}");
-            println!();
+            println!("{percentage:6.2?}%\t{count:10} {op:?}");
         }
     }
     Ok(ExecutionRecord::<F> {

@@ -18,6 +18,11 @@
 //!  x & y := (x + y - (x ^ y)) / 2
 //!  x | y := (x + y + (x ^ y)) / 2
 //! `
+//! Or, without division:
+//! `
+//!  2 * (x & y) := (x + y - (x ^ y))
+//!  2 * (x | y) := (x + y + (x ^ y))
+//! `
 
 use expr::Expr;
 
@@ -32,12 +37,20 @@ use crate::xor::columns::XorView;
 pub struct BinaryOp<P> {
     pub input_a: P,
     pub input_b: P,
+    /// Our constraints naturally give us the doubled output; currently our
+    /// `Expr` mechanism doesn't support multiplicative inverses of constants,
+    /// so we work with doubled output, and just also double the other side of
+    /// our equations.
+    ///
+    /// If necessary, we can fix the `Expr` mechanism later, but there's no
+    /// hurry.  (Do keep in mind that `PackedField` does not support
+    /// multiplicative inverses.)
     pub doubled_output: P,
 }
 
 /// Re-usable gadget for AND constraints.
 /// It has access to already constrained XOR evaluation and based on that
-/// constrains the AND evaluation: `x & y := (x + y - xor(x,y)) / 2`
+/// constrains the AND evaluation: `2 * (x & y) := x + y - xor(x,y)`
 /// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn and_gadget<'a, P: Copy>(xor: &XorView<Expr<'a, P>>) -> BinaryOp<Expr<'a, P>> {
     BinaryOp {
@@ -49,7 +62,7 @@ pub(crate) fn and_gadget<'a, P: Copy>(xor: &XorView<Expr<'a, P>>) -> BinaryOp<Ex
 
 /// Re-usable gadget for OR constraints
 /// It has access to already constrained XOR evaluation and based on that
-/// constrains the OR evaluation: `x | y := (x + y + xor(x,y)) / 2`
+/// constrains the OR evaluation: `2 * (x | y) := x + y + xor(x,y)`
 /// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn or_gadget<'a, P: Copy>(xor: &XorView<Expr<'a, P>>) -> BinaryOp<Expr<'a, P>> {
     BinaryOp {
