@@ -333,7 +333,6 @@ fn main() -> Result<()> {
                     call_tape_hash = Some(trace_commitment.merkle_tree.cap);
                 }
 
-<<<<<<< HEAD
                 let attestation = Attestation {
                     id: *program_id,
                     public_tape: system_tape
@@ -358,36 +357,6 @@ fn main() -> Result<()> {
                 call_tape_hash: call_tape_hash.expect("system tape generated from entrypoint program's native execution should contain a call tape"),
                 cast_list,
                 constituent_zs: attestations,
-=======
-                    let trace = generate_call_tape_init_trace(&program);
-                    let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
-
-                    let attestation = Attestation {
-                        id: plan.self_prog_id.into(),
-                        public_tape: args.io_tape_public,
-                        event_tape,
-                    };
-                    Ok((attestation, call_tape_hash))
-                })
-                .collect::<Result<Vec<(_, _)>>>()?;
-            let (constituent_zs, call_tape_hashes): (Vec<_>, Vec<_>) = zipped.into_iter().unzip();
-            let call_tape_hash = call_tape_hashes
-                .first()
-                .ok_or(anyhow::anyhow!(
-                    "No call tape hash found in the first bundle plan"
-                ))?
-                .clone();
-
-            let transaction: Transaction<F, C, D> = Transaction {
-                call_tape_hash,
-                cast_list: cast_list
-                    .clone()
-                    .into_iter()
-                    .unique()
-                    .map(ProgramIdentifier::from)
-                    .collect(),
-                constituent_zs,
->>>>>>> 1e99bb722 (tx-bundle: Remove `OpaqueAttestation` entirely. (#1613))
             };
 
             serde_json::to_writer_pretty(bundle, &transaction)?;
