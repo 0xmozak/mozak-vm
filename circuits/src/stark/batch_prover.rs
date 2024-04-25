@@ -220,7 +220,6 @@ where
 
     let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
     let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
-    let mozak_memory_init_trace_cap = trace_caps[TableKind::MozakMemoryInit].clone();
     if log_enabled!(Debug) {
         timing.print();
     }
@@ -228,7 +227,6 @@ where
         proofs,
         program_rom_trace_cap,
         elf_memory_init_trace_cap,
-        mozak_memory_init_trace_cap,
         public_inputs,
         public_sub_table_values,
         batch_stark_proof,
@@ -640,9 +638,9 @@ mod tests {
     use plonky2::util::timing::TimingTree;
 
     use crate::stark::batch_prover::batch_prove;
+    use crate::stark::batch_verifier::batch_verify_proof;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
     use crate::stark::proof::BatchProof;
-    use crate::stark::verifier::batch_verify_proof;
     use crate::test_utils::fast_test_config;
     use crate::utils::from_u32;
 
