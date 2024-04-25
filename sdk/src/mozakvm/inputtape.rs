@@ -1,4 +1,5 @@
-use super::linker_symbols::{_mozak_private_io_tape, _mozak_public_io_tape};
+use core::ops::{Deref, DerefMut};
+
 use crate::core::ecall;
 
 #[derive(Default, Clone)]
@@ -51,23 +52,21 @@ impl std::io::Read for RandomAccessEcallTape {
         );
 
         // Get new elements from  `ecall`
-        let old_internal_buf_len = self.old_internal_buf_len;
-        self.internal_buf
-            .resize(old_internal_buf_len + remaining_from_ecall, 0);
+        let old_len = self.internal_buf.len();
+        self.internal_buf.resize(old_len + remaining_from_ecall, 0);
 
         // TODO: maybe move out this function into `ecall.rs` somehow?
         unsafe {
             core::arch::asm!(
                 "ecall",
                 in ("a0") self.ecall_id,
-                in ("a1") self.internal_buf.as_mut_ptr().add(old_internal_buf_len),
+                in ("a1") self.internal_buf.as_mut_ptr().add(old_len),
                 in ("a2") remaining_from_ecall,
             );
         };
 
         // Populate partial buf from newly fetched bytes via `ECALL`
-        buf[populatable_from_internal_buf..]
-            .clone_from_slice(&self.internal_buf[old_internal_buf_len..]);
+        buf[populatable_from_internal_buf..].clone_from_slice(&self.internal_buf[old_len..]);
         self.read_offset += serviced_bytes;
 
         Ok(serviced_bytes)
@@ -117,6 +116,8 @@ impl Default for PrivateInputTape {
         Self(FreeformTape {
             ecall_id: ecall::IO_READ_PRIVATE,
             read_offset: 0,
+            size_hint: 0,
+            internal_buf: vec![],
         })
     }
 }
@@ -126,30 +127,34 @@ impl Default for PublicInputTape {
         Self(FreeformTape {
             ecall_id: ecall::IO_READ_PUBLIC,
             read_offset: 0,
+            size_hint: 0,
+            internal_buf: vec![],
         })
     }
 }
 
-#[cfg(feature = "stdread")]
-impl std::io::Read for PrivateInputTape {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> { self.0.read(buf) }
+impl Deref for PrivateInputTape {
+    type Target = RandomAccessEcallTape;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-#[cfg(feature = "stdread")]
-impl std::io::Read for PublicInputTape {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> { self.0.read(buf) }
+impl DerefMut for PrivateInputTape {
+    fn deref_mut(&mut self) -> &mut FreeformTape { &mut self.0 }
 }
 
-impl PrivateInputTape {
-    pub fn len(&self) -> usize { self.0.len() }
+impl Deref for PublicInputTape {
+    type Target = RandomAccessEcallTape;
 
-    pub fn read_ptr(&self) -> usize { self.0.read_ptr() }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-impl PublicInputTape {
-    pub fn len(&self) -> usize { self.0.len() }
+impl DerefMut for PublicInputTape {
+    fn deref_mut(&mut self) -> &mut FreeformTape { &mut self.0 }
+}
 
-    pub fn read_ptr(&self) -> usize { self.0.read_ptr() }
+impl RandomAccessEcallTape {
+    pub(crate) fn len(&self) -> usize { self.size_hint }
 }
 
 /// Provides the length of tape available to read
