@@ -381,8 +381,8 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     /// 3. `entry_point` (1 F element)
     /// Note that not padding here is Ok, since a length extension
     /// attack would require padding 3 malicious F elements (to match `RATE`)
-    /// but that would give only be able to fake an entry_point
-    /// out of usual range of entry_point.
+    /// but that would give only be able to fake an `entry_point`
+    /// out of usual range of `entry_point`.
     pub fn get_program_hash_bytes(&self) -> [F; DIGEST_BYTES] {
         let entry_point = self.public_inputs.entry_point;
         let program_rom_trace_cap_hash = self.hash_trace_cap(TableKind::Program);

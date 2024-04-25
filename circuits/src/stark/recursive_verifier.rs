@@ -668,8 +668,8 @@ where
             let mut bytes = [Target::default(); NUM_BYTES_U64];
             let mut curr_target_bits = u64::BITS as usize;
             let limb_bits = u8::BITS as usize;
-            for i in 0..NUM_BYTES_U64 {
-                (bytes[i], target) = builder.split_low_high(target, limb_bits, curr_target_bits);
+            for byte in &mut bytes.iter_mut() {
+                (*byte, target) = builder.split_low_high(target, limb_bits, curr_target_bits);
                 curr_target_bits -= limb_bits;
             }
             bytes
