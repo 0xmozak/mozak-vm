@@ -74,6 +74,14 @@ pub fn zip_with<T>(
 pub type ColumnI64 = ColumnSparse<i64>;
 pub use ColumnI64 as Column;
 
+impl<F: Field> From<&Column> for starky_lookup::Column<F> {
+    fn from(val: &Column) -> Self { val.to_starky() }
+}
+
+impl<F: Field> From<Column> for starky_lookup::Column<F> {
+    fn from(val: Column) -> Self { Self::from(&val) }
+}
+
 impl Column {
     #[must_use]
     pub fn to_starky<F: Field>(&self) -> starky_lookup::Column<F> {

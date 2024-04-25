@@ -534,7 +534,7 @@ impl<F: Field> From<&Table> for starky_ctl::TableWithColumns<F> {
         let columns = table
             .columns
             .iter()
-            .map(Column::to_starky)
+            .map(starky_lookup::Column::from)
             .collect::<Vec<_>>();
         // TODO(Matthias): figure out why they take a vector of filters.
         let filter = starky_lookup::Filter::new(vec![], vec![table.filter_column.to_starky()]);
