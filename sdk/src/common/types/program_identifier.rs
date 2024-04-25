@@ -71,6 +71,11 @@ impl ProgramIdentifier {
         le_bytes_array[0..DIGEST_BYTES].copy_from_slice(&self.0.inner());
         le_bytes_array
     }
+
+    #[must_use]
+    /// Checks if `self` is the null program, i.e. the program with ID
+    /// `MZK-000000000000000000000000000000000000000000000000000000000000000`
+    pub fn is_null_program(&self) -> bool { self == &Self::default() }
 }
 
 #[cfg(not(target_os = "mozakvm"))]
