@@ -6,21 +6,6 @@ use crate::common::types::poseidon2hash::{DIGEST_BYTES, RATE};
 use crate::common::types::{Poseidon2Hash, ProgramIdentifier};
 use crate::mozakvm::linker_symbols::_mozak_self_prog_id;
 
-/// Get a owned reference to a length-prefixed memory region.
-/// It is expected that the memory region is length-prefixed
-/// in little-endian 4-bytes and (addr+4) marks the begining
-/// of the data.
-#[allow(clippy::ptr_as_ptr)]
-#[allow(clippy::cast_ptr_alignment)]
-#[allow(clippy::ptr_cast_constness)]
-pub fn owned_buffer(addr: *const u8) -> Box<[u8]> {
-    let mem_len = unsafe { *{ addr as *const u32 } } as usize;
-    unsafe {
-        let mem_slice = slice_from_raw_parts::<u8>(addr.add(4), mem_len);
-        Box::from_raw(mem_slice as *mut [u8])
-    }
-}
-
 /// Zero-copy archived format derivation of any given type (rkyv)
 /// on a memory region starting at `addr`. It is expected that
 /// the memory region is length-prefixed in little-endian 4-bytes
@@ -76,17 +61,6 @@ pub fn poseidon2_hash_no_pad(input: &[u8]) -> Poseidon2Hash {
     Poseidon2Hash(output)
 }
 
-/// Given a memory start address with 4-byte length prefix
-/// for underlying data, get an owned buffer
-macro_rules! get_owned_buffer {
-    ($x:expr) => {
-        #[allow(clippy::ptr_as_ptr)]
-        {
-            owned_buffer(unsafe { core::ptr::addr_of!($x) as *const u8 })
-        }
-    };
-}
-
 /// Given a type and the memory start address with 4-byte length prefix
 /// for underlying data, get an archived (not fully deserialized) object
 macro_rules! get_rkyv_archived {
@@ -114,4 +88,4 @@ macro_rules! get_rkyv_deserialized {
     };
 }
 
-pub(crate) use {get_owned_buffer, get_rkyv_archived, get_rkyv_deserialized};
+pub(crate) use {get_rkyv_archived, get_rkyv_deserialized};

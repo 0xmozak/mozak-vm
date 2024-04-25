@@ -1,7 +1,5 @@
-use super::helpers::owned_buffer;
 use super::linker_symbols::{_mozak_private_io_tape, _mozak_public_io_tape};
 use crate::core::ecall;
-use crate::mozakvm::helpers::get_owned_buffer;
 
 #[derive(Default, Clone)]
 pub struct RandomAccessEcallTape {
