@@ -91,7 +91,7 @@ impl<'a, V> Expr<'a, V> {
     fn bin_op(op: BinOp, lhs: Expr<'a, V>, rhs: Expr<'a, V>) -> Expr<'a, V> {
         match (lhs, rhs) {
             (Expr::Basic { value: left }, Expr::Basic { value: right }) =>
-                Expr::from(PureEvaluator::default().bin_op(op, left, right)),
+                Expr::from(pure_evaluator().bin_op(op, left, right)),
             (left @ Expr::Compound { builder, .. }, right)
             | (left, right @ Expr::Compound { builder, .. }) => builder.wrap(builder.bin_op(
                 op,
@@ -103,7 +103,7 @@ impl<'a, V> Expr<'a, V> {
 
     fn una_op(op: UnaOp, expr: Expr<'a, V>) -> Expr<'a, V> {
         match expr {
-            Expr::Basic { value } => Expr::from(PureEvaluator::default().una_op(op, value)),
+            Expr::Basic { value } => Expr::from(pure_evaluator().una_op(op, value)),
             Expr::Compound { expr, builder } => builder.wrap(builder.una_op(op, expr)),
         }
     }
@@ -349,19 +349,17 @@ where
     }
 }
 
-/// Default evaluator for pure values.
-#[derive(Default)]
-pub struct PureEvaluator {}
+pub struct ConversionEvaluator<P>(pub fn(i64) -> P);
 
-impl<'a, V> Evaluator<'a, V> for PureEvaluator
+impl<'a, V> Evaluator<'a, V> for ConversionEvaluator<V>
 where
-    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
+    V: Copy + Add<Output = V> + Mul<Output = V> + Sub<Output = V> + Neg<Output = V> + Default,
 {
     fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
         match op {
             BinOp::Add => left + right,
-            BinOp::Sub => left - right,
             BinOp::Mul => left * right,
+            BinOp::Sub => left - right,
         }
     }
 
@@ -371,7 +369,21 @@ where
         }
     }
 
-    fn constant(&mut self, value: i64) -> V { value.into() }
+    fn constant(&mut self, value: i64) -> V { (self.0)(value) }
+}
+
+impl<V> Default for ConversionEvaluator<V>
+where
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
+{
+    fn default() -> Self { Self(|v| v.into()) }
+}
+
+#[must_use]
+pub fn pure_evaluator<
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
+>() -> ConversionEvaluator<V> {
+    ConversionEvaluator(|v| v.into())
 }
 
 #[derive(Default)]
@@ -438,6 +450,15 @@ pub struct Counting<E> {
     evaluator: E,
 }
 
+impl<E> From<E> for Counting<E> {
+    fn from(evaluator: E) -> Self {
+        Counting {
+            count: 0,
+            evaluator,
+        }
+    }
+}
+
 impl<E> Counting<E> {
     fn inc(&mut self) { self.count += 1; }
 
@@ -478,7 +499,7 @@ mod tests {
         let a = expr.lit(7i64);
         let b = expr.lit(5i64);
 
-        let mut p = PureEvaluator::default();
+        let mut p = pure_evaluator();
 
         assert_eq!(p.eval(a + b), 12);
         assert_eq!(p.eval(a - b), 2);
@@ -494,7 +515,7 @@ mod tests {
 
         let c: Expr<'_, i64> = Expr::from(3);
 
-        let mut p = PureEvaluator::default();
+        let mut p = pure_evaluator();
 
         assert_eq!(p.eval(a + b * c), 22);
         assert_eq!(p.eval(a - b * c), -8);
@@ -507,7 +528,7 @@ mod tests {
         let b = Expr::from(5);
         let c = Expr::from(3);
 
-        let mut p = PureEvaluator::default();
+        let mut p = pure_evaluator();
 
         assert_eq!(p.eval(a + b * c), 22);
         assert_eq!(p.eval(a - b * c), -8);
@@ -520,7 +541,7 @@ mod tests {
         let b = Expr::from(5);
         let c = Expr::from(3);
 
-        let mut p = Cached::from(PureEvaluator::default());
+        let mut p = Cached::from(pure_evaluator());
 
         assert_eq!(p.eval(a + b * c), 22);
         assert_eq!(p.eval(a - b * c), -8);
@@ -531,7 +552,7 @@ mod tests {
     fn count_depth() {
         let eb = ExprBuilder::default();
 
-        let mut c = Counting::<PureEvaluator>::default();
+        let mut c = Counting::from(pure_evaluator());
         let mut one = eb.lit(1i64);
 
         assert_eq!(c.eval(one), 1);
@@ -560,7 +581,7 @@ mod tests {
             one = one * one;
         }
 
-        let mut p = Cached::<i64, Counting<PureEvaluator>>::default();
+        let mut p = Cached::from(Counting::from(pure_evaluator()));
         assert_eq!(p.eval(one), 1);
         assert_eq!(p.evaluator.count(), 64);
     }
