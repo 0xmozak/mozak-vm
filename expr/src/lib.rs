@@ -349,9 +349,9 @@ where
     }
 }
 
-pub struct ConversionEvaluator<P>(pub fn(i64) -> P);
+pub struct PureEvaluator<P>(pub fn(i64) -> P);
 
-impl<'a, V> Evaluator<'a, V> for ConversionEvaluator<V>
+impl<'a, V> Evaluator<'a, V> for PureEvaluator<V>
 where
     V: Copy + Add<Output = V> + Mul<Output = V> + Sub<Output = V> + Neg<Output = V> + Default,
 {
@@ -372,7 +372,7 @@ where
     fn constant(&mut self, value: i64) -> V { (self.0)(value) }
 }
 
-impl<V> Default for ConversionEvaluator<V>
+impl<V> Default for PureEvaluator<V>
 where
     V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
 {
@@ -382,8 +382,8 @@ where
 #[must_use]
 pub fn pure_evaluator<
     V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
->() -> ConversionEvaluator<V> {
-    ConversionEvaluator(|v| v.into())
+>() -> PureEvaluator<V> {
+    PureEvaluator(|v| v.into())
 }
 
 #[derive(Default)]

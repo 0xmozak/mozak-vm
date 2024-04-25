@@ -1,7 +1,7 @@
 use std::panic::Location;
 
 use derive_more::Display;
-use expr::{BinOp, Cached, ConversionEvaluator, Evaluator, Expr, UnaOp};
+use expr::{BinOp, Cached, Evaluator, Expr, PureEvaluator, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -50,7 +50,7 @@ where
 }
 
 #[must_use]
-pub fn packed_field_evaluator<F, FE, P, const D: usize, const D2: usize>() -> ConversionEvaluator<P>
+pub fn packed_field_evaluator<F, FE, P, const D: usize, const D2: usize>() -> PureEvaluator<P>
 where
     F: RichField,
     F: Extendable<D>,
@@ -64,7 +64,7 @@ where
         P: PackedField<Scalar = FE>, {
         P::from(FE::from_noncanonical_i64(value))
     }
-    ConversionEvaluator(convert)
+    PureEvaluator(convert)
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
