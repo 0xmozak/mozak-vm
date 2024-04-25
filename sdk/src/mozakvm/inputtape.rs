@@ -201,6 +201,36 @@ impl std::io::Read for RandomAccessEcallTape {
     }
 }
 
+#[cfg(feature = "stdread")]
+impl std::io::Seek for RandomAccessEcallTape {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        match pos {
+            std::io::SeekFrom::Start(x) =>
+                if x >= self.size_hint.try_into().unwrap() {
+                    self.read_offset = self.size_hint - 1;
+                } else {
+                    self.read_offset = usize::try_from(x).unwrap();
+                },
+            std::io::SeekFrom::End(x) =>
+                if x >= self.size_hint.try_into().unwrap() {
+                    self.read_offset = 0;
+                } else {
+                    self.read_offset = self.size_hint - usize::try_from(x).unwrap() - 1;
+                },
+            std::io::SeekFrom::Current(x) => {
+                if x + i64::try_from(self.read_offset).unwrap()
+                    >= self.size_hint.try_into().unwrap()
+                {
+                    self.read_offset = self.size_hint - 1;
+                } else {
+                    self.read_offset += usize::try_from(x).unwrap();
+                }
+            }
+        }
+        Ok(self.read_offset as u64)
+    }
+}
+
 type FreeformTape = RandomAccessEcallTape;
 
 #[derive(Clone)]
