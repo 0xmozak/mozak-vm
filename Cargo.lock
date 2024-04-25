@@ -961,6 +961,7 @@ dependencies = [
  "proptest",
  "rkyv",
  "rkyv_derive",
+ "serde",
  "serde_json",
  "starky",
  "tempfile",
