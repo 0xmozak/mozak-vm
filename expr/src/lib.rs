@@ -349,11 +349,12 @@ where
     }
 }
 
+/// Default evaluator for pure values.
 pub struct PureEvaluator<P>(pub fn(i64) -> P);
 
 impl<'a, V> Evaluator<'a, V> for PureEvaluator<V>
 where
-    V: Copy + Add<Output = V> + Mul<Output = V> + Sub<Output = V> + Neg<Output = V> + Default,
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V>,
 {
     fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
         match op {
@@ -376,7 +377,7 @@ impl<V> Default for PureEvaluator<V>
 where
     V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
 {
-    fn default() -> Self { Self(|v| v.into()) }
+    fn default() -> Self { Self(V::from) }
 }
 
 #[derive(Default)]
