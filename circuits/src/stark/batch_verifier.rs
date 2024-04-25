@@ -9,10 +9,10 @@ use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{all_kind, all_starks, MozakStark, TableKind, TableKindSetBuilder};
-use super::proof::BatchProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
 use crate::public_sub_table::reduce_public_sub_tables_values;
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
+use crate::stark::proof::BatchProof;
 use crate::stark::verifier::verify_stark_proof_with_challenges;
 
 #[allow(clippy::too_many_lines)]
@@ -44,7 +44,7 @@ where
         None
     });
 
-    let batch_stark_challenges = all_proof
+    let _batch_stark_challenges = all_proof
         .batch_stark_proof
         .get_challenges(&mut challenger, config);
 

@@ -82,7 +82,7 @@ where
     Ok(())
 }
 
-pub(crate) fn verify_stark_proof_with_challenges<
+pub(crate) fn verify_quotient_polynomials<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
@@ -103,7 +103,7 @@ where
         next_values,
         ctl_zs: _,
         ctl_zs_next: _,
-        ctl_zs_last,
+        ctl_zs_last: _,
         quotient_polys,
     } = &proof.openings;
 
@@ -159,15 +159,38 @@ where
         );
     }
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
+
+    Ok(())
+}
+
+pub(crate) fn verify_stark_proof_with_challenges<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    S: Stark<F, D>,
+    const D: usize,
+>(
+    stark: &S,
+    proof: &StarkProof<F, C, D>,
+    challenges: &StarkProofChallenges<F, D>,
+    public_inputs: &[F],
+    ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
+    config: &StarkConfig,
+) -> Result<()>
+where
+{
+    verify_quotient_polynomials(stark, proof, challenges, public_inputs, ctl_vars, config)?;
+
+    let degree_bits = proof.recover_degree_bits(config);
+    let ctl_zs_last = &proof.openings.ctl_zs_last;
     let merkle_caps = vec![
         proof.trace_cap.clone(),
         proof.ctl_zs_cap.clone(),
         proof.quotient_polys_cap.clone(),
     ];
 
-    // Make sure that we do not use Starky's lookups.
-    assert!(!stark.requires_ctls());
-    assert!(!stark.uses_lookups());
     verify_fri_proof::<F, C, D>(
         &stark.fri_instance(
             challenges.stark_zeta,
@@ -190,7 +213,7 @@ where
     Ok(())
 }
 
-fn validate_proof_shape<F, C, S, const D: usize>(
+pub(crate) fn validate_proof_shape<F, C, S, const D: usize>(
     stark: &S,
     proof: &StarkProof<F, C, D>,
     config: &StarkConfig,
@@ -241,7 +264,7 @@ where
 /// `L_0(x) = (x^n - 1)/(n * (x - 1))`
 /// `L_(n-1)(x) = (x^n - 1)/(n * (g * x - 1))`, with `g` the first element of
 /// the subgroup.
-fn eval_l_0_and_l_last<F: Field>(log_n: usize, x: F) -> (F, F) {
+pub(crate) fn eval_l_0_and_l_last<F: Field>(log_n: usize, x: F) -> (F, F) {
     let n = F::from_canonical_usize(1 << log_n);
     let g = F::primitive_root_of_unity(log_n);
     let z_x = x.exp_power_of_2(log_n) - F::ONE;
