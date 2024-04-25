@@ -3,6 +3,7 @@
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{
     CircuitConfig, CircuitData, CommonCircuitData, VerifierOnlyCircuitData,
@@ -12,7 +13,6 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::{build_event_root, merge};
 use crate::connect_arrays;
-use crate::subcircuits::unpruned::PartialAllowed;
 use crate::subcircuits::{propagate, unbounded, unpruned};
 
 pub mod core;
@@ -290,7 +290,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use std::panic::catch_unwind;
 
     use lazy_static::lazy_static;

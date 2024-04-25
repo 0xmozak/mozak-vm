@@ -54,7 +54,7 @@ impl<const D: usize> ProgramSetVerifierTargets<D> {
         };
 
         let cast_root = program
-            .cast_list
+            .cast_root
             .indices
             .get_values(&program_set_proof.public_inputs);
         let program_ids = program
