@@ -3,8 +3,6 @@ use proptest::prelude::any;
 use proptest::prop_oneof;
 use proptest::strategy::{Just, Strategy};
 
-use crate::elf::MozakMemory;
-
 #[allow(clippy::cast_sign_loss)]
 pub fn u32_extra() -> impl Strategy<Value = u32> {
     prop_oneof![
@@ -45,9 +43,3 @@ pub fn u16_extra() -> impl Strategy<Value = u16> { u32_extra().prop_map(|x| x as
 pub fn u8_extra() -> impl Strategy<Value = u8> { u32_extra().prop_map(|x| x as u8) }
 
 pub fn reg() -> impl Strategy<Value = u8> { u8_extra().prop_map(|x| 1 + (x % 31)) }
-
-pub fn u32_extra_except_mozak_ro_memory() -> impl Strategy<Value = u32> {
-    u32_extra().prop_filter("filter out mozak-ro-memory addresses", |addr| {
-        !MozakMemory::default().is_address_belongs_to_mozak_ro_memory(*addr)
-    })
-}

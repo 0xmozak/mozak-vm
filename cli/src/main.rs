@@ -34,6 +34,7 @@ use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
+use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
@@ -103,6 +104,18 @@ enum Command {
     Bench(BenchArgs),
 }
 
+fn raw_tapes_from_system_tape(sys: &SystemTape) -> Result<RawTapes> {
+    Ok(RawTapes {
+        private_tape: serde_json::to_vec(&sys.private_input_tape)?,
+        public_tape: serde_json::to_vec(&sys.public_input_tape)?,
+        call_tape: serde_json::to_vec(&sys.call_tape)?,
+        event_tape: serde_json::to_vec(&sys.event_tape)?,
+        // TODO(bing): Populate SystemTape with these
+        events_commitment_tape: [0; COMMITMENT_SIZE],
+        cast_list_commitment_tape: [0; COMMITMENT_SIZE],
+    })
+}
+
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
 /// iotape.txt`
 #[allow(clippy::too_many_lines)]
@@ -118,15 +131,20 @@ fn main() -> Result<()> {
             debug!("{program:?}");
         }
         Command::Run(RunArgs { elf, system_tape }) => {
-            let system_tape: SystemTape = deserialize_system_tape(system_tape.unwrap())?;
-
+            let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
+                raw_tapes_from_system_tape(&deserialize_system_tape(s).unwrap()).unwrap_or_default()
+            });
             let program = load_program(elf).unwrap();
-            let state: State<F> = State::new(program.clone(), RawTapes::default());
+            let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
             let program = load_program(elf).unwrap();
-            let state = State::new(program.clone(), RawTapes::default());
+            let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
+                raw_tapes_from_system_tape(&deserialize_system_tape(s).unwrap()).unwrap_or_default()
+            });
+
+            let state = State::new(program.clone(), raw_tapes);
 
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -138,7 +156,11 @@ fn main() -> Result<()> {
             recursive_proof,
         }) => {
             let program = load_program(elf).unwrap();
-            let state = State::new(program.clone(), RawTapes::default());
+            let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
+                raw_tapes_from_system_tape(&deserialize_system_tape(s).unwrap()).unwrap_or_default()
+            });
+
+            let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()

@@ -123,6 +123,7 @@ impl<F: RichField> State<F> {
 
     #[must_use]
     pub fn ecall(self) -> (Aux<F>, Self) {
+        println!("ecall: {}", self.clk);
         log::trace!(
             "ecall '{}' at clk: {}",
             ecall::log(self.get_register_value(REG_A0)),

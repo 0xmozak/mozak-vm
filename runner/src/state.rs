@@ -154,28 +154,13 @@ impl<F: RichField> From<Program> for State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            mozak_ro_memory,
         }: Program,
     ) -> Self {
-        let mut state: State<F> = State::default();
-
-        if let Some(ref mrm) = mozak_ro_memory {
-            state.private_tape = StorageDeviceTape::from(mrm.io_tape_private.data.clone());
-            state.public_tape = StorageDeviceTape::from(mrm.io_tape_public.data.clone());
-            state.call_tape = StorageDeviceTape::from(mrm.call_tape.data.clone());
-            state.event_tape = StorageDeviceTape::from(mrm.event_tape.data.clone());
-        };
+        let state: State<F> = State::default();
 
         Self {
             pc,
-            memory: StateMemory::new(
-                [
-                    ro_memory,
-                    mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
-                ]
-                .into_iter(),
-                [rw_memory].into_iter(),
-            ),
+            memory: StateMemory::new([ro_memory].into_iter(), [rw_memory].into_iter()),
             ..state
         }
     }
@@ -244,21 +229,13 @@ impl<F: RichField> State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            mozak_ro_memory,
             ..
         }: Program,
         raw_tapes: RawTapes,
     ) -> Self {
         Self {
             pc,
-            memory: StateMemory::new(
-                [
-                    ro_memory,
-                    mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
-                ]
-                .into_iter(),
-                once(rw_memory),
-            ),
+            memory: StateMemory::new([ro_memory].into_iter(), once(rw_memory)),
             private_tape: StorageDeviceTape {
                 data: raw_tapes.private_tape.into(),
                 read_index: 0,
