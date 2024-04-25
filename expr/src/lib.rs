@@ -91,7 +91,7 @@ impl<'a, V> Expr<'a, V> {
     fn bin_op(op: BinOp, lhs: Expr<'a, V>, rhs: Expr<'a, V>) -> Expr<'a, V> {
         match (lhs, rhs) {
             (Expr::Basic { value: left }, Expr::Basic { value: right }) =>
-                Expr::from(pure_evaluator().bin_op(op, left, right)),
+                Expr::from(PureEvaluator::default().bin_op(op, left, right)),
             (left @ Expr::Compound { builder, .. }, right)
             | (left, right @ Expr::Compound { builder, .. }) => builder.wrap(builder.bin_op(
                 op,
@@ -103,7 +103,7 @@ impl<'a, V> Expr<'a, V> {
 
     fn una_op(op: UnaOp, expr: Expr<'a, V>) -> Expr<'a, V> {
         match expr {
-            Expr::Basic { value } => Expr::from(pure_evaluator().una_op(op, value)),
+            Expr::Basic { value } => Expr::from(PureEvaluator::default().una_op(op, value)),
             Expr::Compound { expr, builder } => builder.wrap(builder.una_op(op, expr)),
         }
     }
@@ -379,13 +379,6 @@ where
     fn default() -> Self { Self(|v| v.into()) }
 }
 
-#[must_use]
-pub fn pure_evaluator<
-    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
->() -> PureEvaluator<V> {
-    PureEvaluator(|v| v.into())
-}
-
 #[derive(Default)]
 pub struct Cached<'a, V, E> {
     constant_cache: HashMap<i64, V>,
@@ -499,7 +492,7 @@ mod tests {
         let a = expr.lit(7i64);
         let b = expr.lit(5i64);
 
-        let mut p = pure_evaluator();
+        let mut p = PureEvaluator::default();
 
         assert_eq!(p.eval(a + b), 12);
         assert_eq!(p.eval(a - b), 2);
@@ -515,7 +508,7 @@ mod tests {
 
         let c: Expr<'_, i64> = Expr::from(3);
 
-        let mut p = pure_evaluator();
+        let mut p = PureEvaluator::default();
 
         assert_eq!(p.eval(a + b * c), 22);
         assert_eq!(p.eval(a - b * c), -8);
@@ -528,7 +521,7 @@ mod tests {
         let b = Expr::from(5);
         let c = Expr::from(3);
 
-        let mut p = pure_evaluator();
+        let mut p = PureEvaluator::default();
 
         assert_eq!(p.eval(a + b * c), 22);
         assert_eq!(p.eval(a - b * c), -8);
@@ -541,7 +534,7 @@ mod tests {
         let b = Expr::from(5);
         let c = Expr::from(3);
 
-        let mut p = Cached::from(pure_evaluator());
+        let mut p = Cached::from(PureEvaluator::default());
 
         assert_eq!(p.eval(a + b * c), 22);
         assert_eq!(p.eval(a - b * c), -8);
@@ -552,7 +545,7 @@ mod tests {
     fn count_depth() {
         let eb = ExprBuilder::default();
 
-        let mut c = Counting::from(pure_evaluator());
+        let mut c = Counting::from(PureEvaluator::default());
         let mut one = eb.lit(1i64);
 
         assert_eq!(c.eval(one), 1);
@@ -581,7 +574,7 @@ mod tests {
             one = one * one;
         }
 
-        let mut p = Cached::from(Counting::from(pure_evaluator()));
+        let mut p = Cached::from(Counting::from(PureEvaluator::default()));
         assert_eq!(p.eval(one), 1);
         assert_eq!(p.evaluator.count(), 64);
     }
