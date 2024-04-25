@@ -1,6 +1,5 @@
 use core::ops::Neg;
 
-use itertools::{iproduct, izip, zip_eq};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -17,8 +16,7 @@ pub use crate::linear_combination::Column;
 use crate::linear_combination::ColumnSparse;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::stark::mozak_stark::{TableKind, TableWithTypedOutput};
-use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::proof::StarkProofTarget;
+use crate::stark::permutation::challenge::GrandProductChallenge;
 
 #[derive(Error, Debug)]
 pub enum LookupError {
@@ -114,31 +112,6 @@ pub struct CtlCheckVarsTarget<'a, const D: usize> {
     pub challenges: GrandProductChallenge<Target>,
     pub columns: &'a [Column],
     pub filter_column: &'a Column,
-}
-
-impl<'a, const D: usize> CtlCheckVarsTarget<'a, D> {
-    #[must_use]
-    pub fn from_proof(
-        table: TableKind,
-        proof: &StarkProofTarget<D>,
-        cross_table_lookups: &'a [CrossTableLookup],
-        ctl_challenges: &'a GrandProductChallengeSet<Target>,
-    ) -> Vec<Self> {
-        let ctl_zs = izip!(&proof.openings.ctl_zs, &proof.openings.ctl_zs_next);
-
-        let ctl_chain = cross_table_lookups
-            .iter()
-            .flat_map(|ctl| ctl.looking_tables.iter().filter(|twc| twc.kind == table));
-        zip_eq(ctl_zs, iproduct!(&ctl_challenges.challenges, ctl_chain))
-            .map(|((&local_z, &next_z), (&challenges, table))| Self {
-                local_z,
-                next_z,
-                challenges,
-                columns: &table.columns,
-                filter_column: &table.filter_column,
-            })
-            .collect()
-    }
 }
 
 pub fn eval_cross_table_lookup_checks_circuit<
