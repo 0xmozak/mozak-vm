@@ -21,8 +21,8 @@ use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
     circuit_data_for_recursion, recursive_mozak_stark_circuit,
-    shrink_to_target_degree_bits_circuit, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
-    VM_RECURSION_THRESHOLD_DEGREE_BITS,
+    shrink_to_target_degree_bits_circuit, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
+    VM_RECURSION_CONFIG, VM_RECURSION_THRESHOLD_DEGREE_BITS,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
@@ -166,6 +166,7 @@ fn main() -> Result<()> {
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
             let state = State::new(program.clone(), RawTapes::default());
+            let self_prog_id = get_self_prog_id(program.clone(), config.clone());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -198,6 +199,14 @@ fn main() -> Result<()> {
                 );
 
                 let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
+
+                let public_inputs_slice: [F; VM_PUBLIC_INPUT_SIZE] = recursive_all_proof
+                    .public_inputs
+                    .clone()
+                    .try_into()
+                    .unwrap();
+
+                let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_slice.into();
 
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
                     &recursive_circuit.circuit,

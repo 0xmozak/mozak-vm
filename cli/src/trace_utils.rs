@@ -1,18 +1,22 @@
 //! Util functions to help deal with individual stark traces
 
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
-use mozak_circuits::test_utils::{C, D, F};
-use mozak_sdk::common::types::Poseidon2Hash;
+use plonky2::field::extension::Extendable;
 use plonky2::fri::oracle::PolynomialBatch;
-use plonky2::plonk::config::{GenericHashOut, Hasher};
+use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
 /// Compute merkle cap of the trace, and return its hash
-pub(crate) fn get_trace_commitment_hash<Row: IntoIterator<Item = F>>(
+pub(crate) fn get_trace_commitment_hash<F, C, const D: usize, Row: IntoIterator<Item = F>>(
     trace: Vec<Row>,
     config: &StarkConfig,
-) -> Poseidon2Hash {
+) -> <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::Hash
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>, {
     let trace_poly_values = trace_rows_to_poly_values(trace);
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -25,10 +29,5 @@ pub(crate) fn get_trace_commitment_hash<Row: IntoIterator<Item = F>>(
         None,
     );
     let merkle_cap = trace_commitment.merkle_tree.cap;
-    Poseidon2Hash(
-        plonky2::hash::poseidon2::Poseidon2Hash::hash_no_pad(&merkle_cap.flatten())
-            .to_bytes()
-            .try_into()
-            .unwrap(),
-    )
+    <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_no_pad(&merkle_cap.flatten())
 }

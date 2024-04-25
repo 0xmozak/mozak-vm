@@ -5,13 +5,16 @@ use std::io::Read;
 
 use anyhow::Result;
 use clio::Input;
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::common::types::{CanonicalOrderedTemporalHints, ProgramIdentifier, SystemTape};
 use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut, Hasher};
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
 use starky::config::StarkConfig;
@@ -133,13 +136,28 @@ pub fn tapes_to_runtime_arguments(
 
 /// Computes `[ProgramIdentifer]` from hash of entry point and merkle caps
 /// of `ElfMemoryInit` and `ProgramRom` tables.
-pub fn get_self_prog_id(program: Program, config: StarkConfig) -> ProgramIdentifier {
-    let entry_point = program.entry_point;
+pub fn get_self_prog_id<F, C, const D: usize>(
+    program: Program,
+    config: StarkConfig,
+) -> ProgramIdentifier
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>, {
+    let entry_point = F::from_canonical_u32(program.entry_point);
 
-    let elf_memory_init_trace = generate_elf_memory_init_trace(&program);
-    let program_rom_trace = generate_program_rom_trace(&program);
+    let elf_memory_init_trace = generate_elf_memory_init_trace::<F>(&program);
+    let program_rom_trace = generate_program_rom_trace::<F>(&program);
 
-    let elf_memory_init_hash = get_trace_commitment_hash(elf_memory_init_trace, &config);
-    let program_rom_hash = get_trace_commitment_hash(program_rom_trace, &config);
-    ProgramIdentifier::new(program_rom_hash, elf_memory_init_hash, entry_point)
+    let elf_memory_init_hash =
+        get_trace_commitment_hash::<F, C, D, _>(elf_memory_init_trace, &config);
+    let program_rom_hash = get_trace_commitment_hash::<F, C, D, _>(program_rom_trace, &config);
+    let hashout = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_no_pad(
+        &chain!(program_rom_hash.elements, elf_memory_init_hash.elements, [
+            entry_point
+        ])
+        .collect_vec(),
+    );
+    let hashout_bytes: [u8; 32] = hashout.to_bytes().try_into().unwrap();
+    ProgramIdentifier(hashout_bytes.into())
 }
