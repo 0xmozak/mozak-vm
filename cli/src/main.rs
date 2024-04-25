@@ -163,6 +163,7 @@ fn main() -> Result<()> {
             let args = system_tape
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id.clone()))
                 .unwrap_or_default();
+            let self_program_id: ProgramIdentifier = self_prog_id.unwrap().into();
             let program = load_program(elf, &args).unwrap();
             let state = State::new(program.clone(), RawTapes::default());
             let record = step(&program, state)?;
@@ -207,7 +208,8 @@ fn main() -> Result<()> {
                 let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_slice.into();
                 assert_eq!(
                     public_inputs.program_rom_hash_as_bytes.to_vec(),
-                    args.self_prog_id
+                    self_program_id
+                        .inner()
                         .into_iter()
                         .map(F::from_canonical_u8)
                         .collect_vec()
