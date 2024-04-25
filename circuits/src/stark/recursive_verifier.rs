@@ -250,7 +250,7 @@ where
         }
     });
 
-    // compute hashes of Program and ElfMemoryInit table's merkle caps
+    // compute hashes of Program and ElfMemoryInit tables' merkle caps
     // and make them public
 
     let program_rom_trace_cap_hash = builder.hash_or_noop::<C::Hasher>(
