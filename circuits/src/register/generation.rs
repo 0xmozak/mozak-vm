@@ -6,6 +6,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::memory_io::columns::StorageDevice;
+use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::register::general::columns::{Ops, Register};
 use crate::register::init::columns::RegisterInit;
 use crate::register::zero_read::columns::RegisterZeroRead;
@@ -81,8 +82,10 @@ where
 /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
 ///    2.
 #[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
 pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
+    poseidon2_sponge: &[Poseidon2Sponge<F>],
     mem_private: &[StorageDevice<F>],
     mem_public: &[StorageDevice<F>],
     mem_call_tape: &[StorageDevice<F>],
@@ -107,6 +110,7 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::CastListCommitmentTape =>
                 extract(mem_cast_list_commitment_tape, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
+            TableKind::Poseidon2Sponge => extract(poseidon2_sponge, &looking_table),
             // We are trying to build the Register tables, so we don't have the values to extract.
             TableKind::Register | TableKind::RegisterZeroRead | TableKind::RegisterZeroWrite =>
                 vec![],
@@ -173,6 +177,7 @@ mod tests {
         generate_events_commitment_tape_trace, generate_io_memory_private_trace,
         generate_io_memory_public_trace,
     };
+    use crate::poseidon2_sponge;
     use crate::test_utils::prep_table;
 
     type F = GoldilocksField;
@@ -215,10 +220,13 @@ mod tests {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let poseidon2_sponge_trace =
+            poseidon2_sponge::generation::generate_poseidon2_sponge_trace(&record.executed);
 
         let register_init = generate_register_init_trace(&record);
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
+            &poseidon2_sponge_trace,
             &io_memory_private,
             &io_memory_public,
             &call_tape,
