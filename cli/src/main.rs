@@ -32,7 +32,7 @@ use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{
     deserialize_system_tape, get_self_prog_id, load_program, tapes_to_runtime_arguments,
 };
-use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
+use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
