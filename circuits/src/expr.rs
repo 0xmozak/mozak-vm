@@ -1,8 +1,7 @@
-use core::ops::{Add, Mul, Neg, Sub};
-use std::marker::PhantomData;
 use std::panic::Location;
 
 use derive_more::Display;
+pub use expr::PureEvaluator;
 use expr::{BinOp, Cached, Evaluator, Expr, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -51,23 +50,8 @@ where
     }
 }
 
-pub struct ConversionEvaluator<'a, P> {
-    pub convert: fn(i64) -> P,
-    pub _phantom: PhantomData<&'a ()>,
-}
-
-impl<'a, P> ConversionEvaluator<'a, P> {
-    pub fn new(convert: fn(i64) -> P) -> Self {
-        Self {
-            convert,
-            _phantom: PhantomData,
-        }
-    }
-}
-
 #[must_use]
-pub fn packed_field_evaluator<'a, F, FE, P, const D: usize, const D2: usize>(
-) -> ConversionEvaluator<'a, P>
+pub fn packed_field_evaluator<F, FE, P, const D: usize, const D2: usize>() -> PureEvaluator<P>
 where
     F: RichField,
     F: Extendable<D>,
@@ -81,31 +65,7 @@ where
         P: PackedField<Scalar = FE>, {
         P::from(FE::from_noncanonical_i64(value))
     }
-    ConversionEvaluator {
-        convert,
-        _phantom: PhantomData,
-    }
-}
-
-impl<'a, P> Evaluator<'a, P> for ConversionEvaluator<'a, P>
-where
-    P: Copy + Add<Output = P> + Mul<Output = P> + Sub<Output = P> + Neg<Output = P> + Default,
-{
-    fn bin_op(&mut self, op: BinOp, left: P, right: P) -> P {
-        match op {
-            BinOp::Add => left + right,
-            BinOp::Mul => left * right,
-            BinOp::Sub => left - right,
-        }
-    }
-
-    fn una_op(&mut self, op: UnaOp, expr: P) -> P {
-        match op {
-            UnaOp::Neg => -expr,
-        }
-    }
-
-    fn constant(&mut self, value: i64) -> P { (self.convert)(value) }
+    PureEvaluator(convert)
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]

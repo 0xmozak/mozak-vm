@@ -10,7 +10,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
-use crate::expr::ConversionEvaluator;
+use crate::expr::PureEvaluator;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
@@ -141,7 +141,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
     let expr_builder = ExprBuilder::default();
     let row = row.map(|x| expr_builder.lit(x));
-    ConversionEvaluator::new(F::from_noncanonical_i64).eval(row.signed_diff())
+    PureEvaluator(F::from_noncanonical_i64).eval(row.signed_diff())
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
