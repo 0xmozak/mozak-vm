@@ -125,6 +125,7 @@ where
         "CTL data generation",
         starky::cross_table_lookup::get_ctl_data::<F, C, D, { TableKind::COUNT }>(
             config,
+            // The .0 here is just to get at the underlying array.
             &traces_poly_values.0,
             &mozak_stark.cross_table_lookups,
             &mut challenger,

@@ -3,7 +3,7 @@ use std::ops::{Index, IndexMut, Neg};
 extern crate serde;
 extern crate serde_json;
 use cpu::columns::CpuState;
-use itertools::{chain, izip};
+use itertools::{chain, izip, Itertools};
 use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -482,6 +482,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                         CastlistCommitmentTapeIOLookupTable::lookups(),
                     ])
                     .flat_map(|(tag, lookup)| lookup.add_tag(tag).looking_tables)
+                    // Sorting by table kind is necessary to work around some plonky2 bugs.
+                    .sorted_by_key(|table| table.kind as usize)
                     .collect(),
                 },
             )],
