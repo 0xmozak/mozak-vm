@@ -24,6 +24,7 @@ use crate::cpu_skeleton::stark::CpuSkeletonStark;
 use crate::cross_table_lookup::{
     Column, ColumnWithTypedInput, CrossTableLookup, CrossTableLookupWithTypedOutput,
 };
+use crate::linear_combination::ColumnSparse;
 use crate::memory::columns::{Memory, MemoryCtl};
 use crate::memory::stark::MemoryStark;
 use crate::memory_halfword::columns::HalfWordMemory;
@@ -75,7 +76,7 @@ use crate::{
     register, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 17;
+const NUM_CROSS_TABLE_LOOKUP: usize = 1;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -459,26 +460,31 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
 
             // These tables contain only descriptions of the tables.
             // The values of the tables are generated as traces.
-            cross_table_lookups: [
-                RangecheckTable::lookups(),
-                XorCpuTable::lookups(),
-                BitshiftCpuTable::lookups(),
-                InnerCpuTable::lookups(),
-                ProgramCpuTable::lookups(),
-                IntoMemoryTable::lookups(),
-                MemoryInitMemoryTable::lookups(),
-                RangeCheckU8LookupTable::lookups(),
-                HalfWordMemoryCpuTable::lookups(),
-                RegisterLookups::lookups(),
-                StorageDeviceToCpuTable::lookups(),
-                Poseidon2SpongeCpuTable::lookups(),
-                Poseidon2Poseidon2SpongeTable::lookups(),
-                Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
-                CpuToSkeletonTable::lookups(),
-                EventCommitmentTapeIOLookupTable::lookups(),
-                CastlistCommitmentTapeIOLookupTable::lookups(),
-            ]
-            .map(starky::cross_table_lookup::CrossTableLookup::from),
+            cross_table_lookups: [starky::cross_table_lookup::CrossTableLookup::from(
+                CrossTableLookup {
+                    looking_tables: izip!(0.., [
+                        RangecheckTable::lookups(),
+                        XorCpuTable::lookups(),
+                        BitshiftCpuTable::lookups(),
+                        InnerCpuTable::lookups(),
+                        ProgramCpuTable::lookups(),
+                        IntoMemoryTable::lookups(),
+                        MemoryInitMemoryTable::lookups(),
+                        RangeCheckU8LookupTable::lookups(),
+                        HalfWordMemoryCpuTable::lookups(),
+                        RegisterLookups::lookups(),
+                        StorageDeviceToCpuTable::lookups(),
+                        Poseidon2SpongeCpuTable::lookups(),
+                        Poseidon2Poseidon2SpongeTable::lookups(),
+                        Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
+                        CpuToSkeletonTable::lookups(),
+                        EventCommitmentTapeIOLookupTable::lookups(),
+                        CastlistCommitmentTapeIOLookupTable::lookups(),
+                    ])
+                    .flat_map(|(tag, lookup)| lookup.add_tag(tag).looking_tables)
+                    .collect(),
+                },
+            )],
             debug: false,
         }
     }
@@ -528,6 +534,17 @@ pub struct TableWithTypedOutput<Row> {
 
 pub type TableUntyped = TableWithTypedOutput<Vec<Column>>;
 pub use TableUntyped as Table;
+
+impl Table {
+    #[must_use]
+    pub fn add_tag(mut self, tag: i64) -> Self {
+        self.columns.push(ColumnSparse {
+            constant: tag,
+            ..Default::default()
+        });
+        self
+    }
+}
 
 impl<F: Field> From<&Table> for starky_ctl::TableWithColumns<F> {
     fn from(table: &Table) -> Self {

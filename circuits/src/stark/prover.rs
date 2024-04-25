@@ -119,10 +119,6 @@ where
     for cap in &trace_caps {
         challenger.observe_cap(cap);
     }
-    let starky_cross_table_lookups = mozak_stark
-        .cross_table_lookups
-        .clone()
-        .map(starky::cross_table_lookup::CrossTableLookup::from);
     // TODO(Matthias): parallelise `get_ctl_data` in starky.
     let (starky_ctl_challenges, starky_ctl_datas) = timed!(
         timing,
@@ -130,7 +126,7 @@ where
         starky::cross_table_lookup::get_ctl_data::<F, C, D, { TableKind::COUNT }>(
             config,
             &traces_poly_values.0,
-            &starky_cross_table_lookups,
+            &mozak_stark.cross_table_lookups,
             &mut challenger,
             3,
         )
