@@ -10,7 +10,7 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-use crate::memory_io::columns::InputOutputMemoryCtl;
+use crate::memory_io::columns::StorageDeviceCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::InstructionRow;
 use crate::rangecheck::columns::RangeCheckCtl;
@@ -337,9 +337,9 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 /// Column containing the data to be matched against IO Memory starks.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<InputOutputMemoryCtl<Column>> {
+pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     CpuTable::new(
-        InputOutputMemoryCtl {
+        StorageDeviceCtl {
             op: ColumnWithTypedInput::ascending_sum([
                 CPU.is_io_store_private,
                 CPU.is_io_store_public,
