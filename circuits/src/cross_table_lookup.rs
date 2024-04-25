@@ -16,7 +16,7 @@ use thiserror::Error;
 pub use crate::linear_combination::Column;
 use crate::linear_combination::ColumnSparse;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
-use crate::stark::mozak_stark::{Table, TableKind, TableWithTypedOutput};
+use crate::stark::mozak_stark::{TableKind, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::StarkProofTarget;
 
@@ -60,7 +60,10 @@ pub use CrossTableLookupUntyped as CrossTableLookup;
 impl<F: Field> From<&CrossTableLookup> for starky_ctl::CrossTableLookup<F> {
     fn from(ctl: &CrossTableLookup) -> Self {
         starky_ctl::CrossTableLookup::new_no_looked_table(
-            ctl.looking_tables.iter().map(Table::to_starky).collect(),
+            ctl.looking_tables
+                .iter()
+                .map(starky_ctl::TableWithColumns::from)
+                .collect(),
         )
     }
 }

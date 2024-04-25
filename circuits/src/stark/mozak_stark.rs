@@ -546,19 +546,6 @@ impl<F: Field> From<Table> for starky_ctl::TableWithColumns<F> {
     fn from(table: Table) -> Self { Self::from(&table) }
 }
 
-impl Table {
-    #[must_use]
-    pub fn to_starky<F: Field>(&self) -> starky_ctl::TableWithColumns<F> {
-        let columns = self
-            .columns
-            .iter()
-            .map(Column::to_starky)
-            .collect::<Vec<_>>();
-        let filter = starky_lookup::Filter::new_simple(self.filter_column.to_starky());
-        starky_ctl::TableWithColumns::new(self.kind as usize, columns, filter)
-    }
-}
-
 impl<Row: IntoIterator<Item = Column>> TableWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> Table {
         Table {
