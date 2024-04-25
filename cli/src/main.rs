@@ -162,11 +162,10 @@ fn main() -> Result<()> {
             recursive_proof,
         }) => {
             let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
+                .map(|s| tapes_to_runtime_arguments(s, self_prog_id.clone()))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
             let state = State::new(program.clone(), RawTapes::default());
-            let self_prog_id = get_self_prog_id(program.clone(), config.clone());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -207,6 +206,13 @@ fn main() -> Result<()> {
                     .unwrap();
 
                 let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_slice.into();
+                assert_eq!(
+                    public_inputs.program_rom_hash_as_bytes.to_vec(),
+                    args.self_prog_id
+                        .into_iter()
+                        .map(F::from_canonical_u8)
+                        .collect_vec()
+                );
 
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
                     &recursive_circuit.circuit,
@@ -399,7 +405,7 @@ fn main() -> Result<()> {
 
         Command::SelfProgId { elf } => {
             let program = load_program(elf, &RuntimeArguments::default())?;
-            let self_prog_id = get_self_prog_id(program, config);
+            let self_prog_id = get_self_prog_id::<F, C, D>(program, config);
             println!("{self_prog_id:?}");
         }
         Command::Bench(bench) => {
