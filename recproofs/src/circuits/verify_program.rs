@@ -5,7 +5,9 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+use plonky2::plonk::circuit_data::{
+    CircuitConfig, CircuitData, CommonCircuitData, VerifierOnlyCircuitData,
+};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
@@ -49,7 +51,8 @@ where
     #[must_use]
     pub fn new(
         circuit_config: &CircuitConfig,
-        program: &dyn core::Circuit<F, C, D>,
+        program_circuit_indices: &core::ProgramPublicIndices,
+        program_circuit_common: &CommonCircuitData<F, D>,
         event_root: &build_event_root::BranchCircuit<F, C, D>,
     ) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
@@ -64,15 +67,18 @@ where
         let events_targets = events_inputs.build_leaf::<F, D>(&mut builder);
         let cast_list_targets = cast_list_inputs.build_leaf::<F, D>(&mut builder);
 
-        let program_verifier_targets =
-            core::ProgramVerifierTargets::build_targets(&mut builder, program);
+        let program_verifier_targets = core::ProgramVerifierTargets::build_targets::<F, C>(
+            &mut builder,
+            program_circuit_indices,
+            program_circuit_common,
+        );
         let event_verifier_targets =
             core::EventRootVerifierTargets::build_targets(&mut builder, event_root);
 
         // Connect the proofs
         connect_arrays(
             &mut builder,
-            program_verifier_targets.program_hash,
+            program_verifier_targets.program_id,
             program_id_targets.inputs.unpruned_hash.elements,
         );
         connect_arrays(
@@ -122,13 +128,14 @@ where
     pub fn prove(
         &self,
         branch: &BranchCircuit<F, C, D>,
+        program_verifier: &VerifierOnlyCircuitData<C, D>,
         program_proof: &ProofWithPublicInputs<F, C, D>,
         event_root_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.program_verifier
-            .set_witness(&mut inputs, program_proof);
+            .set_witness(&mut inputs, program_verifier, program_proof);
         self.event_verifier
             .set_witness(&mut inputs, event_root_proof);
         self.circuit.prove(inputs)
@@ -137,6 +144,7 @@ where
     pub fn prove_unsafe(
         &self,
         branch: &BranchCircuit<F, C, D>,
+        program_verifier: &VerifierOnlyCircuitData<C, D>,
         program_proof: &ProofWithPublicInputs<F, C, D>,
         program_id: HashOut<F>,
         event_root: HashOut<F>,
@@ -145,7 +153,7 @@ where
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.program_verifier
-            .set_witness(&mut inputs, program_proof);
+            .set_witness(&mut inputs, program_verifier, program_proof);
         self.program_id.set_witness(&mut inputs, program_id);
         self.events.set_witness(&mut inputs, Some(event_root));
         self.cast_list.set_witness(&mut inputs, cast_root.elements);
@@ -264,7 +272,7 @@ mod test {
     use plonky2::iop::target::{BoolTarget, Target};
     use plonky2::iop::witness::WitnessWrite;
 
-    use self::core::{Circuit, CircuitPublicIndices};
+    use self::core::ProgramPublicIndices;
     use super::*;
     use crate::circuits::build_event_root::test::{BRANCH as EVENT_BRANCH, LEAF as EVENT_LEAF};
     use crate::circuits::merge::test::{BRANCH as MERGE_BRANCH, LEAF as MERGE_LEAF};
@@ -288,18 +296,6 @@ mod test {
         pub cast_root: HashOutTarget,
 
         pub circuit: CircuitData<F, C, D>,
-
-        pub indices: CircuitPublicIndices,
-    }
-
-    impl<F, C, const D: usize> Circuit<F, C, D> for DummyCircuit<F, C, D>
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>,
-    {
-        fn get_circuit_data(&self) -> &CircuitData<F, C, D> { &self.circuit }
-
-        fn get_indices(&self) -> CircuitPublicIndices { self.indices }
     }
 
     impl<F, C, const D: usize> DummyCircuit<F, C, D>
@@ -308,7 +304,7 @@ mod test {
         C: GenericConfig<D, F = F>,
     {
         #[must_use]
-        pub fn new(circuit_config: &CircuitConfig) -> Self {
+        pub fn new(circuit_config: &CircuitConfig, dummy: bool) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
             let program_hash = builder.add_virtual_target_arr();
             let events_present = builder.add_virtual_bool_target_safe();
@@ -319,15 +315,14 @@ mod test {
             builder.register_public_inputs(&event_root.elements);
             builder.register_public_inputs(&cast_root.elements);
 
-            let circuit = builder.build();
+            // Make a dummy to change the circuit
+            if dummy {
+                let dummy = builder.add_virtual_target();
+                let one = builder.one();
+                builder.connect(dummy, one);
+            }
 
-            let public_inputs = &circuit.prover_only.public_inputs;
-            let indices = CircuitPublicIndices {
-                program_hash: find_targets(public_inputs, program_hash),
-                events_present: find_bool(public_inputs, events_present),
-                event_root: find_hash(public_inputs, event_root),
-                cast_root: find_hash(public_inputs, cast_root),
-            };
+            let circuit = builder.build();
 
             Self {
                 program_hash,
@@ -335,7 +330,16 @@ mod test {
                 event_root,
                 cast_root,
                 circuit,
-                indices,
+            }
+        }
+
+        fn get_indices(&self) -> ProgramPublicIndices {
+            let public_inputs = &self.circuit.prover_only.public_inputs;
+            ProgramPublicIndices {
+                program_hash: find_targets(public_inputs, self.program_hash),
+                events_present: find_bool(public_inputs, self.events_present),
+                event_root: find_hash(public_inputs, self.event_root),
+                cast_root: find_hash(public_inputs, self.cast_root),
             }
         }
 
@@ -355,8 +359,16 @@ mod test {
     }
 
     lazy_static! {
-        static ref PROGRAM: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG);
-        static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG, &*PROGRAM, &EVENT_BRANCH);
+        static ref PROGRAM_1: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG, false);
+        static ref PROGRAM_1_INDICES: ProgramPublicIndices = PROGRAM_1.get_indices();
+        static ref PROGRAM_2: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG, true);
+        static ref PROGRAM_2_INDICES: ProgramPublicIndices = PROGRAM_2.get_indices();
+        static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(
+            &CONFIG,
+            &PROGRAM_1_INDICES,
+            &PROGRAM_1.circuit.common,
+            &EVENT_BRANCH
+        );
         static ref BRANCH: BranchCircuit<F, C, D> =
             BranchCircuit::new(&CONFIG, &MERGE_BRANCH, &LEAF);
     }
@@ -405,8 +417,10 @@ mod test {
         event_root: Option<HashOut<F>>,
         cast_root: HashOut<F>,
     ) -> ProofWithPublicInputs<F, C, D> {
-        let program_proof = PROGRAM.prove(program_hash, event_root, cast_root).unwrap();
-        PROGRAM.circuit.verify(program_proof.clone()).unwrap();
+        let program_proof = PROGRAM_1
+            .prove(program_hash, event_root, cast_root)
+            .unwrap();
+        PROGRAM_1.circuit.verify(program_proof.clone()).unwrap();
         program_proof
     }
 
@@ -528,16 +542,36 @@ mod test {
 
     #[test]
     fn verify_leaf() -> Result<()> {
-        let proof = LEAF.prove(&BRANCH, &p1_p2::PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
+        let proof = LEAF.prove(
+            &BRANCH,
+            &PROGRAM_1.circuit.verifier_only,
+            &p1_p2::PROGRAM_1_PROOF,
+            &P1_BUILT_EVENTS.proof,
+        )?;
         LEAF.circuit.verify(proof)?;
 
-        let proof = LEAF.prove(&BRANCH, &p1_p2::PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
+        let proof = LEAF.prove(
+            &BRANCH,
+            &PROGRAM_1.circuit.verifier_only,
+            &p1_p2::PROGRAM_2_PROOF,
+            &P2_BUILT_EVENTS.proof,
+        )?;
         LEAF.circuit.verify(proof)?;
 
-        let proof = LEAF.prove(&BRANCH, &p2_p1::PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
+        let proof = LEAF.prove(
+            &BRANCH,
+            &PROGRAM_1.circuit.verifier_only,
+            &p2_p1::PROGRAM_1_PROOF,
+            &P1_BUILT_EVENTS.proof,
+        )?;
         LEAF.circuit.verify(proof)?;
 
-        let proof = LEAF.prove(&BRANCH, &p2_p1::PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
+        let proof = LEAF.prove(
+            &BRANCH,
+            &PROGRAM_1.circuit.verifier_only,
+            &p2_p1::PROGRAM_2_PROOF,
+            &P2_BUILT_EVENTS.proof,
+        )?;
         LEAF.circuit.verify(proof)?;
 
         Ok(())
@@ -545,9 +579,28 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_wrong_verifier() {
+        let proof = LEAF
+            .prove(
+                &BRANCH,
+                &PROGRAM_2.circuit.verifier_only,
+                &p1_p2::PROGRAM_1_PROOF,
+                &P2_BUILT_EVENTS.proof,
+            )
+            .unwrap();
+        LEAF.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_wrong_events_1() {
         let proof = LEAF
-            .prove(&BRANCH, &p1_p2::PROGRAM_1_PROOF, &P2_BUILT_EVENTS.proof)
+            .prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &p1_p2::PROGRAM_1_PROOF,
+                &P2_BUILT_EVENTS.proof,
+            )
             .unwrap();
         LEAF.circuit.verify(proof).unwrap();
     }
@@ -556,7 +609,12 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_wrong_events_2() {
         let proof = LEAF
-            .prove(&BRANCH, &p1_p2::PROGRAM_2_PROOF, &P1_BUILT_EVENTS.proof)
+            .prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &p1_p2::PROGRAM_2_PROOF,
+                &P1_BUILT_EVENTS.proof,
+            )
             .unwrap();
         LEAF.circuit.verify(proof).unwrap();
     }
@@ -565,7 +623,12 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_wrong_events_3() {
         let proof = LEAF
-            .prove(&BRANCH, &p2_p1::PROGRAM_1_PROOF, &P2_BUILT_EVENTS.proof)
+            .prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &p2_p1::PROGRAM_1_PROOF,
+                &P2_BUILT_EVENTS.proof,
+            )
             .unwrap();
         LEAF.circuit.verify(proof).unwrap();
     }
@@ -574,7 +637,12 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_wrong_events_4() {
         let proof = LEAF
-            .prove(&BRANCH, &p2_p1::PROGRAM_2_PROOF, &P1_BUILT_EVENTS.proof)
+            .prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &p2_p1::PROGRAM_2_PROOF,
+                &P1_BUILT_EVENTS.proof,
+            )
             .unwrap();
         LEAF.circuit.verify(proof).unwrap();
     }
@@ -583,10 +651,20 @@ mod test {
     fn verify_branch() -> Result<()> {
         use p1_p2::{MERGE_PROOF, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
 
-        let leaf_1_proof = LEAF.prove(&BRANCH, &PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
+        let leaf_1_proof = LEAF.prove(
+            &BRANCH,
+            &PROGRAM_1.circuit.verifier_only,
+            &PROGRAM_1_PROOF,
+            &P1_BUILT_EVENTS.proof,
+        )?;
         LEAF.circuit.verify(leaf_1_proof.clone())?;
 
-        let leaf_2_proof = LEAF.prove(&BRANCH, &PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
+        let leaf_2_proof = LEAF.prove(
+            &BRANCH,
+            &PROGRAM_1.circuit.verifier_only,
+            &PROGRAM_2_PROOF,
+            &P2_BUILT_EVENTS.proof,
+        )?;
         LEAF.circuit.verify(leaf_2_proof.clone())?;
 
         let branch_proof = BRANCH.prove(&MERGE_PROOF, true, &leaf_1_proof, true, &leaf_2_proof)?;
@@ -605,10 +683,20 @@ mod test {
 
             let merge_proof = merge_merges(true, &MERGE_42, true, &MERGE_80);
 
-            let leaf_1_proof = LEAF.prove(&BRANCH, &PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
+            let leaf_1_proof = LEAF.prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_1_PROOF,
+                &P1_BUILT_EVENTS.proof,
+            )?;
             LEAF.circuit.verify(leaf_1_proof.clone())?;
 
-            let leaf_2_proof = LEAF.prove(&BRANCH, &PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
+            let leaf_2_proof = LEAF.prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_2_PROOF,
+                &P2_BUILT_EVENTS.proof,
+            )?;
             LEAF.circuit.verify(leaf_2_proof.clone())?;
 
             Result::<_>::Ok((merge_proof, leaf_1_proof, leaf_2_proof))
@@ -631,10 +719,20 @@ mod test {
             // Flip the merge of the merge to break stuff
             let merge_proof = merge_merges(true, &MERGE_80, true, &MERGE_42);
 
-            let leaf_1_proof = LEAF.prove(&BRANCH, &PROGRAM_1_PROOF, &P1_BUILT_EVENTS.proof)?;
+            let leaf_1_proof = LEAF.prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_1_PROOF,
+                &P1_BUILT_EVENTS.proof,
+            )?;
             LEAF.circuit.verify(leaf_1_proof.clone())?;
 
-            let leaf_2_proof = LEAF.prove(&BRANCH, &PROGRAM_2_PROOF, &P2_BUILT_EVENTS.proof)?;
+            let leaf_2_proof = LEAF.prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_2_PROOF,
+                &P2_BUILT_EVENTS.proof,
+            )?;
             LEAF.circuit.verify(leaf_2_proof.clone())?;
 
             Result::<_>::Ok((merge_proof, leaf_1_proof, leaf_2_proof))

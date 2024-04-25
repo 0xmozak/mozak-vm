@@ -1,16 +1,20 @@
+use itertools::chain;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::CircuitData;
+use plonky2::plonk::circuit_data::{
+    CommonCircuitData, VerifierCircuitTarget, VerifierOnlyCircuitData,
+};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
 use crate::circuits::build_event_root;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub struct CircuitPublicIndices {
+pub struct ProgramPublicIndices {
     /// The indices of each of the elements of the program hash
     pub program_hash: [usize; 4],
 
@@ -24,7 +28,7 @@ pub struct CircuitPublicIndices {
     pub cast_root: [usize; NUM_HASH_OUT_ELTS],
 }
 
-impl CircuitPublicIndices {
+impl ProgramPublicIndices {
     /// Extract `program_hash` from an array of public inputs.
     pub fn get_program_hash<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
         self.program_hash.map(|i| public_inputs[i])
@@ -70,20 +74,18 @@ impl CircuitPublicIndices {
     }
 }
 
-pub trait Circuit<F, C, const D: usize>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
-    fn get_circuit_data(&self) -> &CircuitData<F, C, D>;
-    fn get_indices(&self) -> CircuitPublicIndices;
-}
-
 pub struct ProgramVerifierTargets<const D: usize> {
+    /// The program verifer
+    pub program_verifier: VerifierCircuitTarget,
+
+    /// The program verifier hash
+    pub program_verifier_hash: HashOutTarget,
+
     /// The program proof
     pub program_proof: ProofWithPublicInputsTarget<D>,
 
-    /// The program hash
-    pub program_hash: [Target; 4],
+    /// The program id
+    pub program_id: [Target; 4],
 
     /// The presence flag for the event root
     pub events_present: BoolTarget,
@@ -103,32 +105,44 @@ impl<const D: usize> ProgramVerifierTargets<D> {
     #[must_use]
     pub fn build_targets<F, C>(
         builder: &mut CircuitBuilder<F, D>,
-        program_circuit: &dyn Circuit<F, C, D>,
+        progam_circuit_indices: &ProgramPublicIndices,
+        program_circuit_common: &CommonCircuitData<F, D>,
     ) -> Self
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
-        let circuit = program_circuit.get_circuit_data();
-        let public_inputs = program_circuit.get_indices();
-        let program_proof = builder.add_virtual_proof_with_pis(&circuit.common);
-        let verifier = builder.constant_verifier_data(&circuit.verifier_only);
+        let program_proof = builder.add_virtual_proof_with_pis(program_circuit_common);
+        let program_verifier =
+            builder.add_virtual_verifier_data(program_circuit_common.config.fri_config.cap_height);
+        builder.verify_proof::<C>(&program_proof, &program_verifier, program_circuit_common);
 
-        builder.verify_proof::<C>(&program_proof, &verifier, &circuit.common);
+        let program_verifier_hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
+            chain!(
+                [&program_verifier.circuit_digest],
+                &program_verifier.constants_sigmas_cap.0,
+            )
+            .flat_map(|v| &v.elements)
+            .copied()
+            .collect(),
+        );
 
-        let program_hash = public_inputs.get_program_hash(&program_proof.public_inputs);
-        let events_present =
-            BoolTarget::new_unsafe(public_inputs.get_events_present(&program_proof.public_inputs));
+        let program_id = progam_circuit_indices.get_program_hash(&program_proof.public_inputs);
+        let events_present = BoolTarget::new_unsafe(
+            progam_circuit_indices.get_events_present(&program_proof.public_inputs),
+        );
         let event_root = HashOutTarget {
-            elements: public_inputs.get_event_root(&program_proof.public_inputs),
+            elements: progam_circuit_indices.get_event_root(&program_proof.public_inputs),
         };
         let cast_root = HashOutTarget {
-            elements: public_inputs.get_cast_root(&program_proof.public_inputs),
+            elements: progam_circuit_indices.get_cast_root(&program_proof.public_inputs),
         };
 
         Self {
+            program_verifier,
+            program_verifier_hash,
             program_proof,
-            program_hash,
+            program_id,
             events_present,
             event_root,
             cast_root,
@@ -147,11 +161,13 @@ impl<const D: usize> ProgramVerifierSubCircuit<D> {
     pub fn set_witness<F, C>(
         &self,
         inputs: &mut PartialWitness<F>,
+        program_verifier: &VerifierOnlyCircuitData<C, D>,
         program_proof: &ProofWithPublicInputs<F, C, D>,
     ) where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
+        inputs.set_verifier_data_target(&self.targets.program_verifier, program_verifier);
         inputs.set_proof_with_pis_target(&self.targets.program_proof, program_proof);
     }
 }
