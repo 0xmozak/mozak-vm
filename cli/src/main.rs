@@ -3,7 +3,9 @@
 // TODO(bing): `clio` uses an older `windows-sys` vs other dependencies.
 // Remove when `clio` updates, or if `clio` is no longer needed.
 #![allow(clippy::multiple_crate_versions)]
+use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -12,9 +14,8 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
-use mozak_circuits::generation::memoryinit::{
-    generate_call_tape_init_trace, generate_elf_memory_init_trace, generate_private_tape_init_trace,
-};
+use mozak_circuits::generation::io_memory::generate_call_tape_trace;
+use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
@@ -29,19 +30,19 @@ use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
-use mozak_node::types::{Attestation, OpaqueAttestation, Transaction, TransparentAttestation};
+use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
-use mozak_sdk::common::types::{ProgramIdentifier, SystemTape};
-use mozak_sdk::native::{OrderedEvents, ProofBundle};
-use plonky2::field::polynomial::PolynomialValues;
+use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
+
+const PROGRAMS_MAP_JSON: &str = "examples/programs_map.json";
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -92,13 +93,11 @@ enum Command {
     VerifyRecursiveProof { proof: Input, verifier_key: Input },
     /// Builds a transaction bundle.
     BundleTransaction {
-        /// List of bundle plan(s) generated from native execution(s).
-        /// The first plan's call tape is used as the global call tape.
-        #[arg(long)]
-        bundle_plan: Vec<Input>,
+        /// System tape generated from native execution.
         #[arg(long, required = true)]
-        cast_list: Vec<String>,
-        #[arg(long, required = true)]
+        system_tape: Input,
+        /// Output file path of the serialized bundle.
+        #[arg(long, default_value = "bundle")]
         bundle: Output,
     },
     /// Compute the Program Rom Hash of the given ELF.
@@ -221,94 +220,143 @@ fn main() -> Result<()> {
             debug!("proof generated successfully!");
         }
         Command::BundleTransaction {
-            bundle_plan,
-            cast_list,
+            system_tape: system_tape_path,
             bundle,
         } => {
+            /// Returns mapping of program ID to elf path.
+            ///
+            /// The first entry is always the entrypoint program.
+            fn ids_and_paths_from_cast_list(
+                entrypoint_program_id: ProgramIdentifier,
+                cast_list: &[ProgramIdentifier],
+            ) -> Vec<(ProgramIdentifier, PathBuf)> {
+                /// A `MappedProgram` is a (name, path) tuple of a `MozakVM`
+                /// program, where the name
+                /// is the [`ProgramIdentifier`] and the path is the expected
+                /// path of the compiled `MozakVM` binary,
+                /// relative to the examples directory.
+                #[derive(serde::Deserialize, serde::Serialize)]
+                struct MappedProgram {
+                    name: String,
+                    path: String,
+                }
+
+                let curr_dir = std::env::current_dir().unwrap();
+                let mapping = std::fs::File::open(curr_dir.join(PROGRAMS_MAP_JSON))
+                    .expect("could not open programs map");
+                let mapping: Vec<MappedProgram> = serde_json::from_reader(mapping)
+                    .expect("Could not deserialize Vec<MappedProgram> from programs map");
+                let mapping: HashMap<ProgramIdentifier, String> = mapping
+                    .into_iter()
+                    .map(|mp| (ProgramIdentifier::from(mp.name), mp.path))
+                    .collect();
+                cast_list
+                    .iter()
+                    .filter_map(|id: &ProgramIdentifier| {
+                        mapping.get(id).map(|path| (*id, curr_dir.join(path)))
+                    })
+                    .sorted_by_key(|(id, _)| id != &entrypoint_program_id)
+                    .collect()
+            }
+
             println!("Bundling transaction...");
-            let zipped = bundle_plan
+
+            let system_tape: SystemTape = deserialize_system_tape(system_tape_path.clone())?;
+
+            // Q: will first call always be null program calling the program's entrypoint?
+            let entrypoint_program_id = system_tape.call_tape.writer[0].callee;
+
+            let cast_list: Vec<_> = system_tape
+                .call_tape
+                .writer
+                .clone()
                 .into_iter()
-                .map(|mut plan| {
-                    let mut bundle_plan_bytes = Vec::new();
-                    let _ = plan.read_to_end(&mut bundle_plan_bytes)?;
-                    let plan: ProofBundle = serde_json::from_slice(&bundle_plan_bytes)?;
+                .flat_map(|CrossProgramCall { callee, caller, .. }| [callee, caller])
+                .filter(|prog| !prog.is_null_program())
+                .sorted()
+                .dedup()
+                .collect();
 
-                    let sys_tapes: SystemTape =
-                        deserialize_system_tape(Input::try_from(&plan.system_tape_filepath)?)?;
+            let ids_and_paths = ids_and_paths_from_cast_list(entrypoint_program_id, &cast_list);
 
-                    let event_tape: OrderedEvents = sys_tapes
-                        .event_tape
+            // This does nothing - we rely entirely on ecalls.
+            // TODO(bing): Refactor `load_program` to not take this as a param, in a
+            // separate PR.
+            let args = tapes_to_runtime_arguments(
+                system_tape_path,
+                Some(format!("{entrypoint_program_id:?}")),
+            );
+
+            let mut attestations: Vec<Attestation> = vec![];
+            let mut call_tape_hash = None;
+
+            for (i, (program_id, elf)) in ids_and_paths.iter().enumerate() {
+                let program = load_program(
+                    Input::try_from(elf)
+                        .unwrap_or_else(|_| panic!("Elf filepath {elf:?} not found")),
+                    &args,
+                )?;
+
+                let raw_call_tape: Vec<u8> =
+                    serde_json::to_vec(&system_tape.call_tape.writer).unwrap();
+                let raw_tapes = RawTapes {
+                    call_tape: raw_call_tape,
+                    private_tape: system_tape
+                        .private_input_tape
                         .writer
-                        .get(&ProgramIdentifier::from(plan.self_prog_id.clone()))
+                        .get(program_id)
                         .cloned()
-                        .ok_or(anyhow::anyhow!(
-                            "Event tape not found for program id: {:?}",
-                            plan.self_prog_id
-                        ))?;
-                    let args = tapes_to_runtime_arguments(
-                        Input::try_from(&plan.system_tape_filepath)?,
-                        Some(plan.self_prog_id.to_string()),
+                        .unwrap_or_default()
+                        .to_vec(),
+                    ..Default::default()
+                };
+                if i == 0 {
+                    let rate_bits = config.fri_config.rate_bits;
+                    let cap_height = config.fri_config.cap_height;
+
+                    let state: State<F> = State::new(program.clone(), raw_tapes.clone());
+                    let record =
+                        step(&program, state).expect("Could not step through the given program");
+
+                    let trace = generate_call_tape_trace(&record.executed);
+                    let poly_values = trace_rows_to_poly_values(trace);
+
+                    let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                        poly_values,
+                        rate_bits,
+                        false, // blinding
+                        cap_height,
+                        &mut TimingTree::default(),
+                        None, // fft_root_table
                     );
 
-                    let program = load_program(
-                        Input::try_from(&plan.elf_filepath).unwrap_or_else(|_| {
-                            panic!("Elf filepath {:?} not found", plan.elf_filepath)
-                        }),
-                        &args,
-                    )?;
-                    let hash_from_poly_values = |poly_values: Vec<PolynomialValues<F>>| {
-                        let rate_bits = config.fri_config.rate_bits;
-                        let cap_height = config.fri_config.cap_height;
-                        let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                            poly_values,
-                            rate_bits,
-                            false, // blinding
-                            cap_height,
-                            &mut TimingTree::default(),
-                            None, // fft_root_table
-                        );
-                        trace_commitment.merkle_tree.cap
-                    };
+                    call_tape_hash = Some(trace_commitment.merkle_tree.cap);
+                }
 
-                    let trace = generate_private_tape_init_trace(&program);
-                    let private_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
+                let attestation = Attestation {
+                    id: *program_id,
+                    public_tape: system_tape
+                        .public_input_tape
+                        .writer
+                        .get(program_id)
+                        .cloned()
+                        .unwrap_or_default()
+                        .to_vec(),
+                    event_tape: system_tape
+                        .event_tape
+                        .writer
+                        .get(program_id)
+                        .cloned()
+                        .unwrap_or_default(),
+                };
 
-                    let trace = generate_call_tape_init_trace(&program);
-                    let call_tape_hash = hash_from_poly_values(trace_rows_to_poly_values(trace));
+                attestations.push(attestation);
+            }
 
-                    let transparent_attestation = TransparentAttestation {
-                        public_tape: args.io_tape_public,
-                        event_tape,
-                    };
-
-                    let opaque_attestation: OpaqueAttestation<F, C, D> =
-                        OpaqueAttestation { private_tape_hash };
-
-                    let attestation = Attestation {
-                        id: plan.self_prog_id.into(),
-                        opaque: opaque_attestation,
-                        transparent: transparent_attestation,
-                    };
-                    Ok((attestation, call_tape_hash))
-                })
-                .collect::<Result<Vec<(_, _)>>>()?;
-            let (constituent_zs, call_tape_hashes): (Vec<_>, Vec<_>) = zipped.into_iter().unzip();
-            let call_tape_hash = call_tape_hashes
-                .first()
-                .ok_or(anyhow::anyhow!(
-                    "No call tape hash found in the first bundle plan"
-                ))?
-                .clone();
-
-            let transaction = Transaction {
-                call_tape_hash,
-                cast_list: cast_list
-                    .clone()
-                    .into_iter()
-                    .unique()
-                    .map(ProgramIdentifier::from)
-                    .collect(),
-                constituent_zs,
+            let transaction: Transaction<F, C, D> = Transaction {
+                call_tape_hash: call_tape_hash.expect("system tape generated from entrypoint program's native execution should contain a call tape"),
+                cast_list,
+                constituent_zs: attestations,
             };
 
             serde_json::to_writer_pretty(bundle, &transaction)?;

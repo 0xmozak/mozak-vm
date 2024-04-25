@@ -10,7 +10,7 @@ use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_raw_value};
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
-use crate::memory_io::columns::InputOutputMemory;
+use crate::memory_io::columns::StorageDevice;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::MemoryInit;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
@@ -128,7 +128,7 @@ pub fn transform_fullword<F: RichField>(
 /// These need to be further interleaved with runtime memory trace generated
 /// from VM execution for final memory trace.
 pub fn transform_io<F: RichField>(
-    io_memory: &[InputOutputMemory<F>],
+    io_memory: &[StorageDevice<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
     io_memory.iter().filter_map(Option::<Memory<F>>::from)
 }
@@ -154,11 +154,11 @@ pub fn generate_memory_trace<F: RichField>(
     memory_zeroinit_rows: &[MemoryZeroInit<F>],
     halfword_memory_rows: &[HalfWordMemory<F>],
     fullword_memory_rows: &[FullWordMemory<F>],
-    io_memory_private_rows: &[InputOutputMemory<F>],
-    io_memory_public_rows: &[InputOutputMemory<F>],
-    io_memory_call_tape_rows: &[InputOutputMemory<F>],
-    io_memory_events_commitment_tape_rows: &[InputOutputMemory<F>],
-    io_memory_castlist_commitment_tape_rows: &[InputOutputMemory<F>],
+    io_memory_private_rows: &[StorageDevice<F>],
+    io_memory_public_rows: &[StorageDevice<F>],
+    io_memory_call_tape_rows: &[StorageDevice<F>],
+    io_memory_events_commitment_tape_rows: &[StorageDevice<F>],
+    io_memory_castlist_commitment_tape_rows: &[StorageDevice<F>],
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
     poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
