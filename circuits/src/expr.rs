@@ -1,7 +1,8 @@
 use std::panic::Location;
 
 use derive_more::Display;
-use expr::{BinOp, Cached, Evaluator, Expr, PureEvaluator, UnaOp};
+pub use expr::PureEvaluator;
+use expr::{BinOp, Cached, Evaluator, Expr, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
