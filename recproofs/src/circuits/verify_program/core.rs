@@ -24,6 +24,9 @@ pub struct ProgramPublicIndices {
     /// The indices of each of the elements of event root
     pub event_root: [usize; NUM_HASH_OUT_ELTS],
 
+    /// The indices of each of the elements of cast list
+    pub call_list: [usize; NUM_HASH_OUT_ELTS],
+
     /// The indices of each of the elements of cast root
     pub cast_root: [usize; NUM_HASH_OUT_ELTS],
 }
@@ -61,6 +64,18 @@ impl ProgramPublicIndices {
         }
     }
 
+    /// Extract `call_list` from an array of public inputs.
+    pub fn get_call_list<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
+        self.call_list.map(|i| public_inputs[i])
+    }
+
+    /// Insert `call_list` into an array of public inputs.
+    pub fn set_call_list<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
+        for (i, v) in v.into_iter().enumerate() {
+            public_inputs[self.call_list[i]] = v;
+        }
+    }
+
     /// Extract `cast_root` from an array of public inputs.
     pub fn get_cast_root<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
         self.cast_root.map(|i| public_inputs[i])
@@ -92,6 +107,9 @@ pub struct ProgramVerifierTargets<const D: usize> {
 
     /// The event root
     pub event_root: HashOutTarget,
+
+    /// The call list root
+    pub call_list: [Target; 4],
 
     /// The cast list root
     pub cast_root: HashOutTarget,
@@ -134,6 +152,7 @@ impl<const D: usize> ProgramVerifierTargets<D> {
         let event_root = HashOutTarget {
             elements: progam_circuit_indices.get_event_root(&program_proof.public_inputs),
         };
+        let call_list = progam_circuit_indices.get_call_list(&program_proof.public_inputs);
         let cast_root = HashOutTarget {
             elements: progam_circuit_indices.get_cast_root(&program_proof.public_inputs),
         };
@@ -145,6 +164,7 @@ impl<const D: usize> ProgramVerifierTargets<D> {
             program_id,
             events_present,
             event_root,
+            call_list,
             cast_root,
         }
     }

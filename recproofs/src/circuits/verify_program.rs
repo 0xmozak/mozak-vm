@@ -30,8 +30,11 @@ where
     // The events list
     pub events: merge::embed::LeafSubCircuit,
 
-    /// The cast list
-    pub cast_list: propagate::LeafSubCircuit<NUM_HASH_OUT_ELTS>,
+    /// The call list
+    pub call_list: propagate::LeafSubCircuit<NUM_HASH_OUT_ELTS>,
+
+    /// The cast list root
+    pub cast_root: propagate::LeafSubCircuit<NUM_HASH_OUT_ELTS>,
 
     /// The program verifier
     pub program_verifier: core::ProgramVerifierSubCircuit<D>,
@@ -60,12 +63,14 @@ where
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let program_id_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let events_inputs = merge::embed::SubCircuitInputs::default(&mut builder);
-        let cast_list_inputs = propagate::SubCircuitInputs::default(&mut builder);
+        let call_list_inputs = propagate::SubCircuitInputs::default(&mut builder);
+        let cast_root_inputs = propagate::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets = unbounded_inputs.build_leaf::<F, C, D>(&mut builder);
         let program_id_targets = program_id_inputs.build_leaf::<F, D>(&mut builder);
         let events_targets = events_inputs.build_leaf::<F, D>(&mut builder);
-        let cast_list_targets = cast_list_inputs.build_leaf::<F, D>(&mut builder);
+        let call_list_targets = call_list_inputs.build_leaf::<F, D>(&mut builder);
+        let cast_root_targets = cast_root_inputs.build_leaf::<F, D>(&mut builder);
 
         let program_verifier_targets = core::ProgramVerifierTargets::build_targets::<F, C>(
             &mut builder,
@@ -100,8 +105,13 @@ where
         );
         connect_arrays(
             &mut builder,
+            program_verifier_targets.call_list,
+            call_list_targets.inputs.values,
+        );
+        connect_arrays(
+            &mut builder,
             program_verifier_targets.cast_root.elements,
-            cast_list_targets.inputs.values,
+            cast_root_targets.inputs.values,
         );
 
         let circuit = builder.build();
@@ -110,7 +120,8 @@ where
         let unbounded = unbounded_targets.build(public_inputs);
         let program_id = program_id_targets.build(public_inputs);
         let events = events_targets.build(public_inputs);
-        let cast_list = cast_list_targets.build(public_inputs);
+        let call_list = call_list_targets.build(public_inputs);
+        let cast_root = cast_root_targets.build(public_inputs);
         let program_verifier = program_verifier_targets.build(public_inputs);
         let event_verifier = event_verifier_targets.build(public_inputs);
 
@@ -118,7 +129,8 @@ where
             unbounded,
             program_id,
             events,
-            cast_list,
+            call_list,
+            cast_root,
             program_verifier,
             event_verifier,
             circuit,
@@ -141,6 +153,7 @@ where
         self.circuit.prove(inputs)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn prove_unsafe(
         &self,
         branch: &BranchCircuit<F, C, D>,
@@ -148,6 +161,7 @@ where
         program_proof: &ProofWithPublicInputs<F, C, D>,
         program_id: HashOut<F>,
         event_root: HashOut<F>,
+        call_list: [F; 4],
         cast_root: HashOut<F>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
@@ -156,7 +170,8 @@ where
             .set_witness(&mut inputs, program_verifier, program_proof);
         self.program_id.set_witness(&mut inputs, program_id);
         self.events.set_witness(&mut inputs, Some(event_root));
-        self.cast_list.set_witness(&mut inputs, cast_root.elements);
+        self.call_list.set_witness(&mut inputs, call_list);
+        self.cast_root.set_witness(&mut inputs, cast_root.elements);
         self.circuit.prove(inputs)
     }
 }
@@ -174,8 +189,11 @@ where
     // The events list
     pub events: merge::embed::BranchSubCircuit<D>,
 
-    /// The cast list
-    pub cast_list: propagate::BranchSubCircuit<NUM_HASH_OUT_ELTS>,
+    /// The call list
+    pub call_list: propagate::BranchSubCircuit<NUM_HASH_OUT_ELTS>,
+
+    /// The cast list root
+    pub cast_root: propagate::BranchSubCircuit<NUM_HASH_OUT_ELTS>,
 
     pub circuit: CircuitData<F, C, D>,
 }
@@ -197,7 +215,8 @@ where
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
         let program_id_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let events_inputs = merge::embed::SubCircuitInputs::default(&mut builder);
-        let cast_list_inputs = propagate::SubCircuitInputs::default(&mut builder);
+        let call_list_inputs = propagate::SubCircuitInputs::default(&mut builder);
+        let cast_root_inputs = propagate::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
@@ -215,9 +234,15 @@ where
             &unbounded_targets.left_proof,
             &unbounded_targets.right_proof,
         );
-        let cast_list_targets = cast_list_inputs.build_branch(
+        let call_list_targets = call_list_inputs.build_branch(
             &mut builder,
-            &leaf.cast_list.indices,
+            &leaf.call_list.indices,
+            &unbounded_targets.left_proof,
+            &unbounded_targets.right_proof,
+        );
+        let cast_root_targets = cast_root_inputs.build_branch(
+            &mut builder,
+            &leaf.cast_root.indices,
             &unbounded_targets.left_proof,
             &unbounded_targets.right_proof,
         );
@@ -228,13 +253,15 @@ where
         let unbounded = unbounded_targets.build(&leaf.unbounded, public_inputs);
         let program_id = program_id_targets.build(&leaf.program_id.indices, public_inputs);
         let events = events_targets.build(&leaf.events.indices, public_inputs);
-        let cast_list = cast_list_targets.build(&leaf.cast_list.indices, public_inputs);
+        let call_list = call_list_targets.build(&leaf.call_list.indices, public_inputs);
+        let cast_root = cast_root_targets.build(&leaf.cast_root.indices, public_inputs);
 
         Self {
             unbounded,
             program_id,
             events,
-            cast_list,
+            call_list,
+            cast_root,
             circuit,
         }
     }
@@ -292,6 +319,9 @@ mod test {
         /// The event root
         pub event_root: HashOutTarget,
 
+        /// The call list
+        pub call_list: [Target; 4],
+
         /// The cast list root
         pub cast_root: HashOutTarget,
 
@@ -309,10 +339,12 @@ mod test {
             let program_hash = builder.add_virtual_target_arr();
             let events_present = builder.add_virtual_bool_target_safe();
             let event_root = builder.add_virtual_hash();
+            let call_list = builder.add_virtual_target_arr();
             let cast_root = builder.add_virtual_hash();
             builder.register_public_inputs(&program_hash);
             builder.register_public_input(events_present.target);
             builder.register_public_inputs(&event_root.elements);
+            builder.register_public_inputs(&call_list);
             builder.register_public_inputs(&cast_root.elements);
 
             // Make a dummy to change the circuit
@@ -328,6 +360,7 @@ mod test {
                 program_hash,
                 events_present,
                 event_root,
+                call_list,
                 cast_root,
                 circuit,
             }
@@ -339,6 +372,7 @@ mod test {
                 program_hash: find_targets(public_inputs, self.program_hash),
                 events_present: find_bool(public_inputs, self.events_present),
                 event_root: find_hash(public_inputs, self.event_root),
+                call_list: find_targets(public_inputs, self.call_list),
                 cast_root: find_hash(public_inputs, self.cast_root),
             }
         }
@@ -347,12 +381,14 @@ mod test {
             &self,
             program_hash: [F; 4],
             event_root: Option<HashOut<F>>,
+            call_list: [F; 4],
             cast_root: HashOut<F>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             inputs.set_target_arr(&self.program_hash, &program_hash);
             inputs.set_bool_target(self.events_present, event_root.is_some());
             inputs.set_hash_target(self.event_root, event_root.unwrap_or_default());
+            inputs.set_target_arr(&self.call_list, &call_list);
             inputs.set_hash_target(self.cast_root, cast_root);
             self.circuit.prove(inputs)
         }
@@ -415,10 +451,11 @@ mod test {
     fn make_program(
         program_hash: [F; 4],
         event_root: Option<HashOut<F>>,
+        call_list: [F; 4],
         cast_root: HashOut<F>,
     ) -> ProofWithPublicInputs<F, C, D> {
         let program_proof = PROGRAM_1
-            .prove(program_hash, event_root, cast_root)
+            .prove(program_hash, event_root, call_list, cast_root)
             .unwrap();
         PROGRAM_1.circuit.verify(program_proof.clone()).unwrap();
         program_proof
@@ -451,6 +488,8 @@ mod test {
     const PROGRAM_2_HASH: [F; 4] = make_fs([2, 3, 4, 2]);
     const NON_ZERO_VAL_1: [F; 4] = make_fs([3, 1, 4, 15]);
     const NON_ZERO_VAL_2: [F; 4] = make_fs([1, 6, 180, 33]);
+    const CALL_LIST_1: [F; 4] = make_fs([86, 7, 5, 309]);
+    const CALL_LIST_2: [F; 4] = make_fs([8, 67, 530, 9]);
 
     // Duplicate or conflicting events are actually fine as far as this circuit
     // cares
@@ -498,10 +537,24 @@ mod test {
         }
 
         lazy_static! {
-            pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> =
-                make_program(PROGRAM_1_HASH, Some(P1_BUILT_EVENTS.vm_hash), *CAST_ROOT);
-            pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> =
-                make_program(PROGRAM_2_HASH, Some(P2_BUILT_EVENTS.vm_hash), *CAST_ROOT);
+            pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                PROGRAM_1_HASH,
+                Some(P1_BUILT_EVENTS.vm_hash),
+                CALL_LIST_1,
+                *CAST_ROOT
+            );
+            pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                PROGRAM_2_HASH,
+                Some(P2_BUILT_EVENTS.vm_hash),
+                CALL_LIST_1,
+                *CAST_ROOT
+            );
+            pub static ref PROGRAM_2B_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                PROGRAM_2_HASH,
+                Some(P2_BUILT_EVENTS.vm_hash),
+                CALL_LIST_2,
+                *CAST_ROOT
+            );
         }
 
         lazy_static! {
@@ -524,10 +577,18 @@ mod test {
         }
 
         lazy_static! {
-            pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> =
-                make_program(PROGRAM_1_HASH, Some(P1_BUILT_EVENTS.vm_hash), *CAST_ROOT);
-            pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> =
-                make_program(PROGRAM_2_HASH, Some(P2_BUILT_EVENTS.vm_hash), *CAST_ROOT);
+            pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                PROGRAM_1_HASH,
+                Some(P1_BUILT_EVENTS.vm_hash),
+                CALL_LIST_1,
+                *CAST_ROOT
+            );
+            pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                PROGRAM_2_HASH,
+                Some(P2_BUILT_EVENTS.vm_hash),
+                CALL_LIST_1,
+                *CAST_ROOT
+            );
         }
 
         lazy_static! {
@@ -712,7 +773,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
-    fn bad_hash_merge_2() {
+    fn bad_branch_hash_merge_2() {
         let (merge_proof, leaf_1_proof, leaf_2_proof) = catch_unwind(|| {
             use p1_p2::{MERGE_42, MERGE_80, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
 
@@ -731,6 +792,42 @@ mod test {
                 &BRANCH,
                 &PROGRAM_1.circuit.verifier_only,
                 &PROGRAM_2_PROOF,
+                &P2_BUILT_EVENTS.proof,
+            )?;
+            LEAF.circuit.verify(leaf_2_proof.clone())?;
+
+            Result::<_>::Ok((merge_proof, leaf_1_proof, leaf_2_proof))
+        })
+        .expect("shouldn't fail")
+        .unwrap();
+
+        let branch_proof = BRANCH
+            .prove(&merge_proof, true, &leaf_1_proof, true, &leaf_2_proof)
+            .unwrap();
+        BRANCH.circuit.verify(branch_proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_call_list() {
+        let (merge_proof, leaf_1_proof, leaf_2_proof) = catch_unwind(|| {
+            // `PROGRAM_2B_PROOF` uses a different call list
+            use p1_p2::{MERGE_42, MERGE_80, PROGRAM_1_PROOF, PROGRAM_2B_PROOF};
+
+            let merge_proof = merge_merges(true, &MERGE_42, true, &MERGE_80);
+
+            let leaf_1_proof = LEAF.prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_1_PROOF,
+                &P1_BUILT_EVENTS.proof,
+            )?;
+            LEAF.circuit.verify(leaf_1_proof.clone())?;
+
+            let leaf_2_proof = LEAF.prove(
+                &BRANCH,
+                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_2B_PROOF,
                 &P2_BUILT_EVENTS.proof,
             )?;
             LEAF.circuit.verify(leaf_2_proof.clone())?;
