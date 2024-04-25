@@ -100,6 +100,7 @@ pub fn batch_prove<F, C, const D: usize>(
     program: &Program,
     record: &ExecutionRecord<F>,
     mozak_stark: &MozakStark<F, D>,
+    public_table_kinds: &[TableKind],
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
     timing: &mut TimingTree,
@@ -115,14 +116,6 @@ where
     }
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
-
-    // We cannot batch prove these tables because trace caps are needed as public
-    // inputs for the following tables.
-    let public_table_kinds = vec![
-        TableKind::Program,
-        TableKind::ElfMemoryInit,
-        TableKind::MozakMemoryInit,
-    ];
 
     let mut degree_log_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
     let batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
@@ -178,17 +171,18 @@ where
             })
     );
 
-    // TODO: todo
-    // let trace_caps = batch_trace_commitments.field_merkle_tree.cap;
-
     let trace_caps = trace_commitments
         .each_ref()
         .map(|c| c.merkle_tree.cap.clone());
     // Add trace commitments to the challenger entropy pool.
     let mut challenger = Challenger::<F, C::Hasher>::new();
-    for cap in &trace_caps {
-        challenger.observe_cap(cap);
-    }
+    all_kind!(|kind| {
+        if public_table_kinds.contains(&kind) {
+            challenger.observe_cap(&trace_caps[kind]);
+        }
+    });
+    let fmt_trace_cap = batch_trace_commitments.field_merkle_tree.cap.clone();
+    challenger.observe_cap(&fmt_trace_cap);
 
     let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
     let ctl_data_per_table = timed!(
@@ -646,8 +640,9 @@ mod tests {
     use plonky2::util::timing::TimingTree;
 
     use crate::stark::batch_prover::batch_prove;
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
     use crate::stark::proof::BatchProof;
+    use crate::stark::verifier::batch_verify_proof;
     use crate::test_utils::fast_test_config;
     use crate::utils::from_u32;
 
@@ -677,15 +672,24 @@ mod tests {
             entry_point: from_u32(program.entry_point),
         };
 
-        let _all_proof: BatchProof<F, C, D> = batch_prove(
+        // We cannot batch prove these tables because trace caps are needed as public
+        // inputs for the following tables.
+        let public_table_kinds = vec![
+            TableKind::Program,
+            TableKind::ElfMemoryInit,
+            TableKind::MozakMemoryInit,
+        ];
+
+        let all_proof: BatchProof<F, C, D> = batch_prove(
             &program,
             &record,
             &stark,
+            &public_table_kinds,
             &config,
             public_inputs,
             &mut TimingTree::default(),
         )
         .unwrap();
-        // verify_proof(&stark, all_proof, &config).unwrap();
+        batch_verify_proof(&stark, &public_table_kinds, all_proof, &config).unwrap();
     }
 }

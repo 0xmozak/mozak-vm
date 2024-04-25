@@ -7,6 +7,7 @@ use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::plonk_common::reduce_with_powers;
 use starky::config::StarkConfig;
@@ -14,12 +15,103 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindSetBuilder};
-use super::proof::AllProof;
+use super::mozak_stark::{all_kind, all_starks, MozakStark, TableKind, TableKindSetBuilder};
+use super::proof::{AllProof, BatchProof};
 use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
 use crate::public_sub_table::reduce_public_sub_tables_values;
+use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
+
+#[allow(clippy::too_many_lines)]
+pub fn batch_verify_proof<F, C, const D: usize>(
+    mozak_stark: &MozakStark<F, D>,
+    public_table_kinds: &[TableKind],
+    all_proof: BatchProof<F, C, D>,
+    config: &StarkConfig,
+) -> Result<()>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
+    debug!("Starting Verify");
+
+    let mut challenger = Challenger::<F, C::Hasher>::new();
+
+    for kind in public_table_kinds {
+        challenger.observe_cap(&all_proof.proofs[kind].trace_cap);
+    }
+    challenger.observe_cap(&all_proof.batch_stark_proof.trace_cap);
+
+    // TODO: Observe public values.
+
+    let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
+
+    let stark_challenges = all_kind!(|kind| if public_table_kinds.contains(&kind) {
+        challenger.compact();
+        Some(all_proof.proofs[kind].get_challenges(&mut challenger, config))
+    } else {
+        None
+    });
+
+    let batch_stark_challenges = all_proof
+        .batch_stark_proof
+        .get_challenges(&mut challenger, config);
+
+    ensure!(
+        all_proof.proofs[TableKind::Program].trace_cap == all_proof.program_rom_trace_cap,
+        "Mismatch between Program ROM trace caps"
+    );
+
+    ensure!(
+        all_proof.proofs[TableKind::ElfMemoryInit].trace_cap == all_proof.elf_memory_init_trace_cap,
+        "Mismatch between ElfMemoryInit trace caps"
+    );
+
+    ensure!(
+        all_proof.proofs[TableKind::MozakMemoryInit].trace_cap
+            == all_proof.mozak_memory_init_trace_cap,
+        "Mismatch between MozakMemoryInit trace caps"
+    );
+
+    let ctl_vars_per_table = CtlCheckVars::from_proofs(
+        &all_proof.proofs,
+        &mozak_stark.cross_table_lookups,
+        &mozak_stark.public_sub_tables,
+        &ctl_challenges,
+    );
+
+    let reduced_public_sub_tables_values =
+        reduce_public_sub_tables_values(&all_proof.public_sub_table_values, &ctl_challenges);
+
+    let public_inputs = TableKindSetBuilder::<&[_]> {
+        cpu_stark: all_proof.public_inputs.borrow(),
+        ..Default::default()
+    }
+    .build();
+    all_starks!(mozak_stark, |stark, kind| {
+        if public_table_kinds.contains(&kind) {
+            verify_stark_proof_with_challenges(
+                stark,
+                &all_proof.proofs[kind],
+                &stark_challenges[kind],
+                public_inputs[kind],
+                &ctl_vars_per_table[kind],
+                config,
+            )?;
+        }
+    });
+    verify_cross_table_lookups_and_public_sub_tables::<F, D>(
+        &mozak_stark.cross_table_lookups,
+        &mozak_stark.public_sub_tables,
+        &reduced_public_sub_tables_values,
+        &all_proof.all_ctl_zs_last(),
+        config,
+    )?;
+    // verify_batch_stark_proof_with_challenges(
+    //
+    // );
+    Ok(())
+}
 
 #[allow(clippy::too_many_lines)]
 pub fn verify_proof<F, C, const D: usize>(
