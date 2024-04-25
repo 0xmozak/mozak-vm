@@ -119,7 +119,7 @@ mod tests {
     use mozak_runner::decode::ECALL;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::state::RawTapes;
-    use mozak_runner::test_utils::{u32_extra_except_mozak_ro_memory, u8_extra};
+    use mozak_runner::test_utils::{u32_extra, u8_extra};
     use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
@@ -391,42 +391,42 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
-        fn prove_io_read_private_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+        fn prove_io_read_private_zero_size_mozak(address in u32_extra()) {
             prove_io_read_private_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_private_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+        fn prove_io_read_private_mozak(address in u32_extra(), content in u8_extra()) {
             prove_io_read_private::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
-        fn prove_io_read_public_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+        fn prove_io_read_public_zero_size_mozak(address in u32_extra()) {
             prove_io_read_public_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_public_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+        fn prove_io_read_public_mozak(address in u32_extra(), content in u8_extra()) {
             prove_io_read_public::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
-        fn prove_io_read_call_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+        fn prove_io_read_call_tape_zero_size_mozak(address in u32_extra()) {
             prove_io_read_call_tape_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_call_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+        fn prove_io_read_call_tape_mozak(address in u32_extra(), content in u8_extra()) {
             prove_io_read_call_tape::<MozakStark<F, D>>(address, vec![content]);
         }
 
         #[test]
-        fn prove_events_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+        fn prove_events_commitment_tape_mozak(address in u32_extra(), content in u8_extra()) {
             prove_events_commitment_tape::<MozakStark<F, D>>(address, [content; 32]);
         }
 
         #[test]
-        fn prove_cast_list_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+        fn prove_cast_list_commitment_tape_mozak(address in u32_extra(), content in u8_extra()) {
             prove_cast_list_commitment_tape::<MozakStark<F, D>>(address, [content; 32]);
         }
 
         #[test]
-        fn prove_io_read_mozak_explicit(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+        fn prove_io_read_mozak_explicit(address in u32_extra(), content in u8_extra()) {
             prove_io_read_explicit::<MozakStark<F, D>>(address, content);
         }
     }
