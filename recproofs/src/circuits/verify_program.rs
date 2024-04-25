@@ -3,7 +3,6 @@
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
-use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{
     CircuitConfig, CircuitData, CommonCircuitData, VerifierOnlyCircuitData,
@@ -36,12 +35,6 @@ where
 
     /// The cast list root
     pub cast_root: propagate::LeafSubCircuit<NUM_HASH_OUT_ELTS>,
-
-    /// The program verifier
-    pub program_verifier: core::ProgramVerifierSubCircuit<D>,
-
-    /// The event root verifier
-    pub event_verifier: core::EventRootVerifierSubCircuit<D>,
 
     /// The program verifier
     pub program_verifier: core::ProgramVerifierSubCircuit<D>,
@@ -191,7 +184,7 @@ where
     pub unbounded: unbounded::BranchSubCircuit<D>,
 
     /// The program identifier
-    pub program_id: unpruned::BranchSubCircuit<PartialAllowed>,
+    pub program_id: unpruned::BranchSubCircuit,
 
     // The events list
     pub events: merge::embed::BranchSubCircuit<D>,

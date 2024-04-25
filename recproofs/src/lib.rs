@@ -389,18 +389,6 @@ fn connect_arrays<F: RichField + Extendable<D>, const D: usize, const N: usize>(
     }
 }
 
-/// Connects `x` to `y`
-fn connect_arrays<F: RichField + Extendable<D>, const D: usize, const N: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    x: [Target; N],
-    y: [Target; N],
-) {
-    // Loop over the limbs
-    for (x, y) in zip(x, y) {
-        builder.connect(x, y);
-    }
-}
-
 fn hash_event<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     owner: [Target; 4],

@@ -105,9 +105,6 @@ pub struct ProgramVerifierTargets<const D: usize> {
     /// The presence flag for the event root
     pub events_present: BoolTarget,
 
-    /// The presence flag for the event root
-    pub events_present: BoolTarget,
-
     /// The event root
     pub event_root: HashOutTarget,
 
