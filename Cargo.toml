@@ -50,9 +50,9 @@ lto = "thin"
 opt-level = 3
 
 [workspace.dependencies]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }
-plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }
-starky = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }
+plonky2 = { version = "0", default-features = false }
+plonky2_maybe_rayon = { version = "0", default-features = false }
+starky = { version = "0", default-features = false }
 
 plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
 
