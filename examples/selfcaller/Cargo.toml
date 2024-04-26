@@ -1,0 +1,34 @@
+[package]
+edition = "2021"
+name = "selfcaller"
+version = "0.1.0"
+
+[features]
+native = []
+
+[dependencies]
+mozak-sdk = { path = "../../sdk" }
+rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
+rkyv_derive = "=0.8.0-alpha.1"
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies]
+hex = "0.4"
+rand = "0.8"
+rand_chacha = "0.3"
+
+[[bin]]
+name = "selfcallerbin"
+path = "main_mozak.rs"
+
+[[bin]]
+name = "selfcaller-native"
+path = "main_native.rs"
+required-features = ["native"]
+
+[lib]
+name = "selfcaller"
+path = "core_logic.rs"
+
+# The following is read by `run_examples.py`
+[package.metadata.mozak]
+example_program_id = "MZK-5b7b6135be198533f7c7ec46651216b762e6d47e69b408d1bc79d641f9ae06de"

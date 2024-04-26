@@ -4,6 +4,7 @@ use rkyv::ser::{AllocSerializer, Composite};
 use rkyv::util::AlignedVec;
 use rkyv::{Archive, Deserialize, Serialize};
 
+use super::types::cross_program_call::SelfCallExtendedProgramIdentifier;
 use crate::common::types::{Event, ProgramIdentifier};
 
 pub trait RkyvSerializable = rkyv::Serialize<
@@ -14,9 +15,11 @@ pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
 
 /// A data struct that is aware of it's own ID
 pub trait SelfIdentify {
-    fn get_self_identity(&self) -> ProgramIdentifier;
+    fn get_self_identity(&self) -> SelfCallExtendedProgramIdentifier {
+        SelfCallExtendedProgramIdentifier::default()
+    }
     #[allow(dead_code)]
-    fn set_self_identity(&mut self, id: ProgramIdentifier);
+    fn set_self_identity(&mut self, _id: SelfCallExtendedProgramIdentifier) {}
 }
 
 /// `Call` trait provides methods `send` & `receive` to use an
