@@ -325,6 +325,7 @@ dependencies = [
  "serde",
  "serde-hex",
  "serde_json",
+ "slice-group-by",
  "toml",
 ]
 
@@ -691,6 +692,12 @@ dependencies = [
  "cpufeatures",
  "digest",
 ]
+
+[[package]]
+name = "slice-group-by"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
 
 [[package]]
 name = "smallvec"
