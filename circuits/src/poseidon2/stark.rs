@@ -27,7 +27,7 @@ fn add_rc<'a, V, W, const STATE_SIZE: usize>(
 ) where
     V: Copy,
     W: Poseidon2, {
-    for (i, val) in state.iter_mut().enumerate().take(STATE_SIZE) {
+    for (i, val) in state.iter_mut().enumerate() {
         *val = *val + from_u64(<W as Poseidon2>::RC12[r + i]);
     }
 }
@@ -116,7 +116,7 @@ fn matmul_internal12<'a, V, U, const STATE_SIZE: usize>(
         sum = sum + *item;
     }
 
-    for (i, val) in state.iter_mut().enumerate().take(STATE_SIZE) {
+    for (i, val) in state.iter_mut().enumerate() {
         // TODO: Fix once MulAssign is implemented
         *val = *val * (from_u64(<U as Poseidon2>::MAT_DIAG12_M_1[i]) - 1);
         *val = *val + sum;
@@ -155,14 +155,14 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     // first full rounds
     for r in 0..(ROUNDS_F / 2) {
         add_rc::<V, U, STATE_SIZE>(&mut state, r, from_u64);
-        for (i, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
+        for (i, item) in state.iter_mut().enumerate() {
             sbox_p(
                 item,
                 &lv.s_box_input_qube_first_full_rounds[r * STATE_SIZE + i],
             );
         }
         matmul_external12(&mut state);
-        for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
+        for (i, state_i) in state.iter_mut().enumerate() {
             constraints.always(*state_i - lv.state_after_first_full_rounds[r * STATE_SIZE + i]);
             *state_i = lv.state_after_first_full_rounds[r * STATE_SIZE + i];
         }
@@ -178,7 +178,7 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     }
 
     // the state before last full rounds
-    for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
+    for (i, state_i) in state.iter_mut().enumerate() {
         constraints.always(*state_i - lv.state_after_partial_rounds[i]);
         *state_i = lv.state_after_partial_rounds[i];
     }
@@ -187,14 +187,14 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     for i in 0..(ROUNDS_F / 2) {
         let r = (ROUNDS_F / 2) + i;
         add_rc::<V, U, STATE_SIZE>(&mut state, r, from_u64);
-        for (j, item) in state.iter_mut().enumerate().take(STATE_SIZE) {
+        for (j, item) in state.iter_mut().enumerate() {
             sbox_p(
                 item,
                 &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
             );
         }
         matmul_external12(&mut state);
-        for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
+        for (j, state_j) in state.iter_mut().enumerate() {
             constraints.always(*state_j - lv.state_after_second_full_rounds[i * STATE_SIZE + j]);
             *state_j = lv.state_after_second_full_rounds[i * STATE_SIZE + j];
         }
