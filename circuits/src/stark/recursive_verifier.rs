@@ -61,7 +61,7 @@ pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct VMRecursiveProofPublicInputs<T> {
     pub entry_point: T,
-    pub program_rom_hash_as_bytes: [T; DIGEST_BYTES],
+    pub program_hash_as_bytes: [T; DIGEST_BYTES],
     pub event_commitment_tape: [T; COMMITMENT_SIZE],
     pub castlist_commitment_tape: [T; COMMITMENT_SIZE],
 }
@@ -240,10 +240,10 @@ where
         }
     });
 
-    let program_rom_hash =
+    let program_hash =
         get_program_hash_circuit_bytes::<F, C, D>(&mut builder, &stark_proof_with_pis_target);
 
-    builder.register_public_inputs(&program_rom_hash);
+    builder.register_public_inputs(&program_hash);
 
     all_kind!(|kind| {
         builder.register_public_inputs(
@@ -784,7 +784,7 @@ mod tests {
         let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
             &public_input_slice.into();
         assert_eq!(
-            recursive_proof_public_inputs.program_rom_hash_as_bytes,
+            recursive_proof_public_inputs.program_hash_as_bytes,
             expected_program_hash
         );
         assert_eq!(

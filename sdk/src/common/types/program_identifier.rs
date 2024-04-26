@@ -26,12 +26,12 @@ pub struct ProgramIdentifier(pub super::Poseidon2Hash);
 impl ProgramIdentifier {
     #[must_use]
     pub fn new(
-        program_rom_hash: super::Poseidon2Hash,
+        program_hash: super::Poseidon2Hash,
         memory_init_hash: super::Poseidon2Hash,
         entry_point: u32,
     ) -> Self {
         let input: Vec<u8> = itertools::chain!(
-            program_rom_hash.inner(),
+            program_hash.inner(),
             memory_init_hash.inner(),
             entry_point.to_le_bytes(),
         )

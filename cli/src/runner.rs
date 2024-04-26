@@ -151,9 +151,9 @@ where
 
     let elf_memory_init_hash =
         get_trace_commitment_hash::<F, C, D, _>(elf_memory_init_trace, &config);
-    let program_rom_hash = get_trace_commitment_hash::<F, C, D, _>(program_rom_trace, &config);
+    let program_hash = get_trace_commitment_hash::<F, C, D, _>(program_rom_trace, &config);
     let hashout = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_no_pad(
-        &chain!(program_rom_hash.elements, elf_memory_init_hash.elements, [
+        &chain!(program_hash.elements, elf_memory_init_hash.elements, [
             entry_point
         ])
         .collect_vec(),

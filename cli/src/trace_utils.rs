@@ -8,7 +8,8 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
-/// Compute merkle cap of the trace, and return its hash
+/// Compute merkle cap of the trace, and return its hash.
+/// The hash is NOP if number of merkle caps is one.
 pub(crate) fn get_trace_commitment_hash<F, C, const D: usize, Row: IntoIterator<Item = F>>(
     trace: Vec<Row>,
     config: &StarkConfig,
@@ -29,5 +30,5 @@ where
         None,
     );
     let merkle_cap = trace_commitment.merkle_tree.cap;
-    <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_no_pad(&merkle_cap.flatten())
+    <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_or_noop(&merkle_cap.flatten())
 }
