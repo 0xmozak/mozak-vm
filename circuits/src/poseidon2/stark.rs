@@ -133,7 +133,9 @@ const PUBLIC_INPUTS: usize = 0;
 // Compile time assertion that STATE_SIZE equals 12
 const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 
-// NOTE: This one has extra constraints...
+// NOTE: This one has extra constraints compared to different implementations of
+// `generate_constraints` that were have written so far.  It will be something
+// to take into account when providing a more geneeral API to plonky.
 fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     vars: &StarkFrameTyped<Poseidon2State<Expr<'a, V>>, NoColumns<Expr<'a, V>>>,
     from_u64: &mut impl FnMut(u64) -> Expr<'a, V>,
