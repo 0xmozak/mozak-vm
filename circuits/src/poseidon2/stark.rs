@@ -166,7 +166,7 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
 
     // partial rounds
     for i in 0..ROUNDS_P {
-        state[0] = state[0] + from_u64(<U as Poseidon2>::RC12_MID[i]);
+        state[0] += from_u64(<U as Poseidon2>::RC12_MID[i]);
         sbox_p(&mut state[0], &lv.s_box_input_qube_partial_rounds[i]);
         matmul_internal12::<V, U, STATE_SIZE>(&mut state, from_u64);
         constraints.always(state[0] - lv.state0_after_partial_rounds[i]);
