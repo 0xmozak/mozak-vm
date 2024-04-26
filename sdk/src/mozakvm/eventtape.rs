@@ -34,7 +34,7 @@ impl EventEmit for EventTape {
         assert!(!self.seen[elem_idx]);
         self.seen[elem_idx] = true;
 
-        let zcd_canonical_event = &self.reader.unwrap()[self.index].0;
+        let zcd_canonical_event = &self.reader.unwrap()[elem_idx].0;
         let canonical_event: CanonicalEvent = zcd_canonical_event
             .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
             .unwrap();
