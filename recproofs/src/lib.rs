@@ -20,6 +20,7 @@ pub mod subcircuits;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils {
     use itertools::{chain, Itertools};
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::{HashOut, RichField};
     use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -61,6 +62,15 @@ pub mod test_utils {
     pub const D: usize = 2;
     pub type C = Poseidon2GoldilocksConfig;
     pub type F = <C as GenericConfig<D>>::F;
+    pub const fn make_fs<const N: usize>(vs: [u64; N]) -> [F; N] {
+        let mut f = [F::ZERO; N];
+        let mut i = 0;
+        while i < N {
+            f[i] = GoldilocksField(vs[i]);
+            i += 1;
+        }
+        f
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -364,6 +374,18 @@ fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
     for (parent, child) in zip(x, v) {
         let child = builder.select(maybe_v, child, parent);
         builder.connect(parent, child);
+    }
+}
+
+/// Connects `x` to `y`
+fn connect_arrays<F: RichField + Extendable<D>, const D: usize, const N: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    x: [Target; N],
+    y: [Target; N],
+) {
+    // Loop over the limbs
+    for (x, y) in zip(x, y) {
+        builder.connect(x, y);
     }
 }
 
