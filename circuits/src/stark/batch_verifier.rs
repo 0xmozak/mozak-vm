@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use anyhow::ensure;
-use itertools::{Itertools};
+use itertools::Itertools;
 use log::debug;
 use plonky2::field::extension::Extendable;
 use plonky2::fri::batch_verifier::verify_batch_fri_proof;
@@ -41,8 +41,12 @@ where
     let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
 
     let stark_challenges = all_kind!(|kind| {
-        challenger.compact();
-        all_proof.proofs[kind].get_challenges(&mut challenger, config)
+        if public_table_kinds.contains(&kind) {
+            challenger.compact();
+            Some(all_proof.proofs[kind].get_challenges(&mut challenger, config))
+        } else {
+            None
+        }
     });
 
     let batch_stark_challenges = all_proof
@@ -66,6 +70,8 @@ where
         &ctl_challenges,
     );
 
+    let degree_bits = all_proof.degree_bits;
+
     let reduced_public_sub_tables_values =
         reduce_public_sub_tables_values(&all_proof.public_sub_table_values, &ctl_challenges);
 
@@ -76,22 +82,26 @@ where
     .build();
     all_starks!(mozak_stark, |stark, kind| {
         if public_table_kinds.contains(&kind) {
-            verify_stark_proof_with_challenges(
-                stark,
-                &all_proof.proofs[kind],
-                &stark_challenges[kind],
-                public_inputs[kind],
-                &ctl_vars_per_table[kind],
-                config,
-            )?;
+            if let Some(challenges) = &stark_challenges[kind] {
+                verify_stark_proof_with_challenges(
+                    stark,
+                    &all_proof.proofs[kind],
+                    &challenges,
+                    public_inputs[kind],
+                    &ctl_vars_per_table[kind],
+                    config,
+                )?;
+            } else {
+                ensure!(false);
+            }
         } else {
             verify_quotient_polynomials(
                 stark,
+                degree_bits[kind],
                 &all_proof.proofs[kind],
-                &stark_challenges[kind],
+                &batch_stark_challenges,
                 public_inputs[kind],
                 &ctl_vars_per_table[kind],
-                config,
             )?;
         }
     });
@@ -106,7 +116,6 @@ where
         config,
     )?;
 
-    let degree_bits = all_proof.degree_bits;
     let mut sorted_degree_bits: Vec<usize> =
         all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(degree_bits[kind]))
             .iter()
@@ -114,6 +123,7 @@ where
             .collect_vec();
     sorted_degree_bits.sort();
     sorted_degree_bits.reverse();
+    sorted_degree_bits.dedup();
 
     let fri_instances = batch_fri_instances(
         mozak_stark,

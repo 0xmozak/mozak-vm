@@ -21,6 +21,7 @@ use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
+use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
@@ -171,7 +172,7 @@ where
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
-    let degree_bits = all_kind!(|kind| traces_poly_values[kind][0].len());
+    let degree_bits = all_kind!(|kind| log2_strict(traces_poly_values[kind][0].len()));
 
     let batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
         None
@@ -539,6 +540,7 @@ where
             .collect_vec();
     sorted_degree_bits.sort();
     sorted_degree_bits.reverse();
+    sorted_degree_bits.dedup();
 
     let num_ctl_zs_per_table =
         all_kind!(|kind| ctl_data_per_table[kind].len() + public_sub_data_per_table[kind].len());
@@ -568,6 +570,7 @@ where
                 .collect::<Vec<usize>>()
                 .iter()
                 .sum::<usize>(),
+            "batch index: {i}"
         );
     }
 
@@ -695,11 +698,7 @@ mod tests {
 
         // We cannot batch prove these tables because trace caps are needed as public
         // inputs for the following tables.
-        let public_table_kinds = vec![
-            TableKind::Program,
-            TableKind::ElfMemoryInit,
-            TableKind::MozakMemoryInit,
-        ];
+        let public_table_kinds = vec![TableKind::Program, TableKind::ElfMemoryInit];
 
         let all_proof: BatchProof<F, C, D> = batch_prove(
             &program,

@@ -89,15 +89,14 @@ pub(crate) fn verify_quotient_polynomials<
     const D: usize,
 >(
     stark: &S,
+    degree_bits: usize,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
     public_inputs: &[F],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
-    config: &StarkConfig,
 ) -> Result<()>
 where
 {
-    validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let StarkOpeningSet {
         local_values,
         next_values,
@@ -116,7 +115,6 @@ where
             .collect_vec(),
     );
 
-    let degree_bits = proof.recover_degree_bits(config);
     let (l_0, l_last) = eval_l_0_and_l_last(degree_bits, challenges.stark_zeta);
     let last = F::primitive_root_of_unity(degree_bits).inverse();
     let z_last = challenges.stark_zeta - last.into();
@@ -181,9 +179,17 @@ pub(crate) fn verify_stark_proof_with_challenges<
 ) -> Result<()>
 where
 {
-    verify_quotient_polynomials(stark, proof, challenges, public_inputs, ctl_vars, config)?;
-
+    validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let degree_bits = proof.recover_degree_bits(config);
+    verify_quotient_polynomials(
+        stark,
+        degree_bits,
+        proof,
+        challenges,
+        public_inputs,
+        ctl_vars,
+    )?;
+
     let ctl_zs_last = &proof.openings.ctl_zs_last;
     let merkle_caps = vec![
         proof.trace_cap.clone(),
