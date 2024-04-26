@@ -58,7 +58,8 @@
 //! builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
 //! means split into multiple constraints.
 
-use core::iter::Sum;
+pub mod ops;
+
 use core::ops::{Add, Mul, Neg, Sub};
 use std::collections::HashMap;
 
@@ -126,45 +127,6 @@ impl<'a, V> Expr<'a, V> {
             .rev()
             .fold(Expr::from(0), |acc, term| acc * base + term)
     }
-}
-
-macro_rules! instances {
-    ($op: ident, $fun: ident) => {
-        impl<'a, V> $op<Self> for Expr<'a, V> {
-            type Output = Self;
-
-            fn $fun(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::$op, self, rhs) }
-        }
-        impl<'a, V> $op<i64> for Expr<'a, V> {
-            type Output = Expr<'a, V>;
-
-            fn $fun(self, rhs: i64) -> Self::Output {
-                Self::bin_op(BinOp::$op, self, Expr::from(rhs))
-            }
-        }
-
-        impl<'a, V> $op<Expr<'a, V>> for i64 {
-            type Output = Expr<'a, V>;
-
-            fn $fun(self, rhs: Expr<'a, V>) -> Self::Output {
-                Self::Output::bin_op(BinOp::$op, Expr::from(self), rhs)
-            }
-        }
-    };
-}
-
-instances!(Add, add);
-instances!(Sub, sub);
-instances!(Mul, mul);
-
-impl<'a, V> Neg for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
-}
-
-impl<'a, V> Sum for Expr<'a, V> {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Expr::from(0), Add::add) }
 }
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
@@ -489,6 +451,24 @@ mod tests {
         assert_eq!(p.eval(a + b), 12);
         assert_eq!(p.eval(a - b), 2);
         assert_eq!(p.eval(a * b), 35);
+    }
+
+    #[test]
+    fn it_works_assign() {
+        let expr = ExprBuilder::default();
+
+        let a = expr.lit(7i64);
+        let b = expr.lit(5i64);
+        let mut c = expr.lit(0i64);
+
+        let mut p = PureEvaluator::default();
+
+        c += a + b;
+        assert_eq!(p.eval(c), 12);
+        c -= b;
+        assert_eq!(p.eval(c), 7);
+        c *= b;
+        assert_eq!(p.eval(c), 35);
     }
 
     #[test]
