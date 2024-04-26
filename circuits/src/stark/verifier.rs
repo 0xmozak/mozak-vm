@@ -213,7 +213,7 @@ where
     Ok(())
 }
 
-pub(crate) fn validate_proof_shape<F, C, S, const D: usize>(
+fn validate_proof_shape<F, C, S, const D: usize>(
     stark: &S,
     proof: &StarkProof<F, C, D>,
     config: &StarkConfig,
@@ -264,7 +264,7 @@ where
 /// `L_0(x) = (x^n - 1)/(n * (x - 1))`
 /// `L_(n-1)(x) = (x^n - 1)/(n * (g * x - 1))`, with `g` the first element of
 /// the subgroup.
-pub(crate) fn eval_l_0_and_l_last<F: Field>(log_n: usize, x: F) -> (F, F) {
+fn eval_l_0_and_l_last<F: Field>(log_n: usize, x: F) -> (F, F) {
     let n = F::from_canonical_usize(1 << log_n);
     let g = F::primitive_root_of_unity(log_n);
     let z_x = x.exp_power_of_2(log_n) - F::ONE;

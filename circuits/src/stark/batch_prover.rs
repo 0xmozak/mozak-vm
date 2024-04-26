@@ -21,7 +21,6 @@ use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
-use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
@@ -39,12 +38,67 @@ use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::prover::prove_single_table;
 
-pub(crate) fn merge_fri_instances<F, const D: usize>(
+pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
+    mozak_stark: &MozakStark<F, D>,
+    public_table_kinds: &[TableKind],
+    degree_bits: &TableKindArray<usize>,
+    sorted_degree_bits: &[usize],
+    zeta: F::Extension,
+    config: &StarkConfig,
+    num_ctl_zs_per_table: &TableKindArray<usize>,
+) -> Vec<FriInstanceInfo<F, D>> {
+    let fri_instances = all_starks!(mozak_stark, |stark, kind| if !public_table_kinds
+        .contains(&kind)
+    {
+        Some({
+            let g = F::primitive_root_of_unity(degree_bits[kind]);
+
+            stark.fri_instance(
+                zeta,
+                g,
+                0,
+                vec![],
+                config,
+                Some(&LookupConfig {
+                    degree_bits: degree_bits[kind],
+                    num_zs: num_ctl_zs_per_table[kind],
+                }),
+            )
+        })
+    } else {
+        None
+    });
+
+    let mut degree_log_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
+    all_kind!(|kind| {
+        degree_log_map
+            .entry(degree_bits[kind])
+            .or_insert(Vec::new())
+            .push(kind);
+    });
+
+    let fri_instance_groups = sorted_degree_bits
+        .iter()
+        .map(|degree_log| {
+            degree_log_map[degree_log]
+                .iter()
+                .filter_map(|kind| fri_instances[*kind].as_ref())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let mut polynomial_index_start = [0, 0, 0];
+    let res = fri_instance_groups
+        .iter()
+        .map(|ins| merge_fri_instances(ins, &mut polynomial_index_start))
+        .collect::<Vec<_>>();
+    res
+}
+
+pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     instances: &[&FriInstanceInfo<F, D>],
     polynomial_index_start: &mut [usize; 3],
-) -> FriInstanceInfo<F, D>
-where
-    F: RichField + Extendable<D>, {
+) -> FriInstanceInfo<F, D> {
     assert!(!instances.is_empty());
     let base_instance = &instances[0];
     assert_eq!(base_instance.oracles.len(), 3);
@@ -117,14 +171,11 @@ where
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
-    let mut degree_log_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
+    let degree_bits = all_kind!(|kind| traces_poly_values[kind][0].len());
+
     let batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
         None
     } else {
-        degree_log_map
-            .entry(log2_strict(traces_poly_values[kind][0].len()))
-            .or_insert(Vec::new())
-            .push(kind);
         Some(&traces_poly_values[kind])
     });
 
@@ -207,7 +258,7 @@ where
         config,
         &public_table_kinds,
         &public_inputs,
-        degree_log_map,
+        &degree_bits,
         &traces_poly_values,
         &trace_commitments,
         &batch_trace_commitments,
@@ -224,6 +275,7 @@ where
         timing.print();
     }
     Ok(BatchProof {
+        degree_bits,
         proofs,
         program_rom_trace_cap,
         elf_memory_init_trace_cap,
@@ -244,11 +296,10 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     config: &StarkConfig,
     public_table_kinds: &[TableKind],
     public_inputs: &PublicInputs<F>,
-    degree_log_map: HashMap<usize, Vec<TableKind>>,
+    degree_bits: &TableKindArray<usize>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     batch_trace_commitments: &BatchFriOracle<F, C, D>,
-    // separate_trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
@@ -288,11 +339,9 @@ where
     let batch_ctl_z_polys = all_kind!(|kind| {
         if !public_table_kinds.contains(&kind) {
             Some({
-                let degree = traces_poly_values[kind][0].len();
-                let degree_bits = log2_strict(degree);
-                let fri_params = config.fri_params(degree_bits);
+                let fri_params = config.fri_params(degree_bits[kind]);
                 assert!(
-                    fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
+                    fri_params.total_arities() <= degree_bits[kind] + rate_bits - cap_height,
                     "FRI total reduction arity is too large.",
                 );
 
@@ -366,8 +415,7 @@ where
     // `batch_trace_commitments` and `batch_ctl_zs_commitments`.
     let quotient_chunks = all_starks!(mozak_stark, |stark, kind| {
         if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind].as_ref() {
-            let degree = traces_poly_values[kind][0].len();
-            let degree_bits = log2_strict(degree);
+            let degree = 1 << degree_bits[kind];
             let quotient_polys = timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
@@ -379,7 +427,7 @@ where
                     &ctl_data_per_table[kind],
                     &public_sub_data_per_table[kind],
                     &alphas,
-                    degree_bits,
+                    degree_bits[kind],
                     config,
                 )
             );
@@ -456,15 +504,13 @@ where
         ctl_zs_commitments[kind].as_ref()
     {
         if let Some(quotient_commitment) = quotient_commitments[kind].as_ref() {
-            let degree = traces_poly_values[kind][0].len();
-            let degree_bits = log2_strict(degree);
             // To avoid leaking witness data, we want to ensure that our opening locations,
             // `zeta` and `g * zeta`, are not in our subgroup `H`. It suffices to check
             // `zeta` only, since `(g * zeta)^n = zeta^n`, where `n` is the order of
             // `g`.
-            let g = F::primitive_root_of_unity(degree_bits);
+            let g = F::primitive_root_of_unity(degree_bits[kind]);
             ensure!(
-                zeta.exp_power_of_2(degree_bits) != F::Extension::ONE,
+                zeta.exp_power_of_2(degree_bits[kind]) != F::Extension::ONE,
                 "Opening point is in the subgroup."
             );
             let openings = StarkOpeningSet::new(
@@ -473,7 +519,7 @@ where
                 &trace_commitments[kind],
                 &ctl_zs_commitment,
                 &quotient_commitment,
-                degree_bits,
+                degree_bits[kind],
             );
 
             challenger.observe_openings(&openings.to_fri_openings());
@@ -485,50 +531,27 @@ where
         None
     });
 
-    let fri_instances = all_starks!(mozak_stark, |stark, kind| if !public_table_kinds
-        .contains(&kind)
-    {
-        Some({
-            let degree = traces_poly_values[kind][0].len();
-            let degree_bits = log2_strict(degree);
-            let g = F::primitive_root_of_unity(degree_bits);
-
-            stark.fri_instance(
-                zeta,
-                g,
-                0,
-                vec![],
-                config,
-                Some(&LookupConfig {
-                    degree_bits,
-                    num_zs: ctl_data_per_table[kind].len() + public_sub_data_per_table[kind].len(),
-                }),
-            )
-        })
-    } else {
-        None
-    });
-
     // Merge FRI instances by its polynomial degree
-    let mut degree_bits: Vec<usize> = degree_log_map.keys().cloned().collect();
-    degree_bits.sort();
-    degree_bits.reverse();
+    let mut sorted_degree_bits: Vec<usize> =
+        all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(degree_bits[kind]))
+            .iter()
+            .filter_map(|d| *d)
+            .collect_vec();
+    sorted_degree_bits.sort();
+    sorted_degree_bits.reverse();
 
-    let fri_instance_groups = degree_bits
-        .iter()
-        .map(|degree_log| {
-            degree_log_map[degree_log]
-                .iter()
-                .filter_map(|kind| fri_instances[*kind].as_ref())
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
+    let num_ctl_zs_per_table =
+        all_kind!(|kind| ctl_data_per_table[kind].len() + public_sub_data_per_table[kind].len());
 
-    let mut polynomial_index_start = [0, 0, 0];
-    let batch_fri_instances = fri_instance_groups
-        .iter()
-        .map(|ins| merge_fri_instances(ins, &mut polynomial_index_start))
-        .collect::<Vec<_>>();
+    let batch_fri_instances = batch_fri_instances(
+        mozak_stark,
+        public_table_kinds,
+        degree_bits,
+        &sorted_degree_bits,
+        zeta,
+        config,
+        &num_ctl_zs_per_table,
+    );
 
     let initial_merkle_trees = vec![
         batch_trace_commitments,
@@ -548,14 +571,14 @@ where
         );
     }
 
-    let mut fri_params = config.fri_params(degree_bits[0]);
+    let mut fri_params = config.fri_params(sorted_degree_bits[0]);
     fri_params.reduction_arity_bits =
-        batch_reduction_arity_bits(degree_bits.clone(), rate_bits, cap_height);
+        batch_reduction_arity_bits(sorted_degree_bits.clone(), rate_bits, cap_height);
     let opening_proof = timed!(
         timing,
         format!("compute batch opening proofs").as_str(),
         BatchFriOracle::prove_openings(
-            &degree_bits,
+            &sorted_degree_bits,
             &batch_fri_instances,
             &initial_merkle_trees,
             challenger,
