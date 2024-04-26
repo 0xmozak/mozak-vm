@@ -109,11 +109,7 @@ fn matmul_internal12<'a, V, U, const STATE_SIZE: usize>(
 ) where
     V: Copy,
     U: Poseidon2, {
-    // TODO: Replace this with an implementation of Sum trait
-    let mut sum = Expr::from(0);
-    for item in &mut *state {
-        sum += *item;
-    }
+    let sum = state.iter().sum::<Expr<'a, V>>();
 
     for (i, val) in state.iter_mut().enumerate() {
         *val *= from_u64(<U as Poseidon2>::MAT_DIAG12_M_1[i]) - 1;
