@@ -2,11 +2,11 @@
 //! `core::iter::Sum`.
 
 use core::iter::Sum;
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use crate::{BinOp, Expr, UnaOp};
 
-macro_rules! instances {
+macro_rules! binop_instances {
     ($op: ident, $fun: ident) => {
         impl<'a, V> $op<Self> for Expr<'a, V> {
             type Output = Self;
@@ -42,9 +42,9 @@ macro_rules! instances {
     };
 }
 
-instances!(Add, add);
-instances!(Sub, sub);
-instances!(Mul, mul);
+binop_instances!(Add, add);
+binop_instances!(Sub, sub);
+binop_instances!(Mul, mul);
 
 impl<'a, V> Neg for Expr<'a, V> {
     type Output = Expr<'a, V>;
@@ -60,6 +60,30 @@ where
 
     fn neg(self) -> Self::Output { Self::Output::una_op(UnaOp::Neg, *self) }
 }
+
+macro_rules! assign_instances {
+    ($trait:ident, $op:ident, $fun: ident) => {
+        impl<'a, V> $trait<Self> for Expr<'a, V>
+        where
+            V: Copy,
+        {
+            fn $fun(&mut self, rhs: Self) { *self = Self::bin_op(BinOp::$op, *self, rhs) }
+        }
+
+        impl<'a, V> $trait<i64> for Expr<'a, V>
+        where
+            V: Copy,
+        {
+            fn $fun(&mut self, rhs: i64) {
+                *self = Self::bin_op(BinOp::$op, *self, Expr::from(rhs))
+            }
+        }
+    };
+}
+
+assign_instances!(AddAssign, Add, add_assign);
+assign_instances!(MulAssign, Mul, mul_assign);
+assign_instances!(SubAssign, Sub, sub_assign);
 
 impl<'a, V> Sum<Self> for Expr<'a, V> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Expr::from(0), Add::add) }
