@@ -28,7 +28,7 @@ fn add_rc<'a, V, W, const STATE_SIZE: usize>(
     V: Copy,
     W: Poseidon2, {
     for (i, val) in state.iter_mut().enumerate() {
-        *val = *val + from_u64(<W as Poseidon2>::RC12[r + i]);
+        *val += from_u64(<W as Poseidon2>::RC12[r + i]);
     }
 }
 
@@ -36,7 +36,7 @@ fn add_rc<'a, V, W, const STATE_SIZE: usize>(
 fn sbox_p<'a, V>(x: &mut Expr<'a, V>, x_qube: &Expr<'a, V>)
 where
     V: Copy, {
-    *x = *x_qube * *x_qube * *x;
+    *x *= *x_qube * *x_qube;
 }
 
 fn matmul_m4<V, const STATE_SIZE: usize>(state: &mut [Expr<'_, V>; STATE_SIZE])
@@ -94,12 +94,11 @@ where
     for l in 0..4 {
         stored[l] = state[l];
         for j in 1..t4 {
-            // TODO: Update once AddAssign is implemented
-            stored[l] = stored[l] + state[4 * j + l];
+            stored[l] += state[4 * j + l];
         }
     }
     for i in 0..STATE_SIZE {
-        state[i] = state[i] + stored[i % 4];
+        state[i] += stored[i % 4];
     }
 }
 
@@ -113,13 +112,12 @@ fn matmul_internal12<'a, V, U, const STATE_SIZE: usize>(
     // TODO: Replace this with an implementation of Sum trait
     let mut sum = Expr::from(0);
     for item in &mut *state {
-        sum = sum + *item;
+        sum += *item;
     }
 
     for (i, val) in state.iter_mut().enumerate() {
-        // TODO: Fix once MulAssign is implemented
-        *val = *val * (from_u64(<U as Poseidon2>::MAT_DIAG12_M_1[i]) - 1);
-        *val = *val + sum;
+        *val *= from_u64(<U as Poseidon2>::MAT_DIAG12_M_1[i]) - 1;
+        *val += sum;
     }
 }
 
