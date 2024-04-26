@@ -27,8 +27,6 @@ fn add_rc<'a, V, W, const STATE_SIZE: usize>(
 ) where
     V: Copy,
     W: Poseidon2, {
-    assert_eq!(STATE_SIZE, 12);
-
     for (i, val) in state.iter_mut().enumerate().take(STATE_SIZE) {
         *val = *val + from_u64(<W as Poseidon2>::RC12[r + i]);
     }
@@ -45,7 +43,6 @@ fn matmul_m4<V, const STATE_SIZE: usize>(state: &mut [Expr<'_, V>; STATE_SIZE])
 where
     V: Copy, {
     // input x = (x0, x1, x2, x3)
-    assert_eq!(STATE_SIZE, 12);
     let t4 = STATE_SIZE / 4;
 
     for i in 0..t4 {
@@ -89,7 +86,6 @@ where
 fn matmul_external12<V>(state: &mut [Expr<'_, V>; STATE_SIZE])
 where
     V: Copy, {
-    assert_eq!(STATE_SIZE, 12);
     matmul_m4(state);
 
     let t4 = STATE_SIZE / 4;
@@ -114,7 +110,6 @@ fn matmul_internal12<'a, V, U, const STATE_SIZE: usize>(
 ) where
     V: Copy,
     U: Poseidon2, {
-    assert_eq!(STATE_SIZE, 12);
     // TODO: Replace this with an implementation of Sum trait
     let mut sum = Expr::from(0);
     for item in &mut *state {
@@ -140,6 +135,9 @@ impl<F, const D: usize> HasNamedColumns for Poseidon2_12Stark<F, D> {
 
 const COLUMNS: usize = NUM_POSEIDON2_COLS;
 const PUBLIC_INPUTS: usize = 0;
+
+// Compile time assertion that STATE_SIZE equals 12
+const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 
 // NOTE: This one has extra constraints...
 fn generate_constraints<'a, V: Copy, U: Poseidon2>(
