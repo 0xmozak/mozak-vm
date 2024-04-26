@@ -8,7 +8,6 @@ use once_cell::unsync::Lazy;
 use super::types::{
     CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
 };
-#[cfg(target_os = "mozakvm")]
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
 /// all the `IO-Tapes`, `CallTape` and the `EventTape` both in
