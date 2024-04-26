@@ -454,6 +454,24 @@ mod tests {
     }
 
     #[test]
+    fn it_works_assign() {
+        let expr = ExprBuilder::default();
+
+        let a = expr.lit(7i64);
+        let b = expr.lit(5i64);
+        let mut c = expr.lit(0i64);
+
+        let mut p = PureEvaluator::default();
+
+        c += a + b;
+        assert_eq!(p.eval(c), 12);
+        c -= b;
+        assert_eq!(p.eval(c), 7);
+        c *= b;
+        assert_eq!(p.eval(c), 35);
+    }
+
+    #[test]
     fn basic_expressions_work() {
         let expr = ExprBuilder::default();
 
