@@ -1,8 +1,10 @@
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
+use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::stark::mozak_stark::{ProgramTable, TableWithTypedOutput};
 
 columns_view_impl!(InstructionRow);
+make_col_map!(InstructionRow);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct InstructionRow<T> {
@@ -17,22 +19,13 @@ pub struct InstructionRow<T> {
     pub inst_data: T,
 }
 
-columns_view_impl!(ProgramRom);
-make_col_map!(ProgramRom);
 /// A Row of ROM generated from read-only memory
-#[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct ProgramRom<T> {
-    pub inst: InstructionRow<T>,
-    /// Filters out instructions that are duplicates, i.e., appear more than
-    /// once in the trace.
-    pub filter: T,
-}
+pub type ProgramRom<T> = InstructionRow<T>;
 
 // Total number of columns.
 pub const NUM_PROGRAM_COLS: usize = ProgramRom::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
 pub fn lookup_for_ctl() -> TableWithTypedOutput<InstructionRow<Column>> {
-    ProgramTable::new(COL_MAP.inst, COL_MAP.filter)
+    ProgramTable::new(COL_MAP, ColumnWithTypedInput::constant(1))
 }

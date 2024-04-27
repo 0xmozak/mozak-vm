@@ -1,5 +1,6 @@
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
+use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::program::columns::InstructionRow;
 use crate::stark::mozak_stark::{ProgramMultTable, TableWithTypedOutput};
 
@@ -10,9 +11,6 @@ make_col_map!(ProgramMult);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct ProgramMult<T> {
     pub inst: InstructionRow<T>,
-    // TODO: see if we can get rid of this.
-    // We could just force our programs to have a power of two length.
-    pub mult_in_rom: T,
     pub mult_in_cpu: T,
 }
 
@@ -23,5 +21,5 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<InstructionRow<Column>> {
 
 #[must_use]
 pub fn lookup_for_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
-    ProgramMultTable::new(COL_MAP.inst, COL_MAP.mult_in_rom)
+    ProgramMultTable::new(COL_MAP.inst, ColumnWithTypedInput::constant(1))
 }
