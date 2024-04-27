@@ -21,16 +21,19 @@ pub fn generate_program_mult_trace<F: RichField>(
 ) -> Vec<ProgramMult<F>> {
     let mut counts = trace
         .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst.pc)
-        .counts();
+        .map(|row| (row.inst.pc, row.is_running))
+        .into_group_map();
     program_rom
         .iter()
-        .map(|row| {
+        .map(|&inst| {
             ProgramMult {
                 // This assumes that row.filter is binary, and that we have no duplicates.
-                mult_in_cpu: F::from_canonical_usize(counts.remove(&row.pc).unwrap_or_default()),
-                inst: *row,
+                mult_in_cpu: counts
+                    .remove(&inst.pc)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .sum(),
+                inst,
             }
         })
         .collect()
