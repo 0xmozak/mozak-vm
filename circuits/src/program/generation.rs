@@ -2,7 +2,7 @@ use mozak_runner::elf::Program;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::Instruction;
-use crate::program::columns::{InstructionRow, ProgramRom};
+use crate::program::columns::ProgramRom;
 use crate::utils::pad_trace_with_last;
 
 /// Generates a program ROM trace from a given program.
@@ -12,7 +12,7 @@ pub fn generate_program_rom_trace<F: RichField>(program: &Program) -> Vec<Progra
         .ro_code
         .iter()
         .filter_map(|(&pc, &inst)| {
-            Some(InstructionRow::from(
+            Some(ProgramRom::from(
                 Instruction::from((pc, inst.ok()?)).map(F::from_canonical_u32),
             ))
         })

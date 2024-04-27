@@ -3,11 +3,12 @@ use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::stark::mozak_stark::{ProgramTable, TableWithTypedOutput};
 
-columns_view_impl!(InstructionRow);
-make_col_map!(InstructionRow);
+columns_view_impl!(ProgramRom);
+make_col_map!(ProgramRom);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct InstructionRow<T> {
+/// A Row of ROM generated from read-only memory
+pub struct ProgramRom<T> {
     // Design doc for CPU <> Program cross-table-lookup:
     // https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5#c3876d13c1f94b7ab154ea1f8b908181
     pub pc: T,
@@ -19,13 +20,10 @@ pub struct InstructionRow<T> {
     pub inst_data: T,
 }
 
-/// A Row of ROM generated from read-only memory
-pub type ProgramRom<T> = InstructionRow<T>;
-
 // Total number of columns.
 pub const NUM_PROGRAM_COLS: usize = ProgramRom::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
-pub fn lookup_for_ctl() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_ctl() -> TableWithTypedOutput<ProgramRom<Column>> {
     ProgramTable::new(COL_MAP, ColumnWithTypedInput::constant(1))
 }
