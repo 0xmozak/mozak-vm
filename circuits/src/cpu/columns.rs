@@ -425,7 +425,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
                 1 << 5,
             ),
         },
-        CPU.is_running,
+        ColumnWithTypedInput::constant(1),
     )
 }
 
