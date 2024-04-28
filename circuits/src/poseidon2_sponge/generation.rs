@@ -12,7 +12,11 @@ pub fn filter<F: RichField>(step_rows: &[Row<F>]) -> impl Iterator<Item = &Row<F
 }
 
 fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
-    let poseidon2 = row.aux.poseidon2.clone().expect("please pass filtered row");
+    let poseidon2 = row
+        .aux
+        .poseidon2
+        .as_ref()
+        .expect("please pass filtered row");
     let mut unroll = vec![];
     let rate_size = u32::try_from(Poseidon2Permutation::<F>::RATE).expect("RATE > 2^32");
     assert_eq!(poseidon2.len % rate_size, 0);

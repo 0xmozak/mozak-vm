@@ -73,9 +73,6 @@ pub fn lookup_for_poseidon2() -> TableWithTypedOutput<Poseidon2StateCtl<Column>>
         },
         COL_MAP.is_executed(),
     )
-    // let mut data = sponge.preimage.to_vec();
-    // data.extend(sponge.output.to_vec());
-    // data
 }
 
 #[must_use]
