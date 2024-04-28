@@ -90,7 +90,7 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2Outp
 }
 
 pub fn lookup_for_input_memory() -> impl Iterator<Item = TableWithTypedOutput<MemoryCtl<Column>>> {
-    izip!(0.., COL_MAP.preimage).take(WIDTH).map(|(i, value)| {
+    izip!(0.., COL_MAP.preimage).take(8).map(|(i, value)| {
         Poseidon2SpongeTable::new(
             MemoryCtl {
                 clk: COL_MAP.clk,
