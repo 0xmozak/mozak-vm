@@ -60,7 +60,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                     TableKind::Register => extract(register_trace, &looking_table),
                     // We are trying to build the RangeCheck table, so we have to ignore it here.
                     TableKind::RangeCheck => vec![],
-                    other => unimplemented!("Can't range check {other:#?} tables, yet."),
+                    other => unimplemented!("Can't range check {other:#?} tables"),
                 }
                 .iter()
                 .map(F::to_noncanonical_u64)
