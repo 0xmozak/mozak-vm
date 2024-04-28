@@ -23,12 +23,12 @@ pub fn extract<'a, F: RichField, Row>(trace: &'a [Row], looking_table: &'a Table
 where
     Row: Index<usize, Output = F> + 'a, {
     if let [column] = &looking_table.columns[..] {
-        let trace = trace
+        trace
             .iter()
             .circular_tuple_windows()
             .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_nonzero())
-            .map(|(prev_row, row)| column.eval(prev_row, row));
-        trace.collect()
+            .map(|(prev_row, row)| column.eval(prev_row, row))
+            .collect()
     } else {
         panic!("Can only range check single values, not tuples.")
     }
