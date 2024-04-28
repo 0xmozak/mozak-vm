@@ -158,6 +158,7 @@ mod tests {
         let register_init = generate_register_init_trace(&record);
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
+            &poseidon2_sponge_trace,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &call_tape_rows,
