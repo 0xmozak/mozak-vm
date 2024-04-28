@@ -1,8 +1,10 @@
 use core::ops::Add;
 
 use itertools::izip;
+use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
-use plonky2::hash::poseidon2::WIDTH;
+use plonky2::hash::hashing::PlonkyPermutation;
+use plonky2::hash::poseidon2::{Poseidon2Permutation, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnWithTypedInput;
@@ -90,16 +92,18 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2Outp
 }
 
 pub fn lookup_for_input_memory() -> impl Iterator<Item = TableWithTypedOutput<MemoryCtl<Column>>> {
-    izip!(0.., COL_MAP.preimage).take(8).map(|(i, value)| {
-        Poseidon2SpongeTable::new(
-            MemoryCtl {
-                clk: COL_MAP.clk,
-                is_store: ColumnWithTypedInput::constant(0),
-                is_load: ColumnWithTypedInput::constant(1),
-                value,
-                addr: COL_MAP.input_addr + i,
-            },
-            COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
-        )
-    })
+    izip!(0.., COL_MAP.preimage)
+        .take(Poseidon2Permutation::<GoldilocksField>::RATE)
+        .map(|(i, value)| {
+            Poseidon2SpongeTable::new(
+                MemoryCtl {
+                    clk: COL_MAP.clk,
+                    is_store: ColumnWithTypedInput::constant(0),
+                    is_load: ColumnWithTypedInput::constant(1),
+                    value,
+                    addr: COL_MAP.input_addr + i,
+                },
+                COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
+            )
+        })
 }
