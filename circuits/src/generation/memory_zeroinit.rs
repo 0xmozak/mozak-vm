@@ -13,7 +13,7 @@ pub(crate) fn init_in_program<F: RichField>(program: &Program) -> BTreeSet<u32> 
     generate_memory_init_trace::<F>(program)
         .iter()
         .filter(|row| row.filter.is_one())
-        .filter_map(|row| row.element.address.to_noncanonical_u64().try_into().ok())
+        .filter_map(|row| row.address.to_noncanonical_u64().try_into().ok())
         .collect()
 }
 
