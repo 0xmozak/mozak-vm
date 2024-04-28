@@ -8,21 +8,20 @@ use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, Table, TableKind};
 
-/// extract the values with multiplicity nonzero
-pub fn extract_with_mul<F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<(F, F)>
+/// extract the values with multiplicities
+pub fn extract_with_mul<F: RichField, Row>(trace: &[Row], looking_table: &Table) -> Vec<(F, F)>
 where
-    V: Index<usize, Output = F>, {
+    Row: Index<usize, Output = F>, {
     if let [column] = &looking_table.columns[..] {
         trace
             .iter()
             .circular_tuple_windows()
             .map(|(prev_row, row)| {
                 (
-                    looking_table.filter_column.eval(prev_row, row),
                     column.eval(prev_row, row),
+                    looking_table.filter_column.eval(prev_row, row),
                 )
             })
-            .filter(|(multiplicity, _value)| multiplicity.is_nonzero())
             .collect()
     } else {
         panic!("Can only range check single values, not tuples.")
@@ -37,7 +36,6 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
     rangecheck_trace: &[RangeCheckColumnsView<F>],
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckU8<F>> {
-    let mut multiplicities = [0u64; 256];
     RangeCheckU8LookupTable::lookups()
         .looking_tables
         .into_iter()
@@ -48,14 +46,13 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
             TableKind::RangeCheckU8 => vec![],
             other => unimplemented!("Can't range check {other:?} tables"),
         })
-        .for_each(|(multiplicity, limb)| {
-            let limb: u8 = F::to_canonical_u64(&limb).try_into().unwrap();
-            multiplicities[limb as usize] += multiplicity.to_canonical_u64();
-        });
-    (0..=u8::MAX)
-        .map(|limb| RangeCheckU8 {
-            value: F::from_canonical_u8(limb),
-            multiplicity: F::from_canonical_u64(multiplicities[limb as usize]),
+        .chain((0..=u8::MAX).map(|v| (F::from_canonical_u8(v), F::ZERO)))
+        .into_group_map()
+        .into_iter()
+        .sorted_by_key(|(limb, _)| limb.to_noncanonical_u64())
+        .map(|(limb, mults)| RangeCheckU8 {
+            value: limb,
+            multiplicity: mults.into_iter().sum(),
         })
         .collect()
 }
