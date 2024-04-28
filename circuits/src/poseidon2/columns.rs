@@ -31,28 +31,11 @@ pub struct Poseidon2State<F> {
     pub s_box_input_qube_partial_rounds: [F; ROUNDS_P],
 }
 
-// TODO(Matthias): see https://users.rust-lang.org/t/cannot-default-slices-bigger-than-32-items/4947
-impl<F: Default + Copy> Default for Poseidon2State<F> {
-    fn default() -> Self {
-        Self {
-            is_exe: F::default(),
-            input: [F::default(); STATE_SIZE],
-            state_after_first_full_rounds: [F::default(); STATE_SIZE_AFTER],
-            state0_after_partial_rounds: [F::default(); ROUNDS_P],
-            state_after_partial_rounds: [F::default(); STATE_SIZE],
-            state_after_second_full_rounds: [F::default(); STATE_SIZE_AFTER],
-            s_box_input_qube_first_full_rounds: [F::default(); STATE_SIZE_AFTER],
-            s_box_input_qube_second_full_rounds: [F::default(); STATE_SIZE_AFTER],
-            s_box_input_qube_partial_rounds: [F::default(); ROUNDS_P],
-        }
-    }
-}
-
 pub const NUM_POSEIDON2_COLS: usize = Poseidon2State::<()>::NUMBER_OF_COLUMNS;
 
 columns_view_impl!(Poseidon2StateCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2StateCtl<F> {
     pub input: [F; STATE_SIZE],
     pub output: [F; STATE_SIZE],

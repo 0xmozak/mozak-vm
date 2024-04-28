@@ -21,7 +21,7 @@ use crate::xor::columns::XorView;
 columns_view_impl!(OpSelectors);
 /// Selectors for which instruction is currently active.
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct OpSelectors<T> {
     pub add: T,
     pub sub: T,
@@ -71,7 +71,7 @@ pub struct OpSelectors<T> {
 columns_view_impl!(Instruction);
 /// Internal [Instruction] of Stark used for transition constrains
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Instruction<T> {
     /// The original instruction (+ `imm_value`) used for program
     /// cross-table-lookup.
@@ -96,7 +96,7 @@ make_col_map!(CpuState);
 columns_view_impl!(CpuState);
 /// Represents the State of the CPU, which is also a row of the trace
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,

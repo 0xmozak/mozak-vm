@@ -8,7 +8,7 @@ use crate::stark::mozak_stark::TableWithTypedOutput;
 columns_view_impl!(MemElement);
 /// A Memory Slot that has an address and a value
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct MemElement<T> {
     pub address: T,
     pub value: T,
@@ -18,7 +18,7 @@ columns_view_impl!(MemoryInit);
 make_col_map!(MemoryInit);
 /// A Row of Memory generated from both read-only and read-write memory
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct MemoryInit<T> {
     pub element: MemElement<T>,
     /// Filters out instructions that are duplicates, i.e., appear more than
@@ -46,7 +46,7 @@ impl<F: RichField> MemoryInit<F> {
 
 columns_view_impl!(MemoryInitCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct MemoryInitCtl<T> {
     pub is_writable: T,
     pub address: T,

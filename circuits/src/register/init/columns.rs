@@ -7,7 +7,7 @@ use crate::stark::mozak_stark::{RegisterInitTable, TableWithTypedOutput};
 columns_view_impl!(RegisterInit);
 make_col_map!(RegisterInit);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct RegisterInit<T> {
     /// The 'address' that indexes into 1 of our 32 registers. Should only
     /// take values 0-31, so this column should be a running sum

@@ -4,7 +4,7 @@ use crate::stark::mozak_stark::{ProgramTable, TableWithTypedOutput};
 
 columns_view_impl!(InstructionRow);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct InstructionRow<T> {
     // Design doc for CPU <> Program cross-table-lookup:
     // https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5#c3876d13c1f94b7ab154ea1f8b908181
@@ -21,7 +21,7 @@ columns_view_impl!(ProgramRom);
 make_col_map!(ProgramRom);
 /// A Row of ROM generated from read-only memory
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct ProgramRom<T> {
     pub inst: InstructionRow<T>,
     /// Filters out instructions that are duplicates, i.e., appear more than
