@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use itertools::izip;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -36,16 +37,13 @@ const PUBLIC_INPUTS: usize = 0;
 fn generate_constraints<'a, T: Copy>(
     vars: &StarkFrameTyped<Poseidon2Sponge<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     rate: usize,
-    state_size: usize,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     // NOTE: clk and address will be used for CTL to CPU for is_init_permute rows
     // only, and not be used for permute rows.
     // For all non dummy rows we have CTL to Poseidon2 permute stark, with preimage
     // and output columns.
 
-    let rate = u8::try_from(rate).expect("rate > 255");
-    let state_size = u8::try_from(state_size).expect("state_size > 255");
-    let rate_scalar = i64::from(rate);
+    let rate_scalar = i64::try_from(rate).unwrap();
     let lv = vars.local_values;
     let nv = vars.next_values;
     let mut constraints = ConstraintBuilder::default();
@@ -65,12 +63,18 @@ fn generate_constraints<'a, T: Copy>(
     // chunk of input.
     constraints.always(lv.gen_output * (lv.input_len - rate_scalar));
 
+    // This is inverted from our other is_X columns.
     let is_init_or_dummy = |vars: &Poseidon2Sponge<Expr<'a, T>>| {
         (1 - vars.ops.is_init_permute) * (vars.ops.is_init_permute + vars.ops.is_permute)
     };
 
+    // TOOD(Matthias): since the number of sponge bytes is fixed, we can replace this whole table with
+    // a fixed number of lookups.
+    // Hmm, no we cannot, because it's not a fixed length.
+    // Oh, but we can replace the constraints with a lookup
     // First row must be init permute or dummy row.
-    constraints.first_row(is_init_or_dummy(&lv));
+    constraints.first_row(
+        is_init_or_dummy(&lv));
     // if row generates output then next row can be dummy or start of next hashing
     constraints.always(lv.gen_output * is_init_or_dummy(&nv));
 
@@ -78,7 +82,7 @@ fn generate_constraints<'a, T: Copy>(
     constraints.transition(nv.ops.is_permute * (lv.clk - nv.clk));
 
     let not_last_sponge = (1 - lv.gen_output) * (lv.ops.is_permute + lv.ops.is_init_permute);
-    // if current row consumes input and its not last sponge then next row must have
+    // if current row consumes input and it's not last sponge then next row must have
     // length decreases by RATE, note that only actual execution row can consume
     // input
     constraints.transition(not_last_sponge * (lv.input_len - (nv.input_len + rate_scalar)));
@@ -86,17 +90,13 @@ fn generate_constraints<'a, T: Copy>(
     constraints.transition(not_last_sponge * (lv.input_addr - (nv.input_addr - rate_scalar)));
 
     // For each init_permute capacity bits are zero.
-    for i in rate..state_size {
-        constraints.always(lv.ops.is_init_permute * (lv.preimage[i as usize] - 0));
+    for &prepixel in &lv.preimage[rate..] {
+        constraints.always(lv.ops.is_init_permute * prepixel);
     }
 
     // For each permute capacity bits are copied from previous output.
-    for i in rate..state_size {
-        constraints.always(
-            (1 - nv.ops.is_init_permute)
-                * nv.ops.is_permute
-                * (nv.preimage[i as usize] - lv.output[i as usize]),
-        );
+    for (prepixel, output) in izip!(nv.preimage, lv.output).skip(rate) {
+        constraints.always((1 - nv.ops.is_init_permute) * nv.ops.is_permute * (prepixel - output));
     }
     constraints
 }
@@ -120,7 +120,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         let constraints = generate_constraints(
             &eb.to_typed_starkframe(vars),
             Poseidon2Permutation::<F>::RATE,
-            Poseidon2Permutation::<F>::WIDTH,
         );
         build_packed(constraints, consumer);
     }
@@ -136,7 +135,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         let constraints = generate_constraints(
             &eb.to_typed_starkframe(vars),
             Poseidon2Permutation::<F>::RATE,
-            Poseidon2Permutation::<F>::WIDTH,
         );
         build_ext(constraints, builder, consumer);
     }
