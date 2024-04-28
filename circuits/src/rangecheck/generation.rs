@@ -71,12 +71,8 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                 .map(|(v, multiplicity)| RangeCheckColumnsView {
                     multiplicity: F::from_canonical_usize(multiplicity),
                     limbs: limbs_from_u32(v.try_into().unwrap_or_else(|_|
-                                            panic!(
-                                                      "We can only rangecheck values that actually fit in u32, but got: {v:#x?}"
-                                            )))
-                })
-            })
-            .collect(),
+                        panic!("We can only rangecheck values that actually fit in u32, but got: {v:#x?}")))
+            })}).collect(),
     )
 }
 
