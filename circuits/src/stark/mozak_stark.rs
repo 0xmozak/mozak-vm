@@ -693,22 +693,19 @@ impl Lookups for IntoMemoryTable {
     #[allow(clippy::too_many_lines)]
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         let tables = chain![
+            [cpu::columns::lookup_for_memory()],
             [
-                cpu::columns::lookup_for_memory(),
-                memory_halfword::columns::lookup_for_memory_limb(0),
-                memory_halfword::columns::lookup_for_memory_limb(1),
-                memory_fullword::columns::lookup_for_memory_limb(0),
-                memory_fullword::columns::lookup_for_memory_limb(1),
-                memory_fullword::columns::lookup_for_memory_limb(2),
-                memory_fullword::columns::lookup_for_memory_limb(3),
-                memory_io::columns::lookup_for_memory(TableKind::StorageDevicePrivate),
-                memory_io::columns::lookup_for_memory(TableKind::StorageDevicePublic),
-                memory_io::columns::lookup_for_memory(TableKind::CallTape),
-                memory_io::columns::lookup_for_memory(TableKind::EventsCommitmentTape),
-                memory_io::columns::lookup_for_memory(TableKind::CastListCommitmentTape),
-            ],
-            (0..8).map(poseidon2_sponge::columns::lookup_for_input_memory),
-            (0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory),
+                TableKind::StorageDevicePrivate,
+                TableKind::StorageDevicePublic,
+                TableKind::CallTape,
+                TableKind::EventsCommitmentTape,
+                TableKind::CastListCommitmentTape
+            ]
+            .map(memory_io::columns::lookup_for_memory),
+            memory_fullword::columns::lookup_for_memory_limb(),
+            memory_halfword::columns::lookup_for_memory_limb(),
+            poseidon2_sponge::columns::lookup_for_input_memory(),
+            poseidon2_output_bytes::columns::lookup_for_output_memory(),
         ]
         .collect();
         CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])

@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+use itertools::izip;
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::poseidon2::WIDTH;
 
@@ -88,17 +89,17 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2Outp
     )
 }
 
-#[must_use]
-pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
-    assert!(limb_index < 8, "limb_index can be 0..7");
-    Poseidon2SpongeTable::new(
-        MemoryCtl {
-            clk: COL_MAP.clk,
-            is_store: ColumnWithTypedInput::constant(0),
-            is_load: ColumnWithTypedInput::constant(1),
-            value: COL_MAP.preimage[limb_index as usize],
-            addr: COL_MAP.input_addr + i64::from(limb_index),
-        },
-        COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
-    )
+pub fn lookup_for_input_memory() -> impl Iterator<Item = TableWithTypedOutput<MemoryCtl<Column>>> {
+    izip!(0.., COL_MAP.preimage).take(WIDTH).map(|(i, value)| {
+        Poseidon2SpongeTable::new(
+            MemoryCtl {
+                clk: COL_MAP.clk,
+                is_store: ColumnWithTypedInput::constant(0),
+                is_load: ColumnWithTypedInput::constant(1),
+                value,
+                addr: COL_MAP.input_addr + i,
+            },
+            COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
+        )
+    })
 }
