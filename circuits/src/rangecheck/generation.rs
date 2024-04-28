@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::ops::Index;
 
 use itertools::Itertools;
@@ -14,22 +13,22 @@ use crate::utils::pad_trace_with_default;
 /// Converts a u32 into 4 u8 limbs represented in [`RichField`].
 #[must_use]
 pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
-    value.to_le_bytes().map(|v| F::from_canonical_u8(v))
+    value.to_le_bytes().map(F::from_canonical_u8)
 }
 
 /// extract the values to be rangechecked.
 /// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
 /// memory traces, hence ignored
-pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<F>
+pub fn extract<'a, F: RichField, Row>(trace: &'a [Row], looking_table: &'a Table) -> Vec<F>
 where
-    V: Index<usize, Output = F> + 'a, {
+    Row: Index<usize, Output = F> + 'a, {
     if let [column] = &looking_table.columns[..] {
-        trace
+        let trace = trace
             .iter()
             .circular_tuple_windows()
-            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_one())
-            .map(|(prev_row, row)| column.eval(prev_row, row))
-            .collect()
+            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_nonzero())
+            .map(|(prev_row, row)| column.eval(prev_row, row));
+        trace.collect()
     } else {
         panic!("Can only range check single values, not tuples.")
     }
@@ -50,39 +49,35 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     memory_trace: &[Memory<F>],
     register_trace: &[Register<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
-    let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
-
-    RangecheckTable::lookups()
-        .looking_tables
-        .into_iter()
-        .for_each(|looking_table| {
-            match looking_table.kind {
-                TableKind::Cpu => extract(cpu_trace, &looking_table),
-                TableKind::Memory => extract(memory_trace, &looking_table),
-                TableKind::Register => extract(register_trace, &looking_table),
-                // We are trying to build the RangeCheck table, so we have to ignore it here.
-                TableKind::RangeCheck => vec![],
-                other => unimplemented!("Can't range check {other:#?} tables"),
-            }
+    pad_trace_with_default(
+        RangecheckTable::lookups()
+            .looking_tables
             .into_iter()
-            .for_each(|v| {
-                let val = u32::try_from(v.to_canonical_u64()).unwrap_or_else(|_| {
-                    panic!(
-                        "We can only rangecheck values that actually fit in u32, but got: {v:#x?}"
-                    )
-                });
-                *multiplicities.entry(val).or_default() += 1;
-            });
-        });
-    let mut trace = Vec::with_capacity(multiplicities.len());
-    for (value, multiplicity) in multiplicities {
-        trace.push(RangeCheckColumnsView {
-            multiplicity: F::from_canonical_u64(multiplicity),
-            limbs: limbs_from_u32(value),
-        });
-    }
-
-    pad_trace_with_default(trace)
+            .flat_map(|looking_table| {
+                match looking_table.kind {
+                    TableKind::Cpu => extract(cpu_trace, &looking_table),
+                    TableKind::Memory => extract(memory_trace, &looking_table),
+                    TableKind::Register => extract(register_trace, &looking_table),
+                    // We are trying to build the RangeCheck table, so we have to ignore it here.
+                    TableKind::RangeCheck => vec![],
+                    other => unimplemented!("Can't range check {other:#?} tables, yet."),
+                }
+                .iter()
+                .map(F::to_noncanonical_u64)
+                .counts()
+                .into_iter()
+                // Sorting just for determinism:
+                .sorted()
+                .map(|(v, multiplicity)| RangeCheckColumnsView {
+                    multiplicity: F::from_canonical_usize(multiplicity),
+                    limbs: limbs_from_u32(v.try_into().unwrap_or_else(|_|
+                                            panic!(
+                                                      "We can only rangecheck values that actually fit in u32, but got: {v:#x?}"
+                                            )))
+                })
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
