@@ -16,6 +16,7 @@ pub struct IdentityStack(Vec<ProgramIdentifier>);
 impl IdentityStack {
     pub fn add_identity(&mut self, id: ProgramIdentifier) { self.0.push(id); }
 
+    #[must_use]
     pub fn top_identity(&self) -> ProgramIdentifier { self.0.last().copied().unwrap_or_default() }
 
     pub fn rm_identity(&mut self) { self.0.truncate(self.0.len().saturating_sub(1)); }
@@ -66,6 +67,7 @@ pub fn rm_identity() {
 
 /// Hashes the input slice to `Poseidon2Hash` after padding.
 /// We use the well known "Bit padding scheme".
+#[must_use]
 pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
     let mut padded_input = input.to_vec();
     padded_input.push(1);
@@ -91,6 +93,7 @@ pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
 /// This is intentional since zkvm's proof system
 /// would fail otherwise.
 #[allow(unused)]
+#[must_use]
 pub fn poseidon2_hash_no_pad(input: &[u8]) -> Poseidon2Hash {
     assert!(input.len() % RATE == 0);
     let data_fields: Vec<GoldilocksField> = input

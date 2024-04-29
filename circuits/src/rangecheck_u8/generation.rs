@@ -1,33 +1,11 @@
-use std::ops::Index;
-
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
+use crate::rangecheck::generation::extract_with_mul;
 use crate::rangecheck_u8::columns::RangeCheckU8;
-use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, Table, TableKind};
-
-/// extract the values with multiplicity nonzero
-pub fn extract_with_mul<F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<(F, F)>
-where
-    V: Index<usize, Output = F>, {
-    if let [column] = &looking_table.columns[..] {
-        trace
-            .iter()
-            .circular_tuple_windows()
-            .map(|(prev_row, row)| {
-                (
-                    looking_table.filter_column.eval(prev_row, row),
-                    column.eval(prev_row, row),
-                )
-            })
-            .filter(|(multiplicity, _value)| multiplicity.is_nonzero())
-            .collect()
-    } else {
-        panic!("Can only range check single values, not tuples.")
-    }
-}
+use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, TableKind};
 
 /// Generate a limb lookup trace from `rangecheck_trace`
 ///
@@ -37,7 +15,6 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
     rangecheck_trace: &[RangeCheckColumnsView<F>],
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckU8<F>> {
-    let mut multiplicities = [0u64; 256];
     RangeCheckU8LookupTable::lookups()
         .looking_tables
         .into_iter()
@@ -48,14 +25,13 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
             TableKind::RangeCheckU8 => vec![],
             other => unimplemented!("Can't range check {other:?} tables"),
         })
-        .for_each(|(multiplicity, limb)| {
-            let limb: u8 = F::to_canonical_u64(&limb).try_into().unwrap();
-            multiplicities[limb as usize] += multiplicity.to_canonical_u64();
-        });
-    (0..=u8::MAX)
-        .map(|limb| RangeCheckU8 {
-            value: F::from_canonical_u8(limb),
-            multiplicity: F::from_canonical_u64(multiplicities[limb as usize]),
+        .chain((0..=u8::MAX).map(|v| (F::from_canonical_u8(v), F::ZERO)))
+        .into_group_map()
+        .into_iter()
+        .sorted_by_key(|(value, _)| value.to_noncanonical_u64())
+        .map(|(value, mults)| RangeCheckU8 {
+            value,
+            multiplicity: mults.into_iter().sum(),
         })
         .collect()
 }
@@ -133,6 +109,7 @@ mod tests {
         let register_init = generate_register_init_trace(&record);
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
+            &poseidon2_sponge_trace,
             &io_memory_private,
             &io_memory_public,
             &call_tape_rows,
