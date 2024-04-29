@@ -10,16 +10,16 @@ make_col_map!(ProgramMult);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct ProgramMult<T> {
-    pub inst: ProgramRom<T>,
+    pub rom_row: ProgramRom<T>,
     pub mult_in_cpu: T,
 }
 
 #[must_use]
 pub fn lookup_for_cpu() -> TableWithTypedOutput<ProgramRom<Column>> {
-    ProgramMultTable::new(COL_MAP.inst, COL_MAP.mult_in_cpu)
+    ProgramMultTable::new(COL_MAP.rom_row, COL_MAP.mult_in_cpu)
 }
 
 #[must_use]
 pub fn lookup_for_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
-    ProgramMultTable::new(COL_MAP.inst, ColumnWithTypedInput::constant(1))
+    ProgramMultTable::new(COL_MAP.rom_row, ColumnWithTypedInput::constant(1))
 }
