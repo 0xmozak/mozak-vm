@@ -58,9 +58,9 @@ impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
     fn from(row: &MemoryInit<F>) -> Self {
         row.filter.is_one().then(|| Memory {
             is_writable: row.is_writable,
-            addr: row.element.address,
+            addr: row.address,
             is_init: F::ONE,
-            value: row.element.value,
+            value: row.value,
             clk: F::ONE,
             ..Default::default()
         })
