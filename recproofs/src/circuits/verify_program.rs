@@ -419,6 +419,7 @@ pub mod test {
 
     pub struct BuiltEvent {
         pub proof: ProofWithPublicInputs<F, C, D>,
+        #[allow(dead_code)]
         pub hash: HashOut<F>,
         pub vm_hash: HashOut<F>,
     }

@@ -3,7 +3,7 @@ use crate::cross_table_lookup::Column;
 use crate::stark::mozak_stark::{RangeCheckTable, TableWithTypedOutput};
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct RangeCheckColumnsView<T> {
     /// The limbs (u8) of the u32 value to be range
     /// checked.
@@ -27,7 +27,7 @@ pub fn lookup() -> TableWithTypedOutput<RangeCheckCtl<Column>> {
 
 columns_view_impl!(RangeCheckCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct RangeCheckCtl<T>(pub T);
 
 #[must_use]
