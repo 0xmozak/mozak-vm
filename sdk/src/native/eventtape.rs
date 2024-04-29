@@ -154,7 +154,7 @@ impl EventEmit for EventTape {
         self.writer
             .entry(self_id)
             .or_default()
-            .push_temporal(self_id, event);
+            .push_temporal(event);
     }
 }
 
