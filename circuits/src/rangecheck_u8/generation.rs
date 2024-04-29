@@ -50,9 +50,9 @@ pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
         .chain((0..=u8::MAX).map(|v| (F::from_canonical_u8(v), F::ZERO)))
         .into_group_map()
         .into_iter()
-        .sorted_by_key(|(limb, _)| limb.to_noncanonical_u64())
-        .map(|(limb, mults)| RangeCheckU8 {
-            value: limb,
+        .sorted_by_key(|(value, _)| value.to_noncanonical_u64())
+        .map(|(value, mults)| RangeCheckU8 {
+            value,
             multiplicity: mults.into_iter().sum(),
         })
         .collect()
