@@ -29,7 +29,7 @@ impl OrderedEvents {
         Self {
             temporal_ordering: events
                 .into_iter()
-                .map(|x| (x.clone(), CanonicalEvent::from_event(emitter, &x)))
+                .map(|x| (x.clone(), CanonicalEvent::from_event(&x)))
                 .collect(),
         }
     }
@@ -38,7 +38,7 @@ impl OrderedEvents {
     /// after every other `Event` in `OrderedEvents`. This is the only
     /// way to add elements to `OrderedEvents`
     pub fn push_temporal(&mut self, emitter: ProgramIdentifier, event: Event) {
-        let canonical_repr = CanonicalEvent::from_event(emitter, &event);
+        let canonical_repr = CanonicalEvent::from_event(&event);
         self.temporal_ordering.push((event, canonical_repr));
     }
 
@@ -195,9 +195,9 @@ mod tests {
 
         let temporal_order = vec![event3_read.clone(), event1_read.clone(), event2_read.clone()];
         let expected_canonical_order = vec![
-            CanonicalEvent::from_event(common_emitter, &event1_read),
-            CanonicalEvent::from_event(common_emitter, &event2_read),
-            CanonicalEvent::from_event(common_emitter, &event3_read)
+            CanonicalEvent::from_event(&event1_read),
+            CanonicalEvent::from_event(&event2_read),
+            CanonicalEvent::from_event(&event3_read)
         ];
         let expected_temporal_hints = vec![2, 0, 1];
 
