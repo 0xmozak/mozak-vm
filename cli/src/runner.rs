@@ -91,12 +91,15 @@ pub fn tapes_to_runtime_arguments(
             .iter()
             .map(|x| {
                 (
-                    u64::from_le_bytes(x.0.address.inner()),
+                    u64::from_le_bytes(x.0.address.inner()), /* May not be the best idea if
+                                                              * `addr` > goldilock's prime, cc
+                                                              * @Kapil */
                     x.0.canonical_hash(),
                 )
             })
             .collect::<Vec<(u64, Poseidon2Hash)>>(),
-    ).0;
+    )
+    .0;
 
     debug!("Self Prog ID: {self_prog_id:#?}");
     debug!("Found events: {:#?}", canonical_order_temporal_hints.len());
