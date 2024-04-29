@@ -1,33 +1,11 @@
-use std::ops::Index;
-
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
+use crate::rangecheck::generation::extract_with_mul;
 use crate::rangecheck_u8::columns::RangeCheckU8;
 use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, Table, TableKind};
-
-/// extract the values with multiplicities
-pub fn extract_with_mul<F: RichField, Row>(trace: &[Row], looking_table: &Table) -> Vec<(F, F)>
-where
-    Row: Index<usize, Output = F>, {
-    if let [column] = &looking_table.columns[..] {
-        trace
-            .iter()
-            .circular_tuple_windows()
-            .filter_map(|(prev_row, row)| {
-                let mult = looking_table.filter_column.eval(prev_row, row);
-                mult.is_nonzero().then_some((
-                    column.eval(prev_row, row).to_canonical(),
-                    looking_table.filter_column.eval(prev_row, row),
-                ))
-            })
-            .collect()
-    } else {
-        panic!("Can only range check single values, not tuples.")
-    }
-}
 
 /// Generate a limb lookup trace from `rangecheck_trace`
 ///
