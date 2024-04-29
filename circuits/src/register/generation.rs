@@ -13,7 +13,7 @@ use crate::register::zero_read::columns::RegisterZeroRead;
 use crate::register::zero_write::columns::RegisterZeroWrite;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
-use crate::utils::{pad_trace_with_default, pad_trace_with_row};
+use crate::utils::{pad_trace_with_default, pad_trace_with_last, pad_trace_with_row};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
 /// internally by `augmented_clk`
@@ -152,12 +152,11 @@ pub fn generate_register_init_trace<F: RichField>(
         .first()
         .map_or(&record.last_state, |row| &row.state);
 
-    pad_trace_with_default(
-        (0..32)
+    pad_trace_with_last(
+        (1..32)
             .map(|i| RegisterInit {
                 reg_addr: F::from_canonical_u8(i),
                 value: F::from_canonical_u32(first_state.get_register_value(i)),
-                is_looked_up: F::from_bool(i != 0),
             })
             .collect(),
     )
