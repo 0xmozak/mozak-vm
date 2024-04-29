@@ -25,7 +25,7 @@ pub struct OrderedEvents {
 
 impl OrderedEvents {
     #[must_use]
-    pub fn new(emitter: ProgramIdentifier, events: Vec<Event>) -> Self {
+    pub fn new(events: Vec<Event>) -> Self {
         Self {
             temporal_ordering: events
                 .into_iter()
@@ -37,7 +37,7 @@ impl OrderedEvents {
     /// Adds to ordered events an event "temporaly" a.k.a ordered in time
     /// after every other `Event` in `OrderedEvents`. This is the only
     /// way to add elements to `OrderedEvents`
-    pub fn push_temporal(&mut self, emitter: ProgramIdentifier, event: Event) {
+    pub fn push_temporal(&mut self, event: Event) {
         let canonical_repr = CanonicalEvent::from_event(&event);
         self.temporal_ordering.push((event, canonical_repr));
     }
@@ -201,7 +201,7 @@ mod tests {
         ];
         let expected_temporal_hints = vec![2, 0, 1];
 
-        let ordered_events = OrderedEvents::new(common_emitter, temporal_order.clone());
+        let ordered_events = OrderedEvents::new(temporal_order.clone());
 
         assert_eq!(ordered_events.get_canonical_order_temporal_hints(), 
             expected_canonical_order.into_iter().zip(expected_temporal_hints.into_iter())
