@@ -12,7 +12,7 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::StorageDeviceCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
-use crate::program::columns::InstructionRow;
+use crate::program::columns::ProgramRom;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
@@ -393,10 +393,10 @@ pub fn lookup_for_shift_amount() -> TableWithTypedOutput<Bitshift<Column>> {
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
     let inst = CPU.inst;
     CpuTable::new(
-        InstructionRow {
+        ProgramRom {
             pc: inst.pc,
             // Combine columns into a single column.
             // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
@@ -421,7 +421,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> 
                 1 << 5,
             ),
         },
-        CPU.is_running,
+        ColumnWithTypedInput::constant(1),
     )
 }
 

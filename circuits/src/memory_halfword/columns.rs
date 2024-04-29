@@ -1,5 +1,7 @@
 use core::ops::Add;
 
+use itertools::izip;
+
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnWithTypedInput;
 use crate::linear_combination::Column;
@@ -61,20 +63,17 @@ pub fn lookup_for_cpu() -> TableWithTypedOutput<MemoryCtl<Column>> {
 }
 
 /// Lookup into Memory stark table.
-#[must_use]
-pub fn lookup_for_memory_limb(limb_index: usize) -> TableWithTypedOutput<MemoryCtl<Column>> {
-    assert!(
-        limb_index < 2,
-        "limb_index is {limb_index} but it should be in 0..2 range"
-    );
-    HalfWordMemoryTable::new(
-        MemoryCtl {
-            clk: COL_MAP.clk,
-            is_store: COL_MAP.ops.is_store,
-            is_load: COL_MAP.ops.is_load,
-            value: COL_MAP.limbs[limb_index],
-            addr: COL_MAP.addrs[limb_index],
-        },
-        COL_MAP.is_executed(),
-    )
+pub fn lookup_for_memory_limb() -> impl Iterator<Item = TableWithTypedOutput<MemoryCtl<Column>>> {
+    izip!(COL_MAP.limbs, COL_MAP.addrs).map(|(value, addr)| {
+        HalfWordMemoryTable::new(
+            MemoryCtl {
+                clk: COL_MAP.clk,
+                is_store: COL_MAP.ops.is_store,
+                is_load: COL_MAP.ops.is_load,
+                value,
+                addr,
+            },
+            COL_MAP.is_executed(),
+        )
+    })
 }
