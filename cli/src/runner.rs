@@ -91,9 +91,10 @@ pub fn tapes_to_runtime_arguments(
             .iter()
             .map(|x| {
                 (
-                    u64::from_le_bytes(x.0.address.inner()), /* May not be the best idea if
-                                                              * `addr` > goldilock's prime, cc
-                                                              * @Kapil */
+                    // May not be the best idea if
+                    // `addr` > goldilock's prime, cc
+                    // @Kapil
+                    u64::from_le_bytes(x.0.address.inner()),
                     x.0.canonical_hash(),
                 )
             })

@@ -122,8 +122,8 @@ pub struct CanonicalOrderedTemporalHints(pub CanonicalEvent, pub u32);
 #[cfg(test)]
 mod tests {
     // use crate::common::types::{
-    //     CanonicalEvent, EventType, Poseidon2Hash, ProgramIdentifier, StateAddress,
-    // };
+    //     CanonicalEvent, EventType, Poseidon2Hash, ProgramIdentifier,
+    // StateAddress, };
     // use crate::native::helpers::poseidon2_hash_no_pad;
 
     // #[test]
@@ -209,8 +209,8 @@ mod tests {
     //     assert_eq!(
     //         branch_2_hash,
     //         poseidon2_hash_no_pad(
-    //             &itertools::chain!(read_0.canonical_hash().inner(), branch_1_hash.inner())
-    //                 .collect::<Vec<u8>>()
+    //             &itertools::chain!(read_0.canonical_hash().inner(),
+    // branch_1_hash.inner())                 .collect::<Vec<u8>>()
     //         )
     //     )
     // }
