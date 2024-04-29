@@ -185,10 +185,6 @@ pub struct CpuState<T> {
     pub is_cast_list_commitment_tape: T,
     pub is_halt: T,
     pub is_poseidon2: T,
-    // TODO: these two need constraints.
-    // (And/or should probably be removed.)
-    pub poseidon2_input_addr: T,
-    pub poseidon2_input_len: T,
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
@@ -431,14 +427,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
 
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
-    CpuTable::new(
-        Poseidon2SpongeCtl {
-            clk: CPU.clk,
-            input_addr: CPU.poseidon2_input_addr,
-            input_len: CPU.poseidon2_input_len,
-        },
-        CPU.is_poseidon2,
-    )
+    CpuTable::new(Poseidon2SpongeCtl { clk: CPU.clk }, CPU.is_poseidon2)
 }
 
 #[must_use]
