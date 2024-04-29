@@ -1,37 +1,18 @@
-use std::ops::Index;
-
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
+use crate::rangecheck_u8::generation::extract_with_mul;
 use crate::register::general::columns::Register;
-use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
+use crate::stark::mozak_stark::{Lookups, RangecheckTable, TableKind};
 use crate::utils::pad_trace_with_default;
 
 /// Converts a u32 into 4 u8 limbs represented in [`RichField`].
 #[must_use]
 pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
     value.to_le_bytes().map(F::from_canonical_u8)
-}
-
-/// extract the values to be rangechecked.
-/// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
-/// memory traces, hence ignored
-pub fn extract<'a, F: RichField, Row>(trace: &'a [Row], looking_table: &'a Table) -> Vec<F>
-where
-    Row: Index<usize, Output = F> + 'a, {
-    if let [column] = &looking_table.columns[..] {
-        trace
-            .iter()
-            .circular_tuple_windows()
-            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_nonzero())
-            .map(|(prev_row, row)| column.eval(prev_row, row))
-            .collect()
-    } else {
-        panic!("Can only range check single values, not tuples.")
-    }
 }
 
 /// Generates a trace table for range checks, used in building a
@@ -55,24 +36,25 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
             .into_iter()
             .flat_map(|looking_table| {
                 match looking_table.kind {
-                    TableKind::Cpu => extract(cpu_trace, &looking_table),
-                    TableKind::Memory => extract(memory_trace, &looking_table),
-                    TableKind::Register => extract(register_trace, &looking_table),
+                    TableKind::Cpu => extract_with_mul(cpu_trace, &looking_table),
+                    TableKind::Memory => extract_with_mul(memory_trace, &looking_table),
+                    TableKind::Register => extract_with_mul(register_trace, &looking_table),
                     // We are trying to build the RangeCheck table, so we have to ignore it here.
                     TableKind::RangeCheck => vec![],
                     other => unimplemented!("Can't range check {other:#?} tables"),
                 }
-                .iter()
-                .map(F::to_noncanonical_u64)
-                .counts()
-                .into_iter()
-                // Sorting just for determinism:
-                .sorted()
-                .map(|(v, multiplicity)| RangeCheckColumnsView {
-                    multiplicity: F::from_canonical_usize(multiplicity),
-                    limbs: limbs_from_u32(v.try_into().unwrap_or_else(|_|
-                        panic!("We can only rangecheck values that actually fit in u32, but got: {v:#x?}")))
             })
+            .into_group_map()
+            .into_iter()
+            // Sorting just for determinism:
+            .sorted_by_key(|(v, _)| v.to_noncanonical_u64())
+            .map(|(v, multiplicity)| RangeCheckColumnsView {
+                multiplicity: multiplicity.into_iter().sum(),
+                limbs: limbs_from_u32(v.to_noncanonical_u64().try_into().unwrap_or_else(|_| {
+                    panic!(
+                        "We can only rangecheck values that actually fit in u32, but got: {v:#x?}"
+                    )
+                })),
             })
             .collect(),
     )

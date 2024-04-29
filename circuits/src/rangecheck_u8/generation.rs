@@ -16,11 +16,12 @@ where
         trace
             .iter()
             .circular_tuple_windows()
-            .map(|(prev_row, row)| {
-                (
+            .filter_map(|(prev_row, row)| {
+                let mult = looking_table.filter_column.eval(prev_row, row);
+                mult.is_nonzero().then_some((
                     column.eval(prev_row, row),
                     looking_table.filter_column.eval(prev_row, row),
-                )
+                ))
             })
             .collect()
     } else {
