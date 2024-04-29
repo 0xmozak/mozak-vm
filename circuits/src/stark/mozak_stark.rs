@@ -35,7 +35,7 @@ use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, Poseidon2Outp
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
 use crate::poseidon2_sponge::columns::{Poseidon2Sponge, Poseidon2SpongeCtl};
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
-use crate::program::columns::{InstructionRow, ProgramRom};
+use crate::program::columns::ProgramRom;
 use crate::program::stark::ProgramStark;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::program_multiplicities::stark::ProgramMultStark;
@@ -748,7 +748,7 @@ impl Lookups for BitshiftCpuTable {
 pub struct InnerCpuTable;
 
 impl Lookups for InnerCpuTable {
-    type Row = InstructionRow<Column>;
+    type Row = ProgramRom<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(vec![cpu::columns::lookup_for_program_rom()], vec![
@@ -760,7 +760,7 @@ impl Lookups for InnerCpuTable {
 pub struct ProgramCpuTable;
 
 impl Lookups for ProgramCpuTable {
-    type Row = InstructionRow<Column>;
+    type Row = ProgramRom<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
