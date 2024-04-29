@@ -19,7 +19,7 @@ where
             .filter_map(|(prev_row, row)| {
                 let mult = looking_table.filter_column.eval(prev_row, row);
                 mult.is_nonzero().then_some((
-                    column.eval(prev_row, row),
+                    column.eval(prev_row, row).to_canonical(),
                     looking_table.filter_column.eval(prev_row, row),
                 ))
             })
