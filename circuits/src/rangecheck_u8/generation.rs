@@ -5,7 +5,7 @@ use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::rangecheck::generation::extract_with_mul;
 use crate::rangecheck_u8::columns::RangeCheckU8;
-use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, Table, TableKind};
+use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, TableKind};
 
 /// Generate a limb lookup trace from `rangecheck_trace`
 ///
