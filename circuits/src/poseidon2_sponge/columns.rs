@@ -24,7 +24,7 @@ pub struct Ops<T> {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2Sponge<T> {
     pub clk: T,
     pub ops: Ops<T>,
@@ -47,7 +47,7 @@ impl<T: Copy + Add<Output = T>> Poseidon2Sponge<T> {
 
 columns_view_impl!(Poseidon2SpongeCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2SpongeCtl<T> {
     pub clk: T,
 }

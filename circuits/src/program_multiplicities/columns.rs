@@ -8,7 +8,7 @@ columns_view_impl!(ProgramMult);
 make_col_map!(ProgramMult);
 /// A Row of ROM generated from read-only memory
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct ProgramMult<T> {
     pub rom_row: ProgramRom<T>,
     pub mult_in_cpu: T,

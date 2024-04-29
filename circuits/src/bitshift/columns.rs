@@ -4,7 +4,7 @@ use crate::stark::mozak_stark::{BitshiftTable, TableWithTypedOutput};
 
 columns_view_impl!(Bitshift);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Bitshift<T> {
     pub amount: T,
     pub multiplier: T,
@@ -22,7 +22,7 @@ impl From<u8> for Bitshift<u32> {
 make_col_map!(BitshiftView);
 columns_view_impl!(BitshiftView);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct BitshiftView<T> {
     /// Contains the `Bitshift` columns with the shift amount and the
     /// multiplier.

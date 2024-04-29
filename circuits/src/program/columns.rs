@@ -6,7 +6,7 @@ use crate::stark::mozak_stark::{ProgramTable, TableWithTypedOutput};
 columns_view_impl!(ProgramRom);
 make_col_map!(ProgramRom);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 /// A Row of ROM generated from read-only memory
 pub struct ProgramRom<T> {
     // Design doc for CPU <> Program cross-table-lookup:

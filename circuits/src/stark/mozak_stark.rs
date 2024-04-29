@@ -380,7 +380,7 @@ impl<T> TableKindArray<T> {
 columns_view_impl!(PublicInputs);
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(bound = "F: Field")]
 pub struct PublicInputs<F> {
     pub entry_point: F,
