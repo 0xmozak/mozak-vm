@@ -151,10 +151,7 @@ impl EventEmit for EventTape {
         let self_id = self.get_self_identity();
         assert_ne!(self_id, ProgramIdentifier::default());
 
-        self.writer
-            .entry(self_id)
-            .or_default()
-            .push_temporal(event);
+        self.writer.entry(self_id).or_default().push_temporal(event);
     }
 }
 
@@ -167,7 +164,6 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn test_ordered_events() {
-        let common_emitter = ProgramIdentifier::new_from_rand_seed(1);
         let event1_read = Event{
             type_: EventType::Read,
             object: StateObject {
