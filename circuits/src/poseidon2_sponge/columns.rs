@@ -1,6 +1,7 @@
 use core::ops::Add;
 
 use itertools::izip;
+use mozak_sdk::core::reg_abi::{REG_A1, REG_A2, REG_A3};
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::hashing::PlonkyPermutation;
@@ -12,6 +13,7 @@ use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2::columns::Poseidon2StateCtl;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
+use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableWithTypedOutput};
 
 #[repr(C)]
@@ -48,20 +50,48 @@ columns_view_impl!(Poseidon2SpongeCtl);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Poseidon2SpongeCtl<T> {
     pub clk: T,
-    pub input_addr: T,
-    pub input_len: T,
 }
 
 #[must_use]
 pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
     Poseidon2SpongeTable::new(
-        Poseidon2SpongeCtl {
-            clk: COL_MAP.clk,
-            input_addr: COL_MAP.input_addr,
-            input_len: COL_MAP.input_len,
-        },
+        Poseidon2SpongeCtl { clk: COL_MAP.clk },
         COL_MAP.ops.is_init_permute,
     )
+}
+
+#[must_use]
+pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
+    let is_read = ColumnWithTypedInput::constant(1);
+    vec![
+        Poseidon2SpongeTable::new(
+            RegisterCtl {
+                clk: COL_MAP.clk,
+                op: is_read,
+                value: COL_MAP.input_addr,
+                addr: ColumnWithTypedInput::constant(REG_A1.into()),
+            },
+            COL_MAP.ops.is_init_permute,
+        ),
+        Poseidon2SpongeTable::new(
+            RegisterCtl {
+                clk: COL_MAP.clk,
+                op: is_read,
+                value: COL_MAP.input_len,
+                addr: ColumnWithTypedInput::constant(REG_A2.into()),
+            },
+            COL_MAP.ops.is_init_permute,
+        ),
+        Poseidon2SpongeTable::new(
+            RegisterCtl {
+                clk: COL_MAP.clk,
+                op: is_read,
+                value: COL_MAP.output_addr,
+                addr: ColumnWithTypedInput::constant(REG_A3.into()),
+            },
+            COL_MAP.ops.is_init_permute,
+        ),
+    ]
 }
 
 #[must_use]
