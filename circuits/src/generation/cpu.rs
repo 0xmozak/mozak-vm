@@ -23,6 +23,8 @@ pub fn generate_program_mult_trace<F: RichField>(
     program_rom
         .iter()
         .map(|&inst| ProgramMult {
+            // We use `remove` instead of a plain `get` to deal with duplicates (from padding) in
+            // the ROM.
             mult_in_cpu: F::from_canonical_usize(counts.remove(&inst.pc).unwrap_or_default()),
             inst,
         })
