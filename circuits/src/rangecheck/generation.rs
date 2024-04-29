@@ -10,6 +10,12 @@ use crate::register::general::columns::Register;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
 
+/// Converts a u32 into 4 u8 limbs represented in [`RichField`].
+#[must_use]
+pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
+    value.to_le_bytes().map(F::from_canonical_u8)
+}
+
 /// extract the values with multiplicities
 pub fn extract_with_mul<F: RichField, Row>(trace: &[Row], looking_table: &Table) -> Vec<(F, F)>
 where
@@ -29,12 +35,6 @@ where
     } else {
         panic!("Can only range check single values, not tuples.")
     }
-}
-
-/// Converts a u32 into 4 u8 limbs represented in [`RichField`].
-#[must_use]
-pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
-    value.to_le_bytes().map(F::from_canonical_u8)
 }
 
 /// Generates a trace table for range checks, used in building a
