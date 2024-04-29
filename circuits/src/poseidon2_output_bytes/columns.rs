@@ -1,3 +1,4 @@
+use itertools::izip;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::plonk::config::GenericHashOut;
 
@@ -71,17 +72,17 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2OutputByte
     )
 }
 
-#[must_use]
-pub fn lookup_for_output_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
-    assert!(limb_index < 32, "limb_index can be 0..31");
-    Poseidon2OutputBytesTable::new(
-        MemoryCtl {
-            clk: COL_MAP.clk,
-            is_store: ColumnWithTypedInput::constant(1),
-            is_load: ColumnWithTypedInput::constant(0),
-            value: COL_MAP.output_bytes[limb_index as usize],
-            addr: COL_MAP.output_addr + i64::from(limb_index),
-        },
-        COL_MAP.is_executed,
-    )
+pub fn lookup_for_output_memory() -> impl Iterator<Item = TableWithTypedOutput<MemoryCtl<Column>>> {
+    izip!(0.., COL_MAP.output_bytes).map(move |(limb_index, value)| {
+        Poseidon2OutputBytesTable::new(
+            MemoryCtl {
+                clk: COL_MAP.clk,
+                is_store: ColumnWithTypedInput::constant(1),
+                is_load: ColumnWithTypedInput::constant(0),
+                value,
+                addr: COL_MAP.output_addr + limb_index,
+            },
+            COL_MAP.is_executed,
+        )
+    })
 }
