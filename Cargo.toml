@@ -55,6 +55,7 @@ plonky2_maybe_rayon = { version = "0", default-features = false }
 starky = { version = "0", default-features = false }
 
 plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
+rrs-lib = { git = "https://github.com/0xmozak/rrs.git" }
 
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
