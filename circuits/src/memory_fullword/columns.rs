@@ -24,7 +24,7 @@ pub struct Ops<T> {
 // value == linear combination via range-check
 // address_limbs also linear combination + forbid  wrapping add
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct FullWordMemory<T> {
     /// Clock at memory access.
     pub clk: T,

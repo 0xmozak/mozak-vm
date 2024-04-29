@@ -15,7 +15,7 @@ pub const BYTES_COUNT: usize = 32;
 columns_view_impl!(Poseidon2OutputBytes);
 make_col_map!(Poseidon2OutputBytes);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2OutputBytes<F> {
     pub is_executed: F,
     pub clk: F,
@@ -53,7 +53,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2OutputBytes<F>> {
 
 columns_view_impl!(Poseidon2OutputBytesCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2OutputBytesCtl<F> {
     pub clk: F,
     pub output_addr: F,

@@ -3,7 +3,7 @@ use crate::linear_combination::Column;
 use crate::stark::mozak_stark::{TableWithTypedOutput, XorTable};
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct XorColumnsView<T> {
     /// This column indicates if the row has a corresponding execution row
     /// in the CPU table or if it is a dummy row (which is used to fill the
@@ -19,7 +19,7 @@ columns_view_impl!(XorColumnsView);
 make_col_map!(XorColumnsView);
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct XorView<T> {
     pub a: T,
     pub b: T,

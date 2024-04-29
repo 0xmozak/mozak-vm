@@ -22,7 +22,7 @@ use crate::stark::mozak_stark::{MemoryTable, TableWithTypedOutput};
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Memory<T> {
     /// Indicates if a the memory address is writable.
     pub is_writable: T,
@@ -216,7 +216,7 @@ pub fn rangecheck_u8_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>
 
 columns_view_impl!(MemoryCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct MemoryCtl<T> {
     pub clk: T,
     pub is_store: T,
