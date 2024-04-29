@@ -2,9 +2,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use itertools::Itertools;
+
 use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{
-    CanonicalEvent, CanonicalOrderedTemporalHints, Event, ProgramIdentifier,
+    CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
 };
 use crate::native::helpers::IdentityStack;
 
@@ -103,6 +105,21 @@ impl OrderedEvents {
             .zip(reversed_indices)
             .map(|((canonical_event, _), idx)| CanonicalOrderedTemporalHints(canonical_event, idx))
             .collect::<Vec<CanonicalOrderedTemporalHints>>()
+    }
+
+    #[must_use]
+    pub fn canonical_hash(&self) -> Poseidon2Hash {
+        let canonical_ordered_events = self.get_canonical_ordering();
+        let hashes_with_addr = canonical_ordered_events
+            .iter()
+            .map(|(event, _)| {
+                (
+                    u64::from_le_bytes(event.address.inner()),
+                    event.canonical_hash(),
+                )
+            })
+            .collect_vec();
+        crate::common::merkle::merkleize(hashes_with_addr)
     }
 }
 

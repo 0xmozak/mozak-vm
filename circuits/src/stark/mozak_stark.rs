@@ -798,6 +798,7 @@ impl Lookups for RegisterLookups {
             chain![
                 crate::cpu::columns::register_looking(),
                 crate::memory_io::columns::register_looking(),
+                crate::poseidon2_sponge::columns::register_looking(),
                 vec![crate::register::init::columns::lookup_for_register()],
             ]
             .collect(),

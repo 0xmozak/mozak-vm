@@ -58,7 +58,8 @@
 //! builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
 //! means split into multiple constraints.
 
-use core::iter::Sum;
+pub mod ops;
+
 use core::ops::{Add, Mul, Neg, Sub};
 use std::collections::HashMap;
 
@@ -126,45 +127,6 @@ impl<'a, V> Expr<'a, V> {
             .rev()
             .fold(Expr::from(0), |acc, term| acc * base + term)
     }
-}
-
-macro_rules! instances {
-    ($op: ident, $fun: ident) => {
-        impl<'a, V> $op<Self> for Expr<'a, V> {
-            type Output = Self;
-
-            fn $fun(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::$op, self, rhs) }
-        }
-        impl<'a, V> $op<i64> for Expr<'a, V> {
-            type Output = Expr<'a, V>;
-
-            fn $fun(self, rhs: i64) -> Self::Output {
-                Self::bin_op(BinOp::$op, self, Expr::from(rhs))
-            }
-        }
-
-        impl<'a, V> $op<Expr<'a, V>> for i64 {
-            type Output = Expr<'a, V>;
-
-            fn $fun(self, rhs: Expr<'a, V>) -> Self::Output {
-                Self::Output::bin_op(BinOp::$op, Expr::from(self), rhs)
-            }
-        }
-    };
-}
-
-instances!(Add, add);
-instances!(Sub, sub);
-instances!(Mul, mul);
-
-impl<'a, V> Neg for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
-}
-
-impl<'a, V> Sum for Expr<'a, V> {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Expr::from(0), Add::add) }
 }
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
@@ -350,12 +312,11 @@ where
 }
 
 /// Default evaluator for pure values.
-#[derive(Default)]
-pub struct PureEvaluator {}
+pub struct PureEvaluator<P>(pub fn(i64) -> P);
 
-impl<'a, V> Evaluator<'a, V> for PureEvaluator
+impl<'a, V> Evaluator<'a, V> for PureEvaluator<V>
 where
-    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V>,
 {
     fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
         match op {
@@ -371,7 +332,14 @@ where
         }
     }
 
-    fn constant(&mut self, value: i64) -> V { value.into() }
+    fn constant(&mut self, value: i64) -> V { (self.0)(value) }
+}
+
+impl<V> Default for PureEvaluator<V>
+where
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
+{
+    fn default() -> Self { Self(V::from) }
 }
 
 #[derive(Default)]
@@ -486,6 +454,24 @@ mod tests {
     }
 
     #[test]
+    fn it_works_assign() {
+        let expr = ExprBuilder::default();
+
+        let a = expr.lit(7i64);
+        let b = expr.lit(5i64);
+        let mut c = expr.lit(0i64);
+
+        let mut p = PureEvaluator::default();
+
+        c += a + b;
+        assert_eq!(p.eval(c), 12);
+        c -= b;
+        assert_eq!(p.eval(c), 7);
+        c *= b;
+        assert_eq!(p.eval(c), 35);
+    }
+
+    #[test]
     fn basic_expressions_work() {
         let expr = ExprBuilder::default();
 
@@ -531,7 +517,7 @@ mod tests {
     fn count_depth() {
         let eb = ExprBuilder::default();
 
-        let mut c = Counting::<PureEvaluator>::default();
+        let mut c = Counting::<PureEvaluator<_>>::default();
         let mut one = eb.lit(1i64);
 
         assert_eq!(c.eval(one), 1);
@@ -560,7 +546,7 @@ mod tests {
             one = one * one;
         }
 
-        let mut p = Cached::<i64, Counting<PureEvaluator>>::default();
+        let mut p = Cached::<i64, Counting<PureEvaluator<_>>>::default();
         assert_eq!(p.eval(one), 1);
         assert_eq!(p.evaluator.count(), 64);
     }
