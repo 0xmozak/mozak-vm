@@ -275,8 +275,8 @@ mod tests {
         let mut final_init_rows = prep_table(
             (13..33)
                 .map(|i|
-                // addr value clk  is_init is_read is_write
-                [     u64::min(i, 31),   0,   0,       1,      0,       0])
+                // addr     value clk  is_init is_read is_write
+                [ i.min(31),   0,   0,       1,      0,       0])
                 .collect(),
         );
         expected_trace.append(&mut final_init_rows);
