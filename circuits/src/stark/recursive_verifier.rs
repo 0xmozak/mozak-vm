@@ -58,7 +58,7 @@ pub const VM_PUBLIC_INPUT_SIZE: usize = VMRecursiveProofPublicInputs::<()>::NUMB
 pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion_config();
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct VMRecursiveProofPublicInputs<T> {
     pub entry_point: T,
     pub program_hash_as_bytes: [T; DIGEST_BYTES],
