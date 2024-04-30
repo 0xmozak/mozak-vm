@@ -10,6 +10,7 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use starky::lookup as starky_lookup;
 
 use crate::cross_table_lookup::ColumnWithTypedInput;
 
@@ -72,6 +73,23 @@ pub fn zip_with<T>(
 
 pub type ColumnI64 = ColumnSparse<i64>;
 pub use ColumnI64 as Column;
+
+impl Column {
+    #[must_use]
+    pub fn to_starky<F: Field>(&self) -> starky_lookup::Column<F> {
+        starky_lookup::Column::new(
+            self.lv_linear_combination
+                .iter()
+                .map(|&(c, f)| (c, F::from_noncanonical_i64(f)))
+                .collect(),
+            self.nv_linear_combination
+                .iter()
+                .map(|&(c, f)| (c, F::from_noncanonical_i64(f)))
+                .collect(),
+            F::from_noncanonical_i64(self.constant),
+        )
+    }
+}
 
 impl<I: IntoIterator<Item = i64>> From<ColumnWithTypedInput<I>> for Column {
     fn from(colx: ColumnWithTypedInput<I>) -> Self {

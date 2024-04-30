@@ -20,6 +20,7 @@ use crate::columns_view::{columns_view_impl, HasNamedColumns, NumberOfColumns};
 pub struct Unstark<F, const D: usize, Columns, const COLUMNS: usize> {
     pub _f: PhantomData<F>,
     pub _d: PhantomData<Columns>,
+    pub standalone_proving: bool,
 }
 
 impl<F, const D: usize, Columns, const COLUMNS: usize> HasNamedColumns
@@ -44,6 +45,8 @@ impl<
         P: PackedField<Scalar = FE>;
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
+
+    fn requires_ctls(&self) -> bool { !self.standalone_proving }
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,

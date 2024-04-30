@@ -145,7 +145,10 @@ mod tests {
             "trace to poly",
             trace_rows_to_poly_values(cpu_trace)
         );
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         let public_inputs = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };

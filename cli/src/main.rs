@@ -368,8 +368,11 @@ fn main() -> Result<()> {
             let mut buffer: Vec<u8> = vec![];
             proof.read_to_end(&mut buffer)?;
             let all_proof: AllProof<F, C, D> = serde_json::from_slice(&buffer)?;
-            verify_proof(&stark, all_proof, &config)?;
-            println!("proof verified successfully!");
+            verify_proof(&stark, &all_proof, &config)?;
+            println!(
+                "proof verified
+            successfully!"
+            );
         }
         Command::VerifyRecursiveProof {
             mut proof,

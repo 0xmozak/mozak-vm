@@ -25,6 +25,7 @@ use crate::stark::mozak_stark::PublicInputs;
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+    pub standalone_proving: bool,
 }
 
 impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
@@ -151,6 +152,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
+    fn requires_ctls(&self) -> bool { !self.standalone_proving }
+
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
@@ -194,7 +197,10 @@ mod tests {
         type F = <C as GenericConfig<D>>::F;
         type S = CpuStark<F, D>;
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_low_degree(stark)
     }
 
@@ -205,7 +211,10 @@ mod tests {
         type F = <C as GenericConfig<D>>::F;
         type S = CpuStark<F, D>;
 
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;
 
         Ok(())

@@ -9,6 +9,7 @@ use plonky2::hash::hash_types::RichField;
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
+use starky::{cross_table_lookup as starky_ctl, lookup as starky_lookup};
 
 use crate::bitshift::columns::{Bitshift, BitshiftView};
 use crate::bitshift::stark::BitshiftStark;
@@ -39,7 +40,6 @@ use crate::program::columns::ProgramRom;
 use crate::program::stark::ProgramStark;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::program_multiplicities::stark::ProgramMultStark;
-use crate::public_sub_table::PublicSubTable;
 use crate::rangecheck::columns::{rangecheck_looking, RangeCheckColumnsView, RangeCheckCtl};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::columns::RangeCheckU8;
@@ -64,7 +64,6 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = 17;
-const NUM_PUBLIC_SUB_TABLES: usize = 2;
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -141,8 +140,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     #[StarkSet(stark_kind = "TapeCommitments")]
     pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
-    pub public_sub_tables: [PublicSubTable; NUM_PUBLIC_SUB_TABLES],
+    pub cross_table_lookups:
+        [starky::cross_table_lookup::CrossTableLookup<F>; NUM_CROSS_TABLE_LOOKUP],
     pub debug: bool,
 }
 
@@ -163,7 +162,7 @@ macro_rules! mozak_stark_helpers {
         }
 
         impl TableKind {
-            const COUNT: usize = $kind_count;
+            pub const COUNT: usize = $kind_count;
         }
 
         // Generate the set builder
@@ -450,11 +449,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
                 EventCommitmentTapeIOLookupTable::lookups(),
                 CastlistCommitmentTapeIOLookupTable::lookups(),
-            ],
-            public_sub_tables: [
-                crate::tape_commitments::columns::make_event_commitment_tape_public(),
-                crate::tape_commitments::columns::make_castlist_commitment_tape_public(),
-            ],
+            ]
+            .map(starky::cross_table_lookup::CrossTableLookup::from),
             debug: false,
         }
     }
@@ -504,6 +500,36 @@ pub struct TableWithTypedOutput<Row> {
 
 pub type TableUntyped = TableWithTypedOutput<Vec<Column>>;
 pub use TableUntyped as Table;
+
+impl<F: Field> From<&Table> for starky_ctl::TableWithColumns<F> {
+    fn from(table: &Table) -> Self {
+        let columns = table
+            .columns
+            .iter()
+            .map(Column::to_starky)
+            .collect::<Vec<_>>();
+        // TODO(Matthias): figure out why they take a vector of filters.
+        let filter = starky_lookup::Filter::new(vec![], vec![table.filter_column.to_starky()]);
+        starky_ctl::TableWithColumns::new(table.kind as usize, columns, filter)
+    }
+}
+
+impl<F: Field> From<Table> for starky_ctl::TableWithColumns<F> {
+    fn from(table: Table) -> Self { Self::from(&table) }
+}
+
+impl Table {
+    #[must_use]
+    pub fn to_starky<F: Field>(&self) -> starky_ctl::TableWithColumns<F> {
+        let columns = self
+            .columns
+            .iter()
+            .map(Column::to_starky)
+            .collect::<Vec<_>>();
+        let filter = starky_lookup::Filter::new_simple(self.filter_column.to_starky());
+        starky_ctl::TableWithColumns::new(self.kind as usize, columns, filter)
+    }
+}
 
 impl<Row: IntoIterator<Item = Column>> TableWithTypedOutput<Row> {
     pub fn to_untyped_output(self) -> Table {

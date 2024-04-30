@@ -57,6 +57,9 @@ starky = { version = "0", default-features = false }
 plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
 
 [patch.crates-io]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
-plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
-starky = { git = "https://github.com/0xmozak/plonky2.git" }
+# plonky2 = { path = "../plonky2/plonky2" }
+# plonky2_maybe_rayon = { path = "../plonky2/maybe_rayon" }
+# starky = { path = "../plonky2/starky" }
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git", branch = "matthias/looked-tables" }
+plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git", branch = "matthias/looked-tables" }
+starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "matthias/looked-tables" }
