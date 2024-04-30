@@ -24,7 +24,7 @@ impl SelfIdentify for EventTape {
 impl EventEmit for EventTape {
     fn emit(&mut self, event: Event) {
         assert!(self.index < self.reader.unwrap().len());
-        let generated_canonical_event = CanonicalEvent::from_event(self.self_prog_id, &event);
+        let generated_canonical_event = CanonicalEvent::from_event(&event);
 
         let elem_idx: usize = self.reader.unwrap()[self.index]
             .1

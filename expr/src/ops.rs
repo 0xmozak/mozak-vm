@@ -29,13 +29,13 @@ macro_rules! binop_instances {
             }
         }
 
-        impl<'a, V> $op<&'a Expr<'a, V>> for Expr<'a, V>
+        impl<'a, 'b, V> $op<&'b Expr<'a, V>> for Expr<'a, V>
         where
             V: Copy,
         {
             type Output = Expr<'a, V>;
 
-            fn $fun(self, rhs: &'a Expr<'a, V>) -> Self::Output {
+            fn $fun(self, rhs: &'b Expr<'a, V>) -> Self::Output {
                 Self::Output::bin_op(BinOp::$op, self, *rhs)
             }
         }
@@ -89,11 +89,11 @@ impl<'a, V> Sum<Self> for Expr<'a, V> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Expr::from(0), Add::add) }
 }
 
-impl<'a, V> Sum<&'a Expr<'a, V>> for Expr<'a, V>
+impl<'a, 'b, V> Sum<&'b Expr<'a, V>> for Expr<'a, V>
 where
     V: Copy,
 {
-    fn sum<I: Iterator<Item = &'a Expr<'a, V>>>(iter: I) -> Self {
+    fn sum<I: Iterator<Item = &'b Expr<'a, V>>>(iter: I) -> Self {
         iter.fold(Expr::from(0), Add::add)
     }
 }

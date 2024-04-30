@@ -25,11 +25,11 @@ pub struct OrderedEvents {
 
 impl OrderedEvents {
     #[must_use]
-    pub fn new(emitter: ProgramIdentifier, events: Vec<Event>) -> Self {
+    pub fn new(events: Vec<Event>) -> Self {
         Self {
             temporal_ordering: events
                 .into_iter()
-                .map(|x| (x.clone(), CanonicalEvent::from_event(emitter, &x)))
+                .map(|x| (x.clone(), CanonicalEvent::from_event(&x)))
                 .collect(),
         }
     }
@@ -37,8 +37,8 @@ impl OrderedEvents {
     /// Adds to ordered events an event "temporaly" a.k.a ordered in time
     /// after every other `Event` in `OrderedEvents`. This is the only
     /// way to add elements to `OrderedEvents`
-    pub fn push_temporal(&mut self, emitter: ProgramIdentifier, event: Event) {
-        let canonical_repr = CanonicalEvent::from_event(emitter, &event);
+    pub fn push_temporal(&mut self, event: Event) {
+        let canonical_repr = CanonicalEvent::from_event(&event);
         self.temporal_ordering.push((event, canonical_repr));
     }
 
@@ -151,10 +151,7 @@ impl EventEmit for EventTape {
         let self_id = self.get_self_identity();
         assert_ne!(self_id, ProgramIdentifier::default());
 
-        self.writer
-            .entry(self_id)
-            .or_default()
-            .push_temporal(self_id, event);
+        self.writer.entry(self_id).or_default().push_temporal(event);
     }
 }
 
@@ -167,7 +164,6 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn test_ordered_events() {
-        let common_emitter = ProgramIdentifier::new_from_rand_seed(1);
         let event1_read = Event{
             type_: EventType::Read,
             object: StateObject {
@@ -195,13 +191,13 @@ mod tests {
 
         let temporal_order = vec![event3_read.clone(), event1_read.clone(), event2_read.clone()];
         let expected_canonical_order = vec![
-            CanonicalEvent::from_event(common_emitter, &event1_read),
-            CanonicalEvent::from_event(common_emitter, &event2_read),
-            CanonicalEvent::from_event(common_emitter, &event3_read)
+            CanonicalEvent::from_event(&event1_read),
+            CanonicalEvent::from_event(&event2_read),
+            CanonicalEvent::from_event(&event3_read)
         ];
         let expected_temporal_hints = vec![2, 0, 1];
 
-        let ordered_events = OrderedEvents::new(common_emitter, temporal_order.clone());
+        let ordered_events = OrderedEvents::new(temporal_order.clone());
 
         assert_eq!(ordered_events.get_canonical_order_temporal_hints(), 
             expected_canonical_order.into_iter().zip(expected_temporal_hints.into_iter())

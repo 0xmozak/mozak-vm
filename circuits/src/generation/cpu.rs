@@ -1,3 +1,4 @@
+use expr::{Evaluator, ExprBuilder};
 use itertools::{chain, Itertools};
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
@@ -9,6 +10,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
+use crate::expr::PureEvaluator;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
@@ -19,23 +21,14 @@ pub fn generate_program_mult_trace<F: RichField>(
     trace: &[CpuState<F>],
     program_rom: &[ProgramRom<F>],
 ) -> Vec<ProgramMult<F>> {
-    let counts = trace
-        .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst.pc)
-        .counts();
+    let mut counts = trace.iter().map(|row| row.inst.pc).counts();
     program_rom
         .iter()
-        .map(|row| {
-            ProgramMult {
-                // This assumes that row.filter is binary, and that we have no duplicates.
-                mult_in_cpu: row.filter
-                    * F::from_canonical_usize(
-                        counts.get(&row.inst.pc).copied().unwrap_or_default(),
-                    ),
-                mult_in_rom: row.filter,
-                inst: row.inst,
-            }
+        .map(|&inst| ProgramMult {
+            // We use `remove` instead of a plain `get` to deal with duplicates (from padding) in
+            // the ROM.
+            mult_in_cpu: F::from_canonical_usize(counts.remove(&inst.pc).unwrap_or_default()),
+            rom_row: inst,
         })
         .collect()
 }
@@ -85,12 +78,6 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
-            poseidon2_input_addr: F::from_canonical_u32(
-                aux.poseidon2.clone().unwrap_or_default().addr,
-            ),
-            poseidon2_input_len: F::from_canonical_u32(
-                aux.poseidon2.clone().unwrap_or_default().len,
-            ),
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store_private: F::from_bool(matches!(
@@ -133,9 +120,19 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     pad_trace_with_last(trace)
 }
 
+/// This is a wrapper to make the Expr mechanics work directly with a Field.
+///
+/// TODO(Matthias): Make this more generally useful.
+fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
+    let expr_builder = ExprBuilder::default();
+    let row = row.map(|x| expr_builder.lit(x));
+    PureEvaluator(F::from_noncanonical_i64).eval(row.signed_diff())
+}
+
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
-    row.cmp_diff_inv = row.signed_diff().try_inverse().unwrap_or_default();
-    row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
+    let signed_diff = signed_diff(row);
+    row.cmp_diff_inv = signed_diff.try_inverse().unwrap_or_default();
+    row.normalised_diff = F::from_bool(signed_diff.is_nonzero());
 }
 
 /// Generates a bitshift row on a shift operation. This is used in the bitshift

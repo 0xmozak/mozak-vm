@@ -1,7 +1,11 @@
 use core::ops::Add;
 
+use itertools::izip;
+use mozak_sdk::core::reg_abi::{REG_A1, REG_A2, REG_A3};
+use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
-use plonky2::hash::poseidon2::WIDTH;
+use plonky2::hash::hashing::PlonkyPermutation;
+use plonky2::hash::poseidon2::{Poseidon2Permutation, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::ColumnWithTypedInput;
@@ -9,6 +13,7 @@ use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2::columns::Poseidon2StateCtl;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytesCtl;
+use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableWithTypedOutput};
 
 #[repr(C)]
@@ -19,7 +24,7 @@ pub struct Ops<T> {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2Sponge<T> {
     pub clk: T,
     pub ops: Ops<T>,
@@ -42,23 +47,51 @@ impl<T: Copy + Add<Output = T>> Poseidon2Sponge<T> {
 
 columns_view_impl!(Poseidon2SpongeCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2SpongeCtl<T> {
     pub clk: T,
-    pub input_addr: T,
-    pub input_len: T,
 }
 
 #[must_use]
 pub fn lookup_for_cpu() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
     Poseidon2SpongeTable::new(
-        Poseidon2SpongeCtl {
-            clk: COL_MAP.clk,
-            input_addr: COL_MAP.input_addr,
-            input_len: COL_MAP.input_len,
-        },
+        Poseidon2SpongeCtl { clk: COL_MAP.clk },
         COL_MAP.ops.is_init_permute,
     )
+}
+
+#[must_use]
+pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
+    let is_read = ColumnWithTypedInput::constant(1);
+    vec![
+        Poseidon2SpongeTable::new(
+            RegisterCtl {
+                clk: COL_MAP.clk,
+                op: is_read,
+                value: COL_MAP.input_addr,
+                addr: ColumnWithTypedInput::constant(REG_A1.into()),
+            },
+            COL_MAP.ops.is_init_permute,
+        ),
+        Poseidon2SpongeTable::new(
+            RegisterCtl {
+                clk: COL_MAP.clk,
+                op: is_read,
+                value: COL_MAP.input_len,
+                addr: ColumnWithTypedInput::constant(REG_A2.into()),
+            },
+            COL_MAP.ops.is_init_permute,
+        ),
+        Poseidon2SpongeTable::new(
+            RegisterCtl {
+                clk: COL_MAP.clk,
+                op: is_read,
+                value: COL_MAP.output_addr,
+                addr: ColumnWithTypedInput::constant(REG_A3.into()),
+            },
+            COL_MAP.ops.is_init_permute,
+        ),
+    ]
 }
 
 #[must_use]
@@ -88,17 +121,19 @@ pub fn lookup_for_poseidon2_output_bytes() -> TableWithTypedOutput<Poseidon2Outp
     )
 }
 
-#[must_use]
-pub fn lookup_for_input_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
-    assert!(limb_index < 8, "limb_index can be 0..7");
-    Poseidon2SpongeTable::new(
-        MemoryCtl {
-            clk: COL_MAP.clk,
-            is_store: ColumnWithTypedInput::constant(0),
-            is_load: ColumnWithTypedInput::constant(1),
-            value: COL_MAP.preimage[limb_index as usize],
-            addr: COL_MAP.input_addr + i64::from(limb_index),
-        },
-        COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
-    )
+pub fn lookup_for_input_memory() -> impl Iterator<Item = TableWithTypedOutput<MemoryCtl<Column>>> {
+    izip!(0.., COL_MAP.preimage)
+        .take(Poseidon2Permutation::<GoldilocksField>::RATE)
+        .map(|(i, value)| {
+            Poseidon2SpongeTable::new(
+                MemoryCtl {
+                    clk: COL_MAP.clk,
+                    is_store: ColumnWithTypedInput::constant(0),
+                    is_load: ColumnWithTypedInput::constant(1),
+                    value,
+                    addr: COL_MAP.input_addr + i,
+                },
+                COL_MAP.ops.is_init_permute + COL_MAP.ops.is_permute,
+            )
+        })
 }
