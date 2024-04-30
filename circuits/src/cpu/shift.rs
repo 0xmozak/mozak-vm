@@ -4,20 +4,15 @@
 //! Here, SLL stands for 'shift left logical'.  We can treat it as a variant of
 //! unsigned multiplication. Same for SRL and SRA, but with division.
 
-use plonky2::field::extension::Extendable;
-use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use expr::Expr;
 
-use super::bitwise::{and_gadget, and_gadget_extension_targets};
+use super::bitwise::and_gadget;
 use super::columns::CpuState;
+use crate::expr::ConstraintBuilder;
 
-pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
+pub(crate) fn constraints<'a, P: Copy>(
+    lv: &CpuState<Expr<'a, P>>,
+    cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     let is_shift = lv.inst.ops.sll + lv.inst.ops.srl + lv.inst.ops.sra;
     // Check: multiplier is assigned as `2^(rs2 value & 0b1_111)`.
@@ -27,36 +22,10 @@ pub(crate) fn constraints<P: PackedField>(
     // Bitshift table to retrieve the corresponding power of 2, that we will assign
     // to the multiplier.
     let and_gadget = and_gadget(&lv.xor);
-    yield_constr
-        .constraint(is_shift * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0b1_1111)));
-    yield_constr.constraint(is_shift * (and_gadget.input_b - lv.op2_value_raw - lv.inst.imm_value));
+    cb.always(is_shift * (and_gadget.input_a - 0b1_1111));
+    cb.always(is_shift * (and_gadget.input_b - lv.op2_value_raw - lv.inst.imm_value));
 
-    yield_constr.constraint(is_shift * (and_gadget.output - lv.bitshift.amount));
-}
-
-pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    lv: &CpuState<ExtensionTarget<D>>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    let sll_add_srl = builder.add_extension(lv.inst.ops.sll, lv.inst.ops.srl);
-    let is_shift = builder.add_extension(sll_add_srl, lv.inst.ops.sra);
-
-    let and_gadget = and_gadget_extension_targets(builder, &lv.xor);
-
-    let mask = builder.constant_extension(F::Extension::from_canonical_u64(0b1_1111));
-    let input_a_sub_mask = builder.sub_extension(and_gadget.input_a, mask);
-    let shift_constr = builder.mul_extension(is_shift, input_a_sub_mask);
-    yield_constr.constraint(builder, shift_constr);
-
-    let rs2_value_imm = builder.add_extension(lv.op2_value_raw, lv.inst.imm_value);
-    let input_b_sub_rs2_imm = builder.sub_extension(and_gadget.input_b, rs2_value_imm);
-    let rs2_constr = builder.mul_extension(is_shift, input_b_sub_rs2_imm);
-    yield_constr.constraint(builder, rs2_constr);
-
-    let output_sub_amount = builder.sub_extension(and_gadget.output, lv.bitshift.amount);
-    let output_constr = builder.mul_extension(is_shift, output_sub_amount);
-    yield_constr.constraint(builder, output_constr);
+    cb.always(is_shift * (and_gadget.doubled_output - 2 * lv.bitshift.amount));
 }
 
 #[cfg(test)]

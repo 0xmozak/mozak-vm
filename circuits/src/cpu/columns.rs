@@ -1,18 +1,12 @@
-use plonky2::field::extension::Extendable;
-use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
+use core::ops::{Add, Mul, Sub};
 
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::StorageDeviceCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
-use crate::program::columns::InstructionRow;
+use crate::program::columns::ProgramRom;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
@@ -21,7 +15,7 @@ use crate::xor::columns::XorView;
 columns_view_impl!(OpSelectors);
 /// Selectors for which instruction is currently active.
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct OpSelectors<T> {
     pub add: T,
     pub sub: T,
@@ -71,7 +65,7 @@ pub struct OpSelectors<T> {
 columns_view_impl!(Instruction);
 /// Internal [Instruction] of Stark used for transition constrains
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Instruction<T> {
     /// The original instruction (+ `imm_value`) used for program
     /// cross-table-lookup.
@@ -96,7 +90,7 @@ make_col_map!(CpuState);
 columns_view_impl!(CpuState);
 /// Represents the State of the CPU, which is also a row of the trace
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,
@@ -185,60 +179,48 @@ pub struct CpuState<T> {
     pub is_cast_list_commitment_tape: T,
     pub is_halt: T,
     pub is_poseidon2: T,
-    // TODO: these two need constraints.
-    // (And/or should probably be removed.)
-    pub poseidon2_input_addr: T,
-    pub poseidon2_input_len: T,
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
-impl<T: PackedField> CpuState<T> {
-    #[must_use]
-    pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
-
+impl<T> CpuState<T>
+where
+    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
+{
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
     /// For signed operations: `Field::from_noncanonical_i64(op1 as i32 as i64)`
     ///
     /// So range is `i32::MIN..=u32::MAX` in Prime Field.
-    pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * Self::shifted(32) }
+    pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * (1 << 32) }
 
     /// Value of the second operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX` in Prime Field.
-    pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
+    pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * (1 << 32) }
 
     /// Difference between first and second operands, which works for both pairs
     /// of signed or pairs of unsigned values.
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-pub fn op1_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    cpu: &CpuState<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let shifted_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
-    let op1_sign_bit = builder.mul_extension(cpu.op1_sign_bit, shifted_32);
-    builder.sub_extension(cpu.op1_value, op1_sign_bit)
-}
+impl<P: Copy + Add<Output = P>> OpSelectors<P>
+where
+    i64: Sub<P, Output = P>,
+{
+    // List of opcodes that manipulated the program counter, instead of
+    // straight line incrementing it.
+    // Note: ecall is only 'jumping' in the sense that a 'halt'
+    // does not bump the PC. It sort-of jumps back to itself.
+    pub fn is_jumping(&self) -> P {
+        self.beq + self.bge + self.blt + self.bne + self.ecall + self.jalr
+    }
 
-pub fn op2_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    cpu: &CpuState<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let shifted_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
-    let op2_sign_bit = builder.mul_extension(cpu.op2_sign_bit, shifted_32);
-    builder.sub_extension(cpu.op2_value, op2_sign_bit)
-}
+    /// List of opcodes that only bump the program counter.
+    pub fn is_straightline(&self) -> P { 1 - self.is_jumping() }
 
-pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    cpu: &CpuState<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let op1_full_range = op1_full_range_extension_target(builder, cpu);
-    let op2_full_range = op2_full_range_extension_target(builder, cpu);
-    builder.sub_extension(op1_full_range, op2_full_range)
+    /// List of opcodes that work with memory.
+    pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
 }
 
 /// Expressions we need to range check
@@ -376,17 +358,6 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     pub fn halfword_mem_ops(self) -> T { self.sh + self.lh }
 
     pub fn fullword_mem_ops(self) -> T { self.sw + self.lw }
-
-    pub fn is_mem_ops(self) -> T { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
-}
-
-pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    ops: &OpSelectors<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    add_extension_vec(builder, vec![
-        ops.sb, ops.lb, ops.sh, ops.lh, ops.sw, ops.lw,
-    ])
 }
 
 /// Lookup into `Bitshift` stark.
@@ -397,10 +368,10 @@ pub fn lookup_for_shift_amount() -> TableWithTypedOutput<Bitshift<Column>> {
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
     let inst = CPU.inst;
     CpuTable::new(
-        InstructionRow {
+        ProgramRom {
             pc: inst.pc,
             // Combine columns into a single column.
             // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
@@ -425,20 +396,13 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> 
                 1 << 5,
             ),
         },
-        CPU.is_running,
+        ColumnWithTypedInput::constant(1),
     )
 }
 
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
-    CpuTable::new(
-        Poseidon2SpongeCtl {
-            clk: CPU.clk,
-            input_addr: CPU.poseidon2_input_addr,
-            input_len: CPU.poseidon2_input_len,
-        },
-        CPU.is_poseidon2,
-    )
+    CpuTable::new(Poseidon2SpongeCtl { clk: CPU.clk }, CPU.is_poseidon2)
 }
 
 #[must_use]

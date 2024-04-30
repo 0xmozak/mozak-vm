@@ -13,7 +13,7 @@ columns_view_impl!(TapeCommitments);
 /// There is no definite order imposed on the rows of this
 /// table,
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct TapeCommitments<T> {
     pub commitment_byte_row: CommitmentByteWithIndex<T>,
     pub castlist_commitment_tape_multiplicity: T,
@@ -29,7 +29,7 @@ columns_view_impl!(CommitmentByteWithIndex);
 /// stark, while enforcing the original order in which bytes
 /// are to be read.
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct CommitmentByteWithIndex<T> {
     pub byte: T,
     pub index: T,
