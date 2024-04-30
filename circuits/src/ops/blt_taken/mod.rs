@@ -126,7 +126,7 @@ pub mod columns {
                     1 << 5,
                 ),
             },
-            ColumnWithTypedInput::constant(1),
+            COL_MAP.is_running,
         )
     }
 }
