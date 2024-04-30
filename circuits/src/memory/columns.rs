@@ -1,11 +1,8 @@
 use core::ops::Add;
 
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
@@ -174,14 +171,6 @@ impl<F: RichField> From<&StorageDevice<F>> for Option<Memory<F>> {
 
 impl<T: Copy + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T { self.is_store + self.is_load + self.is_init }
-}
-
-pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    values: &Memory<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let tmp = builder.add_extension(values.is_store, values.is_load);
-    builder.add_extension(tmp, values.is_init)
 }
 
 #[must_use]
