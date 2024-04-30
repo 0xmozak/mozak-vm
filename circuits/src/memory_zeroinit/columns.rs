@@ -7,7 +7,7 @@ use crate::stark::mozak_stark::{MemoryZeroInitTable, TableWithTypedOutput};
 columns_view_impl!(MemoryZeroInit);
 make_col_map!(MemoryZeroInit);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct MemoryZeroInit<T> {
     pub addr: T,
     pub filter: T,

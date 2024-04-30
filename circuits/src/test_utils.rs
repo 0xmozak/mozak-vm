@@ -184,6 +184,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &store_word_rows,
             &load_word_rows,
             &blt_trace,
+            &poseidon2_sponge_trace,
             &io_memory_private,
             &io_memory_public,
             &call_tape_rows,
@@ -194,6 +195,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
             &cpu_trace,
             &add_trace,
+            &blt_trace,
             &store_word_rows,
             &load_word_rows,
             &memory_trace,
@@ -378,6 +380,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
 
         let register_init = generate_register_init_trace(record);
         let (_, _, trace) = generate_register_trace(
@@ -386,6 +389,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
             &store_word_rows,
             &load_word_rows,
             &blt_trace,
+            &poseidon2_sponge_rows,
             &io_memory_private,
             &io_memory_public,
             &call_tape,

@@ -1,20 +1,21 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use super::columns::{FIELDS_COUNT, NUM_POSEIDON2_OUTPUT_BYTES_COLS};
 use crate::columns_view::HasNamedColumns;
+use crate::expr::{build_ext, build_packed, ConstraintBuilder};
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
-use crate::stark::utils::{is_binary, is_binary_ext_circuit};
+use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -29,6 +30,27 @@ impl<F, const D: usize> HasNamedColumns for Poseidon2OutputBytesStark<F, D> {
 const COLUMNS: usize = NUM_POSEIDON2_OUTPUT_BYTES_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<Poseidon2OutputBytes<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+) -> ConstraintBuilder<Expr<'a, T>> {
+    let lv = vars.local_values;
+    let mut constraints = ConstraintBuilder::default();
+
+    constraints.always(lv.is_executed.is_binary());
+    for i in 0..FIELDS_COUNT {
+        let start_index = i * 8;
+        let end_index = i * 8 + 8;
+        constraints.always(
+            Expr::reduce_with_powers::<Vec<Expr<'a, T>>>(
+                lv.output_bytes[start_index..end_index].into(),
+                256,
+            ) - lv.output_fields[i],
+        );
+    }
+
+    constraints
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2OutputBytesStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
     where
@@ -40,44 +62,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Poseidon2OutputBytes<_> = vars.get_local_values().into();
-        is_binary(yield_constr, lv.is_executed);
-        for i in 0..FIELDS_COUNT {
-            let start_index = i * 8;
-            let end_index = i * 8 + 8;
-            yield_constr.constraint(
-                reduce_with_powers(
-                    &lv.output_bytes[start_index..end_index],
-                    P::Scalar::from_canonical_u16(256),
-                ) - lv.output_fields[i],
-            );
-        }
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_packed(constraints, consumer);
     }
 
     fn eval_ext_circuit(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         vars: &Self::EvaluationFrameTarget,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &Poseidon2OutputBytes<ExtensionTarget<D>> = vars.get_local_values().into();
-        is_binary_ext_circuit(builder, lv.is_executed, yield_constr);
-        let two_to_eight = builder.constant(F::from_canonical_u16(256));
-        for i in 0..FIELDS_COUNT {
-            let start_index = i * 8;
-            let end_index = i * 8 + 8;
-            let x = reduce_with_powers_ext_circuit(
-                builder,
-                &lv.output_bytes[start_index..end_index],
-                two_to_eight,
-            );
-            let x_sub_of = builder.sub_extension(x, lv.output_fields[i]);
-            yield_constr.constraint(builder, x_sub_of);
-        }
+        let eb = ExprBuilder::default();
+        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        build_ext(constraints, builder, consumer);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

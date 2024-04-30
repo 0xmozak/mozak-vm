@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::PathBuf;
 
 // This file contains code snippets used in native execution
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -17,17 +16,10 @@ pub struct IdentityStack(Vec<ProgramIdentifier>);
 impl IdentityStack {
     pub fn add_identity(&mut self, id: ProgramIdentifier) { self.0.push(id); }
 
+    #[must_use]
     pub fn top_identity(&self) -> ProgramIdentifier { self.0.last().copied().unwrap_or_default() }
 
     pub fn rm_identity(&mut self) { self.0.truncate(self.0.len().saturating_sub(1)); }
-}
-
-/// A bundle that declares the elf and system tape to be proven together.
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct ProofBundle {
-    pub self_prog_id: String,
-    pub elf_filepath: PathBuf,
-    pub system_tape_filepath: PathBuf,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -75,6 +67,7 @@ pub fn rm_identity() {
 
 /// Hashes the input slice to `Poseidon2Hash` after padding.
 /// We use the well known "Bit padding scheme".
+#[must_use]
 pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
     let mut padded_input = input.to_vec();
     padded_input.push(1);
@@ -100,6 +93,7 @@ pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
 /// This is intentional since zkvm's proof system
 /// would fail otherwise.
 #[allow(unused)]
+#[must_use]
 pub fn poseidon2_hash_no_pad(input: &[u8]) -> Poseidon2Hash {
     assert!(input.len() % RATE == 0);
     let data_fields: Vec<GoldilocksField> = input
@@ -149,74 +143,16 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
     );
 }
 
-/// Gets the mozakvm binary name via reading the guest program's Cargo.toml,
-/// and searching for a bin entry with path "..._mozak.rs".
-pub(crate) fn get_mozak_binary_name() -> String {
-    let toml_str = fs::read_to_string("Cargo.toml").expect(
-        "Could not find the program's Cargo.toml. Are you running from within the
-    project root?",
-    );
-
-    let toml: GuestProgramTomlCfg = toml::from_str(&toml_str).unwrap();
-
-    // TODO(bing): Currently, this is used to derive the name of the mozakvm
-    // binary based on the name declared alongside some path declared as
-    // "..._mozak.rs" in the project's `Cargo.toml`. The purpose of that is so
-    // we can dump the absolute path of the mozakvm ELF binary in our bundle
-    // plan (JSON).
-    //
-    // It might be prudent to come up with a more robust solution than this.
-    toml.bin
-        .into_iter()
-        .find(|b| b.path.contains("_mozak"))
-        .expect(
-            "Guest program does not have a mozakvm bin with path
- *_mozak.rs declared",
-        )
-        .name
-}
-
-/// This functions dumps 3 files of the currently running guest program:
+/// This functions dumps 2 files of the currently running guest program:
 ///   1. the actual system tape (JSON),
 ///   2. the debug dump of the system tape,
-///   3. the transaction bundle plan (JSON).
 ///
 /// These are all dumped in a sub-directory named `out` in the project root. The
-/// user must be cautious to not move the files, as the system tape and the
-/// bundle plan are used by the CLI in proving and in transaction bundling.
-pub fn dump_proving_files(file_template: &str, self_prog_id: ProgramIdentifier) {
+/// user must be cautious to not move at least the system tape, as the system
+/// tape is used by the CLI in proving and in transaction bundling, and the SDK
+/// makes some assumptions about where to find the ELF for proving.
+pub fn dump_proving_files(file_template: &str) {
     fs::create_dir_all("out").unwrap();
     let sys_tape_path = format!("out/{file_template}");
     dump_system_tape(&sys_tape_path, true);
-    let bin_filename = format!("out/{file_template}.tape.json");
-
-    let curr_dir = std::env::current_dir().unwrap();
-
-    let bin_filepath_absolute = curr_dir.join(bin_filename);
-
-    let native_exe = std::env::current_exe().unwrap();
-    let mut components = native_exe.components();
-
-    // Advance back by 3 iterations within the path components
-    // to get to the target/ directory. In essence this gets rid of:
-    // riscv32im-mozak-mozakvm-elf/release/<ELF_NAME>
-    (0..3).for_each(|_| {
-        components.next_back();
-    });
-
-    let elf_filepath = components.as_path().join(format!(
-        "riscv32im-mozak-mozakvm-elf/release/{}",
-        get_mozak_binary_name()
-    ));
-
-    let bundle = ProofBundle {
-        self_prog_id: format!("{self_prog_id:?}"),
-        elf_filepath,
-        system_tape_filepath: bin_filepath_absolute,
-    };
-    println!("[BNDLDMP] Bundle dump: {bundle:?}");
-
-    let bundle_filename = format!("out/{file_template}_bundle.json");
-    let bundle_json = serde_json::to_string_pretty(&bundle).unwrap();
-    write_to_file(&bundle_filename, bundle_json.as_bytes());
 }

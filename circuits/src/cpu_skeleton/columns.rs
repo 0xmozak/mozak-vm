@@ -5,7 +5,7 @@ use crate::stark::mozak_stark::{SkeletonTable, TableWithTypedOutput};
 columns_view_impl!(CpuSkeleton);
 make_col_map!(CpuSkeleton);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct CpuSkeleton<T> {
     pub clk: T,
     pub pc: T,
@@ -14,7 +14,7 @@ pub struct CpuSkeleton<T> {
 
 columns_view_impl!(CpuSkeletonCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct CpuSkeletonCtl<T> {
     pub clk: T,
     pub pc: T,

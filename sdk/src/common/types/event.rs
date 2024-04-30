@@ -1,3 +1,7 @@
+#[cfg(target_os = "mozakvm")]
+use crate::mozakvm::helpers::poseidon2_hash_no_pad;
+#[cfg(not(target_os = "mozakvm"))]
+use crate::native::helpers::poseidon2_hash_no_pad;
 #[derive(
     Copy,
     Clone,
@@ -17,9 +21,9 @@
 #[allow(clippy::module_name_repetitions)]
 #[repr(u8)]
 pub enum EventType {
-    Read = 0,
-    Write,
+    Write = 0,
     Ensure,
+    Read,
     Create,
     Delete,
 }
@@ -62,19 +66,17 @@ pub struct CanonicalEvent {
     pub address: super::StateAddress,
     pub type_: EventType,
     pub value: super::Poseidon2Hash,
-    pub emitter: super::ProgramIdentifier,
 }
 
 impl CanonicalEvent {
     #[must_use]
-    pub fn from_event(emitter: super::ProgramIdentifier, value: &Event) -> Self {
+    pub fn from_event(value: &Event) -> Self {
         #[cfg(not(target_os = "mozakvm"))]
         {
             Self {
                 address: value.object.address,
                 type_: value.type_,
                 value: crate::native::helpers::poseidon2_hash_with_pad(&value.object.data),
-                emitter,
             }
         }
         #[cfg(target_os = "mozakvm")]
@@ -83,9 +85,19 @@ impl CanonicalEvent {
                 address: value.object.address,
                 type_: value.type_,
                 value: crate::mozakvm::helpers::poseidon2_hash_with_pad(&value.object.data),
-                emitter,
             }
         }
+    }
+
+    #[must_use]
+    pub fn canonical_hash(&self) -> super::poseidon2hash::Poseidon2Hash {
+        let data_to_hash: Vec<u8> = itertools::chain!(
+            u64::from(self.type_ as u8).to_le_bytes(),
+            self.address.inner(),
+            self.value.inner(),
+        )
+        .collect();
+        poseidon2_hash_no_pad(&data_to_hash)
     }
 }
 

@@ -216,6 +216,12 @@ macro_rules! columns_view_impl {
                 iter.fold(Self::default(), core::ops::Add::add)
             }
         }
+        // Some of our tables have columns that are specifiecd as arrays that are bigger
+        // than 32 elements.  Thus default derivation doesn't work, so we do it manually
+        // here.
+        impl<F: Default> Default for $s<F> {
+            fn default() -> Self { $s::from_array(core::array::from_fn(|_| Default::default())) }
+        }
     };
 }
 
