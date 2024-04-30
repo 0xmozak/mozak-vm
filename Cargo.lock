@@ -1147,7 +1147,7 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 [[package]]
 name = "plonky2"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#59586b3896af152e3056fd4013b0e08547ebf580"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#9ebc7afcc0730e6cc874de473149b066cc5bc1bb"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1188,7 +1188,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#59586b3896af152e3056fd4013b0e08547ebf580"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#9ebc7afcc0730e6cc874de473149b066cc5bc1bb"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
@@ -1203,7 +1203,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#59586b3896af152e3056fd4013b0e08547ebf580"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#9ebc7afcc0730e6cc874de473149b066cc5bc1bb"
 dependencies = [
  "rayon",
 ]
@@ -1211,7 +1211,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#59586b3896af152e3056fd4013b0e08547ebf580"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#9ebc7afcc0730e6cc874de473149b066cc5bc1bb"
 
 [[package]]
 name = "plotters"
@@ -1667,7 +1667,7 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.4.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#59586b3896af152e3056fd4013b0e08547ebf580"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#9ebc7afcc0730e6cc874de473149b066cc5bc1bb"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1940,7 +1940,7 @@ checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
 [[package]]
 name = "unroll"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/unroll.git#1602aa5cd0b9babacb883ae369389444071f0402"
+source = "git+https://github.com/0xmozak/unroll.git#ad890f01b927ff5650937f5edaa3a03c582d1369"
 dependencies = [
  "quote",
  "syn",

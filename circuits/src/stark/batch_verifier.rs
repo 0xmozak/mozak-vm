@@ -13,7 +13,7 @@ use starky::config::StarkConfig;
 use super::mozak_stark::{all_kind, all_starks, MozakStark, TableKind, TableKindSetBuilder};
 use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
 use crate::public_sub_table::reduce_public_sub_tables_values;
-use crate::stark::batch_prover::batch_fri_instances;
+use crate::stark::batch_prover::{batch_fri_instances, batch_reduction_arity_bits};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::proof::BatchProof;
 use crate::stark::verifier::{verify_quotient_polynomials, verify_stark_proof_with_challenges};
@@ -136,7 +136,11 @@ where
     );
     let stark_proof = all_proof.batch_stark_proof;
     let proof = stark_proof.opening_proof;
-    let fri_params = config.fri_params(sorted_degree_bits[0]);
+    let rate_bits = config.fri_config.rate_bits;
+    let cap_height = config.fri_config.cap_height;
+    let mut fri_params = config.fri_params(sorted_degree_bits[0]);
+    fri_params.reduction_arity_bits =
+        batch_reduction_arity_bits(sorted_degree_bits.clone(), rate_bits, cap_height);
     let fri_challenges = challenger.fri_challenges::<C, D>(
         &proof.commit_phase_merkle_caps,
         &proof.final_poly,
@@ -177,6 +181,10 @@ where
         });
     }
 
+    sorted_degree_bits = sorted_degree_bits
+        .iter()
+        .map(|d| d + fri_params.config.rate_bits)
+        .collect_vec();
     verify_batch_fri_proof::<F, C, D>(
         &sorted_degree_bits,
         &fri_instances,

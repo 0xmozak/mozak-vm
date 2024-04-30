@@ -633,7 +633,7 @@ where
 }
 
 // TODO: find a better place for this function
-fn batch_reduction_arity_bits(
+pub(crate) fn batch_reduction_arity_bits(
     degree_bits: Vec<usize>,
     rate_bits: usize,
     cap_height: usize,
@@ -671,7 +671,50 @@ mod tests {
     use crate::utils::from_u32;
 
     #[test]
-    fn batch_prove_add() {
+    fn batch_prove_add_verify() {
+        let (program, record) = code::execute(
+            [Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, 3), (7, 4)],
+        );
+        let config = fast_test_config();
+
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let stark: MozakStark<F, D> = MozakStark::default();
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
+
+        // We cannot batch prove these tables because trace caps are needed as public
+        // inputs for the following tables.
+        let public_table_kinds = vec![TableKind::Program, TableKind::ElfMemoryInit];
+
+        let all_proof: BatchProof<F, C, D> = batch_prove(
+            &program,
+            &record,
+            &stark,
+            &public_table_kinds,
+            &config,
+            public_inputs,
+            &mut TimingTree::default(),
+        )
+        .unwrap();
+        batch_verify_proof(&stark, &public_table_kinds, all_proof, &config).unwrap();
+    }
+
+    #[test]
+    fn batch_prove_add_prove() {
         let (program, record) = code::execute(
             [Instruction {
                 op: Op::ADD,
