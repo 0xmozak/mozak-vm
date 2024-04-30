@@ -96,7 +96,8 @@ where
                 timed!(
                     timing,
                     &format!("compute trace commitment for {table:?}"),
-                    // TODO(Matthias): ok, after this point we no longer treat each column independently.
+                    // TODO(Matthias): ok, after this point we no longer treat each column
+                    // independently.
                     PolynomialBatch::<F, C, D>::from_values(
                         trace.clone(),
                         rate_bits,
@@ -120,7 +121,8 @@ where
     //         self.observe_hash::<OH>(hash);
     //     }
     // }
-    // Looks like we just look at them, one by one.  But are they sorted by row or column?
+    // Looks like we just look at them, one by one.  But are they sorted by row or
+    // column?
     for cap in &trace_caps {
         challenger.observe_cap(cap);
     }
@@ -229,8 +231,9 @@ where
     );
     let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
-    
-    // TODO(Matthias): see how `compute_quotient_polys` gets access to the different parts (normal traces vs z polynomials etc).
+
+    // TODO(Matthias): see how `compute_quotient_polys` gets access to the different
+    // parts (normal traces vs z polynomials etc).
     let alphas = challenger.get_n_challenges(config.num_challenges);
     let quotient_polys = timed!(
         timing,
