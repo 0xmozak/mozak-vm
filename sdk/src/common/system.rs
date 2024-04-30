@@ -3,20 +3,19 @@ use core::cell::RefCell;
 #[cfg(not(target_os = "mozakvm"))]
 use std::rc::Rc;
 
+use once_cell::unsync::Lazy;
 #[cfg(target_os = "mozakvm")]
 use rkyv::rancor::{Panic, Strategy};
 #[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
-#[cfg(target_os = "mozakvm")]
-use crate::common::{types::Poseidon2Hash, merkle::merkleize};
-
-use once_cell::unsync::Lazy;
 
 use super::types::{
     CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
 };
 #[cfg(target_os = "mozakvm")]
 use crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, ProgramIdentifier};
+#[cfg(target_os = "mozakvm")]
+use crate::common::{merkle::merkleize, types::Poseidon2Hash};
 #[cfg(target_os = "mozakvm")]
 use crate::mozakvm::helpers::{
     archived_repr, get_rkyv_archived, get_rkyv_deserialized, get_self_prog_id,
@@ -103,7 +102,10 @@ pub fn ensure_clean_shutdown() {
         let mut claimed_commitment: [u8; 32] = [0; 32];
         crate::core::ecall::events_commitment_tape_read(claimed_commitment.as_mut_ptr());
 
-        let canonical_event_temporal_hints: Vec<CanonicalOrderedTemporalHints> = SYSTEM_TAPE.event_tape.reader.unwrap()
+        let canonical_event_temporal_hints: Vec<CanonicalOrderedTemporalHints> = SYSTEM_TAPE
+            .event_tape
+            .reader
+            .unwrap()
             .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
             .unwrap();
 
