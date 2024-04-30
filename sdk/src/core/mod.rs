@@ -15,6 +15,8 @@ macro_rules! entry {
         mod mozak_generated_main {
             #[no_mangle]
             fn main() {
+                // #[cfg(feature = "std")]
+                assert!(0 == 1);
                 super::MOZAK_ENTRY();
                 #[cfg(feature = "std")]
                 mozak_sdk::common::system::ensure_clean_shutdown();
