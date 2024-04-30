@@ -184,7 +184,7 @@ pub fn generate_memory_trace<F: RichField>(
     let read_only_addresses: HashSet<F> = memory_init_rows
         .iter()
         .filter(|row| row.filter.is_nonzero() && row.is_writable.is_zero())
-        .map(|row| row.element.address)
+        .map(|row| row.address)
         .collect();
 
     merged_trace.sort_by_key(key);

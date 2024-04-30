@@ -66,7 +66,7 @@ impl<
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct NoColumns<T> {
     _phantom: PhantomData<T>,
 }

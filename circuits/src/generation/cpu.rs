@@ -12,7 +12,7 @@ use super::MIN_TRACE_LENGTH;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
-use crate::expr::ConversionEvaluator;
+use crate::expr::PureEvaluator;
 use crate::ops::add::columns::Add;
 use crate::ops::blt_taken::columns::BltTaken;
 use crate::program::columns::ProgramRom;
@@ -40,31 +40,17 @@ pub fn generate_program_mult_trace<F: RichField>(
     blt_taken_trace: &[BltTaken<F>],
     program_rom: &[ProgramRom<F>],
 ) -> Vec<ProgramMult<F>> {
-    let cpu_counts = trace
-        .iter()
-        .filter(|&row| row.is_running() == F::ONE)
-        .map(|row| row.inst.pc);
-    let add_counts = add_trace
-        .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst.pc);
-    let blt_taken_counts = blt_taken_trace
-        .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst.pc);
-    let counts = chain![cpu_counts, add_counts, blt_taken_counts].counts();
+    let cpu_counts = trace.iter().map(|row| row.inst.pc);
+    let add_counts = add_trace.iter().map(|row| row.inst.pc);
+    let blt_taken_counts = blt_taken_trace.iter().map(|row| row.inst.pc);
+    let mut counts = chain![cpu_counts, add_counts, blt_taken_counts].counts();
     program_rom
         .iter()
-        .map(|row| {
-            ProgramMult {
-                // This assumes that row.filter is binary, and that we have no duplicates.
-                mult_in_cpu: row.filter
-                    * F::from_canonical_usize(
-                        counts.get(&row.inst.pc).copied().unwrap_or_default(),
-                    ),
-                mult_in_rom: row.filter,
-                inst: row.inst,
-            }
+        .map(|&inst| ProgramMult {
+            // We use `remove` instead of a plain `get` to deal with duplicates (from padding) in
+            // the ROM.
+            mult_in_cpu: F::from_canonical_usize(counts.remove(&inst.pc).unwrap_or_default()),
+            rom_row: inst,
         })
         .collect()
 }
@@ -119,12 +105,6 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
-            poseidon2_input_addr: F::from_canonical_u32(
-                aux.poseidon2.clone().unwrap_or_default().addr,
-            ),
-            poseidon2_input_len: F::from_canonical_u32(
-                aux.poseidon2.clone().unwrap_or_default().len,
-            ),
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store_private: F::from_bool(matches!(
@@ -174,7 +154,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
     let expr_builder = ExprBuilder::default();
     let row = row.map(|x| expr_builder.lit(x));
-    ConversionEvaluator::new(F::from_noncanonical_i64).eval(row.signed_diff())
+    PureEvaluator(F::from_noncanonical_i64).eval(row.signed_diff())
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {

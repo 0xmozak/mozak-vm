@@ -67,19 +67,6 @@ pub struct VMRecursiveProofPublicInputs<T> {
     pub castlist_commitment_tape: [T; COMMITMENT_SIZE],
 }
 
-impl<T: Default + Copy> Default for VMRecursiveProofPublicInputs<T> {
-    fn default() -> Self {
-        Self {
-            entry_point: Default::default(),
-            program_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
-            elf_memory_init_trace_cap: [[T::default(); NUM_HASH_OUT_ELTS];
-                VM_RECURSION_CONFIG_NUM_CAPS],
-            event_commitment_tape: Default::default(),
-            castlist_commitment_tape: Default::default(),
-        }
-    }
-}
-
 columns_view_impl!(VMRecursiveProofPublicInputs);
 
 /// Represents a circuit which recursively verifies STARK proofs.

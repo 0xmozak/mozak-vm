@@ -8,7 +8,7 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::memory_io::columns::StorageDeviceCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
-use crate::program::columns::InstructionRow;
+use crate::program::columns::ProgramRom;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
@@ -17,7 +17,7 @@ use crate::xor::columns::XorView;
 columns_view_impl!(OpSelectors);
 /// Selectors for which instruction is currently active.
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct OpSelectors<T> {
     pub add: T,
     pub sub: T,
@@ -67,7 +67,7 @@ pub struct OpSelectors<T> {
 columns_view_impl!(Instruction);
 /// Internal [Instruction] of Stark used for transition constrains
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Instruction<T> {
     /// The original instruction (+ `imm_value`) used for program
     /// cross-table-lookup.
@@ -92,7 +92,7 @@ make_col_map!(CpuState);
 columns_view_impl!(CpuState);
 /// Represents the State of the CPU, which is also a row of the trace
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct CpuState<T> {
     pub clk: T,
     pub new_pc: T,
@@ -181,14 +181,13 @@ pub struct CpuState<T> {
     pub is_cast_list_commitment_tape: T,
     pub is_halt: T,
     pub is_poseidon2: T,
-    // TODO: these two need constraints.
-    // (And/or should probably be removed.)
-    pub poseidon2_input_addr: T,
-    pub poseidon2_input_len: T,
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
-impl<T: Copy + Sum> CpuState<T> {
+impl<T> CpuState<T>
+where
+    T: Copy + Sum,
+{
     pub fn is_running(&self) -> T { self.inst.ops.into_iter().sum() }
 }
 
@@ -380,10 +379,10 @@ pub fn lookup_for_shift_amount() -> TableWithTypedOutput<Bitshift<Column>> {
 
 /// Columns containing the data of original instructions.
 #[must_use]
-pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
+pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
     let inst = CPU.inst;
     CpuTable::new(
-        InstructionRow {
+        ProgramRom {
             pc: inst.pc,
             // Combine columns into a single column.
             // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
@@ -408,20 +407,13 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> 
                 1 << 5,
             ),
         },
-        CPU.is_running(),
+        ColumnWithTypedInput::constant(1),
     )
 }
 
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
-    CpuTable::new(
-        Poseidon2SpongeCtl {
-            clk: CPU.clk,
-            input_addr: CPU.poseidon2_input_addr,
-            input_len: CPU.poseidon2_input_len,
-        },
-        CPU.is_poseidon2,
-    )
+    CpuTable::new(Poseidon2SpongeCtl { clk: CPU.clk }, CPU.is_poseidon2)
 }
 
 #[must_use]

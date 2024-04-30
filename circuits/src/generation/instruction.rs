@@ -3,7 +3,7 @@ use mozak_runner::instruction::{Instruction, Op};
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns;
-use crate::program::columns::InstructionRow;
+use crate::program::columns::ProgramRom;
 
 impl From<(u32, Instruction)> for columns::Instruction<u32> {
     fn from((pc, inst): (u32, Instruction)) -> Self {
@@ -69,7 +69,7 @@ pub fn reduce_with_powers<F: RichField, I: IntoIterator<Item = F>>(terms: I, alp
         .sum()
 }
 
-impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
+impl<F: RichField> From<columns::Instruction<F>> for ProgramRom<F> {
     fn from(inst: columns::Instruction<F>) -> Self {
         Self {
             pc: inst.pc,

@@ -135,6 +135,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
             &cpu_rows,
             &add_rows,
             &blt_taken_rows,
+            &poseiden2_sponge_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &call_tape_rows,
@@ -143,8 +144,13 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
             &register_init_rows,
         );
     // Generate rows for the looking values with their multiplicities.
-    let rangecheck_rows =
-        generate_rangecheck_trace::<F>(&cpu_rows, &add_rows, &memory_rows, &register_rows);
+    let rangecheck_rows = generate_rangecheck_trace::<F>(
+        &cpu_rows,
+        &add_rows,
+        &blt_taken_rows,
+        &memory_rows,
+        &register_rows,
+    );
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);

@@ -1,6 +1,5 @@
 #[cfg(not(target_os = "mozakvm"))]
 use serde_hex::{SerHex, StrictPfx};
-
 pub const DIGEST_BYTES: usize = 32;
 #[allow(dead_code)]
 pub const RATE: usize = 8;
@@ -61,6 +60,13 @@ impl Poseidon2Hash {
 
 impl From<[u8; DIGEST_BYTES]> for Poseidon2Hash {
     fn from(value: [u8; DIGEST_BYTES]) -> Self { Poseidon2Hash(value) }
+}
+
+impl From<[u64; 4]> for Poseidon2Hash {
+    fn from(value: [u64; 4]) -> Self {
+        let flat_vec: Vec<u8> = value.into_iter().flat_map(u64::to_le_bytes).collect();
+        flat_vec.into()
+    }
 }
 
 impl From<Vec<u8>> for Poseidon2Hash {
