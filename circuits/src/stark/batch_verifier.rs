@@ -6,6 +6,7 @@ use log::debug;
 use plonky2::field::extension::Extendable;
 use plonky2::fri::batch_verifier::verify_batch_fri_proof;
 use plonky2::fri::proof::FriProof;
+use plonky2::fri::structure::{FriOpeningBatch, FriOpenings};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
@@ -184,31 +185,26 @@ where
         stark_proof.quotient_polys_cap,
     ];
 
-    let mut fri_openings = Vec::with_capacity(sorted_degree_bits.len());
+    let batch_count = 3;
+    let empty_fri_opening = FriOpenings {
+        batches: (0..batch_count)
+            .map(|_| FriOpeningBatch { values: vec![] })
+            .collect(),
+    };
+    let mut fri_openings = vec![empty_fri_opening; sorted_degree_bits.len()];
+
     for (i, d) in sorted_degree_bits.iter().enumerate() {
-        all_kind!(|kind| if degree_bits[kind] == *d {
-            if fri_openings.len() == i {
-                fri_openings.push(all_proof.proofs[kind].openings.to_fri_openings());
-            } else {
-                // TODO: this is for debugging purposes only
-                fri_openings[i]
-                    .batches
-                    .iter()
-                    .zip_eq(
-                        all_proof.proofs[kind]
-                            .openings
-                            .to_fri_openings()
-                            .batches
-                            .iter(),
-                    )
-                    .all(|(b0, b1)| {
-                        b0.values
-                            .iter()
-                            .zip_eq(b1.values.iter())
-                            .all(|(v0, v1)| v0 == v1)
-                    });
+        all_kind!(
+            |kind| if degree_bits[kind] == *d && !public_table_kinds.contains(&kind) {
+                let openings = all_proof.proofs[kind].openings.to_fri_openings();
+                assert!(openings.batches.len() == batch_count);
+                for j in 0..batch_count {
+                    fri_openings[i].batches[j]
+                        .values
+                        .extend(openings.batches[j].values.clone());
+                }
             }
-        });
+        );
     }
 
     verify_batch_fri_proof::<F, C, D>(
