@@ -42,7 +42,7 @@ pub fn generate_program_mult_trace<F: RichField>(
         .filter(|row| row.is_running.is_nonzero())
         .map(|row| row.pc)
         .counts();
-    let m = program_rom
+    program_rom
         .iter()
         .map(|&inst| ProgramMult {
             // We use `remove` instead of a plain `get` to deal with duplicates (from padding) in
@@ -50,9 +50,7 @@ pub fn generate_program_mult_trace<F: RichField>(
             mult_in_cpu: F::from_canonical_usize(counts.remove(&inst.pc).unwrap_or_default()),
             rom_row: inst,
         })
-        .collect();
-    dbg!(&m);
-    m
+        .collect()
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
@@ -145,9 +143,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 
     log::trace!("trace {:?}", trace);
 
-    let trace = pad_trace(trace);
-    dbg!(&trace);
-    trace
+    pad_trace(trace)
 }
 
 /// This is a wrapper to make the Expr mechanics work directly with a Field.

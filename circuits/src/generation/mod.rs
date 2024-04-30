@@ -86,7 +86,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let skeleton_rows = generate_cpu_skeleton_trace(record);
     let add_rows = ops::add::generate(record);
     let blt_taken_rows = ops::blt_taken::generate(record);
-    // dbg!(&skeleton_rows);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
