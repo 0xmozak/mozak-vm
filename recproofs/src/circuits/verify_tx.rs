@@ -40,7 +40,6 @@ where
     pub fn new(
         circuit_config: &CircuitConfig,
         program: &verify_program::BranchCircuit<F, C, D>,
-        // event_root: &build_event_root::BranchCircuit<F, C, D>,
     ) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
