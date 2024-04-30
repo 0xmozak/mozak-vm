@@ -407,7 +407,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
                 1 << 5,
             ),
         },
-        ColumnWithTypedInput::constant(1),
+        inst.ops.into_iter().sum(),
     )
 }
 

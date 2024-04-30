@@ -1,5 +1,5 @@
 use expr::{Evaluator, ExprBuilder};
-use itertools::{chain, Itertools};
+use itertools::Itertools;
 use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
@@ -12,9 +12,8 @@ use super::MIN_TRACE_LENGTH;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
+use crate::cpu_skeleton::columns::CpuSkeleton;
 use crate::expr::PureEvaluator;
-use crate::ops::add::columns::Add;
-use crate::ops::blt_taken::columns::BltTaken;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, sign_extend};
@@ -23,28 +22,27 @@ use crate::xor::columns::XorView;
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
-    let last = CpuState {
+    let padding = CpuState {
         product_high_limb_inv_helper: F::from_canonical_u32(u32::MAX).inverse(),
         quotient_value: F::from_canonical_u32(u32::MAX),
         ..Default::default()
     };
 
-    trace.resize(len, last);
+    trace.resize(len, padding);
     trace
 }
 
 #[must_use]
 pub fn generate_program_mult_trace<F: RichField>(
-    trace: &[CpuState<F>],
-    add_trace: &[Add<F>],
-    blt_taken_trace: &[BltTaken<F>],
+    skeleton: &[CpuSkeleton<F>],
     program_rom: &[ProgramRom<F>],
 ) -> Vec<ProgramMult<F>> {
-    let cpu_counts = trace.iter().map(|row| row.inst.pc);
-    let add_counts = add_trace.iter().map(|row| row.inst.pc);
-    let blt_taken_counts = blt_taken_trace.iter().map(|row| row.inst.pc);
-    let mut counts = chain![cpu_counts, add_counts, blt_taken_counts].counts();
-    program_rom
+    let mut counts = skeleton
+        .iter()
+        .filter(|row| row.is_running.is_nonzero())
+        .map(|row| row.pc)
+        .counts();
+    let m = program_rom
         .iter()
         .map(|&inst| ProgramMult {
             // We use `remove` instead of a plain `get` to deal with duplicates (from padding) in
@@ -52,7 +50,9 @@ pub fn generate_program_mult_trace<F: RichField>(
             mult_in_cpu: F::from_canonical_usize(counts.remove(&inst.pc).unwrap_or_default()),
             rom_row: inst,
         })
-        .collect()
+        .collect();
+    dbg!(&m);
+    m
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
@@ -145,7 +145,9 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 
     log::trace!("trace {:?}", trace);
 
-    pad_trace(trace)
+    let trace = pad_trace(trace);
+    dbg!(&trace);
+    trace
 }
 
 /// This is a wrapper to make the Expr mechanics work directly with a Field.
