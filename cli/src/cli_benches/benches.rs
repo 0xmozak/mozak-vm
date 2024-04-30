@@ -16,13 +16,19 @@ pub struct BenchArgs {
     pub function: BenchFunction,
 }
 
-pub trait Bench {
+pub(crate) trait Bench {
     type Args;
     type Prepared;
 
+    /// method to be executed to prepare the benchmark
     fn prepare(&self, args: &Self::Args) -> Self::Prepared;
+
+    /// actual benchmark function, whose execution time is
+    /// to be measured
     fn execute(&self, prepared: Self::Prepared) -> Result<()>;
 
+    /// benchmark the `execute` function implemented through the
+    /// trait `Bench`
     fn bench(&self, args: &Self::Args) -> Result<Duration> {
         let prepared = self.prepare(args);
         let start = std::time::Instant::now();
