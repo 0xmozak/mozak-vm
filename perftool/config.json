@@ -64,14 +64,15 @@
             }
         }
     },
-    "poseidon2": {
-        "description": "Benching Poseidon2 ECALL",
+    "poseidon2-elf": {
+        "description": "Benching Poseidon2 ecall inside ELF.",
         "parameter": "input_len",
         "output": "time taken (in s)",
         "benches": {
-            "poseidon2": {
+            "poseidon2-elf": {
                 "commit": "latest",
-                "bench_function": "poseidon2-bench"
+                "bench_function": "poseidon2-elf-bench",
+                "elf": "examples/mozak-poseidon2"
             }
         }
     }

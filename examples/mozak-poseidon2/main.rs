@@ -25,7 +25,7 @@ fn main() {
     // using rng to generate random bytes interferes
     // with benching poseidon2 ecall, which is the primary
     // focus here.
-    let v: Vec<u8> = black_box((0..n).map(|i| 0x12).collect());
+    let v: Vec<u8> = black_box((0..n).map(|_i| 0x12).collect());
     let mut hash = [0u8; 32];
 
     // flat hash
