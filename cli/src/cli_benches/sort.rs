@@ -33,6 +33,8 @@ pub fn sort_prepare(n: u32) -> Result<(Program, ExecutionRecord<F>)> {
     Ok((program, record))
 }
 
+/// Returns the stark proof for `MOZAK_SORT_ELF`, and its corresponding
+/// `RecursiveVerifierCircuit`.
 pub fn sort_recursive_prepare(
     n: u32,
 ) -> Result<(MozakStarkVerifierCircuit<F, C, D>, AllProof<F, C, D>)> {
@@ -61,10 +63,12 @@ pub fn sort_recursive_prepare(
     Ok((mozak_stark_circuit, mozak_proof))
 }
 
+/// Recursively verifies the stark proof for `MOZAK_SORT_ELF`, with
+/// its `MozakStarkVerifierCircuit`
 pub fn sort_recursive_execute(
-    result: Result<(MozakStarkVerifierCircuit<F, C, D>, AllProof<F, C, D>)>,
+    circuit_with_proof: Result<(MozakStarkVerifierCircuit<F, C, D>, AllProof<F, C, D>)>,
 ) -> Result<()> {
-    let (mozak_stark_circuit, mozak_proof) = result?;
+    let (mozak_stark_circuit, mozak_proof) = circuit_with_proof?;
     let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
     mozak_stark_circuit.circuit.verify(recursive_proof)
 }
