@@ -5,19 +5,13 @@ pub mod env;
 pub mod reg_abi;
 
 #[macro_export]
+#[cfg(target_os = "mozakvm")]
 macro_rules! entry {
     ($path:path) => {
-        // Type check the given path
-        #[cfg(target_os = "mozakvm")]
-        const MOZAK_ENTRY: fn() = $path;
-
-        #[cfg(target_os = "mozakvm")]
-        mod mozak_generated_main {
-            #[no_mangle]
-            fn main() {
-                super::MOZAK_ENTRY();
-                $crate::core::maybe_clean_shutdown();
-            }
+        #[no_mangle]
+        fn bespoke_entrypoint() {
+            $path();
+            $crate::core::maybe_clean_shutdown();
         }
     };
 }
@@ -37,9 +31,9 @@ unsafe extern "C" fn __start() {
     env::init();
     {
         extern "C" {
-            fn main();
+            fn bespoke_entrypoint();
         }
-        main()
+        bespoke_entrypoint()
     }
     env::finalize();
 }
