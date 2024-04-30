@@ -368,9 +368,8 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
             &self.proofs[table]
                 .trace_cap
                 .0
-                .clone()
-                .into_iter()
-                .flat_map(|hash| hash.to_vec())
+                .iter()
+                .flat_map(GenericHashOut::to_vec)
                 .collect_vec(),
         )
     }
