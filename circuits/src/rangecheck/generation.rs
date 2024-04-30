@@ -5,6 +5,10 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
+use crate::ops::add::columns::Add;
+use crate::ops::blt_taken::columns::BltTaken;
+use crate::ops::lw::columns::LoadWord;
+use crate::ops::sw::columns::StoreWord;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::register::general::columns::Register;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
@@ -49,6 +53,10 @@ where
 #[must_use]
 pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
+    add_trace: &[Add<F>],
+    blt_taken_trace: &[BltTaken<F>],
+    store_word_trace: &[StoreWord<F>],
+    load_word_trace: &[LoadWord<F>],
     memory_trace: &[Memory<F>],
     register_trace: &[Register<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
@@ -61,6 +69,10 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                     TableKind::Cpu => extract_with_mul(cpu_trace, &looking_table),
                     TableKind::Memory => extract_with_mul(memory_trace, &looking_table),
                     TableKind::Register => extract_with_mul(register_trace, &looking_table),
+                    TableKind::Add => extract_with_mul(add_trace, &looking_table),
+                    TableKind::BltTaken => extract_with_mul(blt_taken_trace, &looking_table),
+                    TableKind::StoreWord => extract_with_mul(store_word_trace, &looking_table),
+                    TableKind::LoadWord => extract_with_mul(load_word_trace, &looking_table),
                     // We are trying to build the RangeCheck table, so we have to ignore it here.
                     TableKind::RangeCheck => vec![],
                     other => unimplemented!("Can't range check {other:#?} tables"),
@@ -91,7 +103,6 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
-    use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
@@ -102,6 +113,7 @@ mod tests {
     use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::MIN_TRACE_LENGTH;
+    use crate::ops::{self, blt_taken};
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::register::generation::{generate_register_init_trace, generate_register_trace};
@@ -124,12 +136,15 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
+        let add_rows = ops::add::generate(&record);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
+        let blt_rows = blt_taken::generate(&record);
 
         let memory_init = generate_memory_init_trace(&program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
@@ -143,7 +158,8 @@ mod tests {
             &memory_init,
             &memory_zeroinit_rows,
             &halfword_memory,
-            &fullword_memory,
+            &store_word_rows,
+            &load_word_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &call_tape_rows,
@@ -155,6 +171,10 @@ mod tests {
         let register_init = generate_register_init_trace(&record);
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
+            &add_rows,
+            &store_word_rows,
+            &load_word_rows,
+            &blt_rows,
             &poseidon2_sponge_trace,
             &io_memory_private_rows,
             &io_memory_public_rows,
@@ -163,7 +183,15 @@ mod tests {
             &cast_list_commitment_tape_rows,
             &register_init,
         );
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+        let trace = generate_rangecheck_trace::<F>(
+            &cpu_rows,
+            &add_rows,
+            &blt_rows,
+            &store_word_rows,
+            &load_word_rows,
+            &memory_rows,
+            &register_rows,
+        );
         assert_eq!(
             trace.len(),
             MIN_TRACE_LENGTH,

@@ -9,7 +9,6 @@ use crate::expr::ConstraintBuilder;
 
 pub(crate) fn constraints<'a, P: Copy>(
     lv: &CpuState<Expr<'a, P>>,
-    nv: &CpuState<Expr<'a, P>>,
     cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     // Save the address of the instruction following the jump (return address).
@@ -25,7 +24,7 @@ pub(crate) fn constraints<'a, P: Copy>(
 
     let jump_target = lv.op1_value + lv.op2_value;
     let wrapped_jump_target = jump_target - (1 << 32);
-    let new_pc = nv.inst.pc;
+    let new_pc = lv.new_pc;
 
     // Check: the wrapped op1, op2 sum is set as new `pc`.
     // As values are u32 range checked, this makes the value choice deterministic.

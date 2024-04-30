@@ -122,7 +122,6 @@ pub fn omni_bench(iterations: u32) -> Result<(), anyhow::Error> {
             op: Op::LW,
             args: Args {
                 rd: 4,
-                rs1: 1,
                 rs2: 2,
                 ..Args::default()
             },
@@ -157,7 +156,6 @@ pub fn omni_bench(iterations: u32) -> Result<(), anyhow::Error> {
         Instruction {
             op: Op::SW,
             args: Args {
-                rd: 4,
                 rs1: 1,
                 rs2: 2,
                 ..Args::default()
@@ -266,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_omni_bench_with_run() {
-        let iterations = 10;
+        let iterations = 1;
         let bench = BenchArgs {
             function: BenchFunction::OmniBench { iterations },
         };

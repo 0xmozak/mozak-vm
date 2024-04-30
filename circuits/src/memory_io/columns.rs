@@ -15,7 +15,7 @@ use crate::tape_commitments::columns::TapeCommitmentCTL;
 
 /// Operations (one-hot encoded)
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Ops<T> {
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_memory_store: T,
