@@ -1,3 +1,4 @@
+use itertools::izip;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::plonk::config::GenericHashOut;
 
@@ -14,7 +15,7 @@ pub const BYTES_COUNT: usize = 32;
 columns_view_impl!(Poseidon2OutputBytes);
 make_col_map!(Poseidon2OutputBytes);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2OutputBytes<F> {
     pub is_executed: F,
     pub clk: F,
@@ -52,7 +53,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Poseidon2OutputBytes<F>> {
 
 columns_view_impl!(Poseidon2OutputBytesCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2OutputBytesCtl<F> {
     pub clk: F,
     pub output_addr: F,
@@ -71,17 +72,17 @@ pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2OutputByte
     )
 }
 
-#[must_use]
-pub fn lookup_for_output_memory(limb_index: u8) -> TableWithTypedOutput<MemoryCtl<Column>> {
-    assert!(limb_index < 32, "limb_index can be 0..31");
-    Poseidon2OutputBytesTable::new(
-        MemoryCtl {
-            clk: COL_MAP.clk,
-            is_store: ColumnWithTypedInput::constant(1),
-            is_load: ColumnWithTypedInput::constant(0),
-            value: COL_MAP.output_bytes[limb_index as usize],
-            addr: COL_MAP.output_addr + i64::from(limb_index),
-        },
-        COL_MAP.is_executed,
-    )
+pub fn lookup_for_output_memory() -> impl Iterator<Item = TableWithTypedOutput<MemoryCtl<Column>>> {
+    izip!(0.., COL_MAP.output_bytes).map(move |(limb_index, value)| {
+        Poseidon2OutputBytesTable::new(
+            MemoryCtl {
+                clk: COL_MAP.clk,
+                is_store: ColumnWithTypedInput::constant(1),
+                is_load: ColumnWithTypedInput::constant(0),
+                value,
+                addr: COL_MAP.output_addr + limb_index,
+            },
+            COL_MAP.is_executed,
+        )
+    })
 }

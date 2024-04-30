@@ -615,9 +615,9 @@ dependencies = [
 
 [[package]]
 name = "fastrand"
-version = "2.0.2"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "658bd65b1cf4c852a3cc96f18a8ce7b5640f6b703f905c7d74532294c2a63984"
+checksum = "9fc0510504f03c51ada170672ac806f1f105a88aa97a5281117e1ddc3368e51a"
 
 [[package]]
 name = "fnv"
@@ -672,9 +672,9 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "hashbrown"
-version = "0.14.3"
+version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 dependencies = [
  "ahash",
  "allocator-api2",
@@ -768,7 +768,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "168fb715dda47215e360912c096649d23d58bf392ac62f73919e831745e40f26"
 dependencies = [
  "equivalent",
- "hashbrown 0.14.3",
+ "hashbrown 0.14.5",
  "serde",
 ]
 
@@ -839,9 +839,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.153"
+version = "0.2.154"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
+checksum = "ae743338b92ff9146ce83992f766a31066a91a8c84a45e0e9f21e7cf6de6d346"
 
 [[package]]
 name = "libm"
@@ -1039,6 +1039,7 @@ dependencies = [
  "serde",
  "serde-hex",
  "serde_json",
+ "slice-group-by",
  "toml",
 ]
 
@@ -1147,12 +1148,12 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 [[package]]
 name = "plonky2"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#d5f5415888090b8d8e9be390f9b819f01cee7e5a"
+source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
 dependencies = [
  "ahash",
  "anyhow",
  "getrandom",
- "hashbrown 0.14.3",
+ "hashbrown 0.14.5",
  "itertools 0.12.1",
  "log",
  "num",
@@ -1188,7 +1189,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#d5f5415888090b8d8e9be390f9b819f01cee7e5a"
+source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
@@ -1203,7 +1204,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#d5f5415888090b8d8e9be390f9b819f01cee7e5a"
+source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
 dependencies = [
  "rayon",
 ]
@@ -1211,7 +1212,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#d5f5415888090b8d8e9be390f9b819f01cee7e5a"
+source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
 
 [[package]]
 name = "plotters"
@@ -1464,7 +1465,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f11954ea56d7bfee4022704c89d997ca15659bff852ab06dbee5cbeffdc723ed"
 dependencies = [
  "bitvec",
- "hashbrown 0.14.3",
+ "hashbrown 0.14.5",
  "ptr_meta",
  "rancor",
  "rend",
@@ -1525,9 +1526,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.198"
+version = "1.0.199"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9846a40c979031340571da2545a4e5b7c4163bdae79b301d5f86d03979451fcc"
+checksum = "0c9f6e76df036c77cd94996771fb40db98187f096dd0b9af39c6c6e452ba966a"
 dependencies = [
  "serde_derive",
 ]
@@ -1545,9 +1546,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.198"
+version = "1.0.199"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e88edab869b01783ba905e7d0153f9fc1a6505a96e4ad3018011eedb838566d9"
+checksum = "11bd257a6541e141e42ca6d24ae26f7714887b47e89aa739099104c7e4d3b7fc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1576,9 +1577,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.8.0"
+version = "3.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c85f8e96d1d6857f13768fcbd895fcb06225510022a2774ed8b5150581847b0"
+checksum = "0ad483d2ab0149d5a5ebcd9972a3852711e0153d863bf5a5d0391d28883c4a20"
 dependencies = [
  "base64",
  "chrono",
@@ -1594,9 +1595,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.8.0"
+version = "3.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8b3a576c4eb2924262d5951a3b737ccaf16c931e39a2810c36f9a7e25575557"
+checksum = "65569b702f41443e8bc8bbb1c5779bd0450bbe723b56198980e80ec45780bce2"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1656,6 +1657,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "slice-group-by"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
+
+[[package]]
 name = "smallvec"
 version = "0.6.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1667,11 +1674,11 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.4.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_batch_prove_openings#d5f5415888090b8d8e9be390f9b819f01cee7e5a"
+source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
 dependencies = [
  "ahash",
  "anyhow",
- "hashbrown 0.14.3",
+ "hashbrown 0.14.5",
  "itertools 0.12.1",
  "log",
  "num-bigint",
@@ -1927,9 +1934,9 @@ checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
 
 [[package]]
 name = "unicode-width"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e51733f11c9c4f72aa0c160008246859e340b00807569a0da0e7a1079b27ba85"
+checksum = "68f5e5f3158ecfd4b8ff6fe086db7c8467a2dfdac97fe420f2b7c4aa97af66d6"
 
 [[package]]
 name = "unicode-xid"
@@ -2218,9 +2225,9 @@ checksum = "bec47e5bfd1bff0eeaf6d8b485cc1074891a197ab4225d504cb7a1ab88b02bf0"
 
 [[package]]
 name = "winnow"
-version = "0.6.6"
+version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c976aaaa0e1f90dbb21e9587cdaf1d9679a1cde8875c0d6bd83ab96a208352"
+checksum = "14b9415ee827af173ebb3f15f9083df5a122eb93572ec28741fb153356ea2578"
 dependencies = [
  "memchr",
 ]

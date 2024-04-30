@@ -122,6 +122,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let (register_zero_read_rows, register_zero_write_rows, register_rows) =
         generate_register_trace(
             &cpu_rows,
+            &poseiden2_sponge_rows,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &call_tape_rows,

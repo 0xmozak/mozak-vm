@@ -1,11 +1,8 @@
 use core::ops::Add;
 
-use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
@@ -22,7 +19,7 @@ use crate::stark::mozak_stark::{MemoryTable, TableWithTypedOutput};
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Memory<T> {
     /// Indicates if a the memory address is writable.
     pub is_writable: T,
@@ -58,9 +55,9 @@ impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
     fn from(row: &MemoryInit<F>) -> Self {
         row.filter.is_one().then(|| Memory {
             is_writable: row.is_writable,
-            addr: row.element.address,
+            addr: row.address,
             is_init: F::ONE,
-            value: row.element.value,
+            value: row.value,
             clk: F::ONE,
             ..Default::default()
         })
@@ -176,14 +173,6 @@ impl<T: Copy + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T { self.is_store + self.is_load + self.is_init }
 }
 
-pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    values: &Memory<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let tmp = builder.add_extension(values.is_store, values.is_load);
-    builder.add_extension(tmp, values.is_init)
-}
-
 #[must_use]
 pub fn rangecheck_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>>> {
     vec![
@@ -216,7 +205,7 @@ pub fn rangecheck_u8_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>
 
 columns_view_impl!(MemoryCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct MemoryCtl<T> {
     pub clk: T,
     pub is_store: T,
