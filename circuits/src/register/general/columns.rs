@@ -11,7 +11,7 @@ use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
 
 columns_view_impl!(Ops);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Ops<T> {
     /// Binary filter column that marks a row as the initialization of
     /// a register.
@@ -65,7 +65,7 @@ columns_view_impl!(Register);
 make_col_map!(Register);
 /// [`Design doc for RegisterSTARK`](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc)
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Register<T> {
     /// The register 'address' that indexes into 1 of our 32 registers.
     /// Should only take values 0-31, so this column should be a running sum

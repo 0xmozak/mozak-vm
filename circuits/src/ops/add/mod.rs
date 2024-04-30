@@ -6,14 +6,14 @@ pub mod columns {
     use crate::cpu_skeleton::columns::CpuSkeletonCtl;
     use crate::linear_combination::Column;
     use crate::linear_combination_typed::ColumnWithTypedInput;
-    use crate::program::columns::InstructionRow;
+    use crate::program::columns::ProgramRom;
     use crate::rangecheck::columns::RangeCheckCtl;
     use crate::register::RegisterCtl;
     use crate::stark::mozak_stark::{AddTable, TableWithTypedOutput};
 
     columns_view_impl!(Instruction);
     #[repr(C)]
-    #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+    #[derive(Clone, Copy, Eq, PartialEq, Debug)]
     pub struct Instruction<T> {
         pub pc: T,
         pub rs1_selected: T,
@@ -25,7 +25,7 @@ pub mod columns {
     make_col_map!(Add);
     columns_view_impl!(Add);
     #[repr(C)]
-    #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+    #[derive(Clone, Copy, Eq, PartialEq, Debug)]
     pub struct Add<T> {
         pub inst: Instruction<T>,
         // TODO(Matthias): could we get rid of the clk here?
@@ -96,10 +96,10 @@ pub mod columns {
     }
 
     #[must_use]
-    pub fn lookup_for_program_rom() -> TableWithTypedOutput<InstructionRow<Column>> {
+    pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
         let inst = ADD.inst;
         AddTable::new(
-            InstructionRow {
+            ProgramRom {
                 pc: inst.pc,
                 // Combine columns into a single column.
                 // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within

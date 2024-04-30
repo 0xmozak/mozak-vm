@@ -49,7 +49,7 @@ use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, Poseidon2Outp
 use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
 use crate::poseidon2_sponge::columns::{Poseidon2Sponge, Poseidon2SpongeCtl};
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
-use crate::program::columns::{InstructionRow, ProgramRom};
+use crate::program::columns::ProgramRom;
 use crate::program::stark::ProgramStark;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::program_multiplicities::stark::ProgramMultStark;
@@ -414,7 +414,7 @@ impl<T> TableKindArray<T> {
 columns_view_impl!(PublicInputs);
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Serialize, Deserialize)]
 #[serde(bound = "F: Field")]
 pub struct PublicInputs<F> {
     pub entry_point: F,
@@ -776,20 +776,19 @@ impl Lookups for IntoMemoryTable {
     #[allow(clippy::too_many_lines)]
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         let tables = chain![
+            [cpu::columns::lookup_for_memory()],
             [
-                cpu::columns::lookup_for_memory(),
-                memory_halfword::columns::lookup_for_memory_limb(0),
-                memory_halfword::columns::lookup_for_memory_limb(1),
-                memory_io::columns::lookup_for_memory(TableKind::StorageDevicePrivate),
-                memory_io::columns::lookup_for_memory(TableKind::StorageDevicePublic),
-                memory_io::columns::lookup_for_memory(TableKind::CallTape),
-                memory_io::columns::lookup_for_memory(TableKind::EventsCommitmentTape),
-                memory_io::columns::lookup_for_memory(TableKind::CastListCommitmentTape),
-            ],
+                TableKind::StorageDevicePrivate,
+                TableKind::StorageDevicePublic,
+                TableKind::CallTape,
+                TableKind::EventsCommitmentTape,
+                TableKind::CastListCommitmentTape
+            ]
+            .map(memory_io::columns::lookup_for_memory),
             ops::sw::columns::lookup_for_memory_limb(),
             ops::lw::columns::lookup_for_memory_limb(),
-            (0..8).map(poseidon2_sponge::columns::lookup_for_input_memory),
-            (0..32).map(poseidon2_output_bytes::columns::lookup_for_output_memory),
+            poseidon2_sponge::columns::lookup_for_input_memory(),
+            poseidon2_output_bytes::columns::lookup_for_output_memory(),
         ]
         .collect();
         CrossTableLookupWithTypedOutput::new(tables, vec![memory::columns::lookup_for_cpu()])
@@ -832,7 +831,7 @@ impl Lookups for BitshiftCpuTable {
 pub struct InnerCpuTable;
 
 impl Lookups for InnerCpuTable {
-    type Row = InstructionRow<Column>;
+    type Row = ProgramRom<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -851,7 +850,7 @@ impl Lookups for InnerCpuTable {
 pub struct ProgramCpuTable;
 
 impl Lookups for ProgramCpuTable {
-    type Row = InstructionRow<Column>;
+    type Row = ProgramRom<Column>;
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
@@ -902,6 +901,7 @@ impl Lookups for RegisterLookups {
                 ops::sw::columns::register_looking(),
                 ops::lw::columns::register_looking(),
                 crate::memory_io::columns::register_looking(),
+                crate::poseidon2_sponge::columns::register_looking(),
                 vec![crate::register::init::columns::lookup_for_register()],
             ]
             .collect(),

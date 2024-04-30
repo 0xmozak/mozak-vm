@@ -1,5 +1,5 @@
 use expr::{Evaluator, ExprBuilder};
-use itertools::{chain, Itertools};
+use itertools::Itertools;
 use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
@@ -12,11 +12,8 @@ use super::MIN_TRACE_LENGTH;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
-use crate::expr::ConversionEvaluator;
-use crate::ops::add::columns::Add;
-use crate::ops::blt_taken::columns::BltTaken;
-use crate::ops::lw::columns::LoadWord;
-use crate::ops::sw::columns::StoreWord;
+use crate::cpu_skeleton::columns::CpuSkeleton;
+use crate::expr::PureEvaluator;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, sign_extend};
@@ -25,67 +22,37 @@ use crate::xor::columns::XorView;
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
     let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
-    let last = CpuState {
+    let padding = CpuState {
         product_high_limb_inv_helper: F::from_canonical_u32(u32::MAX).inverse(),
         quotient_value: F::from_canonical_u32(u32::MAX),
         ..Default::default()
     };
 
-    trace.resize(len, last);
+    trace.resize(len, padding);
     trace
 }
 
 #[must_use]
 pub fn generate_program_mult_trace<F: RichField>(
-    trace: &[CpuState<F>],
-    add_trace: &[Add<F>],
-    blt_taken_trace: &[BltTaken<F>],
-    store_word_trace: &[StoreWord<F>],
-    load_word_trace: &[LoadWord<F>],
+    skeleton: &[CpuSkeleton<F>],
     program_rom: &[ProgramRom<F>],
 ) -> Vec<ProgramMult<F>> {
-    let cpu_counts = trace
+    let mut counts = skeleton
         .iter()
-        .filter(|&row| row.is_running() == F::ONE)
-        .map(|row| row.inst.pc);
-    let add_counts = add_trace
+        .filter(|row| row.is_running.is_nonzero())
+        .map(|row| row.pc)
+        .counts();
+    let m = program_rom
         .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst.pc);
-    let blt_taken_counts = blt_taken_trace
-        .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst.pc);
-    let store_word_counts = store_word_trace
-        .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst.pc);
-    let load_word_counts = load_word_trace
-        .iter()
-        .filter(|row| row.is_running == F::ONE)
-        .map(|row| row.inst.pc);
-    let counts = chain![
-        cpu_counts,
-        add_counts,
-        blt_taken_counts,
-        store_word_counts,
-        load_word_counts,
-    ]
-    .counts();
-    program_rom
-        .iter()
-        .map(|row| {
-            ProgramMult {
-                // This assumes that row.filter is binary, and that we have no duplicates.
-                mult_in_cpu: row.filter
-                    * F::from_canonical_usize(
-                        counts.get(&row.inst.pc).copied().unwrap_or_default(),
-                    ),
-                mult_in_rom: row.filter,
-                inst: row.inst,
-            }
+        .map(|&inst| ProgramMult {
+            // We use `remove` instead of a plain `get` to deal with duplicates (from padding) in
+            // the ROM.
+            mult_in_cpu: F::from_canonical_usize(counts.remove(&inst.pc).unwrap_or_default()),
+            rom_row: inst,
         })
-        .collect()
+        .collect();
+    dbg!(&m);
+    m
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
@@ -138,12 +105,6 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
-            poseidon2_input_addr: F::from_canonical_u32(
-                aux.poseidon2.clone().unwrap_or_default().addr,
-            ),
-            poseidon2_input_len: F::from_canonical_u32(
-                aux.poseidon2.clone().unwrap_or_default().len,
-            ),
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store_private: F::from_bool(matches!(
@@ -185,7 +146,9 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     dbg!(trace.len());
     log::trace!("trace {:?}", trace);
 
-    pad_trace(trace)
+    let trace = pad_trace(trace);
+    dbg!(&trace);
+    trace
 }
 
 /// This is a wrapper to make the Expr mechanics work directly with a Field.
@@ -194,7 +157,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
     let expr_builder = ExprBuilder::default();
     let row = row.map(|x| expr_builder.lit(x));
-    ConversionEvaluator::new(F::from_noncanonical_i64).eval(row.signed_diff())
+    PureEvaluator(F::from_noncanonical_i64).eval(row.signed_diff())
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
