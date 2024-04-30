@@ -141,9 +141,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         trace.push(row);
     }
 
-    dbg!(trace.len());
-    log::trace!("trace {:?}", trace);
-
+    log::info!("cpu trace len {}", trace.len().next_power_of_two());
     pad_trace(trace)
 }
 

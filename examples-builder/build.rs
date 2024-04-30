@@ -40,6 +40,7 @@ const CRATES: &[Crate] = &[
     ecrate!("static-mem-access", "STATIC_MEM_ACCESS_ELF", false),
     ecrate!("empty", "EMPTY_ELF", false),
     ecrate!("mozak-sort", "MOZAK_SORT_ELF", false),
+    ecrate!("mozak-poseidon2", "MOZAK_POSEIDON2_ELF", false),
     ecrate!("tokenbin", "TOKENBIN", false),
     ecrate!("walletbin", "WALLETBIN", false),
     ecrate!("inputtapebin", "INPUTTAPEBIN", false),

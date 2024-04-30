@@ -4,6 +4,7 @@ use super::memory::memory_bench;
 use super::nop::nop_bench;
 use super::omni::omni_bench;
 use super::poseidon2::poseidon2_bench;
+use super::poseidon2_elf::poseidon2_elf_bench;
 use super::sort::sort_bench;
 use super::xor::xor_bench;
 
@@ -35,6 +36,9 @@ pub enum BenchFunction {
     SortBench {
         n: u32,
     },
+    Poseidon2ELFBench {
+        n: u32,
+    },
 }
 
 impl BenchArgs {
@@ -46,6 +50,7 @@ impl BenchArgs {
             BenchFunction::XorBench { iterations } => xor_bench(iterations),
             BenchFunction::OmniBench { iterations } => omni_bench(iterations),
             BenchFunction::SortBench { n } => sort_bench(n),
+            BenchFunction::Poseidon2ELFBench { n } => poseidon2_elf_bench(n),
         }
     }
 }
