@@ -5,6 +5,7 @@ use itertools::Itertools;
 use log::debug;
 use plonky2::field::extension::Extendable;
 use plonky2::fri::batch_verifier::verify_batch_fri_proof;
+use plonky2::fri::proof::FriProof;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
@@ -15,7 +16,7 @@ use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables
 use crate::public_sub_table::reduce_public_sub_tables_values;
 use crate::stark::batch_prover::{batch_fri_instances, batch_reduction_arity_bits};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
-use crate::stark::proof::BatchProof;
+use crate::stark::proof::{BatchProof, StarkProof, StarkProofChallenges};
 use crate::stark::verifier::{verify_quotient_polynomials, verify_stark_proof_with_challenges};
 
 #[allow(clippy::too_many_lines)]
@@ -29,6 +30,17 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     debug!("Starting Verify");
+
+    let degree_bits = all_proof.degree_bits;
+    let mut sorted_degree_bits: Vec<usize> =
+        all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(degree_bits[kind]))
+            .iter()
+            .filter_map(|d| *d)
+            .collect_vec();
+    sorted_degree_bits.sort();
+    sorted_degree_bits.reverse();
+    sorted_degree_bits.dedup();
+
     let mut challenger = Challenger::<F, C::Hasher>::new();
 
     for kind in public_table_kinds {
@@ -49,9 +61,45 @@ where
         }
     });
 
-    let batch_stark_challenges = all_proof
-        .batch_stark_proof
-        .get_challenges(&mut challenger, config);
+    let batch_stark_challenges = {
+        let StarkProof {
+            ctl_zs_cap,
+            quotient_polys_cap,
+            opening_proof:
+                FriProof {
+                    commit_phase_merkle_caps,
+                    final_poly,
+                    pow_witness,
+                    ..
+                },
+            ..
+        } = &all_proof.batch_stark_proof;
+
+        let num_challenges = config.num_challenges;
+
+        challenger.observe_cap(ctl_zs_cap);
+
+        let stark_alphas = challenger.get_n_challenges(num_challenges);
+
+        challenger.observe_cap(quotient_polys_cap);
+        let stark_zeta = challenger.get_extension_challenge::<D>();
+
+        all_kind!(|kind| if !public_table_kinds.contains(&kind) {
+            challenger.observe_openings(&all_proof.proofs[kind].openings.to_fri_openings());
+        });
+
+        StarkProofChallenges {
+            stark_alphas,
+            stark_zeta,
+            fri_challenges: challenger.fri_challenges::<C, D>(
+                commit_phase_merkle_caps,
+                final_poly,
+                *pow_witness,
+                sorted_degree_bits[0],
+                &config.fri_config,
+            ),
+        }
+    };
 
     ensure!(
         all_proof.proofs[TableKind::Program].trace_cap == all_proof.program_rom_trace_cap,
@@ -69,8 +117,6 @@ where
         &mozak_stark.public_sub_tables,
         &ctl_challenges,
     );
-
-    let degree_bits = all_proof.degree_bits;
 
     let reduced_public_sub_tables_values =
         reduce_public_sub_tables_values(&all_proof.public_sub_table_values, &ctl_challenges);
@@ -116,15 +162,6 @@ where
         config,
     )?;
 
-    let mut sorted_degree_bits: Vec<usize> =
-        all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(degree_bits[kind]))
-            .iter()
-            .filter_map(|d| *d)
-            .collect_vec();
-    sorted_degree_bits.sort();
-    sorted_degree_bits.reverse();
-    sorted_degree_bits.dedup();
-
     let fri_instances = batch_fri_instances(
         mozak_stark,
         public_table_kinds,
@@ -141,13 +178,6 @@ where
     let mut fri_params = config.fri_params(sorted_degree_bits[0]);
     fri_params.reduction_arity_bits =
         batch_reduction_arity_bits(sorted_degree_bits.clone(), rate_bits, cap_height);
-    let fri_challenges = challenger.fri_challenges::<C, D>(
-        &proof.commit_phase_merkle_caps,
-        &proof.final_poly,
-        proof.pow_witness,
-        sorted_degree_bits[0],
-        &fri_params.config,
-    );
     let init_merkle_caps = [
         stark_proof.trace_cap,
         stark_proof.ctl_zs_cap,
@@ -181,15 +211,11 @@ where
         });
     }
 
-    sorted_degree_bits = sorted_degree_bits
-        .iter()
-        .map(|d| d + fri_params.config.rate_bits)
-        .collect_vec();
     verify_batch_fri_proof::<F, C, D>(
         &sorted_degree_bits,
         &fri_instances,
         &fri_openings,
-        &fri_challenges,
+        &batch_stark_challenges.fri_challenges,
         &init_merkle_caps,
         &proof,
         &fri_params,
