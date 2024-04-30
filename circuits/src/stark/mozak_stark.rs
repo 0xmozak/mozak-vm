@@ -787,6 +787,7 @@ impl Lookups for IntoMemoryTable {
             .map(memory_io::columns::lookup_for_memory),
             ops::sw::columns::lookup_for_memory_limb(),
             ops::lw::columns::lookup_for_memory_limb(),
+            memory_halfword::columns::lookup_for_memory_limb(),
             poseidon2_sponge::columns::lookup_for_input_memory(),
             poseidon2_output_bytes::columns::lookup_for_output_memory(),
         ]
