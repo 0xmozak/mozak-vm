@@ -1,9 +1,19 @@
 use anyhow::Result;
-use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, F};
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
+use mozak_circuits::stark::proof::AllProof;
+use mozak_circuits::stark::prover::prove;
+use mozak_circuits::stark::recursive_verifier::{
+    recursive_mozak_stark_circuit, MozakStarkVerifierCircuit,
+};
+use mozak_circuits::stark::verifier::verify_proof;
+use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F};
 use mozak_examples::MOZAK_SORT_ELF;
 use mozak_runner::elf::Program;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::{step, ExecutionRecord};
+use plonky2::field::types::Field;
+use plonky2::plonk::circuit_data::CircuitConfig;
+use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
 use super::benches::Bench;
@@ -23,6 +33,42 @@ pub fn sort_prepare(n: u32) -> Result<(Program, ExecutionRecord<F>)> {
     Ok((program, record))
 }
 
+pub fn sort_recursive_prepare(
+    n: u32,
+) -> Result<(MozakStarkVerifierCircuit<F, C, D>, AllProof<F, C, D>)> {
+    let mozak_stark = MozakStark::default();
+    let stark_config = StarkConfig::standard_fast_config();
+    let (program, record) = sort_prepare(n)?;
+    let public_inputs = PublicInputs {
+        entry_point: F::from_canonical_u32(program.entry_point),
+    };
+    let mozak_proof = prove::<F, C, D>(
+        &program,
+        &record,
+        &mozak_stark,
+        &stark_config,
+        public_inputs,
+        &mut TimingTree::default(),
+    )?;
+    verify_proof(&mozak_stark, mozak_proof.clone(), &stark_config)?;
+    let circuit_config = CircuitConfig::standard_recursion_config();
+    let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+        &mozak_stark,
+        &mozak_proof.degree_bits(&stark_config),
+        &circuit_config,
+        &stark_config,
+    );
+    Ok((mozak_stark_circuit, mozak_proof))
+}
+
+pub fn sort_recursive_execute(
+    result: Result<(MozakStarkVerifierCircuit<F, C, D>, AllProof<F, C, D>)>,
+) -> Result<()> {
+    let (mozak_stark_circuit, mozak_proof) = result?;
+    let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+    mozak_stark_circuit.circuit.verify(recursive_proof)
+}
+
 pub(crate) struct SortBench;
 
 impl Bench for SortBench {
@@ -33,15 +79,31 @@ impl Bench for SortBench {
 
     fn execute(&self, prepared: Self::Prepared) -> Result<()> { sort_execute(prepared) }
 }
+
+pub(crate) struct SortBenchRecursive;
+
+impl Bench for SortBenchRecursive {
+    type Args = u32;
+    type Prepared = Result<(MozakStarkVerifierCircuit<F, C, D>, AllProof<F, C, D>)>;
+
+    fn prepare(&self, args: &Self::Args) -> Self::Prepared { sort_recursive_prepare(*args) }
+
+    fn execute(&self, prepared: Self::Prepared) -> Result<()> { sort_recursive_execute(prepared) }
+}
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
 
-    use super::{sort_execute, sort_prepare};
+    use super::{sort_execute, sort_prepare, sort_recursive_execute, sort_recursive_prepare};
 
     #[test]
     fn test_sort_bench() -> Result<()> {
         let n = 10;
         sort_execute(sort_prepare(n))
+    }
+    #[test]
+    fn test_recursive_sort_bench() -> Result<()> {
+        let n = 10;
+        sort_recursive_execute(sort_recursive_prepare(n))
     }
 }

@@ -6,7 +6,7 @@ use clap::{Args as Args_, Subcommand};
 use super::nop::NopBench;
 use super::omni::OmniBench;
 use super::poseidon2::Poseidon2Bench;
-use super::sort::SortBench;
+use super::sort::{SortBench, SortBenchRecursive};
 use super::xor::XorBench;
 
 #[derive(Debug, Args_, Clone)]
@@ -49,6 +49,9 @@ pub enum BenchFunction {
     SortBench {
         n: u32,
     },
+    SortBenchRecursive {
+        n: u32,
+    },
 }
 
 impl BenchArgs {
@@ -73,6 +76,10 @@ impl BenchArgs {
             BenchFunction::SortBench { n } => {
                 let sort_bench = SortBench;
                 sort_bench.bench(n)
+            }
+            BenchFunction::SortBenchRecursive { n } => {
+                let sort_bench_recursive = SortBenchRecursive;
+                sort_bench_recursive.bench(n)
             }
         }
     }
