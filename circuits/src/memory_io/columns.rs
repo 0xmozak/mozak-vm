@@ -24,7 +24,7 @@ pub struct Ops<T> {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct StorageDevice<T> {
     /// Clock at memory access.
     pub clk: T,
@@ -52,7 +52,7 @@ pub const NUM_IO_MEM_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
 
 columns_view_impl!(StorageDeviceCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct StorageDeviceCtl<T> {
     pub op: T,
     pub clk: T,

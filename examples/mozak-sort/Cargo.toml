@@ -5,7 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 mozak-sdk = { path = "../../sdk", default-features = false }
-rand = { version = "0.8.5", default_features = false, features = ["alloc", "small_rng"] }
+rand = { version = "0.8", default_features = false, features = ["alloc", "small_rng"] }
 
 [[bin]]
 name = "mozak-sort"

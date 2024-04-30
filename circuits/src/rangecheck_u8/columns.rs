@@ -4,7 +4,7 @@ use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{RangeCheckU8Table, TableWithTypedOutput};
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct RangeCheckU8<T> {
     /// The u8 value to be range checked
     pub value: T,

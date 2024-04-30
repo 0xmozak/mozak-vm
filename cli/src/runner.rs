@@ -10,7 +10,10 @@ use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_runner::elf::{Program, RuntimeArguments};
-use mozak_sdk::common::types::{CanonicalOrderedTemporalHints, ProgramIdentifier, SystemTape};
+use mozak_sdk::common::merkle::merkleize;
+use mozak_sdk::common::types::{
+    CanonicalOrderedTemporalHints, Poseidon2Hash, ProgramIdentifier, SystemTape,
+};
 use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -91,6 +94,22 @@ pub fn tapes_to_runtime_arguments(
         .unwrap_or_default()
         .get_canonical_order_temporal_hints();
 
+    let events_commitment_tape = merkleize(
+        canonical_order_temporal_hints
+            .iter()
+            .map(|x| {
+                (
+                    // May not be the best idea if
+                    // `addr` > goldilock's prime, cc
+                    // @Kapil
+                    u64::from_le_bytes(x.0.address.inner()),
+                    x.0.canonical_hash(),
+                )
+            })
+            .collect::<Vec<(u64, Poseidon2Hash)>>(),
+    )
+    .0;
+
     debug!("Self Prog ID: {self_prog_id:#?}");
     debug!("Found events: {:#?}", canonical_order_temporal_hints.len());
 
@@ -104,8 +123,7 @@ pub fn tapes_to_runtime_arguments(
 
         RuntimeArguments {
             self_prog_id: self_prog_id.inner().to_vec(),
-            // TODO(bing): actually populate these
-            events_commitment_tape: [0; COMMITMENT_SIZE],
+            events_commitment_tape,
             cast_list_commitment_tape: [0; COMMITMENT_SIZE],
             cast_list: serialise(&cast_list, "CAST_LIST"),
             io_tape_public: length_prefixed_bytes(

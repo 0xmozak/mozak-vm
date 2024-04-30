@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::ops::Index;
 
 use itertools::Itertools;
@@ -14,21 +13,24 @@ use crate::utils::pad_trace_with_default;
 /// Converts a u32 into 4 u8 limbs represented in [`RichField`].
 #[must_use]
 pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
-    value.to_le_bytes().map(|v| F::from_canonical_u8(v))
+    value.to_le_bytes().map(F::from_canonical_u8)
 }
 
-/// extract the values to be rangechecked.
-/// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
-/// memory traces, hence ignored
-pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table) -> Vec<F>
+/// extract the values with multiplicities
+pub fn extract_with_mul<F: RichField, Row>(trace: &[Row], looking_table: &Table) -> Vec<(F, F)>
 where
-    V: Index<usize, Output = F> + 'a, {
+    Row: Index<usize, Output = F>, {
     if let [column] = &looking_table.columns[..] {
         trace
             .iter()
             .circular_tuple_windows()
-            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_one())
-            .map(|(prev_row, row)| column.eval(prev_row, row))
+            .filter_map(|(prev_row, row)| {
+                let mult = looking_table.filter_column.eval(prev_row, row);
+                mult.is_nonzero().then_some((
+                    column.eval(prev_row, row).to_canonical(),
+                    looking_table.filter_column.eval(prev_row, row),
+                ))
+            })
             .collect()
     } else {
         panic!("Can only range check single values, not tuples.")
@@ -50,39 +52,34 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     memory_trace: &[Memory<F>],
     register_trace: &[Register<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
-    let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
-
-    RangecheckTable::lookups()
-        .looking_tables
-        .into_iter()
-        .for_each(|looking_table| {
-            match looking_table.kind {
-                TableKind::Cpu => extract(cpu_trace, &looking_table),
-                TableKind::Memory => extract(memory_trace, &looking_table),
-                TableKind::Register => extract(register_trace, &looking_table),
-                // We are trying to build the RangeCheck table, so we have to ignore it here.
-                TableKind::RangeCheck => vec![],
-                other => unimplemented!("Can't range check {other:#?} tables"),
-            }
+    pad_trace_with_default(
+        RangecheckTable::lookups()
+            .looking_tables
             .into_iter()
-            .for_each(|v| {
-                let val = u32::try_from(v.to_canonical_u64()).unwrap_or_else(|_| {
+            .flat_map(|looking_table| {
+                match looking_table.kind {
+                    TableKind::Cpu => extract_with_mul(cpu_trace, &looking_table),
+                    TableKind::Memory => extract_with_mul(memory_trace, &looking_table),
+                    TableKind::Register => extract_with_mul(register_trace, &looking_table),
+                    // We are trying to build the RangeCheck table, so we have to ignore it here.
+                    TableKind::RangeCheck => vec![],
+                    other => unimplemented!("Can't range check {other:#?} tables"),
+                }
+            })
+            .into_group_map()
+            .into_iter()
+            // Sorting just for determinism:
+            .sorted_by_key(|(v, _)| v.to_noncanonical_u64())
+            .map(|(v, multiplicity)| RangeCheckColumnsView {
+                multiplicity: multiplicity.into_iter().sum(),
+                limbs: limbs_from_u32(v.to_noncanonical_u64().try_into().unwrap_or_else(|_| {
                     panic!(
                         "We can only rangecheck values that actually fit in u32, but got: {v:#x?}"
                     )
-                });
-                *multiplicities.entry(val).or_default() += 1;
-            });
-        });
-    let mut trace = Vec::with_capacity(multiplicities.len());
-    for (value, multiplicity) in multiplicities {
-        trace.push(RangeCheckColumnsView {
-            multiplicity: F::from_canonical_u64(multiplicity),
-            limbs: limbs_from_u32(value),
-        });
-    }
-
-    pad_trace_with_default(trace)
+                })),
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
@@ -158,6 +155,7 @@ mod tests {
         let register_init = generate_register_init_trace(&record);
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
+            &poseidon2_sponge_trace,
             &io_memory_private_rows,
             &io_memory_public_rows,
             &call_tape_rows,
