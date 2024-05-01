@@ -9,8 +9,6 @@ use rkyv::rancor::{Panic, Strategy};
 #[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
 
-#[cfg(target_os = "mozakvm")]
-use super::types::cross_program_call::ArchivedCrossProgramCall;
 use super::types::{
     CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
 };
