@@ -5,7 +5,6 @@ pub mod env;
 pub mod reg_abi;
 
 #[macro_export]
-#[cfg(target_os = "mozakvm")]
 macro_rules! entry {
     ($path:path) => {
         // Type check the given path
