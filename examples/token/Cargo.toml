@@ -5,9 +5,10 @@ version = "0.1.0"
 
 [features]
 native = []
+std = [] # TODO: 😱 why this black magick works?
 
 [dependencies]
-mozak-sdk = { path = "../../sdk", default-features = true, features = ["std", "preinitmem_inputtape", "stdread"] }
+mozak-sdk = { path = "../../sdk" }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 rkyv_derive = "=0.8.0-alpha.1"
 wallet = { path = "../wallet" }
@@ -27,6 +28,7 @@ required-features = ["native"]
 [lib]
 name = "token"
 path = "core_logic.rs"
+
 
 # The following is read by `run_examples.py`
 [package.metadata.mozak]

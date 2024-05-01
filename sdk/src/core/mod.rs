@@ -8,20 +8,20 @@ pub mod reg_abi;
 #[cfg(target_os = "mozakvm")]
 macro_rules! entry {
     ($path:path) => {
-        #[no_mangle]
-        fn bespoke_entrypoint() {
-            $path();
-            $crate::core::maybe_clean_shutdown();
+        // Type check the given path
+        #[cfg(target_os = "mozakvm")]
+        const MOZAK_ENTRY: fn() = $path;
+
+        #[cfg(target_os = "mozakvm")]
+        mod mozak_generated_main {
+            #[no_mangle]
+            fn bespoke_entrypoint() {
+                super::MOZAK_ENTRY();
+                #[cfg(feature = "std")]
+                mozak_sdk::common::system::ensure_clean_shutdown();
+            }
         }
     };
-}
-
-/// Runs clean shutdown logic only if `std`
-/// feature enabled
-#[cfg(target_os = "mozakvm")]
-pub fn maybe_clean_shutdown() {
-    #[cfg(feature = "std")]
-    crate::common::system::ensure_clean_shutdown();
 }
 
 #[cfg(target_os = "mozakvm")]

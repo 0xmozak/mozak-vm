@@ -145,7 +145,7 @@ class ExamplesTester(unittest.TestCase):
                     f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected fully-featured example, building",
                 )
 
-                build_command = f"cargo build --release --bin {folder}bin"
+                build_command = f"cargo build --release --bin {folder}bin --features=\"std\""
                 print(
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
@@ -187,7 +187,7 @@ class ExamplesTester(unittest.TestCase):
                     # We assume this to be different from all dependents
                     prog_id = extra_info["example_program_id"]
 
-                    system_tape_generation_command = f"""cargo run --release --features="native" --bin {folder}-native --target {arch_triple}"""
+                    system_tape_generation_command = f"""cargo run --release --features="native,std" --bin {folder}-native --target {arch_triple}"""
                     print(
                         f"System tape generation: {Fore.BLUE}{system_tape_generation_command}{Style.RESET_ALL}",
                     )

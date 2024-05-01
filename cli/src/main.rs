@@ -143,11 +143,6 @@ fn main() -> Result<()> {
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id.clone()))
                 .unwrap_or_default();
 
-            println!(
-                "Merkle root (ev comm tape): {:?}",
-                args.events_commitment_tape
-            );
-
             let program = load_program(elf, &args).unwrap();
             let state = State::new(program.clone(), args.into());
 
