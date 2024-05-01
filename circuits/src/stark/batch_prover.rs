@@ -39,6 +39,24 @@ use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::prover::prove_single_table;
 
+pub(crate) fn sort_degree_bits<F, const D: usize>(
+    public_table_kinds: &[TableKind],
+    degree_bits: &TableKindArray<usize>,
+) -> Vec<usize>
+where
+    F: RichField + Extendable<D>, {
+    let mut sorted_degree_bits: Vec<usize> =
+        all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(degree_bits[kind]))
+            .iter()
+            .filter_map(|d| *d)
+            .collect_vec();
+    sorted_degree_bits.sort_unstable();
+    sorted_degree_bits.reverse();
+    sorted_degree_bits.dedup();
+    sorted_degree_bits
+}
+
+// Merge FRI instances by its polynomial degree
 pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     public_table_kinds: &[TableKind],
@@ -523,15 +541,7 @@ where
         None
     });
 
-    // Merge FRI instances by its polynomial degree
-    let mut sorted_degree_bits: Vec<usize> =
-        all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(degree_bits[kind]))
-            .iter()
-            .filter_map(|d| *d)
-            .collect_vec();
-    sorted_degree_bits.sort_unstable();
-    sorted_degree_bits.reverse();
-    sorted_degree_bits.dedup();
+    let sorted_degree_bits = sort_degree_bits::<F, D>(public_table_kinds, &degree_bits);
 
     let num_ctl_zs_per_table =
         all_kind!(|kind| ctl_data_per_table[kind].len() + public_sub_data_per_table[kind].len());

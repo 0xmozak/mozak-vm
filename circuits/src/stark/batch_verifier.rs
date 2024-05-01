@@ -1,7 +1,6 @@
 use std::borrow::Borrow;
 
-use anyhow::ensure;
-use itertools::Itertools;
+use anyhow::{ensure, Result};
 use log::debug;
 use plonky2::field::extension::Extendable;
 use plonky2::fri::batch_verifier::verify_batch_fri_proof;
@@ -15,7 +14,9 @@ use starky::config::StarkConfig;
 use super::mozak_stark::{all_kind, all_starks, MozakStark, TableKind, TableKindSetBuilder};
 use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
 use crate::public_sub_table::reduce_public_sub_tables_values;
-use crate::stark::batch_prover::{batch_fri_instances, batch_reduction_arity_bits};
+use crate::stark::batch_prover::{
+    batch_fri_instances, batch_reduction_arity_bits, sort_degree_bits,
+};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::proof::{BatchProof, StarkProof, StarkProofChallenges};
 use crate::stark::verifier::{verify_quotient_polynomials, verify_stark_proof_with_challenges};
@@ -26,21 +27,14 @@ pub fn batch_verify_proof<F, C, const D: usize>(
     public_table_kinds: &[TableKind],
     all_proof: BatchProof<F, C, D>,
     config: &StarkConfig,
-) -> anyhow::Result<()>
+) -> Result<()>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    debug!("Starting Verify");
+    debug!("Starting Batch Verify");
 
     let degree_bits = all_proof.degree_bits;
-    let mut sorted_degree_bits: Vec<usize> =
-        all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(degree_bits[kind]))
-            .iter()
-            .filter_map(|d| *d)
-            .collect_vec();
-    sorted_degree_bits.sort_unstable();
-    sorted_degree_bits.reverse();
-    sorted_degree_bits.dedup();
+    let sorted_degree_bits = sort_degree_bits::<F, D>(public_table_kinds, &degree_bits);
 
     let mut challenger = Challenger::<F, C::Hasher>::new();
 
