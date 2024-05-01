@@ -150,7 +150,6 @@ class ExamplesTester(unittest.TestCase):
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
 
-                # should take max 2 minutes
                 subprocess.run(
                     args=shlex.split(build_command),
                     cwd="examples",
@@ -193,7 +192,6 @@ class ExamplesTester(unittest.TestCase):
                         f"System tape generation: {Fore.BLUE}{system_tape_generation_command}{Style.RESET_ALL}",
                     )
 
-                    # should take max 2 minutes
                     subprocess.run(
                         args=shlex.split(system_tape_generation_command),
                         cwd=f"examples/{folder}",
@@ -233,7 +231,7 @@ class ExamplesTester(unittest.TestCase):
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )
-                        # should take max 2 minutes
+
                         subprocess.run(
                             args=shlex.split(execution_command),
                             capture_output=capture_output,
