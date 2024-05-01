@@ -180,7 +180,7 @@ pub mod test {
     use crate::test_utils::{C, CONFIG, D, F};
 
     lazy_static! {
-        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG, &VP_BRANCH,);
+        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG, &VP_BRANCH);
         pub static ref BRANCH: BranchCircuit<F, C, D> =
             BranchCircuit::new(&CONFIG, &MERGE_BRANCH, &LEAF);
         // This is not how you would do an actual merge as it doesn't intersplice

@@ -116,3 +116,27 @@ where
         self.circuit.prove(inputs)
     }
 }
+
+#[cfg(test)]
+pub mod test {
+    use lazy_static::lazy_static;
+
+    use super::*;
+    use crate::circuits::match_delta::test::BRANCH as MD_BRANCH;
+    use crate::circuits::state_update::test::BRANCH_1 as SU_ROOT;
+    // use crate::circuits::verify_program::test::{PROGRAM_1, PROGRAM_2};
+    use crate::circuits::verify_tx::test::BRANCH as TX_BRANCH;
+    use crate::test_utils::{C, CONFIG, D, F};
+
+    lazy_static! {
+        pub static ref CIRCUIT: Circuit<F, C, D> =
+            Circuit::new(&CONFIG, &TX_BRANCH, &MD_BRANCH, &SU_ROOT);
+    }
+
+    #[test]
+    fn verify_leaf() -> Result<()> {
+        let _ = &CIRCUIT.circuit;
+        // CIRCUIT.prove(tx_proof, match_proof, state_proof, prev_proof);
+        Ok(())
+    }
+}

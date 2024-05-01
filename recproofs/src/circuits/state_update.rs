@@ -268,7 +268,7 @@ impl From<u64> for AddressPresent {
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::Hasher;
@@ -284,9 +284,9 @@ mod test {
     }
 
     lazy_static! {
-        static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
-        static ref BRANCH_0: BranchCircuit<F, C, D> = BranchCircuit::from_leaf(&CONFIG, &LEAF);
-        static ref BRANCH_1: BranchCircuit<F, C, D> =
+        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
+        pub static ref BRANCH_0: BranchCircuit<F, C, D> = BranchCircuit::from_leaf(&CONFIG, &LEAF);
+        pub static ref BRANCH_1: BranchCircuit<F, C, D> =
             BranchCircuit::from_branch(&CONFIG, &BRANCH_0);
     }
 
