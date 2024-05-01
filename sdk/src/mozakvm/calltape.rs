@@ -9,7 +9,7 @@ use crate::common::types::{CrossProgramCall, ProgramIdentifier};
 pub struct CallTape {
     pub(crate) cast_list: Vec<ProgramIdentifier>,
     pub(crate) self_prog_id: ProgramIdentifier,
-    pub(crate) reader: Option<&'static <Vec<CrossProgramCall> as Archive>::Archived>,
+    pub(crate) reader: Option<Vec<CrossProgramCall>>,
     pub(crate) index: usize,
 }
 
@@ -39,13 +39,9 @@ impl Call for CallTape {
         <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
         <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
         // Ensure we aren't validating past the length of the event tape
-        assert!(self.index < self.reader.unwrap().len());
+        assert!(self.index < self.reader.as_ref().unwrap().len());
 
-        // Deserialize into rust form: CrossProgramCall.
-        let zcd_cpcmsg = &self.reader.unwrap()[self.index];
-        let cpcmsg: CrossProgramCall = zcd_cpcmsg
-            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
-            .unwrap();
+        let cpcmsg = &self.reader.as_ref().unwrap()[self.index];
 
         // Ensure fields are correctly populated for caller and callee
         assert!(cpcmsg.caller == self.get_self_identity());
@@ -86,10 +82,10 @@ impl Call for CallTape {
         // Loop until we completely traverse the call tape in the
         // worst case. Hopefully, we see a message directed towards us
         // before the end
-        while self.index < self.reader.unwrap().len() {
+        while self.index < self.reader.as_ref().unwrap().len() {
             // Get the "archived" version of the message, where we will
             // pick and choose what we will deserialize
-            let zcd_cpcmsg = &self.reader.unwrap()[self.index];
+            let zcd_cpcmsg = &self.reader.as_ref().unwrap()[self.index];
 
             // Mark this as "processed" regardless of what happens next.
             self.index += 1;
@@ -97,19 +93,13 @@ impl Call for CallTape {
             // Well, once we are sure that we were not the caller, we can
             // either be a callee in which case we process and send information
             // back or we continue searching.
-            let callee: ProgramIdentifier = zcd_cpcmsg
-                .callee
-                .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
-                .unwrap();
+            let callee: ProgramIdentifier = zcd_cpcmsg.callee;
 
             if self.self_prog_id == callee {
                 // First, ensure that we are not the caller, no-one can call
                 // themselves. (Even if they can w.r.t. self-calling extension,
                 // the `caller` field would remain distinct)
-                let caller: ProgramIdentifier = zcd_cpcmsg
-                    .caller
-                    .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
-                    .unwrap();
+                let caller: ProgramIdentifier = zcd_cpcmsg.caller;
                 assert!(caller != self.self_prog_id);
 
                 // Before accepting, make sure that caller was a part of castlist
