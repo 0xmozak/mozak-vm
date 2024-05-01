@@ -15,6 +15,14 @@ import unittest
 import toml
 from colorama import Fore, Style
 
+os_environ = os.environ
+
+# Comment the following line if you do not want verbose output
+os_environ['MOZAK_STARK_DEBUG'] = 'true'
+# Turn the following to `True` if you do not want output capturing
+capture_output = False
+# Running timeout per prove-and-verify (in seconds)
+timeout = 600
 
 class ReadTomlError(Exception):
     """Error while reading TOML file."""
@@ -86,12 +94,12 @@ class ExamplesTester(unittest.TestCase):
                 build_command = f"cargo build --release --bin {folder}"
                 print(f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}")
 
-                # should take max 2 minutes
                 subprocess.run(
                     args=shlex.split(build_command),
                     cwd="examples",
-                    capture_output=True,
-                    timeout=600,
+                    capture_output=capture_output,
+                    timeout=timeout,
+                    env=os_environ,
                     check=True,
                 )
 
@@ -100,17 +108,18 @@ class ExamplesTester(unittest.TestCase):
                         f"{Fore.RED}ZK prove and verify skipping for {Style.BRIGHT}{folder}{Style.NORMAL} as it is marked as an exception{Style.RESET_ALL}"
                     )
                 else:
-                    prove_and_verify_command = f"""cargo run --bin mozak-cli -- prove-and-verify \
+                    prove_and_verify_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv \
                         examples/target/riscv32im-mozak-mozakvm-elf/release/{folder} \
                         --self-prog-id {dummy_prog_id}"""
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
                     )
-                    # should take max 2 minutes
+
                     subprocess.run(
                         args=shlex.split(prove_and_verify_command),
-                        capture_output=True,
-                        timeout=600,
+                        capture_output=capture_output,
+                        timeout=timeout,
+                        env=os_environ,
                         check=True,
                     )
                 print()
@@ -145,8 +154,9 @@ class ExamplesTester(unittest.TestCase):
                 subprocess.run(
                     args=shlex.split(build_command),
                     cwd="examples",
-                    capture_output=True,
-                    timeout=600,
+                    capture_output=capture_output,
+                    timeout=timeout,
+                    env=os_environ,
                     check=True,
                 )
                 print()
@@ -187,8 +197,9 @@ class ExamplesTester(unittest.TestCase):
                     subprocess.run(
                         args=shlex.split(system_tape_generation_command),
                         cwd=f"examples/{folder}",
-                        capture_output=True,
-                        timeout=600,
+                        capture_output=capture_output,
+                        timeout=timeout,
+                        env=os_environ,
                         check=True,
                     )
 
@@ -225,8 +236,9 @@ class ExamplesTester(unittest.TestCase):
                         # should take max 2 minutes
                         subprocess.run(
                             args=shlex.split(execution_command),
-                            capture_output=True,
-                            timeout=600,
+                            capture_output=capture_output,
+                            timeout=timeout,
+                            env=os_environ,
                             check=True,
                         )
 
