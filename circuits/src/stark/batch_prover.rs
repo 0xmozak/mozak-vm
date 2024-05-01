@@ -56,7 +56,6 @@ where
     sorted_degree_bits
 }
 
-// Merge FRI instances by its polynomial degree
 pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     public_table_kinds: &[TableKind],
@@ -88,9 +87,9 @@ pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
         }
     );
 
-    let mut degree_log_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
+    let mut degree_bits_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
     all_kind!(|kind| {
-        degree_log_map
+        degree_bits_map
             .entry(degree_bits[kind])
             .or_default()
             .push(kind);
@@ -99,7 +98,7 @@ pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     let fri_instance_groups = sorted_degree_bits
         .iter()
         .map(|degree_log| {
-            degree_log_map[degree_log]
+            degree_bits_map[degree_log]
                 .iter()
                 .filter_map(|kind| fri_instances[*kind].as_ref())
                 .collect::<Vec<_>>()
@@ -114,6 +113,7 @@ pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     res
 }
 
+// Merge FRI instances by its polynomial degree
 pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     instances: &[&FriInstanceInfo<F, D>],
     polynomial_index_start: &mut [usize; 3],
@@ -198,7 +198,7 @@ where
         .flat_map(std::clone::Clone::clone)
         .collect();
     batch_trace_polys.sort_by_key(|b| std::cmp::Reverse(b.len()));
-    let bacth_trace_polys_len = batch_trace_polys.len();
+    let batch_trace_polys_len = batch_trace_polys.len();
 
     let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
@@ -209,7 +209,7 @@ where
             false,
             cap_height,
             timing,
-            &vec![None; bacth_trace_polys_len],
+            &vec![None; batch_trace_polys_len],
         )
     );
 

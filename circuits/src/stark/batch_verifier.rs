@@ -47,6 +47,7 @@ where
 
     let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
 
+    // Get challenges for public STARKs.
     let stark_challenges = all_kind!(|kind| {
         if public_table_kinds.contains(&kind) {
             challenger.compact();
@@ -56,6 +57,7 @@ where
         }
     });
 
+    // Get challenges for the batch STARK.
     let batch_stark_challenges = {
         let StarkProof {
             ctl_zs_cap,
@@ -121,6 +123,7 @@ where
         ..Default::default()
     }
     .build();
+
     all_starks!(mozak_stark, |stark, kind| {
         if public_table_kinds.contains(&kind) {
             if let Some(challenges) = &stark_challenges[kind] {
