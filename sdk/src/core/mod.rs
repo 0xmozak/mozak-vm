@@ -16,18 +16,11 @@ macro_rules! entry {
             #[no_mangle]
             fn main() {
                 super::MOZAK_ENTRY();
-                $crate::core::maybe_clean_shutdown();
+                #[cfg(feature = "std")]
+                mozak_sdk::common::system::ensure_clean_shutdown();
             }
         }
     };
-}
-
-/// Runs clean shutdown logic only if `std`
-/// feature enabled
-#[cfg(target_os = "mozakvm")]
-pub fn maybe_clean_shutdown() {
-    #[cfg(feature = "std")]
-    crate::common::system::ensure_clean_shutdown();
 }
 
 #[cfg(target_os = "mozakvm")]
