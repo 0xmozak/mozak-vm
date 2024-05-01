@@ -1,3 +1,4 @@
+use expr::{Evaluator, ExprBuilder};
 use itertools::{chain, Itertools};
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
@@ -9,6 +10,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
+use crate::expr::PureEvaluator;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
@@ -118,9 +120,19 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     pad_trace_with_last(trace)
 }
 
+/// This is a wrapper to make the Expr mechanics work directly with a Field.
+///
+/// TODO(Matthias): Make this more generally useful.
+fn signed_diff<F: RichField>(row: &CpuState<F>) -> F {
+    let expr_builder = ExprBuilder::default();
+    let row = row.map(|x| expr_builder.lit(x));
+    PureEvaluator(F::from_noncanonical_i64).eval(row.signed_diff())
+}
+
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
-    row.cmp_diff_inv = row.signed_diff().try_inverse().unwrap_or_default();
-    row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
+    let signed_diff = signed_diff(row);
+    row.cmp_diff_inv = signed_diff.try_inverse().unwrap_or_default();
+    row.normalised_diff = F::from_bool(signed_diff.is_nonzero());
 }
 
 /// Generates a bitshift row on a shift operation. This is used in the bitshift

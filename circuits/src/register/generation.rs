@@ -13,7 +13,7 @@ use crate::register::zero_read::columns::RegisterZeroRead;
 use crate::register::zero_write::columns::RegisterZeroWrite;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
-use crate::utils::{pad_trace_with_default, pad_trace_with_row};
+use crate::utils::{pad_trace_with_default, pad_trace_with_last, pad_trace_with_row};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
 /// internally by `augmented_clk`
@@ -152,12 +152,11 @@ pub fn generate_register_init_trace<F: RichField>(
         .first()
         .map_or(&record.last_state, |row| &row.state);
 
-    pad_trace_with_default(
-        (0..32)
+    pad_trace_with_last(
+        (1..32)
             .map(|i| RegisterInit {
                 reg_addr: F::from_canonical_u8(i),
                 value: F::from_canonical_u32(first_state.get_register_value(i)),
-                is_looked_up: F::from_bool(i != 0),
             })
             .collect(),
     )
@@ -273,12 +272,12 @@ mod tests {
 
         // Finally, append the above trace with the extra init rows with unused
         // registers.
-        #[rustfmt::skip]
         let mut final_init_rows = prep_table(
-            (13..32).map(|i|
-                // addr value clk  is_init is_read is_write
-                [     i,   0,   0,       1,      0,       0]
-            ).collect(),
+            (13..33)
+                .map(|i|
+                // addr     value clk  is_init is_read is_write
+                [ i.min(31),   0,   0,       1,      0,       0])
+                .collect(),
         );
         expected_trace.append(&mut final_init_rows);
 
