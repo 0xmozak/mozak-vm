@@ -34,13 +34,13 @@ resolver = "2"
 
 [profile.dev.package."*"]
 # Set the default for dependencies in Development mode.
-#opt-level = 3
+opt-level = 3
 
 [profile.dev]
-#lto = "thin"
+lto = "thin"
 # We are running our tests with optimizations turned on to make them faster.
 # Please turn optimizations off, when you want accurate stack traces for debugging.
-#opt-level = 2
+opt-level = 2
 
 [profile.release]
 lto = "fat"

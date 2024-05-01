@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use anyhow::ensure;
+use anyhow::{ensure, Result};
 use itertools::Itertools;
 use log::Level::Debug;
 use log::{debug, info, log_enabled};
@@ -48,33 +48,33 @@ pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     config: &StarkConfig,
     num_ctl_zs_per_table: &TableKindArray<usize>,
 ) -> Vec<FriInstanceInfo<F, D>> {
-    let fri_instances = all_starks!(mozak_stark, |stark, kind| if !public_table_kinds
-        .contains(&kind)
-    {
-        Some({
-            let g = F::primitive_root_of_unity(degree_bits[kind]);
-
-            stark.fri_instance(
-                zeta,
-                g,
-                0,
-                vec![],
-                config,
-                Some(&LookupConfig {
-                    degree_bits: degree_bits[kind],
-                    num_zs: num_ctl_zs_per_table[kind],
-                }),
-            )
-        })
-    } else {
-        None
-    });
+    let fri_instances = all_starks!(
+        mozak_stark,
+        |stark, kind| if public_table_kinds.contains(&kind) {
+            None
+        } else {
+            Some({
+                let g = F::primitive_root_of_unity(degree_bits[kind]);
+                stark.fri_instance(
+                    zeta,
+                    g,
+                    0,
+                    vec![],
+                    config,
+                    Some(&LookupConfig {
+                        degree_bits: degree_bits[kind],
+                        num_zs: num_ctl_zs_per_table[kind],
+                    }),
+                )
+            })
+        }
+    );
 
     let mut degree_log_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
     all_kind!(|kind| {
         degree_log_map
             .entry(degree_bits[kind])
-            .or_insert(Vec::new())
+            .or_default()
             .push(kind);
     });
 
@@ -130,21 +130,15 @@ pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
             res.oracles[i].num_polys += ins.oracles[i].num_polys;
 
             assert_eq!(res.batches[i].point, ins.batches[i].point);
-            for poly in ins.batches[i].polynomials.iter().cloned() {
+            for poly in ins.batches[i].polynomials.iter().copied() {
                 let mut poly = poly;
                 poly.polynomial_index += polynomial_index_start[poly.oracle_index];
-                // assert!(
-                //     poly.polynomial_index < res.oracles[poly.oracle_index].num_polys,
-                //     "{}, {}, ",
-                //     poly.polynomial_index,
-                //     res.oracles[poly.oracle_index].num_polys
-                // );
                 res.batches[i].polynomials.push(poly);
             }
         }
 
-        for i in 0..3 {
-            polynomial_index_start[i] += ins.oracles[i].num_polys;
+        for (i, item) in polynomial_index_start.iter_mut().enumerate().take(3) {
+            *item += ins.oracles[i].num_polys;
         }
     }
 
@@ -159,7 +153,7 @@ pub fn batch_prove<F, C, const D: usize>(
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
     timing: &mut TimingTree,
-) -> anyhow::Result<BatchProof<F, C, D>>
+) -> Result<BatchProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
@@ -183,9 +177,9 @@ where
     let mut batch_trace_polys: Vec<_> = batch_traces_poly_values
         .iter()
         .filter_map(|t| *t)
-        .flat_map(|v| v.clone())
+        .flat_map(std::clone::Clone::clone)
         .collect();
-    batch_trace_polys.sort_by(|a, b| b.len().cmp(&a.len()));
+    batch_trace_polys.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let bacth_trace_polys_len = batch_trace_polys.len();
 
     let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
@@ -257,7 +251,7 @@ where
     let (proofs, batch_stark_proof) = batch_prove_with_commitments(
         mozak_stark,
         config,
-        &public_table_kinds,
+        public_table_kinds,
         &public_inputs,
         &degree_bits,
         &traces_poly_values,
@@ -305,7 +299,7 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> anyhow::Result<(TableKindArray<StarkProof<F, C, D>>, StarkProof<F, C, D>)>
+) -> Result<(TableKindArray<StarkProof<F, C, D>>, StarkProof<F, C, D>)>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
@@ -337,8 +331,10 @@ where
         None
     });
 
-    let batch_ctl_z_polys = all_kind!(|kind| {
-        if !public_table_kinds.contains(&kind) {
+    let all_ctl_z_polys = all_kind!(|kind| {
+        if public_table_kinds.contains(&kind) {
+            None
+        } else {
             Some({
                 let fri_params = config.fri_params(degree_bits[kind]);
                 assert!(
@@ -363,25 +359,23 @@ where
 
                 z_polys
             })
-        } else {
-            None
         }
     });
 
     // TODO: can we remove duplicates in the ctl polynomials?
-    let mut batch_ctl_zs_polys: Vec<_> = batch_ctl_z_polys
+    let mut batch_ctl_z_polys: Vec<_> = all_ctl_z_polys
         .iter()
         .filter_map(|t| t.as_ref())
         .flat_map(|v| v.iter().cloned())
         .collect();
-    batch_ctl_zs_polys.sort_by(|a, b| b.len().cmp(&a.len()));
-    let batch_ctl_zs_polys_len = batch_ctl_zs_polys.len();
+    batch_ctl_z_polys.sort_by(|a, b| b.len().cmp(&a.len()));
+    let batch_ctl_zs_polys_len = batch_ctl_z_polys.len();
 
     let batch_ctl_zs_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "compute batch Zs commitment",
         BatchFriOracle::from_values(
-            batch_ctl_zs_polys,
+            batch_ctl_z_polys,
             rate_bits,
             false,
             config.fri_config.cap_height,
@@ -393,7 +387,7 @@ where
     let ctl_zs_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
-        if let Some(poly) = &batch_ctl_z_polys[kind] {
+        if let Some(poly) = &all_ctl_z_polys[kind] {
             Some(PolynomialBatch::<F, C, D>::from_values(
                 poly.clone(),
                 rate_bits,
@@ -423,7 +417,7 @@ where
                 compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
                     stark,
                     &trace_commitments[kind],
-                    &ctl_zs_commitment,
+                    ctl_zs_commitment,
                     public_inputs[kind],
                     &ctl_data_per_table[kind],
                     &public_sub_data_per_table[kind],
@@ -518,8 +512,8 @@ where
                 zeta,
                 g,
                 &trace_commitments[kind],
-                &ctl_zs_commitment,
-                &quotient_commitment,
+                ctl_zs_commitment,
+                quotient_commitment,
                 degree_bits[kind],
             );
 
@@ -576,7 +570,7 @@ where
 
     let mut fri_params = config.fri_params(sorted_degree_bits[0]);
     fri_params.reduction_arity_bits =
-        batch_reduction_arity_bits(sorted_degree_bits.clone(), rate_bits, cap_height);
+        batch_reduction_arity_bits(&sorted_degree_bits.clone(), rate_bits, cap_height);
     let opening_proof = timed!(
         timing,
         format!("compute batch opening proofs").as_str(),
@@ -634,7 +628,7 @@ where
 
 // TODO: find a better place for this function
 pub(crate) fn batch_reduction_arity_bits(
-    degree_bits: Vec<usize>,
+    degree_bits: &[usize],
     rate_bits: usize,
     cap_height: usize,
 ) -> Vec<usize> {
@@ -671,7 +665,11 @@ mod tests {
     use crate::utils::from_u32;
 
     #[test]
-    fn batch_prove_add_verify() {
+    fn batch_prove_add() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
         let (program, record) = code::execute(
             [Instruction {
                 op: Op::ADD,
@@ -686,53 +684,6 @@ mod tests {
             &[(6, 3), (7, 4)],
         );
         let config = fast_test_config();
-
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
-        let stark: MozakStark<F, D> = MozakStark::default();
-        let public_inputs = PublicInputs {
-            entry_point: from_u32(program.entry_point),
-        };
-
-        // We cannot batch prove these tables because trace caps are needed as public
-        // inputs for the following tables.
-        let public_table_kinds = vec![TableKind::Program, TableKind::ElfMemoryInit];
-
-        let all_proof: BatchProof<F, C, D> = batch_prove(
-            &program,
-            &record,
-            &stark,
-            &public_table_kinds,
-            &config,
-            public_inputs,
-            &mut TimingTree::default(),
-        )
-        .unwrap();
-        batch_verify_proof(&stark, &public_table_kinds, all_proof, &config).unwrap();
-    }
-
-    #[test]
-    fn batch_prove_add_prove() {
-        let (program, record) = code::execute(
-            [Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: 5,
-                    rs1: 6,
-                    rs2: 7,
-                    ..Args::default()
-                },
-            }],
-            &[],
-            &[(6, 3), (7, 4)],
-        );
-        let config = fast_test_config();
-
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
 
         let stark: MozakStark<F, D> = MozakStark::default();
         let public_inputs = PublicInputs {

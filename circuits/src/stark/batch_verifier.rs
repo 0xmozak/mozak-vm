@@ -133,7 +133,7 @@ where
                 verify_stark_proof_with_challenges(
                     stark,
                     &all_proof.proofs[kind],
-                    &challenges,
+                    challenges,
                     public_inputs[kind],
                     &ctl_vars_per_table[kind],
                     config,
@@ -178,7 +178,7 @@ where
     let cap_height = config.fri_config.cap_height;
     let mut fri_params = config.fri_params(sorted_degree_bits[0]);
     fri_params.reduction_arity_bits =
-        batch_reduction_arity_bits(sorted_degree_bits.clone(), rate_bits, cap_height);
+        batch_reduction_arity_bits(&sorted_degree_bits.clone(), rate_bits, cap_height);
     let init_merkle_caps = [
         stark_proof.trace_cap,
         stark_proof.ctl_zs_cap,
