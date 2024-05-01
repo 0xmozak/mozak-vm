@@ -14,7 +14,7 @@ macro_rules! entry {
         #[cfg(target_os = "mozakvm")]
         mod mozak_generated_main {
             #[no_mangle]
-            fn main() {
+            fn bespoke_entrypoint() {
                 super::MOZAK_ENTRY();
                 #[cfg(feature = "std")]
                 mozak_sdk::common::system::ensure_clean_shutdown();
@@ -30,9 +30,9 @@ unsafe extern "C" fn __start() {
     env::init();
     {
         extern "C" {
-            fn main();
+            fn bespoke_entrypoint();
         }
-        main()
+        bespoke_entrypoint()
     }
     env::finalize();
 }
