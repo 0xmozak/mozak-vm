@@ -38,7 +38,7 @@ where
             .iter()
             .filter_map(|d| *d)
             .collect_vec();
-    sorted_degree_bits.sort();
+    sorted_degree_bits.sort_unstable();
     sorted_degree_bits.reverse();
     sorted_degree_bits.dedup();
 

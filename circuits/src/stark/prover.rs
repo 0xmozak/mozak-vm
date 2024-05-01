@@ -373,6 +373,7 @@ where
 
 #[cfg(test)]
 mod tests {
+
     use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use plonky2::field::goldilocks_field::GoldilocksField;

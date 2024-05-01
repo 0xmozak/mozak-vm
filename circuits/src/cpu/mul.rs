@@ -95,6 +95,7 @@ pub(crate) fn constraints<'a, P: Copy>(
 
 #[cfg(test)]
 mod tests {
+
     use std::borrow::Borrow;
 
     use anyhow::Result;

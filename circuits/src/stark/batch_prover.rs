@@ -286,6 +286,7 @@ where
 /// # Errors
 /// Errors if proving fails.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn batch_prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
@@ -368,7 +369,7 @@ where
         .filter_map(|t| t.as_ref())
         .flat_map(|v| v.iter().cloned())
         .collect();
-    batch_ctl_z_polys.sort_by(|a, b| b.len().cmp(&a.len()));
+    batch_ctl_z_polys.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let batch_ctl_zs_polys_len = batch_ctl_z_polys.len();
 
     let batch_ctl_zs_commitments: BatchFriOracle<F, C, D> = timed!(
@@ -387,8 +388,9 @@ where
     let ctl_zs_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
-        if let Some(poly) = &all_ctl_z_polys[kind] {
-            Some(PolynomialBatch::<F, C, D>::from_values(
+        all_ctl_z_polys[kind]
+            .as_ref()
+            .map(|poly| PolynomialBatch::<F, C, D>::from_values(
                 poly.clone(),
                 rate_bits,
                 false,
@@ -396,9 +398,6 @@ where
                 timing,
                 None,
             ))
-        } else {
-            None
-        }
     ));
 
     let ctl_zs_cap = batch_ctl_zs_commitments.field_merkle_tree.cap.clone();
@@ -532,7 +531,7 @@ where
             .iter()
             .filter_map(|d| *d)
             .collect_vec();
-    sorted_degree_bits.sort();
+    sorted_degree_bits.sort_unstable();
     sorted_degree_bits.reverse();
     sorted_degree_bits.dedup();
 
@@ -555,14 +554,12 @@ where
         &batch_quotient_commitments,
     ];
 
-    for i in 0..3 {
+    for (i, tree) in initial_merkle_trees.iter().enumerate() {
         assert_eq!(
-            initial_merkle_trees[i].polynomials.len(),
+            tree.polynomials.len(),
             batch_fri_instances
                 .iter()
                 .map(|ins| ins.oracles[i].num_polys)
-                .collect::<Vec<usize>>()
-                .iter()
                 .sum::<usize>(),
             "batch index: {i}"
         );
@@ -573,7 +570,7 @@ where
         batch_reduction_arity_bits(&sorted_degree_bits.clone(), rate_bits, cap_height);
     let opening_proof = timed!(
         timing,
-        format!("compute batch opening proofs").as_str(),
+        "compute batch opening proofs",
         BatchFriOracle::prove_openings(
             &sorted_degree_bits,
             &batch_fri_instances,
