@@ -262,7 +262,6 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
                 .copied()
                 .collect_vec(),
         };
-        // debug_assert!(!self.ctl_zs_last.is_empty());
         let ctl_last_batch = FriOpeningBatch {
             values: self
                 .ctl_zs_last

@@ -454,14 +454,15 @@ where
         .filter_map(|t| t.as_ref())
         .flat_map(|v| v.iter().cloned())
         .collect();
-    batch_quotient_chunks.sort_by(|a, b| b.len().cmp(&a.len()));
+    batch_quotient_chunks.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let batch_quotient_chunks_len = batch_quotient_chunks.len();
 
     let quotient_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
         timing,
         format!("{stark}: compute quotient commitment").as_str(),
-        if let Some(poly) = &quotient_chunks[kind] {
-            Some(PolynomialBatch::<F, C, D>::from_coeffs(
+        quotient_chunks[kind]
+            .as_ref()
+            .map(|poly| PolynomialBatch::<F, C, D>::from_coeffs(
                 poly.clone(),
                 rate_bits,
                 false,
@@ -469,9 +470,6 @@ where
                 timing,
                 None,
             ))
-        } else {
-            None
-        }
     ));
 
     let batch_quotient_commitments: BatchFriOracle<F, C, D> = timed!(
