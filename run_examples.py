@@ -15,6 +15,14 @@ import unittest
 import toml
 from colorama import Fore, Style
 
+os_environ = os.environ
+
+# Comment the following line if you do not want verbose output
+os_environ['MOZAK_STARK_DEBUG'] = 'true'
+# Turn the following to `True` if you do not want output capturing
+capture_output = False
+# Running timeout per prove-and-verify (in seconds)
+timeout = 600
 
 class ReadTomlError(Exception):
     """Error while reading TOML file."""
@@ -86,12 +94,12 @@ class ExamplesTester(unittest.TestCase):
                 build_command = f"cargo build --release --bin {folder}"
                 print(f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}")
 
-                # should take max 2 minutes
                 subprocess.run(
                     args=shlex.split(build_command),
                     cwd="examples",
-                    capture_output=True,
-                    timeout=600,
+                    capture_output=capture_output,
+                    timeout=timeout,
+                    env=os_environ,
                     check=True,
                 )
 
@@ -105,11 +113,12 @@ class ExamplesTester(unittest.TestCase):
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
                     )
-                    # should take max 2 minutes
+
                     subprocess.run(
                         args=shlex.split(prove_and_verify_command),
-                        capture_output=True,
-                        timeout=600,
+                        capture_output=capture_output,
+                        timeout=timeout,
+                        env=os_environ,
                         check=True,
                     )
                 print()
@@ -140,12 +149,12 @@ class ExamplesTester(unittest.TestCase):
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
 
-                # should take max 2 minutes
                 subprocess.run(
                     args=shlex.split(build_command),
                     cwd="examples",
-                    capture_output=True,
-                    timeout=600,
+                    capture_output=capture_output,
+                    timeout=timeout,
+                    env=os_environ,
                     check=True,
                 )
                 print()
@@ -182,12 +191,12 @@ class ExamplesTester(unittest.TestCase):
                         f"System tape generation: {Fore.BLUE}{system_tape_generation_command}{Style.RESET_ALL}",
                     )
 
-                    # should take max 2 minutes
                     subprocess.run(
                         args=shlex.split(system_tape_generation_command),
                         cwd=f"examples/{folder}",
-                        capture_output=True,
-                        timeout=600,
+                        capture_output=capture_output,
+                        timeout=timeout,
+                        env=os_environ,
                         check=True,
                     )
 
@@ -221,11 +230,12 @@ class ExamplesTester(unittest.TestCase):
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )
-                        # should take max 2 minutes
+
                         subprocess.run(
                             args=shlex.split(execution_command),
-                            capture_output=True,
-                            timeout=600,
+                            capture_output=capture_output,
+                            timeout=timeout,
+                            env=os_environ,
                             check=True,
                         )
 
