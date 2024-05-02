@@ -145,12 +145,18 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
 
     let default = || {
         warn!("UNKNOWN Op {bf:?} at pc {pc:?}");
+        // panic!();
         Err(DecodingError {
             pc,
             instruction: word,
         })
     };
 
+
+    if word ==0xC000_1073 {
+        // panic!("word is 0xC000_1073");
+        return default();
+    }
     let (op, args) = match bf.opcode() {
         0b011_0011 => match (bf.funct3(), bf.funct7()) {
             (0x0, 0x00) => (Op::ADD, rtype),
@@ -231,21 +237,21 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
         #[allow(clippy::match_same_arms)]
         0b111_0011 => match (bf.funct3(), bf.funct12()) {
             (0x0, 0x0) => (ECALL.op, ECALL.args),
-            // For RISC-V this would be MRET,
-            // but so far we implemented it as a no-op.
-            (0x0, 0x302) => nop,
-            // For RISC-V this would be EBREAK,
-            // but so far we implemented it as a no-op.
-            (0x0, 0x1) => nop,
-            // For RISC-V this would be (Op::CSRRW, itype),
-            // but so far we implemented it as a no-op.
-            (0x1, _) => nop,
-            // For RISC-V this would be (Op::CSRRS, itype),
-            // but so far we implemented it as a no-op.
-            (0x2, _) => nop,
-            // For RISC-V this would be (Op::CSRRWI, itype),
-            // but so far we implemented it as a no-op.
-            (0x5, _) => nop,
+            // // For RISC-V this would be MRET,
+            // // but so far we implemented it as a no-op.
+            // (0x0, 0x302) => nop,
+            // // For RISC-V this would be EBREAK,
+            // // but so far we implemented it as a no-op.
+            // (0x0, 0x1) => nop,
+            // // For RISC-V this would be (Op::CSRRW, itype),
+            // // but so far we implemented it as a no-op.
+            // (0x1, _) => nop,
+            // // For RISC-V this would be (Op::CSRRS, itype),
+            // // but so far we implemented it as a no-op.
+            // (0x2, _) => nop,
+            // // For RISC-V this would be (Op::CSRRWI, itype),
+            // // but so far we implemented it as a no-op.
+            // (0x5, _) => nop,
             _ => return default(),
         },
         // For RISC-V its JAL, but we handle it as JALR.
@@ -271,7 +277,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
         0b001_0111 => (Op::ADD, utype_absolute),
         // For RISC-V this would be (Op::FENCE, itype)
         // but so far we implemented it as a no-op.
-        0b000_1111 => nop,
+        // 0b000_1111 => nop,
         _ => return default(),
     };
 

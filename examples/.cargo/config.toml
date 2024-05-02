@@ -1,5 +1,5 @@
 [unstable]
-build-std = ["alloc", "core", "compiler_builtins", "std", "panic_abort", "proc_macro"]
+build-std = ["alloc", "core", "compiler_builtins", "std", "proc_macro"]
 build-std-features = ["compiler-builtins-mem"]
 
 [build]

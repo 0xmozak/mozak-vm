@@ -117,7 +117,9 @@ impl RandomAccessPreinitMemTape {
 
 #[derive(Default, Clone)]
 pub struct RandomAccessEcallTape {
+    #[allow(dead_code)]
     pub ecall_id: u32,
+    #[allow(dead_code)]
     pub read_offset: usize,
 }
 

@@ -294,12 +294,23 @@ pub fn step<F: RichField>(
         log::trace!("clk: {:?}, {:?}", new_state.clk, instruction);
         last_state = new_state;
 
+        // 16777656
+        if last_state.pc == 16_777_772 {
+            log::warn!("Reached an unknown, {} {:?}", last_state.pc, last_state.current_instruction(program));
+        }
         if cfg!(debug_assertions) {
             let limit: u64 = option_env!("MOZAK_MAX_LOOPS")
                 .map_or(1_000_000, |env_var| env_var.parse().unwrap());
+            if last_state.clk + 20 > limit {
+                log::warn!(
+                    "Almost looped for longer than MOZAK_MAX_LOOPS: {} {:?}",
+                    last_state.pc,
+                    last_state.current_instruction(program)
+                );
+            }
             debug_assert!(
-                last_state.clk != limit,
-                "Looped for longer than MOZAK_MAX_LOOPS"
+                last_state.clk < limit,
+                "Looped for longer than MOZAK_MAX_LOOPS",
             );
         }
     }

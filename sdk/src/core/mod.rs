@@ -15,6 +15,13 @@ macro_rules! entry {
         mod mozak_generated_main {
             #[no_mangle]
             fn main() {
+                #[cfg(feature = "std")]
+                {
+                    use std::panic;
+                    panic::set_hook(Box::new(|_| unsafe {
+                        core::arch::asm!("unimp", options(noreturn, nomem, nostack));
+                    }));
+                }
                 super::MOZAK_ENTRY();
                 #[cfg(feature = "std")]
                 mozak_sdk::common::system::ensure_clean_shutdown();
@@ -26,6 +33,7 @@ macro_rules! entry {
 #[cfg(target_os = "mozakvm")]
 #[no_mangle]
 #[allow(clippy::semicolon_if_nothing_returned)]
+#[allow(unreachable_code)]
 unsafe extern "C" fn __start() {
     env::init();
     {
@@ -62,16 +70,23 @@ _start:
     sym STACK_TOP
 );
 
-#[cfg(all(not(feature = "std"), target_os = "mozakvm"))]
+// #[cfg(all(not(feature = "std"), target_os = "mozakvm"))]
+// // #[cfg(all(target_os = "mozakvm"))]
+
+#[cfg(target_os = "mozakvm")]
+#[cfg(not(feature = "std"))]
 mod handlers {
     use core::panic::PanicInfo;
 
-    use crate::core::ecall;
+    // use crate::core::ecall;
 
     #[panic_handler]
-    fn panic_fault(panic_info: &PanicInfo) -> ! {
-        let msg = rust_alloc::format!("{panic_info}");
-        ecall::panic(msg.as_ptr(), msg.len());
-        unreachable!();
+    fn panic_fault(_panic_info: &PanicInfo) -> ! {
+        unsafe {
+            core::arch::asm!("unimp", options(noreturn, nomem, nostack),);
+        }
+        // let msg = rust_alloc::format!("{panic_info}");
+        // ecall::panic(msg.as_ptr(), msg.len());
+
     }
 }
