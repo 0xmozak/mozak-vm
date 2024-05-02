@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOutTarget, RichField};
+use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
@@ -98,10 +98,8 @@ where
             let acc_event_hash = accumulate_event_circuit
                 .event_hash
                 .indices
-                .get_unpruned_hash(&targets.accumulate_event.public_inputs);
-            let acc_event_hash = HashOutTarget {
-                elements: acc_event_hash,
-            };
+                .unpruned_hash
+                .get(&targets.accumulate_event.public_inputs);
             builder.connect_hashes(event_hash_targets.inputs.unpruned_hash, acc_event_hash);
         }
         // address
@@ -109,14 +107,16 @@ where
             let acc_addr = accumulate_event_circuit
                 .partial_state
                 .indices
-                .get_address(&targets.accumulate_event.public_inputs);
+                .address
+                .get(&targets.accumulate_event.public_inputs);
             builder.connect(compare_delta_targets.address, acc_addr);
         }
         // flags
         let acc_flags = accumulate_event_circuit
             .partial_state
             .indices
-            .get_object_flags(&targets.accumulate_event.public_inputs);
+            .object_flags
+            .get(&targets.accumulate_event.public_inputs);
         builder.connect(compare_delta_targets.object_flags, acc_flags);
         let acc_flags = SplitFlags::split(&mut builder, acc_flags);
         let has_owner = builder.is_nonzero(acc_flags.owner);
@@ -125,7 +125,8 @@ where
             let acc_old_owner = accumulate_event_circuit
                 .partial_state
                 .indices
-                .get_old_owner(&targets.accumulate_event.public_inputs);
+                .old_owner
+                .get(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
                 compare_delta_targets.old_owner,
@@ -138,7 +139,8 @@ where
             let acc_new_owner = accumulate_event_circuit
                 .partial_state
                 .indices
-                .get_new_owner(&targets.accumulate_event.public_inputs);
+                .new_owner
+                .get(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
                 compare_delta_targets.new_owner,
@@ -151,7 +153,8 @@ where
             let acc_old_data = accumulate_event_circuit
                 .partial_state
                 .indices
-                .get_old_data(&targets.accumulate_event.public_inputs);
+                .old_data
+                .get(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
                 compare_delta_targets.old_data,
@@ -164,7 +167,8 @@ where
             let acc_new_data = accumulate_event_circuit
                 .partial_state
                 .indices
-                .get_new_data(&targets.accumulate_event.public_inputs);
+                .new_data
+                .get(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
                 compare_delta_targets.new_data,
@@ -177,7 +181,8 @@ where
             let acc_credit_delta = accumulate_event_circuit
                 .partial_state
                 .indices
-                .get_credit_delta(&targets.accumulate_event.public_inputs);
+                .credit_delta
+                .get(&targets.accumulate_event.public_inputs);
             let calc_credit_delta = builder.sub(
                 compare_delta_targets.new_credits,
                 compare_delta_targets.old_credits,

@@ -3,38 +3,19 @@
 //! These can be used to prove a subset of nodes belong to a tree.
 
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::{find_bool, find_hash, hash_or_forward};
+use crate::hash_or_forward;
+use crate::indices::{BoolTargetIndex, HashTargetIndex};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
-    pub summary_hash_present: usize,
-    pub summary_hash: [usize; NUM_HASH_OUT_ELTS],
-}
-
-impl PublicIndices {
-    pub fn get_summary_hash_present<T: Copy>(&self, public_inputs: &[T]) -> T {
-        public_inputs[self.summary_hash_present]
-    }
-
-    pub fn get_summary_hash<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.summary_hash.map(|i| public_inputs[i])
-    }
-
-    pub fn set_summary_hash_present<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.summary_hash_present] = v;
-    }
-
-    pub fn set_summary_hash<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.summary_hash[i]] = v;
-        }
-    }
+    pub summary_hash_present: BoolTargetIndex,
+    pub summary_hash: HashTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -92,8 +73,11 @@ impl LeafTargets {
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         // Find the indices
         let indices = PublicIndices {
-            summary_hash_present: find_bool(public_inputs, self.inputs.summary_hash_present),
-            summary_hash: find_hash(public_inputs, self.inputs.summary_hash),
+            summary_hash_present: BoolTargetIndex::new(
+                public_inputs,
+                self.inputs.summary_hash_present,
+            ),
+            summary_hash: HashTargetIndex::new(public_inputs, self.inputs.summary_hash),
         };
         LeafSubCircuit {
             targets: self,
@@ -141,9 +125,8 @@ impl SubCircuitInputs {
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
     ) -> SubCircuitInputs {
-        let summary_hash_present = indices.get_summary_hash_present(&proof.public_inputs);
-        let summary_hash_present = BoolTarget::new_unsafe(summary_hash_present);
-        let summary_hash = HashOutTarget::from(indices.get_summary_hash(&proof.public_inputs));
+        let summary_hash_present = indices.summary_hash_present.get(&proof.public_inputs);
+        let summary_hash = indices.summary_hash.get(&proof.public_inputs);
 
         SubCircuitInputs {
             summary_hash_present,
@@ -194,8 +177,11 @@ impl BranchTargets {
     #[must_use]
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit {
         let indices = PublicIndices {
-            summary_hash_present: find_bool(public_inputs, self.inputs.summary_hash_present),
-            summary_hash: find_hash(public_inputs, self.inputs.summary_hash),
+            summary_hash_present: BoolTargetIndex::new(
+                public_inputs,
+                self.inputs.summary_hash_present,
+            ),
+            summary_hash: HashTargetIndex::new(public_inputs, self.inputs.summary_hash),
         };
         debug_assert_eq!(indices, *child);
 
@@ -234,6 +220,7 @@ mod test {
     use anyhow::Result;
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
+    use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
