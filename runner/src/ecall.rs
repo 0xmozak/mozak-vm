@@ -28,6 +28,7 @@ impl<F: RichField> State<F> {
     fn ecall_io_read(mut self, op: StorageDeviceOpcode) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requested = self.get_register_value(REG_A2);
+        println!("num bytes = {}", num_bytes_requested);
         log::trace!("ECALL {}", op);
 
         let data = match op {
@@ -44,6 +45,11 @@ impl<F: RichField> State<F> {
             StorageDeviceOpcode::StoreCallTape => read_bytes(
                 &self.call_tape.data,
                 &mut self.call_tape.read_index,
+                num_bytes_requested as usize,
+            ),
+            StorageDeviceOpcode::StoreEventTape => read_bytes(
+                &self.event_tape.data,
+                &mut self.event_tape.read_index,
                 num_bytes_requested as usize,
             ),
             StorageDeviceOpcode::StoreEventsCommitmentTape => read_bytes(
@@ -133,6 +139,7 @@ impl<F: RichField> State<F> {
             ecall::IO_READ_PRIVATE => self.ecall_io_read(StorageDeviceOpcode::StorePrivate),
             ecall::IO_READ_PUBLIC => self.ecall_io_read(StorageDeviceOpcode::StorePublic),
             ecall::IO_READ_CALL_TAPE => self.ecall_io_read(StorageDeviceOpcode::StoreCallTape),
+            ecall::EVENT_TAPE => self.ecall_io_read(StorageDeviceOpcode::StoreEventTape),
             ecall::EVENTS_COMMITMENT_TAPE =>
                 self.ecall_io_read(StorageDeviceOpcode::StoreEventsCommitmentTape),
             ecall::CAST_LIST_COMMITMENT_TAPE =>

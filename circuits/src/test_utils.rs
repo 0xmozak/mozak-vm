@@ -30,7 +30,7 @@ use crate::generation::cpu::generate_cpu_trace;
 use crate::generation::fullword_memory::generate_fullword_memory_trace;
 use crate::generation::halfword_memory::generate_halfword_memory_trace;
 use crate::generation::io_memory::{
-    generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+    generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
     generate_events_commitment_tape_trace, generate_io_memory_private_trace,
     generate_io_memory_public_trace,
 };
@@ -160,6 +160,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let event_tape_rows = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
@@ -174,6 +175,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &io_memory_private,
             &io_memory_public,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &poseidon2_sponge_trace,
@@ -186,6 +188,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &io_memory_private,
             &io_memory_public,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &register_init,
@@ -243,6 +246,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let event_tape_rows = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
@@ -257,6 +261,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &io_memory_private,
             &io_memory_public,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &poseidon2_sponge_trace,
@@ -385,6 +390,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let call_tape = generate_call_tape_trace(&record.executed);
+        let event_tape = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
@@ -397,6 +403,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
             &io_memory_private,
             &io_memory_public,
             &call_tape,
+            &event_tape,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &register_init,

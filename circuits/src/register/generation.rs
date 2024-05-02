@@ -89,6 +89,7 @@ pub fn generate_register_trace<F: RichField>(
     mem_private: &[StorageDevice<F>],
     mem_public: &[StorageDevice<F>],
     mem_call_tape: &[StorageDevice<F>],
+    mem_event_tape: &[StorageDevice<F>],
     mem_events_commitment_tape: &[StorageDevice<F>],
     mem_cast_list_commitment_tape: &[StorageDevice<F>],
     reg_init: &[RegisterInit<F>],
@@ -106,6 +107,7 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::StorageDevicePrivate => extract(mem_private, &looking_table),
             TableKind::StorageDevicePublic => extract(mem_public, &looking_table),
             TableKind::CallTape => extract(mem_call_tape, &looking_table),
+            TableKind::EventTape => extract(mem_event_tape, &looking_table),
             TableKind::EventsCommitmentTape => extract(mem_events_commitment_tape, &looking_table),
             TableKind::CastListCommitmentTape =>
                 extract(mem_cast_list_commitment_tape, &looking_table),
@@ -173,8 +175,8 @@ mod tests {
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::io_memory::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
-        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
-        generate_io_memory_public_trace,
+        generate_event_tape_trace, generate_events_commitment_tape_trace,
+        generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::poseidon2_sponge;
     use crate::test_utils::prep_table;
@@ -216,6 +218,7 @@ mod tests {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let call_tape = generate_call_tape_trace(&record.executed);
+        let event_tape = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
@@ -229,6 +232,7 @@ mod tests {
             &io_memory_private,
             &io_memory_public,
             &call_tape,
+            &event_tape,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &register_init,
