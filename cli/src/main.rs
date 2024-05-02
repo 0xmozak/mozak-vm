@@ -61,6 +61,8 @@ pub struct RunArgs {
     elf: Input,
     #[arg(long)]
     system_tape: Option<Input>,
+    #[arg(long)]
+    self_prog_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -69,6 +71,8 @@ pub struct ProveArgs {
     proof: Output,
     #[arg(long)]
     system_tape: Option<Input>,
+    #[arg(long)]
+    self_prog_id: Option<String>,
     recursive_proof: Option<Output>,
 }
 
@@ -130,7 +134,11 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run(RunArgs { elf, system_tape }) => {
+        Command::Run(RunArgs {
+            elf,
+            system_tape,
+            self_prog_id: _,
+        }) => {
             let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
                 raw_tapes_from_system_tape(&deserialize_system_tape(s).unwrap()).unwrap_or_default()
             });
@@ -138,7 +146,11 @@ fn main() -> Result<()> {
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
-        Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
+        Command::ProveAndVerify(RunArgs {
+            elf,
+            system_tape,
+            self_prog_id: _,
+        }) => {
             let program = load_program(elf).unwrap();
             let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
                 raw_tapes_from_system_tape(&deserialize_system_tape(s).unwrap()).unwrap_or_default()
@@ -151,6 +163,7 @@ fn main() -> Result<()> {
         Command::Prove(ProveArgs {
             elf,
             system_tape,
+            self_prog_id: _,
             mut proof,
             recursive_proof,
         }) => {
