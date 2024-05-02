@@ -136,12 +136,8 @@ pub fn ensure_clean_shutdown() {
 
         let cast_list = &SYSTEM_TAPE.call_tape.cast_list;
 
-        let calculated_commitment_cl = merkleize(
-            izip!(0.., cast_list)
-                .map(|(idx, x)| (idx, x.0))
-                .collect(),
-        )
-        .0;
+        let calculated_commitment_cl =
+            merkleize(izip!(0.., cast_list).map(|(idx, x)| (idx, x.0)).collect()).0;
 
         assert!(claimed_commitment_cl == calculated_commitment_cl);
     }

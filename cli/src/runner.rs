@@ -101,12 +101,8 @@ pub fn tapes_to_runtime_arguments(
     )
     .0;
 
-    let cast_list_commitment_tape = merkleize(
-        izip!(0.., &cast_list)
-            .map(|(idx, x)| (idx, x.0))
-            .collect(),
-    )
-    .0;
+    let cast_list_commitment_tape =
+        merkleize(izip!(0.., &cast_list).map(|(idx, x)| (idx, x.0)).collect()).0;
 
     debug!("Self Prog ID: {self_prog_id:#?}");
     debug!("Found events: {:#?}", canonical_order_temporal_hints.len());
