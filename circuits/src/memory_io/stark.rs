@@ -189,6 +189,21 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
+    pub fn prove_io_read_event_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
+        let (program, record) = execute_code_with_runtime_args(
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
+            &[(address, 0)],
+            &[
+                (REG_A0, ecall::EVENT_TAPE),
+                (REG_A1, address), // A1 - address
+                (REG_A2, 0),       // A2 - size
+            ],
+            RuntimeArguments::default(),
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
     pub fn prove_io_read_private<Stark: ProveAndVerify>(address: u32, io_tape_private: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
@@ -255,6 +270,30 @@ mod tests {
         let state: State<F> = State::from(program.clone());
         assert_ne!(
             state.call_tape.data.len(),
+            0,
+            "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_io_read_event_tape<Stark: ProveAndVerify>(address: u32, event_tape: Vec<u8>) {
+        let (program, record) = execute_code_with_runtime_args(
+            // set sys-call IO_READ in x10(or a0)
+            [ECALL],
+            &[(address, 0)],
+            &[
+                (REG_A0, ecall::EVENT_TAPE),
+                (REG_A1, address), // A1 - address
+                (REG_A2, 1),       // A2 - size
+            ],
+            RuntimeArguments {
+                event_tape,
+                ..Default::default()
+            },
+        );
+        let state: State<F> = State::from(program.clone());
+        assert_ne!(
+            state.event_tape.data.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
@@ -418,6 +457,16 @@ mod tests {
         fn prove_io_read_call_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
             prove_io_read_call_tape::<MozakStark<F, D>>(address, vec![content]);
         }
+
+        #[test]
+        fn prove_io_read_evetn_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+            prove_io_read_event_tape_zero_size::<MozakStark<F, D>>(address);
+        }
+        #[test]
+        fn prove_io_read_event_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_io_read_event_tape::<MozakStark<F, D>>(address, vec![content]);
+        }
+
 
         #[test]
         fn prove_events_commitment_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
