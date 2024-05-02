@@ -34,7 +34,7 @@ where
     debug!("Starting Batch Verify");
 
     let degree_bits = all_proof.degree_bits;
-    let sorted_degree_bits = sort_degree_bits::<F, D>(public_table_kinds, &degree_bits);
+    let sorted_degree_bits = sort_degree_bits(public_table_kinds, &degree_bits);
 
     let mut challenger = Challenger::<F, C::Hasher>::new();
 
