@@ -459,7 +459,7 @@ mod tests {
         }
 
         #[test]
-        fn prove_io_read_evetn_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+        fn prove_io_read_event_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
             prove_io_read_event_tape_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
