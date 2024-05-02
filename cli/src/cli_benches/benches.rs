@@ -60,16 +60,11 @@ pub enum BenchFunction {
 impl BenchArgs {
     pub fn bench(&self) -> Result<Duration> {
         match &self.function {
-            BenchFunction::XorBench { iterations } =>
-                XorBench.bench(iterations),
-            BenchFunction::NopBench { iterations } =>
-                NopBench.bench(iterations),
-            BenchFunction::OmniBench { iterations } =>
-                OmniBench.bench(iterations),
-            BenchFunction::Poseidon2Bench { input_len } =>
-                Poseidon2Bench.bench(input_len),
-            BenchFunction::SortBench { n } =>
-                SortBench.bench(n),
+            BenchFunction::XorBench { iterations } => XorBench.bench(iterations),
+            BenchFunction::NopBench { iterations } => NopBench.bench(iterations),
+            BenchFunction::OmniBench { iterations } => OmniBench.bench(iterations),
+            BenchFunction::Poseidon2Bench { input_len } => Poseidon2Bench.bench(input_len),
+            BenchFunction::SortBench { n } => SortBench.bench(n),
         }
     }
 }
