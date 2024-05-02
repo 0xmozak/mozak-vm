@@ -127,6 +127,8 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 #[allow(dead_code)]
 pub fn ensure_clean_shutdown() {
     // Ensure we have read the whole tape
+
+    use itertools::izip;
     unsafe {
         // Should have read the full call tape
         assert!(
@@ -140,13 +142,13 @@ pub fn ensure_clean_shutdown() {
 
         // Assert that event commitment tape has the same bytes
         // as Event Tape's actual commitment observable to us
-        let mut claimed_commitment: [u8; 32] = [0; 32];
-        crate::core::ecall::events_commitment_tape_read(claimed_commitment.as_mut_ptr());
+        let mut claimed_commitment_ev: [u8; 32] = [0; 32];
+        crate::core::ecall::events_commitment_tape_read(claimed_commitment_ev.as_mut_ptr());
 
         let canonical_event_temporal_hints: &[CanonicalOrderedTemporalHints] =
             SYSTEM_TAPE.event_tape.reader.as_ref().unwrap();
 
-        let calculated_commitment = merkleize(
+        let calculated_commitment_ev = merkleize(
             canonical_event_temporal_hints
                 .iter()
                 .map(|x| {
@@ -162,6 +164,18 @@ pub fn ensure_clean_shutdown() {
         )
         .0;
 
-        assert!(claimed_commitment == calculated_commitment);
+        assert!(claimed_commitment_ev == calculated_commitment_ev);
+
+        // Assert that castlist commitment tape has the same bytes
+        // as CastList's actual commitment observable to us
+        let mut claimed_commitment_cl: [u8; 32] = [0; 32];
+        crate::core::ecall::cast_list_commitment_tape_read(claimed_commitment_cl.as_mut_ptr());
+
+        let cast_list = &SYSTEM_TAPE.call_tape.cast_list;
+
+        let calculated_commitment_cl =
+            merkleize(izip!(0.., cast_list).map(|(idx, x)| (idx, x.0)).collect()).0;
+
+        assert!(claimed_commitment_cl == calculated_commitment_cl);
     }
 }
