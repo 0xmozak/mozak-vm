@@ -1,4 +1,3 @@
-#![cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 #[cfg(target_os = "mozakvm")]
 use core::arch::asm;
 
@@ -44,10 +43,6 @@ pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
             in ("a3") output_ptr,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
 pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
@@ -59,10 +54,6 @@ pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
             in ("a1") buf_ptr,
             in ("a2") buf_len,
         );
-    }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
     }
 }
 
@@ -76,10 +67,6 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
         in ("a2") buf_len,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
 pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
@@ -91,10 +78,6 @@ pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );
-    }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
     }
 }
 
@@ -108,10 +91,6 @@ pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
         in ("a2") COMMITMENT_SIZE,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
 pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
@@ -123,10 +102,6 @@ pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
         in ("a1") buf_ptr,
         in ("a2") COMMITMENT_SIZE,
         );
-    }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
     }
 }
 
@@ -140,10 +115,6 @@ pub fn panic(msg_ptr: *const u8, msg_len: usize) {
             in ("a2") msg_ptr,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
 pub fn trace(msg_ptr: *const u8, msg_len: usize) {
@@ -156,10 +127,6 @@ pub fn trace(msg_ptr: *const u8, msg_len: usize) {
             in ("a2") msg_ptr,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
 pub fn halt(output: u8) {
@@ -171,9 +138,5 @@ pub fn halt(output: u8) {
             in ("a1") output,
         );
         unreachable!();
-    }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
     }
 }
