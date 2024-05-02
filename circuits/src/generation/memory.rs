@@ -374,6 +374,7 @@ mod tests {
         let io_memory_private_rows = generate_io_memory_private_trace(&[]);
         let io_memory_public_rows = generate_io_memory_public_trace(&[]);
         let call_tape_rows = generate_call_tape_trace(&[]);
+        let event_tape_rows = generate_call_tape_trace(&[]);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&[]);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&[]);
@@ -388,6 +389,7 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &poseidon2_trace,
