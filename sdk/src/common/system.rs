@@ -90,6 +90,8 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 #[allow(dead_code)]
 pub fn ensure_clean_shutdown() {
     // Ensure we have read the whole tape
+
+    use itertools::izip;
     unsafe {
         // Should have read the full call tape
         assert!(SYSTEM_TAPE.call_tape.index == SYSTEM_TAPE.call_tape.reader.unwrap().len());
@@ -135,10 +137,8 @@ pub fn ensure_clean_shutdown() {
         let cast_list = &SYSTEM_TAPE.call_tape.cast_list;
 
         let calculated_commitment_cl = merkleize(
-            cast_list
-                .iter()
-                .enumerate()
-                .map(|(idx, x)| (idx as u64, x.0))
+            izip!(0.., cast_list)
+                .map(|(idx, x)| (idx, x.0))
                 .collect(),
         )
         .0;

@@ -5,7 +5,7 @@ use std::io::Read;
 
 use anyhow::Result;
 use clio::Input;
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use log::debug;
 use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_sdk::common::merkle::merkleize;
@@ -102,10 +102,8 @@ pub fn tapes_to_runtime_arguments(
     .0;
 
     let cast_list_commitment_tape = merkleize(
-        cast_list
-            .iter()
-            .enumerate()
-            .map(|(idx, x)| (idx as u64, x.0))
+        izip!(0.., &cast_list)
+            .map(|(idx, x)| (idx, x.0))
             .collect(),
     )
     .0;
