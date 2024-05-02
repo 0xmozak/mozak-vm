@@ -20,6 +20,8 @@ use super::types::{
 };
 #[cfg(target_os = "mozakvm")]
 use crate::core::ecall::call_tape_read;
+#[cfg(target_os = "mozakvm")]
+use crate::core::ecall::events_tape_read;
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
 /// all the `IO-Tapes`, `CallTape` and the `EventTape` both in
@@ -89,6 +91,17 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
                 }
             },
         );
+        let mut bufb = [0; 4096];
+        events_tape_read(bufb.as_mut_ptr(), 4096);
+        let events_raw =
+            unsafe { rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(&bufb) };
+        let events =
+            <<Vec<CanonicalOrderedTemporalHints> as rkyv::Archive>::Archived as Deserialize<
+                Vec<CanonicalOrderedTemporalHints>,
+                Strategy<(), Panic>,
+            >>::deserialize(events_raw, Strategy::wrap(&mut ()))
+            .unwrap();
+        let seen = vec![false; events.len()];
 
         SystemTape {
             private_input_tape: PrivateInputTapeType::default(),
@@ -100,7 +113,12 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
                 index: 0,
             },
 
-            event_tape: EventTapeType::default(),
+            event_tape: EventTapeType {
+                self_prog_id,
+                reader: Some(events),
+                seen,
+                index: 0,
+            },
         }
     }
 });
@@ -116,19 +134,17 @@ pub fn ensure_clean_shutdown() {
         );
 
         // Should have read the full event tape
-        assert!(SYSTEM_TAPE.event_tape.index == SYSTEM_TAPE.event_tape.reader.unwrap().len());
+        assert!(
+            SYSTEM_TAPE.event_tape.index == SYSTEM_TAPE.event_tape.reader.as_ref().unwrap().len()
+        );
 
         // Assert that event commitment tape has the same bytes
         // as Event Tape's actual commitment observable to us
         let mut claimed_commitment: [u8; 32] = [0; 32];
         crate::core::ecall::events_commitment_tape_read(claimed_commitment.as_mut_ptr());
 
-        let canonical_event_temporal_hints: Vec<CanonicalOrderedTemporalHints> = SYSTEM_TAPE
-            .event_tape
-            .reader
-            .unwrap()
-            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
-            .unwrap();
+        let canonical_event_temporal_hints: &[CanonicalOrderedTemporalHints] =
+            SYSTEM_TAPE.event_tape.reader.as_ref().unwrap();
 
         let calculated_commitment = merkleize(
             canonical_event_temporal_hints

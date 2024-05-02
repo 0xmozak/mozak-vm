@@ -10,7 +10,7 @@ use crate::common::types::{
 #[derive(Default, Clone)]
 pub struct EventTape {
     pub(crate) self_prog_id: ProgramIdentifier,
-    pub(crate) reader: Option<&'static <Vec<CanonicalOrderedTemporalHints> as Archive>::Archived>,
+    pub(crate) reader: Option<Vec<CanonicalOrderedTemporalHints>>,
     pub(crate) seen: Vec<bool>,
     pub(crate) index: usize,
 }
@@ -23,21 +23,18 @@ impl SelfIdentify for EventTape {
 
 impl EventEmit for EventTape {
     fn emit(&mut self, event: Event) {
-        assert!(self.index < self.reader.unwrap().len());
+        assert!(self.index < self.reader.as_ref().unwrap().len());
         let generated_canonical_event = CanonicalEvent::from_event(&event);
 
-        let elem_idx: usize = self.reader.unwrap()[self.index]
+        let elem_idx: usize = self.reader.as_ref().unwrap()[self.index]
             .1
-            .to_native()
+            .to_be()
             .try_into()
             .unwrap();
         assert!(!self.seen[elem_idx]);
         self.seen[elem_idx] = true;
 
-        let zcd_canonical_event = &self.reader.unwrap()[elem_idx].0;
-        let canonical_event: CanonicalEvent = zcd_canonical_event
-            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
-            .unwrap();
+        let canonical_event = self.reader.as_ref().unwrap()[elem_idx].0;
 
         assert!(canonical_event == generated_canonical_event);
         self.index += 1;
@@ -46,12 +43,10 @@ impl EventEmit for EventTape {
 
 impl EventTape {
     pub fn canonical_hash(&self) -> Poseidon2Hash {
-        let vec_canonical_ordered_temporal_hints: Vec<CanonicalOrderedTemporalHints> = self
+        let vec_canonical_event: Vec<CanonicalEvent> = self
             .reader
+            .as_ref()
             .unwrap()
-            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
-            .unwrap();
-        let vec_canonical_event: Vec<CanonicalEvent> = vec_canonical_ordered_temporal_hints
             .iter()
             .map(|event| event.0)
             .collect();
