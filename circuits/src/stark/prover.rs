@@ -1,6 +1,8 @@
 #![allow(clippy::too_many_lines)]
 
 use std::fmt::Display;
+use std::mem::transmute;
+use std::sync::Arc;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
@@ -53,7 +55,7 @@ pub fn prove<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F> + 'static, {
     debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -82,7 +84,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F> + 'static, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -185,7 +187,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
 ) -> Result<StarkProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
+    C: GenericConfig<D, F = F> + 'static,
     S: Stark<F, D> + Display, {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
@@ -223,12 +225,20 @@ where
     challenger.observe_cap(&ctl_zs_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
+
+    let trace_commitment_ref: &'static PolynomialBatch<F, C, D> =
+        unsafe { transmute(trace_commitment) };
+    // Retrieve the LDE values at index `i`.
+    let get_trace_values_packed = Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
+        trace_commitment_ref.get_lde_values_packed(i_start, step)
+    });
+
     let quotient_polys = timed!(
         timing,
         format!("{stark}: compute quotient polynomial").as_str(),
         compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
             stark,
-            trace_commitment,
+            get_trace_values_packed,
             &ctl_zs_commitment,
             public_inputs,
             ctl_data,
@@ -281,10 +291,17 @@ where
         "Opening point is in the subgroup."
     );
 
+    let eval_trace_commitment = |z: F::Extension| {
+        trace_commitment
+            .polynomials
+            .par_iter()
+            .map(|p| p.to_extension().eval(z))
+            .collect::<Vec<_>>()
+    };
     let openings = StarkOpeningSet::new(
         zeta,
         g,
-        trace_commitment,
+        eval_trace_commitment,
         &ctl_zs_commitment,
         &quotient_commitment,
         degree_bits,
@@ -348,7 +365,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F> + 'static, {
     let cpu_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
         cpu_stark: &cpu_stark,

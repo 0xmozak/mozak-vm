@@ -1,5 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
+use std::sync::Arc;
+
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
@@ -25,7 +27,7 @@ use crate::cross_table_lookup::{
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
 pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     stark: &S,
-    trace_commitment: &'a PolynomialBatch<F, C, D>,
+    get_trace_values_packed: Arc<dyn Fn(usize, usize) -> Vec<P> + Sync + Send>,
     ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
@@ -60,10 +62,6 @@ where
 
     let z_h_on_coset = ZeroPolyOnCoset::<F>::new(degree_bits, quotient_degree_bits);
 
-    // Retrieve the LDE values at index `i`.
-    let get_trace_values_packed =
-        |i_start| -> Vec<P> { trace_commitment.get_lde_values_packed(i_start, step) };
-
     // Last element of the subgroup.
     let last = F::primitive_root_of_unity(degree_bits).inverse();
     let size = degree << quotient_degree_bits;
@@ -82,6 +80,7 @@ where
             let i_next_start = (i_start + next_step) % size;
             let i_range = i_start..i_start + P::WIDTH;
 
+            let get_trace_values_packed = get_trace_values_packed.clone();
             let x = *P::from_slice(&coset[i_range.clone()]);
             let z_last = x - last;
             let lagrange_basis_first = *P::from_slice(&lagrange_first.values[i_range.clone()]);
@@ -94,8 +93,8 @@ where
                 lagrange_basis_last,
             );
             let vars = StarkEvaluationFrame::from_values(
-                &get_trace_values_packed(i_start),
-                &get_trace_values_packed(i_next_start),
+                &get_trace_values_packed(i_start, step),
+                &get_trace_values_packed(i_next_start, step),
                 public_inputs,
             );
             let public_sub_table_data_chain = public_sub_table_data.zs_columns.as_slice();

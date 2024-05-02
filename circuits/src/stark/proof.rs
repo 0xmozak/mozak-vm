@@ -220,7 +220,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
     pub fn new<C: GenericConfig<D, F = F>>(
         zeta: F::Extension,
         g: F,
-        trace_commitment: &PolynomialBatch<F, C, D>,
+        eval_trace_commitment: impl Fn(F::Extension) -> Vec<F::Extension>,
         ctl_zs_commitment: &PolynomialBatch<F, C, D>,
         quotient_commitment: &PolynomialBatch<F, C, D>,
         degree_bits: usize,
@@ -239,8 +239,8 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         };
         let zeta_next = zeta.scalar_mul(g);
         Self {
-            local_values: eval_commitment(zeta, trace_commitment),
-            next_values: eval_commitment(zeta_next, trace_commitment),
+            local_values: eval_trace_commitment(zeta),
+            next_values: eval_trace_commitment(zeta_next),
             ctl_zs: eval_commitment(zeta, ctl_zs_commitment),
             ctl_zs_next: eval_commitment(zeta_next, ctl_zs_commitment),
             ctl_zs_last: eval_commitment_base(

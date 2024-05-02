@@ -1,6 +1,8 @@
 #![allow(clippy::too_many_lines)]
 
 use std::collections::HashMap;
+use std::intrinsics::transmute;
+use std::sync::Arc;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
@@ -174,7 +176,7 @@ pub fn batch_prove<F, C, const D: usize>(
 ) -> Result<BatchProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F> + 'static, {
     debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -185,6 +187,7 @@ where
     let cap_height = config.fri_config.cap_height;
 
     let degree_bits = all_kind!(|kind| log2_strict(traces_poly_values[kind][0].len()));
+    let traces_poly_count = all_kind!(|kind| traces_poly_values[kind].len());
 
     let batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
         None
@@ -197,7 +200,7 @@ where
         .filter_map(|t| *t)
         .flat_map(std::clone::Clone::clone)
         .collect();
-    batch_trace_polys.sort_by_key(|b| std::cmp::Reverse(b.len()));
+    batch_trace_polys.sort_by_key(|p| std::cmp::Reverse(p.len()));
     let batch_trace_polys_len = batch_trace_polys.len();
 
     let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
@@ -215,34 +218,39 @@ where
 
     let trace_commitments = timed!(
         timing,
-        "Compute trace commitments for each table",
+        "Compute trace commitments for public tables",
         traces_poly_values
             .clone()
             .with_kind()
             .map(|(trace, table)| {
-                timed!(
-                    timing,
-                    &format!("compute trace commitment for {table:?}"),
-                    PolynomialBatch::<F, C, D>::from_values(
-                        trace.clone(),
-                        rate_bits,
-                        false,
-                        cap_height,
+                if public_table_kinds.contains(&table) {
+                    Some(timed!(
                         timing,
-                        None,
-                    )
-                )
+                        &format!("compute trace commitment for {table:?}"),
+                        PolynomialBatch::<F, C, D>::from_values(
+                            trace.clone(),
+                            rate_bits,
+                            false,
+                            cap_height,
+                            timing,
+                            None,
+                        )
+                    ))
+                } else {
+                    None
+                }
             })
     );
 
-    let trace_caps = trace_commitments
-        .each_ref()
-        .map(|c| c.merkle_tree.cap.clone());
+    let trace_caps = all_kind!(|kind| trace_commitments[kind]
+        .as_ref()
+        .map(|c| c.merkle_tree.cap.clone()));
+
     // Add trace commitments to the challenger entropy pool.
     let mut challenger = Challenger::<F, C::Hasher>::new();
     all_kind!(|kind| {
-        if public_table_kinds.contains(&kind) {
-            challenger.observe_cap(&trace_caps[kind]);
+        if let Some(c) = trace_caps[kind].clone() {
+            challenger.observe_cap(&c);
         }
     });
     let fmt_trace_cap = batch_trace_commitments.field_merkle_tree.cap.clone();
@@ -274,6 +282,7 @@ where
         &degree_bits,
         &traces_poly_values,
         &trace_commitments,
+        &traces_poly_count,
         &batch_trace_commitments,
         &ctl_data_per_table,
         &public_sub_table_data_per_table,
@@ -282,8 +291,8 @@ where
         timing,
     )?;
 
-    let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
-    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
+    let program_rom_trace_cap = trace_caps[TableKind::Program].clone().unwrap();
+    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone().unwrap();
     if log_enabled!(Debug) {
         timing.print();
     }
@@ -312,7 +321,8 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     public_inputs: &PublicInputs<F>,
     degree_bits: &TableKindArray<usize>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
-    trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
+    trace_commitments: &TableKindArray<Option<PolynomialBatch<F, C, D>>>,
+    trace_poly_count: &TableKindArray<usize>,
     batch_trace_commitments: &BatchFriOracle<F, C, D>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
@@ -321,7 +331,7 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
 ) -> Result<(TableKindArray<StarkProof<F, C, D>>, StarkProof<F, C, D>)>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F> + 'static, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -332,14 +342,14 @@ where
     }
     .build();
 
-    let separate_proofs = all_starks!(mozak_stark, |stark, kind| if public_table_kinds
-        .contains(&kind)
+    let separate_proofs = all_starks!(mozak_stark, |stark, kind| if let Some(trace_commitment) =
+        &trace_commitments[kind]
     {
         Some(prove_single_table(
             stark,
             config,
             &traces_poly_values[kind],
-            &trace_commitments[kind],
+            &trace_commitment,
             public_inputs[kind],
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
@@ -423,17 +433,41 @@ where
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
 
+    let sorted_degree_bits = sort_degree_bits::<F, D>(public_table_kinds, &degree_bits);
+    let degree_bits_index_map: HashMap<usize, usize> = sorted_degree_bits
+        .iter()
+        .enumerate()
+        .map(|(index, &value)| (value, index))
+        .collect();
+    let mut start_index = vec![0; sorted_degree_bits.len()];
     // TODO: we should be able to compute `quotient_polys` from
     // `batch_trace_commitments` and `batch_ctl_zs_commitments`.
     let quotient_chunks = all_starks!(mozak_stark, |stark, kind| {
         if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind].as_ref() {
             let degree = 1 << degree_bits[kind];
+
+            let leaf_index = degree_bits_index_map[&degree_bits[kind]];
+            let slice_start = start_index[leaf_index];
+            let slice_len = trace_poly_count[kind];
+            let batch_trace_commitments_ref: &'static BatchFriOracle<F, C, D> =
+                unsafe { transmute(batch_trace_commitments) };
+            let get_trace_values_packed =
+                Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
+                    batch_trace_commitments_ref.get_lde_values_packed(
+                        leaf_index,
+                        i_start,
+                        step,
+                        slice_start,
+                        slice_len,
+                    )
+                });
+
             let quotient_polys = timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
                 compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
                     stark,
-                    &trace_commitments[kind],
+                    get_trace_values_packed,
                     ctl_zs_commitment,
                     public_inputs[kind],
                     &ctl_data_per_table[kind],
@@ -444,6 +478,7 @@ where
                 )
             );
             assert!(!quotient_polys.is_empty());
+            start_index[leaf_index] += slice_len;
 
             let quotient_chunks: Vec<PolynomialCoeffs<F>> = timed!(
                 timing,
@@ -508,6 +543,20 @@ where
 
     let zeta = challenger.get_extension_challenge::<D>();
 
+    let mut start_index = vec![0; sorted_degree_bits.len()];
+    for i in 1..sorted_degree_bits.len() {
+        start_index[i] =
+            start_index[i - 1] + batch_trace_commitments.field_merkle_tree.leaves[i - 1][0].len();
+    }
+    let trace_index_map = all_kind!(|kind| {
+        if public_table_kinds.contains(&kind) {
+            0
+        } else {
+            let leaf_index = degree_bits_index_map[&degree_bits[kind]];
+            start_index[leaf_index] += trace_poly_count[kind];
+            start_index[leaf_index] - trace_poly_count[kind]
+        }
+    });
     // TODO: compute `openings` from `batch_trace_commitments` and
     // `batch_ctl_zs_commitments`.
     let batch_openings = all_starks!(mozak_stark, |_stark, kind| if let Some(ctl_zs_commitment) =
@@ -523,10 +572,18 @@ where
                 zeta.exp_power_of_2(degree_bits[kind]) != F::Extension::ONE,
                 "Opening point is in the subgroup."
             );
+
+            let eval_trace_commitment = |z: F::Extension| {
+                batch_trace_commitments.polynomials
+                    [trace_index_map[kind]..trace_index_map[kind] + trace_poly_count[kind]]
+                    .par_iter()
+                    .map(|p| p.to_extension().eval(z))
+                    .collect::<Vec<_>>()
+            };
             let openings = StarkOpeningSet::new(
                 zeta,
                 g,
-                &trace_commitments[kind],
+                eval_trace_commitment,
                 ctl_zs_commitment,
                 quotient_commitment,
                 degree_bits[kind],
@@ -540,8 +597,6 @@ where
     } else {
         None
     });
-
-    let sorted_degree_bits = sort_degree_bits::<F, D>(public_table_kinds, &degree_bits);
 
     let num_ctl_zs_per_table =
         all_kind!(|kind| ctl_data_per_table[kind].len() + public_sub_data_per_table[kind].len());
