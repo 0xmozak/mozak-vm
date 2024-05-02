@@ -5,6 +5,7 @@ use core::hint::black_box;
 extern crate alloc;
 use alloc::vec::Vec;
 
+#[cfg(target_os = "mozakvm")]
 use mozak_sdk::core::ecall::ioread_public;
 
 extern crate rand;
