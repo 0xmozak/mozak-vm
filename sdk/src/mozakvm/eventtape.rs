@@ -1,6 +1,3 @@
-use rkyv::rancor::{Panic, Strategy};
-use rkyv::{Archive, Deserialize};
-
 use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{
     CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
