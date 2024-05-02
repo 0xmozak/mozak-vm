@@ -12,7 +12,6 @@ use mozak_sdk::common::merkle::merkleize;
 use mozak_sdk::common::types::{
     CanonicalOrderedTemporalHints, Poseidon2Hash, ProgramIdentifier, SystemTape,
 };
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
 
@@ -102,6 +101,15 @@ pub fn tapes_to_runtime_arguments(
     )
     .0;
 
+    let cast_list_commitment_tape = merkleize(
+        cast_list
+            .iter()
+            .enumerate()
+            .map(|(idx, x)| (idx as u64, x.0))
+            .collect(),
+    )
+    .0;
+
     debug!("Self Prog ID: {self_prog_id:#?}");
     debug!("Found events: {:#?}", canonical_order_temporal_hints.len());
 
@@ -116,7 +124,7 @@ pub fn tapes_to_runtime_arguments(
         RuntimeArguments {
             self_prog_id: self_prog_id.inner().to_vec(),
             events_commitment_tape,
-            cast_list_commitment_tape: [0; COMMITMENT_SIZE],
+            cast_list_commitment_tape,
             cast_list: serialise(&cast_list, "CAST_LIST"),
             io_tape_public: length_prefixed_bytes(
                 sys_tapes
