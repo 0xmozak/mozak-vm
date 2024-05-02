@@ -28,7 +28,6 @@ impl<F: RichField> State<F> {
     fn ecall_io_read(mut self, op: StorageDeviceOpcode) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requested = self.get_register_value(REG_A2);
-        println!("num bytes = {}", num_bytes_requested);
         log::trace!("ECALL {}", op);
 
         let data = match op {
