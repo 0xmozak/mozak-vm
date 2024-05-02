@@ -1,10 +1,18 @@
-use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
+use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, F};
 use mozak_runner::code;
+use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
+use mozak_runner::vm::ExecutionRecord;
 use starky::config::StarkConfig;
 
+use super::benches::Bench;
+
 #[allow(clippy::module_name_repetitions)]
-pub fn xor_bench(iterations: u32) -> Result<(), anyhow::Error> {
+pub fn xor_execute((program, record): (Program, ExecutionRecord<F>)) -> Result<(), anyhow::Error> {
+    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+}
+
+pub fn xor_prepare(iterations: u32) -> (Program, ExecutionRecord<F>) {
     let instructions = [
         Instruction {
             op: Op::ADD,
@@ -34,25 +42,26 @@ pub fn xor_bench(iterations: u32) -> Result<(), anyhow::Error> {
             },
         },
     ];
-    let (program, record) = code::execute(instructions, &[], &[(1, iterations)]);
-    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+    code::execute(instructions, &[], &[(1, iterations)])
 }
 
+pub(crate) struct XorBench;
+
+impl Bench for XorBench {
+    type Args = u32;
+    type Prepared = (Program, ExecutionRecord<F>);
+
+    fn prepare(&self, args: &Self::Args) -> Self::Prepared { xor_prepare(*args) }
+
+    fn execute(&self, prepared: Self::Prepared) -> anyhow::Result<()> { xor_execute(prepared) }
+}
 #[cfg(test)]
 mod tests {
-    use crate::cli_benches::benches::{BenchArgs, BenchFunction};
+    use super::{xor_execute, xor_prepare};
 
     #[test]
-    fn test_xor_bench() {
+    fn test_xor_bench() -> anyhow::Result<()> {
         let iterations = 10;
-        super::xor_bench(iterations).unwrap();
-    }
-
-    #[test]
-    fn test_xor_bench_with_run() {
-        let iterations = 10;
-        let function = BenchFunction::XorBench { iterations };
-        let bench = BenchArgs { function };
-        bench.run().unwrap();
+        xor_execute(xor_prepare(iterations))
     }
 }

@@ -34,6 +34,7 @@ fn is_io_opcode<F: RichField>(op: StorageDeviceOpcode) -> F {
         StorageDeviceOpcode::StorePrivate
             | StorageDeviceOpcode::StorePublic
             | StorageDeviceOpcode::StoreCallTape
+            | StorageDeviceOpcode::StoreEventTape
             | StorageDeviceOpcode::StoreEventsCommitmentTape
             | StorageDeviceOpcode::StoreCastListCommitmentTape
     ))
@@ -102,6 +103,11 @@ pub fn generate_io_memory_public_trace<F: RichField>(
 #[must_use]
 pub fn generate_call_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
     generate_io_memory_trace(step_rows, StorageDeviceOpcode::StoreCallTape)
+}
+
+#[must_use]
+pub fn generate_event_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
+    generate_io_memory_trace(step_rows, StorageDeviceOpcode::StoreEventTape)
 }
 
 #[must_use]

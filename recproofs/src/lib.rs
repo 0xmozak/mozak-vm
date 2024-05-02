@@ -126,6 +126,13 @@ impl<F: RichField> Event<F> {
         )
     }
 
+    pub fn vm_bytes(self) -> impl Iterator<Item = F> {
+        chain!(
+            [self.ty as u64, self.address].map(F::from_canonical_u64),
+            self.value
+        )
+    }
+
     pub fn hash(self) -> HashOut<F> {
         let bytes = self.bytes().collect_vec();
         Poseidon2Hash::hash_no_pad(&bytes)
@@ -133,7 +140,7 @@ impl<F: RichField> Event<F> {
 
     pub fn byte_wise_hash(self) -> HashOut<F> {
         let bytes = self
-            .bytes()
+            .vm_bytes()
             .flat_map(|v| v.to_canonical_u64().to_le_bytes())
             .map(|v| F::from_canonical_u8(v))
             .collect_vec();
@@ -377,12 +384,11 @@ fn hash_event<F: RichField + Extendable<D>, const D: usize>(
 
 fn byte_wise_hash_event<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    owner: [Target; 4],
     ty: Target,
     address: Target,
     value: [Target; 4],
 ) -> HashOutTarget {
-    byte_wise_hash(builder, chain!(owner, [ty, address], value).collect())
+    byte_wise_hash(builder, chain!([ty, address], value).collect())
 }
 
 fn split_bytes<F: RichField + Extendable<D>, const D: usize>(

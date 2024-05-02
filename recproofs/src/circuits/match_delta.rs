@@ -12,9 +12,9 @@ use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
 use super::accumulate_delta;
 use crate::circuits::accumulate_delta::core::SplitFlags;
-use crate::maybe_connect;
-use crate::subcircuits::unbounded;
 use crate::subcircuits::unpruned::{self, PartialAllowed};
+use crate::subcircuits::{propagate, unbounded};
+use crate::{connect_arrays, maybe_connect};
 
 // The core subcircuit for this circuit
 pub mod core;
@@ -39,6 +39,9 @@ where
 
     /// The delta/state update comparator
     pub compare_delta: core::LeafSubCircuit,
+
+    /// The block height
+    pub block_height: propagate::LeafSubCircuit<1>,
 
     pub targets: LeafTargets<D>,
 
@@ -74,11 +77,13 @@ where
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let state_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let compare_delta_inputs = core::SubCircuitInputs::default(&mut builder);
+        let block_height_inputs = propagate::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets = unbounded_inputs.build_leaf::<F, C, D>(&mut builder);
         let event_hash_targets = event_hash_inputs.build_leaf(&mut builder);
         let state_hash_targets = state_hash_inputs.build_leaf(&mut builder);
         let compare_delta_targets = compare_delta_inputs.build_leaf(&mut builder);
+        let block_height_targets = block_height_inputs.build_leaf(&mut builder);
 
         let targets = LeafTargets {
             accumulate_event: builder
@@ -196,6 +201,11 @@ where
             state_hash_targets.inputs.unpruned_hash,
         );
 
+        // Connect the block height
+        connect_arrays(&mut builder, block_height_targets.inputs.values, [
+            compare_delta_targets.block_height,
+        ]);
+
         let circuit = builder.build();
 
         let public_inputs = &circuit.prover_only.public_inputs;
@@ -203,12 +213,14 @@ where
         let event_hash = event_hash_targets.build(public_inputs);
         let state_hash = state_hash_targets.build(public_inputs);
         let compare_delta = compare_delta_targets.build(public_inputs);
+        let block_height = block_height_targets.build(public_inputs);
 
         Self {
             unbounded,
             event_hash,
             state_hash,
             compare_delta,
+            block_height,
             targets,
             circuit,
         }
@@ -263,6 +275,9 @@ where
     /// The partial-object/state update comparator
     pub compare_delta: core::BranchSubCircuit,
 
+    /// The block height
+    pub block_height: propagate::BranchSubCircuit<1>,
+
     pub circuit: CircuitData<F, C, D>,
 }
 
@@ -280,6 +295,7 @@ where
         let event_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let state_hash_inputs = unpruned::SubCircuitInputs::default(&mut builder);
         let compare_delta_inputs = core::SubCircuitInputs::default(&mut builder);
+        let block_height_inputs = propagate::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
@@ -303,6 +319,12 @@ where
             &unbounded_targets.left_proof,
             &unbounded_targets.right_proof,
         );
+        let block_height_targets = block_height_inputs.build_branch(
+            &mut builder,
+            &leaf.block_height.indices,
+            &unbounded_targets.left_proof,
+            &unbounded_targets.right_proof,
+        );
 
         // Connect partials
         builder.connect(
@@ -317,12 +339,14 @@ where
         let event_hash = event_hash_targets.build(&leaf.event_hash.indices, public_inputs);
         let state_hash = state_hash_targets.build(&leaf.state_hash.indices, public_inputs);
         let compare_delta = compare_delta_targets.build(&leaf.compare_delta.indices, public_inputs);
+        let block_height = block_height_targets.build(&leaf.block_height.indices, public_inputs);
 
         Self {
             unbounded,
             event_hash,
             state_hash,
             compare_delta,
+            block_height,
             circuit,
         }
     }
