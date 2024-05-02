@@ -59,8 +59,8 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // pre-populated data elements
     #[cfg(target_os = "mozakvm")]
     {
-        let mut buf = [0; 1024];
-        call_tape_read(buf.as_mut_ptr(), 1024);
+        let mut buf = [0; 4096];
+        call_tape_read(buf.as_mut_ptr(), 4096);
 
         let messages_raw = unsafe { rkyv::access_unchecked::<Vec<CrossProgramCall>>(&buf) };
 
@@ -70,12 +70,28 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
         >>::deserialize(messages_raw, Strategy::wrap(&mut ()))
         .unwrap();
 
+        let mut cast_list = Vec::new();
+        let mut self_prog_id = ProgramIdentifier::default();
+        messages.clone().into_iter().enumerate().for_each(
+            |(i, CrossProgramCall { caller, callee, .. })| {
+                if i == 0 {
+                    self_prog_id = callee;
+                }
+                if !caller.is_null_program() {
+                    cast_list.push(caller);
+                }
+                if !callee.is_null_program() {
+                    cast_list.push(callee);
+                }
+            },
+        );
+
         SystemTape {
             private_input_tape: PrivateInputTapeType::default(),
             public_input_tape: PublicInputTapeType::default(),
             call_tape: CallTapeType {
-                cast_list: vec![],
-                self_prog_id: ProgramIdentifier::default(),
+                cast_list,
+                self_prog_id,
                 reader: Some(messages),
                 index: 0,
             },
