@@ -175,6 +175,7 @@ pub struct CpuState<T> {
     pub is_io_store_private: T,
     pub is_io_store_public: T,
     pub is_call_tape: T,
+    pub is_event_tape: T,
     pub is_events_commitment_tape: T,
     pub is_cast_list_commitment_tape: T,
     pub is_halt: T,
@@ -326,6 +327,7 @@ pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Co
                 CPU.is_io_store_private,
                 CPU.is_io_store_public,
                 CPU.is_call_tape,
+                CPU.is_event_tape,
                 CPU.is_events_commitment_tape,
                 CPU.is_cast_list_commitment_tape,
             ]),
@@ -337,6 +339,7 @@ pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Co
             CPU.is_io_store_private,
             CPU.is_io_store_public,
             CPU.is_call_tape,
+            CPU.is_event_tape,
             CPU.is_events_commitment_tape,
             CPU.is_cast_list_commitment_tape,
         ]

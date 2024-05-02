@@ -9,7 +9,8 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::{find_target, find_targets, maybe_connect, Event, EventFlags, EventType};
+use crate::indices::{ArrayTargetIndex, TargetIndex};
+use crate::{maybe_connect, Event, EventFlags, EventType};
 
 // Limit transfers to 2^40 credits to avoid overflow issues
 const MAX_LEAF_TRANSFER: usize = 40;
@@ -17,101 +18,25 @@ const MAX_LEAF_TRANSFER: usize = 40;
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
     /// The index of the event/object address
-    pub address: usize,
+    pub address: TargetIndex,
 
     /// The index of the (partial) object flags
-    pub object_flags: usize,
+    pub object_flags: TargetIndex,
 
     /// The indices of each of the elements of the previous constraint owner
-    pub old_owner: [usize; 4],
+    pub old_owner: ArrayTargetIndex<TargetIndex, 4>,
 
     /// The indices of each of the elements of the new constraint owner
-    pub new_owner: [usize; 4],
+    pub new_owner: ArrayTargetIndex<TargetIndex, 4>,
 
     /// The indices of each of the elements of the previous data
-    pub old_data: [usize; 4],
+    pub old_data: ArrayTargetIndex<TargetIndex, 4>,
 
     /// The indices of each of the elements of the new data
-    pub new_data: [usize; 4],
+    pub new_data: ArrayTargetIndex<TargetIndex, 4>,
 
     /// The index of the credit delta
-    pub credit_delta: usize,
-}
-
-impl PublicIndices {
-    /// Extract `address` from an array of public inputs.
-    pub fn get_address<T: Copy>(&self, public_inputs: &[T]) -> T { public_inputs[self.address] }
-
-    /// Insert `address` into an array of public inputs.
-    pub fn set_address<T>(&self, public_inputs: &mut [T], v: T) { public_inputs[self.address] = v; }
-
-    /// Extract `object_flags` from an array of public inputs.
-    pub fn get_object_flags<T: Copy>(&self, public_inputs: &[T]) -> T {
-        public_inputs[self.object_flags]
-    }
-
-    /// Insert `object_flags` into an array of public inputs.
-    pub fn set_object_flags<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.object_flags] = v;
-    }
-
-    /// Extract `old_owner` from an array of public inputs.
-    pub fn get_old_owner<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
-        self.old_owner.map(|i| public_inputs[i])
-    }
-
-    /// Insert `old_owner` into an array of public inputs.
-    pub fn set_old_owner<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.old_owner[i]] = v;
-        }
-    }
-
-    /// Extract `new_owner` from an array of public inputs.
-    pub fn get_new_owner<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
-        self.new_owner.map(|i| public_inputs[i])
-    }
-
-    /// Insert `new_owner` into an array of public inputs.
-    pub fn set_new_owner<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.new_owner[i]] = v;
-        }
-    }
-
-    /// Extract `old_data` from an array of public inputs.
-    pub fn get_old_data<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
-        self.old_data.map(|i| public_inputs[i])
-    }
-
-    /// Insert `old_data` into an array of public inputs.
-    pub fn set_old_data<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.old_data[i]] = v;
-        }
-    }
-
-    /// Extract `new_data` from an array of public inputs.
-    pub fn get_new_data<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
-        self.new_data.map(|i| public_inputs[i])
-    }
-
-    /// Insert `new_data` into an array of public inputs.
-    pub fn set_new_data<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.new_data[i]] = v;
-        }
-    }
-
-    /// Extract `credit_delta` from an array of public inputs.
-    pub fn get_credit_delta<T: Copy>(&self, public_inputs: &[T]) -> T {
-        public_inputs[self.credit_delta]
-    }
-
-    /// Insert `credit_delta` into an array of public inputs.
-    pub fn set_credit_delta<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.credit_delta] = v;
-    }
+    pub credit_delta: TargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -340,13 +265,13 @@ impl LeafTargets {
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         // Find the indices
         let indices = PublicIndices {
-            address: find_target(public_inputs, self.inputs.address),
-            object_flags: find_target(public_inputs, self.inputs.object_flags),
-            old_owner: find_targets(public_inputs, self.inputs.old_owner),
-            new_owner: find_targets(public_inputs, self.inputs.new_owner),
-            old_data: find_targets(public_inputs, self.inputs.old_data),
-            new_data: find_targets(public_inputs, self.inputs.new_data),
-            credit_delta: find_target(public_inputs, self.inputs.credit_delta),
+            address: TargetIndex::new(public_inputs, self.inputs.address),
+            object_flags: TargetIndex::new(public_inputs, self.inputs.object_flags),
+            old_owner: ArrayTargetIndex::new(public_inputs, &self.inputs.old_owner),
+            new_owner: ArrayTargetIndex::new(public_inputs, &self.inputs.new_owner),
+            old_data: ArrayTargetIndex::new(public_inputs, &self.inputs.old_data),
+            new_data: ArrayTargetIndex::new(public_inputs, &self.inputs.new_data),
+            credit_delta: TargetIndex::new(public_inputs, self.inputs.credit_delta),
         };
         LeafSubCircuit {
             targets: self,
@@ -469,13 +394,13 @@ impl SubCircuitInputs {
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
     ) -> SubCircuitInputs {
-        let address = indices.get_address(&proof.public_inputs);
-        let object_flags = indices.get_object_flags(&proof.public_inputs);
-        let old_owner = indices.get_old_owner(&proof.public_inputs);
-        let new_owner = indices.get_new_owner(&proof.public_inputs);
-        let old_data = indices.get_old_data(&proof.public_inputs);
-        let new_data = indices.get_new_data(&proof.public_inputs);
-        let credit_delta = indices.get_credit_delta(&proof.public_inputs);
+        let address = indices.address.get(&proof.public_inputs);
+        let object_flags = indices.object_flags.get(&proof.public_inputs);
+        let old_owner = indices.old_owner.get(&proof.public_inputs);
+        let new_owner = indices.new_owner.get(&proof.public_inputs);
+        let old_data = indices.old_data.get(&proof.public_inputs);
+        let new_data = indices.new_data.get(&proof.public_inputs);
+        let credit_delta = indices.credit_delta.get(&proof.public_inputs);
 
         SubCircuitInputs {
             address,
@@ -581,13 +506,13 @@ impl BranchTargets {
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit {
         // Find the indices
         let indices = PublicIndices {
-            address: find_target(public_inputs, self.inputs.address),
-            object_flags: find_target(public_inputs, self.inputs.object_flags),
-            old_owner: find_targets(public_inputs, self.inputs.old_owner),
-            new_owner: find_targets(public_inputs, self.inputs.new_owner),
-            old_data: find_targets(public_inputs, self.inputs.old_data),
-            new_data: find_targets(public_inputs, self.inputs.new_data),
-            credit_delta: find_target(public_inputs, self.inputs.credit_delta),
+            address: TargetIndex::new(public_inputs, self.inputs.address),
+            object_flags: TargetIndex::new(public_inputs, self.inputs.object_flags),
+            old_owner: ArrayTargetIndex::new(public_inputs, &self.inputs.old_owner),
+            new_owner: ArrayTargetIndex::new(public_inputs, &self.inputs.new_owner),
+            old_data: ArrayTargetIndex::new(public_inputs, &self.inputs.old_data),
+            new_data: ArrayTargetIndex::new(public_inputs, &self.inputs.new_data),
+            credit_delta: TargetIndex::new(public_inputs, self.inputs.credit_delta),
         };
         debug_assert_eq!(indices, *child);
 
@@ -707,12 +632,12 @@ impl BranchSubCircuit {
     ) {
         let targets = &self.targets.inputs;
         let indices = &self.indices;
-        witness.set_target(targets.object_flags, indices.get_object_flags(left_inputs));
-        witness.set_target_arr(&targets.old_owner, &indices.get_old_owner(left_inputs));
-        witness.set_target_arr(&targets.new_owner, &indices.get_new_owner(left_inputs));
-        witness.set_target_arr(&targets.old_data, &indices.get_old_data(left_inputs));
-        witness.set_target_arr(&targets.new_data, &indices.get_new_data(left_inputs));
-        witness.set_target(targets.credit_delta, indices.get_credit_delta(left_inputs));
+        witness.set_target(targets.object_flags, indices.object_flags.get(left_inputs));
+        witness.set_target_arr(&targets.old_owner, &indices.old_owner.get_any(left_inputs));
+        witness.set_target_arr(&targets.new_owner, &indices.new_owner.get_any(left_inputs));
+        witness.set_target_arr(&targets.old_data, &indices.old_data.get_any(left_inputs));
+        witness.set_target_arr(&targets.new_data, &indices.new_data.get_any(left_inputs));
+        witness.set_target(targets.credit_delta, indices.credit_delta.get(left_inputs));
         witness.set_bool_target(self.targets.partial, true);
     }
 
@@ -728,8 +653,8 @@ impl BranchSubCircuit {
         // Address can be derived, so we can skip it
 
         // Handle flags
-        let left_flags = indices.get_object_flags(left_inputs).to_canonical_u64();
-        let right_flags = indices.get_object_flags(right_inputs).to_canonical_u64();
+        let left_flags = indices.object_flags.get(left_inputs).to_canonical_u64();
+        let right_flags = indices.object_flags.get(right_inputs).to_canonical_u64();
         witness.set_target(
             targets.object_flags,
             F::from_canonical_u64(left_flags | right_flags),
@@ -752,7 +677,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| indices.get_old_owner(inputs),
+            |inputs| indices.old_owner.get_any(inputs),
             old_owner,
         );
         let new_owner = merge_branch_helper(
@@ -760,7 +685,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| indices.get_new_owner(inputs),
+            |inputs| indices.new_owner.get_any(inputs),
             new_owner,
         );
         let old_data = merge_branch_helper(
@@ -768,7 +693,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| indices.get_old_data(inputs),
+            |inputs| indices.old_data.get_any(inputs),
             old_data,
         );
         let new_data = merge_branch_helper(
@@ -776,7 +701,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| indices.get_new_data(inputs),
+            |inputs| indices.new_data.get_any(inputs),
             new_data,
         );
 
@@ -788,9 +713,9 @@ impl BranchSubCircuit {
 
         // Handle the credits
         #[allow(clippy::cast_possible_wrap)]
-        let left_credits = indices.get_credit_delta(left_inputs).to_canonical_u64() as i64;
+        let left_credits = indices.credit_delta.get(left_inputs).to_canonical_u64() as i64;
         #[allow(clippy::cast_possible_wrap)]
-        let right_credits = indices.get_credit_delta(right_inputs).to_canonical_u64() as i64;
+        let right_credits = indices.credit_delta.get(right_inputs).to_canonical_u64() as i64;
         let credits = left_credits + right_credits;
         witness.set_target(targets.credit_delta, F::from_noncanonical_i64(credits));
 
