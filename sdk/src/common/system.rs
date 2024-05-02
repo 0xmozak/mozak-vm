@@ -9,11 +9,15 @@ use rkyv::rancor::{Panic, Strategy};
 #[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
 
+#[cfg(target_os = "mozakvm")]
+use super::merkle::merkleize;
 use super::types::{
     CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
 };
 #[cfg(target_os = "mozakvm")]
-use super::types::{CrossProgramCall, ProgramIdentifier};
+use super::types::{
+    CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
+};
 #[cfg(target_os = "mozakvm")]
 use crate::core::ecall::call_tape_read;
 
