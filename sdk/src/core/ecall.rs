@@ -100,7 +100,7 @@ pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-pub fn events_tape_read(buf_ptr: *mut u8, buf_len: usize) {
+pub fn event_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
