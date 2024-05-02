@@ -16,7 +16,9 @@ macro_rules! entry {
             #[no_mangle]
             fn bespoke_entrypoint() {
                 super::MOZAK_ENTRY();
-                core::arch::asm!("unimp", options(noreturn, nomem, nostack));
+                unsafe {
+                    core::arch::asm!("unimp", options(noreturn, nomem, nostack));
+                }
                 #[cfg(feature = "std")]
                 mozak_sdk::common::system::ensure_clean_shutdown();
             }
@@ -84,3 +86,8 @@ mod handlers {
 
     }
 }
+
+// #[cfg(target_os = "mozakvm")]
+// #[cfg(not(feature = "std"))]
+// #[lang = "eh_personality"]
+// extern "C" fn eh_personality() {}

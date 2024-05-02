@@ -7,6 +7,9 @@
 #![deny(warnings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
+ 
+// #![allow(internal_features)]
+// #![cfg_attr(not(feature = "std"), feature(lang_items))]
 
 #[cfg(feature = "std")]
 use rkyv::rancor::{Panic, Strategy};
