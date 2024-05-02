@@ -32,8 +32,8 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
     }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -45,8 +45,8 @@ pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
     }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -57,8 +57,8 @@ pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -69,8 +69,8 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
+#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
 pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -81,8 +81,8 @@ pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
+#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
 pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -93,8 +93,8 @@ pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
     }
 }
 
+#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
 pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -105,8 +105,8 @@ pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
     }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn panic(msg_ptr: *const u8, msg_len: usize) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -117,8 +117,8 @@ pub fn panic(msg_ptr: *const u8, msg_len: usize) {
     }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn trace(msg_ptr: *const u8, msg_len: usize) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -129,8 +129,8 @@ pub fn trace(msg_ptr: *const u8, msg_len: usize) {
     }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn halt(output: u8) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         asm!(
             "ecall",
