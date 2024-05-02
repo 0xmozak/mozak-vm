@@ -8,10 +8,11 @@ pub const IO_READ_PRIVATE: u32 = 2;
 pub const POSEIDON2: u32 = 3;
 pub const IO_READ_PUBLIC: u32 = 4;
 pub const IO_READ_CALL_TAPE: u32 = 5;
-pub const EVENTS_COMMITMENT_TAPE: u32 = 6;
-pub const CAST_LIST_COMMITMENT_TAPE: u32 = 7;
+pub const EVENT_TAPE: u32 = 6;
+pub const EVENTS_COMMITMENT_TAPE: u32 = 7;
+pub const CAST_LIST_COMMITMENT_TAPE: u32 = 8;
 /// Syscall to output the VM trace log at `clk`. Useful for debugging.
-pub const VM_TRACE_LOG: u32 = 8;
+pub const VM_TRACE_LOG: u32 = 9;
 
 /// The number of bytes requested for events commitment tape and
 /// cast list commitment tape is hardcoded to 32 bytes.
@@ -26,6 +27,7 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
         POSEIDON2 => "poseidon2",
         IO_READ_PRIVATE => "ioread private tape",
         IO_READ_CALL_TAPE => "ioread call tape",
+        EVENT_TAPE => "ioread event tape",
         EVENTS_COMMITMENT_TAPE => "ioread events commitment tape",
         CAST_LIST_COMMITMENT_TAPE => "ioread cast list commitment tape",
         VM_TRACE_LOG => "vm trace log",
@@ -88,6 +90,22 @@ pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
         core::arch::asm!(
         "ecall",
         in ("a0") IO_READ_CALL_TAPE,
+        in ("a1") buf_ptr,
+        in ("a2") buf_len,
+        );
+    }
+    #[cfg(not(target_os = "mozakvm"))]
+    {
+        unimplemented!()
+    }
+}
+
+pub fn event_tape_read(buf_ptr: *mut u8, buf_len: usize) {
+    #[cfg(target_os = "mozakvm")]
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") EVENT_TAPE,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );

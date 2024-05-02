@@ -117,6 +117,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub io_memory_public_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "CallTape")]
     pub call_tape_stark: StorageDeviceStark<F, D>,
+    #[StarkSet(stark_kind = "EventTape")]
+    pub event_tape_stark: StorageDeviceStark<F, D>,
     // TODO(bing): This is known to be 32-bytes in length. Optimize with
     // a fixed size version of this STARK.
     #[StarkSet(stark_kind = "EventsCommitmentTape")]
@@ -423,6 +425,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             io_memory_private_stark: StorageDeviceStark::default(),
             io_memory_public_stark: StorageDeviceStark::default(),
             call_tape_stark: StorageDeviceStark::default(),
+            event_tape_stark: StorageDeviceStark::default(),
             events_commitment_tape_stark: StorageDeviceStark::default(),
             cast_list_commitment_tape_stark: StorageDeviceStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
@@ -621,6 +624,7 @@ table_impl!(
     StorageDevice
 );
 table_impl!(CallTapeTable, TableKind::CallTape, StorageDevice);
+table_impl!(EventTapeTable, TableKind::EventTape, StorageDevice);
 table_impl!(
     EventsCommitmentTapeTable,
     TableKind::EventsCommitmentTape,
@@ -698,6 +702,7 @@ impl Lookups for IntoMemoryTable {
                 TableKind::StorageDevicePrivate,
                 TableKind::StorageDevicePublic,
                 TableKind::CallTape,
+                TableKind::EventTape,
                 TableKind::EventsCommitmentTape,
                 TableKind::CastListCommitmentTape
             ]
@@ -845,6 +850,7 @@ impl Lookups for StorageDeviceToCpuTable {
                     TableKind::StorageDevicePrivate,
                     TableKind::StorageDevicePublic,
                     TableKind::CallTape,
+                    TableKind::EventTape,
                     TableKind::EventsCommitmentTape,
                     TableKind::CastListCommitmentTape,
                 ],
