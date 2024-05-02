@@ -157,6 +157,7 @@ pub fn generate_memory_trace<F: RichField>(
     io_memory_private_rows: &[StorageDevice<F>],
     io_memory_public_rows: &[StorageDevice<F>],
     io_memory_call_tape_rows: &[StorageDevice<F>],
+    io_memory_event_tape_rows: &[StorageDevice<F>],
     io_memory_events_commitment_tape_rows: &[StorageDevice<F>],
     io_memory_castlist_commitment_tape_rows: &[StorageDevice<F>],
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
@@ -174,6 +175,7 @@ pub fn generate_memory_trace<F: RichField>(
         transform_io(io_memory_private_rows),
         transform_io(io_memory_public_rows),
         transform_io(io_memory_call_tape_rows),
+        transform_io(io_memory_event_tape_rows),
         transform_io(io_memory_events_commitment_tape_rows),
         transform_io(io_memory_castlist_commitment_tape_rows),
         transform_poseidon2_sponge(poseidon2_sponge_rows),
@@ -215,8 +217,8 @@ mod tests {
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
-        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
-        generate_io_memory_public_trace,
+        generate_event_tape_trace, generate_events_commitment_tape_trace,
+        generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
@@ -283,6 +285,7 @@ mod tests {
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
 
         let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let event_tape_rows = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
@@ -297,6 +300,7 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &poseidon2_sponge_trace,

@@ -180,6 +180,7 @@ pub enum StorageDeviceOpcode {
     StorePrivate,
     StorePublic,
     StoreCallTape,
+    StoreEventTape,
     StoreEventsCommitmentTape,
     StoreCastListCommitmentTape,
 }
