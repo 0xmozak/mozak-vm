@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [features]
 native = []
+std = [] # TODO: 😱 why this black magick works?
 
 [dependencies]
 mozak-sdk = { path = "../../sdk" }

@@ -145,7 +145,6 @@ fn main() -> Result<()> {
             });
 
             let state = State::new(program.clone(), raw_tapes);
-
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
