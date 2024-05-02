@@ -10,7 +10,7 @@ use crate::stark::mozak_stark::{RegisterZeroWriteTable, TableWithTypedOutput};
 columns_view_impl!(RegisterZeroWrite);
 make_col_map!(RegisterZeroWrite);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 /// The columns of the register 0 table.
 /// Register 0 is a special register that is always 0.
 /// Thus we don't need neither a value column nor a register address column.

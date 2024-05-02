@@ -14,15 +14,9 @@ macro_rules! entry {
         #[cfg(target_os = "mozakvm")]
         mod mozak_generated_main {
             #[no_mangle]
-            fn main() {
-                #[cfg(feature = "std")]
-                {
-                    use std::panic;
-                    panic::set_hook(Box::new(|_| unsafe {
-                        core::arch::asm!("unimp", options(noreturn, nomem, nostack));
-                    }));
-                }
+            fn bespoke_entrypoint() {
                 super::MOZAK_ENTRY();
+                core::arch::asm!("unimp", options(noreturn, nomem, nostack));
                 #[cfg(feature = "std")]
                 mozak_sdk::common::system::ensure_clean_shutdown();
             }
@@ -38,9 +32,9 @@ unsafe extern "C" fn __start() {
     env::init();
     {
         extern "C" {
-            fn main();
+            fn bespoke_entrypoint();
         }
-        main()
+        bespoke_entrypoint()
     }
     env::finalize();
 }

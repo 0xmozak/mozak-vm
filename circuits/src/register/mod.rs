@@ -16,7 +16,7 @@ pub mod zero_write;
 columns_view_impl!(RegisterCtl);
 #[allow(clippy::module_name_repetitions)]
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct RegisterCtl<T> {
     pub clk: T,
     pub op: T,

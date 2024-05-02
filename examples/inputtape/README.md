@@ -17,7 +17,7 @@ First, build the mozakvm binary:
 
 ```sh
 # inside examples directory
-cargo build --release --bin inputtapebin
+cargo build --release --bin inputtapebin --features="std"
 ```
 
 Test the ELF in mozak-vm using the below command. Note that you must run

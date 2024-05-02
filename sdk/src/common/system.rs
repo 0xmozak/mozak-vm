@@ -5,6 +5,8 @@ use std::rc::Rc;
 
 use once_cell::unsync::Lazy;
 #[cfg(target_os = "mozakvm")]
+use rkyv::rancor::{Panic, Strategy};
+#[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
 
 use super::types::{
@@ -12,6 +14,8 @@ use super::types::{
 };
 #[cfg(target_os = "mozakvm")]
 use crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, ProgramIdentifier};
+#[cfg(target_os = "mozakvm")]
+use crate::common::{merkle::merkleize, types::Poseidon2Hash};
 #[cfg(target_os = "mozakvm")]
 use crate::mozakvm::helpers::{
     archived_repr, get_rkyv_archived, get_rkyv_deserialized, get_self_prog_id,
@@ -92,5 +96,35 @@ pub fn ensure_clean_shutdown() {
 
         // Should have read the full event tape
         assert!(SYSTEM_TAPE.event_tape.index == SYSTEM_TAPE.event_tape.reader.unwrap().len());
+
+        // Assert that event commitment tape has the same bytes
+        // as Event Tape's actual commitment observable to us
+        let mut claimed_commitment: [u8; 32] = [0; 32];
+        crate::core::ecall::events_commitment_tape_read(claimed_commitment.as_mut_ptr());
+
+        let canonical_event_temporal_hints: Vec<CanonicalOrderedTemporalHints> = SYSTEM_TAPE
+            .event_tape
+            .reader
+            .unwrap()
+            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+            .unwrap();
+
+        let calculated_commitment = merkleize(
+            canonical_event_temporal_hints
+                .iter()
+                .map(|x| {
+                    (
+                        // May not be the best idea if
+                        // `addr` > goldilock's prime, cc
+                        // @Kapil
+                        u64::from_le_bytes(x.0.address.inner()),
+                        x.0.canonical_hash(),
+                    )
+                })
+                .collect::<Vec<(u64, Poseidon2Hash)>>(),
+        )
+        .0;
+
+        assert!(claimed_commitment == calculated_commitment);
     }
 }
