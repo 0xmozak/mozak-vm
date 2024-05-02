@@ -41,12 +41,10 @@ use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::prover::prove_single_table;
 
-pub(crate) fn sort_degree_bits<F, const D: usize>(
+pub(crate) fn sort_degree_bits(
     public_table_kinds: &[TableKind],
     degree_bits: &TableKindArray<usize>,
-) -> Vec<usize>
-where
-    F: RichField + Extendable<D>, {
+) -> Vec<usize> {
     let mut sorted_degree_bits: Vec<usize> =
         all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(degree_bits[kind]))
             .iter()
@@ -99,8 +97,8 @@ pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
 
     let fri_instance_groups = sorted_degree_bits
         .iter()
-        .map(|degree_log| {
-            degree_bits_map[degree_log]
+        .map(|d| {
+            degree_bits_map[d]
                 .iter()
                 .filter_map(|kind| fri_instances[*kind].as_ref())
                 .collect::<Vec<_>>()
@@ -216,6 +214,7 @@ where
         )
     );
 
+    // TODO: only need for public tables
     let trace_commitments = timed!(
         timing,
         "Compute trace commitments for public tables",
@@ -286,8 +285,7 @@ where
         &batch_trace_commitments,
         &ctl_data_per_table,
         &public_sub_table_data_per_table,
-        // todo: remove clone()
-        &mut challenger.clone(),
+        &mut challenger,
         timing,
     )?;
 
@@ -413,6 +411,7 @@ where
         )
     );
 
+    // TODO: remove it
     let ctl_zs_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
@@ -433,7 +432,7 @@ where
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
 
-    let sorted_degree_bits = sort_degree_bits::<F, D>(public_table_kinds, &degree_bits);
+    let sorted_degree_bits = sort_degree_bits(public_table_kinds, &degree_bits);
     let degree_bits_index_map: HashMap<usize, usize> = sorted_degree_bits
         .iter()
         .enumerate()
@@ -510,6 +509,7 @@ where
     batch_quotient_chunks.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let batch_quotient_chunks_len = batch_quotient_chunks.len();
 
+    // TODO: remove it
     let quotient_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
         timing,
         format!("{stark}: compute quotient commitment").as_str(),

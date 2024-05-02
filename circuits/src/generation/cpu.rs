@@ -92,6 +92,10 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
                 (inst.op, io.op),
                 (Op::ECALL, StorageDeviceOpcode::StoreCallTape)
             )),
+            is_event_tape: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, StorageDeviceOpcode::StoreEventTape)
+            )),
             is_events_commitment_tape: F::from_bool(matches!(
                 (inst.op, io.op),
                 (Op::ECALL, StorageDeviceOpcode::StoreEventsCommitmentTape)

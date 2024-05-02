@@ -2,49 +2,24 @@
 //! out of a single value.
 
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::{find_hash, hash_is_nonzero, hash_is_zero, hash_or_forward, hashes_equal};
+use crate::indices::HashTargetIndex;
+use crate::{hash_is_nonzero, hash_is_zero, hash_or_forward, hashes_equal};
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
     /// The indices of each of the elements of the hash
-    pub hash: [usize; NUM_HASH_OUT_ELTS],
+    pub hash: HashTargetIndex,
 
     /// The indices of each of the elements of the `leaf_value`
-    pub leaf_value: [usize; NUM_HASH_OUT_ELTS],
-}
-
-impl PublicIndices {
-    /// Extract `hash` from an array of public inputs.
-    pub fn get_hash<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.hash.map(|i| public_inputs[i])
-    }
-
-    /// Insert `hash` into an array of public inputs.
-    pub fn set_hash<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.hash[i]] = v;
-        }
-    }
-
-    /// Extract `leaf_value` from an array of public inputs.
-    pub fn get_leaf_value<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.leaf_value.map(|i| public_inputs[i])
-    }
-
-    /// Insert `leaf_value` into an array of public inputs.
-    pub fn set_leaf_value<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.leaf_value[i]] = v;
-        }
-    }
+    pub leaf_value: HashTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -98,8 +73,8 @@ impl LeafTargets {
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         // Find the indices
         let indices = PublicIndices {
-            hash: find_hash(public_inputs, self.inputs.hash),
-            leaf_value: find_hash(public_inputs, self.inputs.leaf_value),
+            hash: HashTargetIndex::new(public_inputs, self.inputs.hash),
+            leaf_value: HashTargetIndex::new(public_inputs, self.inputs.leaf_value),
         };
         LeafSubCircuit {
             targets: self,
@@ -157,8 +132,8 @@ impl SubCircuitInputs {
     ) -> BranchTargets
     where
         F: RichField + Extendable<D>, {
-        let l_hash = indices.get_hash(&left_proof.public_inputs);
-        let r_hash = indices.get_hash(&right_proof.public_inputs);
+        let l_hash = indices.hash.get_any(&left_proof.public_inputs);
+        let r_hash = indices.hash.get_any(&right_proof.public_inputs);
 
         // Get presence
         let left_non_zero = hash_is_nonzero(builder, l_hash);
@@ -169,10 +144,8 @@ impl SubCircuitInputs {
         builder.connect_hashes(self.hash, summary_hash);
 
         // Make sure the leaf values are the same
-        let l_leaf = indices.get_leaf_value(&left_proof.public_inputs);
-        let r_leaf = indices.get_leaf_value(&right_proof.public_inputs);
-        let l_leaf = HashOutTarget::from(l_leaf);
-        let r_leaf = HashOutTarget::from(r_leaf);
+        let l_leaf = indices.leaf_value.get(&left_proof.public_inputs);
+        let r_leaf = indices.leaf_value.get(&right_proof.public_inputs);
         builder.connect_hashes(self.leaf_value, l_leaf);
         builder.connect_hashes(self.leaf_value, r_leaf);
 
@@ -211,8 +184,8 @@ impl BranchTargets {
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit {
         // Find the indices
         let indices = PublicIndices {
-            hash: find_hash(public_inputs, self.inputs.hash),
-            leaf_value: find_hash(public_inputs, self.inputs.leaf_value),
+            hash: HashTargetIndex::new(public_inputs, self.inputs.hash),
+            leaf_value: HashTargetIndex::new(public_inputs, self.inputs.leaf_value),
         };
         debug_assert_eq!(indices, *child);
 
@@ -240,6 +213,7 @@ mod test {
     use anyhow::Result;
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
+    use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
