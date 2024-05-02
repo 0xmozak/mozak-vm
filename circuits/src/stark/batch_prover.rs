@@ -213,6 +213,7 @@ where
         )
     );
 
+    // TODO: only need for public tables
     let trace_commitments = timed!(
         timing,
         "Compute trace commitments for each table",
@@ -277,8 +278,7 @@ where
         &batch_trace_commitments,
         &ctl_data_per_table,
         &public_sub_table_data_per_table,
-        // todo: remove clone()
-        &mut challenger.clone(),
+        &mut challenger,
         timing,
     )?;
 
@@ -403,6 +403,7 @@ where
         )
     );
 
+    // TODO: remove it
     let ctl_zs_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
@@ -475,6 +476,7 @@ where
     batch_quotient_chunks.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let batch_quotient_chunks_len = batch_quotient_chunks.len();
 
+    // TODO: remove it
     let quotient_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
         timing,
         format!("{stark}: compute quotient commitment").as_str(),
