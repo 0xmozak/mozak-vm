@@ -245,8 +245,6 @@ impl BranchSubCircuit {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use iter_fixed::IntoIteratorFixed;
-    use lazy_static::lazy_static;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
@@ -382,24 +380,31 @@ mod test {
         }
     }
 
-    lazy_static! {
-        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
-        static ref BRANCH_1: DummyBranchCircuit = DummyBranchCircuit::from_leaf(&CONFIG, &LEAF);
-        static ref BRANCH_2: DummyBranchCircuit =
-            DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1);
+    #[tested_fixture::tested_fixture(LEAF)]
+    fn build_leaf() -> DummyLeafCircuit { DummyLeafCircuit::new(&CONFIG) }
+
+    #[tested_fixture::tested_fixture(BRANCH_1)]
+    fn build_branch_1() -> DummyBranchCircuit { DummyBranchCircuit::from_leaf(&CONFIG, &LEAF) }
+
+    #[tested_fixture::tested_fixture(BRANCH_2)]
+    fn build_branch_2() -> DummyBranchCircuit {
+        DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1)
     }
 
-    #[test]
-    fn verify_leaf() -> Result<()> {
+    #[tested_fixture::tested_fixture(EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_empty_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(None)?;
-        LEAF.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        for i in 0..4 {
-            let proof = LEAF.prove(Some(i))?;
-            LEAF.circuit.verify(proof)?;
-        }
-
-        Ok(())
+    #[tested_fixture::tested_fixture(NON_EMPTY_LEAF_PROOFS: [ProofWithPublicInputs<F, C, D>; 4])]
+    fn verify_leaf() -> Result<[ProofWithPublicInputs<F, C, D>; 4]> {
+        array_util::try_from_fn(|i| {
+            let proof = LEAF.prove(Some(i as u64))?;
+            LEAF.circuit.verify(proof.clone())?;
+            Ok(proof)
+        })
     }
 
     #[test]
@@ -416,73 +421,64 @@ mod test {
         LEAF.circuit.verify(proof).unwrap();
     }
 
+    #[tested_fixture::tested_fixture(EMPTY_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_empty_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(None, &EMPTY_LEAF_PROOF, &EMPTY_LEAF_PROOF)?;
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(LEFT_BRANCH_PROOFS: [ProofWithPublicInputs<F, C, D>; 2])]
+    fn verify_left_branch() -> Result<[ProofWithPublicInputs<F, C, D>; 2]> {
+        array_util::try_from_fn(|i| {
+            let proof = BRANCH_1.prove(
+                Some(i as u64),
+                &NON_EMPTY_LEAF_PROOFS[i * 2],
+                &EMPTY_LEAF_PROOF,
+            )?;
+            BRANCH_1.circuit.verify(proof.clone())?;
+            Ok(proof)
+        })
+    }
+
+    #[tested_fixture::tested_fixture(RIGHT_BRANCH_PROOFS: [ProofWithPublicInputs<F, C, D>; 2])]
+    fn verify_right_branch() -> Result<[ProofWithPublicInputs<F, C, D>; 2]> {
+        array_util::try_from_fn(|i| {
+            let proof = BRANCH_1.prove(
+                Some(i as u64),
+                &EMPTY_LEAF_PROOF,
+                &NON_EMPTY_LEAF_PROOFS[i * 2 + 1],
+            )?;
+            BRANCH_1.circuit.verify(proof.clone())?;
+            Ok(proof)
+        })
+    }
+
+    #[tested_fixture::tested_fixture(FULL_BRANCH_PROOFS: [ProofWithPublicInputs<F, C, D>; 2])]
+    fn verify_full_branch() -> Result<[ProofWithPublicInputs<F, C, D>; 2]> {
+        array_util::try_from_fn(|i| {
+            let proof = BRANCH_1.prove(
+                Some(i as u64),
+                &NON_EMPTY_LEAF_PROOFS[i * 2],
+                &NON_EMPTY_LEAF_PROOFS[i * 2 + 1],
+            )?;
+            BRANCH_1.circuit.verify(proof.clone())?;
+            Ok(proof)
+        })
+    }
+
     #[test]
-    fn verify_branch() -> Result<()> {
-        // Leaf proofs
-        let zero_proof = LEAF.prove(None)?;
-        LEAF.circuit.verify(zero_proof.clone())?;
-
-        let leaf_proofs: [_; 4] = [0u8; 4]
-            .into_iter_fixed()
-            .enumerate()
-            .map(|(i, _)| {
-                let non_zero_proof = LEAF.prove(Some(i as u64)).unwrap();
-                LEAF.circuit.verify(non_zero_proof.clone()).unwrap();
-                non_zero_proof
-            })
-            .collect();
-
-        // Branch proofs
-        let empty_branch_proof = BRANCH_1.prove(None, &zero_proof, &zero_proof)?;
-        BRANCH_1.circuit.verify(empty_branch_proof.clone())?;
-
-        let left_branch_proofs: [_; 2] = [0u8; 2]
-            .into_iter_fixed()
-            .enumerate()
-            .map(|(i, _)| {
-                let non_zero_proof = BRANCH_1
-                    .prove(Some(i as u64), &leaf_proofs[i * 2], &zero_proof)
-                    .unwrap();
-                BRANCH_1.circuit.verify(non_zero_proof.clone()).unwrap();
-                non_zero_proof
-            })
-            .collect();
-
-        let right_branch_proofs: [_; 2] = [0u8; 2]
-            .into_iter_fixed()
-            .enumerate()
-            .map(|(i, _)| {
-                let non_zero_proof = BRANCH_1
-                    .prove(Some(i as u64), &zero_proof, &leaf_proofs[i * 2 + 1])
-                    .unwrap();
-                BRANCH_1.circuit.verify(non_zero_proof.clone()).unwrap();
-                non_zero_proof
-            })
-            .collect();
-
-        let full_branch_proofs: [_; 2] = [0u8; 2]
-            .into_iter_fixed()
-            .enumerate()
-            .map(|(i, _)| {
-                let non_zero_proof = BRANCH_1
-                    .prove(Some(i as u64), &leaf_proofs[i * 2], &leaf_proofs[i * 2 + 1])
-                    .unwrap();
-                BRANCH_1.circuit.verify(non_zero_proof.clone()).unwrap();
-                non_zero_proof
-            })
-            .collect();
-
-        // Double branch proofs
-        let empty_branch_2_proof =
-            BRANCH_2.prove(None, &empty_branch_proof, &empty_branch_proof)?;
-        BRANCH_2.circuit.verify(empty_branch_2_proof)?;
-
-        let branches = [left_branch_proofs, right_branch_proofs, full_branch_proofs];
+    fn verify_double_branch() -> Result<()> {
+        let branches = [
+            &LEFT_BRANCH_PROOFS,
+            &RIGHT_BRANCH_PROOFS,
+            &FULL_BRANCH_PROOFS,
+        ];
         for b in &branches {
-            let non_zero_proof = BRANCH_2.prove(Some(0), &b[0], &empty_branch_proof)?;
+            let non_zero_proof = BRANCH_2.prove(Some(0), &b[0], &EMPTY_BRANCH_PROOF)?;
             BRANCH_2.circuit.verify(non_zero_proof)?;
 
-            let non_zero_proof = BRANCH_2.prove(Some(0), &empty_branch_proof, &b[1])?;
+            let non_zero_proof = BRANCH_2.prove(Some(0), &EMPTY_BRANCH_PROOF, &b[1])?;
             BRANCH_2.circuit.verify(non_zero_proof)?;
 
             for b2 in &branches {
@@ -496,55 +492,32 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
-    fn bad_proof_branch() {
-        let zero_proof = LEAF.prove(None).unwrap();
-        LEAF.circuit.verify(zero_proof.clone()).unwrap();
-
-        let bad_proof = LEAF.prove_unsafe(true, None).unwrap();
-
-        let empty_branch_proof = BRANCH_1.prove(None, &zero_proof, &bad_proof).unwrap();
-        BRANCH_1.circuit.verify(empty_branch_proof).unwrap();
-    }
-
-    #[test]
-    #[should_panic(expected = "was set twice with different values")]
     fn bad_zero_branch() {
-        let zero_proof = LEAF.prove(None).unwrap();
-        LEAF.circuit.verify(zero_proof.clone()).unwrap();
-
-        let branch_proof = BRANCH_1
-            .prove_unsafe(true, None, &zero_proof, &zero_proof)
+        let proof = BRANCH_1
+            .prove_unsafe(true, None, &EMPTY_LEAF_PROOF, &EMPTY_LEAF_PROOF)
             .unwrap();
-        BRANCH_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_non_zero_branch() {
-        let zero_proof = LEAF.prove(None).unwrap();
-        LEAF.circuit.verify(zero_proof.clone()).unwrap();
-
-        let non_zero_proof = LEAF.prove(Some(5)).unwrap();
-        LEAF.circuit.verify(non_zero_proof.clone()).unwrap();
-
-        let branch_proof = BRANCH_1
-            .prove_unsafe(false, Some(2), &zero_proof, &non_zero_proof)
+        let proof = BRANCH_1
+            .prove_unsafe(false, Some(2), &EMPTY_LEAF_PROOF, &NON_EMPTY_LEAF_PROOFS[1])
             .unwrap();
-        BRANCH_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_wrong_parent_branch() {
-        let non_zero_proof_1 = LEAF.prove(Some(4)).unwrap();
-        LEAF.circuit.verify(non_zero_proof_1.clone()).unwrap();
-
-        let non_zero_proof_2 = LEAF.prove(Some(5)).unwrap();
-        LEAF.circuit.verify(non_zero_proof_2.clone()).unwrap();
-
-        let branch_proof = BRANCH_1
-            .prove(Some(3), &non_zero_proof_1, &non_zero_proof_2)
+        let proof = BRANCH_1
+            .prove(
+                Some(3),
+                &NON_EMPTY_LEAF_PROOFS[0],
+                &NON_EMPTY_LEAF_PROOFS[1],
+            )
             .unwrap();
-        BRANCH_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
     }
 }
