@@ -108,7 +108,7 @@ class ExamplesTester(unittest.TestCase):
                         f"{Fore.RED}ZK prove and verify skipping for {Style.BRIGHT}{folder}{Style.NORMAL} as it is marked as an exception{Style.RESET_ALL}"
                     )
                 else:
-                    prove_and_verify_command = f"""cargo run --bin mozak-cli -- prove-and-verify \
+                    prove_and_verify_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv \
                         examples/target/riscv32im-mozak-mozakvm-elf/release/{folder}"""
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
