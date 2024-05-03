@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -439,18 +438,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::Bench(bench) => {
-            /// Times a function and returns the `Duration`.
-            ///
-            /// # Errors
-            ///
-            /// This errors if the given function returns an `Err`.
-            pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
-                let start_time = std::time::Instant::now();
-                func()?;
-                Ok(start_time.elapsed())
-            }
-
-            let time_taken = timeit(&|| bench.run())?.as_secs_f64();
+            let time_taken = bench.bench()?.as_secs_f64();
             println!("{time_taken}");
         }
     }

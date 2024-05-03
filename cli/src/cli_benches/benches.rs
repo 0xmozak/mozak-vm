@@ -1,16 +1,40 @@
+use std::time::Duration;
+
+use anyhow::Result;
 use clap::{Args as Args_, Subcommand};
 
-use super::nop::nop_bench;
-use super::omni::omni_bench;
-use super::poseidon2::poseidon2_bench;
-use super::sort::sort_bench;
-use super::xor::xor_bench;
+use super::nop::NopBench;
+use super::omni::OmniBench;
+use super::poseidon2::Poseidon2Bench;
+use super::sort::SortBench;
+use super::xor::XorBench;
 
 #[derive(Debug, Args_, Clone)]
 #[command(args_conflicts_with_subcommands = true)]
 pub struct BenchArgs {
     #[command(subcommand)]
     pub function: BenchFunction,
+}
+
+pub(crate) trait Bench {
+    type Args;
+    type Prepared;
+
+    /// method to be executed to prepare the benchmark
+    fn prepare(&self, args: &Self::Args) -> Self::Prepared;
+
+    /// actual benchmark function, whose execution time is
+    /// to be measured
+    fn execute(&self, prepared: Self::Prepared) -> Result<()>;
+
+    /// benchmark the `execute` function implemented through the
+    /// trait `Bench`
+    fn bench(&self, args: &Self::Args) -> Result<Duration> {
+        let prepared = self.prepare(args);
+        let start = std::time::Instant::now();
+        self.execute(prepared)?;
+        Ok(start.elapsed())
+    }
 }
 
 #[derive(PartialEq, Debug, Subcommand, Clone)]
@@ -34,13 +58,13 @@ pub enum BenchFunction {
 }
 
 impl BenchArgs {
-    pub fn run(&self) -> Result<(), anyhow::Error> {
-        match self.function {
-            BenchFunction::XorBench { iterations } => xor_bench(iterations),
-            BenchFunction::NopBench { iterations } => nop_bench(iterations),
-            BenchFunction::Poseidon2Bench { input_len } => poseidon2_bench(input_len),
-            BenchFunction::OmniBench { iterations } => omni_bench(iterations),
-            BenchFunction::SortBench { n } => sort_bench(n),
+    pub fn bench(&self) -> Result<Duration> {
+        match &self.function {
+            BenchFunction::XorBench { iterations } => XorBench.bench(iterations),
+            BenchFunction::NopBench { iterations } => NopBench.bench(iterations),
+            BenchFunction::OmniBench { iterations } => OmniBench.bench(iterations),
+            BenchFunction::Poseidon2Bench { input_len } => Poseidon2Bench.bench(input_len),
+            BenchFunction::SortBench { n } => SortBench.bench(n),
         }
     }
 }
