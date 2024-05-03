@@ -103,17 +103,15 @@ impl std::io::Seek for RandomAccessEcallTape {
     }
 }
 
-type FreeformTape = RandomAccessEcallTape;
+#[derive(Clone)]
+pub struct PrivateInputTape(RandomAccessEcallTape);
 
 #[derive(Clone)]
-pub struct PrivateInputTape(FreeformTape);
-
-#[derive(Clone)]
-pub struct PublicInputTape(FreeformTape);
+pub struct PublicInputTape(RandomAccessEcallTape);
 
 impl Default for PrivateInputTape {
     fn default() -> Self {
-        Self(FreeformTape {
+        Self(RandomAccessEcallTape {
             ecall_id: ecall::IO_READ_PRIVATE,
             read_offset: 0,
             size_hint: 0,
@@ -124,7 +122,7 @@ impl Default for PrivateInputTape {
 
 impl Default for PublicInputTape {
     fn default() -> Self {
-        Self(FreeformTape {
+        Self(RandomAccessEcallTape {
             ecall_id: ecall::IO_READ_PUBLIC,
             read_offset: 0,
             size_hint: 0,
@@ -140,7 +138,7 @@ impl Deref for PrivateInputTape {
 }
 
 impl DerefMut for PrivateInputTape {
-    fn deref_mut(&mut self) -> &mut FreeformTape { &mut self.0 }
+    fn deref_mut(&mut self) -> &mut RandomAccessEcallTape { &mut self.0 }
 }
 
 impl Deref for PublicInputTape {
@@ -150,7 +148,7 @@ impl Deref for PublicInputTape {
 }
 
 impl DerefMut for PublicInputTape {
-    fn deref_mut(&mut self) -> &mut FreeformTape { &mut self.0 }
+    fn deref_mut(&mut self) -> &mut RandomAccessEcallTape { &mut self.0 }
 }
 
 impl RandomAccessEcallTape {
