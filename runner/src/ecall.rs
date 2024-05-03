@@ -46,6 +46,11 @@ impl<F: RichField> State<F> {
                 &mut self.call_tape.read_index,
                 num_bytes_requested as usize,
             ),
+            StorageDeviceOpcode::StoreEventTape => read_bytes(
+                &self.event_tape.data,
+                &mut self.event_tape.read_index,
+                num_bytes_requested as usize,
+            ),
             StorageDeviceOpcode::StoreEventsCommitmentTape => read_bytes(
                 &*self.events_commitment_tape,
                 &mut 0,
@@ -133,6 +138,7 @@ impl<F: RichField> State<F> {
             ecall::IO_READ_PRIVATE => self.ecall_io_read(StorageDeviceOpcode::StorePrivate),
             ecall::IO_READ_PUBLIC => self.ecall_io_read(StorageDeviceOpcode::StorePublic),
             ecall::IO_READ_CALL_TAPE => self.ecall_io_read(StorageDeviceOpcode::StoreCallTape),
+            ecall::EVENT_TAPE => self.ecall_io_read(StorageDeviceOpcode::StoreEventTape),
             ecall::EVENTS_COMMITMENT_TAPE =>
                 self.ecall_io_read(StorageDeviceOpcode::StoreEventsCommitmentTape),
             ecall::CAST_LIST_COMMITMENT_TAPE =>

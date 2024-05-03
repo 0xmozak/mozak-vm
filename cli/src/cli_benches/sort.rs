@@ -22,6 +22,7 @@ pub fn sort_execute(result: Result<(Program, ExecutionRecord<F>)>) -> Result<()>
     let (program, record) = result?;
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
+
 pub fn sort_prepare(n: u32) -> Result<(Program, ExecutionRecord<F>)> {
     let program = Program::vanilla_load_elf(MOZAK_SORT_ELF)?;
     let raw_tapes = RawTapes {

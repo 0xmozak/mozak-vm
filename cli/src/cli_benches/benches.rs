@@ -63,30 +63,12 @@ pub enum BenchFunction {
 impl BenchArgs {
     pub fn bench(&self) -> Result<Duration> {
         match &self.function {
-            BenchFunction::XorBench { iterations } => {
-                let xor_bench = XorBench;
-                xor_bench.bench(iterations)
-            }
-            BenchFunction::NopBench { iterations } => {
-                let nop_bench = NopBench;
-                nop_bench.bench(iterations)
-            }
-            BenchFunction::OmniBench { iterations } => {
-                let omni_bench = OmniBench;
-                omni_bench.bench(iterations)
-            }
-            BenchFunction::Poseidon2Bench { input_len } => {
-                let poseidon2_bench = Poseidon2Bench;
-                poseidon2_bench.bench(input_len)
-            }
-            BenchFunction::SortBench { n } => {
-                let sort_bench = SortBench;
-                sort_bench.bench(n)
-            }
-            BenchFunction::SortBenchRecursive { n } => {
-                let sort_bench_recursive = SortBenchRecursive;
-                sort_bench_recursive.bench(n)
-            }
+            BenchFunction::XorBench { iterations } => XorBench.bench(iterations),
+            BenchFunction::NopBench { iterations } => NopBench.bench(iterations),
+            BenchFunction::OmniBench { iterations } => OmniBench.bench(iterations),
+            BenchFunction::Poseidon2Bench { input_len } => Poseidon2Bench.bench(input_len),
+            BenchFunction::SortBench { n } => SortBench.bench(n),
+            BenchFunction::SortBenchRecursive { n } => SortBenchRecursive.bench(n),
         }
     }
 }
