@@ -214,7 +214,6 @@ where
         )
     );
 
-    // TODO: only need for public tables
     let trace_commitments = timed!(
         timing,
         "Compute trace commitments for public tables",
@@ -358,6 +357,7 @@ where
         None
     });
 
+    let mut ctl_zs_poly_count = all_kind!(|_kind| 0);
     let all_ctl_z_polys = all_kind!(|kind| {
         if public_table_kinds.contains(&kind) {
             None
@@ -383,6 +383,7 @@ where
                     ctl_data_per_table[kind].zs_columns.len()
                 );
                 info!("z_poly len {}", z_polys.len());
+                ctl_zs_poly_count[kind] = z_polys.len();
 
                 z_polys
             })
@@ -411,22 +412,6 @@ where
         )
     );
 
-    // TODO: remove it
-    let ctl_zs_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
-        timing,
-        format!("{stark}: compute Zs commitment").as_str(),
-        all_ctl_z_polys[kind]
-            .as_ref()
-            .map(|poly| PolynomialBatch::<F, C, D>::from_values(
-                poly.clone(),
-                rate_bits,
-                false,
-                config.fri_config.cap_height,
-                timing,
-                None,
-            ))
-    ));
-
     let ctl_zs_cap = batch_ctl_zs_commitments.field_merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
 
@@ -438,16 +423,19 @@ where
         .enumerate()
         .map(|(index, &value)| (value, index))
         .collect();
-    let mut start_index = vec![0; sorted_degree_bits.len()];
-    // TODO: we should be able to compute `quotient_polys` from
-    // `batch_trace_commitments` and `batch_ctl_zs_commitments`.
+    let mut trace_start_index = vec![0; sorted_degree_bits.len()];
+    let mut ctl_zs_start_index = vec![0; sorted_degree_bits.len()];
+
+    let mut quotient_poly_count = all_kind!(|_kind| 0);
     let quotient_chunks = all_starks!(mozak_stark, |stark, kind| {
-        if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind].as_ref() {
+        if public_table_kinds.contains(&kind) {
+            None
+        } else {
             let degree = 1 << degree_bits[kind];
 
             let leaf_index = degree_bits_index_map[&degree_bits[kind]];
-            let slice_start = start_index[leaf_index];
-            let slice_len = trace_poly_count[kind];
+            let trace_slice_start = trace_start_index[leaf_index];
+            let trace_slice_len = trace_poly_count[kind];
             let batch_trace_commitments_ref: &'static BatchFriOracle<F, C, D> =
                 unsafe { transmute(batch_trace_commitments) };
             let get_trace_values_packed =
@@ -456,8 +444,23 @@ where
                         leaf_index,
                         i_start,
                         step,
-                        slice_start,
-                        slice_len,
+                        trace_slice_start,
+                        trace_slice_len,
+                    )
+                });
+
+            let ctl_zs_slice_start = ctl_zs_start_index[leaf_index];
+            let ctl_zs_slice_len = ctl_zs_poly_count[kind];
+            let batch_ctl_zs_commitments_ref: &'static BatchFriOracle<F, C, D> =
+                unsafe { transmute(&batch_ctl_zs_commitments) };
+            let get_ctl_zs_values_packed =
+                Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
+                    batch_ctl_zs_commitments_ref.get_lde_values_packed(
+                        leaf_index,
+                        i_start,
+                        step,
+                        ctl_zs_slice_start,
+                        ctl_zs_slice_len,
                     )
                 });
 
@@ -467,7 +470,7 @@ where
                 compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
                     stark,
                     get_trace_values_packed,
-                    ctl_zs_commitment,
+                    get_ctl_zs_values_packed,
                     public_inputs[kind],
                     &ctl_data_per_table[kind],
                     &public_sub_data_per_table[kind],
@@ -477,7 +480,8 @@ where
                 )
             );
             assert!(!quotient_polys.is_empty());
-            start_index[leaf_index] += slice_len;
+            trace_start_index[leaf_index] += trace_slice_len;
+            ctl_zs_start_index[leaf_index] += ctl_zs_slice_len;
 
             let quotient_chunks: Vec<PolynomialCoeffs<F>> = timed!(
                 timing,
@@ -495,9 +499,8 @@ where
                     })
                     .collect()
             );
+            quotient_poly_count[kind] = quotient_chunks.len();
             Some(quotient_chunks)
-        } else {
-            None
         }
     });
 
@@ -508,22 +511,6 @@ where
         .collect();
     batch_quotient_chunks.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let batch_quotient_chunks_len = batch_quotient_chunks.len();
-
-    // TODO: remove it
-    let quotient_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
-        timing,
-        format!("{stark}: compute quotient commitment").as_str(),
-        quotient_chunks[kind]
-            .as_ref()
-            .map(|poly| PolynomialBatch::<F, C, D>::from_coeffs(
-                poly.clone(),
-                rate_bits,
-                false,
-                config.fri_config.cap_height,
-                timing,
-                None,
-            ))
-    ));
 
     let batch_quotient_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
@@ -557,45 +544,71 @@ where
             start_index[leaf_index] - trace_poly_count[kind]
         }
     });
-    // TODO: compute `openings` from `batch_trace_commitments` and
-    // `batch_ctl_zs_commitments`.
-    let batch_openings = all_starks!(mozak_stark, |_stark, kind| if let Some(ctl_zs_commitment) =
-        ctl_zs_commitments[kind].as_ref()
-    {
-        if let Some(quotient_commitment) = quotient_commitments[kind].as_ref() {
-            // To avoid leaking witness data, we want to ensure that our opening locations,
-            // `zeta` and `g * zeta`, are not in our subgroup `H`. It suffices to check
-            // `zeta` only, since `(g * zeta)^n = zeta^n`, where `n` is the order of
-            // `g`.
-            let g = F::primitive_root_of_unity(degree_bits[kind]);
-            ensure!(
-                zeta.exp_power_of_2(degree_bits[kind]) != F::Extension::ONE,
-                "Opening point is in the subgroup."
-            );
-
-            let eval_trace_commitment = |z: F::Extension| {
-                batch_trace_commitments.polynomials
-                    [trace_index_map[kind]..trace_index_map[kind] + trace_poly_count[kind]]
-                    .par_iter()
-                    .map(|p| p.to_extension().eval(z))
-                    .collect::<Vec<_>>()
-            };
-            let openings = StarkOpeningSet::new(
-                zeta,
-                g,
-                eval_trace_commitment,
-                ctl_zs_commitment,
-                quotient_commitment,
-                degree_bits[kind],
-            );
-
-            challenger.observe_openings(&openings.to_fri_openings());
-            Some(openings)
+    let mut start_index = vec![0; sorted_degree_bits.len()];
+    for i in 1..sorted_degree_bits.len() {
+        start_index[i] =
+            start_index[i - 1] + batch_ctl_zs_commitments.field_merkle_tree.leaves[i - 1][0].len();
+    }
+    let ctl_zs_index_map = all_kind!(|kind| {
+        if public_table_kinds.contains(&kind) {
+            0
         } else {
-            None
+            let leaf_index = degree_bits_index_map[&degree_bits[kind]];
+            start_index[leaf_index] += ctl_zs_poly_count[kind];
+            start_index[leaf_index] - ctl_zs_poly_count[kind]
         }
-    } else {
+    });
+    let mut start_index = vec![0; sorted_degree_bits.len()];
+    for i in 1..sorted_degree_bits.len() {
+        start_index[i] = start_index[i - 1]
+            + batch_quotient_commitments.field_merkle_tree.leaves[i - 1][0].len();
+    }
+    let quotient_index_map = all_kind!(|kind| {
+        if public_table_kinds.contains(&kind) {
+            0
+        } else {
+            let leaf_index = degree_bits_index_map[&degree_bits[kind]];
+            start_index[leaf_index] += quotient_poly_count[kind];
+            start_index[leaf_index] - quotient_poly_count[kind]
+        }
+    });
+
+    let batch_openings = all_starks!(mozak_stark, |_stark, kind| if public_table_kinds
+        .contains(&kind)
+    {
         None
+    } else {
+        // To avoid leaking witness data, we want to ensure that our opening locations,
+        // `zeta` and `g * zeta`, are not in our subgroup `H`. It suffices to check
+        // `zeta` only, since `(g * zeta)^n = zeta^n`, where `n` is the order of
+        // `g`.
+        let g = F::primitive_root_of_unity(degree_bits[kind]);
+        ensure!(
+            zeta.exp_power_of_2(degree_bits[kind]) != F::Extension::ONE,
+            "Opening point is in the subgroup."
+        );
+
+        let openings = StarkOpeningSet::batch_new(
+            zeta,
+            g,
+            [
+                trace_index_map[kind],
+                ctl_zs_index_map[kind],
+                quotient_index_map[kind],
+            ],
+            [
+                trace_poly_count[kind],
+                ctl_zs_poly_count[kind],
+                quotient_poly_count[kind],
+            ],
+            batch_trace_commitments,
+            &batch_ctl_zs_commitments,
+            &batch_quotient_commitments,
+            degree_bits[kind],
+        );
+
+        challenger.observe_openings(&openings.to_fri_openings());
+        Some(openings)
     });
 
     let num_ctl_zs_per_table =
