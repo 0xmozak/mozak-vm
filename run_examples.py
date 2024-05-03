@@ -109,7 +109,8 @@ class ExamplesTester(unittest.TestCase):
                     )
                 else:
                     prove_and_verify_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv \
-                        examples/target/riscv32im-mozak-mozakvm-elf/release/{folder}"""
+                        examples/target/riscv32im-mozak-mozakvm-elf/release/{folder} \
+                        --self-prog-id {dummy_prog_id}"""
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
                     )
@@ -226,7 +227,7 @@ class ExamplesTester(unittest.TestCase):
                         print(
                             f"ZK prove and verify for {Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} requires execution of {elf} with ID: {id_}",
                         )
-                        execution_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape}"""
+                        execution_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape} --self-prog-id {id_}"""
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )
