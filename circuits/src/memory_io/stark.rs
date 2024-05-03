@@ -286,7 +286,6 @@ mod tests {
                 ..Default::default()
             },
         );
-        let state: State<F> = State::from(program.clone());
         assert_ne!(
             record.executed.last().unwrap().state.event_tape.data.len(),
             0,

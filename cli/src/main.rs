@@ -36,7 +36,6 @@ use mozak_sdk::common::merkle::merkleize;
 use mozak_sdk::common::types::{
     CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier, SystemTape,
 };
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
