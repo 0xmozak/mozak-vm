@@ -118,7 +118,7 @@ mod tests {
     use mozak_runner::code::execute_code_with_ro_memory;
     use mozak_runner::decode::ECALL;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::state::RawTapes;
+    use mozak_runner::state::{RawTapes, State};
     use mozak_runner::test_utils::{u32_extra, u8_extra};
     use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
@@ -180,22 +180,23 @@ mod tests {
     }
 
     pub fn prove_io_read_event_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
-        let (program, record) = execute_code_with_runtime_args(
+        let (program, record) = execute_code_with_ro_memory(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
+            &[],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::EVENT_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
-            RuntimeArguments::default(),
+            RawTapes::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_private<Stark: ProveAndVerify>(address: u32, io_tape_private: Vec<u8>) {
-        let (program, record) = execute_code_with_runtime_args(
+    pub fn prove_io_read_private<Stark: ProveAndVerify>(address: u32, private_tape: Vec<u8>) {
+        let (program, record) = execute_code_with_ro_memory(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &[],
@@ -270,23 +271,24 @@ mod tests {
     }
 
     pub fn prove_io_read_event_tape<Stark: ProveAndVerify>(address: u32, event_tape: Vec<u8>) {
-        let (program, record) = execute_code_with_runtime_args(
+        let (program, record) = execute_code_with_ro_memory(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
+            &[],
             &[(address, 0)],
             &[
                 (REG_A0, ecall::EVENT_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
-            RuntimeArguments {
+            RawTapes {
                 event_tape,
                 ..Default::default()
             },
         );
         let state: State<F> = State::from(program.clone());
         assert_ne!(
-            state.event_tape.data.len(),
+            record.executed.last().unwrap().state.event_tape.data.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
