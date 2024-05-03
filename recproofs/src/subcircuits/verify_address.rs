@@ -8,30 +8,12 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::{find_bool, find_target};
+use crate::indices::{BoolTargetIndex, TargetIndex};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
-    pub node_present: usize,
-    pub node_address: usize,
-}
-
-impl PublicIndices {
-    pub fn get_node_present<T: Copy>(&self, public_inputs: &[T]) -> T {
-        public_inputs[self.node_present]
-    }
-
-    pub fn get_node_address<T: Copy>(&self, public_inputs: &[T]) -> T {
-        public_inputs[self.node_address]
-    }
-
-    pub fn set_node_present<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.node_present] = v;
-    }
-
-    pub fn set_node_address<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.node_address] = v;
-    }
+    pub node_present: BoolTargetIndex,
+    pub node_address: TargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -93,8 +75,8 @@ impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
-            node_present: find_bool(public_inputs, self.node_present),
-            node_address: find_target(public_inputs, self.node_address),
+            node_present: BoolTargetIndex::new(public_inputs, self.node_present),
+            node_address: TargetIndex::new(public_inputs, self.node_address),
         };
         LeafSubCircuit {
             targets: self,
@@ -142,9 +124,8 @@ impl SubCircuitInputs {
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
     ) -> SubCircuitInputs {
-        let node_present = indices.get_node_present(&proof.public_inputs);
-        let node_present = BoolTarget::new_unsafe(node_present);
-        let node_address = indices.get_node_address(&proof.public_inputs);
+        let node_present = indices.node_present.get(&proof.public_inputs);
+        let node_address = indices.node_address.get(&proof.public_inputs);
 
         SubCircuitInputs {
             node_present,
@@ -206,8 +187,8 @@ impl BranchTargets {
     #[must_use]
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit {
         let indices = PublicIndices {
-            node_present: find_bool(public_inputs, self.inputs.node_present),
-            node_address: find_target(public_inputs, self.inputs.node_address),
+            node_present: BoolTargetIndex::new(public_inputs, self.inputs.node_present),
+            node_address: TargetIndex::new(public_inputs, self.inputs.node_address),
         };
         debug_assert_eq!(indices, *child);
 
