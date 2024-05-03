@@ -3,7 +3,7 @@
 // TODO(bing): `clio` uses an older `windows-sys` vs other dependencies.
 // Remove when `clio` updates, or if `clio` is no longer needed.
 #![allow(clippy::multiple_crate_versions)]
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
@@ -11,7 +11,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use log::debug;
 use mozak_circuits::generation::io_memory::generate_call_tape_trace;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
@@ -32,7 +32,10 @@ use mozak_cli::runner::{deserialize_system_tape, load_program};
 use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
-use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
+use mozak_sdk::common::merkle::merkleize;
+use mozak_sdk::common::types::{
+    CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier, SystemTape,
+};
 use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -107,15 +110,53 @@ enum Command {
     Bench(BenchArgs),
 }
 
-fn raw_tapes_from_system_tape(sys: &SystemTape) -> Result<RawTapes> {
+fn raw_tapes_from_system_tape(
+    sys: &SystemTape,
+    self_prog_id: ProgramIdentifier,
+) -> Result<RawTapes> {
+    let cast_list = sys
+        .call_tape
+        .writer
+        .iter()
+        .map(|msg| msg.callee)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect_vec();
+
+    let canonical_order_temporal_hints: Vec<CanonicalOrderedTemporalHints> = sys
+        .event_tape
+        .writer
+        .get(&self_prog_id)
+        .cloned()
+        .unwrap_or_default()
+        .get_canonical_order_temporal_hints();
+
+    let events_commitment_tape = merkleize(
+        canonical_order_temporal_hints
+            .iter()
+            .map(|x| {
+                (
+                    // May not be the best idea if
+                    // `addr` > goldilock's prime, cc
+                    // @Kapil
+                    u64::from_le_bytes(x.0.address.inner()),
+                    x.0.canonical_hash(),
+                )
+            })
+            .collect::<Vec<(u64, Poseidon2Hash)>>(),
+    )
+    .0;
+
+    let cast_list_commitment_tape =
+        merkleize(izip!(0.., &cast_list).map(|(idx, x)| (idx, x.0)).collect()).0;
+
     Ok(RawTapes {
         private_tape: serde_json::to_vec(&sys.private_input_tape)?,
         public_tape: serde_json::to_vec(&sys.public_input_tape)?,
         call_tape: serde_json::to_vec(&sys.call_tape)?,
         event_tape: serde_json::to_vec(&sys.event_tape)?,
-        // TODO(bing): Populate SystemTape with these
-        events_commitment_tape: [0; COMMITMENT_SIZE],
-        cast_list_commitment_tape: [0; COMMITMENT_SIZE],
+        events_commitment_tape,
+        cast_list_commitment_tape,
     })
 }
 
@@ -136,10 +177,14 @@ fn main() -> Result<()> {
         Command::Run(RunArgs {
             elf,
             system_tape,
-            self_prog_id: _,
+            self_prog_id,
         }) => {
             let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
-                raw_tapes_from_system_tape(&deserialize_system_tape(s).unwrap()).unwrap_or_default()
+                raw_tapes_from_system_tape(
+                    &deserialize_system_tape(s).unwrap(),
+                    self_prog_id.unwrap().into(),
+                )
+                .unwrap_or_default()
             });
             let program = load_program(elf).unwrap();
             let state: State<F> = State::new(program.clone(), raw_tapes);
@@ -148,11 +193,15 @@ fn main() -> Result<()> {
         Command::ProveAndVerify(RunArgs {
             elf,
             system_tape,
-            self_prog_id: _,
+            self_prog_id,
         }) => {
             let program = load_program(elf).unwrap();
             let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
-                raw_tapes_from_system_tape(&deserialize_system_tape(s).unwrap()).unwrap_or_default()
+                raw_tapes_from_system_tape(
+                    &deserialize_system_tape(s).unwrap(),
+                    self_prog_id.unwrap().into(),
+                )
+                .unwrap_or_default()
             });
 
             let state = State::new(program.clone(), raw_tapes);
@@ -162,13 +211,17 @@ fn main() -> Result<()> {
         Command::Prove(ProveArgs {
             elf,
             system_tape,
-            self_prog_id: _,
+            self_prog_id,
             mut proof,
             recursive_proof,
         }) => {
             let program = load_program(elf).unwrap();
             let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
-                raw_tapes_from_system_tape(&deserialize_system_tape(s).unwrap()).unwrap_or_default()
+                raw_tapes_from_system_tape(
+                    &deserialize_system_tape(s).unwrap(),
+                    self_prog_id.unwrap().into(),
+                )
+                .unwrap_or_default()
             });
 
             let state = State::new(program.clone(), raw_tapes);
