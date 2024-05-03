@@ -95,19 +95,6 @@ pub fn event_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[cfg(target_os = "mozakvm")]
-pub fn events_tape_read(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(target_os = "mozakvm")]
-    unsafe {
-        core::arch::asm!(
-        "ecall",
-        in ("a0") EVENT_TAPE,
-        in ("a1") buf_ptr,
-        in ("a2") buf_len,
-        );
-    }
-}
-
 #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
 pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
     unsafe {

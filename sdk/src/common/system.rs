@@ -21,7 +21,7 @@ use super::types::{
 #[cfg(target_os = "mozakvm")]
 use crate::core::ecall::call_tape_read;
 #[cfg(target_os = "mozakvm")]
-use crate::core::ecall::events_tape_read;
+use crate::core::ecall::event_tape_read;
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
 /// all the `IO-Tapes`, `CallTape` and the `EventTape` both in
@@ -92,7 +92,7 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
             },
         );
         let mut bufb = [0; 4096];
-        events_tape_read(bufb.as_mut_ptr(), 4096);
+        event_tape_read(bufb.as_mut_ptr(), 4096);
         let events_raw =
             unsafe { rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(&bufb) };
         let events =
