@@ -41,6 +41,61 @@ use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::prover::prove_single_table;
 
+#[derive(Debug)]
+pub struct BatchFriOracleIndices {
+    poly_count: TableKindArray<usize>,
+    // start index in BatchFriOracle's field merkle tree leaves
+    fmt_start_indices: TableKindArray<Option<usize>>,
+    // start index in BatchFriOracle's polynomial vector
+    poly_start_indices: TableKindArray<Option<usize>>,
+    // degree bits (leaf layer) index in BatchFriOrable's field merkle tree
+    degree_bits_indices: TableKindArray<Option<usize>>,
+}
+
+#[allow(unused_assignments)]
+impl BatchFriOracleIndices {
+    fn new(
+        public_table_kinds: &[TableKind],
+        poly_count: TableKindArray<usize>,
+        degree_bits: &TableKindArray<usize>,
+    ) -> Self {
+        let sorted_degree_bits = sort_degree_bits(public_table_kinds, degree_bits);
+
+        let mut poly_start_indices =
+            all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(0));
+        let mut fmt_start_indices =
+            all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(0));
+        let mut poly_start_index = 0;
+        let mut fmt_start_index = 0;
+        for deg in &sorted_degree_bits {
+            all_kind!(|kind| {
+                if !public_table_kinds.contains(&kind) && degree_bits[kind] == *deg {
+                    fmt_start_indices[kind] = Some(fmt_start_index);
+                    poly_start_indices[kind] = Some(poly_start_index);
+                    fmt_start_index += poly_count[kind];
+                    poly_start_index += poly_count[kind];
+                }
+            });
+            fmt_start_index = 0;
+        }
+
+        let degree_bits_index_map: HashMap<usize, usize> = sorted_degree_bits
+            .iter()
+            .enumerate()
+            .map(|(index, &value)| (value, index))
+            .collect();
+        let degree_bits_indices = all_kind!(|kind| (!public_table_kinds.contains(&kind))
+            .then_some(degree_bits_index_map[&degree_bits[kind]]));
+
+        BatchFriOracleIndices {
+            poly_count,
+            fmt_start_indices,
+            poly_start_indices,
+            degree_bits_indices,
+        }
+    }
+}
+
 pub(crate) fn sort_degree_bits(
     public_table_kinds: &[TableKind],
     degree_bits: &TableKindArray<usize>,
@@ -183,9 +238,10 @@ where
     }
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
-
     let degree_bits = all_kind!(|kind| log2_strict(traces_poly_values[kind][0].len()));
     let traces_poly_count = all_kind!(|kind| traces_poly_values[kind].len());
+    let trace_indicies =
+        BatchFriOracleIndices::new(public_table_kinds, traces_poly_count, &degree_bits);
 
     let batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
         None
@@ -199,8 +255,8 @@ where
         .flat_map(std::clone::Clone::clone)
         .collect();
     batch_trace_polys.sort_by_key(|p| std::cmp::Reverse(p.len()));
-    let batch_trace_polys_len = batch_trace_polys.len();
 
+    let batch_trace_polys_len = batch_trace_polys.len();
     let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "Compute trace commitments for batch tables",
@@ -280,7 +336,7 @@ where
         &degree_bits,
         &traces_poly_values,
         &trace_commitments,
-        &traces_poly_count,
+        &trace_indicies,
         &batch_trace_commitments,
         &ctl_data_per_table,
         &public_sub_table_data_per_table,
@@ -319,7 +375,7 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     degree_bits: &TableKindArray<usize>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<Option<PolynomialBatch<F, C, D>>>,
-    trace_poly_count: &TableKindArray<usize>,
+    trace_indicies: &BatchFriOracleIndices,
     batch_trace_commitments: &BatchFriOracle<F, C, D>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
@@ -390,6 +446,9 @@ where
         }
     });
 
+    let ctl_zs_indicies =
+        BatchFriOracleIndices::new(public_table_kinds, ctl_zs_poly_count, &degree_bits);
+
     // TODO: can we remove duplicates in the ctl polynomials?
     let mut batch_ctl_z_polys: Vec<_> = all_ctl_z_polys
         .iter()
@@ -416,15 +475,7 @@ where
     challenger.observe_cap(&ctl_zs_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
-
     let sorted_degree_bits = sort_degree_bits(public_table_kinds, &degree_bits);
-    let degree_bits_index_map: HashMap<usize, usize> = sorted_degree_bits
-        .iter()
-        .enumerate()
-        .map(|(index, &value)| (value, index))
-        .collect();
-    let mut trace_start_index = vec![0; sorted_degree_bits.len()];
-    let mut ctl_zs_start_index = vec![0; sorted_degree_bits.len()];
 
     let mut quotient_poly_count = all_kind!(|_kind| 0);
     let quotient_chunks = all_starks!(mozak_stark, |stark, kind| {
@@ -433,9 +484,9 @@ where
         } else {
             let degree = 1 << degree_bits[kind];
 
-            let leaf_index = degree_bits_index_map[&degree_bits[kind]];
-            let trace_slice_start = trace_start_index[leaf_index];
-            let trace_slice_len = trace_poly_count[kind];
+            let leaf_index = trace_indicies.degree_bits_indices[kind].unwrap();
+            let trace_slice_start = trace_indicies.fmt_start_indices[kind].unwrap();
+            let trace_slice_len = trace_indicies.poly_count[kind];
             let batch_trace_commitments_ref: &'static BatchFriOracle<F, C, D> =
                 unsafe { transmute(batch_trace_commitments) };
             let get_trace_values_packed =
@@ -449,8 +500,8 @@ where
                     )
                 });
 
-            let ctl_zs_slice_start = ctl_zs_start_index[leaf_index];
-            let ctl_zs_slice_len = ctl_zs_poly_count[kind];
+            let ctl_zs_slice_start = ctl_zs_indicies.fmt_start_indices[kind].unwrap();
+            let ctl_zs_slice_len = ctl_zs_indicies.poly_count[kind];
             let batch_ctl_zs_commitments_ref: &'static BatchFriOracle<F, C, D> =
                 unsafe { transmute(&batch_ctl_zs_commitments) };
             let get_ctl_zs_values_packed =
@@ -480,8 +531,6 @@ where
                 )
             );
             assert!(!quotient_polys.is_empty());
-            trace_start_index[leaf_index] += trace_slice_len;
-            ctl_zs_start_index[leaf_index] += ctl_zs_slice_len;
 
             let quotient_chunks: Vec<PolynomialCoeffs<F>> = timed!(
                 timing,
@@ -503,6 +552,9 @@ where
             Some(quotient_chunks)
         }
     });
+
+    let quotient_indicies =
+        BatchFriOracleIndices::new(public_table_kinds, quotient_poly_count, degree_bits);
 
     let mut batch_quotient_chunks: Vec<_> = quotient_chunks
         .iter()
@@ -530,49 +582,6 @@ where
 
     let zeta = challenger.get_extension_challenge::<D>();
 
-    let mut start_index = vec![0; sorted_degree_bits.len()];
-    for i in 1..sorted_degree_bits.len() {
-        start_index[i] =
-            start_index[i - 1] + batch_trace_commitments.field_merkle_tree.leaves[i - 1][0].len();
-    }
-    let trace_index_map = all_kind!(|kind| {
-        if public_table_kinds.contains(&kind) {
-            0
-        } else {
-            let leaf_index = degree_bits_index_map[&degree_bits[kind]];
-            start_index[leaf_index] += trace_poly_count[kind];
-            start_index[leaf_index] - trace_poly_count[kind]
-        }
-    });
-    let mut start_index = vec![0; sorted_degree_bits.len()];
-    for i in 1..sorted_degree_bits.len() {
-        start_index[i] =
-            start_index[i - 1] + batch_ctl_zs_commitments.field_merkle_tree.leaves[i - 1][0].len();
-    }
-    let ctl_zs_index_map = all_kind!(|kind| {
-        if public_table_kinds.contains(&kind) {
-            0
-        } else {
-            let leaf_index = degree_bits_index_map[&degree_bits[kind]];
-            start_index[leaf_index] += ctl_zs_poly_count[kind];
-            start_index[leaf_index] - ctl_zs_poly_count[kind]
-        }
-    });
-    let mut start_index = vec![0; sorted_degree_bits.len()];
-    for i in 1..sorted_degree_bits.len() {
-        start_index[i] = start_index[i - 1]
-            + batch_quotient_commitments.field_merkle_tree.leaves[i - 1][0].len();
-    }
-    let quotient_index_map = all_kind!(|kind| {
-        if public_table_kinds.contains(&kind) {
-            0
-        } else {
-            let leaf_index = degree_bits_index_map[&degree_bits[kind]];
-            start_index[leaf_index] += quotient_poly_count[kind];
-            start_index[leaf_index] - quotient_poly_count[kind]
-        }
-    });
-
     let batch_openings = all_starks!(mozak_stark, |_stark, kind| if public_table_kinds
         .contains(&kind)
     {
@@ -592,14 +601,14 @@ where
             zeta,
             g,
             [
-                trace_index_map[kind],
-                ctl_zs_index_map[kind],
-                quotient_index_map[kind],
+                trace_indicies.poly_start_indices[kind].unwrap(),
+                ctl_zs_indicies.poly_start_indices[kind].unwrap(),
+                quotient_indicies.poly_start_indices[kind].unwrap(),
             ],
             [
-                trace_poly_count[kind],
-                ctl_zs_poly_count[kind],
-                quotient_poly_count[kind],
+                trace_indicies.poly_count[kind],
+                ctl_zs_indicies.poly_count[kind],
+                quotient_indicies.poly_count[kind],
             ],
             batch_trace_commitments,
             &batch_ctl_zs_commitments,
