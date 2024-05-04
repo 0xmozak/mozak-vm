@@ -484,7 +484,7 @@ where
         } else {
             let degree = 1 << degree_bits[kind];
 
-            let leaf_index = trace_indicies.degree_bits_indices[kind].unwrap();
+            let degree_bits_index = trace_indicies.degree_bits_indices[kind].unwrap();
             let trace_slice_start = trace_indicies.fmt_start_indices[kind].unwrap();
             let trace_slice_len = trace_indicies.poly_count[kind];
             let batch_trace_commitments_ref: &'static BatchFriOracle<F, C, D> =
@@ -492,7 +492,7 @@ where
             let get_trace_values_packed =
                 Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
                     batch_trace_commitments_ref.get_lde_values_packed(
-                        leaf_index,
+                        degree_bits_index,
                         i_start,
                         step,
                         trace_slice_start,
@@ -507,7 +507,7 @@ where
             let get_ctl_zs_values_packed =
                 Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
                     batch_ctl_zs_commitments_ref.get_lde_values_packed(
-                        leaf_index,
+                        degree_bits_index,
                         i_start,
                         step,
                         ctl_zs_slice_start,
