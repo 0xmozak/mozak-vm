@@ -41,7 +41,7 @@ lto = "thin"
 # We are running our tests with optimizations turned on to make them faster.
 # Please turn optimizations off, when you want accurate stack traces for debugging.
 opt-level = 2
-o
+
 [profile.release]
 lto = "fat"
 

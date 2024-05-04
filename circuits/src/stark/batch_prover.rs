@@ -240,7 +240,7 @@ where
     let cap_height = config.fri_config.cap_height;
     let degree_bits = all_kind!(|kind| log2_strict(traces_poly_values[kind][0].len()));
     let traces_poly_count = all_kind!(|kind| traces_poly_values[kind].len());
-    let trace_indicies =
+    let trace_indices =
         BatchFriOracleIndices::new(public_table_kinds, traces_poly_count, &degree_bits);
 
     let batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
@@ -256,6 +256,8 @@ where
         .collect();
     batch_trace_polys.sort_by_key(|p| std::cmp::Reverse(p.len()));
 
+    // This commitment is for all tables but public tables, in form of Field Merkle
+    // Tree (1st oracle)
     let batch_trace_polys_len = batch_trace_polys.len();
     let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
@@ -270,6 +272,7 @@ where
         )
     );
 
+    // This commitment is for public tables, and would have separate oracle.
     let trace_commitments = timed!(
         timing,
         "Compute trace commitments for public tables",
@@ -336,7 +339,7 @@ where
         &degree_bits,
         &traces_poly_values,
         &trace_commitments,
-        &trace_indicies,
+        &trace_indices,
         &batch_trace_commitments,
         &ctl_data_per_table,
         &public_sub_table_data_per_table,
@@ -375,7 +378,7 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     degree_bits: &TableKindArray<usize>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<Option<PolynomialBatch<F, C, D>>>,
-    trace_indicies: &BatchFriOracleIndices,
+    trace_indices: &BatchFriOracleIndices,
     batch_trace_commitments: &BatchFriOracle<F, C, D>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
@@ -395,6 +398,7 @@ where
     }
     .build();
 
+    // Computes separate proofs for each public table.
     let separate_proofs = all_starks!(mozak_stark, |stark, kind| if let Some(trace_commitment) =
         &trace_commitments[kind]
     {
@@ -413,6 +417,7 @@ where
         None
     });
 
+    // Computing ctl zs polynomials for all but those for public tables
     let mut ctl_zs_poly_count = all_kind!(|_kind| 0);
     let all_ctl_z_polys = all_kind!(|kind| {
         if public_table_kinds.contains(&kind) {
@@ -446,7 +451,7 @@ where
         }
     });
 
-    let ctl_zs_indicies =
+    let ctl_zs_indices =
         BatchFriOracleIndices::new(public_table_kinds, ctl_zs_poly_count, &degree_bits);
 
     // TODO: can we remove duplicates in the ctl polynomials?
@@ -458,6 +463,9 @@ where
     batch_ctl_z_polys.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let batch_ctl_zs_polys_len = batch_ctl_z_polys.len();
 
+    // Commitment to all ctl_zs polynomials, except for those of public tables.
+    // Field Merkle tree is used as oracle here, same as we did for batched traces.
+    // (2nd FMT Oracle)
     let batch_ctl_zs_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "compute batch Zs commitment",
@@ -484,9 +492,9 @@ where
         } else {
             let degree = 1 << degree_bits[kind];
 
-            let degree_bits_index = trace_indicies.degree_bits_indices[kind].unwrap();
-            let trace_slice_start = trace_indicies.fmt_start_indices[kind].unwrap();
-            let trace_slice_len = trace_indicies.poly_count[kind];
+            let degree_bits_index = trace_indices.degree_bits_indices[kind].unwrap();
+            let trace_slice_start = trace_indices.fmt_start_indices[kind].unwrap();
+            let trace_slice_len = trace_indices.poly_count[kind];
             let batch_trace_commitments_ref: &'static BatchFriOracle<F, C, D> =
                 unsafe { transmute(batch_trace_commitments) };
             let get_trace_values_packed =
@@ -500,8 +508,8 @@ where
                     )
                 });
 
-            let ctl_zs_slice_start = ctl_zs_indicies.fmt_start_indices[kind].unwrap();
-            let ctl_zs_slice_len = ctl_zs_indicies.poly_count[kind];
+            let ctl_zs_slice_start = ctl_zs_indices.fmt_start_indices[kind].unwrap();
+            let ctl_zs_slice_len = ctl_zs_indices.poly_count[kind];
             let batch_ctl_zs_commitments_ref: &'static BatchFriOracle<F, C, D> =
                 unsafe { transmute(&batch_ctl_zs_commitments) };
             let get_ctl_zs_values_packed =
@@ -553,7 +561,7 @@ where
         }
     });
 
-    let quotient_indicies =
+    let quotient_indices =
         BatchFriOracleIndices::new(public_table_kinds, quotient_poly_count, degree_bits);
 
     let mut batch_quotient_chunks: Vec<_> = quotient_chunks
@@ -564,6 +572,8 @@ where
     batch_quotient_chunks.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let batch_quotient_chunks_len = batch_quotient_chunks.len();
 
+    // Commitment to quotient polynomials for all except those of public tables.
+    // Stored as Field merkle tree (3rd and final FMT oracle)
     let batch_quotient_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "compute batch Zs commitment",
@@ -582,6 +592,7 @@ where
 
     let zeta = challenger.get_extension_challenge::<D>();
 
+    // Sets up batched fri instance for all tables but the public tables.
     let batch_openings = all_starks!(mozak_stark, |_stark, kind| if public_table_kinds
         .contains(&kind)
     {
@@ -601,14 +612,14 @@ where
             zeta,
             g,
             [
-                trace_indicies.poly_start_indices[kind].unwrap(),
-                ctl_zs_indicies.poly_start_indices[kind].unwrap(),
-                quotient_indicies.poly_start_indices[kind].unwrap(),
+                trace_indices.poly_start_indices[kind].unwrap(),
+                ctl_zs_indices.poly_start_indices[kind].unwrap(),
+                quotient_indices.poly_start_indices[kind].unwrap(),
             ],
             [
-                trace_indicies.poly_count[kind],
-                ctl_zs_indicies.poly_count[kind],
-                quotient_indicies.poly_count[kind],
+                trace_indices.poly_count[kind],
+                ctl_zs_indices.poly_count[kind],
+                quotient_indices.poly_count[kind],
             ],
             batch_trace_commitments,
             &batch_ctl_zs_commitments,
