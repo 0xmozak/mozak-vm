@@ -5,7 +5,6 @@ use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
-use crate::memory_io::columns::StorageDevice;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::register::general::columns::{Ops, Register};
 use crate::register::init::columns::RegisterInit;
@@ -13,6 +12,7 @@ use crate::register::zero_read::columns::RegisterZeroRead;
 use crate::register::zero_write::columns::RegisterZeroWrite;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
+use crate::storage_device::columns::StorageDevice;
 use crate::utils::{pad_trace_with_default, pad_trace_with_last, pad_trace_with_row};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
@@ -173,10 +173,10 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
-    use crate::generation::io_memory::{
+    use crate::generation::storage_device::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
         generate_event_tape_trace, generate_events_commitment_tape_trace,
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_private_tape_trace, generate_public_tape_trace,
     };
     use crate::poseidon2_sponge;
     use crate::test_utils::prep_table;
@@ -215,8 +215,8 @@ mod tests {
         let record = setup();
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
-        let io_memory_private = generate_io_memory_private_trace(&record.executed);
-        let io_memory_public = generate_io_memory_public_trace(&record.executed);
+        let private_tape = generate_private_tape_trace(&record.executed);
+        let public_tape = generate_public_tape_trace(&record.executed);
         let call_tape = generate_call_tape_trace(&record.executed);
         let event_tape = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
@@ -229,8 +229,8 @@ mod tests {
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
             &poseidon2_sponge_trace,
-            &io_memory_private,
-            &io_memory_public,
+            &private_tape,
+            &public_tape,
             &call_tape,
             &event_tape,
             &events_commitment_tape_rows,
