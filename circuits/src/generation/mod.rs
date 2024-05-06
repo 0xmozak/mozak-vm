@@ -7,7 +7,7 @@ pub mod cpu;
 pub mod fullword_memory;
 pub mod halfword_memory;
 pub mod instruction;
-pub mod io_memory;
+pub mod storage_device;
 pub mod memory;
 pub mod memory_zeroinit;
 pub mod memoryinit;
@@ -31,7 +31,7 @@ use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_program_mult_trace};
 use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
-use self::io_memory::{
+use self::storage_device::{
     generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
     generate_events_commitment_tape_trace,
 };
@@ -42,7 +42,7 @@ use self::memoryinit::{
 };
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
-use crate::generation::io_memory::{
+use crate::generation::storage_device::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
