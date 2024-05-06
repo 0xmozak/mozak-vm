@@ -53,7 +53,7 @@ pub fn prove<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -82,7 +82,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
