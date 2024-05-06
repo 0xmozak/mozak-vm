@@ -221,7 +221,7 @@ pub struct Aux<F: RichField> {
     pub op2: u32,
     pub op2_raw: u32,
     pub poseidon2: Option<poseidon2::Entry<F>>,
-    pub io: Option<StorageDeviceEntry>,
+    pub storage_device_entry: Option<StorageDeviceEntry>,
 }
 
 #[derive(Default, Clone)]
@@ -241,8 +241,8 @@ pub struct RawTapes {
 impl From<RuntimeArguments> for RawTapes {
     fn from(args: RuntimeArguments) -> Self {
         Self {
-            private_tape: args.io_tape_private,
-            public_tape: args.io_tape_public,
+            private_tape: args.private_tape,
+            public_tape: args.public_tape,
             call_tape: args.call_tape,
             event_tape: args.event_tape,
             cast_list_commitment_tape: args.cast_list_commitment_tape,

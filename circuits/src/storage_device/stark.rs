@@ -41,8 +41,8 @@ fn generate_constraints<'a, T: Copy>(
     constraints.always(lv.ops.is_storage_device.is_binary());
     constraints.always(lv.is_executed().is_binary());
 
-    // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
-    // This constraints ensures loop unrolling was done correctly
+    // If nv.is_storage_device() == 1: lv.size == 0, also forces the last row to be
+    // size == 0 ! This constraints ensures loop unrolling was done correctly
     constraints.always(nv.ops.is_storage_device * lv.size);
     // If lv.is_lv_and_nv_are_memory_rows == 1:
     //    nv.address == lv.address + 1 (wrapped)
@@ -54,23 +54,23 @@ fn generate_constraints<'a, T: Copy>(
     // nv.size == lv.size - 1 (not-wrapped)
     constraints.transition(nv.is_lv_and_nv_are_memory_rows * (nv.size - (lv.size - 1)));
     // Edge cases:
-    //  a) - io_store with size = 0: <-- this case is solved since CTL from CPU
-    //        a.1) is_lv_and_nv_are_memory_rows = 0 (no memory rows inserted)
-    //  b) - io_store with size = 1: <-- this case needs to be solved separately
-    //        b.1) is_lv_and_nv_are_memory_rows = 0 (only one memory row inserted)
-    // To solve case-b:
-    // If lv.is_io() == 1 && lv.size != 0:
+    //  a) - storage_device with size = 0: <-- this case is solved since CTL from
+    // CPU        a.1) is_lv_and_nv_are_memory_rows = 0 (no memory rows
+    // inserted)  b) - storage_device with size = 1: <-- this case needs to be
+    // solved separately        b.1) is_lv_and_nv_are_memory_rows = 0 (only one
+    // memory row inserted) To solve case-b:
+    // If lv.is_storage_device() == 1 && lv.size != 0:
     //      lv.addr == nv.addr       <-- next row address must be the same !!!
     //      lv.size === nv.size - 1  <-- next row size is decreased
     constraints.transition(lv.ops.is_storage_device * lv.size * (nv.addr - lv.addr));
     constraints.transition(lv.ops.is_storage_device * lv.size * (nv.size - (lv.size - 1)));
-    // If lv.is_io() == 1 && lv.size == 0:
+    // If lv.is_storage_device() == 1 && lv.size == 0:
     //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
     // This one is ensured by:
-    //  1) is_binary(io or memory)
-    //  2) if nv.is_io() == 1: lv.size == 0
+    //  1) is_binary(storage_device or memory)
+    //  2) if nv.is_storage_device() == 1: lv.size == 0
 
-    // If lv.is_io() == 1 && nv.size != 0:
+    // If lv.is_storage_device() == 1 && nv.size != 0:
     //      nv.is_lv_and_nv_are_memory_rows == 1
     constraints.always(lv.ops.is_storage_device * nv.size * (nv.is_lv_and_nv_are_memory_rows - 1));
 
@@ -144,13 +144,13 @@ mod tests {
         execute_code_with_ro_memory(code, &[], rw_mem, regs, runtime_args)
     }
 
-    pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(address: u32) {
+    pub fn prove_read_private_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::IO_READ_PRIVATE),
+                (REG_A0, ecall::PRIVATE_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
@@ -159,13 +159,13 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(address: u32) {
+    pub fn prove_read_public_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::IO_READ_PUBLIC),
+                (REG_A0, ecall::PUBLIC_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
@@ -174,13 +174,13 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_call_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
+    pub fn prove_read_call_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::IO_READ_CALL_TAPE),
+                (REG_A0, ecall::CALL_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
@@ -189,7 +189,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_event_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
+    pub fn prove_read_event_tape_zero_size<Stark: ProveAndVerify>(address: u32) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
@@ -204,18 +204,18 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_private<Stark: ProveAndVerify>(address: u32, io_tape_private: Vec<u8>) {
+    pub fn prove_read_private<Stark: ProveAndVerify>(address: u32, private_tape: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::IO_READ_PRIVATE),
+                (REG_A0, ecall::PRIVATE_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
             RuntimeArguments {
-                io_tape_private,
+                private_tape,
                 ..Default::default()
             },
         );
@@ -228,18 +228,18 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_public<Stark: ProveAndVerify>(address: u32, io_tape_public: Vec<u8>) {
+    pub fn prove_read_public<Stark: ProveAndVerify>(address: u32, public_tape: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::IO_READ_PUBLIC),
+                (REG_A0, ecall::PUBLIC_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
             RuntimeArguments {
-                io_tape_public,
+                public_tape,
                 ..Default::default()
             },
         );
@@ -252,13 +252,13 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_call_tape<Stark: ProveAndVerify>(address: u32, call_tape: Vec<u8>) {
+    pub fn prove_read_call_tape<Stark: ProveAndVerify>(address: u32, call_tape: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::IO_READ_CALL_TAPE),
+                (REG_A0, ecall::CALL_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
@@ -276,7 +276,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_event_tape<Stark: ProveAndVerify>(address: u32, event_tape: Vec<u8>) {
+    pub fn prove_read_event_tape<Stark: ProveAndVerify>(address: u32, event_tape: Vec<u8>) {
         let (program, record) = execute_code_with_runtime_args(
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
@@ -361,7 +361,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_explicit<Stark: ProveAndVerify>(address: u32, content: u8) {
+    pub fn prove_read_explicit<Stark: ProveAndVerify>(address: u32, content: u8) {
         let (program, record) = execute_code_with_runtime_args(
             [
                 Instruction {
@@ -385,11 +385,11 @@ mod tests {
                     op: Op::ADD,
                     args: Args {
                         rd: REG_A0,
-                        imm: ecall::IO_READ_PRIVATE,
+                        imm: ecall::PRIVATE_TAPE,
                         ..Args::default()
                     },
                 },
-                // add ecall to io_read
+                // add ecall to read
                 ECALL,
                 Instruction {
                     op: Op::ADD,
@@ -424,7 +424,7 @@ mod tests {
             ],
             &[],
             RuntimeArguments {
-                io_tape_private: vec![content, content, content, content],
+                private_tape: vec![content, content, content, content],
                 ..Default::default()
             },
         );
@@ -434,37 +434,37 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
-        fn prove_io_read_private_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
-            prove_io_read_private_zero_size::<MozakStark<F, D>>(address);
+        fn prove_read_private_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+            prove_read_private_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_private_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_io_read_private::<MozakStark<F, D>>(address, vec![content]);
+        fn prove_read_private_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_read_private::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
-        fn prove_io_read_public_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
-            prove_io_read_public_zero_size::<MozakStark<F, D>>(address);
+        fn prove_read_public_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+            prove_read_public_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_public_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_io_read_public::<MozakStark<F, D>>(address, vec![content]);
+        fn prove_read_public_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_read_public::<MozakStark<F, D>>(address, vec![content]);
         }
         #[test]
-        fn prove_io_read_call_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
-            prove_io_read_call_tape_zero_size::<MozakStark<F, D>>(address);
+        fn prove_read_call_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+            prove_read_call_tape_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_call_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_io_read_call_tape::<MozakStark<F, D>>(address, vec![content]);
+        fn prove_read_call_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_read_call_tape::<MozakStark<F, D>>(address, vec![content]);
         }
 
         #[test]
-        fn prove_io_read_event_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
-            prove_io_read_event_tape_zero_size::<MozakStark<F, D>>(address);
+        fn prove_read_event_tape_zero_size_mozak(address in u32_extra_except_mozak_ro_memory()) {
+            prove_read_event_tape_zero_size::<MozakStark<F, D>>(address);
         }
         #[test]
-        fn prove_io_read_event_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_io_read_event_tape::<MozakStark<F, D>>(address, vec![content]);
+        fn prove_read_event_tape_mozak(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_read_event_tape::<MozakStark<F, D>>(address, vec![content]);
         }
 
 
@@ -479,8 +479,8 @@ mod tests {
         }
 
         #[test]
-        fn prove_io_read_mozak_explicit(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
-            prove_io_read_explicit::<MozakStark<F, D>>(address, content);
+        fn prove_read_mozak_explicit(address in u32_extra_except_mozak_ro_memory(), content in u8_extra()) {
+            prove_read_explicit::<MozakStark<F, D>>(address, content);
         }
     }
     #[test]

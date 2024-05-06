@@ -164,16 +164,16 @@ pub struct CpuState<T> {
     /// `product_sign` is 1
     pub product_high_limb_inv_helper: T,
     pub mem_addr: T,
-    pub io_addr: T,
-    pub io_size: T,
+    pub storage_device_addr: T,
+    pub storage_device_size: T,
     // We don't need all of these 'is_<some-ecall>' columns.  Because our CPU table (by itself)
     // doesn't need to be deterministic. We can assert these things in the CTL-ed
     // ecall-specific tables.
     // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
     // filter.
     // TODO: implement the above.
-    pub is_io_store_private: T,
-    pub is_io_store_public: T,
+    pub is_private_tape: T,
+    pub is_public_tape: T,
     pub is_call_tape: T,
     pub is_event_tape: T,
     pub is_events_commitment_tape: T,
@@ -317,27 +317,27 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     )
 }
 
-/// Column containing the data to be matched against IO Memory starks.
+/// Column containing the data to be matched against StorageDevice starks.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     CpuTable::new(
         StorageDeviceCtl {
             op: ColumnWithTypedInput::ascending_sum([
-                CPU.is_io_store_private,
-                CPU.is_io_store_public,
+                CPU.is_private_tape,
+                CPU.is_public_tape,
                 CPU.is_call_tape,
                 CPU.is_event_tape,
                 CPU.is_events_commitment_tape,
                 CPU.is_cast_list_commitment_tape,
             ]),
             clk: CPU.clk,
-            addr: CPU.io_addr,
-            size: CPU.io_size,
+            addr: CPU.storage_device_addr,
+            size: CPU.storage_device_size,
         },
         [
-            CPU.is_io_store_private,
-            CPU.is_io_store_public,
+            CPU.is_private_tape,
+            CPU.is_public_tape,
             CPU.is_call_tape,
             CPU.is_event_tape,
             CPU.is_events_commitment_tape,

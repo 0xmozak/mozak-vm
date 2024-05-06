@@ -10,7 +10,7 @@ use crate::storage_device::columns::{Ops, StorageDevice};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
-fn pad_io_mem_trace<F: RichField>(mut trace: Vec<StorageDevice<F>>) -> Vec<StorageDevice<F>> {
+fn pad_mem_trace<F: RichField>(mut trace: Vec<StorageDevice<F>>) -> Vec<StorageDevice<F>> {
     trace.resize(
         trace.len().max(MIN_TRACE_LENGTH).next_power_of_two(),
         StorageDevice::default(),
@@ -18,7 +18,7 @@ fn pad_io_mem_trace<F: RichField>(mut trace: Vec<StorageDevice<F>>) -> Vec<Stora
     trace
 }
 
-/// Returns the rows with io memory instructions.
+/// Returns the rows with storage device instructions.
 pub fn filter<F: RichField>(
     step_rows: &[Row<F>],
     which_tape: StorageDeviceOpcode,
@@ -28,7 +28,7 @@ pub fn filter<F: RichField>(
             && matches!(row.instruction.op, Op::ECALL,)
     })
 }
-fn is_io_opcode<F: RichField>(op: StorageDeviceOpcode) -> F {
+fn is_storage_device_opcode<F: RichField>(op: StorageDeviceOpcode) -> F {
     F::from_bool(matches!(
         op,
         StorageDeviceOpcode::StorePrivate
@@ -45,7 +45,7 @@ pub fn generate_storage_trace<F: RichField>(
     step_rows: &[Row<F>],
     which_tape: StorageDeviceOpcode,
 ) -> Vec<StorageDevice<F>> {
-    pad_io_mem_trace(
+    pad_mem_trace(
         filter(step_rows, which_tape)
             .flat_map(|s| {
                 let StorageDeviceEntry { op, data, addr }: StorageDeviceEntry =
@@ -58,7 +58,7 @@ pub fn generate_storage_trace<F: RichField>(
                         addr: F::from_canonical_u32(addr),
                         size: F::from_canonical_usize(len),
                         ops: Ops {
-                            is_storage_device: is_io_opcode(op),
+                            is_storage_device: is_storage_device_opcode(op),
                             is_memory_store: F::ZERO,
                         },
                         is_lv_and_nv_are_memory_rows: F::from_bool(false),
@@ -75,7 +75,7 @@ pub fn generate_storage_trace<F: RichField>(
                             value: F::from_canonical_u8(local_value),
                             ops: Ops {
                                 is_storage_device: F::ZERO,
-                                is_memory_store: is_io_opcode(op),
+                                is_memory_store: is_storage_device_opcode(op),
                             },
                             is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
                         }

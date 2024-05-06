@@ -3,10 +3,10 @@ use core::arch::asm;
 
 pub const HALT: u32 = 0;
 pub const PANIC: u32 = 1;
-pub const IO_READ_PRIVATE: u32 = 2;
+pub const PRIVATE_TAPE: u32 = 2;
 pub const POSEIDON2: u32 = 3;
-pub const IO_READ_PUBLIC: u32 = 4;
-pub const IO_READ_CALL_TAPE: u32 = 5;
+pub const PUBLIC_TAPE: u32 = 4;
+pub const CALL_TAPE: u32 = 5;
 pub const EVENT_TAPE: u32 = 6;
 pub const EVENTS_COMMITMENT_TAPE: u32 = 7;
 pub const CAST_LIST_COMMITMENT_TAPE: u32 = 8;
@@ -22,10 +22,10 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
     match raw_id {
         HALT => "halt",
         PANIC => "panic",
-        IO_READ_PUBLIC => "ioread public tape",
+        PUBLIC_TAPE => "ioread public tape",
         POSEIDON2 => "poseidon2",
-        IO_READ_PRIVATE => "ioread private tape",
-        IO_READ_CALL_TAPE => "ioread call tape",
+        PRIVATE_TAPE => "ioread private tape",
+        CALL_TAPE => "ioread call tape",
         EVENT_TAPE => "ioread event tape",
         EVENTS_COMMITMENT_TAPE => "ioread events commitment tape",
         CAST_LIST_COMMITMENT_TAPE => "ioread cast list commitment tape",
@@ -52,7 +52,7 @@ pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
     unsafe {
         core::arch::asm!(
             "ecall",
-            in ("a0") IO_READ_PRIVATE,
+            in ("a0") PRIVATE_TAPE,
             in ("a1") buf_ptr,
             in ("a2") buf_len,
         );
@@ -64,7 +64,7 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     unsafe {
         core::arch::asm!(
         "ecall",
-        in ("a0") IO_READ_PUBLIC,
+        in ("a0") PUBLIC_TAPE,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );
@@ -76,7 +76,7 @@ pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     unsafe {
         core::arch::asm!(
         "ecall",
-        in ("a0") IO_READ_CALL_TAPE,
+        in ("a0") CALL_TAPE,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );
