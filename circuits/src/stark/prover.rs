@@ -2,7 +2,6 @@
 
 use std::fmt::Display;
 use std::mem::transmute;
-use std::sync::Arc;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
@@ -228,24 +227,23 @@ where
 
     let trace_commitment_ref: &'static PolynomialBatch<F, C, D> =
         unsafe { transmute(trace_commitment) };
-    let get_trace_values_packed = Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
+    let get_trace_values_packed = move |i_start, step| -> Vec<<F as Packable>::Packing> {
         trace_commitment_ref.get_lde_values_packed(i_start, step)
-    });
+    };
 
     let ctl_zs_commitment_ref: &'static PolynomialBatch<F, C, D> =
         unsafe { transmute(&ctl_zs_commitment) };
-    let get_ctl_zs_values_packed =
-        Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
-            ctl_zs_commitment_ref.get_lde_values_packed(i_start, step)
-        });
+    let get_ctl_zs_values_packed = move |i_start, step| -> Vec<<F as Packable>::Packing> {
+        ctl_zs_commitment_ref.get_lde_values_packed(i_start, step)
+    };
 
     let quotient_polys = timed!(
         timing,
         format!("{stark}: compute quotient polynomial").as_str(),
         compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
             stark,
-            get_trace_values_packed,
-            get_ctl_zs_values_packed,
+            &get_trace_values_packed,
+            &get_ctl_zs_values_packed,
             public_inputs,
             ctl_data,
             public_sub_table_data,

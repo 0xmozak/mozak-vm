@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::intrinsics::transmute;
-use std::sync::Arc;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
@@ -497,39 +496,37 @@ where
             let trace_slice_len = trace_indices.poly_count[kind];
             let batch_trace_commitments_ref: &'static BatchFriOracle<F, C, D> =
                 unsafe { transmute(batch_trace_commitments) };
-            let get_trace_values_packed =
-                Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
-                    batch_trace_commitments_ref.get_lde_values_packed(
-                        degree_bits_index,
-                        i_start,
-                        step,
-                        trace_slice_start,
-                        trace_slice_len,
-                    )
-                });
+            let get_trace_values_packed = move |i_start, step| -> Vec<<F as Packable>::Packing> {
+                batch_trace_commitments_ref.get_lde_values_packed(
+                    degree_bits_index,
+                    i_start,
+                    step,
+                    trace_slice_start,
+                    trace_slice_len,
+                )
+            };
 
             let ctl_zs_slice_start = ctl_zs_indices.fmt_start_indices[kind].unwrap();
             let ctl_zs_slice_len = ctl_zs_indices.poly_count[kind];
             let batch_ctl_zs_commitments_ref: &'static BatchFriOracle<F, C, D> =
                 unsafe { transmute(&batch_ctl_zs_commitments) };
-            let get_ctl_zs_values_packed =
-                Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
-                    batch_ctl_zs_commitments_ref.get_lde_values_packed(
-                        degree_bits_index,
-                        i_start,
-                        step,
-                        ctl_zs_slice_start,
-                        ctl_zs_slice_len,
-                    )
-                });
+            let get_ctl_zs_values_packed = move |i_start, step| -> Vec<<F as Packable>::Packing> {
+                batch_ctl_zs_commitments_ref.get_lde_values_packed(
+                    degree_bits_index,
+                    i_start,
+                    step,
+                    ctl_zs_slice_start,
+                    ctl_zs_slice_len,
+                )
+            };
 
             let quotient_polys = timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
                 compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
                     stark,
-                    get_trace_values_packed,
-                    get_ctl_zs_values_packed,
+                    &get_trace_values_packed,
+                    &get_ctl_zs_values_packed,
                     public_inputs[kind],
                     &ctl_data_per_table[kind],
                     &public_sub_data_per_table[kind],
