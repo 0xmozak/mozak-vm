@@ -65,8 +65,8 @@ impl BatchFriOracleIndices {
         let mut fmt_start_indices =
             all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(0));
         let mut poly_start_index = 0;
-        let mut fmt_start_index = 0;
         for deg in &sorted_degree_bits {
+            let mut fmt_start_index = 0;
             all_kind!(|kind| {
                 if !public_table_kinds.contains(&kind) && degree_bits[kind] == *deg {
                     fmt_start_indices[kind] = Some(fmt_start_index);
@@ -75,13 +75,12 @@ impl BatchFriOracleIndices {
                     poly_start_index += poly_count[kind];
                 }
             });
-            fmt_start_index = 0;
         }
 
         let degree_bits_index_map: HashMap<usize, usize> = sorted_degree_bits
-            .iter()
+            .into_iter()
             .enumerate()
-            .map(|(index, &value)| (value, index))
+            .map(|(index, value)| (value, index))
             .collect();
         let degree_bits_indices = all_kind!(|kind| (!public_table_kinds.contains(&kind))
             .then_some(degree_bits_index_map[&degree_bits[kind]]));
