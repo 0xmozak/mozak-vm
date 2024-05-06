@@ -1796,9 +1796,9 @@ dependencies = [
 
 [[package]]
 name = "tested-fixture"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9aadbcfad58ebf937fd78206e6b9f38e54a8c10cabb8a533c683756ef1607f04"
+checksum = "76c204532716b9132d719343f3993dd77ad6f037cb926fd5708d1359a4356337"
 dependencies = [
  "once_cell",
  "tested-fixture-macros",
