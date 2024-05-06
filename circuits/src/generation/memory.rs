@@ -154,8 +154,8 @@ pub fn generate_memory_trace<F: RichField>(
     memory_zeroinit_rows: &[MemoryZeroInit<F>],
     halfword_memory_rows: &[HalfWordMemory<F>],
     fullword_memory_rows: &[FullWordMemory<F>],
-    storage_private_rows: &[StorageDevice<F>],
-    storage_public_rows: &[StorageDevice<F>],
+    private_tape_rows: &[StorageDevice<F>],
+    public_tape_rows: &[StorageDevice<F>],
     call_tape_rows: &[StorageDevice<F>],
     event_tape_rows: &[StorageDevice<F>],
     events_commitment_tape_rows: &[StorageDevice<F>],
@@ -172,8 +172,8 @@ pub fn generate_memory_trace<F: RichField>(
         generate_memory_trace_from_execution(step_rows),
         transform_halfword(halfword_memory_rows),
         transform_fullword(fullword_memory_rows),
-        transform_storage(storage_private_rows),
-        transform_storage(storage_public_rows),
+        transform_storage(private_tape_rows),
+        transform_storage(public_tape_rows),
         transform_storage(call_tape_rows),
         transform_storage(event_tape_rows),
         transform_storage(events_commitment_tape_rows),
@@ -220,7 +220,7 @@ mod tests {
     use crate::generation::storage_device::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
         generate_event_tape_trace, generate_events_commitment_tape_trace,
-        generate_storage_private_trace, generate_storage_public_trace,
+        generate_private_tape_trace, generate_public_tape_trace,
     };
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
@@ -281,8 +281,8 @@ mod tests {
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
-        let storage_private_rows = generate_storage_private_trace(&record.executed);
-        let storage_public_rows = generate_storage_public_trace(&record.executed);
+        let private_tape_rows = generate_private_tape_trace(&record.executed);
+        let public_tape_rows = generate_public_tape_trace(&record.executed);
 
         let call_tape_rows = generate_call_tape_trace(&record.executed);
         let event_tape_rows = generate_event_tape_trace(&record.executed);
@@ -297,8 +297,8 @@ mod tests {
             &memory_zeroinit_rows,
             &halfword_memory,
             &fullword_memory,
-            &storage_private_rows,
-            &storage_public_rows,
+            &private_tape_rows,
+            &public_tape_rows,
             &call_tape_rows,
             &event_tape_rows,
             &events_commitment_tape_rows,
@@ -371,8 +371,8 @@ mod tests {
 
         let halfword_memory = generate_halfword_memory_trace(&[]);
         let fullword_memory = generate_fullword_memory_trace(&[]);
-        let storage_private_rows = generate_storage_private_trace(&[]);
-        let storage_public_rows = generate_storage_public_trace(&[]);
+        let private_tape_rows = generate_private_tape_trace(&[]);
+        let public_tape_rows = generate_public_tape_trace(&[]);
         let call_tape_rows = generate_call_tape_trace(&[]);
         let event_tape_rows = generate_call_tape_trace(&[]);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&[]);
@@ -386,8 +386,8 @@ mod tests {
             &memory_zeroinit_rows,
             &halfword_memory,
             &fullword_memory,
-            &storage_private_rows,
-            &storage_public_rows,
+            &private_tape_rows,
+            &public_tape_rows,
             &call_tape_rows,
             &event_tape_rows,
             &events_commitment_tape_rows,

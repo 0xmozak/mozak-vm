@@ -20,7 +20,7 @@ pub struct Ops<T> {
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_memory_store: T,
     /// Binary filter column to represent an storage device operation.
-    pub is_device_store: T,
+    pub is_storage_device: T,
 }
 
 #[repr(C)]
@@ -44,7 +44,7 @@ columns_view_impl!(StorageDevice);
 make_col_map!(StorageDevice);
 
 impl<T: Copy + Add<Output = T>> StorageDevice<T> {
-    pub fn is_executed(&self) -> T { self.ops.is_device_store + self.ops.is_memory_store }
+    pub fn is_executed(&self) -> T { self.ops.is_storage_device + self.ops.is_memory_store }
 }
 
 /// Total number of columns.
@@ -74,7 +74,7 @@ pub fn lookup_for_cpu(kind: TableKind, op: i64) -> TableWithTypedOutput<StorageD
         .into_iter()
         .map(Column::from)
         .collect(),
-        filter_column: COL_MAP.ops.is_device_store.into(),
+        filter_column: COL_MAP.ops.is_storage_device.into(),
     }
 }
 
@@ -106,11 +106,11 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         value: COL_MAP.addr,
     };
     vec![
-        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_device_store),
-        StorageDevicePublicTable::new(data, COL_MAP.ops.is_device_store),
-        CallTapeTable::new(data, COL_MAP.ops.is_device_store),
-        EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_device_store),
-        CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_device_store),
+        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_storage_device),
+        StorageDevicePublicTable::new(data, COL_MAP.ops.is_storage_device),
+        CallTapeTable::new(data, COL_MAP.ops.is_storage_device),
+        EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_storage_device),
+        CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_storage_device),
     ]
 }
 

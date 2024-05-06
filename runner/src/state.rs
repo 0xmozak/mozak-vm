@@ -160,8 +160,8 @@ impl<F: RichField> From<Program> for State<F> {
         let mut state: State<F> = State::default();
 
         if let Some(ref mrm) = mozak_ro_memory {
-            state.private_tape = StorageDeviceTape::from(mrm.storage_private.data.clone());
-            state.public_tape = StorageDeviceTape::from(mrm.storage_public.data.clone());
+            state.private_tape = StorageDeviceTape::from(mrm.private_tape.data.clone());
+            state.public_tape = StorageDeviceTape::from(mrm.public_tape.data.clone());
             state.call_tape = StorageDeviceTape::from(mrm.call_tape.data.clone());
             state.event_tape = StorageDeviceTape::from(mrm.event_tape.data.clone());
         };

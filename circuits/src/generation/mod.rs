@@ -46,9 +46,7 @@ use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::{
     generate_elf_memory_init_trace, generate_mozak_memory_init_trace,
 };
-use crate::generation::storage_device::{
-    generate_storage_private_trace, generate_storage_public_trace,
-};
+use crate::generation::storage_device::{generate_private_tape_trace, generate_public_tape_trace};
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
@@ -94,8 +92,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
 
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
-    let storage_private_rows = generate_storage_private_trace(&record.executed);
-    let storage_public_rows = generate_storage_public_trace(&record.executed);
+    let private_tape_rows = generate_private_tape_trace(&record.executed);
+    let public_tape_rows = generate_public_tape_trace(&record.executed);
     let call_tape_rows = generate_call_tape_trace(&record.executed);
     let event_tape_rows = generate_event_tape_trace(&record.executed);
     let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
@@ -110,8 +108,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &memory_zeroinit_rows,
         &halfword_memory_rows,
         &fullword_memory_rows,
-        &storage_private_rows,
-        &storage_public_rows,
+        &private_tape_rows,
+        &public_tape_rows,
         &call_tape_rows,
         &event_tape_rows,
         &events_commitment_tape_rows,
@@ -125,8 +123,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         generate_register_trace(
             &cpu_rows,
             &poseiden2_sponge_rows,
-            &storage_private_rows,
-            &storage_public_rows,
+            &private_tape_rows,
+            &public_tape_rows,
             &call_tape_rows,
             &event_tape_rows,
             &events_commitment_tape_rows,
@@ -158,8 +156,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         rangecheck_u8_stark: trace_rows_to_poly_values(rangecheck_u8_rows),
         halfword_memory_stark: trace_rows_to_poly_values(halfword_memory_rows),
         fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),
-        storage_private_stark: trace_rows_to_poly_values(storage_private_rows),
-        storage_public_stark: trace_rows_to_poly_values(storage_public_rows),
+        private_tape_stark: trace_rows_to_poly_values(private_tape_rows),
+        public_tape_stark: trace_rows_to_poly_values(public_tape_rows),
         call_tape_stark: trace_rows_to_poly_values(call_tape_rows),
         event_tape_stark: trace_rows_to_poly_values(event_tape_rows),
         events_commitment_tape_stark: trace_rows_to_poly_values(events_commitment_tape_rows),

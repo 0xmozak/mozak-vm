@@ -58,7 +58,7 @@ pub fn generate_storage_trace<F: RichField>(
                         addr: F::from_canonical_u32(addr),
                         size: F::from_canonical_usize(len),
                         ops: Ops {
-                            is_device_store: is_io_opcode(op),
+                            is_storage_device: is_io_opcode(op),
                             is_memory_store: F::ZERO,
                         },
                         is_lv_and_nv_are_memory_rows: F::from_bool(false),
@@ -74,7 +74,7 @@ pub fn generate_storage_trace<F: RichField>(
                             size: F::from_canonical_usize(local_size),
                             value: F::from_canonical_u8(local_value),
                             ops: Ops {
-                                is_device_store: F::ZERO,
+                                is_storage_device: F::ZERO,
                                 is_memory_store: is_io_opcode(op),
                             },
                             is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
@@ -87,12 +87,12 @@ pub fn generate_storage_trace<F: RichField>(
 }
 
 #[must_use]
-pub fn generate_storage_private_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
+pub fn generate_private_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
     generate_storage_trace(step_rows, StorageDeviceOpcode::StorePrivate)
 }
 
 #[must_use]
-pub fn generate_storage_public_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
+pub fn generate_public_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
     generate_storage_trace(step_rows, StorageDeviceOpcode::StorePublic)
 }
 
