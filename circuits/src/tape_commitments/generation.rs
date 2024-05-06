@@ -9,7 +9,12 @@ use crate::tape_commitments::columns::{CommitmentByteWithIndex, TapeCommitments}
 pub fn num_ecalls<F: RichField>(step_rows: &[Row<F>], which_tape: StorageDeviceOpcode) -> usize {
     step_rows
         .iter()
-        .filter(|row| row.aux.storage_device_entry.as_ref().is_some_and(|io| io.op == which_tape))
+        .filter(|row| {
+            row.aux
+                .storage_device_entry
+                .as_ref()
+                .is_some_and(|io| io.op == which_tape)
+        })
         .count()
 }
 

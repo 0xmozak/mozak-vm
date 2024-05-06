@@ -78,8 +78,8 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
-            storage_device_addr: F::from_canonical_u32(io.addr),
-            storage_device_size: F::from_canonical_usize(io.data.len()),
+            io_addr: F::from_canonical_u32(io.addr),
+            io_size: F::from_canonical_usize(io.data.len()),
             is_private_tape: F::from_bool(matches!(
                 (inst.op, io.op),
                 (Op::ECALL, StorageDeviceOpcode::StorePrivate)

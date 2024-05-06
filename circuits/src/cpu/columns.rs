@@ -164,8 +164,8 @@ pub struct CpuState<T> {
     /// `product_sign` is 1
     pub product_high_limb_inv_helper: T,
     pub mem_addr: T,
-    pub storage_device_addr: T,
-    pub storage_device_size: T,
+    pub io_addr: T,
+    pub io_size: T,
     // We don't need all of these 'is_<some-ecall>' columns.  Because our CPU table (by itself)
     // doesn't need to be deterministic. We can assert these things in the CTL-ed
     // ecall-specific tables.
@@ -332,8 +332,8 @@ pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Colu
                 CPU.is_cast_list_commitment_tape,
             ]),
             clk: CPU.clk,
-            addr: CPU.storage_device_addr,
-            size: CPU.storage_device_size,
+            addr: CPU.io_addr,
+            size: CPU.io_size,
         },
         [
             CPU.is_private_tape,
