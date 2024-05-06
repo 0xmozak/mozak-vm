@@ -1,7 +1,6 @@
 #![allow(clippy::too_many_lines)]
 
 use std::fmt::Display;
-use std::mem::transmute;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
@@ -225,16 +224,12 @@ where
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
 
-    let trace_commitment_ref: &'static PolynomialBatch<F, C, D> =
-        unsafe { transmute(trace_commitment) };
-    let get_trace_values_packed = move |i_start, step| -> Vec<<F as Packable>::Packing> {
-        trace_commitment_ref.get_lde_values_packed(i_start, step)
+    let get_trace_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+        trace_commitment.get_lde_values_packed(i_start, step)
     };
 
-    let ctl_zs_commitment_ref: &'static PolynomialBatch<F, C, D> =
-        unsafe { transmute(&ctl_zs_commitment) };
-    let get_ctl_zs_values_packed = move |i_start, step| -> Vec<<F as Packable>::Packing> {
-        ctl_zs_commitment_ref.get_lde_values_packed(i_start, step)
+    let get_ctl_zs_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+        ctl_zs_commitment.get_lde_values_packed(i_start, step)
     };
 
     let quotient_polys = timed!(
