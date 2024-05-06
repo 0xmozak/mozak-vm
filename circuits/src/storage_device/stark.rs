@@ -13,7 +13,7 @@ use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
-use crate::storage_device::columns::{StorageDevice, NUM_IO_MEM_COLS};
+use crate::storage_device::columns::{StorageDevice, NUM_STORAGE_DEVICE_COLS};
 use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -26,7 +26,7 @@ impl<F, const D: usize> HasNamedColumns for StorageDeviceStark<F, D> {
     type Columns = StorageDevice<F>;
 }
 
-const COLUMNS: usize = NUM_IO_MEM_COLS;
+const COLUMNS: usize = NUM_STORAGE_DEVICE_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
 // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing

@@ -48,7 +48,7 @@ impl<T: Copy + Add<Output = T>> StorageDevice<T> {
 }
 
 /// Total number of columns.
-pub const NUM_IO_MEM_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_STORAGE_DEVICE_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
 
 columns_view_impl!(StorageDeviceCtl);
 #[repr(C)]
