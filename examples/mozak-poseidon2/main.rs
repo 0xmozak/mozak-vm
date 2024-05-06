@@ -23,6 +23,10 @@ fn main() {
 
     // generate a vector of size n
     let v: Vec<u8> = black_box((0..n).map(|i| i.to_le_bytes()[0]).collect());
+
+    // flat hash v
+    let mut hash = [0u8; 32];
+    black_box(poseidon2(v.as_ptr(), n, hash.as_mut_ptr()));
 }
 
 mozak_sdk::entry!(main);
