@@ -6,14 +6,15 @@
 
 use itertools::chain;
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::{byte_wise_hash, find_hash, select_hash};
+use crate::indices::HashTargetIndex;
+use crate::{byte_wise_hash, select_hash};
 
 pub trait Extended {
     type BranchTargets;
@@ -42,21 +43,7 @@ pub struct BranchTargetsExtension {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
     /// The indices of each of the elements of the unpruned hash
-    pub unpruned_hash: [usize; NUM_HASH_OUT_ELTS],
-}
-
-impl PublicIndices {
-    /// Extract unpruned hash from an array of public inputs.
-    pub fn get_unpruned_hash<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.unpruned_hash.map(|i| public_inputs[i])
-    }
-
-    /// Insert unpruned hash into an array of public inputs.
-    pub fn set_unpruned_hash<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.unpruned_hash[i]] = v;
-        }
-    }
+    pub unpruned_hash: HashTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -100,7 +87,7 @@ impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
-            unpruned_hash: find_hash(public_inputs, self.inputs.unpruned_hash),
+            unpruned_hash: HashTargetIndex::new(public_inputs, self.inputs.unpruned_hash),
         };
         LeafSubCircuit {
             targets: self,
@@ -155,8 +142,8 @@ impl SubCircuitInputs {
             CircuitBuilder::hash_n_to_hash_no_pad::<Poseidon2Hash>
         };
 
-        let l_values = indices.get_unpruned_hash(&left_proof.public_inputs);
-        let r_values = indices.get_unpruned_hash(&right_proof.public_inputs);
+        let l_values = indices.unpruned_hash.get_any(&left_proof.public_inputs);
+        let r_values = indices.unpruned_hash.get_any(&right_proof.public_inputs);
 
         // Hash the left and right together
         let unpruned_hash_calc = hasher(builder, chain!(l_values, r_values).collect());
@@ -239,7 +226,7 @@ impl<E: Extended> BranchTargets<E> {
     #[must_use]
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit<E> {
         let indices = PublicIndices {
-            unpruned_hash: find_hash(public_inputs, self.inputs.unpruned_hash),
+            unpruned_hash: HashTargetIndex::new(public_inputs, self.inputs.unpruned_hash),
         };
         debug_assert_eq!(indices, *child);
 

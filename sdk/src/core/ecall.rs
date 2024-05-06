@@ -1,17 +1,17 @@
-#![cfg_attr(not(target_os = "mozakvm"), allow(unused_variables))]
 #[cfg(target_os = "mozakvm")]
 use core::arch::asm;
 
 pub const HALT: u32 = 0;
 pub const PANIC: u32 = 1;
-pub const IO_READ_PRIVATE: u32 = 2;
+pub const PRIVATE_TAPE: u32 = 2;
 pub const POSEIDON2: u32 = 3;
-pub const IO_READ_PUBLIC: u32 = 4;
-pub const IO_READ_CALL_TAPE: u32 = 5;
-pub const EVENTS_COMMITMENT_TAPE: u32 = 6;
-pub const CAST_LIST_COMMITMENT_TAPE: u32 = 7;
+pub const PUBLIC_TAPE: u32 = 4;
+pub const CALL_TAPE: u32 = 5;
+pub const EVENT_TAPE: u32 = 6;
+pub const EVENTS_COMMITMENT_TAPE: u32 = 7;
+pub const CAST_LIST_COMMITMENT_TAPE: u32 = 8;
 /// Syscall to output the VM trace log at `clk`. Useful for debugging.
-pub const VM_TRACE_LOG: u32 = 8;
+pub const VM_TRACE_LOG: u32 = 9;
 
 /// The number of bytes requested for events commitment tape and
 /// cast list commitment tape is hardcoded to 32 bytes.
@@ -22,10 +22,11 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
     match raw_id {
         HALT => "halt",
         PANIC => "panic",
-        IO_READ_PUBLIC => "ioread public tape",
+        PUBLIC_TAPE => "ioread public tape",
         POSEIDON2 => "poseidon2",
-        IO_READ_PRIVATE => "ioread private tape",
-        IO_READ_CALL_TAPE => "ioread call tape",
+        PRIVATE_TAPE => "ioread private tape",
+        CALL_TAPE => "ioread call tape",
+        EVENT_TAPE => "ioread event tape",
         EVENTS_COMMITMENT_TAPE => "ioread events commitment tape",
         CAST_LIST_COMMITMENT_TAPE => "ioread cast list commitment tape",
         VM_TRACE_LOG => "vm trace log",
@@ -33,8 +34,8 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
     }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -44,62 +45,58 @@ pub fn poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mut u8) {
             in ("a3") output_ptr,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn ioread_private(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
-            in ("a0") IO_READ_PRIVATE,
+            in ("a0") PRIVATE_TAPE,
             in ("a1") buf_ptr,
             in ("a2") buf_len,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
         "ecall",
-        in ("a0") IO_READ_PUBLIC,
+        in ("a0") PUBLIC_TAPE,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
+#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
 pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
-        in ("a0") IO_READ_CALL_TAPE,
+        in ("a0") CALL_TAPE,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
+}
+
+#[cfg(target_os = "mozakvm")]
+pub fn event_tape_read(buf_ptr: *mut u8, buf_len: usize) {
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") EVENT_TAPE,
+        in ("a1") buf_ptr,
+        in ("a2") buf_len,
+        );
     }
 }
 
+#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
 pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -108,14 +105,10 @@ pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
         in ("a2") COMMITMENT_SIZE,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
+#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
 pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
-    #[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -124,14 +117,10 @@ pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
         in ("a2") COMMITMENT_SIZE,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn panic(msg_ptr: *const u8, msg_len: usize) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -140,14 +129,10 @@ pub fn panic(msg_ptr: *const u8, msg_len: usize) {
             in ("a2") msg_ptr,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn trace(msg_ptr: *const u8, msg_len: usize) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -156,14 +141,10 @@ pub fn trace(msg_ptr: *const u8, msg_len: usize) {
             in ("a2") msg_ptr,
         );
     }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
-    }
 }
 
+#[cfg(target_os = "mozakvm")]
 pub fn halt(output: u8) {
-    #[cfg(target_os = "mozakvm")]
     unsafe {
         asm!(
             "ecall",
@@ -171,9 +152,5 @@ pub fn halt(output: u8) {
             in ("a1") output,
         );
         unreachable!();
-    }
-    #[cfg(not(target_os = "mozakvm"))]
-    {
-        unimplemented!()
     }
 }

@@ -1,6 +1,2 @@
 vm/tests/testdata/ linguist-generated=true
 vm/tests/testdata/.testdata_generated_from_this_commit linguist-generated=false
-vm/examples/fibonacci-input/iotape_private binary
-vm/examples/fibonacci-input/iotape_public binary
-vm/examples/fibonacci-input-new-api/iotape_private binary
-vm/examples/fibonacci-input-new-api/iotape_public binary

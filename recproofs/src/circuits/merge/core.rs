@@ -7,99 +7,36 @@
 //! nodes between A and B, i.e. A1 could be to the left or right of B1.
 
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::{at_least_one_true, find_bool, find_hash, hash_is_zero, hash_or_forward};
+use crate::indices::{BoolTargetIndex, HashTargetIndex};
+use crate::{at_least_one_true, hash_is_zero, hash_or_forward};
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
     /// The index for the presence of the a hash
-    pub a_present: usize,
+    pub a_present: BoolTargetIndex,
 
     /// The indices of each of the elements of the a hash
-    pub a_hash: [usize; NUM_HASH_OUT_ELTS],
+    pub a_hash: HashTargetIndex,
 
     /// The index for the presence of the b hash
-    pub b_present: usize,
+    pub b_present: BoolTargetIndex,
 
     /// The indices of each of the elements of the b hash
-    pub b_hash: [usize; NUM_HASH_OUT_ELTS],
+    pub b_hash: HashTargetIndex,
 
     /// The index for the presence of the merged hash
-    pub merged_present: usize,
+    pub merged_present: BoolTargetIndex,
 
     /// The indices of each of the elements of the merged hash
-    pub merged_hash: [usize; NUM_HASH_OUT_ELTS],
-}
-
-impl PublicIndices {
-    /// Extract `a_present` from an array of public inputs.
-    pub fn get_a_present<T: Copy>(&self, public_inputs: &[T]) -> T { public_inputs[self.a_present] }
-
-    /// Insert `a_present` into an array of public inputs.
-    pub fn set_a_present<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.a_present] = v;
-    }
-
-    /// Extract `a_hash` from an array of public inputs.
-    pub fn get_a_hash<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.a_hash.map(|i| public_inputs[i])
-    }
-
-    /// Insert `a_hash` into an array of public inputs.
-    pub fn set_a_hash<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.a_hash[i]] = v;
-        }
-    }
-
-    /// Extract `b_present` from an array of public inputs.
-    pub fn get_b_present<T: Copy>(&self, public_inputs: &[T]) -> T { public_inputs[self.b_present] }
-
-    /// Insert `b_present` into an array of public inputs.
-    pub fn set_b_present<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.b_present] = v;
-    }
-
-    /// Extract `b_hash` from an array of public inputs.
-    pub fn get_b_hash<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.b_hash.map(|i| public_inputs[i])
-    }
-
-    /// Insert `a_hash` into an array of public inputs.
-    pub fn set_b_hash<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.b_hash[i]] = v;
-        }
-    }
-
-    /// Extract `merged_present` from an array of public inputs.
-    pub fn get_merged_present<T: Copy>(&self, public_inputs: &[T]) -> T {
-        public_inputs[self.merged_present]
-    }
-
-    /// Insert `merged_present` into an array of public inputs.
-    pub fn set_merged_present<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.merged_present] = v;
-    }
-
-    /// Extract `merged_hash` from an array of public inputs.
-    pub fn get_merged_hash<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.merged_hash.map(|i| public_inputs[i])
-    }
-
-    /// Insert `a_hash` into an array of public inputs.
-    pub fn set_merged_hash<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.merged_hash[i]] = v;
-        }
-    }
+    pub merged_hash: HashTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -193,12 +130,12 @@ impl LeafTargets {
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         // Find the indices
         let indices = PublicIndices {
-            a_present: find_bool(public_inputs, self.inputs.a_present),
-            a_hash: find_hash(public_inputs, self.inputs.a_hash),
-            b_present: find_bool(public_inputs, self.inputs.b_present),
-            b_hash: find_hash(public_inputs, self.inputs.b_hash),
-            merged_present: find_bool(public_inputs, self.inputs.merged_present),
-            merged_hash: find_hash(public_inputs, self.inputs.merged_hash),
+            a_present: BoolTargetIndex::new(public_inputs, self.inputs.a_present),
+            a_hash: HashTargetIndex::new(public_inputs, self.inputs.a_hash),
+            b_present: BoolTargetIndex::new(public_inputs, self.inputs.b_present),
+            b_hash: HashTargetIndex::new(public_inputs, self.inputs.b_hash),
+            merged_present: BoolTargetIndex::new(public_inputs, self.inputs.merged_present),
+            merged_hash: HashTargetIndex::new(public_inputs, self.inputs.merged_hash),
         };
         LeafSubCircuit {
             targets: self,
@@ -264,27 +201,21 @@ impl SubCircuitInputs {
     ) -> BranchTargets
     where
         F: RichField + Extendable<D>, {
-        let left_a_present = indices.get_a_present(&left_proof.public_inputs);
-        let left_b_present = indices.get_b_present(&left_proof.public_inputs);
-        let left_merged_present = indices.get_merged_present(&left_proof.public_inputs);
-        let left_a_present = BoolTarget::new_unsafe(left_a_present);
-        let left_b_present = BoolTarget::new_unsafe(left_b_present);
-        let left_merged_present = BoolTarget::new_unsafe(left_merged_present);
+        let left_a_present = indices.a_present.get(&left_proof.public_inputs);
+        let left_b_present = indices.b_present.get(&left_proof.public_inputs);
+        let left_merged_present = indices.merged_present.get(&left_proof.public_inputs);
 
-        let left_a = indices.get_a_hash(&left_proof.public_inputs);
-        let left_b = indices.get_b_hash(&left_proof.public_inputs);
-        let left_merged = indices.get_merged_hash(&left_proof.public_inputs);
+        let left_a = indices.a_hash.get_any(&left_proof.public_inputs);
+        let left_b = indices.b_hash.get_any(&left_proof.public_inputs);
+        let left_merged = indices.merged_hash.get_any(&left_proof.public_inputs);
 
-        let right_a_present = indices.get_a_present(&right_proof.public_inputs);
-        let right_b_present = indices.get_b_present(&right_proof.public_inputs);
-        let right_merged_present = indices.get_merged_present(&right_proof.public_inputs);
-        let right_a_present = BoolTarget::new_unsafe(right_a_present);
-        let right_b_present = BoolTarget::new_unsafe(right_b_present);
-        let right_merged_present = BoolTarget::new_unsafe(right_merged_present);
+        let right_a_present = indices.a_present.get(&right_proof.public_inputs);
+        let right_b_present = indices.b_present.get(&right_proof.public_inputs);
+        let right_merged_present = indices.merged_present.get(&right_proof.public_inputs);
 
-        let right_a = indices.get_a_hash(&right_proof.public_inputs);
-        let right_b = indices.get_b_hash(&right_proof.public_inputs);
-        let right_merged = indices.get_merged_hash(&right_proof.public_inputs);
+        let right_a = indices.a_hash.get_any(&right_proof.public_inputs);
+        let right_b = indices.b_hash.get_any(&right_proof.public_inputs);
+        let right_merged = indices.merged_hash.get_any(&right_proof.public_inputs);
 
         let a_present_calc = builder.or(left_a_present, right_a_present);
         builder.connect(self.a_present.target, a_present_calc.target);
@@ -328,12 +259,12 @@ impl BranchTargets {
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit {
         // Find the indices
         let indices = PublicIndices {
-            a_present: find_bool(public_inputs, self.inputs.a_present),
-            a_hash: find_hash(public_inputs, self.inputs.a_hash),
-            b_present: find_bool(public_inputs, self.inputs.b_present),
-            b_hash: find_hash(public_inputs, self.inputs.b_hash),
-            merged_present: find_bool(public_inputs, self.inputs.merged_present),
-            merged_hash: find_hash(public_inputs, self.inputs.merged_hash),
+            a_present: BoolTargetIndex::new(public_inputs, self.inputs.a_present),
+            a_hash: HashTargetIndex::new(public_inputs, self.inputs.a_hash),
+            b_present: BoolTargetIndex::new(public_inputs, self.inputs.b_present),
+            b_hash: HashTargetIndex::new(public_inputs, self.inputs.b_hash),
+            merged_present: BoolTargetIndex::new(public_inputs, self.inputs.merged_present),
+            merged_hash: HashTargetIndex::new(public_inputs, self.inputs.merged_hash),
         };
         debug_assert_eq!(indices, *child);
 
@@ -392,6 +323,7 @@ mod test {
     use anyhow::Result;
     use lazy_static::lazy_static;
     use plonky2::field::types::Field;
+    use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 

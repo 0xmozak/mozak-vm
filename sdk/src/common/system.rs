@@ -5,6 +5,8 @@ use std::rc::Rc;
 
 use once_cell::unsync::Lazy;
 #[cfg(target_os = "mozakvm")]
+use rkyv::rancor::{Panic, Strategy};
+#[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
 
 use super::types::{
@@ -12,6 +14,8 @@ use super::types::{
 };
 #[cfg(target_os = "mozakvm")]
 use crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, ProgramIdentifier};
+#[cfg(target_os = "mozakvm")]
+use crate::common::{merkle::merkleize, types::Poseidon2Hash};
 #[cfg(target_os = "mozakvm")]
 use crate::mozakvm::helpers::{
     archived_repr, get_rkyv_archived, get_rkyv_deserialized, get_self_prog_id,
@@ -86,11 +90,55 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 #[allow(dead_code)]
 pub fn ensure_clean_shutdown() {
     // Ensure we have read the whole tape
+
+    use itertools::izip;
     unsafe {
         // Should have read the full call tape
         assert!(SYSTEM_TAPE.call_tape.index == SYSTEM_TAPE.call_tape.reader.unwrap().len());
 
         // Should have read the full event tape
         assert!(SYSTEM_TAPE.event_tape.index == SYSTEM_TAPE.event_tape.reader.unwrap().len());
+
+        // Assert that event commitment tape has the same bytes
+        // as Event Tape's actual commitment observable to us
+        let mut claimed_commitment_ev: [u8; 32] = [0; 32];
+        crate::core::ecall::events_commitment_tape_read(claimed_commitment_ev.as_mut_ptr());
+
+        let canonical_event_temporal_hints: Vec<CanonicalOrderedTemporalHints> = SYSTEM_TAPE
+            .event_tape
+            .reader
+            .unwrap()
+            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+            .unwrap();
+
+        let calculated_commitment_ev = merkleize(
+            canonical_event_temporal_hints
+                .iter()
+                .map(|x| {
+                    (
+                        // May not be the best idea if
+                        // `addr` > goldilock's prime, cc
+                        // @Kapil
+                        u64::from_le_bytes(x.0.address.inner()),
+                        x.0.canonical_hash(),
+                    )
+                })
+                .collect::<Vec<(u64, Poseidon2Hash)>>(),
+        )
+        .0;
+
+        assert!(claimed_commitment_ev == calculated_commitment_ev);
+
+        // Assert that castlist commitment tape has the same bytes
+        // as CastList's actual commitment observable to us
+        let mut claimed_commitment_cl: [u8; 32] = [0; 32];
+        crate::core::ecall::cast_list_commitment_tape_read(claimed_commitment_cl.as_mut_ptr());
+
+        let cast_list = &SYSTEM_TAPE.call_tape.cast_list;
+
+        let calculated_commitment_cl =
+            merkleize(izip!(0.., cast_list).map(|(idx, x)| (idx, x.0)).collect()).0;
+
+        assert!(claimed_commitment_cl == calculated_commitment_cl);
     }
 }

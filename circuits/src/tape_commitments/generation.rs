@@ -6,10 +6,15 @@ use plonky2::hash::hash_types::RichField;
 use crate::tape_commitments::columns::{CommitmentByteWithIndex, TapeCommitments};
 
 #[must_use]
-pub fn num_io_ecalls<F: RichField>(step_rows: &[Row<F>], which_tape: StorageDeviceOpcode) -> usize {
+pub fn num_ecalls<F: RichField>(step_rows: &[Row<F>], which_tape: StorageDeviceOpcode) -> usize {
     step_rows
         .iter()
-        .filter(|row| row.aux.io.as_ref().is_some_and(|io| io.op == which_tape))
+        .filter(|row| {
+            row.aux
+                .storage_device_entry
+                .as_ref()
+                .is_some_and(|io| io.op == which_tape)
+        })
         .count()
 }
 
@@ -30,7 +35,7 @@ pub fn generate_tape_commitment_trace_with_op_code<F: RichField>(
     // theoretically, we have no restriction on number of ecalls made,
     // even though, on sdk side we use the ecall at most once
     let num_tape_commitment_ecalls = F::from_canonical_u32(
-        num_io_ecalls(&execution.executed, which_tape_commitment)
+        num_ecalls(&execution.executed, which_tape_commitment)
             .try_into()
             .unwrap(),
     );

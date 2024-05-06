@@ -1,14 +1,22 @@
-use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
+use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, F};
 use mozak_runner::code;
+use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
+use mozak_runner::vm::ExecutionRecord;
 use starky::config::StarkConfig;
+
+use super::benches::Bench;
+
+pub fn omni_execute((program, record): (Program, ExecutionRecord<F>)) -> Result<(), anyhow::Error> {
+    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+}
 
 #[allow(clippy::module_name_repetitions)]
 /// Benchmark almost every instruction.
 ///
 /// Important: when extending, don't mess with register 1, because we need it as
 /// the loop variable.
-pub fn omni_bench(iterations: u32) -> Result<(), anyhow::Error> {
+pub fn omni_prepare(iterations: u32) -> (Program, ExecutionRecord<F>) {
     let instructions = [
         Instruction {
             op: Op::ADD,
@@ -256,20 +264,27 @@ pub fn omni_bench(iterations: u32) -> Result<(), anyhow::Error> {
             },
         },
     ];
-    let (program, record) = code::execute(instructions, &[], &[(1, iterations)]);
-    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+    code::execute(instructions, &[], &[(1, iterations)])
+}
+
+pub(crate) struct OmniBench;
+
+impl Bench for OmniBench {
+    type Args = u32;
+    type Prepared = (Program, ExecutionRecord<F>);
+
+    fn prepare(&self, args: &Self::Args) -> Self::Prepared { omni_prepare(*args) }
+
+    fn execute(&self, prepared: Self::Prepared) -> anyhow::Result<()> { omni_execute(prepared) }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::cli_benches::benches::{BenchArgs, BenchFunction};
+    use super::{omni_execute, omni_prepare};
 
     #[test]
-    fn test_omni_bench_with_run() {
+    fn test_omni_bench() -> anyhow::Result<()> {
         let iterations = 10;
-        let bench = BenchArgs {
-            function: BenchFunction::OmniBench { iterations },
-        };
-        bench.run().unwrap();
+        omni_execute(omni_prepare(iterations))
     }
 }
