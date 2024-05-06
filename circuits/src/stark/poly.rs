@@ -24,7 +24,7 @@ use crate::cross_table_lookup::{
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
-pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
+pub fn compute_quotient_polys<F, P, C, S, const D: usize>(
     stark: &S,
     get_trace_values_packed: Arc<dyn Fn(usize, usize) -> Vec<P> + Sync + Send>,
     get_ctl_zs_values_packed: Arc<dyn Fn(usize, usize) -> Vec<P> + Sync + Send>,

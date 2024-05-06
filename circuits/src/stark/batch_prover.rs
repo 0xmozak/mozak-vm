@@ -406,7 +406,7 @@ where
             stark,
             config,
             &traces_poly_values[kind],
-            &trace_commitment,
+            trace_commitment,
             public_inputs[kind],
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
@@ -452,7 +452,7 @@ where
     });
 
     let ctl_zs_indices =
-        BatchFriOracleIndices::new(public_table_kinds, ctl_zs_poly_count, &degree_bits);
+        BatchFriOracleIndices::new(public_table_kinds, ctl_zs_poly_count, degree_bits);
 
     // TODO: can we remove duplicates in the ctl polynomials?
     let mut batch_ctl_z_polys: Vec<_> = all_ctl_z_polys
@@ -483,7 +483,7 @@ where
     challenger.observe_cap(&ctl_zs_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
-    let sorted_degree_bits = sort_degree_bits(public_table_kinds, &degree_bits);
+    let sorted_degree_bits = sort_degree_bits(public_table_kinds, degree_bits);
 
     let mut quotient_poly_count = all_kind!(|_kind| 0);
     let quotient_chunks = all_starks!(mozak_stark, |stark, kind| {
