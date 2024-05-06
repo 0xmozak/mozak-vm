@@ -128,9 +128,9 @@ pub fn transform_fullword<F: RichField>(
 /// These need to be further interleaved with runtime memory trace generated
 /// from VM execution for final memory trace.
 pub fn transform_storage<F: RichField>(
-    storage_devices: &[StorageDevice<F>],
+    storage: &[StorageDevice<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
-    storage_devices.iter().filter_map(Option::<Memory<F>>::from)
+    storage.iter().filter_map(Option::<Memory<F>>::from)
 }
 
 fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
