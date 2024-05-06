@@ -19,17 +19,10 @@ fn main() {
         let mut bytes = [0u8; 4];
         ioread_public(bytes.as_mut_ptr(), bytes.len());
         u32::from_le_bytes(bytes).next_multiple_of(8)
-    };
+    } as usize;
 
-    // using a deterministic vector of bytes since
-    // using rng to generate random bytes interferes
-    // with benching poseidon2 ecall, which is the primary
-    // focus here.
-    let v: Vec<u8> = black_box((0..n).map(|_i| 0x12).collect());
-    let mut hash = [0u8; 32];
-
-    // flat hash
-    black_box(poseidon2(v.as_ptr(), v.len(), hash.as_mut_ptr()));
+    // generate a vector of size n
+    let v: Vec<u8> = black_box((0..n).map(|i| i.to_le_bytes()[0]).collect());
 }
 
 mozak_sdk::entry!(main);
