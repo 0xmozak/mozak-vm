@@ -10,7 +10,7 @@ use crate::storage_device::columns::{Ops, StorageDevice};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
-fn pad_io_mem_trace<F: RichField>(mut trace: Vec<StorageDevice<F>>) -> Vec<StorageDevice<F>> {
+fn pad_storage_trace<F: RichField>(mut trace: Vec<StorageDevice<F>>) -> Vec<StorageDevice<F>> {
     trace.resize(
         trace.len().max(MIN_TRACE_LENGTH).next_power_of_two(),
         StorageDevice::default(),
@@ -45,7 +45,7 @@ pub fn generate_storage_trace<F: RichField>(
     step_rows: &[Row<F>],
     which_tape: StorageDeviceOpcode,
 ) -> Vec<StorageDevice<F>> {
-    pad_io_mem_trace(
+    pad_storage_trace(
         filter(step_rows, which_tape)
             .flat_map(|s| {
                 let StorageDeviceEntry { op, data, addr }: StorageDeviceEntry =
