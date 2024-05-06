@@ -1,7 +1,6 @@
 #![allow(clippy::too_many_lines)]
 
 use std::collections::HashMap;
-use std::intrinsics::transmute;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
@@ -227,7 +226,7 @@ pub fn batch_prove<F, C, const D: usize>(
 ) -> Result<BatchProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -385,7 +384,7 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
 ) -> Result<(TableKindArray<StarkProof<F, C, D>>, StarkProof<F, C, D>)>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -493,10 +492,8 @@ where
             let degree_bits_index = trace_indices.degree_bits_indices[kind].unwrap();
             let trace_slice_start = trace_indices.fmt_start_indices[kind].unwrap();
             let trace_slice_len = trace_indices.poly_count[kind];
-            let batch_trace_commitments_ref: &'static BatchFriOracle<F, C, D> =
-                unsafe { transmute(batch_trace_commitments) };
-            let get_trace_values_packed = move |i_start, step| -> Vec<<F as Packable>::Packing> {
-                batch_trace_commitments_ref.get_lde_values_packed(
+            let get_trace_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+                batch_trace_commitments.get_lde_values_packed(
                     degree_bits_index,
                     i_start,
                     step,
@@ -507,10 +504,8 @@ where
 
             let ctl_zs_slice_start = ctl_zs_indices.fmt_start_indices[kind].unwrap();
             let ctl_zs_slice_len = ctl_zs_indices.poly_count[kind];
-            let batch_ctl_zs_commitments_ref: &'static BatchFriOracle<F, C, D> =
-                unsafe { transmute(&batch_ctl_zs_commitments) };
-            let get_ctl_zs_values_packed = move |i_start, step| -> Vec<<F as Packable>::Packing> {
-                batch_ctl_zs_commitments_ref.get_lde_values_packed(
+            let get_ctl_zs_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+                batch_ctl_zs_commitments.get_lde_values_packed(
                     degree_bits_index,
                     i_start,
                     step,

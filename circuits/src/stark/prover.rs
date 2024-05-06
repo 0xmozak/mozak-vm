@@ -185,7 +185,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
 ) -> Result<StarkProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static,
+    C: GenericConfig<D, F = F>,
     S: Stark<F, D> + Display, {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
@@ -357,7 +357,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     let cpu_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
         cpu_stark: &cpu_stark,
