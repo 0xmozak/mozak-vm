@@ -23,8 +23,6 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::columns::{StorageDevice, StorageDeviceCtl};
-use crate::memory_io::stark::StorageDeviceStark;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
@@ -53,14 +51,16 @@ use crate::register::zero_read::stark::RegisterZeroReadStark;
 use crate::register::zero_write::columns::RegisterZeroWrite;
 use crate::register::zero_write::stark::RegisterZeroWriteStark;
 use crate::register::RegisterCtl;
+use crate::storage_device::columns::{StorageDevice, StorageDeviceCtl};
+use crate::storage_device::stark::StorageDeviceStark;
 use crate::tape_commitments::columns::{TapeCommitmentCTL, TapeCommitments};
 use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities,
-    rangecheck, register, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_zeroinit, memoryinit,
+    poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities, rangecheck,
+    register, storage_device, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = 17;
@@ -706,7 +706,7 @@ impl Lookups for IntoMemoryTable {
                 TableKind::EventsCommitmentTape,
                 TableKind::CastListCommitmentTape
             ]
-            .map(memory_io::columns::lookup_for_memory),
+            .map(storage_device::columns::lookup_for_memory),
             memory_fullword::columns::lookup_for_memory_limb(),
             memory_halfword::columns::lookup_for_memory_limb(),
             poseidon2_sponge::columns::lookup_for_input_memory(),
@@ -824,7 +824,7 @@ impl Lookups for RegisterLookups {
         CrossTableLookupWithTypedOutput::new(
             chain![
                 crate::cpu::columns::register_looking(),
-                crate::memory_io::columns::register_looking(),
+                crate::storage_device::columns::register_looking(),
                 crate::poseidon2_sponge::columns::register_looking(),
                 vec![crate::register::init::columns::lookup_for_register()],
             ]
@@ -856,7 +856,7 @@ impl Lookups for StorageDeviceToCpuTable {
                 ],
                 0..
             )
-            .map(|(kind, i)| memory_io::columns::lookup_for_cpu(kind, i))
+            .map(|(kind, i)| storage_device::columns::lookup_for_cpu(kind, i))
             .collect(),
             vec![cpu::columns::lookup_for_io_memory_tables()],
         )
@@ -909,7 +909,7 @@ impl Lookups for EventCommitmentTapeIOLookupTable {
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
-            vec![crate::memory_io::columns::event_commitment_lookup_in_tape_commitments()],
+            vec![crate::storage_device::columns::event_commitment_lookup_in_tape_commitments()],
             vec![crate::tape_commitments::columns::lookup_for_event_tape_commitment()],
         )
     }
@@ -922,7 +922,7 @@ impl Lookups for CastlistCommitmentTapeIOLookupTable {
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
-            vec![crate::memory_io::columns::castlist_commitment_lookup_in_tape_commitments()],
+            vec![crate::storage_device::columns::castlist_commitment_lookup_in_tape_commitments()],
             vec![crate::tape_commitments::columns::lookup_for_castlist_commitment()],
         )
     }

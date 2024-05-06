@@ -13,7 +13,7 @@ use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
-use crate::memory_io::columns::{StorageDevice, NUM_IO_MEM_COLS};
+use crate::storage_device::columns::{StorageDevice, NUM_IO_MEM_COLS};
 use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -130,8 +130,8 @@ mod tests {
     use proptest::proptest;
     use starky::stark_testing::test_stark_circuit_constraints;
 
-    use crate::memory_io::stark::StorageDeviceStark;
     use crate::stark::mozak_stark::MozakStark;
+    use crate::storage_device::stark::StorageDeviceStark;
     use crate::test_utils::{ProveAndVerify, D, F};
 
     #[must_use]

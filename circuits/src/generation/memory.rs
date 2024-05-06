@@ -10,11 +10,11 @@ use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_raw_value};
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
-use crate::memory_io::columns::StorageDevice;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::MemoryInit;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
+use crate::storage_device::columns::StorageDevice;
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
@@ -215,13 +215,13 @@ mod tests {
     use super::pad_mem_trace;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
+    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
+    use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::storage_device::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
         generate_event_tape_trace, generate_events_commitment_tape_trace,
         generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
-    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-    use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;

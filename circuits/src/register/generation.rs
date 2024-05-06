@@ -5,7 +5,6 @@ use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
-use crate::memory_io::columns::StorageDevice;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::register::general::columns::{Ops, Register};
 use crate::register::init::columns::RegisterInit;
@@ -13,6 +12,7 @@ use crate::register::zero_read::columns::RegisterZeroRead;
 use crate::register::zero_write::columns::RegisterZeroWrite;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Lookups, RegisterLookups, Table, TableKind};
+use crate::storage_device::columns::StorageDevice;
 use crate::utils::{pad_trace_with_default, pad_trace_with_last, pad_trace_with_row};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block

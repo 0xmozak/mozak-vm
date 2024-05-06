@@ -4,12 +4,12 @@ use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-use crate::memory_io::columns::StorageDeviceCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::ProgramRom;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
+use crate::storage_device::columns::StorageDeviceCtl;
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
