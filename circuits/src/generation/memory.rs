@@ -123,7 +123,7 @@ pub fn transform_fullword<F: RichField>(
         .flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
-/// Generates Memory trace from a memory io table.
+/// Generates Memory trace from a storage device table.
 ///
 /// These need to be further interleaved with runtime memory trace generated
 /// from VM execution for final memory trace.

@@ -24,7 +24,7 @@ pub fn filter<F: RichField>(
     which_tape: StorageDeviceOpcode,
 ) -> impl Iterator<Item = &Row<F>> {
     step_rows.iter().filter(move |row| {
-        (Some(which_tape) == row.aux.io.as_ref().map(|io| io.op))
+        (Some(which_tape) == row.aux.storage_device_entry.as_ref().map(|io| io.op))
             && matches!(row.instruction.op, Op::ECALL,)
     })
 }
@@ -49,10 +49,10 @@ pub fn generate_storage_trace<F: RichField>(
         filter(step_rows, which_tape)
             .flat_map(|s| {
                 let StorageDeviceEntry { op, data, addr }: StorageDeviceEntry =
-                    s.aux.io.clone().unwrap_or_default();
+                    s.aux.storage_device_entry.clone().unwrap_or_default();
                 let len = data.len();
                 chain!(
-                    // initial io-element
+                    // initial storage-device-element
                     [StorageDevice {
                         clk: get_memory_inst_clk(s),
                         addr: F::from_canonical_u32(addr),

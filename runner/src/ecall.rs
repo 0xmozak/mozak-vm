@@ -72,7 +72,7 @@ impl<F: RichField> State<F> {
             Aux {
                 dst_val: data_len,
                 mem_addresses_used,
-                io: Some(StorageDeviceEntry {
+                storage_device_entry: Some(StorageDeviceEntry {
                     addr: buffer_start,
                     op,
                     data: data.clone(),
