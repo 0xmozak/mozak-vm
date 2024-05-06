@@ -19,8 +19,8 @@ use crate::tape_commitments::columns::TapeCommitmentCTL;
 pub struct Ops<T> {
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_memory_store: T,
-    /// Binary filter column to represent a io-read operation.
-    pub is_io_store: T,
+    /// Binary filter column to represent an storage device operation.
+    pub is_device_store: T,
 }
 
 #[repr(C)]
@@ -34,7 +34,7 @@ pub struct StorageDevice<T> {
     pub size: T,
     /// Value: byte value
     pub value: T,
-    /// Operation: `io_store/load` `io_memory_store/load`
+    /// Operation: one-hot encoded
     pub ops: Ops<T>,
     /// Helper to decrease poly degree
     pub is_lv_and_nv_are_memory_rows: T,
@@ -44,7 +44,7 @@ columns_view_impl!(StorageDevice);
 make_col_map!(StorageDevice);
 
 impl<T: Copy + Add<Output = T>> StorageDevice<T> {
-    pub fn is_executed(&self) -> T { self.ops.is_io_store + self.ops.is_memory_store }
+    pub fn is_executed(&self) -> T { self.ops.is_device_store + self.ops.is_memory_store }
 }
 
 /// Total number of columns.
@@ -74,7 +74,7 @@ pub fn lookup_for_cpu(kind: TableKind, op: i64) -> TableWithTypedOutput<StorageD
         .into_iter()
         .map(Column::from)
         .collect(),
-        filter_column: COL_MAP.ops.is_io_store.into(),
+        filter_column: COL_MAP.ops.is_device_store.into(),
     }
 }
 
@@ -106,11 +106,11 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         value: COL_MAP.addr,
     };
     vec![
-        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_io_store),
-        StorageDevicePublicTable::new(data, COL_MAP.ops.is_io_store),
-        CallTapeTable::new(data, COL_MAP.ops.is_io_store),
-        EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
-        CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
+        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_device_store),
+        StorageDevicePublicTable::new(data, COL_MAP.ops.is_device_store),
+        CallTapeTable::new(data, COL_MAP.ops.is_device_store),
+        EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_device_store),
+        CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_device_store),
     ]
 }
 

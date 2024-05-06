@@ -38,12 +38,12 @@ fn generate_constraints<'a, T: Copy>(
     let mut constraints = ConstraintBuilder::default();
 
     constraints.always(lv.ops.is_memory_store.is_binary());
-    constraints.always(lv.ops.is_io_store.is_binary());
+    constraints.always(lv.ops.is_device_store.is_binary());
     constraints.always(lv.is_executed().is_binary());
 
     // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
     // This constraints ensures loop unrolling was done correctly
-    constraints.always(nv.ops.is_io_store * lv.size);
+    constraints.always(nv.ops.is_device_store * lv.size);
     // If lv.is_lv_and_nv_are_memory_rows == 1:
     //    nv.address == lv.address + 1 (wrapped)
     //    nv.size == lv.size - 1 (not-wrapped)
@@ -62,8 +62,8 @@ fn generate_constraints<'a, T: Copy>(
     // If lv.is_io() == 1 && lv.size != 0:
     //      lv.addr == nv.addr       <-- next row address must be the same !!!
     //      lv.size === nv.size - 1  <-- next row size is decreased
-    constraints.transition(lv.ops.is_io_store * lv.size * (nv.addr - lv.addr));
-    constraints.transition(lv.ops.is_io_store * lv.size * (nv.size - (lv.size - 1)));
+    constraints.transition(lv.ops.is_device_store * lv.size * (nv.addr - lv.addr));
+    constraints.transition(lv.ops.is_device_store * lv.size * (nv.size - (lv.size - 1)));
     // If lv.is_io() == 1 && lv.size == 0:
     //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
     // This one is ensured by:
@@ -72,7 +72,7 @@ fn generate_constraints<'a, T: Copy>(
 
     // If lv.is_io() == 1 && nv.size != 0:
     //      nv.is_lv_and_nv_are_memory_rows == 1
-    constraints.always(lv.ops.is_io_store * nv.size * (nv.is_lv_and_nv_are_memory_rows - 1));
+    constraints.always(lv.ops.is_device_store * nv.size * (nv.is_lv_and_nv_are_memory_rows - 1));
 
     constraints
 }

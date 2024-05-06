@@ -320,7 +320,7 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 /// Column containing the data to be matched against IO Memory starks.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
+pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     CpuTable::new(
         StorageDeviceCtl {
             op: ColumnWithTypedInput::ascending_sum([

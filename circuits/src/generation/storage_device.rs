@@ -41,7 +41,7 @@ fn is_io_opcode<F: RichField>(op: StorageDeviceOpcode) -> F {
 }
 
 #[must_use]
-pub fn generate_io_memory_trace<F: RichField>(
+pub fn generate_storage_trace<F: RichField>(
     step_rows: &[Row<F>],
     which_tape: StorageDeviceOpcode,
 ) -> Vec<StorageDevice<F>> {
@@ -58,7 +58,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                         addr: F::from_canonical_u32(addr),
                         size: F::from_canonical_usize(len),
                         ops: Ops {
-                            is_io_store: is_io_opcode(op),
+                            is_device_store: is_io_opcode(op),
                             is_memory_store: F::ZERO,
                         },
                         is_lv_and_nv_are_memory_rows: F::from_bool(false),
@@ -74,7 +74,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                             size: F::from_canonical_usize(local_size),
                             value: F::from_canonical_u8(local_value),
                             ops: Ops {
-                                is_io_store: F::ZERO,
+                                is_device_store: F::ZERO,
                                 is_memory_store: is_io_opcode(op),
                             },
                             is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
@@ -87,39 +87,35 @@ pub fn generate_io_memory_trace<F: RichField>(
 }
 
 #[must_use]
-pub fn generate_io_memory_private_trace<F: RichField>(
-    step_rows: &[Row<F>],
-) -> Vec<StorageDevice<F>> {
-    generate_io_memory_trace(step_rows, StorageDeviceOpcode::StorePrivate)
+pub fn generate_storage_private_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
+    generate_storage_trace(step_rows, StorageDeviceOpcode::StorePrivate)
 }
 
 #[must_use]
-pub fn generate_io_memory_public_trace<F: RichField>(
-    step_rows: &[Row<F>],
-) -> Vec<StorageDevice<F>> {
-    generate_io_memory_trace(step_rows, StorageDeviceOpcode::StorePublic)
+pub fn generate_storage_public_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
+    generate_storage_trace(step_rows, StorageDeviceOpcode::StorePublic)
 }
 
 #[must_use]
 pub fn generate_call_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
-    generate_io_memory_trace(step_rows, StorageDeviceOpcode::StoreCallTape)
+    generate_storage_trace(step_rows, StorageDeviceOpcode::StoreCallTape)
 }
 
 #[must_use]
 pub fn generate_event_tape_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<StorageDevice<F>> {
-    generate_io_memory_trace(step_rows, StorageDeviceOpcode::StoreEventTape)
+    generate_storage_trace(step_rows, StorageDeviceOpcode::StoreEventTape)
 }
 
 #[must_use]
 pub fn generate_events_commitment_tape_trace<F: RichField>(
     step_rows: &[Row<F>],
 ) -> Vec<StorageDevice<F>> {
-    generate_io_memory_trace(step_rows, StorageDeviceOpcode::StoreEventsCommitmentTape)
+    generate_storage_trace(step_rows, StorageDeviceOpcode::StoreEventsCommitmentTape)
 }
 
 #[must_use]
 pub fn generate_cast_list_commitment_tape_trace<F: RichField>(
     step_rows: &[Row<F>],
 ) -> Vec<StorageDevice<F>> {
-    generate_io_memory_trace(step_rows, StorageDeviceOpcode::StoreCastListCommitmentTape)
+    generate_storage_trace(step_rows, StorageDeviceOpcode::StoreCastListCommitmentTape)
 }

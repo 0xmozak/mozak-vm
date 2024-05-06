@@ -176,7 +176,7 @@ mod tests {
     use crate::generation::storage_device::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
         generate_event_tape_trace, generate_events_commitment_tape_trace,
-        generate_io_memory_private_trace, generate_io_memory_public_trace,
+        generate_storage_private_trace, generate_storage_public_trace,
     };
     use crate::poseidon2_sponge;
     use crate::test_utils::prep_table;
@@ -215,8 +215,8 @@ mod tests {
         let record = setup();
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
-        let io_memory_private = generate_io_memory_private_trace(&record.executed);
-        let io_memory_public = generate_io_memory_public_trace(&record.executed);
+        let storage_private = generate_storage_private_trace(&record.executed);
+        let storage_public = generate_storage_public_trace(&record.executed);
         let call_tape = generate_call_tape_trace(&record.executed);
         let event_tape = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
@@ -229,8 +229,8 @@ mod tests {
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
             &poseidon2_sponge_trace,
-            &io_memory_private,
-            &io_memory_public,
+            &storage_private,
+            &storage_public,
             &call_tape,
             &event_tape,
             &events_commitment_tape_rows,

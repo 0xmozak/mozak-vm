@@ -112,9 +112,9 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "StorageDevicePrivate")]
-    pub io_memory_private_stark: StorageDeviceStark<F, D>,
+    pub storage_private_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "StorageDevicePublic")]
-    pub io_memory_public_stark: StorageDeviceStark<F, D>,
+    pub storage_public_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "CallTape")]
     pub call_tape_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "EventTape")]
@@ -422,8 +422,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             register_stark: RegisterStark::default(),
             register_zero_read_stark: RegisterZeroReadStark::default(),
             register_zero_write_stark: RegisterZeroWriteStark::default(),
-            io_memory_private_stark: StorageDeviceStark::default(),
-            io_memory_public_stark: StorageDeviceStark::default(),
+            storage_private_stark: StorageDeviceStark::default(),
+            storage_public_stark: StorageDeviceStark::default(),
             call_tape_stark: StorageDeviceStark::default(),
             event_tape_stark: StorageDeviceStark::default(),
             events_commitment_tape_stark: StorageDeviceStark::default(),
@@ -858,7 +858,7 @@ impl Lookups for StorageDeviceToCpuTable {
             )
             .map(|(kind, i)| storage_device::columns::lookup_for_cpu(kind, i))
             .collect(),
-            vec![cpu::columns::lookup_for_io_memory_tables()],
+            vec![cpu::columns::lookup_for_storage_tables()],
         )
     }
 }
