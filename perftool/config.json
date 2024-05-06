@@ -65,12 +65,17 @@
         }
     },
     "poseidon2-elf": {
-        "description": "Benching Poseidon2 ecall inside ELF.",
+        "description": "Benching Poseidon2 ecall inside ELF. We load `input_len` bytes into memory and hash it",
         "parameter": "input_len",
         "output": "time taken (in s)",
         "benches": {
             "poseidon2-elf": {
                 "commit": "latest",
+                "bench_function": "poseidon2-elf-bench",
+                "elf": "examples/mozak-poseidon2"
+            },
+            "poseidon2-elf-load-memory-only": {
+                "commit": "a95d68f96e85bd5758f84b4b14e44772adc9714e",
                 "bench_function": "poseidon2-elf-bench",
                 "elf": "examples/mozak-poseidon2"
             }
