@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+use itertools::izip;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
@@ -83,11 +84,11 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
         if (val.ops.is_load + val.ops.is_store).is_zero() {
             vec![]
         } else {
-            (0..2)
-                .map(|i| Memory {
+            izip!(val.addrs, val.limbs)
+                .map(|(addr, limb)| Memory {
                     clk: val.clk,
-                    addr: val.addrs[i],
-                    value: val.limbs[i],
+                    addr,
+                    value: limb,
                     is_store: val.ops.is_store,
                     is_load: val.ops.is_load,
                     ..Default::default()
@@ -102,11 +103,11 @@ impl<F: RichField> From<&StoreWord<F>> for Vec<Memory<F>> {
         if (val.is_running).is_zero() {
             vec![]
         } else {
-            (0..4)
-                .map(|i| Memory {
+            izip!(0.., val.op1_limbs)
+                .map(|(i, limb)| Memory {
                     clk: val.clk,
-                    addr: val.address + F::from_canonical_usize(i),
-                    value: val.op1_limbs[i],
+                    addr: val.address + F::from_canonical_u8(i),
+                    value: limb,
                     is_store: F::ONE,
                     ..Default::default()
                 })
