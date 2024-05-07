@@ -70,8 +70,8 @@ SECTIONS {
     .mozak_globals : {
         _mozak_self_prog_id               = 0x20000000;
         _mozak_cast_list                  = 0x20000020;
-        _mozak_public_io_tape             = 0x21000000;
-        _mozak_private_io_tape            = 0x30000000;
+        _mozak_public_tape             = 0x21000000;
+        _mozak_private_tape            = 0x30000000;
         _mozak_call_tape                  = 0x40000000;
         _mozak_event_tape                 = 0x48000000;
     } > mozak_context

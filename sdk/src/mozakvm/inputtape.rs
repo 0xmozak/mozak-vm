@@ -112,7 +112,7 @@ pub struct PublicInputTape(RandomAccessEcallTape);
 impl Default for PrivateInputTape {
     fn default() -> Self {
         Self(RandomAccessEcallTape {
-            ecall_id: ecall::IO_READ_PRIVATE,
+            ecall_id: ecall::PRIVATE_TAPE,
             read_offset: 0,
             size_hint: 0,
             internal_buf: vec![],
@@ -123,7 +123,7 @@ impl Default for PrivateInputTape {
 impl Default for PublicInputTape {
     fn default() -> Self {
         Self(RandomAccessEcallTape {
-            ecall_id: ecall::IO_READ_PUBLIC,
+            ecall_id: ecall::PUBLIC_TAPE,
             read_offset: 0,
             size_hint: 0,
             internal_buf: vec![],

@@ -115,8 +115,8 @@ mod tests {
     const CAST_LIST_COMMITMENT_ADDRESS: u32 = 0x100;
     const EVENTS_COMMITMENT_ADDRESS: u32 = 0x200;
 
-    fn io_read_tape_commitments_code() -> Vec<Instruction> {
-        fn io_read_ecall_code(ecall: u32, address: u32, num_bytes_read: usize) -> Vec<Instruction> {
+    fn read_tape_commitments_code() -> Vec<Instruction> {
+        fn read_ecall_code(ecall: u32, address: u32, num_bytes_read: usize) -> Vec<Instruction> {
             vec![
                 Instruction {
                     op: Op::ADD,
@@ -145,12 +145,12 @@ mod tests {
                 ECALL,
             ]
         }
-        let code_ecall_cast_list_commitment_tape = io_read_ecall_code(
+        let code_ecall_cast_list_commitment_tape = read_ecall_code(
             ecall::CAST_LIST_COMMITMENT_TAPE,
             CAST_LIST_COMMITMENT_ADDRESS,
             COMMITMENT_SIZE,
         );
-        let code_ecall_events_commitment_tape = io_read_ecall_code(
+        let code_ecall_events_commitment_tape = read_ecall_code(
             ecall::EVENTS_COMMITMENT_TAPE,
             EVENTS_COMMITMENT_ADDRESS,
             COMMITMENT_SIZE,
@@ -168,7 +168,7 @@ mod tests {
         // generate tapes with random bytes
         let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
         let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let code = io_read_tape_commitments_code();
+        let code = read_tape_commitments_code();
         let (program, record) = code::execute_code_with_ro_memory(code, &[], &[], &[], RawTapes {
             events_commitment_tape,
             cast_list_commitment_tape,
@@ -182,7 +182,7 @@ mod tests {
         // generate tapes with random bytes
         let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
         let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let code = io_read_tape_commitments_code();
+        let code = read_tape_commitments_code();
         let (program, record) = code::execute_code_with_ro_memory(code, &[], &[], &[], RawTapes {
             events_commitment_tape,
             cast_list_commitment_tape,
@@ -197,7 +197,7 @@ mod tests {
         // generate tapes with random bytes
         let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
         let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let code = io_read_tape_commitments_code();
+        let code = read_tape_commitments_code();
         let (program, record) = code::execute_code_with_ro_memory(code, &[], &[], &[], RawTapes {
             events_commitment_tape,
             cast_list_commitment_tape,

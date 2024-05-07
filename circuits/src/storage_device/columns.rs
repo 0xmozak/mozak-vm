@@ -19,8 +19,8 @@ use crate::tape_commitments::columns::TapeCommitmentCTL;
 pub struct Ops<T> {
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_memory_store: T,
-    /// Binary filter column to represent a io-read operation.
-    pub is_io_store: T,
+    /// Binary filter column to represent an storage device operation.
+    pub is_storage_device: T,
 }
 
 #[repr(C)]
@@ -34,7 +34,7 @@ pub struct StorageDevice<T> {
     pub size: T,
     /// Value: byte value
     pub value: T,
-    /// Operation: `io_store/load` `io_memory_store/load`
+    /// Operation: one-hot encoded
     pub ops: Ops<T>,
     /// Helper to decrease poly degree
     pub is_lv_and_nv_are_memory_rows: T,
@@ -44,11 +44,11 @@ columns_view_impl!(StorageDevice);
 make_col_map!(StorageDevice);
 
 impl<T: Copy + Add<Output = T>> StorageDevice<T> {
-    pub fn is_executed(&self) -> T { self.ops.is_io_store + self.ops.is_memory_store }
+    pub fn is_executed(&self) -> T { self.ops.is_storage_device + self.ops.is_memory_store }
 }
 
 /// Total number of columns.
-pub const NUM_IO_MEM_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_STORAGE_DEVICE_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
 
 columns_view_impl!(StorageDeviceCtl);
 #[repr(C)]
@@ -74,7 +74,7 @@ pub fn lookup_for_cpu(kind: TableKind, op: i64) -> TableWithTypedOutput<StorageD
         .into_iter()
         .map(Column::from)
         .collect(),
-        filter_column: COL_MAP.ops.is_io_store.into(),
+        filter_column: COL_MAP.ops.is_storage_device.into(),
     }
 }
 
@@ -106,12 +106,12 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         value: COL_MAP.addr,
     };
     vec![
-        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_io_store),
-        StorageDevicePublicTable::new(data, COL_MAP.ops.is_io_store),
-        CallTapeTable::new(data, COL_MAP.ops.is_io_store),
-        EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
-        CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
-        SelfProgIdTapeTable::new(data, COL_MAP.ops.is_io_store),
+        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_storage_device),
+        StorageDevicePublicTable::new(data, COL_MAP.ops.is_storage_device),
+        CallTapeTable::new(data, COL_MAP.ops.is_storage_device),
+        EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_storage_device),
+        CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_storage_device),
+        SelfProgIdTapeTable::new(data, COL_MAP.ops.is_storage_device),
     ]
 }
 

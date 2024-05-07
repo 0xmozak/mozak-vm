@@ -6,8 +6,10 @@ use {
         CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
     },
     crate::core::ecall::{call_tape_read, event_tape_read, self_prog_id_tape_read},
+    core::ptr::slice_from_raw_parts,
     rkyv::rancor::{Panic, Strategy},
     rkyv::Deserialize,
+    std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
 use {core::cell::RefCell, std::rc::Rc};

@@ -209,7 +209,7 @@ pub struct Aux<F: RichField> {
     pub op2: u32,
     pub op2_raw: u32,
     pub poseidon2: Option<poseidon2::Entry<F>>,
-    pub io: Option<StorageDeviceEntry>,
+    pub storage_device_entry: Option<StorageDeviceEntry>,
 }
 
 #[derive(Default, Clone)]

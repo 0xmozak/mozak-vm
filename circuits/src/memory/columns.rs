@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+use itertools::izip;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
@@ -8,13 +9,13 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
-use crate::memory_io::columns::StorageDevice;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{MemoryTable, TableWithTypedOutput};
+use crate::storage_device::columns::StorageDevice;
 
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
@@ -82,11 +83,11 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
         if (val.ops.is_load + val.ops.is_store).is_zero() {
             vec![]
         } else {
-            (0..2)
-                .map(|i| Memory {
+            izip!(val.addrs, val.limbs)
+                .map(|(addr, value)| Memory {
                     clk: val.clk,
-                    addr: val.addrs[i],
-                    value: val.limbs[i],
+                    addr,
+                    value,
                     is_store: val.ops.is_store,
                     is_load: val.ops.is_load,
                     ..Default::default()
@@ -101,11 +102,11 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
         if (val.ops.is_load + val.ops.is_store).is_zero() {
             vec![]
         } else {
-            (0..4)
-                .map(|i| Memory {
+            izip!(val.addrs, val.limbs)
+                .map(|(addr, value)| Memory {
                     clk: val.clk,
-                    addr: val.addrs[i],
-                    value: val.limbs[i],
+                    addr,
+                    value,
                     is_store: val.ops.is_store,
                     is_load: val.ops.is_load,
                     ..Default::default()
