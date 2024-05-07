@@ -170,10 +170,12 @@ where
     let elf_memory_init_hash =
         get_trace_commitment_hash::<F, C, D, _>(elf_memory_init_trace, &config);
     let program_hash = get_trace_commitment_hash::<F, C, D, _>(program_rom_trace, &config);
-    let hashout = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_no_pad(
-        &chain!(program_hash.elements, elf_memory_init_hash.elements, [
-            entry_point
-        ])
+    let hashout = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
+        &chain!(
+            [entry_point],
+            program_hash.elements,
+            elf_memory_init_hash.elements
+        )
         .collect_vec(),
     );
     let hashout_bytes: [u8; 32] = hashout.to_bytes().try_into().unwrap();

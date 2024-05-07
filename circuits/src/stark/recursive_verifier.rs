@@ -634,8 +634,6 @@ where
 }
 
 /// Flat hash of trace cap.
-/// Note that this is NOP if we have single trace cap
-/// which is Ok, since trace cap is already a hash.
 pub fn hash_trace_cap_circuit<F, C, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     trace_cap_target: &MerkleCapTarget,
@@ -643,7 +641,7 @@ pub fn hash_trace_cap_circuit<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    builder.hash_or_noop::<C::InnerHasher>(
+    builder.hash_pad::<C::InnerHasher>(
         trace_cap_target
             .0
             .clone()
@@ -683,11 +681,11 @@ where
         &proofs_target[TableKind::ElfMemoryInit].proof.trace_cap,
     );
     let entry_point = proofs_target[TableKind::Cpu].public_inputs.clone();
-    let program_hash = builder.hash_or_noop::<C::InnerHasher>(
+    let program_hash = builder.hash_pad::<C::InnerHasher>(
         chain!(
+            entry_point,
             program_rom_trace_cap_hash.elements,
             elf_memory_init_trace_cap_hash.elements,
-            entry_point
         )
         .collect_vec(),
     );

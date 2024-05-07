@@ -30,5 +30,5 @@ where
         None,
     );
     let merkle_cap = trace_commitment.merkle_tree.cap;
-    <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_or_noop(&merkle_cap.flatten())
+    <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(&merkle_cap.flatten())
 }

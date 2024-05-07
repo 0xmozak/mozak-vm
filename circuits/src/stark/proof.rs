@@ -364,7 +364,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         &self,
         table: TableKind,
     ) -> <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::Hash {
-        <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_no_pad(
+        <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
             &self.proofs[table]
                 .trace_cap
                 .0
@@ -375,9 +375,9 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     }
 
     /// Return flat hash of:
-    /// 1. Hash of program rom trace cap (4 F elements)
-    /// 2. Hash of elf memory init trace cap (4 F elements)
-    /// 3. `entry_point` (1 F element)
+    /// 1. `entry_point` (1 F element)
+    /// 2. Hash of program rom trace cap (4 F elements)
+    /// 3. Hash of elf memory init trace cap (4 F elements)
     /// Note that not padding here is Ok, since a length extension
     /// attack would require padding 3 malicious F elements (to match `RATE`)
     /// but that would give only be able to fake an `entry_point`
@@ -386,11 +386,11 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         let entry_point = self.public_inputs.entry_point;
         let program_rom_trace_cap_hash = self.hash_trace_cap(TableKind::Program);
         let elf_memory_init_trace_cap_hash = self.hash_trace_cap(TableKind::ElfMemoryInit);
-        let program_hash = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_no_pad(
+        let program_hash = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
             &chain!(
+                [entry_point],
                 program_rom_trace_cap_hash.elements,
                 elf_memory_init_trace_cap_hash.elements,
-                [entry_point],
             )
             .collect_vec(),
         );
