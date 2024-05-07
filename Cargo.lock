@@ -957,6 +957,7 @@ dependencies = [
  "clap-verbosity-flag",
  "clap_derive",
  "clio",
+ "criterion",
  "env_logger",
  "itertools 0.12.1",
  "log",

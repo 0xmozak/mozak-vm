@@ -40,10 +40,12 @@ starky = { workspace = true, default-features = false }
 tempfile = "3"
 
 [dev-dependencies]
+# Only as a workaround to be able to control criterion's rayon feature and optional dependency.
+criterion = { workspace = true, default-features = false }
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
 
 [features]
 default = ["parallel"]
-parallel = ["plonky2/parallel", "starky/parallel", "mozak-circuits/parallel"]
+parallel = ["plonky2/parallel", "starky/parallel", "mozak-circuits/parallel", "criterion/rayon"]
