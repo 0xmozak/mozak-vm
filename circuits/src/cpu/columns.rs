@@ -417,7 +417,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
                 1 << 5,
             ),
         },
-        inst.ops.into_iter().sum(),
+        CPU.is_running(),
     )
 }
 
