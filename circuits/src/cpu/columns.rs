@@ -185,11 +185,11 @@ pub struct CpuState<T> {
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
-impl<'a, T> CpuState<T>
+impl<T> CpuState<T>
 where
-    T: Copy + 'a + Sum<&'a T>,
+    T: Copy + Sum,
 {
-    pub fn is_running(&'a self) -> T { self.inst.ops.is_running() }
+    pub fn is_running(&self) -> T { self.inst.ops.is_running() }
 }
 
 impl<T> CpuState<T>
@@ -214,19 +214,19 @@ where
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-impl<'a, T> OpSelectors<T>
+impl<T> OpSelectors<T>
 where
-    T: 'a + Copy + Sum<&'a T>,
+    T: Copy + Sum,
 {
-    pub fn is_running(&'a self) -> T { self.into_iter().sum() }
+    pub fn is_running(self) -> T { self.into_iter().sum() }
 }
 
 impl<P> OpSelectors<P>
 where
-    P: Copy + Add<Output = P> + Sum + Sub<Output = P>,
+    P: Copy + Add<Output = P> + Sum<P> + Sub<Output = P>,
 {
     /// List of opcodes that only bump the program counter.
-    pub fn is_straightline(self) -> P { self.into_iter().sum::<P>() - self.is_jumping() }
+    pub fn is_straightline(self) -> P { self.is_running() - self.is_jumping() }
 }
 
 impl<P: Copy + Add<Output = P>> OpSelectors<P> {
