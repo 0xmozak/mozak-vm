@@ -117,6 +117,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     // a fixed size version of this STARK.
     #[StarkSet(stark_kind = "CastListCommitmentTape")]
     pub cast_list_commitment_tape_stark: StorageDeviceStark<F, D>,
+    #[StarkSet(stark_kind = "SelfProgIdTape")]
+    pub self_prog_id_tape_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
@@ -413,6 +415,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             event_tape_stark: StorageDeviceStark::default(),
             events_commitment_tape_stark: StorageDeviceStark::default(),
             cast_list_commitment_tape_stark: StorageDeviceStark::default(),
+            self_prog_id_tape_stark: StorageDeviceStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
@@ -616,6 +619,11 @@ table_impl!(
     StorageDevice
 );
 table_impl!(
+    SelfProgIdTapeTable,
+    TableKind::SelfProgIdTape,
+    StorageDevice
+);
+table_impl!(
     Poseidon2SpongeTable,
     TableKind::Poseidon2Sponge,
     Poseidon2Sponge
@@ -684,7 +692,8 @@ impl Lookups for IntoMemoryTable {
                 TableKind::CallTape,
                 TableKind::EventTape,
                 TableKind::EventsCommitmentTape,
-                TableKind::CastListCommitmentTape
+                TableKind::CastListCommitmentTape,
+                TableKind::SelfProgIdTape
             ]
             .map(memory_io::columns::lookup_for_memory),
             memory_fullword::columns::lookup_for_memory_limb(),
@@ -828,6 +837,7 @@ impl Lookups for StorageDeviceToCpuTable {
                     TableKind::EventTape,
                     TableKind::EventsCommitmentTape,
                     TableKind::CastListCommitmentTape,
+                    TableKind::SelfProgIdTape,
                 ],
                 0..
             )

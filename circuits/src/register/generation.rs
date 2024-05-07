@@ -92,6 +92,7 @@ pub fn generate_register_trace<F: RichField>(
     mem_event_tape: &[StorageDevice<F>],
     mem_events_commitment_tape: &[StorageDevice<F>],
     mem_cast_list_commitment_tape: &[StorageDevice<F>],
+    mem_self_prog_id_tape: &[StorageDevice<F>],
     reg_init: &[RegisterInit<F>],
 ) -> (
     Vec<RegisterZeroRead<F>>,
@@ -111,6 +112,7 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::EventsCommitmentTape => extract(mem_events_commitment_tape, &looking_table),
             TableKind::CastListCommitmentTape =>
                 extract(mem_cast_list_commitment_tape, &looking_table),
+            TableKind::SelfProgIdTape => extract(mem_self_prog_id_tape, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
             TableKind::Poseidon2Sponge => extract(poseidon2_sponge, &looking_table),
             // We are trying to build the Register tables, so we don't have the values to extract.

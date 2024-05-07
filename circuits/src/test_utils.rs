@@ -32,7 +32,7 @@ use crate::generation::halfword_memory::generate_halfword_memory_trace;
 use crate::generation::io_memory::{
     generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
     generate_events_commitment_tape_trace, generate_io_memory_private_trace,
-    generate_io_memory_public_trace,
+    generate_io_memory_public_trace, generate_self_prog_id_tape_trace,
 };
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
@@ -164,6 +164,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
         let memory_trace = generate_memory_trace::<F>(
@@ -178,6 +179,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
@@ -191,6 +193,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &register_init,
         );
         let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
@@ -250,6 +253,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
@@ -264,6 +268,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         ));
@@ -394,6 +399,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
 
         let register_init = generate_register_init_trace(record);
@@ -406,6 +412,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
             &event_tape,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &register_init,
         );
         let trace_poly_values = trace_rows_to_poly_values(trace);

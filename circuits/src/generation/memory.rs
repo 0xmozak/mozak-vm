@@ -160,6 +160,7 @@ pub fn generate_memory_trace<F: RichField>(
     io_memory_event_tape_rows: &[StorageDevice<F>],
     io_memory_events_commitment_tape_rows: &[StorageDevice<F>],
     io_memory_castlist_commitment_tape_rows: &[StorageDevice<F>],
+    io_memory_self_prog_id_tape_rows: &[StorageDevice<F>],
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
     poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
@@ -178,6 +179,7 @@ pub fn generate_memory_trace<F: RichField>(
         transform_io(io_memory_event_tape_rows),
         transform_io(io_memory_events_commitment_tape_rows),
         transform_io(io_memory_castlist_commitment_tape_rows),
+        transform_io(io_memory_self_prog_id_tape_rows),
         transform_poseidon2_sponge(poseidon2_sponge_rows),
         transform_poseidon2_output_bytes(poseidon2_output_bytes_rows,),
     )
