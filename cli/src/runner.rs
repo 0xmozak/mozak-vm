@@ -120,7 +120,7 @@ pub fn tapes_to_runtime_arguments(
             events_commitment_tape,
             cast_list_commitment_tape,
             cast_list: serialise(&cast_list, "CAST_LIST"),
-            io_tape_public: length_prefixed_bytes(
+            public_tape: length_prefixed_bytes(
                 sys_tapes
                     .public_input_tape
                     .writer
@@ -130,7 +130,7 @@ pub fn tapes_to_runtime_arguments(
                     .0,
                 "INPUT_PUBLIC",
             ),
-            io_tape_private: length_prefixed_bytes(
+            private_tape: length_prefixed_bytes(
                 sys_tapes
                     .private_input_tape
                     .writer
