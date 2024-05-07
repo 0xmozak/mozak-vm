@@ -16,7 +16,7 @@ use log::debug;
 use mozak_circuits::generation::io_memory::generate_call_tape_trace;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
@@ -40,6 +40,7 @@ use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
+use mozak_circuits::stark::batch_prover::batch_prove;
 
 const PROGRAMS_MAP_JSON: &str = "examples/programs_map.json";
 
@@ -68,6 +69,8 @@ pub struct RunArgs {
 pub struct ProveArgs {
     elf: Input,
     proof: Output,
+    #[arg(long)]
+    batch_proof: Option<Output>,
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
@@ -154,6 +157,7 @@ fn main() -> Result<()> {
             self_prog_id,
             mut proof,
             recursive_proof,
+            mut batch_proof,
         }) => {
             let args = system_tape
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
@@ -180,6 +184,21 @@ fn main() -> Result<()> {
 
             let serialized = serde_json::to_string(&all_proof).unwrap();
             proof.write_all(serialized.as_bytes())?;
+
+            if let Some(mut batch_proof_output) = batch_proof {
+                let public_table_kinds = vec![TableKind::Program, TableKind::ElfMemoryInit];
+                let batch_proofs = batch_prove::<F,C,D>(
+                    &program,
+                    &record,
+                    &stark,
+                    &public_table_kinds,
+                    &config,
+                    public_inputs,
+                    &mut TimingTree::default(),
+                )?;
+                let serialized = serde_json::to_string(&batch_proofs).unwrap();
+                batch_proof_output.write_all(serialized.as_bytes())?;
+            }
 
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {

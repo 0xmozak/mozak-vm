@@ -927,8 +927,8 @@ dependencies = [
  "mozak-circuits-derive",
  "mozak-runner",
  "mozak-sdk",
- "plonky2",
- "plonky2_maybe_rayon",
+ "plonky2 0.2.2",
+ "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde)",
  "proptest",
  "rand",
  "serde",
@@ -966,7 +966,7 @@ dependencies = [
  "mozak-node",
  "mozak-runner",
  "mozak-sdk",
- "plonky2",
+ "plonky2 0.2.2",
  "proptest",
  "rkyv",
  "rkyv_derive",
@@ -988,7 +988,7 @@ dependencies = [
  "mozak-circuits",
  "mozak-recproofs",
  "mozak-sdk",
- "plonky2",
+ "plonky2 0.2.2",
  "serde",
 ]
 
@@ -1003,8 +1003,8 @@ dependencies = [
  "iter_fixed",
  "itertools 0.12.1",
  "lazy_static",
- "plonky2",
- "plonky2_maybe_rayon",
+ "plonky2 0.2.2",
+ "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde)",
  "tested-fixture",
 ]
 
@@ -1028,7 +1028,7 @@ dependencies = [
  "mimalloc",
  "mozak-examples",
  "mozak-sdk",
- "plonky2",
+ "plonky2 0.2.2",
  "proptest",
  "serde",
  "serde_json",
@@ -1042,7 +1042,7 @@ dependencies = [
  "hex",
  "itertools 0.12.1",
  "once_cell",
- "plonky2",
+ "plonky2 0.2.2 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde)",
  "rand",
  "rand_chacha",
  "rkyv",
@@ -1159,6 +1159,29 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 [[package]]
 name = "plonky2"
 version = "0.2.2"
+dependencies = [
+ "ahash",
+ "anyhow",
+ "getrandom",
+ "hashbrown 0.14.5",
+ "itertools 0.12.1",
+ "log",
+ "num",
+ "plonky2_field 0.2.2",
+ "plonky2_maybe_rayon 0.2.0",
+ "plonky2_util 0.2.0",
+ "rand",
+ "rand_chacha",
+ "serde",
+ "static_assertions",
+ "tiny-keccak",
+ "unroll",
+ "web-time",
+]
+
+[[package]]
+name = "plonky2"
+version = "0.2.2"
 source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde#2f76337c2a22405f3949d9c160b48ebdce2d8350"
 dependencies = [
  "ahash",
@@ -1168,16 +1191,14 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "num",
- "plonky2_field",
- "plonky2_maybe_rayon",
- "plonky2_util",
+ "plonky2_field 0.2.2 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde)",
+ "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde)",
+ "plonky2_util 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde)",
  "rand",
- "rand_chacha",
  "serde",
  "static_assertions",
  "tiny-keccak",
  "unroll",
- "web-time",
 ]
 
 [[package]]
@@ -1189,12 +1210,26 @@ dependencies = [
  "hex",
  "itertools 0.12.1",
  "num",
- "plonky2",
- "plonky2_maybe_rayon",
+ "plonky2 0.2.2",
+ "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde)",
  "rand",
  "rayon",
  "serde",
  "serde_with",
+]
+
+[[package]]
+name = "plonky2_field"
+version = "0.2.2"
+dependencies = [
+ "anyhow",
+ "itertools 0.12.1",
+ "num",
+ "plonky2_util 0.2.0",
+ "rand",
+ "serde",
+ "static_assertions",
+ "unroll",
 ]
 
 [[package]]
@@ -1205,7 +1240,7 @@ dependencies = [
  "anyhow",
  "itertools 0.12.1",
  "num",
- "plonky2_util",
+ "plonky2_util 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde)",
  "rand",
  "serde",
  "static_assertions",
@@ -1215,10 +1250,21 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
+dependencies = [
+ "rayon",
+]
+
+[[package]]
+name = "plonky2_maybe_rayon"
+version = "0.2.0"
 source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde#2f76337c2a22405f3949d9c160b48ebdce2d8350"
 dependencies = [
  "rayon",
 ]
+
+[[package]]
+name = "plonky2_util"
+version = "0.2.0"
 
 [[package]]
 name = "plonky2_util"
@@ -1657,7 +1703,7 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "num",
- "plonky2",
+ "plonky2 0.2.2",
  "plonky2_crypto",
  "rand",
  "serde",
@@ -1694,7 +1740,6 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.4.0"
-source = "git+https://github.com/0xmozak/plonky2.git?branch=sai/add_get_lde#2f76337c2a22405f3949d9c160b48ebdce2d8350"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1702,9 +1747,9 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "num-bigint",
- "plonky2",
- "plonky2_maybe_rayon",
- "plonky2_util",
+ "plonky2 0.2.2",
+ "plonky2_maybe_rayon 0.2.0",
+ "plonky2_util 0.2.0",
 ]
 
 [[package]]

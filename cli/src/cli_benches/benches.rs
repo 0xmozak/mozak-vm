@@ -8,6 +8,7 @@ use super::omni::OmniBench;
 use super::poseidon2::Poseidon2Bench;
 use super::sort::SortBench;
 use super::xor::XorBench;
+use super::batch_starks_sort::BatchStarksSortBench;
 
 #[derive(Debug, Args_, Clone)]
 #[command(args_conflicts_with_subcommands = true)]
@@ -55,6 +56,9 @@ pub enum BenchFunction {
     SortBench {
         n: u32,
     },
+    BatchStarksSortBench {
+        n: u32,
+    },
 }
 
 impl BenchArgs {
@@ -65,6 +69,7 @@ impl BenchArgs {
             BenchFunction::OmniBench { iterations } => OmniBench.bench(iterations),
             BenchFunction::Poseidon2Bench { input_len } => Poseidon2Bench.bench(input_len),
             BenchFunction::SortBench { n } => SortBench.bench(n),
+            BenchFunction::BatchStarksSortBench { n } => BatchStarksSortBench.bench(n),
         }
     }
 }

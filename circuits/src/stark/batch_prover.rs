@@ -7,7 +7,7 @@ use std::sync::Arc;
 use anyhow::{ensure, Result};
 use itertools::Itertools;
 use log::Level::Debug;
-use log::{debug, info, log_enabled};
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -439,11 +439,6 @@ where
 
                 assert!(!z_polys.is_empty());
 
-                info!(
-                    "ctl_data_per_table len {}",
-                    ctl_data_per_table[kind].zs_columns.len()
-                );
-                info!("z_poly len {}", z_polys.len());
                 ctl_zs_poly_count[kind] = z_polys.len();
 
                 z_polys
@@ -726,12 +721,17 @@ pub(crate) fn batch_reduction_arity_bits(
     cap_height: usize,
 ) -> Vec<usize> {
     let mut result = Vec::new();
-    let arity_bits = 3;
+    let default_arity_bits = 3;
     let mut cur_index = 0;
-    let mut cur_degree_bits = degree_bits[cur_index];
-    while cur_degree_bits + rate_bits >= cap_height + arity_bits {
-        let mut cur_arity_bits = arity_bits;
-        let target_degree_bits = cur_degree_bits - arity_bits;
+    let mut cur_degree_bits = degree_bits[0];
+    assert!(degree_bits.last().unwrap() + rate_bits >= cap_height);
+    while cur_degree_bits + rate_bits > cap_height {
+        let mut cur_arity_bits = default_arity_bits;
+        let mut target_degree_bits = cur_degree_bits - default_arity_bits;
+        if target_degree_bits + rate_bits < cap_height {
+            target_degree_bits = cap_height - rate_bits;
+            cur_arity_bits = cur_degree_bits - target_degree_bits;
+        }
         if cur_index < degree_bits.len() - 1 && target_degree_bits < degree_bits[cur_index + 1] {
             cur_arity_bits = cur_degree_bits - degree_bits[cur_index + 1];
             cur_index += 1;
