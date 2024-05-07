@@ -2,7 +2,6 @@ use core::ptr::slice_from_raw_parts;
 use std::collections::BTreeSet;
 
 use once_cell::unsync::Lazy;
-use rkyv::vec::ArchivedVec;
 #[cfg(target_os = "mozakvm")]
 use {
     crate::common::merkle::merkleize,
@@ -17,7 +16,7 @@ use {
 use {core::cell::RefCell, std::rc::Rc};
 
 use crate::common::types::{
-    CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, RawMessage, SystemTape,
+    CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
 };
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
@@ -74,9 +73,6 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
                 len,
             ))
         };
-
-        assert!(archived_cpc_messages.len() > 0);
-        call_tape_read(buf.as_mut_ptr(), 252);
 
         event_tape_read(len_bytes.as_mut_ptr(), 4);
         let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
