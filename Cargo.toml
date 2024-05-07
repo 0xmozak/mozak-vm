@@ -21,7 +21,6 @@ members = [
   "cli",
   "examples-builder",
   "expr",
-  "node-cli",
   "node",
   "recproofs",
   "rpc",

@@ -902,14 +902,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mozak"
-version = "0.1.0"
-dependencies = [
- "clap",
- "mozak-node",
-]
-
-[[package]]
 name = "mozak-circuits"
 version = "0.1.0"
 dependencies = [
