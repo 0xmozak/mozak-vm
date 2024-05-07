@@ -23,7 +23,7 @@ lazy_static = "1.4"
 tested-fixture = "1"
 
 [features]
-test = []
+test = ["plonky2/parallel"]
 
 [[bench]]
 harness = false
