@@ -185,11 +185,11 @@ pub struct CpuState<T> {
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
-impl<T> CpuState<T>
+impl<'a, T> CpuState<T>
 where
-    T: Copy + Sum,
+    T: Copy + 'a + Sum<&'a T>,
 {
-    pub fn is_running(&self) -> T { self.inst.ops.into_iter().sum() }
+    pub fn is_running(&'a self) -> T { self.inst.ops.is_running() }
 }
 
 impl<T> CpuState<T>
@@ -212,6 +212,13 @@ where
     /// Difference between first and second operands, which works for both pairs
     /// of signed or pairs of unsigned values.
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
+}
+
+impl<'a, T> OpSelectors<T>
+where
+    T: 'a + Copy + Sum<&'a T>,
+{
+    pub fn is_running(&'a self) -> T { self.into_iter().sum() }
 }
 
 impl<P> OpSelectors<P>
