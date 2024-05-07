@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use anyhow::{ensure, Result};
 use itertools::Itertools;
 use log::Level::Debug;
-use log::{debug, info, log_enabled};
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -415,7 +415,7 @@ where
     });
 
     // Computing ctl zs polynomials for all but those for public tables
-    let mut ctl_zs_poly_count = all_kind!(|_kind| 0);
+    let ctl_zs_poly_count = all_kind!(|_kind| 0);
     let all_ctl_z_polys = all_kind!(|kind| {
         if public_table_kinds.contains(&kind) {
             None
@@ -435,13 +435,6 @@ where
                     .collect_vec();
 
                 assert!(!z_polys.is_empty());
-
-                info!(
-                    "ctl_data_per_table len {}",
-                    ctl_data_per_table[kind].zs_columns.len()
-                );
-                info!("z_poly len {}", z_polys.len());
-                ctl_zs_poly_count[kind] = z_polys.len();
 
                 z_polys
             })
@@ -722,22 +715,21 @@ pub(crate) fn batch_reduction_arity_bits(
     let mut cur_degree_bits = degree_bits[0] + rate_bits;
     assert!(degree_bits.last().unwrap() + rate_bits >= cap_height);
     while cur_degree_bits > cap_height {
-        let mut cur_arity_bits = default_arity_bits;
-        let mut target_degree_bits ;
-        if cur_degree_bits  + rate_bits < cap_height + default_arity_bits {
-            target_degree_bits = cap_height - rate_bits;
-            cur_arity_bits = cur_degree_bits - target_degree_bits;
+        let mut cur_arity_bits = if cur_degree_bits < cap_height + default_arity_bits {
+            cur_degree_bits - cap_height
         } else {
-            target_degree_bits = cur_degree_bits - default_arity_bits;
-        }
-        if cur_index < degree_bits.len() - 1 && target_degree_bits < degree_bits[cur_index + 1] {
-            cur_arity_bits = cur_degree_bits - degree_bits[cur_index + 1];
+            default_arity_bits
+        };
+        if cur_index < degree_bits.len() - 1
+            && cur_degree_bits < degree_bits[cur_index + 1] + rate_bits + cur_arity_bits
+        {
+            cur_arity_bits = cur_degree_bits - (degree_bits[cur_index + 1] + rate_bits);
             cur_index += 1;
         }
         result.push(cur_arity_bits);
-        assert!(cur_degree_bits >= cur_arity_bits);
         cur_degree_bits -= cur_arity_bits;
     }
+    assert_eq!(cur_degree_bits, cap_height);
     result
 }
 
@@ -748,12 +740,40 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
 
-    use crate::stark::batch_prover::batch_prove;
+    use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits};
     use crate::stark::batch_verifier::batch_verify_proof;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
     use crate::stark::proof::BatchProof;
     use crate::test_utils::fast_test_config;
     use crate::utils::from_u32;
+
+    #[test]
+    fn reduction_arity_bits_in_batch_proving() {
+        let degree_bits = vec![8, 6, 5, 3];
+        let rate_bits = 2;
+        let cap_height = 0;
+        let expected_res = vec![2, 1, 2, 3, 2];
+        assert_eq!(
+            expected_res,
+            batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
+        );
+
+        let cap_height = 3;
+        let expected_res = vec![2, 1, 2, 2];
+        assert_eq!(
+            expected_res,
+            batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion failed")]
+    fn bad_reduction_arity_bits_in_batch_proving() {
+        let degree_bits = vec![8, 6, 5, 3];
+        let rate_bits = 2;
+        let cap_height = 6;
+        batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height);
+    }
 
     #[test]
     fn batch_prove_add() {

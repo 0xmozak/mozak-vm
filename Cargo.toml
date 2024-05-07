@@ -31,13 +31,13 @@ resolver = "2"
 
 [profile.dev.package."*"]
 # Set the default for dependencies in Development mode.
-opt-level = 3
+#opt-level = 3
 
 [profile.dev]
-lto = "thin"
+#lto = "thin"
 # We are running our tests with optimizations turned on to make them faster.
 # Please turn optimizations off, when you want accurate stack traces for debugging.
-opt-level = 2
+#opt-level = 2
 
 [profile.release]
 lto = "fat"
@@ -56,6 +56,6 @@ plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
 criterion = { version = "0.5", default-features = false, features = ["html_reports", "plotters", "cargo_bench_support"] }
 
 [patch.crates-io]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_get_lde" }
-plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_get_lde" }
-starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "sai/add_get_lde" }
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
+starky = { git = "https://github.com/0xmozak/plonky2.git" }
