@@ -9,7 +9,7 @@ use crate::common::types::{CrossProgramCall, ProgramIdentifier};
 pub struct CallTape {
     pub(crate) cast_list: Vec<ProgramIdentifier>,
     pub(crate) self_prog_id: ProgramIdentifier,
-    pub(crate) reader: Option<Vec<CrossProgramCall>>,
+    pub(crate) reader: Option<&'static <Vec<CrossProgramCall> as Archive>::Archived>,
     pub(crate) index: usize,
 }
 
@@ -41,7 +41,10 @@ impl Call for CallTape {
         // Ensure we aren't validating past the length of the event tape
         assert!(self.index < self.reader.as_ref().unwrap().len());
 
-        let cpcmsg = &self.reader.as_ref().unwrap()[self.index];
+        let zcd_cpcmsg = &self.reader.unwrap()[self.index];
+        let cpcmsg: CrossProgramCall = zcd_cpcmsg
+            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+            .unwrap();
 
         // Ensure fields are correctly populated for caller and callee
         assert!(cpcmsg.caller == self.get_self_identity());
@@ -85,7 +88,7 @@ impl Call for CallTape {
         while self.index < self.reader.as_ref().unwrap().len() {
             // Get the "archived" version of the message, where we will
             // pick and choose what we will deserialize
-            let message = &self.reader.as_ref().unwrap()[self.index];
+            let zcd_cpcmsg = &self.reader.as_ref().unwrap()[self.index];
 
             // Mark this as "processed" regardless of what happens next.
             self.index += 1;
@@ -93,24 +96,30 @@ impl Call for CallTape {
             // Well, once we are sure that we were not the caller, we can
             // either be a callee in which case we process and send information
             // back or we continue searching.
-            let callee: ProgramIdentifier = message.callee;
+            let callee: ProgramIdentifier = zcd_cpcmsg
+                .callee
+                .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+                .unwrap();
 
             if self.self_prog_id == callee {
                 // First, ensure that we are not the caller, no-one can call
                 // themselves. (Even if they can w.r.t. self-calling extension,
                 // the `caller` field would remain distinct)
-                let caller: ProgramIdentifier = message.caller;
+                let caller: ProgramIdentifier = zcd_cpcmsg
+                    .caller
+                    .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+                    .unwrap();
                 assert!(caller != self.self_prog_id);
 
                 // Before accepting, make sure that caller was a part of castlist
                 assert!(self.is_casted_actor(&caller));
 
                 let archived_args =
-                    unsafe { rkyv::access_unchecked::<A>(message.argument.0.as_slice()) };
+                    unsafe { rkyv::access_unchecked::<A>(zcd_cpcmsg.argument.0.as_slice()) };
                 let args: A = archived_args.deserialize(Strategy::wrap(&mut ())).unwrap();
 
                 let archived_ret =
-                    unsafe { rkyv::access_unchecked::<R>(message.return_.0.as_slice()) };
+                    unsafe { rkyv::access_unchecked::<R>(zcd_cpcmsg.return_.0.as_slice()) };
                 let ret: R = archived_ret.deserialize(Strategy::wrap(&mut ())).unwrap();
 
                 return Some((caller, args, ret));

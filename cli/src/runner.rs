@@ -15,7 +15,8 @@ pub fn load_program(mut elf: Input) -> Result<Program> {
     Program::mozak_load_program(&elf_bytes)
 }
 
-/// Deserializes an rkyv-serialized system tape binary file into `SystemTape`.
+/// Deserializes a serde JSON serialized system tape binary file into a
+/// [`SystemTape`].
 ///
 /// # Errors
 ///

@@ -1,27 +1,24 @@
-#[cfg(not(target_os = "mozakvm"))]
-use core::cell::RefCell;
-#[cfg(not(target_os = "mozakvm"))]
-use std::rc::Rc;
+use core::ptr::slice_from_raw_parts;
+use std::collections::BTreeSet;
 
 use once_cell::unsync::Lazy;
+use rkyv::vec::ArchivedVec;
 #[cfg(target_os = "mozakvm")]
-use rkyv::rancor::{Panic, Strategy};
-#[cfg(target_os = "mozakvm")]
-use rkyv::Deserialize;
+use {
+    crate::common::merkle::merkleize,
+    crate::common::types::{
+        CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
+    },
+    crate::core::ecall::{call_tape_read, event_tape_read, self_prog_id_tape_read},
+    rkyv::rancor::{Panic, Strategy},
+    rkyv::Deserialize,
+};
+#[cfg(not(target_os = "mozakvm"))]
+use {core::cell::RefCell, std::rc::Rc};
 
-#[cfg(target_os = "mozakvm")]
-use super::merkle::merkleize;
-use super::types::{
-    CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
+use crate::common::types::{
+    CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, RawMessage, SystemTape,
 };
-#[cfg(target_os = "mozakvm")]
-use super::types::{
-    CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
-};
-#[cfg(target_os = "mozakvm")]
-use crate::core::ecall::call_tape_read;
-#[cfg(target_os = "mozakvm")]
-use crate::core::ecall::event_tape_read;
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
 /// all the `IO-Tapes`, `CallTape` and the `EventTape` both in
@@ -65,43 +62,49 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // pre-populated data elements
     #[cfg(target_os = "mozakvm")]
     {
-        let mut buf = [0; 4096];
-        call_tape_read(buf.as_mut_ptr(), 4096);
+        let mut len_bytes = [0; 4];
+        call_tape_read(len_bytes.as_mut_ptr(), 4);
+        let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
+        let mut buf = Vec::with_capacity(len);
+        call_tape_read(buf.as_mut_ptr(), len);
 
-        let messages_raw = unsafe { rkyv::access_unchecked::<Vec<CrossProgramCall>>(&buf) };
+        let archived_cpc_messages = unsafe {
+            rkyv::access_unchecked::<Vec<CrossProgramCall>>(&*slice_from_raw_parts(
+                buf.as_ptr(),
+                len,
+            ))
+        };
 
-        let messages = <<Vec<CrossProgramCall> as rkyv::Archive>::Archived as Deserialize<
-            Vec<CrossProgramCall>,
-            Strategy<(), Panic>,
-        >>::deserialize(messages_raw, Strategy::wrap(&mut ()))
-        .unwrap();
+        assert!(archived_cpc_messages.len() > 0);
+        call_tape_read(buf.as_mut_ptr(), 252);
 
-        let mut cast_list = Vec::new();
-        let mut self_prog_id = ProgramIdentifier::default();
-        messages.clone().into_iter().enumerate().for_each(
-            |(i, CrossProgramCall { caller, callee, .. })| {
-                if i == 0 {
-                    self_prog_id = callee;
-                }
-                if !caller.is_null_program() {
-                    cast_list.push(caller);
-                }
-                if !callee.is_null_program() {
-                    cast_list.push(callee);
-                }
-            },
-        );
-        let mut bufb = [0; 4096];
-        event_tape_read(bufb.as_mut_ptr(), 4096);
-        let events_raw =
-            unsafe { rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(&bufb) };
-        let events =
-            <<Vec<CanonicalOrderedTemporalHints> as rkyv::Archive>::Archived as Deserialize<
-                Vec<CanonicalOrderedTemporalHints>,
-                Strategy<(), Panic>,
-            >>::deserialize(events_raw, Strategy::wrap(&mut ()))
-            .unwrap();
-        let seen = vec![false; events.len()];
+        event_tape_read(len_bytes.as_mut_ptr(), 4);
+        let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
+        let mut buf = Vec::with_capacity(len);
+        event_tape_read(buf.as_mut_ptr(), len);
+
+        let mut self_prog_id_bytes = [0; 32];
+        self_prog_id_tape_read(self_prog_id_bytes.as_mut_ptr(), 32);
+        let self_prog_id = ProgramIdentifier(Poseidon2Hash::from(self_prog_id_bytes));
+        let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
+            .iter()
+            .map(|m| {
+                m.callee
+                    .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+                    .unwrap()
+            })
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+
+        let canonical_ordered_temporal_hints = unsafe {
+            rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(&*slice_from_raw_parts(
+                buf.as_ptr(),
+                len,
+            ))
+        };
+
+        let seen = vec![false; canonical_ordered_temporal_hints.len()];
 
         SystemTape {
             private_input_tape: PrivateInputTapeType::default(),
@@ -109,13 +112,13 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
             call_tape: CallTapeType {
                 cast_list,
                 self_prog_id,
-                reader: Some(messages),
+                reader: Some(archived_cpc_messages),
                 index: 0,
             },
 
             event_tape: EventTapeType {
                 self_prog_id,
-                reader: Some(events),
+                reader: Some(canonical_ordered_temporal_hints),
                 seen,
                 index: 0,
             },
@@ -145,9 +148,12 @@ pub fn ensure_clean_shutdown() {
         let mut claimed_commitment_ev: [u8; 32] = [0; 32];
         crate::core::ecall::events_commitment_tape_read(claimed_commitment_ev.as_mut_ptr());
 
-        let canonical_event_temporal_hints: &[CanonicalOrderedTemporalHints] =
-            SYSTEM_TAPE.event_tape.reader.as_ref().unwrap();
-
+        let canonical_event_temporal_hints: Vec<CanonicalOrderedTemporalHints> = SYSTEM_TAPE
+            .event_tape
+            .reader
+            .unwrap()
+            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+            .unwrap();
         let calculated_commitment_ev = merkleize(
             canonical_event_temporal_hints
                 .iter()

@@ -69,6 +69,7 @@ pub struct State<F: RichField> {
     pub event_tape: StorageDeviceTape,
     pub events_commitment_tape: CommitmentTape,
     pub cast_list_commitment_tape: CommitmentTape,
+    pub self_prog_id_tape: [u8; 32],
     _phantom: PhantomData<F>,
 }
 
@@ -141,6 +142,7 @@ impl<F: RichField> Default for State<F> {
             event_tape: StorageDeviceTape::default(),
             events_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
             cast_list_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
+            self_prog_id_tape: [0; 32],
             _phantom: PhantomData,
         }
     }
@@ -183,6 +185,7 @@ pub enum StorageDeviceOpcode {
     StoreEventTape,
     StoreEventsCommitmentTape,
     StoreCastListCommitmentTape,
+    StoreSelfProgIdTape,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -217,6 +220,7 @@ pub struct RawTapes {
     pub event_tape: Vec<u8>,
     pub events_commitment_tape: [u8; COMMITMENT_SIZE],
     pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
+    pub self_prog_id_tape: [u8; 32],
 }
 
 impl<F: RichField> State<F> {
@@ -255,6 +259,7 @@ impl<F: RichField> State<F> {
             },
             cast_list_commitment_tape: CommitmentTape(raw_tapes.cast_list_commitment_tape),
             events_commitment_tape: CommitmentTape(raw_tapes.events_commitment_tape),
+            self_prog_id_tape: raw_tapes.self_prog_id_tape,
             ..Default::default()
         }
     }

@@ -41,6 +41,8 @@ use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
+use rkyv::rancor::{Panic, Strategy};
+use rkyv::ser::AllocSerializer;
 use starky::config::StarkConfig;
 
 const PROGRAMS_MAP_JSON: &str = "examples/programs_map.json";
@@ -109,10 +111,32 @@ enum Command {
     Bench(BenchArgs),
 }
 
+fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
+    let data_len = data.len();
+    let mut len_prefix_bytes = Vec::with_capacity(data_len + 4);
+    len_prefix_bytes.extend_from_slice(
+        &(u32::try_from(data.len()))
+            .expect("length of data's max size shouldn't be more than u32")
+            .to_le_bytes(),
+    );
+    len_prefix_bytes.extend(data);
+    debug!(
+        "Length-Prefixed {:<15} of byte len: {:>5}, on-mem bytes: {:>5}",
+        dgb_string,
+        data_len,
+        len_prefix_bytes.len()
+    );
+    len_prefix_bytes
+}
+
 fn raw_tapes_from_system_tape(
     sys: &SystemTape,
     self_prog_id: ProgramIdentifier,
 ) -> Result<RawTapes> {
+    println!(
+        "reserialized call tape bytes: {:?}",
+        serialise(&sys.call_tape.writer, "CALL_TAPE")
+    );
     let cast_list = sys
         .call_tape
         .writer
@@ -149,11 +173,22 @@ fn raw_tapes_from_system_tape(
     let cast_list_commitment_tape =
         merkleize(izip!(0.., &cast_list).map(|(idx, x)| (idx, x.0)).collect()).0;
 
+    println!("Self Prog ID: {self_prog_id:#?}");
+    println!("Found events: {:#?}", canonical_order_temporal_hints.len());
+
+    fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
+    where
+        T: rkyv::Archive + rkyv::Serialize<Strategy<AllocSerializer<256>, Panic>>, {
+        let tape_bytes = rkyv::to_bytes::<_, 256, _>(tape).unwrap().into();
+        length_prefixed_bytes(tape_bytes, dgb_string)
+    }
+
     Ok(RawTapes {
         private_tape: serde_json::to_vec(&sys.private_input_tape)?,
         public_tape: serde_json::to_vec(&sys.public_input_tape)?,
-        call_tape: serde_json::to_vec(&sys.call_tape)?,
-        event_tape: serde_json::to_vec(&sys.event_tape)?,
+        call_tape: serialise(&sys.call_tape.writer, "CALL_TAPE"),
+        event_tape: serialise(&canonical_order_temporal_hints, "EVENT_TAPE"),
+        self_prog_id_tape: self_prog_id.0 .0,
         events_commitment_tape,
         cast_list_commitment_tape,
     })
