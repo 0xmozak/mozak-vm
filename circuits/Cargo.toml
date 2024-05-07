@@ -38,6 +38,7 @@ proptest = "1.4"
 rand = "0.8"
 
 [features]
+default = ["parallel"]
 parallel = ["plonky2/parallel", "starky/parallel", "plonky2_maybe_rayon/parallel", "criterion/rayon"]
 test = []
 timing = ["plonky2/timing", "starky/timing"]
