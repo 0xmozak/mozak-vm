@@ -717,12 +717,19 @@ pub(crate) fn batch_reduction_arity_bits(
     cap_height: usize,
 ) -> Vec<usize> {
     let mut result = Vec::new();
-    let arity_bits = 3;
+    let default_arity_bits = 3;
     let mut cur_index = 0;
-    let mut cur_degree_bits = degree_bits[cur_index];
-    while cur_degree_bits + rate_bits >= cap_height + arity_bits {
-        let mut cur_arity_bits = arity_bits;
-        let target_degree_bits = cur_degree_bits - arity_bits;
+    let mut cur_degree_bits = degree_bits[0] + rate_bits;
+    assert!(degree_bits.last().unwrap() + rate_bits >= cap_height);
+    while cur_degree_bits > cap_height {
+        let mut cur_arity_bits = default_arity_bits;
+        let mut target_degree_bits ;
+        if cur_degree_bits  + rate_bits < cap_height + default_arity_bits {
+            target_degree_bits = cap_height - rate_bits;
+            cur_arity_bits = cur_degree_bits - target_degree_bits;
+        } else {
+            target_degree_bits = cur_degree_bits - default_arity_bits;
+        }
         if cur_index < degree_bits.len() - 1 && target_degree_bits < degree_bits[cur_index + 1] {
             cur_arity_bits = cur_degree_bits - degree_bits[cur_index + 1];
             cur_index += 1;
