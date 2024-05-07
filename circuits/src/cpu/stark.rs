@@ -12,7 +12,7 @@ use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use super::columns::{CpuState, Instruction};
-use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
+use super::{bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
@@ -90,7 +90,8 @@ fn generate_constraints<'a, T: Copy, U>(
     // Registers
     populate_op2_value(lv, &mut constraints);
 
-    add::constraints(lv, &mut constraints);
+    // ADD is now handled by its own table.
+    constraints.always(lv.inst.ops.add);
     sub::constraints(lv, &mut constraints);
     bitwise::constraints(lv, &mut constraints);
     branches::comparison_constraints(lv, &mut constraints);
