@@ -4,7 +4,6 @@ use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
 use plonky2::field::zero_poly_coset::ZeroPolyOnCoset;
-use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
@@ -23,10 +22,10 @@ use crate::cross_table_lookup::{
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
-pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
+pub fn compute_quotient_polys<F, P, C, S, const D: usize>(
     stark: &S,
-    trace_commitment: &'a PolynomialBatch<F, C, D>,
-    ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
+    get_trace_values_packed: &(dyn Fn(usize, usize) -> Vec<P> + Sync + Send),
+    get_ctl_zs_values_packed: &(dyn Fn(usize, usize) -> Vec<P> + Sync + Send),
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
     public_sub_table_data: &CtlData<F>,
@@ -60,10 +59,6 @@ where
 
     let z_h_on_coset = ZeroPolyOnCoset::<F>::new(degree_bits, quotient_degree_bits);
 
-    // Retrieve the LDE values at index `i`.
-    let get_trace_values_packed =
-        |i_start| -> Vec<P> { trace_commitment.get_lde_values_packed(i_start, step) };
-
     // Last element of the subgroup.
     let last = F::primitive_root_of_unity(degree_bits).inverse();
     let size = degree << quotient_degree_bits;
@@ -94,8 +89,8 @@ where
                 lagrange_basis_last,
             );
             let vars = StarkEvaluationFrame::from_values(
-                &get_trace_values_packed(i_start),
-                &get_trace_values_packed(i_next_start),
+                &get_trace_values_packed(i_start, step),
+                &get_trace_values_packed(i_next_start, step),
                 public_inputs,
             );
             let public_sub_table_data_chain = public_sub_table_data.zs_columns.as_slice();
@@ -105,8 +100,8 @@ where
                 .chain(public_sub_table_data_chain.iter())
                 .enumerate()
                 .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1> {
-                    local_z: ctl_zs_commitment.get_lde_values_packed(i_start, step)[i],
-                    next_z: ctl_zs_commitment.get_lde_values_packed(i_next_start, step)[i],
+                    local_z: get_ctl_zs_values_packed(i_start, step)[i],
+                    next_z: get_ctl_zs_values_packed(i_next_start, step)[i],
                     challenges: zs_columns.challenge,
                     columns: &zs_columns.columns,
                     filter_column: &zs_columns.filter_column,
