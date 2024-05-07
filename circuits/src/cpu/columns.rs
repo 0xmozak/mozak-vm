@@ -209,22 +209,12 @@ where
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-impl<T> OpSelectors<T>
-where
-    T: Copy + Sum,
-{
-    pub fn is_running(self) -> T { self.into_iter().sum() }
-}
-
 impl<P> OpSelectors<P>
 where
-    P: Copy + Add<Output = P> + Sum<P> + Sub<Output = P>,
+    P: Copy + Add<Output = P> + Sum<P> + Sub<Output = P> + Sum,
 {
-    /// List of opcodes that only bump the program counter.
-    pub fn is_straightline(self) -> P { self.is_running() - self.is_jumping() }
-}
+    pub fn is_running(self) -> P { self.into_iter().sum() }
 
-impl<P: Copy + Add<Output = P>> OpSelectors<P> {
     // List of opcodes that manipulated the program counter, instead of
     // straight line incrementing it.
     // Note: ecall is only 'jumping' in the sense that a 'halt'
@@ -232,6 +222,9 @@ impl<P: Copy + Add<Output = P>> OpSelectors<P> {
     pub fn is_jumping(&self) -> P {
         self.beq + self.bge + self.blt + self.bne + self.ecall + self.jalr
     }
+
+    /// List of opcodes that only bump the program counter.
+    pub fn is_straightline(self) -> P { self.is_running() - self.is_jumping() }
 
     /// List of opcodes that work with memory.
     pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
