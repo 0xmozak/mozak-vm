@@ -39,6 +39,6 @@ name = "fibonacci"
 
 [features]
 default = ["std", "im/serde"]
+parallel = ["plonky2/parallel", "criterion/rayon"]
 std = ["anyhow/std"]
 test = ["proptest"]
-parallel = ["plonky2/parallel", "criterion/rayon"]
