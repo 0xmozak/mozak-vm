@@ -1008,10 +1008,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mozak-rpc"
-version = "0.1.0"
-
-[[package]]
 name = "mozak-runner"
 version = "0.1.0"
 dependencies = [
