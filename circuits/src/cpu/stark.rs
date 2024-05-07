@@ -11,8 +11,8 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
-use super::columns::{CpuState, Instruction};
-use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
+use super::columns::{CpuState, OpSelectors};
+use super::{bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
@@ -40,14 +40,14 @@ fn pc_ticks_up<'a, P: Copy>(lv: &CpuState<Expr<'a, P>>, cb: &mut ConstraintBuild
 /// Ie exactly one of them should be 1, and all others 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
 fn binary_selectors<'a, P: Copy>(
-    inst: &'a Instruction<Expr<'a, P>>,
+    ops: &'a OpSelectors<Expr<'a, P>>,
     cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     // selectors have value 0 or 1.
-    inst.ops.into_iter().for_each(|s| cb.always(s.is_binary()));
+    ops.into_iter().for_each(|s| cb.always(s.is_binary()));
 
     // Only at most one selector enabled.
-    cb.always(inst.ops.into_iter().sum::<Expr<'a, P>>().is_binary());
+    cb.always(ops.is_running().is_binary());
 }
 
 /// Constraints for values in op2, which is the sum of the value of the second
@@ -85,12 +85,13 @@ fn generate_constraints<'a, T: Copy, U>(
 
     pc_ticks_up(lv, &mut constraints);
 
-    binary_selectors(&lv.inst, &mut constraints);
+    binary_selectors(&lv.inst.ops, &mut constraints);
 
     // Registers
     populate_op2_value(lv, &mut constraints);
 
-    add::constraints(lv, &mut constraints);
+    // ADD is now handled by its own table.
+    constraints.always(lv.inst.ops.add);
     sub::constraints(lv, &mut constraints);
     bitwise::constraints(lv, &mut constraints);
     branches::comparison_constraints(lv, &mut constraints);

@@ -9,13 +9,13 @@ use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_raw_value};
 use crate::memory_halfword::columns::HalfWordMemory;
-use crate::memory_io::columns::StorageDevice;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::MemoryInit;
 use crate::ops::lw::columns::LoadWord;
 use crate::ops::sw::columns::StoreWord;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
+use crate::storage_device::columns::StorageDevice;
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
@@ -128,14 +128,14 @@ pub fn transform_lw<F: RichField>(
     load_word.iter().flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
-/// Generates Memory trace from a memory io table.
+/// Generates Memory trace from a storage device table.
 ///
 /// These need to be further interleaved with runtime memory trace generated
 /// from VM execution for final memory trace.
-pub fn transform_io<F: RichField>(
-    io_memory: &[StorageDevice<F>],
+pub fn transform_storage<F: RichField>(
+    storage: &[StorageDevice<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
-    io_memory.iter().filter_map(Option::<Memory<F>>::from)
+    storage.iter().filter_map(Option::<Memory<F>>::from)
 }
 
 fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
@@ -160,11 +160,12 @@ pub fn generate_memory_trace<F: RichField>(
     halfword_memory_rows: &[HalfWordMemory<F>],
     store_word_rows: &[StoreWord<F>],
     load_word_rows: &[LoadWord<F>],
-    io_memory_private_rows: &[StorageDevice<F>],
-    io_memory_public_rows: &[StorageDevice<F>],
-    io_memory_call_tape_rows: &[StorageDevice<F>],
-    io_memory_events_commitment_tape_rows: &[StorageDevice<F>],
-    io_memory_castlist_commitment_tape_rows: &[StorageDevice<F>],
+    private_tape_rows: &[StorageDevice<F>],
+    public_tape_rows: &[StorageDevice<F>],
+    call_tape_rows: &[StorageDevice<F>],
+    event_tape_rows: &[StorageDevice<F>],
+    events_commitment_tape_rows: &[StorageDevice<F>],
+    castlist_commitment_tape_rows: &[StorageDevice<F>],
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
     poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
@@ -178,11 +179,12 @@ pub fn generate_memory_trace<F: RichField>(
         transform_halfword(halfword_memory_rows),
         transform_sw(store_word_rows),
         transform_lw(load_word_rows),
-        transform_io(io_memory_private_rows),
-        transform_io(io_memory_public_rows),
-        transform_io(io_memory_call_tape_rows),
-        transform_io(io_memory_events_commitment_tape_rows),
-        transform_io(io_memory_castlist_commitment_tape_rows),
+        transform_storage(private_tape_rows),
+        transform_storage(public_tape_rows),
+        transform_storage(call_tape_rows),
+        transform_storage(event_tape_rows),
+        transform_storage(events_commitment_tape_rows),
+        transform_storage(castlist_commitment_tape_rows),
         transform_poseidon2_sponge(poseidon2_sponge_rows),
         transform_poseidon2_output_bytes(poseidon2_output_bytes_rows,),
     )
@@ -219,13 +221,13 @@ mod tests {
 
     use super::pad_mem_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::io_memory::{
-        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
-        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
-        generate_io_memory_public_trace,
-    };
     use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::storage_device::{
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_event_tape_trace, generate_events_commitment_tape_trace,
+        generate_private_tape_trace, generate_public_tape_trace,
+    };
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
@@ -288,10 +290,11 @@ mod tests {
         let store_word_rows = ops::sw::generate(&record.executed);
         let load_word_rows = ops::lw::generate(&record.executed
         );
-        let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
-        let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+        let private_tape_rows = generate_private_tape_trace(&record.executed);
+        let public_tape_rows = generate_public_tape_trace(&record.executed);
 
         let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let event_tape_rows = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
@@ -304,9 +307,10 @@ mod tests {
             &halfword_memory,
             &store_word_rows,
             &load_word_rows,
-            &io_memory_private_rows,
-            &io_memory_public_rows,
+            &private_tape_rows,
+            &public_tape_rows,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &poseidon2_sponge_trace,
@@ -378,9 +382,10 @@ mod tests {
         let halfword_memory = generate_halfword_memory_trace(&[]);
         let store_word_rows = ops::sw::generate(&[]);
         let load_word_rows = ops::lw::generate(&[]);
-        let io_memory_private_rows = generate_io_memory_private_trace(&[]);
-        let io_memory_public_rows = generate_io_memory_public_trace(&[]);
+        let private_tape_rows = generate_private_tape_trace(&[]);
+        let public_tape_rows = generate_public_tape_trace(&[]);
         let call_tape_rows = generate_call_tape_trace(&[]);
+        let event_tape_rows = generate_call_tape_trace(&[]);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&[]);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&[]);
@@ -393,9 +398,10 @@ mod tests {
             &halfword_memory,
             &store_word_rows,
             &load_word_rows,
-            &io_memory_private_rows,
-            &io_memory_public_rows,
+            &private_tape_rows,
+            &public_tape_rows,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &poseidon2_trace,

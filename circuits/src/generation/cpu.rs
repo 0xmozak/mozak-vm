@@ -66,6 +66,10 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
     } in &record.executed
     {
         let inst = instruction;
+        let io = aux
+            .storage_device_entry
+            .as_ref()
+            .unwrap_or(&default_io_entry);
         // Skip instruction handled by their own tables.
         // TODO: refactor, so we don't repeat logic.
         {
@@ -79,7 +83,6 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
                 continue;
             }
         }
-        let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
             new_pc: F::from_canonical_u32(aux.new_pc),
@@ -105,17 +108,21 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
-            is_io_store_private: F::from_bool(matches!(
+            is_private_tape: F::from_bool(matches!(
                 (inst.op, io.op),
                 (Op::ECALL, StorageDeviceOpcode::StorePrivate)
             )),
-            is_io_store_public: F::from_bool(matches!(
+            is_public_tape: F::from_bool(matches!(
                 (inst.op, io.op),
                 (Op::ECALL, StorageDeviceOpcode::StorePublic)
             )),
             is_call_tape: F::from_bool(matches!(
                 (inst.op, io.op),
                 (Op::ECALL, StorageDeviceOpcode::StoreCallTape)
+            )),
+            is_event_tape: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, StorageDeviceOpcode::StoreEventTape)
             )),
             is_events_commitment_tape: F::from_bool(matches!(
                 (inst.op, io.op),

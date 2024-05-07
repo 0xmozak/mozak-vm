@@ -1,6 +1,6 @@
 use itertools::chain;
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{HashOutTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
@@ -12,81 +12,24 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
 use crate::circuits::build_event_root;
+use crate::indices::{ArrayTargetIndex, BoolTargetIndex, HashTargetIndex, TargetIndex};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct ProgramPublicIndices {
     /// The indices of each of the elements of the program hash
-    pub program_hash: [usize; 4],
+    pub program_hash: ArrayTargetIndex<TargetIndex, 4>,
 
     /// The index of the presence flag for the event root
-    pub events_present: usize,
+    pub events_present: BoolTargetIndex,
 
     /// The indices of each of the elements of event root
-    pub event_root: [usize; NUM_HASH_OUT_ELTS],
+    pub event_root: HashTargetIndex,
 
     /// The indices of each of the elements of cast list
-    pub call_list: [usize; NUM_HASH_OUT_ELTS],
+    pub call_list: ArrayTargetIndex<TargetIndex, 4>,
 
     /// The indices of each of the elements of cast root
-    pub cast_root: [usize; NUM_HASH_OUT_ELTS],
-}
-
-impl ProgramPublicIndices {
-    /// Extract `program_hash` from an array of public inputs.
-    pub fn get_program_hash<T: Copy>(&self, public_inputs: &[T]) -> [T; 4] {
-        self.program_hash.map(|i| public_inputs[i])
-    }
-
-    /// Insert `program_hash` into an array of public inputs.
-    pub fn set_program_hash<T>(&self, public_inputs: &mut [T], v: [T; 4]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.program_hash[i]] = v;
-        }
-    }
-
-    pub fn get_events_present<T: Copy>(&self, public_inputs: &[T]) -> T {
-        public_inputs[self.events_present]
-    }
-
-    pub fn set_events_present<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.events_present] = v;
-    }
-
-    /// Extract `event_root` from an array of public inputs.
-    pub fn get_event_root<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.event_root.map(|i| public_inputs[i])
-    }
-
-    /// Insert `event_root` into an array of public inputs.
-    pub fn set_event_root<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.event_root[i]] = v;
-        }
-    }
-
-    /// Extract `call_list` from an array of public inputs.
-    pub fn get_call_list<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.call_list.map(|i| public_inputs[i])
-    }
-
-    /// Insert `call_list` into an array of public inputs.
-    pub fn set_call_list<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.call_list[i]] = v;
-        }
-    }
-
-    /// Extract `cast_root` from an array of public inputs.
-    pub fn get_cast_root<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.cast_root.map(|i| public_inputs[i])
-    }
-
-    /// Insert `cast_root` into an array of public inputs.
-    pub fn set_cast_root<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.cast_root[i]] = v;
-        }
-    }
+    pub cast_root: HashTargetIndex,
 }
 
 pub struct ProgramVerifierTargets<const D: usize> {
@@ -145,17 +88,21 @@ impl<const D: usize> ProgramVerifierTargets<D> {
             .collect(),
         );
 
-        let program_id = progam_circuit_indices.get_program_hash(&program_proof.public_inputs);
-        let events_present = BoolTarget::new_unsafe(
-            progam_circuit_indices.get_events_present(&program_proof.public_inputs),
-        );
-        let event_root = HashOutTarget {
-            elements: progam_circuit_indices.get_event_root(&program_proof.public_inputs),
-        };
-        let call_list = progam_circuit_indices.get_call_list(&program_proof.public_inputs);
-        let cast_root = HashOutTarget {
-            elements: progam_circuit_indices.get_cast_root(&program_proof.public_inputs),
-        };
+        let program_id = progam_circuit_indices
+            .program_hash
+            .get(&program_proof.public_inputs);
+        let events_present = progam_circuit_indices
+            .events_present
+            .get(&program_proof.public_inputs);
+        let event_root = progam_circuit_indices
+            .event_root
+            .get(&program_proof.public_inputs);
+        let call_list = progam_circuit_indices
+            .call_list
+            .get(&program_proof.public_inputs);
+        let cast_root = progam_circuit_indices
+            .cast_root
+            .get(&program_proof.public_inputs);
 
         Self {
             program_verifier,
@@ -229,19 +176,18 @@ impl<const D: usize> EventRootVerifierTargets<D> {
         let event_owner = event_root_circuit
             .event_owner
             .indices
-            .get_values(&event_root_proof.public_inputs);
-        let event_root = HashOutTarget {
-            elements: event_root_circuit
-                .hash
-                .indices
-                .get_unpruned_hash(&event_root_proof.public_inputs),
-        };
-        let vm_event_root = HashOutTarget {
-            elements: event_root_circuit
-                .vm_hash
-                .indices
-                .get_unpruned_hash(&event_root_proof.public_inputs),
-        };
+            .values
+            .get(&event_root_proof.public_inputs);
+        let event_root = event_root_circuit
+            .hash
+            .indices
+            .unpruned_hash
+            .get(&event_root_proof.public_inputs);
+        let vm_event_root = event_root_circuit
+            .vm_hash
+            .indices
+            .unpruned_hash
+            .get(&event_root_proof.public_inputs);
 
         Self {
             event_root_proof,

@@ -1,7 +1,12 @@
-use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
+use anyhow::Result;
+use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, F};
 use mozak_runner::code;
+use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
+use mozak_runner::vm::ExecutionRecord;
 use starky::config::StarkConfig;
+
+use super::benches::Bench;
 
 // Stick some byte and word (and half-word?) memory operations in a big old
 // loop. Do some randomisation?
@@ -14,8 +19,11 @@ use starky::config::StarkConfig;
 // r3: memory value
 //
 
-#[allow(clippy::module_name_repetitions)]
-pub fn memory_bench(iterations: u32) -> Result<(), anyhow::Error> {
+pub fn memory_execute((program, record): (Program, ExecutionRecord<F>)) -> Result<()> {
+    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+}
+
+pub fn memory_prepare(iterations: u32) -> (Program, ExecutionRecord<F>) {
     let instructions = [
         Instruction {
             op: Op::SW,
@@ -54,26 +62,27 @@ pub fn memory_bench(iterations: u32) -> Result<(), anyhow::Error> {
             },
         },
     ];
-    let (program, record) = code::execute(instructions, &[], &[(1, iterations)]);
-    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+    code::execute(instructions, &[], &[(1, iterations)])
+}
+
+pub(crate) struct MemoryBench;
+
+impl Bench for MemoryBench {
+    type Args = u32;
+    type Prepared = (Program, ExecutionRecord<F>);
+
+    fn prepare(&self, args: &Self::Args) -> Self::Prepared { memory_prepare(*args) }
+
+    fn execute(&self, prepared: Self::Prepared) -> Result<()> { memory_execute(prepared) }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::cli_benches::benches::{BenchArgs, BenchFunction};
+    use super::{memory_execute, memory_prepare};
 
     #[test]
-    fn test_memory_bench() {
-        let iterations = 1;
-        super::memory_bench(iterations).unwrap();
-    }
-
-    #[test]
-    fn test_memory_bench_with_run() {
-        let iterations = 1;
-        let bench = BenchArgs {
-            function: BenchFunction::MemoryBench { iterations },
-        };
-        bench.run().unwrap();
+    fn test_memory_bench() -> anyhow::Result<()> {
+        let iterations = 10;
+        memory_execute(memory_prepare(iterations))
     }
 }
