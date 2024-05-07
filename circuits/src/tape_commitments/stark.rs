@@ -36,6 +36,7 @@ fn generate_constraints<'a, T: Copy>(
 #[allow(clippy::module_name_repetitions)]
 pub struct TapeCommitmentsStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+    pub standalone_proving: bool,
 }
 
 impl<F, const D: usize> HasNamedColumns for TapeCommitmentsStark<F, D> {
@@ -53,6 +54,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for TapeCommitmen
             P: PackedField<Scalar = FE>;
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
+
+    fn requires_ctls(&self) -> bool { !self.standalone_proving }
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
@@ -89,23 +92,13 @@ mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
-    use plonky2::field::types::Field;
-    use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-    use plonky2::util::timing::TimingTree;
     use rand::Rng;
-    use starky::config::StarkConfig;
     use starky::stark_testing::test_stark_circuit_constraints;
 
     use super::TapeCommitmentsStark;
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
-    use crate::stark::prover::prove;
-    use crate::stark::recursive_verifier::{
-        recursive_mozak_stark_circuit, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
-    };
-    use crate::stark::verifier::verify_proof;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
-    use crate::utils::from_u32;
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -195,63 +188,67 @@ mod tests {
 
     #[test]
     fn test_tape_commitment_recursive_prover() -> Result<(), anyhow::Error> {
-        let mut rng = rand::thread_rng();
-        // generate tapes with random bytes
-        let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let code = read_tape_commitments_code();
-        let (program, record) =
-            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
-                events_commitment_tape,
-                cast_list_commitment_tape,
-                ..Default::default()
-            });
-        let stark = MozakStark::<F, D>::default();
-        let config = StarkConfig::standard_fast_config();
-        let public_inputs = PublicInputs {
-            entry_point: from_u32(program.entry_point),
-        };
-        let mozak_proof = prove::<F, C, D>(
-            &program,
-            &record,
-            &stark,
-            &config,
-            public_inputs,
-            &mut TimingTree::default(),
-        )?;
-        verify_proof(&stark, mozak_proof.clone(), &config)?;
+        todo!()
+        // let mut rng = rand::thread_rng();
+        // // generate tapes with random bytes
+        // let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
+        // let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
+        // let code = io_read_tape_commitments_code();
+        // let (program, record) =
+        //     code::execute_code_with_ro_memory(code, &[], &[], &[],
+        // RuntimeArguments {         events_commitment_tape,
+        //         cast_list_commitment_tape,
+        //         ..Default::default()
+        //     });
+        // let stark = MozakStark::<F, D>::default();
+        // let config = StarkConfig::standard_fast_config();
+        // let public_inputs = PublicInputs {
+        //     entry_point: from_u32(program.entry_point),
+        // };
+        // let mozak_proof = prove::<F, C, D>(
+        //     &program,
+        //     &record,
+        //     &stark,
+        //     &config,
+        //     public_inputs,
+        //     &mut TimingTree::default(),
+        // )?;
+        // verify_proof(&stark, mozak_proof.clone(), &config)?;
 
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
-            &stark,
-            &mozak_proof.degree_bits(&config),
-            &circuit_config,
-            &config,
-        );
+        // let circuit_config = CircuitConfig::standard_recursion_config();
+        // let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+        //     &stark,
+        //     &mozak_proof.degree_bits(&config),
+        //     &circuit_config,
+        //     &config,
+        // );
 
-        let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
-        let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
-            recursive_proof.public_inputs.as_slice().try_into().unwrap();
-        let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
-            &public_input_slice.into();
+        // let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+        // let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
+        //     recursive_proof.public_inputs.as_slice().try_into().unwrap();
+        // let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
+        //     &public_input_slice.into();
 
-        // assert that the commitment tapes match those in pubilc inputs
-        assert_eq!(
-            recursive_proof_public_inputs.event_commitment_tape,
-            events_commitment_tape.map(F::from_canonical_u8),
-            "Mismatch in events commitment tape in public inputs"
-        );
-        assert_eq!(
-            recursive_proof_public_inputs.castlist_commitment_tape,
-            cast_list_commitment_tape.map(F::from_canonical_u8),
-            "Mismatch in cast list commitment tape in public inputs"
-        );
-        mozak_stark_circuit.circuit.verify(recursive_proof)
+        // // assert that the commitment tapes match those in pubilc inputs
+        // assert_eq!(
+        //     recursive_proof_public_inputs.event_commitment_tape,
+        //     events_commitment_tape.map(F::from_canonical_u8),
+        //     "Mismatch in events commitment tape in public inputs"
+        // );
+        // assert_eq!(
+        //     recursive_proof_public_inputs.castlist_commitment_tape,
+        //     cast_list_commitment_tape.map(F::from_canonical_u8),
+        //     "Mismatch in cast list commitment tape in public inputs"
+        // );
+        // mozak_stark_circuit.circuit.verify(recursive_proof)
     }
 
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;
 
         Ok(())

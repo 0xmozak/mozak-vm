@@ -250,7 +250,10 @@ mod tests {
     /// Test that we have a constraint to catch, if there is no init for any memory address.
     fn no_init() {
         let _ = env_logger::try_init();
-        let stark = S::default();
+                let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
 
         let trace: Vec<Memory<GoldilocksField>> = prep_table(vec![
             //is_writable  addr  clk is_store, is_load, is_init  value

@@ -91,11 +91,39 @@ pub mod challenge {
         }
     }
 
+    impl<Target> From<GrandProductChallenge<Target>> for starky::lookup::GrandProductChallenge<Target>
+    where
+        Target: Copy + Eq + PartialEq + Debug,
+    {
+        fn from(challenge: GrandProductChallenge<Target>) -> Self {
+            starky::lookup::GrandProductChallenge {
+                beta: challenge.beta,
+                gamma: challenge.gamma,
+            }
+        }
+    }
+
     /// [`GrandProductChallenge`] repeated for [`num_challenges`] to boost
     /// soundness.
     #[derive(Clone, Eq, PartialEq, Debug, Default)]
-    pub struct GrandProductChallengeSet<T: Copy + Eq + PartialEq + Debug> {
+    pub struct GrandProductChallengeSet<T: Copy + Eq + PartialEq + core::fmt::Debug> {
         pub challenges: Vec<GrandProductChallenge<T>>,
+    }
+
+    impl<Target> From<GrandProductChallengeSet<Target>>
+        for starky::lookup::GrandProductChallengeSet<Target>
+    where
+        Target: Copy + Eq + PartialEq + core::fmt::Debug,
+    {
+        fn from(challenges: GrandProductChallengeSet<Target>) -> Self {
+            starky::lookup::GrandProductChallengeSet {
+                challenges: challenges
+                    .challenges
+                    .into_iter()
+                    .map(starky::lookup::GrandProductChallenge::from)
+                    .collect(),
+            }
+        }
     }
 
     pub trait GrandProductChallengeTrait<F: RichField, H: Hasher<F>> {

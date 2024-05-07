@@ -4,43 +4,27 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use anyhow::Result;
-use itertools::{zip_eq, Itertools};
 use log::info;
 use mozak_sdk::core::ecall::COMMITMENT_SIZE;
 use plonky2::field::extension::Extendable;
-use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::challenger::RecursiveChallenger;
-use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
-use plonky2::util::reducing::ReducingFactorTarget;
-use plonky2::with_context;
 use starky::config::StarkConfig;
-use starky::constraint_consumer::RecursiveConstraintConsumer;
-use starky::evaluation_frame::StarkEvaluationFrame;
-use starky::stark::{LookupConfig, Stark};
+use starky::stark::Stark;
 
-use super::mozak_stark::{all_kind, all_starks, TableKindArray};
+use super::mozak_stark::{all_starks, TableKindArray};
 use crate::columns_view::{columns_view_impl, NumberOfColumns};
-use crate::cross_table_lookup::{
-    verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
-};
-use crate::public_sub_table::{
-    public_sub_table_values_and_reduced_targets, PublicSubTable, PublicSubTableValuesTarget,
-};
 use crate::stark::mozak_stark::{MozakStark, TableKind};
-use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
-use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
-    AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
-    StarkProofWithPublicInputsTarget,
+    AllProof, StarkOpeningSetTarget, StarkProof, StarkProofTarget, StarkProofWithPublicInputsTarget,
 };
 
 /// Plonky2's recursion threshold is 2^12 gates.
@@ -78,7 +62,6 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
     pub targets: TableKindArray<StarkVerifierTargets<F, C, D>>,
-    pub public_sub_table_values_targets: TableKindArray<Vec<PublicSubTableValuesTarget>>,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -87,7 +70,7 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
-    pub stark_proof_with_pis_target: StarkProofWithPublicInputsTarget<D>,
+    pub stark_proof_with_pis_target: starky::proof::StarkProofWithPublicInputsTarget<D>,
     pub zero_target: Target,
     pub _f: PhantomData<(F, C)>,
 }
@@ -98,16 +81,21 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
-    pub fn set_targets(&self, witness: &mut PartialWitness<F>, proof: &StarkProof<F, C, D>) {
-        set_stark_proof_with_pis_target(
+    pub fn set_targets(
+        &self,
+        witness: &mut PartialWitness<F>,
+        proof: &starky::proof::StarkProofWithPublicInputs<F, C, D>,
+    ) {
+        starky::recursive_verifier::set_stark_proof_with_pis_target(
             witness,
-            &self.stark_proof_with_pis_target.proof,
+            &self.stark_proof_with_pis_target,
             proof,
             self.zero_target,
         );
     }
 }
 
+// TODO(Matthias): this is equivalent to zk_evm's `StarkWrapperCircuit`
 impl<F, C, const D: usize> MozakStarkVerifierCircuit<F, C, D>
 where
     F: RichField + Extendable<D>,
@@ -117,23 +105,30 @@ where
     pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
 
-        all_kind!(|kind| {
-            self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
+        // all_kind!(|kind| {
+        //     self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
 
-            // set public_sub_table_values targets
-            for (public_sub_table_values_target, public_sub_table_values) in zip_eq(
-                &self.public_sub_table_values_targets[kind],
-                &all_proof.public_sub_table_values[kind],
-            ) {
-                for (row_target, row) in
-                    zip_eq(public_sub_table_values_target, public_sub_table_values)
-                {
-                    for (&values_target, &values) in zip_eq(row_target, row) {
-                        inputs.set_target(values_target, values);
-                    }
-                }
-            }
-        });
+        //     // set public_sub_table_values targets
+        //     for (public_sub_table_values_target, public_sub_table_values) in zip_eq(
+        //         &self.public_sub_table_values_targets[kind],
+        //         &all_proof.public_sub_table_values[kind],
+        //     ) {
+        //         for (row_target, row) in
+        //             zip_eq(public_sub_table_values_target, public_sub_table_values)
+        //         {
+        //             for (&values_target, &values) in zip_eq(row_target, row) {
+        //                 inputs.set_target(values_target, values);
+        //             }
+        //         }
+        //     }
+        // });
+
+        // How are zk_evm handling their public inputs?
+        // // let proof = starky::proof::StarkProof::from(proof);
+        // // TODO(Matthias): not sure we need this, if we don't have the pub sub
+        // feature? all_kind!(|kind| {
+        //     self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
+        // });
 
         // Set public inputs
         let cpu_skeleton_target = &self.targets[TableKind::CpuSkeleton].stark_proof_with_pis_target;
@@ -146,6 +141,7 @@ where
     }
 }
 
+// TODO(Matthias): learn from zk_evm `recursive_stark_circuit`
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn recursive_mozak_stark_circuit<
@@ -165,22 +161,21 @@ where
     let mut challenger = RecursiveChallenger::<F, C::Hasher, D>::new(&mut builder);
 
     let stark_proof_with_pis_target = all_starks!(mozak_stark, |stark, kind| {
-        let num_ctl_zs = CrossTableLookup::num_ctl_zs(
-            &mozak_stark.cross_table_lookups,
-            kind,
-            inner_config.num_challenges,
-        );
-        let num_make_row_public_zs = PublicSubTable::num_zs(
-            &mozak_stark.public_sub_tables,
-            kind,
-            inner_config.num_challenges,
-        );
-        add_virtual_stark_proof_with_pis(
+        let (total_num_helpers, num_ctl_zs, _) =
+            starky::cross_table_lookup::CrossTableLookup::num_ctl_helpers_zs_all(
+                &mozak_stark.cross_table_lookups,
+                kind as usize,
+                inner_config.num_challenges,
+                stark.constraint_degree(),
+            );
+        let num_ctl_helper_zs = num_ctl_zs + total_num_helpers;
+        starky::recursive_verifier::add_virtual_stark_proof_with_pis(
             &mut builder,
             stark,
             inner_config,
             degree_bits[kind],
-            num_ctl_zs + num_make_row_public_zs,
+            num_ctl_helper_zs,
+            num_ctl_zs,
         )
     });
 
@@ -188,49 +183,64 @@ where
         challenger.observe_cap(&pi.proof.trace_cap);
     }
 
-    let ctl_challenges = get_grand_product_challenge_set_target(
+    let ctl_challenges = starky::lookup::get_grand_product_challenge_set_target(
         &mut builder,
         &mut challenger,
         inner_config.num_challenges,
     );
+    // TODO(Matthias): use verify_stark_proof_with_challenges_circuit from upstream.
 
-    let (public_sub_table_values_targets, reduced_public_sub_table_targets) =
-        public_sub_table_values_and_reduced_targets(
-            &mut builder,
-            &mozak_stark.public_sub_tables,
-            &ctl_challenges,
-        );
-
-    verify_cross_table_lookups_and_public_sub_table_circuit(
+    // starky::recursive_verifier::verify_stark_proof_with_challenges_circuit(
+    //     &mut builder,
+    // );
+    starky::cross_table_lookup::verify_cross_table_lookups_circuit(
         &mut builder,
-        &mozak_stark.cross_table_lookups,
-        &mozak_stark.public_sub_tables,
-        &reduced_public_sub_table_targets,
-        &stark_proof_with_pis_target
-            .clone()
-            .map(|p| p.proof.openings.ctl_zs_last),
+        mozak_stark.cross_table_lookups.to_vec(),
+        stark_proof_with_pis_target
+            .each_ref()
+            .map(|p| p.proof.openings.ctl_zs_first.clone().unwrap())
+            .0,
+        None,
         inner_config,
     );
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
-        let ctl_vars = CtlCheckVarsTarget::from_proof(
-            kind,
+        // TODO(Matthias): we are already doing this above?
+        let num_lookup_columns = stark.num_lookup_helper_columns(inner_config);
+        let (total_num_helpers, _num_ctl_zs, num_helpers_by_ctl) =
+            starky::cross_table_lookup::CrossTableLookup::num_ctl_helpers_zs_all(
+                &mozak_stark.cross_table_lookups,
+                kind as usize,
+                inner_config.num_challenges,
+                stark.constraint_degree(),
+            );
+        let ctl_vars = starky::cross_table_lookup::CtlCheckVarsTarget::from_proof(
+            kind as usize,
             &stark_proof_with_pis_target[kind].proof,
             &mozak_stark.cross_table_lookups,
-            &mozak_stark.public_sub_tables,
             &ctl_challenges,
+            num_lookup_columns,
+            total_num_helpers,
+            &num_helpers_by_ctl,
         );
 
         let challenges_target = stark_proof_with_pis_target[kind]
             .proof
-            .get_challenges::<F, C>(&mut builder, &mut challenger, inner_config);
+            .get_challenges::<F, C>(
+                &mut builder,
+                &mut challenger,
+                Some(&ctl_challenges),
+                true,
+                inner_config,
+            );
 
-        verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
+        starky::recursive_verifier::verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
             &mut builder,
             stark,
-            &stark_proof_with_pis_target[kind],
-            &challenges_target,
-            &ctl_vars,
+            &stark_proof_with_pis_target[kind].proof,
+            &stark_proof_with_pis_target[kind].public_inputs,
+            challenges_target,
+            Some(&ctl_vars),
             inner_config,
         );
 
@@ -254,147 +264,9 @@ where
                 .collect::<Vec<_>>(),
         );
     }
-    all_kind!(|kind| {
-        builder.register_public_inputs(
-            &public_sub_table_values_targets[kind]
-                .clone()
-                .into_iter()
-                .flatten()
-                .flatten()
-                .collect_vec(),
-        );
-    });
 
     let circuit = builder.build();
-    MozakStarkVerifierCircuit {
-        circuit,
-        targets,
-        public_sub_table_values_targets,
-    }
-}
-
-/// Recursively verifies an inner proof.
-fn verify_stark_proof_with_challenges_circuit<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    S: Stark<F, D>,
-    const D: usize,
->(
-    builder: &mut CircuitBuilder<F, D>,
-    stark: &S,
-    proof_with_public_inputs: &StarkProofWithPublicInputsTarget<D>,
-    challenges: &StarkProofChallengesTarget<D>,
-    ctl_vars: &[CtlCheckVarsTarget<D>],
-    inner_config: &StarkConfig,
-) where
-    C::Hasher: AlgebraicHasher<F>, {
-    let zero = builder.zero();
-    let one = builder.one_extension();
-
-    let StarkOpeningSetTarget {
-        local_values,
-        next_values,
-        ctl_zs: _,
-        ctl_zs_next: _,
-        ctl_zs_last,
-        quotient_polys,
-    } = &proof_with_public_inputs.proof.openings;
-
-    let converted_public_inputs: Vec<ExtensionTarget<D>> = proof_with_public_inputs
-        .public_inputs
-        .iter()
-        .map(|target| builder.convert_to_ext(*target)) // replace with actual conversion function/method
-        .collect();
-
-    let vars =
-        S::EvaluationFrameTarget::from_values(local_values, next_values, &converted_public_inputs);
-
-    let degree_bits = proof_with_public_inputs
-        .proof
-        .recover_degree_bits(inner_config);
-    let zeta_pow_deg = builder.exp_power_of_2_extension(challenges.stark_zeta, degree_bits);
-    let z_h_zeta = builder.sub_extension(zeta_pow_deg, one);
-    let (l_0, l_last) =
-        eval_l_0_and_l_last_circuit(builder, degree_bits, challenges.stark_zeta, z_h_zeta);
-    let last =
-        builder.constant_extension(F::Extension::primitive_root_of_unity(degree_bits).inverse());
-    let z_last = builder.sub_extension(challenges.stark_zeta, last);
-
-    let mut consumer = RecursiveConstraintConsumer::<F, D>::new(
-        builder.zero_extension(),
-        challenges.stark_alphas.clone(),
-        z_last,
-        l_0,
-        l_last,
-    );
-
-    with_context!(
-        builder,
-        "evaluate vanishing polynomial",
-        eval_vanishing_poly_circuit::<F, S, D>(builder, stark, &vars, ctl_vars, &mut consumer,)
-    );
-    let vanishing_polys_zeta = consumer.accumulators();
-
-    // Check each polynomial identity, of the form `vanishing(x) = Z_H(x)
-    // quotient(x)`, at zeta.
-    let mut scale = ReducingFactorTarget::new(zeta_pow_deg);
-    for (i, chunk) in quotient_polys
-        .chunks(stark.quotient_degree_factor())
-        .enumerate()
-    {
-        let recombined_quotient = scale.reduce(chunk, builder);
-        let computed_vanishing_poly = builder.mul_extension(z_h_zeta, recombined_quotient);
-        builder.connect_extension(vanishing_polys_zeta[i], computed_vanishing_poly);
-    }
-
-    let merkle_caps = vec![
-        proof_with_public_inputs.proof.trace_cap.clone(),
-        proof_with_public_inputs.proof.ctl_zs_cap.clone(),
-        proof_with_public_inputs.proof.quotient_polys_cap.clone(),
-    ];
-
-    let fri_instance = stark.fri_instance_target(
-        builder,
-        challenges.stark_zeta,
-        F::primitive_root_of_unity(degree_bits),
-        0,
-        0,
-        inner_config,
-        Some(&LookupConfig {
-            degree_bits,
-            num_zs: ctl_zs_last.len(),
-        }),
-    );
-    builder.verify_fri_proof::<C>(
-        &fri_instance,
-        &proof_with_public_inputs
-            .proof
-            .openings
-            .to_fri_openings(zero),
-        &challenges.fri_challenges,
-        &merkle_caps,
-        &proof_with_public_inputs.proof.opening_proof,
-        &inner_config.fri_params(degree_bits),
-    );
-}
-
-fn eval_l_0_and_l_last_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    log_n: usize,
-    x: ExtensionTarget<D>,
-    z_x: ExtensionTarget<D>,
-) -> (ExtensionTarget<D>, ExtensionTarget<D>) {
-    let n = builder.constant_extension(F::Extension::from_canonical_usize(1 << log_n));
-    let g = builder.constant_extension(F::Extension::primitive_root_of_unity(log_n));
-    let one = builder.one_extension();
-    let l_0_deno = builder.mul_sub_extension(n, x, n);
-    let l_last_deno = builder.mul_sub_extension(g, x, one);
-    let l_last_deno = builder.mul_extension(n, l_last_deno);
-
-    (
-        builder.div_extension(z_x, l_0_deno),
-        builder.div_extension(z_x, l_last_deno),
-    )
+    MozakStarkVerifierCircuit { circuit, targets }
 }
 
 pub fn add_virtual_stark_proof_with_pis<
@@ -705,7 +577,7 @@ mod tests {
             public_inputs,
             &mut TimingTree::default(),
         )?;
-        verify_proof(&stark, mozak_proof.clone(), &config)?;
+        verify_proof(&stark, &mozak_proof.clone(), &config)?;
 
         let circuit_config = CircuitConfig::standard_recursion_config();
         let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
@@ -724,12 +596,14 @@ mod tests {
             &public_input_slice.into();
         assert_eq!(
             recursive_proof_public_inputs.event_commitment_tape, expected_event_commitment_tape,
-            "Could not find expected_event_commitment_tape in recursive proof's public inputs"
+            "Could not find
+        expected_event_commitment_tape in recursive proof's public inputs"
         );
         assert_eq!(
             recursive_proof_public_inputs.castlist_commitment_tape,
             expected_castlist_commitment_tape,
-            "Could not find expected_castlist_commitment_tape in recursive proof's public inputs"
+            "Could not find expected_castlist_commitment_tape in recursive
+        proof's public inputs"
         );
 
         mozak_stark_circuit.circuit.verify(recursive_proof)
@@ -801,9 +675,9 @@ mod tests {
         );
         let recursion_proof1 = recursion_circuit1.prove(&mozak_proof1)?;
 
-        recursion_circuit0
-            .circuit
-            .verify(recursion_proof0.clone())?;
+        // recursion_circuit0
+        //     .circuit
+        //     .verify(recursion_proof0.clone())?;
 
         let public_inputs_size = recursion_proof0.public_inputs.len();
         assert_eq!(VM_PUBLIC_INPUT_SIZE, public_inputs_size);

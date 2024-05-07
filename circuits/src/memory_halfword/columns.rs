@@ -7,7 +7,6 @@ use crate::cross_table_lookup::ColumnWithTypedInput;
 use crate::linear_combination::Column;
 use crate::memory::columns::MemoryCtl;
 use crate::stark::mozak_stark::{HalfWordMemoryTable, TableWithTypedOutput};
-// use crate::stark::mozak_stark::{HalfWordMemoryTable, Table};
 
 columns_view_impl!(Ops);
 /// Operations (one-hot encoded)

@@ -21,6 +21,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct XorStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+    pub standalone_proving: bool,
 }
 
 impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
@@ -66,6 +67,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
         P: PackedField<Scalar = FE>;
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
+
+    fn requires_ctls(&self) -> bool { !self.standalone_proving }
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
@@ -113,7 +116,10 @@ mod tests {
     type S = XorStark<F, D>;
     #[test]
     fn test_degree() -> Result<()> {
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_low_degree(stark)
     }
 
@@ -158,7 +164,10 @@ mod tests {
         let cpu_trace = generate_cpu_trace(&record);
         let trace = timed!(timing, "generate_xor_trace", generate_xor_trace(&cpu_trace));
         let trace_poly_values = timed!(timing, "trace to poly", trace_rows_to_poly_values(trace));
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
 
         let proof = timed!(
             timing,
@@ -190,7 +199,10 @@ mod tests {
 
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;
 
         Ok(())

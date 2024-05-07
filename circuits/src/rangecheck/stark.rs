@@ -48,7 +48,10 @@ mod tests {
 
     #[test]
     fn test_circuit() -> anyhow::Result<()> {
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;
 
         Ok(())

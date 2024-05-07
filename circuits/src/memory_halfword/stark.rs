@@ -20,6 +20,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct HalfWordMemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+    pub standalone_proving: bool,
 }
 
 impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
@@ -58,6 +59,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
         P: PackedField<Scalar = FE>;
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
+
+    fn requires_ctls(&self) -> bool { !self.standalone_proving }
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
@@ -148,7 +151,10 @@ mod tests {
     fn test_circuit() -> anyhow::Result<()> {
         type C = Poseidon2GoldilocksConfig;
         type S = HalfWordMemoryStark<F, D>;
-        let stark = S::default();
+        let stark = S {
+            standalone_proving: true,
+            ..S::default()
+        };
         test_stark_circuit_constraints::<F, C, S, D>(stark)?;
 
         Ok(())
