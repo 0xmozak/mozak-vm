@@ -134,7 +134,6 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
             &format!("{tape_clone:#?}").into_bytes(),
         );
     }
-    let call_tape_bytes = serde_json::to_vec(&tape_clone.call_tape.writer).unwrap();
 
     let bytes = serde_json::to_string_pretty(&tape_clone)
         .unwrap()

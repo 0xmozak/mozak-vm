@@ -1,6 +1,3 @@
-use core::ptr::slice_from_raw_parts;
-use std::collections::BTreeSet;
-
 use once_cell::unsync::Lazy;
 #[cfg(target_os = "mozakvm")]
 use {
