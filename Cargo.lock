@@ -997,7 +997,6 @@ dependencies = [
  "itertools 0.12.1",
  "lazy_static",
  "plonky2",
- "plonky2_maybe_rayon",
  "tested-fixture",
 ]
 
