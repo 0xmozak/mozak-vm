@@ -9,7 +9,6 @@ use crate::utils::pad_trace_with_last;
 pub fn generate_cpu_skeleton_trace<F: RichField>(
     record: &ExecutionRecord<F>,
 ) -> Vec<CpuSkeleton<F>> {
-    let mut trace: Vec<CpuSkeleton<F>> = vec![];
     let ExecutionRecord {
         executed,
         last_state,
@@ -23,14 +22,13 @@ pub fn generate_cpu_skeleton_trace<F: RichField>(
         ..executed.last().unwrap().clone()
     }];
 
-    for Row { state, .. } in chain![executed, last_row] {
-        let row = CpuSkeleton {
+    let trace = chain![executed, last_row]
+        .map(|Row { state, .. }| CpuSkeleton {
             clk: F::from_noncanonical_u64(state.clk),
             pc: F::from_canonical_u32(state.get_pc()),
             is_running: F::from_bool(!state.halted),
-        };
-        trace.push(row);
-    }
+        })
+        .collect();
     log::trace!("trace {:?}", trace);
     pad_trace_with_last(trace)
 }
