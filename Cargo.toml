@@ -26,7 +26,6 @@ members = [
   "rpc",
   "runner",
   "signatures",
-  "state",
   "wasm-demo",
 ]
 resolver = "2"
