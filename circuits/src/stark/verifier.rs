@@ -62,6 +62,7 @@ where
         ..Default::default()
     }
     .build();
+
     all_starks!(mozak_stark, |stark, kind| {
         verify_stark_proof_with_challenges(
             stark,
