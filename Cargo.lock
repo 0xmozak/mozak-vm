@@ -902,14 +902,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mozak"
-version = "0.1.0"
-dependencies = [
- "clap",
- "mozak-node",
-]
-
-[[package]]
 name = "mozak-circuits"
 version = "0.1.0"
 dependencies = [
@@ -1007,10 +999,6 @@ dependencies = [
  "plonky2_maybe_rayon",
  "tested-fixture",
 ]
-
-[[package]]
-name = "mozak-rpc"
-version = "0.1.0"
 
 [[package]]
 name = "mozak-runner"
@@ -1705,13 +1693,6 @@ dependencies = [
  "plonky2",
  "plonky2_maybe_rayon",
  "plonky2_util",
-]
-
-[[package]]
-name = "state"
-version = "0.1.0"
-dependencies = [
- "im",
 ]
 
 [[package]]

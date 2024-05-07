@@ -21,13 +21,10 @@ members = [
   "cli",
   "examples-builder",
   "expr",
-  "node-cli",
   "node",
   "recproofs",
-  "rpc",
   "runner",
   "signatures",
-  "state",
   "wasm-demo",
 ]
 resolver = "2"
