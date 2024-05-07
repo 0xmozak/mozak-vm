@@ -85,10 +85,10 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
             vec![]
         } else {
             izip!(val.addrs, val.limbs)
-                .map(|(addr, limb)| Memory {
+                .map(|(addr, value)| Memory {
                     clk: val.clk,
                     addr,
-                    value: limb,
+                    value,
                     is_store: val.ops.is_store,
                     is_load: val.ops.is_load,
                     ..Default::default()
@@ -121,11 +121,11 @@ impl<F: RichField> From<&LoadWord<F>> for Vec<Memory<F>> {
         if (val.is_running).is_zero() {
             vec![]
         } else {
-            (0..4)
-                .map(|i| Memory {
+            izip!(0.., val.dst_limbs)
+                .map(|(i, value)| Memory {
                     clk: val.clk,
-                    addr: val.address + F::from_canonical_usize(i),
-                    value: val.dst_limbs[i],
+                    addr: val.address + F::from_canonical_u8(i),
+                    value,
                     is_load: F::ONE,
                     ..Default::default()
                 })

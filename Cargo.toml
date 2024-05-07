@@ -21,13 +21,10 @@ members = [
   "cli",
   "examples-builder",
   "expr",
-  "node-cli",
   "node",
   "recproofs",
-  "rpc",
   "runner",
   "signatures",
-  "state",
   "wasm-demo",
 ]
 resolver = "2"
@@ -55,6 +52,8 @@ plonky2_maybe_rayon = { version = "0", default-features = false }
 starky = { version = "0", default-features = false }
 
 plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
+
+criterion = { version = "0.5", default-features = false, features = ["html_reports", "plotters", "cargo_bench_support"] }
 
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
