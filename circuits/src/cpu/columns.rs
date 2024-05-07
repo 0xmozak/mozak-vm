@@ -6,12 +6,12 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cpu_skeleton::columns::CpuSkeletonCtl;
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-use crate::memory_io::columns::StorageDeviceCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::ProgramRom;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
+use crate::storage_device::columns::StorageDeviceCtl;
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -174,9 +174,10 @@ pub struct CpuState<T> {
     // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
     // filter.
     // TODO: implement the above.
-    pub is_io_store_private: T,
-    pub is_io_store_public: T,
+    pub is_private_tape: T,
+    pub is_public_tape: T,
     pub is_call_tape: T,
+    pub is_event_tape: T,
     pub is_events_commitment_tape: T,
     pub is_cast_list_commitment_tape: T,
     pub is_halt: T,
@@ -327,16 +328,17 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     )
 }
 
-/// Column containing the data to be matched against IO Memory starks.
+/// Column containing the data to be matched against `StorageDevice` starks.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
+pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     CpuTable::new(
         StorageDeviceCtl {
             op: ColumnWithTypedInput::ascending_sum([
-                CPU.is_io_store_private,
-                CPU.is_io_store_public,
+                CPU.is_private_tape,
+                CPU.is_public_tape,
                 CPU.is_call_tape,
+                CPU.is_event_tape,
                 CPU.is_events_commitment_tape,
                 CPU.is_cast_list_commitment_tape,
             ]),
@@ -345,9 +347,10 @@ pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Co
             size: CPU.io_size,
         },
         [
-            CPU.is_io_store_private,
-            CPU.is_io_store_public,
+            CPU.is_private_tape,
+            CPU.is_public_tape,
             CPU.is_call_tape,
+            CPU.is_event_tape,
             CPU.is_events_commitment_tape,
             CPU.is_cast_list_commitment_tape,
         ]

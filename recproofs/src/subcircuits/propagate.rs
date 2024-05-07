@@ -9,28 +9,14 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::find_targets;
+use crate::indices::{ArrayTargetIndex, TargetIndex};
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct PublicIndices<const V: usize> {
     /// The indices of each of the elements of the common values
-    pub values: [usize; V],
-}
-
-impl<const V: usize> PublicIndices<V> {
-    /// Extract common values from an array of public inputs.
-    pub fn get_values<T: Copy>(&self, public_inputs: &[T]) -> [T; V] {
-        self.values.map(|i| public_inputs[i])
-    }
-
-    /// Insert common values into an array of public inputs.
-    pub fn set_values<T>(&self, public_inputs: &mut [T], v: [T; V]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.values[i]] = v;
-        }
-    }
+    pub values: ArrayTargetIndex<TargetIndex, V>,
 }
 
 pub struct SubCircuitInputs<const V: usize> {
@@ -74,7 +60,7 @@ impl<const V: usize> LeafTargets<V> {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit<V> {
         let indices = PublicIndices {
-            values: find_targets(public_inputs, self.inputs.values),
+            values: ArrayTargetIndex::new(public_inputs, &self.inputs.values),
         };
         LeafSubCircuit {
             targets: self,
@@ -110,8 +96,8 @@ impl<const V: usize> SubCircuitInputs<V> {
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
     ) -> BranchTargets<V> {
-        let l_values = indices.get_values(&left_proof.public_inputs);
-        let r_values = indices.get_values(&right_proof.public_inputs);
+        let l_values = indices.values.get(&left_proof.public_inputs);
+        let r_values = indices.values.get(&right_proof.public_inputs);
 
         // Connect all the values
         for (v, (l, r)) in zip(self.values, zip(l_values, r_values)) {
@@ -140,7 +126,7 @@ impl<const V: usize> BranchTargets<V> {
     pub fn build(self, child: &PublicIndices<V>, public_inputs: &[Target]) -> BranchSubCircuit<V> {
         // Find the indices
         let indices = PublicIndices {
-            values: find_targets(public_inputs, self.inputs.values),
+            values: ArrayTargetIndex::new(public_inputs, &self.inputs.values),
         };
         debug_assert_eq!(indices, *child);
 

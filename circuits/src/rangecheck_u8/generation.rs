@@ -47,14 +47,14 @@ mod tests {
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::io_memory::{
-        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
-        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
-        generate_io_memory_public_trace,
-    };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::storage_device::{
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_event_tape_trace, generate_events_commitment_tape_trace,
+        generate_private_tape_trace, generate_public_tape_trace,
+    };
     use crate::ops;
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
@@ -87,9 +87,10 @@ mod tests {
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
-        let io_memory_private = generate_io_memory_private_trace(&record.executed);
-        let io_memory_public = generate_io_memory_public_trace(&record.executed);
+        let private_tape = generate_private_tape_trace(&record.executed);
+        let public_tape = generate_public_tape_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let event_tape_rows = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
@@ -101,9 +102,10 @@ mod tests {
             &memory_zeroinit_rows,
             &halfword_memory,
             &fullword_memory,
-            &io_memory_private,
-            &io_memory_public,
+            &private_tape,
+            &public_tape,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &poseidon2_sponge_trace,
@@ -115,9 +117,10 @@ mod tests {
             &add_rows,
             &blt_rows,
             &poseidon2_sponge_trace,
-            &io_memory_private,
-            &io_memory_public,
+            &private_tape,
+            &public_tape,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
             &register_init,

@@ -115,6 +115,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "array-util"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c4dd5139f13c1a8b0e9f52197dcda016bbcd4e877055f93fb9ecd0f6c6136a7"
+dependencies = [
+ "arrayvec",
+]
+
+[[package]]
 name = "arrayvec"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -990,6 +999,7 @@ name = "mozak-recproofs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "array-util",
  "criterion",
  "enumflags2",
  "iter_fixed",
@@ -997,6 +1007,7 @@ dependencies = [
  "lazy_static",
  "plonky2",
  "plonky2_maybe_rayon",
+ "tested-fixture",
 ]
 
 [[package]]
@@ -1150,7 +1161,7 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 [[package]]
 name = "plonky2"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
+source = "git+https://github.com/0xmozak/plonky2.git#8348093e58193941402b0a1efb2f5bc9dabde2db"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1191,7 +1202,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
+source = "git+https://github.com/0xmozak/plonky2.git#8348093e58193941402b0a1efb2f5bc9dabde2db"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
@@ -1206,7 +1217,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
+source = "git+https://github.com/0xmozak/plonky2.git#8348093e58193941402b0a1efb2f5bc9dabde2db"
 dependencies = [
  "rayon",
 ]
@@ -1214,7 +1225,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
+source = "git+https://github.com/0xmozak/plonky2.git#8348093e58193941402b0a1efb2f5bc9dabde2db"
 
 [[package]]
 name = "plotters"
@@ -1255,6 +1266,15 @@ name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
+
+[[package]]
+name = "proc-macro-crate"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d37c51ca738a55da99dc0c4a34860fd675453b8b36209178c2249bb13651284"
+dependencies = [
+ "toml_edit 0.21.1",
+]
 
 [[package]]
 name = "proc-macro-error"
@@ -1528,9 +1548,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.199"
+version = "1.0.200"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c9f6e76df036c77cd94996771fb40db98187f096dd0b9af39c6c6e452ba966a"
+checksum = "ddc6f9cc94d67c0e21aaf7eda3a010fd3af78ebf6e096aa6e2e13c79749cce4f"
 dependencies = [
  "serde_derive",
 ]
@@ -1557,9 +1577,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.199"
+version = "1.0.200"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11bd257a6541e141e42ca6d24ae26f7714887b47e89aa739099104c7e4d3b7fc"
+checksum = "856f046b9400cee3c8c94ed572ecdb752444c24528c035cd35882aad6f492bcb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1685,7 +1705,7 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.4.0"
-source = "git+https://github.com/0xmozak/plonky2.git#7a9ba1406b45279b69236708079c0cdc882a181c"
+source = "git+https://github.com/0xmozak/plonky2.git#8348093e58193941402b0a1efb2f5bc9dabde2db"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1786,6 +1806,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "tested-fixture"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76c204532716b9132d719343f3993dd77ad6f037cb926fd5708d1359a4356337"
+dependencies = [
+ "once_cell",
+ "tested-fixture-macros",
+]
+
+[[package]]
+name = "tested-fixture-macros"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "614c88c3e36a85406afd18878d8960bab99a7783cca0561c4d811f4853741936"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1879,7 +1921,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit",
+ "toml_edit 0.22.12",
 ]
 
 [[package]]
@@ -1893,6 +1935,17 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8534fd7f78b5405e860340ad6575217ce99f38d4d5c8f2442cb5ecb50090e1"
+dependencies = [
+ "indexmap 2.2.6",
+ "toml_datetime",
+ "winnow 0.5.40",
+]
+
+[[package]]
+name = "toml_edit"
 version = "0.22.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3328d4f68a705b2a4498da1d580585d39a6510f98318a2cec3018a7ec61ddef"
@@ -1901,7 +1954,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "winnow",
+ "winnow 0.6.7",
 ]
 
 [[package]]
@@ -2233,6 +2286,15 @@ name = "windows_x86_64_msvc"
 version = "0.52.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bec47e5bfd1bff0eeaf6d8b485cc1074891a197ab4225d504cb7a1ab88b02bf0"
+
+[[package]]
+name = "winnow"
+version = "0.5.40"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f593a95398737aeed53e489c785df13f3618e41dbcd6718c6addbf1395aa6876"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "winnow"

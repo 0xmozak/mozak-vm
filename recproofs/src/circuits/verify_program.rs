@@ -290,7 +290,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use std::panic::catch_unwind;
 
     use lazy_static::lazy_static;
@@ -303,10 +303,11 @@ mod test {
     use super::*;
     use crate::circuits::build_event_root::test::{BRANCH as EVENT_BRANCH, LEAF as EVENT_LEAF};
     use crate::circuits::merge::test::{BRANCH as MERGE_BRANCH, LEAF as MERGE_LEAF};
+    use crate::indices::{ArrayTargetIndex, BoolTargetIndex, HashTargetIndex};
     use crate::test_utils::{hash_branch, hash_branch_bytes, make_fs, C, CONFIG, D, F};
-    use crate::{find_bool, find_hash, find_targets, Event, EventType};
+    use crate::{Event, EventType};
 
-    struct DummyCircuit<F, C, const D: usize>
+    pub struct DummyCircuit<F, C, const D: usize>
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
@@ -366,14 +367,14 @@ mod test {
             }
         }
 
-        fn get_indices(&self) -> ProgramPublicIndices {
+        pub fn get_indices(&self) -> ProgramPublicIndices {
             let public_inputs = &self.circuit.prover_only.public_inputs;
             ProgramPublicIndices {
-                program_hash: find_targets(public_inputs, self.program_hash),
-                events_present: find_bool(public_inputs, self.events_present),
-                event_root: find_hash(public_inputs, self.event_root),
-                call_list: find_targets(public_inputs, self.call_list),
-                cast_root: find_hash(public_inputs, self.cast_root),
+                program_hash: ArrayTargetIndex::new(public_inputs, &self.program_hash),
+                events_present: BoolTargetIndex::new(public_inputs, self.events_present),
+                event_root: HashTargetIndex::new(public_inputs, self.event_root),
+                call_list: ArrayTargetIndex::new(public_inputs, &self.call_list),
+                cast_root: HashTargetIndex::new(public_inputs, self.cast_root),
             }
         }
 
@@ -395,17 +396,17 @@ mod test {
     }
 
     lazy_static! {
-        static ref PROGRAM_1: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG, false);
-        static ref PROGRAM_1_INDICES: ProgramPublicIndices = PROGRAM_1.get_indices();
-        static ref PROGRAM_2: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG, true);
-        static ref PROGRAM_2_INDICES: ProgramPublicIndices = PROGRAM_2.get_indices();
-        static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(
+        pub static ref PROGRAM_1: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG, false);
+        pub static ref PROGRAM_1_INDICES: ProgramPublicIndices = PROGRAM_1.get_indices();
+        pub static ref PROGRAM_2: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG, true);
+        pub static ref PROGRAM_2_INDICES: ProgramPublicIndices = PROGRAM_2.get_indices();
+        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(
             &CONFIG,
             &PROGRAM_1_INDICES,
             &PROGRAM_1.circuit.common,
             &EVENT_BRANCH
         );
-        static ref BRANCH: BranchCircuit<F, C, D> =
+        pub static ref BRANCH: BranchCircuit<F, C, D> =
             BranchCircuit::new(&CONFIG, &MERGE_BRANCH, &LEAF);
     }
 
@@ -424,7 +425,7 @@ mod test {
         pub vm_hash: HashOut<F>,
     }
 
-    fn build_events(l: Event<F>, r: Event<F>) -> BuiltEvent {
+    pub fn build_events(l: Event<F>, r: Event<F>) -> BuiltEvent {
         let l_proof = build_event(l);
         let r_proof = build_event(r);
         let branch_hash = hash_branch(&l.hash(), &r.hash());
@@ -449,31 +450,40 @@ mod test {
         }
     }
 
-    fn make_program(
+    pub fn make_program(
+        program: &DummyCircuit<F, C, D>,
         program_hash: [F; 4],
         event_root: Option<HashOut<F>>,
         call_list: [F; 4],
         cast_root: HashOut<F>,
     ) -> ProofWithPublicInputs<F, C, D> {
-        let program_proof = PROGRAM_1
+        let program_proof = program
             .prove(program_hash, event_root, call_list, cast_root)
             .unwrap();
-        PROGRAM_1.circuit.verify(program_proof.clone()).unwrap();
+        program.circuit.verify(program_proof.clone()).unwrap();
         program_proof
     }
 
-    fn merge_events(a: Event<F>, b: Event<F>) -> ProofWithPublicInputs<F, C, D> {
-        let a = a.hash();
-        let b = b.hash();
-        let merged_hash = hash_branch(&a, &b);
-        let merge_proof = MERGE_LEAF
-            .prove(&MERGE_BRANCH, Some(a), Some(b), Some(merged_hash))
-            .unwrap();
+    pub fn merge_hashes(
+        a: Option<HashOut<F>>,
+        b: Option<HashOut<F>>,
+    ) -> ProofWithPublicInputs<F, C, D> {
+        let merged_hash = match (a, b) {
+            (None, None) => None,
+            (None, Some(b)) => Some(b),
+            (Some(a), None) => Some(a),
+            (Some(a), Some(b)) => Some(hash_branch(&a, &b)),
+        };
+        let merge_proof = MERGE_LEAF.prove(&MERGE_BRANCH, a, b, merged_hash).unwrap();
         MERGE_LEAF.circuit.verify(merge_proof.clone()).unwrap();
         merge_proof
     }
 
-    fn merge_merges(
+    pub fn merge_events(a: Event<F>, b: Event<F>) -> ProofWithPublicInputs<F, C, D> {
+        merge_hashes(Some(a.hash()), Some(b.hash()))
+    }
+
+    pub fn merge_merges(
         l_leaf: bool,
         l: &ProofWithPublicInputs<F, C, D>,
         r_leaf: bool,
@@ -524,8 +534,12 @@ mod test {
     ];
 
     lazy_static! {
-        static ref P1_BUILT_EVENTS: BuiltEvent = build_events(P1_EVENTS[0], P1_EVENTS[1]);
-        static ref P2_BUILT_EVENTS: BuiltEvent = build_events(P2_EVENTS[0], P2_EVENTS[1]);
+        pub static ref P1_BUILT_EVENTS: BuiltEvent = build_events(P1_EVENTS[0], P1_EVENTS[1]);
+        pub static ref P1_EVENTS_HASH: HashOut<F> =
+            hash_branch(&P1_EVENTS[0].hash(), &P1_EVENTS[1].hash());
+        pub static ref P2_BUILT_EVENTS: BuiltEvent = build_events(P2_EVENTS[0], P2_EVENTS[1]);
+        pub static ref P2_EVENTS_HASH: HashOut<F> =
+            hash_branch(&P2_EVENTS[0].hash(), &P2_EVENTS[1].hash());
     }
 
     /// Helpers with P1 to the left of P2
@@ -539,18 +553,21 @@ mod test {
 
         lazy_static! {
             pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                &PROGRAM_1,
                 PROGRAM_1_HASH,
                 Some(P1_BUILT_EVENTS.vm_hash),
                 CALL_LIST_1,
                 *CAST_ROOT
             );
             pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                &PROGRAM_2,
                 PROGRAM_2_HASH,
                 Some(P2_BUILT_EVENTS.vm_hash),
                 CALL_LIST_1,
                 *CAST_ROOT
             );
             pub static ref PROGRAM_2B_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                &PROGRAM_2,
                 PROGRAM_2_HASH,
                 Some(P2_BUILT_EVENTS.vm_hash),
                 CALL_LIST_2,
@@ -559,6 +576,11 @@ mod test {
         }
 
         lazy_static! {
+            pub static ref MERGE_42_HASH: HashOut<F> =
+                hash_branch(&P1_EVENTS[0].hash(), &P2_EVENTS[0].hash());
+            pub static ref MERGE_80_HASH: HashOut<F> =
+                hash_branch(&P1_EVENTS[1].hash(), &P2_EVENTS[1].hash());
+            pub static ref MERGE_HASH: HashOut<F> = hash_branch(&MERGE_42_HASH, &MERGE_80_HASH);
             pub static ref MERGE_42: ProofWithPublicInputs<F, C, D> =
                 merge_events(P1_EVENTS[0], P2_EVENTS[0]);
             pub static ref MERGE_80: ProofWithPublicInputs<F, C, D> =
@@ -579,12 +601,14 @@ mod test {
 
         lazy_static! {
             pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                &PROGRAM_1,
                 PROGRAM_1_HASH,
                 Some(P1_BUILT_EVENTS.vm_hash),
                 CALL_LIST_1,
                 *CAST_ROOT
             );
             pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
+                &PROGRAM_2,
                 PROGRAM_2_HASH,
                 Some(P2_BUILT_EVENTS.vm_hash),
                 CALL_LIST_1,
@@ -593,6 +617,11 @@ mod test {
         }
 
         lazy_static! {
+            pub static ref MERGE_42_HASH: HashOut<F> =
+                hash_branch(&P2_EVENTS[0].hash(), &P1_EVENTS[0].hash());
+            pub static ref MERGE_80_HASH: HashOut<F> =
+                hash_branch(&P2_EVENTS[1].hash(), &P1_EVENTS[1].hash());
+            pub static ref MERGE_HASH: HashOut<F> = hash_branch(&MERGE_42_HASH, &MERGE_80_HASH);
             pub static ref MERGE_42: ProofWithPublicInputs<F, C, D> =
                 merge_events(P2_EVENTS[0], P1_EVENTS[0]);
             pub static ref MERGE_80: ProofWithPublicInputs<F, C, D> =
@@ -614,7 +643,7 @@ mod test {
 
         let proof = LEAF.prove(
             &BRANCH,
-            &PROGRAM_1.circuit.verifier_only,
+            &PROGRAM_2.circuit.verifier_only,
             &p1_p2::PROGRAM_2_PROOF,
             &P2_BUILT_EVENTS.proof,
         )?;
@@ -630,7 +659,7 @@ mod test {
 
         let proof = LEAF.prove(
             &BRANCH,
-            &PROGRAM_1.circuit.verifier_only,
+            &PROGRAM_2.circuit.verifier_only,
             &p2_p1::PROGRAM_2_PROOF,
             &P2_BUILT_EVENTS.proof,
         )?;
@@ -673,7 +702,7 @@ mod test {
         let proof = LEAF
             .prove(
                 &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_2.circuit.verifier_only,
                 &p1_p2::PROGRAM_2_PROOF,
                 &P1_BUILT_EVENTS.proof,
             )
@@ -701,7 +730,7 @@ mod test {
         let proof = LEAF
             .prove(
                 &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_2.circuit.verifier_only,
                 &p2_p1::PROGRAM_2_PROOF,
                 &P1_BUILT_EVENTS.proof,
             )
@@ -723,7 +752,7 @@ mod test {
 
         let leaf_2_proof = LEAF.prove(
             &BRANCH,
-            &PROGRAM_1.circuit.verifier_only,
+            &PROGRAM_2.circuit.verifier_only,
             &PROGRAM_2_PROOF,
             &P2_BUILT_EVENTS.proof,
         )?;
@@ -755,7 +784,7 @@ mod test {
 
             let leaf_2_proof = LEAF.prove(
                 &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_2.circuit.verifier_only,
                 &PROGRAM_2_PROOF,
                 &P2_BUILT_EVENTS.proof,
             )?;
@@ -791,7 +820,7 @@ mod test {
 
             let leaf_2_proof = LEAF.prove(
                 &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_2.circuit.verifier_only,
                 &PROGRAM_2_PROOF,
                 &P2_BUILT_EVENTS.proof,
             )?;
@@ -827,7 +856,7 @@ mod test {
 
             let leaf_2_proof = LEAF.prove(
                 &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
+                &PROGRAM_2.circuit.verifier_only,
                 &PROGRAM_2B_PROOF,
                 &P2_BUILT_EVENTS.proof,
             )?;
