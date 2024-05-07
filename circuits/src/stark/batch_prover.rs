@@ -415,7 +415,7 @@ where
     });
 
     // Computing ctl zs polynomials for all but those for public tables
-    let ctl_zs_poly_count = all_kind!(|_kind| 0);
+    let mut ctl_zs_poly_count = all_kind!(|_kind| 0);
     let all_ctl_z_polys = all_kind!(|kind| {
         if public_table_kinds.contains(&kind) {
             None
@@ -435,6 +435,8 @@ where
                     .collect_vec();
 
                 assert!(!z_polys.is_empty());
+
+                ctl_zs_poly_count[kind] = z_polys.len();
 
                 z_polys
             })
