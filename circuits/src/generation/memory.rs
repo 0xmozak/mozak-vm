@@ -169,6 +169,13 @@ pub fn generate_memory_trace<F: RichField>(
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
     poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
+    // TODO(Matthias): first, we need to figure out which addresses are eligible for
+    // full-word-access. They are the ones that only have lw/sw access for the
+    // whole execution.
+
+    // How to deal with ecalls etc?  We probably want to enforce that they do
+    // aligned access only, and then send them to one of the full-word tables?
+
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
     // `merge` operation is expected to be stable
