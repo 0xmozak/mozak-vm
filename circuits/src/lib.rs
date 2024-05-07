@@ -17,7 +17,6 @@ pub mod linear_combination;
 pub mod linear_combination_typed;
 pub mod memory;
 pub mod memory_halfword;
-pub mod memory_io;
 pub mod memory_zeroinit;
 pub mod memoryinit;
 pub mod ops;
@@ -30,6 +29,7 @@ pub mod rangecheck;
 pub mod rangecheck_u8;
 pub mod register;
 pub mod stark;
+pub mod storage_device;
 pub mod tape_commitments;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;

@@ -6,12 +6,12 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cpu_skeleton::columns::CpuSkeletonCtl;
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-use crate::memory_io::columns::StorageDeviceCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::ProgramRom;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
+use crate::storage_device::columns::StorageDeviceCtl;
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -174,9 +174,10 @@ pub struct CpuState<T> {
     // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
     // filter.
     // TODO: implement the above.
-    pub is_io_store_private: T,
-    pub is_io_store_public: T,
+    pub is_private_tape: T,
+    pub is_public_tape: T,
     pub is_call_tape: T,
+    pub is_event_tape: T,
     pub is_events_commitment_tape: T,
     pub is_cast_list_commitment_tape: T,
     pub is_halt: T,
@@ -186,15 +187,10 @@ pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
 impl<T> CpuState<T>
 where
-    T: Copy + Sum,
+    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T> + Sum,
 {
-    pub fn is_running(&self) -> T { self.inst.ops.into_iter().sum() }
-}
+    pub fn is_running(&self) -> T { self.inst.ops.is_running() }
 
-impl<T> CpuState<T>
-where
-    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
-{
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
@@ -215,13 +211,10 @@ where
 
 impl<P> OpSelectors<P>
 where
-    P: Copy + Add<Output = P> + Sum + Sub<Output = P>,
+    P: Copy + Add<Output = P> + Sum<P> + Sub<Output = P> + Sum,
 {
-    /// List of opcodes that only bump the program counter.
-    pub fn is_straightline(self) -> P { self.into_iter().sum::<P>() - self.is_jumping() }
-}
+    pub fn is_running(self) -> P { self.into_iter().sum() }
 
-impl<P: Copy + Add<Output = P>> OpSelectors<P> {
     // List of opcodes that manipulated the program counter, instead of
     // straight line incrementing it.
     // Note: ecall is only 'jumping' in the sense that a 'halt'
@@ -229,6 +222,9 @@ impl<P: Copy + Add<Output = P>> OpSelectors<P> {
     pub fn is_jumping(&self) -> P {
         self.beq + self.bge + self.blt + self.bne + self.ecall + self.jalr
     }
+
+    /// List of opcodes that only bump the program counter.
+    pub fn is_straightline(self) -> P { self.is_running() - self.is_jumping() }
 
     /// List of opcodes that work with memory.
     pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
@@ -327,16 +323,17 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     )
 }
 
-/// Column containing the data to be matched against IO Memory starks.
+/// Column containing the data to be matched against `StorageDevice` starks.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
+pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     CpuTable::new(
         StorageDeviceCtl {
             op: ColumnWithTypedInput::ascending_sum([
-                CPU.is_io_store_private,
-                CPU.is_io_store_public,
+                CPU.is_private_tape,
+                CPU.is_public_tape,
                 CPU.is_call_tape,
+                CPU.is_event_tape,
                 CPU.is_events_commitment_tape,
                 CPU.is_cast_list_commitment_tape,
             ]),
@@ -345,9 +342,10 @@ pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Co
             size: CPU.io_size,
         },
         [
-            CPU.is_io_store_private,
-            CPU.is_io_store_public,
+            CPU.is_private_tape,
+            CPU.is_public_tape,
             CPU.is_call_tape,
+            CPU.is_event_tape,
             CPU.is_events_commitment_tape,
             CPU.is_cast_list_commitment_tape,
         ]
@@ -407,7 +405,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
                 1 << 5,
             ),
         },
-        inst.ops.into_iter().sum(),
+        CPU.is_running(),
     )
 }
 

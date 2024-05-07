@@ -215,7 +215,6 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
                 .copied()
                 .collect_vec(),
         };
-        debug_assert!(!self.ctl_zs_last.is_empty());
         let ctl_last_batch = FriOpeningBatch {
             values: self
                 .ctl_zs_last
@@ -279,6 +278,19 @@ where
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
     pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(bound = "")]
+pub struct BatchProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
+    pub degree_bits: TableKindArray<usize>,
+    pub proofs: TableKindArray<StarkProof<F, C, D>>,
+    pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
+    pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
+    pub public_inputs: PublicInputs<F>,
+    pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
+    pub batch_stark_proof: StarkProof<F, C, D>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {

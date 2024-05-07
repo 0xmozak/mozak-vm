@@ -97,7 +97,7 @@ enum ConstraintType {
 }
 
 pub struct ConstraintBuilder<E> {
-    pub constraints: Vec<Constraint<E>>,
+    constraints: Vec<Constraint<E>>,
 }
 impl<E> Default for ConstraintBuilder<E> {
     fn default() -> Self {
