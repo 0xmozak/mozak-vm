@@ -187,15 +187,10 @@ pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
 impl<T> CpuState<T>
 where
-    T: Copy + Sum,
+    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T> + Sum,
 {
     pub fn is_running(&self) -> T { self.inst.ops.is_running() }
-}
 
-impl<T> CpuState<T>
-where
-    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
-{
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
