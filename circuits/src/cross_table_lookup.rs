@@ -153,31 +153,30 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     cross_table_lookups: &[CrossTableLookup],
     ctl_challenges: &GrandProductChallengeSet<F>,
 ) -> TableKindArray<CtlData<F>> {
-    let tables: Vec<_> = iproduct!(
+    let mut tables = iproduct!(
         &ctl_challenges.challenges,
         cross_table_lookups
             .iter()
             .flat_map(|CrossTableLookup { looking_tables }| looking_tables)
     )
-    .collect();
-    let mut tables = tables
-        .into_par_iter()
-        .map(|(&challenge, table)| {
-            (table.kind, CtlZData {
-                z: partial_sums(
-                    &trace_poly_values[table.kind],
-                    &table.columns,
-                    &table.filter_column,
-                    challenge,
-                ),
+    .collect::<Vec<_>>()
+    .into_par_iter()
+    .map(|(&challenge, table)| {
+        (table.kind, CtlZData {
+            z: partial_sums(
+                &trace_poly_values[table.kind],
+                &table.columns,
+                &table.filter_column,
                 challenge,
-                columns: table.columns.clone(),
-                filter_column: table.filter_column.clone(),
-            })
+            ),
+            challenge,
+            columns: table.columns.clone(),
+            filter_column: table.filter_column.clone(),
         })
-        .collect::<Vec<_>>()
-        .into_iter()
-        .into_group_map();
+    })
+    .collect::<Vec<_>>()
+    .into_iter()
+    .into_group_map();
     all_kind!(|kind| CtlData {
         zs_columns: tables.remove(&kind).unwrap(),
     })
