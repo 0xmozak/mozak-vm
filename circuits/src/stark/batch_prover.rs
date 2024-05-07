@@ -277,8 +277,8 @@ where
             .clone()
             .with_kind()
             .map(|(trace, table)| {
-                if public_table_kinds.contains(&table) {
-                    Some(timed!(
+                public_table_kinds.contains(&table).then(|| {
+                    timed!(
                         timing,
                         &format!("compute trace commitment for {table:?}"),
                         PolynomialBatch::<F, C, D>::from_values(
@@ -289,10 +289,8 @@ where
                             timing,
                             None,
                         )
-                    ))
-                } else {
-                    None
-                }
+                    )
+                })
             })
     );
 
