@@ -711,10 +711,11 @@ pub(crate) fn batch_reduction_arity_bits(
 ) -> Vec<usize> {
     let mut result = Vec::new();
     let default_arity_bits = 3;
+    let final_poly_bits = 5;
     let mut cur_index = 0;
     let mut cur_degree_bits = degree_bits[0] + rate_bits;
     assert!(degree_bits.last().unwrap() + rate_bits >= cap_height);
-    while cur_degree_bits > cap_height {
+    while cur_degree_bits > cap_height && cur_degree_bits > final_poly_bits {
         let mut cur_arity_bits = if cur_degree_bits < cap_height + default_arity_bits {
             cur_degree_bits - cap_height
         } else {
@@ -729,7 +730,6 @@ pub(crate) fn batch_reduction_arity_bits(
         result.push(cur_arity_bits);
         cur_degree_bits -= cur_arity_bits;
     }
-    assert_eq!(cur_degree_bits, cap_height);
     result
 }
 
@@ -752,14 +752,14 @@ mod tests {
         let degree_bits = vec![8, 6, 5, 3];
         let rate_bits = 2;
         let cap_height = 0;
-        let expected_res = vec![2, 1, 2, 3, 2];
+        let expected_res = vec![2, 1, 2];
         assert_eq!(
             expected_res,
             batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
         );
 
         let cap_height = 3;
-        let expected_res = vec![2, 1, 2, 2];
+        let expected_res = vec![2, 1, 2];
         assert_eq!(
             expected_res,
             batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
