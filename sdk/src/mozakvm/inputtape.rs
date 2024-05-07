@@ -1,5 +1,5 @@
 use super::helpers::owned_buffer;
-use super::linker_symbols::{_mozak_private_io_tape, _mozak_public_io_tape};
+use super::linker_symbols::{_mozak_private_tape, _mozak_public_tape};
 use crate::mozakvm::helpers::get_owned_buffer;
 
 #[derive(Default, Clone)]
@@ -140,7 +140,7 @@ impl Default for PrivateInputTape {
         #[cfg(feature = "preinitmem_inputtape")]
         {
             Self(FreeformTape {
-                tape: get_owned_buffer!(_mozak_private_io_tape),
+                tape: get_owned_buffer!(_mozak_private_tape),
                 read_offset: 0,
             })
         }
@@ -158,7 +158,7 @@ impl Default for PublicInputTape {
         #[cfg(feature = "preinitmem_inputtape")]
         {
             Self(FreeformTape {
-                tape: get_owned_buffer!(_mozak_public_io_tape),
+                tape: get_owned_buffer!(_mozak_public_tape),
                 read_offset: 0,
             })
         }

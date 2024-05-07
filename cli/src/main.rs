@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -14,8 +13,8 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
-use mozak_circuits::generation::io_memory::generate_call_tape_trace;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
+use mozak_circuits::generation::storage_device::generate_call_tape_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
@@ -432,18 +431,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::Bench(bench) => {
-            /// Times a function and returns the `Duration`.
-            ///
-            /// # Errors
-            ///
-            /// This errors if the given function returns an `Err`.
-            pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
-                let start_time = std::time::Instant::now();
-                func()?;
-                Ok(start_time.elapsed())
-            }
-
-            let time_taken = timeit(&|| bench.run())?.as_secs_f64();
+            let time_taken = bench.bench()?.as_secs_f64();
             println!("{time_taken}");
         }
     }

@@ -82,28 +82,27 @@ where
     Ok(())
 }
 
-pub(crate) fn verify_stark_proof_with_challenges<
+pub(crate) fn verify_quotient_polynomials<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
     const D: usize,
 >(
     stark: &S,
+    degree_bits: usize,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
     public_inputs: &[F],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
-    config: &StarkConfig,
 ) -> Result<()>
 where
 {
-    validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let StarkOpeningSet {
         local_values,
         next_values,
         ctl_zs: _,
         ctl_zs_next: _,
-        ctl_zs_last,
+        ctl_zs_last: _,
         quotient_polys,
     } = &proof.openings;
 
@@ -116,7 +115,6 @@ where
             .collect_vec(),
     );
 
-    let degree_bits = proof.recover_degree_bits(config);
     let (l_0, l_last) = eval_l_0_and_l_last(degree_bits, challenges.stark_zeta);
     let last = F::primitive_root_of_unity(degree_bits).inverse();
     let z_last = challenges.stark_zeta - last.into();
@@ -159,15 +157,46 @@ where
         );
     }
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
+
+    Ok(())
+}
+
+pub(crate) fn verify_stark_proof_with_challenges<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    S: Stark<F, D>,
+    const D: usize,
+>(
+    stark: &S,
+    proof: &StarkProof<F, C, D>,
+    challenges: &StarkProofChallenges<F, D>,
+    public_inputs: &[F],
+    ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
+    config: &StarkConfig,
+) -> Result<()>
+where
+{
+    validate_proof_shape(stark, proof, config, ctl_vars.len())?;
+    let degree_bits = proof.recover_degree_bits(config);
+    verify_quotient_polynomials(
+        stark,
+        degree_bits,
+        proof,
+        challenges,
+        public_inputs,
+        ctl_vars,
+    )?;
+
+    let ctl_zs_last = &proof.openings.ctl_zs_last;
     let merkle_caps = vec![
         proof.trace_cap.clone(),
         proof.ctl_zs_cap.clone(),
         proof.quotient_polys_cap.clone(),
     ];
 
-    // Make sure that we do not use Starky's lookups.
-    assert!(!stark.requires_ctls());
-    assert!(!stark.uses_lookups());
     verify_fri_proof::<F, C, D>(
         &stark.fri_instance(
             challenges.stark_zeta,

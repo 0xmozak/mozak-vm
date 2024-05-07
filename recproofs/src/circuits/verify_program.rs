@@ -303,8 +303,9 @@ pub mod test {
     use super::*;
     use crate::circuits::build_event_root::test::{BRANCH as EVENT_BRANCH, LEAF as EVENT_LEAF};
     use crate::circuits::merge::test::{BRANCH as MERGE_BRANCH, LEAF as MERGE_LEAF};
+    use crate::indices::{ArrayTargetIndex, BoolTargetIndex, HashTargetIndex};
     use crate::test_utils::{hash_branch, hash_branch_bytes, make_fs, C, CONFIG, D, F};
-    use crate::{find_bool, find_hash, find_targets, Event, EventType};
+    use crate::{Event, EventType};
 
     pub struct DummyCircuit<F, C, const D: usize>
     where
@@ -369,11 +370,11 @@ pub mod test {
         pub fn get_indices(&self) -> ProgramPublicIndices {
             let public_inputs = &self.circuit.prover_only.public_inputs;
             ProgramPublicIndices {
-                program_hash: find_targets(public_inputs, self.program_hash),
-                events_present: find_bool(public_inputs, self.events_present),
-                event_root: find_hash(public_inputs, self.event_root),
-                call_list: find_targets(public_inputs, self.call_list),
-                cast_root: find_hash(public_inputs, self.cast_root),
+                program_hash: ArrayTargetIndex::new(public_inputs, &self.program_hash),
+                events_present: BoolTargetIndex::new(public_inputs, self.events_present),
+                event_root: HashTargetIndex::new(public_inputs, self.event_root),
+                call_list: ArrayTargetIndex::new(public_inputs, &self.call_list),
+                cast_root: HashTargetIndex::new(public_inputs, self.cast_root),
             }
         }
 
