@@ -1,9 +1,10 @@
 #![allow(clippy::too_many_lines)]
 
 use std::collections::HashMap;
+use std::iter::once;
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use log::Level::Debug;
 use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
@@ -703,8 +704,7 @@ where
     ))
 }
 
-// TODO: find a better place for this function
-pub(crate) fn batch_reduction_arity_bits(
+pub(crate) fn batch_reduction_arity_bits1(
     degree_bits: &[usize],
     rate_bits: usize,
     cap_height: usize,
@@ -716,7 +716,11 @@ pub(crate) fn batch_reduction_arity_bits(
     let mut cur_degree_bits = degree_bits[0] + rate_bits;
     assert!(degree_bits.last().unwrap() + rate_bits >= cap_height);
     while cur_degree_bits > cap_height && cur_degree_bits > final_poly_bits {
-        let mut cur_arity_bits = usize::max(cur_degree_bits - cap_height, default_arity_bits);
+        let mut cur_arity_bits = if cur_degree_bits < cap_height + default_arity_bits {
+            cur_degree_bits - cap_height
+        } else {
+            default_arity_bits
+        };
         if cur_index < degree_bits.len() - 1
             && cur_degree_bits < degree_bits[cur_index + 1] + rate_bits + cur_arity_bits
         {
@@ -726,6 +730,42 @@ pub(crate) fn batch_reduction_arity_bits(
         result.push(cur_arity_bits);
         cur_degree_bits -= cur_arity_bits;
     }
+    result
+}
+
+// TODO: find a better place for this function
+pub(crate) fn batch_reduction_arity_bits2(
+    degree_bits: &[usize],
+    rate_bits: usize,
+    cap_height: usize,
+) -> Vec<usize> {
+    let default_arity_bits = 3;
+    let final_poly_bits = 5;
+    // First, let's figure out our intermediate degree bits.
+    chain!(degree_bits, once(&0))
+        .tuple_windows()
+        .flat_map(|(&degree_bit, &next_degree_bit)| {
+            (next_degree_bit + 1..=degree_bit)
+                .rev()
+                .step_by(default_arity_bits)
+        })
+        // We stop when we reach `final_poly_bits`.
+        .take_while(|&degree_bit| degree_bit + rate_bits >= usize::max(cap_height, final_poly_bits))
+        // Finally, the reduction arity bits are just the differences:
+        .tuple_windows()
+        .map(|(degree_bit, next_degree_bit)| degree_bit - next_degree_bit)
+        .collect()
+}
+
+// TODO: find a better place for this function
+pub(crate) fn batch_reduction_arity_bits(
+    degree_bits: &[usize],
+    rate_bits: usize,
+    cap_height: usize,
+) -> Vec<usize> {
+    let result = batch_reduction_arity_bits2(degree_bits, rate_bits, cap_height);
+    let control = batch_reduction_arity_bits1(degree_bits, rate_bits, cap_height);
+    assert_eq!(&control, &result, "{control:?} != {result:?}\n{degree_bits:#?}\trate_bits: {rate_bits}\tcap_height: {cap_height}");
     result
 }
 
