@@ -240,7 +240,7 @@ impl<F: RichField> State<F> {
     ) -> Self {
         Self {
             pc,
-            memory: StateMemory::new([ro_memory].into_iter(), once(rw_memory)),
+            memory: StateMemory::new(once(ro_memory), once(rw_memory)),
             private_tape: StorageDeviceTape {
                 data: raw_tapes.private_tape.into(),
                 read_index: 0,
