@@ -716,11 +716,7 @@ pub(crate) fn batch_reduction_arity_bits(
     let mut cur_degree_bits = degree_bits[0] + rate_bits;
     assert!(degree_bits.last().unwrap() + rate_bits >= cap_height);
     while cur_degree_bits > cap_height && cur_degree_bits > final_poly_bits {
-        let mut cur_arity_bits = if cur_degree_bits < cap_height + default_arity_bits {
-            cur_degree_bits - cap_height
-        } else {
-            default_arity_bits
-        };
+        let mut cur_arity_bits = usize::max(cur_degree_bits - cap_height, default_arity_bits);
         if cur_index < degree_bits.len() - 1
             && cur_degree_bits < degree_bits[cur_index + 1] + rate_bits + cur_arity_bits
         {
