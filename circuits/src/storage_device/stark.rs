@@ -212,7 +212,7 @@ mod tests {
             },
         );
         assert_ne!(
-            record.executed.last().unwrap().state.private_tape.data.len(),
+            record.last_state.private_tape.data.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
@@ -238,7 +238,7 @@ mod tests {
         );
 
         assert_ne!(
-            record.executed.last().unwrap().state.public_tape.data.len(),
+            record.last_state.public_tape.data.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
@@ -263,7 +263,7 @@ mod tests {
             },
         );
         assert_ne!(
-            record.executed.last().unwrap().state.call_tape.data.len(),
+            record.last_state.call_tape.data.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
@@ -287,7 +287,7 @@ mod tests {
             },
         );
         assert_ne!(
-            record.executed.last().unwrap().state.event_tape.data.len(),
+            record.last_state.event_tape.data.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
@@ -317,7 +317,7 @@ mod tests {
         );
 
         assert_ne!(
-            record.executed.last().unwrap().state.events_commitment_tape.len(),
+            record.last_state.events_commitment_tape.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
@@ -349,7 +349,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
 
         assert_ne!(
-            record.executed.last().unwrap().state.cast_list_commitment_tape.len(),
+            record.last_state.cast_list_commitment_tape.len(),
             0,
             "Proving an execution with an empty tape might make our tests pass, even if things are wrong"
         );
