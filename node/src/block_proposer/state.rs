@@ -2,7 +2,7 @@ use std::mem;
 use std::ops::Add;
 
 use itertools::{chain, Itertools};
-use mozak_recproofs::circuits::state_update::{self, AddressPresent};
+use mozak_recproofs::circuits::state_update;
 use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::plonk::circuit_data::CircuitConfig;
@@ -155,7 +155,7 @@ struct SparseMerkleBranch {
     proof: ProofWithPublicInputs<F, C, D>,
     old_hash: [F; 4],
     new_hash: [F; 4],
-    summary_hash: [F; 4],
+    summary_hash: Option<[F; 4]>,
     left: Option<Box<SparseMerkleNode>>,
     right: Option<Box<SparseMerkleNode>>,
 }
@@ -223,7 +223,7 @@ impl Add for FinalizeOutcome {
 struct LeafHashes<'a> {
     old_hash: &'a [F; 4],
     new_hash: &'a [F; 4],
-    summary_hash: &'a [F; 4],
+    summary_hash: Option<&'a [F; 4]>,
 }
 
 pub fn hash_branch(l: &[F; 4], r: &[F; 4]) -> [F; 4] {
@@ -232,8 +232,6 @@ pub fn hash_branch(l: &[F; 4], r: &[F; 4]) -> [F; 4] {
 
 pub struct AuxStateData {
     max_tree_depth: usize,
-
-    empty_summary_hash: [F; 4],
 
     empty_leaf_hash: [F; 4],
     empty_branch_hashes: Vec<[F; 4]>,
@@ -247,7 +245,6 @@ pub struct AuxStateData {
 
 impl AuxStateData {
     pub fn new(config: &CircuitConfig, max_tree_depth: usize) -> Self {
-        let empty_summary_hash = [F::ZERO; 4];
         let empty_leaf_hash = [F::ZERO; 4];
 
         let mut curr = empty_leaf_hash;
@@ -268,28 +265,19 @@ impl AuxStateData {
             .collect_vec();
 
         let empty_leaf_proof = leaf_circuit
-            .prove(
-                empty_leaf_hash.into(),
-                empty_leaf_hash.into(),
-                empty_summary_hash.into(),
-                None,
-            )
+            .prove(empty_leaf_hash.into(), empty_leaf_hash.into(), None)
             .unwrap();
         let mut init = empty_leaf_proof.clone();
         let empty_branch_proofs = branch_circuits
             .iter()
             .zip(&empty_branch_hashes)
             .map(|(circuit, hash)| {
-                let hash = (*hash).into();
-                init = circuit
-                    .prove(hash, hash, empty_summary_hash.into(), (), &init, &init)
-                    .unwrap();
+                init = circuit.prove(&init, &init).unwrap();
                 init.clone()
             })
             .collect_vec();
         Self {
             max_tree_depth,
-            empty_summary_hash,
             empty_leaf_hash,
             empty_branch_hashes,
             leaf_circuit,
@@ -453,28 +441,24 @@ impl AuxStateData {
 
         let ((left_hash, left_proof), (right_hash, right_proof), summary) =
             match (&branch.left, &branch.right) {
-                (None, None) => (
-                    (empty_hash, empty_proof),
-                    (empty_hash, empty_proof),
-                    self.empty_summary_hash,
-                ),
+                (None, None) => ((empty_hash, empty_proof), (empty_hash, empty_proof), None),
                 (None, Some(right)) => (
                     (empty_hash, empty_proof),
                     self.get_node_new_helper(right),
-                    *self.get_summary_helper(right),
+                    self.get_summary_helper(right).copied(),
                 ),
                 (Some(left), None) => (
                     self.get_node_new_helper(left),
                     (empty_hash, empty_proof),
-                    *self.get_summary_helper(left),
+                    self.get_summary_helper(left).copied(),
                 ),
                 (Some(left), Some(right)) => (
                     self.get_node_new_helper(left),
                     self.get_node_new_helper(right),
-                    hash_branch(
-                        self.get_summary_helper(left),
-                        self.get_summary_helper(right),
-                    ),
+                    Some(hash_branch(
+                        self.get_summary_helper(left).unwrap(),
+                        self.get_summary_helper(right).unwrap(),
+                    )),
                 ),
             };
 
@@ -484,16 +468,7 @@ impl AuxStateData {
         }
         branch.summary_hash = summary;
         branch.proof = self.branch_circuits[branch.height]
-            .prove(
-                branch.old_hash.into(),
-                branch.new_hash.into(),
-                branch.summary_hash.into(),
-                addr.map_or(AddressPresent::Implicit, |v| {
-                    AddressPresent::Present(v.addr.0)
-                }),
-                left_proof,
-                right_proof,
-            )
+            .prove(left_proof, right_proof)
             .unwrap();
     }
 
@@ -510,9 +485,10 @@ impl AuxStateData {
         }
     }
 
-    fn get_summary_helper<'a>(&'a self, node: &'a SparseMerkleNode) -> &'a [F; 4] {
+    fn get_summary_helper<'a>(&'a self, node: &'a SparseMerkleNode) -> Option<&'a [F; 4]> {
         match node {
-            SparseMerkleNode::Branch(SparseMerkleBranch { summary_hash, .. }) => summary_hash,
+            SparseMerkleNode::Branch(SparseMerkleBranch { summary_hash, .. }) =>
+                summary_hash.as_ref(),
             SparseMerkleNode::Leaf(SparseMerkleLeaf { kind, .. }) =>
                 self.get_leaf_hashes(kind).summary_hash,
         }
@@ -541,9 +517,10 @@ impl AuxStateData {
                 let leaf = self.create_leaf_helper(addr, new);
                 let LeafHashes {
                     new_hash: leaf_new,
-                    summary_hash: &leaf_summary,
+                    summary_hash: leaf_summary,
                     ..
                 } = self.get_leaf_hashes(&leaf.kind);
+                let leaf_summary = leaf_summary.copied();
                 let ((left_leaf, left_proof), (right_leaf, right_proof)) = if dir == Dir::Left {
                     (
                         (leaf_new, &leaf.proof),
@@ -559,14 +536,7 @@ impl AuxStateData {
                 let new_hash = hash_branch(left_leaf, right_leaf);
 
                 let proof = self.branch_circuits[0]
-                    .prove(
-                        old_hash.into(),
-                        new_hash.into(),
-                        leaf_summary.into(),
-                        (),
-                        left_proof,
-                        right_proof,
-                    )
+                    .prove(left_proof, right_proof)
                     .unwrap();
                 let leaf = Some(Box::new(SparseMerkleNode::Leaf(leaf)));
 
@@ -608,14 +578,7 @@ impl AuxStateData {
                 let new_hash = hash_branch(left_child, right_child);
 
                 let proof = self.branch_circuits[height]
-                    .prove(
-                        old_hash.into(),
-                        new_hash.into(),
-                        child_summary.into(),
-                        (),
-                        left_proof,
-                        right_proof,
-                    )
+                    .prove(left_proof, right_proof)
                     .unwrap();
                 let child = Some(Box::new(SparseMerkleNode::Branch(child)));
 
@@ -644,7 +607,7 @@ impl AuxStateData {
             | LeafKind::ReadEmptyLeaf { summary_hash } => LeafHashes {
                 old_hash: &self.empty_leaf_hash,
                 new_hash: &self.empty_leaf_hash,
-                summary_hash,
+                summary_hash: Some(summary_hash),
             },
             LeafKind::BeingCreated {
                 new_hash,
@@ -653,12 +616,12 @@ impl AuxStateData {
             } => LeafHashes {
                 old_hash: &self.empty_leaf_hash,
                 new_hash,
-                summary_hash,
+                summary_hash: Some(summary_hash),
             },
             LeafKind::Unused { old_hash, .. } => LeafHashes {
                 old_hash,
                 new_hash: old_hash,
-                summary_hash: &self.empty_summary_hash,
+                summary_hash: None,
             },
             LeafKind::BeingDeleted {
                 old_hash,
@@ -667,7 +630,7 @@ impl AuxStateData {
             } => LeafHashes {
                 old_hash,
                 new_hash: &self.empty_leaf_hash,
-                summary_hash,
+                summary_hash: Some(summary_hash),
             },
             LeafKind::BeingRead {
                 old_hash,
@@ -676,7 +639,7 @@ impl AuxStateData {
             } => LeafHashes {
                 old_hash,
                 new_hash: old_hash,
-                summary_hash,
+                summary_hash: Some(summary_hash),
             },
             LeafKind::BeingUpdated {
                 old_hash,
@@ -686,7 +649,7 @@ impl AuxStateData {
             } => LeafHashes {
                 old_hash,
                 new_hash,
-                summary_hash,
+                summary_hash: Some(summary_hash),
             },
         }
     }
@@ -698,7 +661,6 @@ impl AuxStateData {
             .prove(
                 self.empty_leaf_hash.into(),
                 self.empty_leaf_hash.into(),
-                summary_hash.into(),
                 Some(addr.0),
             )
             .unwrap();
@@ -726,12 +688,7 @@ impl AuxStateData {
         let summary_hash = addr.summary_hash(self.empty_leaf_hash, new_hash);
         let proof = self
             .leaf_circuit
-            .prove(
-                self.empty_leaf_hash.into(),
-                new_hash.into(),
-                summary_hash.into(),
-                Some(addr.0),
-            )
+            .prove(self.empty_leaf_hash.into(), new_hash.into(), Some(addr.0))
             .unwrap();
         SparseMerkleLeaf {
             proof,
@@ -748,12 +705,7 @@ impl AuxStateData {
         let summary_hash = addr.summary_hash(old_hash, new_hash);
         let proof = self
             .leaf_circuit
-            .prove(
-                old_hash.into(),
-                new_hash.into(),
-                summary_hash.into(),
-                Some(addr.0),
-            )
+            .prove(old_hash.into(), new_hash.into(), Some(addr.0))
             .unwrap();
 
         SparseMerkleLeaf {
@@ -770,12 +722,7 @@ impl AuxStateData {
         let summary_hash = addr.summary_hash(old_hash, old_hash);
         let proof = self
             .leaf_circuit
-            .prove(
-                old_hash.into(),
-                old_hash.into(),
-                summary_hash.into(),
-                Some(addr.0),
-            )
+            .prove(old_hash.into(), old_hash.into(), Some(addr.0))
             .unwrap();
 
         SparseMerkleLeaf {
@@ -799,12 +746,7 @@ impl AuxStateData {
         let summary_hash = addr.summary_hash(old_hash, new_hash);
         let proof = self
             .leaf_circuit
-            .prove(
-                old_hash.into(),
-                new_hash.into(),
-                summary_hash.into(),
-                Some(addr.0),
-            )
+            .prove(old_hash.into(), new_hash.into(), Some(addr.0))
             .unwrap();
         SparseMerkleLeaf {
             proof,
@@ -900,12 +842,7 @@ impl AuxStateData {
 
         leaf.proof = self
             .leaf_circuit
-            .prove(
-                old_hash.into(),
-                old_hash.into(),
-                self.empty_summary_hash.into(),
-                None,
-            )
+            .prove(old_hash.into(), old_hash.into(), None)
             .unwrap();
 
         FinalizeOutcome::Recalc
@@ -925,7 +862,7 @@ impl<'a> State<'a> {
             proof: aux.empty_branch_proofs[tree_depth].clone(),
             old_hash: aux.empty_branch_hashes[tree_depth],
             new_hash: aux.empty_branch_hashes[tree_depth],
-            summary_hash: aux.empty_summary_hash,
+            summary_hash: None,
             left: None,
             right: None,
         };
