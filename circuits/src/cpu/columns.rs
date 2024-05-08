@@ -87,7 +87,7 @@ pub struct Instruction<T> {
 }
 
 columns_view_impl!(EcallSelectors);
-/// Internal [Instruction] of Stark used for transition constrains
+/// Internal [`Instruction`] of Stark used for transition constraints
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct EcallSelectors<T> {
