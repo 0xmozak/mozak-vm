@@ -51,7 +51,6 @@ impl std::io::Read for RandomAccessEcallTape {
                 [self.read_offset..(self.read_offset + populatable_from_internal_buf)],
         );
 
-        // Get new elements from  `ecall`
         let old_len = self.internal_buf.len();
         self.internal_buf.resize(old_len + remaining_from_ecall, 0);
 
