@@ -11,7 +11,8 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
-use plonky2_maybe_rayon::{MaybeIntoParIter, ParallelIterator};
+#[allow(clippy::wildcard_imports)]
+use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
