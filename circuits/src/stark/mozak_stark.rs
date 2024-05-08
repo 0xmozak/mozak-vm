@@ -693,7 +693,7 @@ impl Lookups for IntoMemoryTable {
                 TableKind::EventTape,
                 TableKind::EventsCommitmentTape,
                 TableKind::CastListCommitmentTape,
-                TableKind::SelfProgIdTape
+                TableKind::SelfProgIdTape,
             ]
             .map(storage_device::columns::lookup_for_memory),
             memory_fullword::columns::lookup_for_memory_limb(),
