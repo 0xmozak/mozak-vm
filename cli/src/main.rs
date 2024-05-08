@@ -129,10 +129,7 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
     len_prefix_bytes
 }
 
-fn raw_tapes_from_system_tape(
-    sys: &SystemTape,
-    self_prog_id: ProgramIdentifier,
-) -> Result<RawTapes> {
+fn raw_tapes_from_system_tape(sys: &SystemTape, self_prog_id: ProgramIdentifier) -> RawTapes {
     fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
     where
         T: rkyv::Archive + rkyv::Serialize<Strategy<AllocSerializer<256>, Panic>>, {
@@ -179,7 +176,7 @@ fn raw_tapes_from_system_tape(
     println!("Self Prog ID: {self_prog_id:#?}");
     println!("Found events: {:#?}", canonical_order_temporal_hints.len());
 
-    Ok(RawTapes {
+    RawTapes {
         private_tape: length_prefixed_bytes(
             sys.private_input_tape
                 .writer
@@ -203,7 +200,7 @@ fn raw_tapes_from_system_tape(
         self_prog_id_tape: self_prog_id.0 .0,
         events_commitment_tape,
         cast_list_commitment_tape,
-    })
+    }
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -230,7 +227,6 @@ fn main() -> Result<()> {
                     &deserialize_system_tape(s).unwrap(),
                     self_prog_id.unwrap().into(),
                 )
-                .unwrap_or_default()
             });
             let program = load_program(elf).unwrap();
             let state: State<F> = State::new(program.clone(), raw_tapes);
@@ -247,7 +243,6 @@ fn main() -> Result<()> {
                     &deserialize_system_tape(s).unwrap(),
                     self_prog_id.unwrap().into(),
                 )
-                .unwrap_or_default()
             });
 
             let state = State::new(program.clone(), raw_tapes);
@@ -267,7 +262,6 @@ fn main() -> Result<()> {
                     &deserialize_system_tape(s).unwrap(),
                     self_prog_id.unwrap().into(),
                 )
-                .unwrap_or_default()
             });
 
             let state = State::new(program.clone(), raw_tapes);
