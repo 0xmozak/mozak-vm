@@ -23,6 +23,7 @@ pub(crate) fn constraints<'a, P: Copy>(
     cb.always(lv.is_event_tape.is_binary());
     cb.always(lv.is_events_commitment_tape.is_binary());
     cb.always(lv.is_cast_list_commitment_tape.is_binary());
+    cb.always(lv.is_self_prog_id_tape.is_binary());
     cb.always(
         lv.inst.ops.ecall
             - (lv.is_halt
@@ -32,6 +33,7 @@ pub(crate) fn constraints<'a, P: Copy>(
                 + lv.is_event_tape
                 + lv.is_events_commitment_tape
                 + lv.is_cast_list_commitment_tape
+                + lv.is_self_prog_id_tape
                 + lv.is_poseidon2),
     );
     halt_constraints(lv, nv, cb);
@@ -86,6 +88,7 @@ pub(crate) fn storage_device_constraints<'a, P: Copy>(
         lv.is_cast_list_commitment_tape
             * (lv.op1_value - i64::from(ecall::CAST_LIST_COMMITMENT_TAPE)),
     );
+    cb.always(lv.is_self_prog_id_tape * (lv.op1_value - i64::from(ecall::SELF_PROG_ID_TAPE)));
 }
 
 pub(crate) fn poseidon2_constraints<'a, P: Copy>(
