@@ -140,7 +140,6 @@ impl<const D: usize> BranchSubCircuit<D> {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use lazy_static::lazy_static;
     use plonky2::plonk::circuit_data::CircuitConfig;
 
     use super::*;
@@ -215,32 +214,35 @@ mod test {
         }
     }
 
-    lazy_static! {
-        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
-        static ref BRANCH_1: DummyBranchCircuit = DummyBranchCircuit::from_leaf(&CONFIG, &LEAF);
-        static ref BRANCH_2: DummyBranchCircuit =
-            DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1);
+    #[tested_fixture::tested_fixture(LEAF)]
+    fn build_leaf() -> DummyLeafCircuit { DummyLeafCircuit::new(&CONFIG) }
+
+    #[tested_fixture::tested_fixture(BRANCH_1)]
+    fn build_branch_1() -> DummyBranchCircuit { DummyBranchCircuit::from_leaf(&CONFIG, &LEAF) }
+
+    #[tested_fixture::tested_fixture(BRANCH_2)]
+    fn build_branch_2() -> DummyBranchCircuit {
+        DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1)
     }
 
-    #[test]
-    fn verify_leaf() -> Result<()> {
+    #[tested_fixture::tested_fixture(LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove()?;
-        LEAF.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        Ok(())
+    #[tested_fixture::tested_fixture(BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(&LEAF_PROOF, &LEAF_PROOF)?;
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
     }
 
     #[test]
-    fn verify_branch() -> Result<()> {
-        let leaf_proof = LEAF.prove()?;
-        LEAF.circuit.verify(leaf_proof.clone())?;
-
-        let branch_proof_1 = BRANCH_1.prove(&leaf_proof, &leaf_proof)?;
-        BRANCH_1.circuit.verify(branch_proof_1.clone())?;
-
-        let branch_proof_2 = BRANCH_2.prove(&branch_proof_1, &branch_proof_1)?;
+    fn verify_double_branch() -> Result<()> {
+        let branch_proof_2 = BRANCH_2.prove(&BRANCH_PROOF, &BRANCH_PROOF)?;
         BRANCH_2.circuit.verify(branch_proof_2.clone())?;
-
         Ok(())
     }
 }
