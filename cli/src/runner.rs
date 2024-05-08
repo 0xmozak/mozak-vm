@@ -92,8 +92,8 @@ pub fn raw_tapes_from_system_tape(sys: &SystemTape, self_prog_id: ProgramIdentif
     let cast_list_commitment_tape =
         merkleize(izip!(0.., &cast_list).map(|(idx, x)| (idx, x.0)).collect()).0;
 
-    println!("Self Prog ID: {self_prog_id:#?}");
-    println!("Found events: {:#?}", canonical_order_temporal_hints.len());
+    debug!("Self Prog ID: {self_prog_id:#?}");
+    debug!("Found events: {:#?}", canonical_order_temporal_hints.len());
 
     {
         fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
