@@ -86,6 +86,27 @@ pub struct Instruction<T> {
     pub imm_value: T,
 }
 
+columns_view_impl!(EcallSelectors);
+/// Internal [Instruction] of Stark used for transition constrains
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct EcallSelectors<T> {
+    // We don't need all of these 'is_<some-ecall>' columns.  Because our CPU table (by itself)
+    // doesn't need to be deterministic. We can assert these things in the CTL-ed
+    // ecall-specific tables.
+    // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
+    // filter.
+    // TODO: implement the above.
+    pub is_private_tape: T,
+    pub is_public_tape: T,
+    pub is_call_tape: T,
+    pub is_event_tape: T,
+    pub is_events_commitment_tape: T,
+    pub is_cast_list_commitment_tape: T,
+    pub is_halt: T,
+    pub is_poseidon2: T,
+}
+
 make_col_map!(CpuState);
 columns_view_impl!(CpuState);
 /// Represents the State of the CPU, which is also a row of the trace
@@ -166,20 +187,8 @@ pub struct CpuState<T> {
     pub mem_addr: T,
     pub io_addr: T,
     pub io_size: T,
-    // We don't need all of these 'is_<some-ecall>' columns.  Because our CPU table (by itself)
-    // doesn't need to be deterministic. We can assert these things in the CTL-ed
-    // ecall-specific tables.
-    // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
-    // filter.
-    // TODO: implement the above.
-    pub is_private_tape: T,
-    pub is_public_tape: T,
-    pub is_call_tape: T,
-    pub is_event_tape: T,
-    pub is_events_commitment_tape: T,
-    pub is_cast_list_commitment_tape: T,
-    pub is_halt: T,
-    pub is_poseidon2: T,
+
+    pub ecall_selectors: EcallSelectors<T>,
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
@@ -321,30 +330,23 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
+    let ecall = &CPU.ecall_selectors;
+    let storage = [
+        ecall.is_private_tape,
+        ecall.is_public_tape,
+        ecall.is_call_tape,
+        ecall.is_event_tape,
+        ecall.is_events_commitment_tape,
+        ecall.is_cast_list_commitment_tape,
+    ];
     CpuTable::new(
         StorageDeviceCtl {
-            op: ColumnWithTypedInput::ascending_sum([
-                CPU.is_private_tape,
-                CPU.is_public_tape,
-                CPU.is_call_tape,
-                CPU.is_event_tape,
-                CPU.is_events_commitment_tape,
-                CPU.is_cast_list_commitment_tape,
-            ]),
+            op: ColumnWithTypedInput::ascending_sum(storage),
             clk: CPU.clk,
             addr: CPU.io_addr,
             size: CPU.io_size,
         },
-        [
-            CPU.is_private_tape,
-            CPU.is_public_tape,
-            CPU.is_call_tape,
-            CPU.is_event_tape,
-            CPU.is_events_commitment_tape,
-            CPU.is_cast_list_commitment_tape,
-        ]
-        .iter()
-        .sum(),
+        storage.iter().sum(),
     )
 }
 
@@ -405,7 +407,10 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
 
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
-    CpuTable::new(Poseidon2SpongeCtl { clk: CPU.clk }, CPU.is_poseidon2)
+    CpuTable::new(
+        Poseidon2SpongeCtl { clk: CPU.clk },
+        CPU.ecall_selectors.is_poseidon2,
+    )
 }
 
 #[must_use]
