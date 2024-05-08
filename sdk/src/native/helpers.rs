@@ -135,11 +135,12 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
         );
     }
 
-    let bytes = serde_json::to_string_pretty(&tape_clone)
-        .unwrap()
-        .into_bytes();
-
-    write_to_file(&(file_template.to_string() + ".tape.json"), &bytes);
+    write_to_file(
+        &(file_template.to_string() + ".tape.json"),
+        &serde_json::to_string_pretty(&tape_clone)
+            .unwrap()
+            .into_bytes(),
+    );
 }
 
 /// This functions dumps 2 files of the currently running guest program:
