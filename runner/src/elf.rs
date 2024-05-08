@@ -54,8 +54,8 @@ impl MozakMemoryRegion {
 pub struct MozakMemory {
     pub self_prog_id: MozakMemoryRegion,
     pub cast_list: MozakMemoryRegion,
-    pub io_tape_private: MozakMemoryRegion,
-    pub io_tape_public: MozakMemoryRegion,
+    pub private_tape: MozakMemoryRegion,
+    pub public_tape: MozakMemoryRegion,
     pub call_tape: MozakMemoryRegion,
     pub event_tape: MozakMemoryRegion,
 }
@@ -65,8 +65,8 @@ impl From<MozakMemory> for HashMap<u32, u8> {
         [
             mem.self_prog_id,
             mem.cast_list,
-            mem.io_tape_private,
-            mem.io_tape_public,
+            mem.private_tape,
+            mem.public_tape,
             mem.call_tape,
             mem.event_tape,
         ]
@@ -95,12 +95,12 @@ impl Default for MozakMemory {
                 capacity: 0x00FF_FFE0_u32,
                 ..Default::default()
             },
-            io_tape_public: MozakMemoryRegion {
+            public_tape: MozakMemoryRegion {
                 starting_address: 0x2100_0000_u32,
                 capacity: 0x0F00_0000_u32,
                 ..Default::default()
             },
-            io_tape_private: MozakMemoryRegion {
+            private_tape: MozakMemoryRegion {
                 starting_address: 0x3000_0000_u32,
                 capacity: 0x1000_0000_u32,
                 ..Default::default()
@@ -134,8 +134,8 @@ impl MozakMemory {
         let mem_addresses = [
             self.self_prog_id.memory_range(),
             self.cast_list.memory_range(),
-            self.io_tape_public.memory_range(),
-            self.io_tape_private.memory_range(),
+            self.public_tape.memory_range(),
+            self.private_tape.memory_range(),
             self.call_tape.memory_range(),
             self.event_tape.memory_range(),
         ];
@@ -168,8 +168,8 @@ impl MozakMemory {
 
         self.self_prog_id.starting_address = get("_mozak_self_prog_id");
         self.cast_list.starting_address = get("_mozak_cast_list");
-        self.io_tape_public.starting_address = get("_mozak_public_io_tape");
-        self.io_tape_private.starting_address = get("_mozak_private_io_tape");
+        self.public_tape.starting_address = get("_mozak_public_tape");
+        self.private_tape.starting_address = get("_mozak_private_tape");
         self.call_tape.starting_address = get("_mozak_call_tape");
         self.event_tape.starting_address = get("_mozak_event_tape");
         // log::debug!("_mozak_call_tape: 0x{:0x}", self.call_tape.starting_address);
@@ -178,16 +178,16 @@ impl MozakMemory {
         self.self_prog_id.capacity = 0x20_u32;
         self.cast_list.capacity = 0x00FF_FFE0_u32;
 
-        self.io_tape_public.capacity =
-            self.io_tape_private.starting_address - self.io_tape_public.starting_address;
+        self.public_tape.capacity =
+            self.private_tape.starting_address - self.public_tape.starting_address;
         // refer to linker-script to understand this magic number ...
         // TODO(Roman): to get rid off this magic number, we need to have `_end` symbol
         // in linker script This way we can compute capacity directly from
         // linker-script. Currently, test that loads empty ELF, compiled with
         // linker-script we not help us, since there is not symbol that defines
         // `end-of-mozak-region`...
-        self.io_tape_private.capacity =
-            self.call_tape.starting_address - self.io_tape_private.starting_address;
+        self.private_tape.capacity =
+            self.call_tape.starting_address - self.private_tape.starting_address;
         self.call_tape.capacity =
             self.event_tape.starting_address - self.call_tape.starting_address;
         self.event_tape.capacity = 0x5000_0000 - self.event_tape.starting_address;
@@ -201,8 +201,8 @@ pub struct RuntimeArguments {
     pub events_commitment_tape: [u8; COMMITMENT_SIZE],
     pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
     pub cast_list: Vec<u8>,
-    pub io_tape_private: Vec<u8>,
-    pub io_tape_public: Vec<u8>,
+    pub private_tape: Vec<u8>,
+    pub public_tape: Vec<u8>,
     pub call_tape: Vec<u8>,
     pub event_tape: Vec<u8>,
 }
@@ -212,8 +212,8 @@ impl RuntimeArguments {
     pub fn is_empty(&self) -> bool {
         self.self_prog_id.is_empty()
             && self.cast_list.is_empty()
-            && self.io_tape_private.is_empty()
-            && self.io_tape_public.is_empty()
+            && self.private_tape.is_empty()
+            && self.public_tape.is_empty()
             && self.call_tape.is_empty()
             && self.event_tape.is_empty()
     }
@@ -227,11 +227,11 @@ impl From<&RuntimeArguments> for MozakMemory {
             .fill(args.self_prog_id.as_slice());
         mozak_ro_memory.cast_list.fill(args.cast_list.as_slice());
         mozak_ro_memory
-            .io_tape_public
-            .fill(args.io_tape_public.as_slice());
+            .public_tape
+            .fill(args.public_tape.as_slice());
         mozak_ro_memory
-            .io_tape_private
-            .fill(args.io_tape_private.as_slice());
+            .private_tape
+            .fill(args.private_tape.as_slice());
         mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
         mozak_ro_memory.event_tape.fill(args.event_tape.as_slice());
         mozak_ro_memory
@@ -258,7 +258,7 @@ pub struct Program {
     /// Mozak run-time memory
     // Earlier our Program was completely determined by the ELF, and did not
     // differ from one run to the next.
-    // Compare how the existing code doesn't add io_tape information to the Program, but to the
+    // Compare how the existing code doesn't add tape information to the Program, but to the
     // State. Conceptually, we are trying to replace this existing mechanism here, but currently we
     // decided to leave it as is, later on we may refactor it to be 3 structs (something like
     // this): Program, State, Init-Data. Currently during execution we have chain of states, and
@@ -508,14 +508,12 @@ impl Program {
             .self_prog_id
             .fill(args.self_prog_id.as_slice());
         mozak_ro_memory.cast_list.fill(args.cast_list.as_slice());
-        // IO public
         mozak_ro_memory
-            .io_tape_public
-            .fill(args.io_tape_public.as_slice());
-        // IO private
+            .public_tape
+            .fill(args.public_tape.as_slice());
         mozak_ro_memory
-            .io_tape_private
-            .fill(args.io_tape_private.as_slice());
+            .private_tape
+            .fill(args.private_tape.as_slice());
         mozak_ro_memory.call_tape.fill(args.call_tape.as_slice());
         mozak_ro_memory.event_tape.fill(args.event_tape.as_slice());
 
@@ -597,8 +595,8 @@ mod test {
             Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments {
                 self_prog_id: data.clone(),
                 cast_list: data.clone(),
-                io_tape_private: data.clone(),
-                io_tape_public: data.clone(),
+                private_tape: data.clone(),
+                public_tape: data.clone(),
                 event_tape: data.clone(),
                 call_tape: data.clone(),
                 ..Default::default()
@@ -609,8 +607,8 @@ mod test {
 
         assert_eq!(mozak_ro_memory.self_prog_id.data.len(), data.len());
         assert_eq!(mozak_ro_memory.cast_list.data.len(), data.len());
-        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), data.len());
-        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), data.len());
+        assert_eq!(mozak_ro_memory.private_tape.data.len(), data.len());
+        assert_eq!(mozak_ro_memory.public_tape.data.len(), data.len());
         assert_eq!(mozak_ro_memory.call_tape.data.len(), data.len());
         assert_eq!(mozak_ro_memory.event_tape.data.len(), data.len());
     }

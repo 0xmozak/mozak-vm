@@ -160,8 +160,8 @@ impl<F: RichField> From<Program> for State<F> {
         let mut state: State<F> = State::default();
 
         if let Some(ref mrm) = mozak_ro_memory {
-            state.private_tape = StorageDeviceTape::from(mrm.io_tape_private.data.clone());
-            state.public_tape = StorageDeviceTape::from(mrm.io_tape_public.data.clone());
+            state.private_tape = StorageDeviceTape::from(mrm.private_tape.data.clone());
+            state.public_tape = StorageDeviceTape::from(mrm.public_tape.data.clone());
             state.call_tape = StorageDeviceTape::from(mrm.call_tape.data.clone());
             state.event_tape = StorageDeviceTape::from(mrm.event_tape.data.clone());
         };
@@ -221,7 +221,7 @@ pub struct Aux<F: RichField> {
     pub op2: u32,
     pub op2_raw: u32,
     pub poseidon2: Option<poseidon2::Entry<F>>,
-    pub io: Option<StorageDeviceEntry>,
+    pub storage_device_entry: Option<StorageDeviceEntry>,
 }
 
 #[derive(Default, Clone)]
@@ -241,8 +241,8 @@ pub struct RawTapes {
 impl From<RuntimeArguments> for RawTapes {
     fn from(args: RuntimeArguments) -> Self {
         Self {
-            private_tape: args.io_tape_private,
-            public_tape: args.io_tape_public,
+            private_tape: args.private_tape,
+            public_tape: args.public_tape,
             call_tape: args.call_tape,
             event_tape: args.event_tape,
             cast_list_commitment_tape: args.cast_list_commitment_tape,

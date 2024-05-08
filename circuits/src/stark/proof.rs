@@ -1,5 +1,6 @@
 use itertools::{chain, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::{FriChallenges, FriChallengesTarget, FriProof, FriProofTarget};
 use plonky2::fri::structure::{
@@ -251,6 +252,44 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn batch_new<C: GenericConfig<D, F = F>>(
+        zeta: F::Extension,
+        g: F,
+        poly_start: [usize; 3],
+        poly_count: [usize; 3],
+        trace_commitment: &BatchFriOracle<F, C, D>,
+        ctl_zs_commitment: &BatchFriOracle<F, C, D>,
+        quotient_commitment: &BatchFriOracle<F, C, D>,
+        degree_bits: usize,
+    ) -> Self {
+        let eval_commitment = |z: F::Extension, c: &BatchFriOracle<F, C, D>, index| {
+            c.polynomials[poly_start[index]..poly_start[index] + poly_count[index]]
+                .par_iter()
+                .map(|p| p.to_extension().eval(z))
+                .collect::<Vec<_>>()
+        };
+        let eval_commitment_base = |z: F, c: &BatchFriOracle<F, C, D>, index| {
+            c.polynomials[poly_start[index]..poly_start[index] + poly_count[index]]
+                .par_iter()
+                .map(|p| p.eval(z))
+                .collect::<Vec<_>>()
+        };
+        let zeta_next = zeta.scalar_mul(g);
+        Self {
+            local_values: eval_commitment(zeta, trace_commitment, 0),
+            next_values: eval_commitment(zeta_next, trace_commitment, 0),
+            ctl_zs: eval_commitment(zeta, ctl_zs_commitment, 1),
+            ctl_zs_next: eval_commitment(zeta_next, ctl_zs_commitment, 1),
+            ctl_zs_last: eval_commitment_base(
+                F::primitive_root_of_unity(degree_bits).inverse(),
+                ctl_zs_commitment,
+                1,
+            ),
+            quotient_polys: eval_commitment(zeta, quotient_commitment, 2),
+        }
+    }
+
     pub(crate) fn to_fri_openings(&self) -> FriOpenings<F, D> {
         let zeta_batch = FriOpeningBatch {
             values: chain!(&self.local_values, &self.ctl_zs, &self.quotient_polys)
@@ -262,7 +301,6 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
                 .copied()
                 .collect_vec(),
         };
-        debug_assert!(!self.ctl_zs_last.is_empty());
         let ctl_last_batch = FriOpeningBatch {
             values: self
                 .ctl_zs_last
@@ -324,6 +362,19 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
     pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
     pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(bound = "")]
+pub struct BatchProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
+    pub degree_bits: TableKindArray<usize>,
+    pub proofs: TableKindArray<StarkProof<F, C, D>>,
+    pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
+    pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
+    pub public_inputs: PublicInputs<F>,
+    pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
+    pub batch_stark_proof: StarkProof<F, C, D>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
