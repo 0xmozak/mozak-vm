@@ -180,8 +180,24 @@ fn raw_tapes_from_system_tape(
     println!("Found events: {:#?}", canonical_order_temporal_hints.len());
 
     Ok(RawTapes {
-        private_tape: serde_json::to_vec(&sys.private_input_tape)?,
-        public_tape: serde_json::to_vec(&sys.public_input_tape)?,
+        private_tape: length_prefixed_bytes(
+            sys.private_input_tape
+                .writer
+                .get(&self_prog_id)
+                .cloned()
+                .unwrap_or_default()
+                .0,
+            "PRIVATE_TAPE",
+        ),
+        public_tape: length_prefixed_bytes(
+            sys.public_input_tape
+                .writer
+                .get(&self_prog_id)
+                .cloned()
+                .unwrap_or_default()
+                .0,
+            "PUBLIC_TAPE",
+        ),
         call_tape: serialise(&sys.call_tape.writer, "CALL_TAPE"),
         event_tape: serialise(&canonical_order_temporal_hints, "EVENT_TAPE"),
         self_prog_id_tape: self_prog_id.0 .0,
