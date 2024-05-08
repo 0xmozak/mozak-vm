@@ -119,18 +119,21 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use lazy_static::lazy_static;
-
     use super::*;
-    use crate::circuits::match_delta::test::BRANCH as MD_BRANCH;
-    use crate::circuits::state_update::test::BRANCH_1 as SU_ROOT;
+    use crate::circuits::match_delta::test as match_delta;
+    use crate::circuits::state_update::test as state_update;
     // use crate::circuits::verify_program::test::{PROGRAM_1, PROGRAM_2};
-    use crate::circuits::verify_tx::test::BRANCH as TX_BRANCH;
+    use crate::circuits::verify_tx::test as verify_tx;
     use crate::test_utils::{C, CONFIG, D, F};
 
-    lazy_static! {
-        pub static ref CIRCUIT: Circuit<F, C, D> =
-            Circuit::new(&CONFIG, &TX_BRANCH, &MD_BRANCH, &SU_ROOT);
+    #[tested_fixture::tested_fixture(CIRCUIT)]
+    fn build_circuit() -> Circuit<F, C, D> {
+        Circuit::new(
+            &CONFIG,
+            *verify_tx::BRANCH,
+            *match_delta::BRANCH,
+            *state_update::BRANCH_3,
+        )
     }
 
     #[test]

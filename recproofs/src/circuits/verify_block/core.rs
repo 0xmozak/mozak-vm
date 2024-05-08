@@ -129,7 +129,7 @@ impl SubCircuitInputs {
 
         // Connect previous verifier data to current one. This guarantees that every
         // proof in the cycle uses the same verifier data.
-        let prev_verifier = indices.verifier.get(&prev_proof.public_inputs).into();
+        let prev_verifier = indices.verifier.get(&prev_proof.public_inputs);
         builder.connect_verifier_data(&self.verifier, &prev_verifier);
 
         let dummy_verifier = builder.constant_verifier_data(&dummy.verifier_only);
@@ -445,7 +445,6 @@ mod test {
     use std::panic::catch_unwind;
 
     use anyhow::Result;
-    use lazy_static::lazy_static;
     use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 
@@ -531,9 +530,8 @@ mod test {
         }
     }
 
-    lazy_static! {
-        static ref CIRCUIT: DummyCircuit = DummyCircuit::new(&CONFIG);
-    }
+    #[tested_fixture::tested_fixture(CIRCUIT)]
+    fn build_circuit() -> DummyCircuit { DummyCircuit::new(&CONFIG) }
 
     #[test]
     fn verify_static_zero() -> Result<()> {

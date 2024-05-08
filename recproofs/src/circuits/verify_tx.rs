@@ -168,111 +168,43 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use lazy_static::lazy_static;
-    use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
-
     use super::*;
-    use crate::circuits::merge::test::BRANCH as MERGE_BRANCH;
-    use crate::circuits::verify_program::test::{
-        merge_hashes, merge_merges, p1_p2 as vp_p1_p2, p2_p1 as vp_p2_p1, BRANCH as VP_BRANCH,
-        LEAF as VP_LEAF, P1_BUILT_EVENTS, P2_BUILT_EVENTS, PROGRAM_1, PROGRAM_2,
-    };
+    use crate::circuits::merge::test as merge;
+    use crate::circuits::verify_program::test as verify_program;
     use crate::test_utils::{C, CONFIG, D, F};
 
-    lazy_static! {
-        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG, &VP_BRANCH);
-        pub static ref BRANCH: BranchCircuit<F, C, D> =
-            BranchCircuit::new(&CONFIG, &MERGE_BRANCH, &LEAF);
-        // This is not how you would do an actual merge as it doesn't intersplice
-        // the trees based on address, but for testing all we require is
-        // some kind of merge occurs
-        pub static ref MERGE_PROOF: ProofWithPublicInputs<F, C, D> = merge_merges(
+    #[tested_fixture::tested_fixture(pub LEAF)]
+    fn build_leaf() -> LeafCircuit<F, C, D> { LeafCircuit::new(&CONFIG, &verify_program::BRANCH) }
+
+    #[tested_fixture::tested_fixture(pub BRANCH)]
+    fn build_branch() -> BranchCircuit<F, C, D> {
+        BranchCircuit::new(&CONFIG, &merge::BRANCH, &LEAF)
+    }
+
+    #[tested_fixture::tested_fixture(pub T0_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(&BRANCH, &verify_program::T0_BRANCH_PROOF)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub T1_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(&BRANCH, &verify_program::T1_BRANCH_PROOF)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH.prove(
+            &merge::T0_T1_BRANCH_PROOF,
             true,
-            &merge_hashes(Some(*vp_p1_p2::MERGE_HASH), None),
+            &T0_LEAF_PROOF,
             true,
-            &merge_hashes(None, Some(*vp_p2_p1::MERGE_HASH)),
-        );
-    }
-
-    fn build_verified_program_leaf(
-        verifier: &VerifierOnlyCircuitData<C, D>,
-        program_proof: &ProofWithPublicInputs<F, C, D>,
-        event_proof: &ProofWithPublicInputs<F, C, D>,
-    ) -> ProofWithPublicInputs<F, C, D> {
-        let proof = VP_LEAF
-            .prove(&VP_BRANCH, verifier, program_proof, event_proof)
-            .unwrap();
-        VP_LEAF.circuit.verify(proof.clone()).unwrap();
-        proof
-    }
-
-    fn build_verified_program_branch(
-        merge_proof: &ProofWithPublicInputs<F, C, D>,
-        left_is_leaf: bool,
-        left: &ProofWithPublicInputs<F, C, D>,
-        right_is_leaf: bool,
-        right: &ProofWithPublicInputs<F, C, D>,
-    ) -> ProofWithPublicInputs<F, C, D> {
-        let proof = VP_BRANCH
-            .prove(merge_proof, left_is_leaf, left, right_is_leaf, right)
-            .unwrap();
-        VP_BRANCH.circuit.verify(proof.clone()).unwrap();
-        proof
-    }
-
-    pub mod p1_p2 {
-        use vp_p1_p2::{MERGE_PROOF, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
-
-        use super::*;
-
-        lazy_static! {
-            pub static ref VP_1_PROOF: ProofWithPublicInputs<F, C, D> = build_verified_program_leaf(
-                &PROGRAM_1.circuit.verifier_only,
-                &PROGRAM_1_PROOF,
-                &P1_BUILT_EVENTS.proof,
-            );
-            pub static ref VP_2_PROOF: ProofWithPublicInputs<F, C, D> = build_verified_program_leaf(
-                &PROGRAM_2.circuit.verifier_only,
-                &PROGRAM_2_PROOF,
-                &P2_BUILT_EVENTS.proof,
-            );
-            pub static ref VP_MERGE_PROOF: ProofWithPublicInputs<F, C, D> =
-                build_verified_program_branch(&MERGE_PROOF, true, &VP_1_PROOF, true, &VP_2_PROOF,);
-        }
-    }
-
-    pub mod p2_p1 {
-        use vp_p2_p1::{MERGE_PROOF, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
-
-        use super::*;
-
-        lazy_static! {
-            pub static ref VP_1_PROOF: ProofWithPublicInputs<F, C, D> = build_verified_program_leaf(
-                &PROGRAM_1.circuit.verifier_only,
-                &PROGRAM_1_PROOF,
-                &P1_BUILT_EVENTS.proof,
-            );
-            pub static ref VP_2_PROOF: ProofWithPublicInputs<F, C, D> = build_verified_program_leaf(
-                &PROGRAM_2.circuit.verifier_only,
-                &PROGRAM_2_PROOF,
-                &P2_BUILT_EVENTS.proof,
-            );
-            pub static ref VP_MERGE_PROOF: ProofWithPublicInputs<F, C, D> =
-                build_verified_program_branch(&MERGE_PROOF, true, &VP_2_PROOF, true, &VP_1_PROOF);
-        }
-    }
-
-    #[test]
-    fn verify_simple() -> Result<()> {
-        let leaf_1_proof = LEAF.prove(&BRANCH, &p1_p2::VP_MERGE_PROOF)?;
-        LEAF.circuit.verify(leaf_1_proof.clone())?;
-
-        let leaf_2_proof = LEAF.prove(&BRANCH, &p2_p1::VP_MERGE_PROOF)?;
-        LEAF.circuit.verify(leaf_2_proof.clone())?;
-
-        let branch_proof = BRANCH.prove(&MERGE_PROOF, true, &leaf_1_proof, true, &leaf_2_proof)?;
-        BRANCH.circuit.verify(branch_proof.clone())?;
-
-        Ok(())
+            &T1_LEAF_PROOF,
+        )?;
+        BRANCH.circuit.verify(proof.clone())?;
+        Ok(proof)
     }
 }

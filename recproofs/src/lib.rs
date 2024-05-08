@@ -4,6 +4,7 @@ use enumflags2::{bitflags, BitFlags};
 use iter_fixed::IntoIteratorFixed;
 use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
+use plonky2::field::types::Field;
 use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::{
     HashOut, HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS,
@@ -43,9 +44,45 @@ pub mod test_utils {
 
     pub const CONFIG: CircuitConfig = fast_test_circuit_config();
 
+    pub const ZERO_VAL: [F; 4] = [F::ZERO; 4];
+    pub const ZERO_HASH: HashOut<F> = HashOut { elements: ZERO_VAL };
+
+    pub const NON_ZERO_VALUES: [[F; 4]; 5] = [
+        make_fs([
+            83744944,
+            825537977472684,
+            7104047534646208046,
+            6842590694912932,
+        ]),
+        make_fs([
+            2550604009,
+            2770167113900984,
+            8824012858361603563,
+            7076601047101,
+        ]),
+        make_fs([
+            28347913151557,
+            4857242454150695950,
+            829533116861727855,
+            8890750,
+        ]),
+        make_fs([
+            0,
+            6548586327886593615,
+            3381827968230301952,
+            3530185296899577362,
+        ]),
+        make_fs([0, 0, 1, 0]),
+    ];
+    pub const NON_ZERO_HASHES: [HashOut<F>; 4] = make_hashes(NON_ZERO_VALUES);
+
     pub fn hash_str(v: &str) -> HashOut<F> {
         let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
         Poseidon2Hash::hash_no_pad(&v)
+    }
+
+    pub fn hash_val_bytes<F: RichField>(left: [F; 4], right: [F; 4]) -> [F; 4] {
+        hash_branch_bytes(&HashOut { elements: left }, &HashOut { elements: right }).elements
     }
 
     pub fn hash_branch<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
@@ -65,6 +102,8 @@ pub mod test_utils {
     pub const D: usize = 2;
     pub type C = Poseidon2GoldilocksConfig;
     pub type F = <C as GenericConfig<D>>::F;
+    pub const fn make_f(v: u64) -> F { GoldilocksField(v) }
+
     pub const fn make_fs<const N: usize>(vs: [u64; N]) -> [F; N] {
         let mut f = [F::ZERO; N];
         let mut i = 0;
@@ -74,9 +113,18 @@ pub mod test_utils {
         }
         f
     }
+    pub const fn make_hashes<const N: usize, const M: usize>(vs: [[F; 4]; N]) -> [HashOut<F>; M] {
+        let mut out = [HashOut::ZERO; M];
+        let mut i = 0;
+        while i < M {
+            out[i].elements = vs[i];
+            i += 1;
+        }
+        out
+    }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EventType {
     Write = 0,
     Ensure = 1,
@@ -111,7 +159,7 @@ impl EventFlags {
     fn index(self) -> usize { (self as u8).trailing_zeros() as usize }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Event<F> {
     owner: [F; 4],
     ty: EventType,
@@ -148,6 +196,44 @@ impl<F: RichField> Event<F> {
             .collect_vec();
         Poseidon2Hash::hash_no_pad(&bytes)
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Object<F> {
+    /// Constraint-Owner is the only program which can mutate the fields of this
+    /// object
+    constraint_owner: [F; 4],
+
+    /// The block number at which this was last updated
+    last_updated: F,
+
+    /// Running credits for execution and paying rent
+    credits: F,
+
+    /// Serialized data object understandable and affectable by
+    /// `constraint_owner`
+    data: [F; 4],
+}
+
+impl<F: Field + RichField> Object<F> {
+    pub fn hash(&self) -> HashOut<F> {
+        let inputs = chain!(
+            self.constraint_owner,
+            [self.last_updated, self.credits],
+            self.data,
+        )
+        .collect_vec();
+        Poseidon2Hash::hash_no_pad(&inputs)
+    }
+}
+
+pub fn summarize<F: Field + RichField>(
+    address: u64,
+    old: HashOut<F>,
+    new: HashOut<F>,
+) -> HashOut<F> {
+    let inputs = chain!([F::from_canonical_u64(address)], old.elements, new.elements).collect_vec();
+    Poseidon2Hash::hash_no_pad(&inputs)
 }
 
 /// Computes `if b { h0 } else { h1 }`.
@@ -204,7 +290,7 @@ where
 }
 
 /// Reduce a hash-sized group of booleans by `&&`ing them together
-fn and_helper<F, const D: usize>(
+pub fn and_helper<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     bools: [BoolTarget; 4],
 ) -> BoolTarget
@@ -218,7 +304,7 @@ where
 }
 
 /// Reduce a hash-sized group of booleans by `||`ing them together
-fn or_helper<F, const D: usize>(
+pub fn or_helper<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     bools: [BoolTarget; 4],
 ) -> BoolTarget
@@ -232,7 +318,7 @@ where
 }
 
 /// Computes `a == b`.
-fn are_equal<F, const D: usize>(
+pub fn are_equal<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     a: [Target; 4],
     b: [Target; 4],
@@ -248,7 +334,7 @@ where
 }
 
 /// Computes `h0 == h1`.
-fn hashes_equal<F, const D: usize>(
+pub fn hashes_equal<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     h0: HashOutTarget,
     h1: HashOutTarget,
@@ -259,7 +345,7 @@ where
 }
 
 /// Computes `h0 != ZERO`.
-fn hash_is_nonzero<F, const D: usize>(
+pub fn hash_is_nonzero<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     h0: impl Into<HashOutTarget>,
 ) -> BoolTarget
@@ -276,7 +362,10 @@ where
 }
 
 /// Computes `a == ZERO`.
-fn are_zero<F, const D: usize>(builder: &mut CircuitBuilder<F, D>, a: [Target; 4]) -> BoolTarget
+pub fn are_zero<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    a: [Target; 4],
+) -> BoolTarget
 where
     F: RichField + Extendable<D>, {
     let zero = a
