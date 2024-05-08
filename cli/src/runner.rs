@@ -7,7 +7,8 @@ use anyhow::Result;
 use clio::Input;
 use itertools::{izip, Itertools};
 use log::debug;
-use mozak_runner::elf::{Program, RuntimeArguments};
+use mozak_runner::elf::Program;
+use mozak_runner::state::RawTapes;
 use mozak_sdk::common::merkle::merkleize;
 use mozak_sdk::common::types::{
     CanonicalOrderedTemporalHints, Poseidon2Hash, ProgramIdentifier, SystemTape,
@@ -15,14 +16,15 @@ use mozak_sdk::common::types::{
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
 
-pub fn load_program(mut elf: Input, args: &RuntimeArguments) -> Result<Program> {
+pub fn load_program(mut elf: Input) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    Program::mozak_load_program(&elf_bytes, args)
+    Program::mozak_load_program(&elf_bytes)
 }
 
-/// Deserializes an rkyv-serialized system tape binary file into `SystemTape`.
+/// Deserializes a serde JSON serialized system tape binary file into a
+/// [`SystemTape`].
 ///
 /// # Errors
 ///
@@ -53,22 +55,14 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
     len_prefix_bytes
 }
 
-/// Deserializes an rkyv-serialized system tape binary file into
-/// [`SystemTapes`](mozak_sdk::sys::SystemTapes).
-///
-/// # Panics
-///
-/// Panics if conversion from rkyv-serialized system tape to
-/// [`RuntimeArguments`](mozak_runner::elf::RuntimeArguments)
-/// fails.
-pub fn tapes_to_runtime_arguments(
-    tape_bin: Input,
-    self_prog_id: Option<String>,
-) -> RuntimeArguments {
-    let sys_tapes: SystemTape = deserialize_system_tape(tape_bin).unwrap();
-    let self_prog_id: ProgramIdentifier = self_prog_id.unwrap_or_default().into();
+pub fn raw_tapes_from_system_tape(sys: Option<Input>, self_prog_id: ProgramIdentifier) -> RawTapes {
+    if sys.is_none() {
+        return RawTapes::default();
+    }
 
-    let cast_list = sys_tapes
+    let sys = &deserialize_system_tape(sys.unwrap()).unwrap();
+
+    let cast_list = sys
         .call_tape
         .writer
         .iter()
@@ -77,7 +71,7 @@ pub fn tapes_to_runtime_arguments(
         .into_iter()
         .collect_vec();
 
-    let canonical_order_temporal_hints: Vec<CanonicalOrderedTemporalHints> = sys_tapes
+    let canonical_order_temporal_hints: Vec<CanonicalOrderedTemporalHints> = sys
         .event_tape
         .writer
         .get(&self_prog_id)
@@ -115,33 +109,30 @@ pub fn tapes_to_runtime_arguments(
             length_prefixed_bytes(tape_bytes, dgb_string)
         }
 
-        RuntimeArguments {
-            self_prog_id: self_prog_id.inner().to_vec(),
+        RawTapes {
+            private_tape: length_prefixed_bytes(
+                sys.private_input_tape
+                    .writer
+                    .get(&self_prog_id)
+                    .cloned()
+                    .unwrap_or_default()
+                    .0,
+                "PRIVATE_TAPE",
+            ),
+            public_tape: length_prefixed_bytes(
+                sys.public_input_tape
+                    .writer
+                    .get(&self_prog_id)
+                    .cloned()
+                    .unwrap_or_default()
+                    .0,
+                "PUBLIC_TAPE",
+            ),
+            call_tape: serialise(&sys.call_tape.writer, "CALL_TAPE"),
+            event_tape: serialise(&canonical_order_temporal_hints, "EVENT_TAPE"),
+            self_prog_id_tape: self_prog_id.0 .0,
             events_commitment_tape,
             cast_list_commitment_tape,
-            cast_list: serialise(&cast_list, "CAST_LIST"),
-            io_tape_public: length_prefixed_bytes(
-                sys_tapes
-                    .public_input_tape
-                    .writer
-                    .get(&self_prog_id)
-                    .cloned()
-                    .unwrap_or_default()
-                    .0,
-                "INPUT_PUBLIC",
-            ),
-            io_tape_private: length_prefixed_bytes(
-                sys_tapes
-                    .private_input_tape
-                    .writer
-                    .get(&self_prog_id)
-                    .cloned()
-                    .unwrap_or_default()
-                    .0,
-                "INPUT_PRIVATE",
-            ),
-            call_tape: serialise(&sys_tapes.call_tape.writer, "CALL_TAPE"),
-            event_tape: serialise(&canonical_order_temporal_hints, "EVENT_TAPE"),
         }
     }
 }

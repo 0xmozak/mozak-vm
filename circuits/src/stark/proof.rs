@@ -252,6 +252,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn batch_new<C: GenericConfig<D, F = F>>(
         zeta: F::Extension,
         g: F,

@@ -1,7 +1,5 @@
 #![allow(clippy::too_many_arguments)]
 
-use std::sync::Arc;
-
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
@@ -24,10 +22,10 @@ use crate::cross_table_lookup::{
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
-pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
+pub fn compute_quotient_polys<F, P, C, S, const D: usize>(
     stark: &S,
-    get_trace_values_packed: Arc<dyn Fn(usize, usize) -> Vec<P> + Sync + Send>,
-    get_ctl_zs_values_packed: Arc<dyn Fn(usize, usize) -> Vec<P> + Sync + Send>,
+    get_trace_values_packed: &(dyn Fn(usize, usize) -> Vec<P> + Sync + Send),
+    get_ctl_zs_values_packed: &(dyn Fn(usize, usize) -> Vec<P> + Sync + Send),
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
     public_sub_table_data: &CtlData<F>,
@@ -79,8 +77,6 @@ where
             let i_next_start = (i_start + next_step) % size;
             let i_range = i_start..i_start + P::WIDTH;
 
-            let get_trace_values_packed = get_trace_values_packed.clone();
-            let get_ctl_zs_values_packed = get_ctl_zs_values_packed.clone();
             let x = *P::from_slice(&coset[i_range.clone()]);
             let z_last = x - last;
             let lagrange_basis_first = *P::from_slice(&lagrange_first.values[i_range.clone()]);

@@ -99,12 +99,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a47c1c47d2f5964e29c61246e81db715514cd532db6b5116a25ea3c03d6780a2"
 
 [[package]]
-name = "equivalent"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
-
-[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -139,16 +133,6 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-
-[[package]]
-name = "indexmap"
-version = "2.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "168fb715dda47215e360912c096649d23d58bf392ac62f73919e831745e40f26"
-dependencies = [
- "equivalent",
- "hashbrown",
-]
 
 [[package]]
 name = "itertools"
@@ -193,12 +177,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
-name = "memchr"
-version = "2.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
-
-[[package]]
 name = "mozak-sdk"
 version = "0.2.0"
 dependencies = [
@@ -214,7 +192,6 @@ dependencies = [
  "serde-hex",
  "serde_json",
  "slice-group-by",
- "toml",
 ]
 
 [[package]]
@@ -309,7 +286,7 @@ checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 [[package]]
 name = "plonky2"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git#29187d339279da1b6ed3f8508bd1a356e224e60e"
+source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
 dependencies = [
  "ahash",
  "anyhow",
@@ -331,7 +308,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git#29187d339279da1b6ed3f8508bd1a356e224e60e"
+source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
 dependencies = [
  "anyhow",
  "itertools",
@@ -346,12 +323,12 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#29187d339279da1b6ed3f8508bd1a356e224e60e"
+source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
 
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#29187d339279da1b6ed3f8508bd1a356e224e60e"
+source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
 
 [[package]]
 name = "ppv-lite86"
@@ -523,15 +500,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_spanned"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb3622f419d1296904700073ea6cc23ad690adbd66f13ea683df73298736f0c1"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "slice-group-by"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -594,40 +562,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
-name = "toml"
-version = "0.8.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9dd1545e8208b4a5af1aa9bbd0b4cf7e9ea08fabc5d0a5c67fcaafa17433aa3"
-dependencies = [
- "serde",
- "serde_spanned",
- "toml_datetime",
- "toml_edit",
-]
-
-[[package]]
-name = "toml_datetime"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3550f4e9685620ac18a50ed434eb3aec30db8ba93b0287467bca5826ea25baf1"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "toml_edit"
-version = "0.22.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e40bb779c5187258fd7aad0eb68cb8706a0a81fa712fbea808ab43c4b8374c4"
-dependencies = [
- "indexmap",
- "serde",
- "serde_spanned",
- "toml_datetime",
- "winnow",
-]
-
-[[package]]
 name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -636,7 +570,7 @@ checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
 [[package]]
 name = "unroll"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/unroll.git#1602aa5cd0b9babacb883ae369389444071f0402"
+source = "git+https://github.com/0xmozak/unroll.git#ad890f01b927ff5650937f5edaa3a03c582d1369"
 dependencies = [
  "quote",
  "syn",
@@ -707,15 +641,6 @@ name = "wasm-bindgen-shared"
 version = "0.2.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
-
-[[package]]
-name = "winnow"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c976aaaa0e1f90dbb21e9587cdaf1d9679a1cde8875c0d6bd83ab96a208352"
-dependencies = [
- "memchr",
-]
 
 [[package]]
 name = "wyz"

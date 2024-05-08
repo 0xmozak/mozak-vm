@@ -1,8 +1,6 @@
 #![allow(clippy::too_many_lines)]
 
 use std::fmt::Display;
-use std::mem::transmute;
-use std::sync::Arc;
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
@@ -55,7 +53,7 @@ pub fn prove<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -84,7 +82,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -187,7 +185,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
 ) -> Result<StarkProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static,
+    C: GenericConfig<D, F = F>,
     S: Stark<F, D> + Display, {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
@@ -226,26 +224,21 @@ where
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
 
-    let trace_commitment_ref: &'static PolynomialBatch<F, C, D> =
-        unsafe { transmute(trace_commitment) };
-    let get_trace_values_packed = Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
-        trace_commitment_ref.get_lde_values_packed(i_start, step)
-    });
+    let get_trace_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+        trace_commitment.get_lde_values_packed(i_start, step)
+    };
 
-    let ctl_zs_commitment_ref: &'static PolynomialBatch<F, C, D> =
-        unsafe { transmute(&ctl_zs_commitment) };
-    let get_ctl_zs_values_packed =
-        Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
-            ctl_zs_commitment_ref.get_lde_values_packed(i_start, step)
-        });
+    let get_ctl_zs_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+        ctl_zs_commitment.get_lde_values_packed(i_start, step)
+    };
 
     let quotient_polys = timed!(
         timing,
         format!("{stark}: compute quotient polynomial").as_str(),
         compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
             stark,
-            get_trace_values_packed,
-            get_ctl_zs_values_packed,
+            &get_trace_values_packed,
+            &get_ctl_zs_values_packed,
             public_inputs,
             ctl_data,
             public_sub_table_data,
@@ -364,7 +357,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     let cpu_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
         cpu_stark: &cpu_stark,

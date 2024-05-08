@@ -1,11 +1,9 @@
 #![allow(clippy::too_many_lines)]
 
 use std::collections::HashMap;
-use std::intrinsics::transmute;
-use std::sync::Arc;
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use log::Level::Debug;
 use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
@@ -66,8 +64,8 @@ impl BatchFriOracleIndices {
         let mut fmt_start_indices =
             all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(0));
         let mut poly_start_index = 0;
-        let mut fmt_start_index = 0;
         for deg in &sorted_degree_bits {
+            let mut fmt_start_index = 0;
             all_kind!(|kind| {
                 if !public_table_kinds.contains(&kind) && degree_bits[kind] == *deg {
                     fmt_start_indices[kind] = Some(fmt_start_index);
@@ -76,13 +74,12 @@ impl BatchFriOracleIndices {
                     poly_start_index += poly_count[kind];
                 }
             });
-            fmt_start_index = 0;
         }
 
         let degree_bits_index_map: HashMap<usize, usize> = sorted_degree_bits
-            .iter()
+            .into_iter()
             .enumerate()
-            .map(|(index, &value)| (value, index))
+            .map(|(index, value)| (value, index))
             .collect();
         let degree_bits_indices = all_kind!(|kind| (!public_table_kinds.contains(&kind))
             .then_some(degree_bits_index_map[&degree_bits[kind]]));
@@ -229,7 +226,7 @@ pub fn batch_prove<F, C, const D: usize>(
 ) -> Result<BatchProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     debug!("Starting Prove");
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -280,8 +277,8 @@ where
             .clone()
             .with_kind()
             .map(|(trace, table)| {
-                if public_table_kinds.contains(&table) {
-                    Some(timed!(
+                public_table_kinds.contains(&table).then(|| {
+                    timed!(
                         timing,
                         &format!("compute trace commitment for {table:?}"),
                         PolynomialBatch::<F, C, D>::from_values(
@@ -292,10 +289,8 @@ where
                             timing,
                             None,
                         )
-                    ))
-                } else {
-                    None
-                }
+                    )
+                })
             })
     );
 
@@ -387,7 +382,7 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
 ) -> Result<(TableKindArray<StarkProof<F, C, D>>, StarkProof<F, C, D>)>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F> + 'static, {
+    C: GenericConfig<D, F = F>, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -406,7 +401,7 @@ where
             stark,
             config,
             &traces_poly_values[kind],
-            &trace_commitment,
+            trace_commitment,
             public_inputs[kind],
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
@@ -447,7 +442,7 @@ where
     });
 
     let ctl_zs_indices =
-        BatchFriOracleIndices::new(public_table_kinds, ctl_zs_poly_count, &degree_bits);
+        BatchFriOracleIndices::new(public_table_kinds, ctl_zs_poly_count, degree_bits);
 
     // TODO: can we remove duplicates in the ctl polynomials?
     let mut batch_ctl_z_polys: Vec<_> = all_ctl_z_polys
@@ -478,7 +473,7 @@ where
     challenger.observe_cap(&ctl_zs_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
-    let sorted_degree_bits = sort_degree_bits(public_table_kinds, &degree_bits);
+    let sorted_degree_bits = sort_degree_bits(public_table_kinds, degree_bits);
 
     let mut quotient_poly_count = all_kind!(|_kind| 0);
     let quotient_chunks = all_starks!(mozak_stark, |stark, kind| {
@@ -490,41 +485,35 @@ where
             let degree_bits_index = trace_indices.degree_bits_indices[kind].unwrap();
             let trace_slice_start = trace_indices.fmt_start_indices[kind].unwrap();
             let trace_slice_len = trace_indices.poly_count[kind];
-            let batch_trace_commitments_ref: &'static BatchFriOracle<F, C, D> =
-                unsafe { transmute(batch_trace_commitments) };
-            let get_trace_values_packed =
-                Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
-                    batch_trace_commitments_ref.get_lde_values_packed(
-                        degree_bits_index,
-                        i_start,
-                        step,
-                        trace_slice_start,
-                        trace_slice_len,
-                    )
-                });
+            let get_trace_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+                batch_trace_commitments.get_lde_values_packed(
+                    degree_bits_index,
+                    i_start,
+                    step,
+                    trace_slice_start,
+                    trace_slice_len,
+                )
+            };
 
             let ctl_zs_slice_start = ctl_zs_indices.fmt_start_indices[kind].unwrap();
             let ctl_zs_slice_len = ctl_zs_indices.poly_count[kind];
-            let batch_ctl_zs_commitments_ref: &'static BatchFriOracle<F, C, D> =
-                unsafe { transmute(&batch_ctl_zs_commitments) };
-            let get_ctl_zs_values_packed =
-                Arc::new(move |i_start, step| -> Vec<<F as Packable>::Packing> {
-                    batch_ctl_zs_commitments_ref.get_lde_values_packed(
-                        degree_bits_index,
-                        i_start,
-                        step,
-                        ctl_zs_slice_start,
-                        ctl_zs_slice_len,
-                    )
-                });
+            let get_ctl_zs_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+                batch_ctl_zs_commitments.get_lde_values_packed(
+                    degree_bits_index,
+                    i_start,
+                    step,
+                    ctl_zs_slice_start,
+                    ctl_zs_slice_len,
+                )
+            };
 
             let quotient_polys = timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
                 compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
                     stark,
-                    get_trace_values_packed,
-                    get_ctl_zs_values_packed,
+                    &get_trace_values_packed,
+                    &get_ctl_zs_values_packed,
                     public_inputs[kind],
                     &ctl_data_per_table[kind],
                     &public_sub_data_per_table[kind],
@@ -720,27 +709,32 @@ pub(crate) fn batch_reduction_arity_bits(
     rate_bits: usize,
     cap_height: usize,
 ) -> Vec<usize> {
-    let mut result = Vec::new();
     let default_arity_bits = 3;
-    let mut cur_index = 0;
-    let mut cur_degree_bits = degree_bits[0];
-    assert!(degree_bits.last().unwrap() + rate_bits >= cap_height);
-    while cur_degree_bits + rate_bits > cap_height {
-        let mut cur_arity_bits = default_arity_bits;
-        let mut target_degree_bits = cur_degree_bits - default_arity_bits;
-        if target_degree_bits + rate_bits < cap_height {
-            target_degree_bits = cap_height - rate_bits;
-            cur_arity_bits = cur_degree_bits - target_degree_bits;
-        }
-        if cur_index < degree_bits.len() - 1 && target_degree_bits < degree_bits[cur_index + 1] {
-            cur_arity_bits = cur_degree_bits - degree_bits[cur_index + 1];
-            cur_index += 1;
-        }
-        result.push(cur_arity_bits);
-        assert!(cur_degree_bits >= cur_arity_bits);
-        cur_degree_bits -= cur_arity_bits;
-    }
-    result
+    let final_poly_bits = 5;
+    // First, let's figure out our intermediate degree bits.
+    let part1 = degree_bits
+        .iter()
+        .tuple_windows()
+        .flat_map(|(&degree_bit, &next_degree_bit)| {
+            (next_degree_bit + 1..=degree_bit)
+                .rev()
+                .step_by(default_arity_bits)
+        })
+        .collect_vec();
+    // Next, deal with the last part.
+    let lowest_degree_bits = degree_bits.last().unwrap();
+    assert!(lowest_degree_bits + rate_bits >= cap_height);
+    let last_degree_bits =
+        (lowest_degree_bits + rate_bits).min(cap_height.max(final_poly_bits)) - rate_bits;
+    let part2 = (last_degree_bits..=*lowest_degree_bits)
+        .rev()
+        .step_by(default_arity_bits)
+        .collect_vec();
+    // Finally, the reduction arity bits are just the differences:
+    chain!(part1, part2)
+        .tuple_windows()
+        .map(|(degree_bit, next_degree_bit)| degree_bit - next_degree_bit)
+        .collect()
 }
 
 #[cfg(test)]
@@ -750,12 +744,41 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
 
-    use crate::stark::batch_prover::batch_prove;
+    use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits};
     use crate::stark::batch_verifier::batch_verify_proof;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
     use crate::stark::proof::BatchProof;
     use crate::test_utils::fast_test_config;
     use crate::utils::from_u32;
+
+    #[test]
+    fn reduction_arity_bits_in_batch_proving() {
+        let degree_bits = vec![15, 8, 6, 5, 3];
+        let rate_bits = 2;
+        let cap_height = 0;
+        let expected_res = vec![3, 3, 1, 2, 1, 2];
+        assert_eq!(
+            expected_res,
+            batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
+        );
+
+        let rate_bits = 1;
+        let cap_height = 4;
+        let expected_res = vec![3, 3, 1, 2, 1, 2];
+        assert_eq!(
+            expected_res,
+            batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion failed")]
+    fn bad_reduction_arity_bits_in_batch_proving() {
+        let degree_bits = vec![8, 6, 5, 3];
+        let rate_bits = 2;
+        let cap_height = 6;
+        batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height);
+    }
 
     #[test]
     fn batch_prove_add() {
