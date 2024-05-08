@@ -785,17 +785,18 @@ mod tests {
 
     #[test]
     fn reduction_arity_bits_in_batch_proving() {
-        let degree_bits = vec![8, 6, 5, 3];
+        let degree_bits = vec![15, 8, 6, 5, 3];
         let rate_bits = 2;
         let cap_height = 0;
-        let expected_res = vec![2, 1, 2];
+        let expected_res = vec![3, 3, 1, 2, 1, 2];
         assert_eq!(
             expected_res,
             batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
         );
 
-        let cap_height = 3;
-        let expected_res = vec![2, 1, 2];
+        let rate_bits = 1;
+        let cap_height = 4;
+        let expected_res = vec![3, 3, 1, 2, 1, 2];
         assert_eq!(
             expected_res,
             batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
