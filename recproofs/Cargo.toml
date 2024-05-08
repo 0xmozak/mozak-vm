@@ -20,7 +20,7 @@ plonky2_maybe_rayon = { workspace = true, default-features = false, features = [
 [dev-dependencies]
 array-util = "1"
 criterion = { version = "0.5", features = ["html_reports"] }
-lazy_static = "1.4"
+once_cell = "1"
 tested-fixture = "1"
 
 [features]
