@@ -17,6 +17,7 @@ use plonky2::plonk::circuit_data::{
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 
 pub mod circuits;
+pub mod indices;
 pub mod subcircuits;
 
 #[cfg(any(feature = "test", test))]
@@ -127,6 +128,13 @@ impl<F: RichField> Event<F> {
         )
     }
 
+    pub fn vm_bytes(self) -> impl Iterator<Item = F> {
+        chain!(
+            [self.ty as u64, self.address].map(F::from_canonical_u64),
+            self.value
+        )
+    }
+
     pub fn hash(self) -> HashOut<F> {
         let bytes = self.bytes().collect_vec();
         Poseidon2Hash::hash_no_pad(&bytes)
@@ -134,7 +142,7 @@ impl<F: RichField> Event<F> {
 
     pub fn byte_wise_hash(self) -> HashOut<F> {
         let bytes = self
-            .bytes()
+            .vm_bytes()
             .flat_map(|v| v.to_canonical_u64().to_le_bytes())
             .map(|v| F::from_canonical_u8(v))
             .collect_vec();
@@ -340,31 +348,6 @@ fn at_least_one_true<F, const D: usize>(
     builder.div(total, total);
 }
 
-/// Finds the index of a target `t` in an array. Useful for getting and
-/// labelling the indices for public inputs.
-fn find_target(targets: &[Target], t: Target) -> usize {
-    targets
-        .iter()
-        .position(|&pi| pi == t)
-        .expect("target not found")
-}
-
-/// Finds the index of a boolean target `t` in an array. Useful for getting and
-/// labelling the indices for public inputs.
-fn find_bool(targets: &[Target], t: BoolTarget) -> usize { find_target(targets, t.target) }
-
-/// Finds the indices of targets `ts` in an array. Useful for getting and
-/// labelling the indices for public inputs.
-fn find_targets<const N: usize>(targets: &[Target], ts: [Target; N]) -> [usize; N] {
-    ts.map(|t| find_target(targets, t))
-}
-
-/// Finds the indices of the target elements of `ts` in an array. Useful for
-/// getting and labelling the indices for public inputs.
-fn find_hash(targets: &[Target], ts: HashOutTarget) -> [usize; NUM_HASH_OUT_ELTS] {
-    find_targets(targets, ts.elements)
-}
-
 /// Connects `x` to `v` if `maybe_v` is true
 fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -403,12 +386,11 @@ fn hash_event<F: RichField + Extendable<D>, const D: usize>(
 
 fn byte_wise_hash_event<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    owner: [Target; 4],
     ty: Target,
     address: Target,
     value: [Target; 4],
 ) -> HashOutTarget {
-    byte_wise_hash(builder, chain!(owner, [ty, address], value).collect())
+    byte_wise_hash(builder, chain!([ty, address], value).collect())
 }
 
 fn split_bytes<F: RichField + Extendable<D>, const D: usize>(

@@ -1,10 +1,6 @@
-use std::iter::zip;
-
 use plonky2::field::extension::Extendable;
 use plonky2::gates::noop::NoopGate;
-use plonky2::hash::hash_types::{
-    HashOut, HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS,
-};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -13,9 +9,8 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
 use crate::circuits::{match_delta, state_update, verify_tx};
-use crate::{
-    circuit_data_for_recursion, dummy_circuit, find_hash, find_target, select_hash, select_verifier,
-};
+use crate::indices::{HashTargetIndex, TargetIndex, VerifierCircuitTargetIndex};
+use crate::{circuit_data_for_recursion, dummy_circuit, select_hash, select_verifier};
 
 /// Plonky2's recursion threshold is 2^12 gates. We use a slightly relaxed
 /// threshold here to support the case that two proofs are verified in the same
@@ -24,94 +19,17 @@ const RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
-    /// A digest of the "circuit" (i.e. the instance, minus public inputs),
-    /// which can be used to seed Fiat-Shamir.
-    pub circuit_digest: [usize; NUM_HASH_OUT_ELTS],
-
-    /// A commitment to each constant polynomial and each permutation
-    /// polynomial.
-    pub constants_sigmas_cap: Vec<[usize; NUM_HASH_OUT_ELTS]>,
+    /// The self-recursion verifier
+    pub verifier: VerifierCircuitTargetIndex,
 
     /// The indices of each of the elements of the base state root
-    pub base_state_root: [usize; NUM_HASH_OUT_ELTS],
+    pub base_state_root: HashTargetIndex,
 
     /// The indices of each of the elements of the state root for this block
-    pub state_root: [usize; NUM_HASH_OUT_ELTS],
+    pub state_root: HashTargetIndex,
 
     /// The index of the block height for this block
-    pub block_height: usize,
-}
-
-impl PublicIndices {
-    /// Extract `circuit_digest` from an array of public inputs.
-    pub fn get_circuit_digest<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.circuit_digest.map(|i| public_inputs[i])
-    }
-
-    /// Insert `circuit_digest` into an array of public inputs.
-    pub fn set_circuit_digest<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.circuit_digest[i]] = v;
-        }
-    }
-
-    /// Extract `constants_sigmas_cap` from an array of public inputs.
-    pub fn get_constants_sigmas_cap<T: Copy>(
-        &self,
-        public_inputs: &[T],
-    ) -> Vec<[T; NUM_HASH_OUT_ELTS]> {
-        self.constants_sigmas_cap
-            .iter()
-            .map(|v| v.map(|i| public_inputs[i]))
-            .collect()
-    }
-
-    /// Insert `constants_sigmas_cap` into an array of public inputs.
-    pub fn set_constants_sigmas_cap<T>(
-        &self,
-        public_inputs: &mut [T],
-        vs: Vec<[T; NUM_HASH_OUT_ELTS]>,
-    ) {
-        for (i, v) in vs.into_iter().enumerate() {
-            for (i, v) in zip(self.constants_sigmas_cap[i], v) {
-                public_inputs[i] = v;
-            }
-        }
-    }
-
-    /// Extract `base_state_root` from an array of public inputs.
-    pub fn get_base_state_root<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.base_state_root.map(|i| public_inputs[i])
-    }
-
-    /// Insert `base_state_root` into an array of public inputs.
-    pub fn set_base_state_root<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.base_state_root[i]] = v;
-        }
-    }
-
-    /// Extract `state_root` from an array of public inputs.
-    pub fn get_state_root<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.state_root.map(|i| public_inputs[i])
-    }
-
-    /// Insert `state_root` into an array of public inputs.
-    pub fn set_state_root<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.state_root[i]] = v;
-        }
-    }
-
-    /// Extract `block_height` from an array of public inputs.
-    pub fn get_block_height<T: Copy>(&self, public_inputs: &[T]) -> T {
-        public_inputs[self.block_height]
-    }
-
-    /// Insert `block_height` into an array of public inputs.
-    pub fn set_block_height<T>(&self, public_inputs: &mut [T], v: T) {
-        public_inputs[self.block_height] = v;
-    }
+    pub block_height: TargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -201,33 +119,17 @@ impl SubCircuitInputs {
 
         let public_inputs = builder.public_inputs();
         let indices = PublicIndices {
-            circuit_digest: find_hash(public_inputs, self.verifier.circuit_digest),
-            constants_sigmas_cap: self
-                .verifier
-                .constants_sigmas_cap
-                .0
-                .iter()
-                .map(|v| find_hash(public_inputs, *v))
-                .collect(),
-            base_state_root: find_hash(public_inputs, self.base_state_root),
-            state_root: find_hash(public_inputs, self.state_root),
-            block_height: find_target(public_inputs, self.block_height),
+            verifier: VerifierCircuitTargetIndex::new(public_inputs, &self.verifier),
+            base_state_root: HashTargetIndex::new(public_inputs, self.base_state_root),
+            state_root: HashTargetIndex::new(public_inputs, self.state_root),
+            block_height: TargetIndex::new(public_inputs, self.block_height),
         };
 
         let non_base = builder.is_nonzero(self.block_height);
 
         // Connect previous verifier data to current one. This guarantees that every
         // proof in the cycle uses the same verifier data.
-        let prev_verifier = VerifierCircuitTarget {
-            circuit_digest: indices.get_circuit_digest(&prev_proof.public_inputs).into(),
-            constants_sigmas_cap: MerkleCapTarget(
-                indices
-                    .get_constants_sigmas_cap(&prev_proof.public_inputs)
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
-            ),
-        };
+        let prev_verifier = indices.verifier.get(&prev_proof.public_inputs).into();
         builder.connect_verifier_data(&self.verifier, &prev_verifier);
 
         let dummy_verifier = builder.constant_verifier_data(&dummy.verifier_only);
@@ -236,18 +138,14 @@ impl SubCircuitInputs {
 
         // Connect heights
         let block_height_calc =
-            builder.add_const(indices.get_block_height(&prev_proof.public_inputs), F::ONE);
+            builder.add_const(indices.block_height.get(&prev_proof.public_inputs), F::ONE);
         builder.connect(self.block_height, block_height_calc);
 
         // Ensure base states match
-        let prev_base_state = HashOutTarget {
-            elements: indices.get_base_state_root(&prev_proof.public_inputs),
-        };
+        let prev_base_state = indices.base_state_root.get(&prev_proof.public_inputs);
         builder.connect_hashes(self.base_state_root, prev_base_state);
 
-        let prev_state_root = HashOutTarget {
-            elements: indices.get_state_root(&prev_proof.public_inputs),
-        };
+        let prev_state_root = indices.state_root.get(&prev_proof.public_inputs);
 
         // Ensure base state is actually the base
         let prev_base_state_calc = select_hash(builder, non_base, prev_base_state, prev_state_root);
@@ -359,11 +257,8 @@ impl<const D: usize> TxVerifierTargets<D> {
         let verifier = builder.constant_verifier_data(&circuit.verifier_only);
         builder.verify_proof::<C>(&proof, &verifier, &circuit.common);
 
-        let events_present =
-            BoolTarget::new_unsafe(tx.events.indices.get_hash_present(&proof.public_inputs));
-        let event_root = HashOutTarget {
-            elements: tx.events.indices.get_hash(&proof.public_inputs),
-        };
+        let events_present = tx.events.indices.hash_present.get(&proof.public_inputs);
+        let event_root = tx.events.indices.hash.get(&proof.public_inputs);
 
         Self {
             proof,
@@ -426,19 +321,17 @@ impl<const D: usize> MatchDeltaVerifierTargets<D> {
         let verifier = builder.constant_verifier_data(&circuit.verifier_only);
         builder.verify_proof::<C>(&proof, &verifier, &circuit.common);
 
-        let event_root = HashOutTarget {
-            elements: md
-                .event_hash
-                .indices
-                .get_unpruned_hash(&proof.public_inputs),
-        };
-        let block_height = md.block_height.indices.get_values(&proof.public_inputs)[0];
-        let state_delta = HashOutTarget {
-            elements: md
-                .state_hash
-                .indices
-                .get_unpruned_hash(&proof.public_inputs),
-        };
+        let event_root = md
+            .event_hash
+            .indices
+            .unpruned_hash
+            .get(&proof.public_inputs);
+        let block_height = md.block_height.indices.values.get(&proof.public_inputs)[0];
+        let state_delta = md
+            .state_hash
+            .indices
+            .unpruned_hash
+            .get(&proof.public_inputs);
 
         Self {
             proof,
@@ -502,25 +395,20 @@ impl<const D: usize> StateUpdateVerifierTargets<D> {
         let verifier = builder.constant_verifier_data(&circuit.verifier_only);
         builder.verify_proof::<C>(&proof, &verifier, &circuit.common);
 
-        let summary_root = HashOutTarget {
-            elements: su.summarized.indices.get_summary_hash(&proof.public_inputs),
-        };
-        let old_root = HashOutTarget {
-            elements: su.old.indices.get_unpruned_hash(&proof.public_inputs),
-        };
-        let new_root = HashOutTarget {
-            elements: su.new.indices.get_unpruned_hash(&proof.public_inputs),
-        };
+        let summary_root = su.summarized.indices.summary_hash.get(&proof.public_inputs);
+        let old_root = su.old.indices.unpruned_hash.get(&proof.public_inputs);
+        let new_root = su.new.indices.unpruned_hash.get(&proof.public_inputs);
 
         let _true = builder._true();
         let summary_present = su
             .summarized
             .indices
-            .get_summary_hash_present(&proof.public_inputs);
-        builder.connect(summary_present, _true.target);
+            .summary_hash_present
+            .get(&proof.public_inputs);
+        builder.connect(summary_present.target, _true.target);
 
         let zero = builder.zero();
-        let address = su.address.indices.get_node_address(&proof.public_inputs);
+        let address = su.address.indices.node_address.get(&proof.public_inputs);
         builder.connect(address, zero);
 
         Self {
@@ -582,21 +470,16 @@ mod test {
 
             let public_inputs = &circuit.prover_only.public_inputs;
             let indices = PublicIndices {
-                circuit_digest: find_hash(
+                verifier: VerifierCircuitTargetIndex::new(
                     public_inputs,
-                    verify_block.inputs.verifier.circuit_digest,
+                    &verify_block.inputs.verifier,
                 ),
-                constants_sigmas_cap: verify_block
-                    .inputs
-                    .verifier
-                    .constants_sigmas_cap
-                    .0
-                    .iter()
-                    .map(|v| find_hash(public_inputs, *v))
-                    .collect(),
-                base_state_root: find_hash(public_inputs, verify_block.inputs.base_state_root),
-                state_root: find_hash(public_inputs, verify_block.inputs.state_root),
-                block_height: find_target(public_inputs, verify_block.inputs.block_height),
+                base_state_root: HashTargetIndex::new(
+                    public_inputs,
+                    verify_block.inputs.base_state_root,
+                ),
+                state_root: HashTargetIndex::new(public_inputs, verify_block.inputs.state_root),
+                block_height: TargetIndex::new(public_inputs, verify_block.inputs.block_height),
             };
             assert_eq!(indices, verify_block.indices);
 

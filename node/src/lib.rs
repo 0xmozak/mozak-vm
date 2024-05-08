@@ -4,6 +4,4 @@
 #![deny(unused_crate_dependencies)]
 
 pub mod block_proposer;
-pub mod config;
-pub mod node;
 pub mod types;
