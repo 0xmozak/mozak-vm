@@ -73,7 +73,7 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+#[cfg(target_os = "mozakvm")]
 pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     unsafe {
         core::arch::asm!(
@@ -97,7 +97,7 @@ pub fn event_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+#[cfg(target_os = "mozakvm")]
 pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
     unsafe {
         core::arch::asm!(
@@ -109,7 +109,7 @@ pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
     }
 }
 
-#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+#[cfg(target_os = "mozakvm")]
 pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
     unsafe {
         core::arch::asm!(
