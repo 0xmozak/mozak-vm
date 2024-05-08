@@ -89,7 +89,7 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 });
 
 #[cfg(target_os = "mozakvm")]
-/// Populates a MozakVM [`CallTapeType`] via ECALLs.
+/// Populates a `MozakVM` [`CallTapeType`] via ECALLs.
 ///
 /// At this point, the [`CrossProgramCall`] messages are still rkyv-serialized,
 /// and must be deserialized at the point of consumption. Only the `callee`s are
@@ -125,7 +125,7 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
 }
 
 #[cfg(target_os = "mozakvm")]
-/// Populates a MozakVM [`EventTapeType`] via ECALLs.
+/// Populates a `MozakVM` [`EventTapeType`] via ECALLs.
 ///
 /// At this point, the vector of [`CanonicalOrderedTemporalHints`] are still
 /// rkyv-serialized, and must be deserialized at the point of consumption.
