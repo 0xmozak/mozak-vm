@@ -713,7 +713,7 @@ pub(crate) fn batch_reduction_arity_bits(
     let final_poly_bits = 5;
     // First, let's figure out our intermediate degree bits.
     let part1 = degree_bits
-        .into_iter()
+        .iter()
         .tuple_windows()
         .flat_map(|(&degree_bit, &next_degree_bit)| {
             (next_degree_bit + 1..=degree_bit)
