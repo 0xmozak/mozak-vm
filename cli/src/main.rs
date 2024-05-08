@@ -16,7 +16,8 @@ use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::storage_device::generate_call_tape_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
+use mozak_circuits::stark::batch_prover::batch_prove;
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, TableKind, PUBLIC_TABLE_KINDS};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
@@ -39,7 +40,6 @@ use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
-use mozak_circuits::stark::batch_prover::batch_prove;
 
 const PROGRAMS_MAP_JSON: &str = "examples/programs_map.json";
 
@@ -152,7 +152,7 @@ fn main() -> Result<()> {
             self_prog_id,
             mut proof,
             recursive_proof,
-            mut batch_proof,
+            batch_proof,
         }) => {
             let program = load_program(elf).unwrap();
             let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
@@ -180,12 +180,11 @@ fn main() -> Result<()> {
             proof.write_all(serialized.as_bytes())?;
 
             if let Some(mut batch_proof_output) = batch_proof {
-                let public_table_kinds = vec![TableKind::Program, TableKind::ElfMemoryInit];
-                let batch_proofs = batch_prove::<F,C,D>(
+                let batch_proofs = batch_prove::<F, C, D>(
                     &program,
                     &record,
                     &stark,
-                    &public_table_kinds,
+                    &PUBLIC_TABLE_KINDS,
                     &config,
                     public_inputs,
                     &mut TimingTree::default(),

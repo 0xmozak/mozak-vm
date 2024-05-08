@@ -27,7 +27,7 @@ use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_kind, all_starks, TableKindArray};
+use super::mozak_stark::{all_kind, all_starks, TableKindArray, PUBLIC_TABLE_KINDS};
 use crate::columns_view::{columns_view_impl, NumberOfColumns};
 use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
@@ -242,7 +242,7 @@ where
     });
 
     // Register program ROM and memory init trace cap as public inputs.
-    for kind in [TableKind::Program, TableKind::ElfMemoryInit] {
+    for kind in PUBLIC_TABLE_KINDS {
         builder.register_public_inputs(
             &targets[kind]
                 .stark_proof_with_pis_target

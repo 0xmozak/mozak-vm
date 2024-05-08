@@ -746,7 +746,7 @@ mod tests {
 
     use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits};
     use crate::stark::batch_verifier::batch_verify_proof;
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
     use crate::stark::proof::BatchProof;
     use crate::test_utils::fast_test_config;
     use crate::utils::from_u32;
@@ -806,20 +806,16 @@ mod tests {
             entry_point: from_u32(program.entry_point),
         };
 
-        // We cannot batch prove these tables because trace caps are needed as public
-        // inputs for the following tables.
-        let public_table_kinds = vec![TableKind::Program, TableKind::ElfMemoryInit];
-
         let all_proof: BatchProof<F, C, D> = batch_prove(
             &program,
             &record,
             &stark,
-            &public_table_kinds,
+            &PUBLIC_TABLE_KINDS,
             &config,
             public_inputs,
             &mut TimingTree::default(),
         )
         .unwrap();
-        batch_verify_proof(&stark, &public_table_kinds, all_proof, &config).unwrap();
+        batch_verify_proof(&stark, &PUBLIC_TABLE_KINDS, all_proof, &config).unwrap();
     }
 }

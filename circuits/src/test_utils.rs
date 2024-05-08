@@ -50,7 +50,7 @@ use crate::register::generation::{generate_register_init_trace, generate_registe
 use crate::register::init::stark::RegisterInitStark;
 use crate::stark::batch_prover::batch_prove;
 use crate::stark::batch_verifier::batch_verify_proof;
-use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
+use crate::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
 use crate::stark::prover::prove;
 use crate::stark::utils::trace_rows_to_poly_values;
 use crate::stark::verifier::verify_proof;
@@ -496,17 +496,16 @@ pub fn prove_and_verify_batch_mozak_stark(
         entry_point: from_u32(program.entry_point),
     };
 
-    let public_table_kinds = vec![TableKind::Program, TableKind::ElfMemoryInit];
     let all_proof = batch_prove::<F, C, D>(
         program,
         record,
         &stark,
-        &public_table_kinds,
+        &PUBLIC_TABLE_KINDS,
         config,
         public_inputs,
         &mut TimingTree::default(),
     )?;
-    batch_verify_proof(&stark, &public_table_kinds, all_proof, config)
+    batch_verify_proof(&stark, &PUBLIC_TABLE_KINDS, all_proof, config)
 }
 
 /// Interpret a u64 as a field element and try to invert it.

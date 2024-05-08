@@ -6,9 +6,8 @@ use clap::{Args as Args_, Subcommand};
 use super::nop::NopBench;
 use super::omni::OmniBench;
 use super::poseidon2::Poseidon2Bench;
-use super::sort::{SortBench, SortBenchRecursive};
+use super::sort::{BatchStarksSortBench, SortBench, SortBenchRecursive};
 use super::xor::XorBench;
-use super::batch_starks_sort::BatchStarksSortBench;
 
 #[derive(Debug, Args_, Clone)]
 #[command(args_conflicts_with_subcommands = true)]
