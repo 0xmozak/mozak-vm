@@ -56,13 +56,6 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
 }
 
 pub fn raw_tapes_from_system_tape(sys: &SystemTape, self_prog_id: ProgramIdentifier) -> RawTapes {
-    fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
-    where
-        T: rkyv::Archive + rkyv::Serialize<Strategy<AllocSerializer<256>, Panic>>, {
-        let tape_bytes = rkyv::to_bytes::<_, 256, _>(tape).unwrap().into();
-        length_prefixed_bytes(tape_bytes, dgb_string)
-    }
-
     let cast_list = sys
         .call_tape
         .writer
@@ -102,29 +95,38 @@ pub fn raw_tapes_from_system_tape(sys: &SystemTape, self_prog_id: ProgramIdentif
     println!("Self Prog ID: {self_prog_id:#?}");
     println!("Found events: {:#?}", canonical_order_temporal_hints.len());
 
-    RawTapes {
-        private_tape: length_prefixed_bytes(
-            sys.private_input_tape
-                .writer
-                .get(&self_prog_id)
-                .cloned()
-                .unwrap_or_default()
-                .0,
-            "PRIVATE_TAPE",
-        ),
-        public_tape: length_prefixed_bytes(
-            sys.public_input_tape
-                .writer
-                .get(&self_prog_id)
-                .cloned()
-                .unwrap_or_default()
-                .0,
-            "PUBLIC_TAPE",
-        ),
-        call_tape: serialise(&sys.call_tape.writer, "CALL_TAPE"),
-        event_tape: serialise(&canonical_order_temporal_hints, "EVENT_TAPE"),
-        self_prog_id_tape: self_prog_id.0 .0,
-        events_commitment_tape,
-        cast_list_commitment_tape,
+    {
+        fn serialise<T>(tape: &T, dgb_string: &str) -> Vec<u8>
+        where
+            T: rkyv::Archive + rkyv::Serialize<Strategy<AllocSerializer<256>, Panic>>, {
+            let tape_bytes = rkyv::to_bytes::<_, 256, _>(tape).unwrap().into();
+            length_prefixed_bytes(tape_bytes, dgb_string)
+        }
+
+        RawTapes {
+            private_tape: length_prefixed_bytes(
+                sys.private_input_tape
+                    .writer
+                    .get(&self_prog_id)
+                    .cloned()
+                    .unwrap_or_default()
+                    .0,
+                "PRIVATE_TAPE",
+            ),
+            public_tape: length_prefixed_bytes(
+                sys.public_input_tape
+                    .writer
+                    .get(&self_prog_id)
+                    .cloned()
+                    .unwrap_or_default()
+                    .0,
+                "PUBLIC_TAPE",
+            ),
+            call_tape: serialise(&sys.call_tape.writer, "CALL_TAPE"),
+            event_tape: serialise(&canonical_order_temporal_hints, "EVENT_TAPE"),
+            self_prog_id_tape: self_prog_id.0 .0,
+            events_commitment_tape,
+            cast_list_commitment_tape,
+        }
     }
 }
