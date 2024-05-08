@@ -99,7 +99,7 @@ mod tests {
     use crate::generation::storage_device::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
         generate_event_tape_trace, generate_events_commitment_tape_trace,
-        generate_private_tape_trace, generate_public_tape_trace,
+        generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
     };
     use crate::generation::MIN_TRACE_LENGTH;
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
@@ -137,6 +137,7 @@ mod tests {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
         let memory_rows = generate_memory_trace::<F>(
@@ -151,6 +152,7 @@ mod tests {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
@@ -164,6 +166,7 @@ mod tests {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &register_init,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
