@@ -6,6 +6,12 @@ pub mod state_update;
 pub mod verify_program;
 pub mod verify_tx;
 
+/// A repository of testing data to allow unit tests to build on one another
+/// and cross-reference by having them all draw from a consistent transaction
+/// set.
+///
+/// At present this consists of 2 transactions modifying a state-tree of size 8
+/// (only addresses 0..=7 are valid).
 #[cfg(test)]
 pub mod test_data {
     use once_cell::sync::Lazy;
@@ -15,6 +21,7 @@ pub mod test_data {
     use crate::test_utils::{hash_val_bytes, make_f, make_fs, F, NON_ZERO_VALUES, ZERO_VAL};
     use crate::{Event, EventType, Object};
 
+    /// The hashes of the programs used
     pub const PROGRAM_HASHES: [[F; 4]; 3] = [
         make_fs([31, 41, 59, 26]),
         make_fs([53, 58, 97, 93]),
@@ -52,6 +59,7 @@ pub mod test_data {
     /// An address being ignored
     pub const ADDRESS_E: usize = 7;
 
+    /// The empty object
     pub const ZERO_OBJ: Object<F> = Object {
         constraint_owner: ZERO_VAL,
         last_updated: F::ZERO,
@@ -59,8 +67,10 @@ pub mod test_data {
         data: ZERO_VAL,
     };
 
+    /// The hash of the empty object
     pub static ZERO_OBJ_HASH: Lazy<HashOut<F>> = Lazy::new(|| ZERO_OBJ.hash());
 
+    /// The initial state
     pub const STATE_0: [Object<F>; 8] = {
         let mut state = [ZERO_OBJ; 8];
 
@@ -92,6 +102,7 @@ pub mod test_data {
         state
     };
 
+    /// The next state
     pub const STATE_1: [Object<F>; 8] = {
         let mut state = [ZERO_OBJ; 8];
 
