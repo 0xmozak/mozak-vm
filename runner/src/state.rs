@@ -162,7 +162,7 @@ impl<F: RichField> From<Program> for State<F> {
 
         Self {
             pc,
-            memory: StateMemory::new([ro_memory].into_iter(), [rw_memory].into_iter()),
+            memory: StateMemory::new(once(ro_memory), once(rw_memory)),
             ..state
         }
     }
