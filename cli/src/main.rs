@@ -286,10 +286,6 @@ fn main() -> Result<()> {
 
             let ids_and_paths = ids_and_paths_from_cast_list(entrypoint_program_id, &cast_list);
 
-            // This does nothing - we rely entirely on ecalls.
-            // TODO(bing): Refactor `load_program` to not take this as a param, in a
-            // separate PR.
-
             let mut attestations: Vec<Attestation> = vec![];
             let mut call_tape_hash = None;
 
