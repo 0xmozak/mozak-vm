@@ -55,7 +55,13 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
     len_prefix_bytes
 }
 
-pub fn raw_tapes_from_system_tape(sys: &SystemTape, self_prog_id: ProgramIdentifier) -> RawTapes {
+pub fn raw_tapes_from_system_tape(sys: Option<Input>, self_prog_id: ProgramIdentifier) -> RawTapes {
+    if sys.is_none() {
+        return RawTapes::default();
+    }
+
+    let sys = &deserialize_system_tape(sys.unwrap()).unwrap();
+
     let cast_list = sys
         .call_tape
         .writer

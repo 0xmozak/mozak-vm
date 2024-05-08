@@ -125,12 +125,7 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
-                raw_tapes_from_system_tape(
-                    &deserialize_system_tape(s).unwrap(),
-                    self_prog_id.unwrap().into(),
-                )
-            });
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
             let program = load_program(elf).unwrap();
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
@@ -141,12 +136,8 @@ fn main() -> Result<()> {
             self_prog_id,
         }) => {
             let program = load_program(elf).unwrap();
-            let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
-                raw_tapes_from_system_tape(
-                    &deserialize_system_tape(s).unwrap(),
-                    self_prog_id.unwrap().into(),
-                )
-            });
+
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
@@ -160,12 +151,7 @@ fn main() -> Result<()> {
             recursive_proof,
         }) => {
             let program = load_program(elf).unwrap();
-            let raw_tapes = system_tape.map_or_else(RawTapes::default, |s| {
-                raw_tapes_from_system_tape(
-                    &deserialize_system_tape(s).unwrap(),
-                    self_prog_id.unwrap().into(),
-                )
-            });
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
