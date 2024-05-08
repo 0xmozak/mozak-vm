@@ -127,6 +127,7 @@ where
     all_starks!(mozak_stark, |stark, kind| {
         if public_table_kinds.contains(&kind) {
             if let Some(challenges) = &stark_challenges[kind] {
+                // Verifying public tables proof, including individual FRI proof
                 verify_stark_proof_with_challenges(
                     stark,
                     &all_proof.proofs[kind],
@@ -139,6 +140,8 @@ where
                 ensure!(false);
             }
         } else {
+            // Verifying quotient polynomials of the batched stark proof (for all starks but
+            // public starks). Batched FRI proof for the openings to be done later.
             verify_quotient_polynomials(
                 stark,
                 degree_bits[kind],

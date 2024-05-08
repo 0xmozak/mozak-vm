@@ -223,13 +223,22 @@ where
     challenger.observe_cap(&ctl_zs_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
+
+    let get_trace_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+        trace_commitment.get_lde_values_packed(i_start, step)
+    };
+
+    let get_ctl_zs_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+        ctl_zs_commitment.get_lde_values_packed(i_start, step)
+    };
+
     let quotient_polys = timed!(
         timing,
         format!("{stark}: compute quotient polynomial").as_str(),
         compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
             stark,
-            trace_commitment,
-            &ctl_zs_commitment,
+            &get_trace_values_packed,
+            &get_ctl_zs_values_packed,
             public_inputs,
             ctl_data,
             public_sub_table_data,
