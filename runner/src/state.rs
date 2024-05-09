@@ -69,7 +69,7 @@ pub struct State<F: RichField> {
     pub event_tape: StorageDeviceTape,
     pub events_commitment_tape: CommitmentTape,
     pub cast_list_commitment_tape: CommitmentTape,
-    pub self_prog_id_tape: [u8; 32],
+    pub self_prog_id_tape: [u8; DIGEST_BYTES],
     _phantom: PhantomData<F>,
 }
 
