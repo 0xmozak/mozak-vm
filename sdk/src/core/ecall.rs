@@ -121,13 +121,13 @@ pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
 }
 
 #[cfg(target_os = "mozakvm")]
-pub fn self_prog_id_tape_read(buf_ptr: *mut u8, buf_len: usize) {
+pub fn self_prog_id_tape_read(buf_ptr: *mut u8) {
     unsafe {
         core::arch::asm!(
         "ecall",
         in ("a0") SELF_PROG_ID_TAPE,
         in ("a1") buf_ptr,
-        in ("a2") buf_len,
+        in ("a2") DIGEST_BYTES,
         );
     }
 }
