@@ -81,8 +81,11 @@ impl BatchFriOracleIndices {
             .enumerate()
             .map(|(index, value)| (value, index))
             .collect();
-        let degree_bits_indices = all_kind!(|kind| (!public_table_kinds.contains(&kind))
-            .then_some(degree_bits_index_map[&degree_bits[kind]]));
+        let degree_bits_indices = all_kind!(|kind| if public_table_kinds.contains(&kind) {
+            None
+        } else {
+            Some(degree_bits_index_map[&degree_bits[kind]])
+        });
 
         BatchFriOracleIndices {
             poly_count,
@@ -744,9 +747,9 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
 
-    use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits};
+    use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits, sort_degree_bits};
     use crate::stark::batch_verifier::batch_verify_proof;
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
+    use crate::stark::mozak_stark::{all_kind, MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
     use crate::stark::proof::BatchProof;
     use crate::test_utils::fast_test_config;
     use crate::utils::from_u32;
@@ -778,6 +781,18 @@ mod tests {
         let rate_bits = 2;
         let cap_height = 6;
         batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height);
+    }
+
+    #[test]
+    fn sorted_bits() {
+        let mut n = 0;
+        let degree_bits = all_kind!(|_kind| {
+            n += 1;
+            n
+        });
+        let res = sort_degree_bits(&PUBLIC_TABLE_KINDS, &degree_bits);
+        let expected_res = vec![0, 1];
+        assert_eq!(res, expected_res);
     }
 
     #[test]
