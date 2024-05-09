@@ -61,7 +61,7 @@ pub struct RunArgs {
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -73,7 +73,7 @@ pub struct ProveArgs {
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
     recursive_proof: Option<Output>,
 }
 
@@ -128,7 +128,7 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
             let program = load_program(elf).unwrap();
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
@@ -140,7 +140,7 @@ fn main() -> Result<()> {
         }) => {
             let program = load_program(elf).unwrap();
 
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
@@ -155,7 +155,7 @@ fn main() -> Result<()> {
             batch_proof,
         }) => {
             let program = load_program(elf).unwrap();
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
