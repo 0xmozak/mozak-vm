@@ -37,6 +37,7 @@ fn is_storage_device_opcode<F: RichField>(op: StorageDeviceOpcode) -> F {
             | StorageDeviceOpcode::StoreEventTape
             | StorageDeviceOpcode::StoreEventsCommitmentTape
             | StorageDeviceOpcode::StoreCastListCommitmentTape
+            | StorageDeviceOpcode::StoreSelfProgIdTape
     ))
 }
 
@@ -118,4 +119,11 @@ pub fn generate_cast_list_commitment_tape_trace<F: RichField>(
     step_rows: &[Row<F>],
 ) -> Vec<StorageDevice<F>> {
     generate_storage_trace(step_rows, StorageDeviceOpcode::StoreCastListCommitmentTape)
+}
+
+#[must_use]
+pub fn generate_self_prog_id_tape_trace<F: RichField>(
+    step_rows: &[Row<F>],
+) -> Vec<StorageDevice<F>> {
+    generate_storage_trace(step_rows, StorageDeviceOpcode::StoreSelfProgIdTape)
 }

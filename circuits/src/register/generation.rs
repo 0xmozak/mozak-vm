@@ -95,6 +95,7 @@ pub fn generate_register_trace<F: RichField>(
     mem_event_tape: &[StorageDevice<F>],
     mem_events_commitment_tape: &[StorageDevice<F>],
     mem_cast_list_commitment_tape: &[StorageDevice<F>],
+    mem_self_prog_id_tape: &[StorageDevice<F>],
     reg_init: &[RegisterInit<F>],
 ) -> (
     Vec<RegisterZeroRead<F>>,
@@ -116,6 +117,7 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::EventsCommitmentTape => extract(mem_events_commitment_tape, &looking_table),
             TableKind::CastListCommitmentTape =>
                 extract(mem_cast_list_commitment_tape, &looking_table),
+            TableKind::SelfProgIdTape => extract(mem_self_prog_id_tape, &looking_table),
             TableKind::RegisterInit => extract(reg_init, &looking_table),
             TableKind::Poseidon2Sponge => extract(poseidon2_sponge, &looking_table),
             // We are trying to build the Register tables, so we don't have the values to extract.
@@ -181,7 +183,7 @@ mod tests {
     use crate::generation::storage_device::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
         generate_event_tape_trace, generate_events_commitment_tape_trace,
-        generate_private_tape_trace, generate_public_tape_trace,
+        generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
     };
     use crate::poseidon2_sponge;
     use crate::test_utils::prep_table;
@@ -229,6 +231,7 @@ mod tests {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_trace =
             poseidon2_sponge::generation::generate_poseidon2_sponge_trace(&record.executed);
 
@@ -244,6 +247,7 @@ mod tests {
             &event_tape,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &register_init,
         );
 

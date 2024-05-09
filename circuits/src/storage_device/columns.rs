@@ -1,6 +1,6 @@
 use core::ops::Add;
 
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 use mozak_sdk::core::reg_abi::REG_A1;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -8,7 +8,7 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{
-    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable,
+    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable, SelfProgIdTapeTable,
     StorageDevicePrivateTable, StorageDevicePublicTable, TableKind, TableWithTypedOutput,
 };
 use crate::tape_commitments::columns::TapeCommitmentCTL;
@@ -111,6 +111,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         CallTapeTable::new(data, COL_MAP.ops.is_storage_device),
         EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_storage_device),
         CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_storage_device),
+        SelfProgIdTapeTable::new(data, COL_MAP.ops.is_storage_device),
     ]
 }
 
@@ -119,7 +120,7 @@ pub fn event_commitment_lookup_in_tape_commitments(
 ) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
     let data = TapeCommitmentCTL {
         byte: COL_MAP.value,
-        index: i64::try_from(COMMITMENT_SIZE - 1).unwrap() - COL_MAP.size,
+        index: i64::try_from(DIGEST_BYTES - 1).unwrap() - COL_MAP.size,
     };
     EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
 }
@@ -129,7 +130,7 @@ pub fn castlist_commitment_lookup_in_tape_commitments(
 ) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
     let data = TapeCommitmentCTL {
         byte: COL_MAP.value,
-        index: i64::try_from(COMMITMENT_SIZE - 1).unwrap() - COL_MAP.size,
+        index: i64::try_from(DIGEST_BYTES - 1).unwrap() - COL_MAP.size,
     };
     CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
 }

@@ -1,8 +1,6 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// TODO(bing): `clio` uses an older `windows-sys` vs other dependencies.
-// Remove when `clio` updates, or if `clio` is no longer needed.
-#![allow(clippy::multiple_crate_versions)]
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -28,9 +26,8 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
+use mozak_cli::runner::{deserialize_system_tape, load_program, raw_tapes_from_system_tape};
 use mozak_node::types::{Attestation, Transaction};
-use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
@@ -118,7 +115,7 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             debug!("{program:?}");
         }
         Command::Run(RunArgs {
@@ -126,11 +123,9 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
-                .unwrap_or_default();
-            let program = load_program(elf, &args).unwrap();
-            let state: State<F> = State::new(program.clone(), RawTapes::default());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+            let program = load_program(elf).unwrap();
+            let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs {
@@ -138,13 +133,11 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id.clone()))
-                .unwrap_or_default();
+            let program = load_program(elf).unwrap();
 
-            let program = load_program(elf, &args).unwrap();
-            let state = State::new(program.clone(), args.into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
 
+            let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
@@ -155,11 +148,10 @@ fn main() -> Result<()> {
             mut proof,
             recursive_proof,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
-                .unwrap_or_default();
-            let program = load_program(elf, &args).unwrap();
-            let state = State::new(program.clone(), RawTapes::default());
+            let program = load_program(elf).unwrap();
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+
+            let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -278,14 +270,6 @@ fn main() -> Result<()> {
 
             let ids_and_paths = ids_and_paths_from_cast_list(entrypoint_program_id, &cast_list);
 
-            // This does nothing - we rely entirely on ecalls.
-            // TODO(bing): Refactor `load_program` to not take this as a param, in a
-            // separate PR.
-            let args = tapes_to_runtime_arguments(
-                system_tape_path,
-                Some(format!("{entrypoint_program_id:?}")),
-            );
-
             let mut attestations: Vec<Attestation> = vec![];
             let mut call_tape_hash = None;
 
@@ -293,7 +277,6 @@ fn main() -> Result<()> {
                 let program = load_program(
                     Input::try_from(elf)
                         .unwrap_or_else(|_| panic!("Elf filepath {elf:?} not found")),
-                    &args,
                 )?;
 
                 let raw_call_tape: Vec<u8> =
@@ -397,7 +380,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -414,7 +397,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;

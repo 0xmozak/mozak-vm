@@ -6,8 +6,8 @@ use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 
-use crate::common::types::poseidon2hash::RATE;
 use crate::common::types::{Poseidon2Hash, ProgramIdentifier};
+use crate::core::constants::RATE;
 
 /// Represents a stack for call contexts during native execution.
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -20,17 +20,6 @@ impl IdentityStack {
     pub fn top_identity(&self) -> ProgramIdentifier { self.0.last().copied().unwrap_or_default() }
 
     pub fn rm_identity(&mut self) { self.0.truncate(self.0.len().saturating_sub(1)); }
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GuestProgramTomlCfg {
-    bin: Vec<Bin>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub(crate) struct Bin {
-    name: String,
-    path: String,
 }
 
 /// Manually add a `ProgramIdentifier` onto `IdentityStack`. Useful
