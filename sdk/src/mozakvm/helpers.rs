@@ -1,7 +1,7 @@
 // This file contains code snippets used in mozakvm execution
 
-use crate::common::types::poseidon2hash::{DIGEST_BYTES, RATE};
 use crate::common::types::Poseidon2Hash;
+use crate::core::constants::DIGEST_BYTES;
 
 /// Hashes the input slice to `Poseidon2Hash` after padding.
 /// We use the well known "Bit padding scheme".

@@ -1,9 +1,7 @@
 #[cfg(not(target_os = "mozakvm"))]
 use serde_hex::{SerHex, StrictPfx};
-/// The size of a `Poseidon2Hash` digest in bytes.
-pub(crate) const DIGEST_BYTES: usize = 32;
-#[allow(dead_code)]
-pub const RATE: usize = 8;
+
+use crate::core::constants::DIGEST_BYTES;
 
 #[derive(
     Clone,

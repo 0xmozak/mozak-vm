@@ -6,8 +6,8 @@ use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 
-use crate::common::types::poseidon2hash::RATE;
 use crate::common::types::{Poseidon2Hash, ProgramIdentifier};
+use crate::core::constants::RATE;
 
 /// Represents a stack for call contexts during native execution.
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]

@@ -7,7 +7,7 @@ use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
-use mozak_sdk::common::constants::DIGEST_BYTES;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 

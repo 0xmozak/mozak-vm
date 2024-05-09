@@ -1,4 +1,4 @@
-use mozak_sdk::common::constants::DIGEST_BYTES;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;

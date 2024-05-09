@@ -1,7 +1,7 @@
 use std::iter::repeat;
 
 use itertools::{chain, izip};
-use mozak_sdk::common::constants::DIGEST_BYTES;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 use mozak_sdk::core::reg_abi::{REG_A1, REG_A2, REG_A3};
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;

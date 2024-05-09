@@ -49,9 +49,9 @@ fn merkleize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
 mod tests {
     use itertools::chain;
 
-    use crate::common::constants::DIGEST_BYTES;
     use crate::common::merkle::merkleize;
     use crate::common::types::Poseidon2Hash;
+    use crate::core::constants::DIGEST_BYTES;
     use crate::native::helpers::poseidon2_hash_no_pad;
 
     #[test]
