@@ -29,8 +29,6 @@ pub mod public_sub_table;
 pub mod rangecheck;
 pub mod rangecheck_u8;
 pub mod register;
-#[cfg(any(feature = "test", test))]
-pub mod riscv_tests;
 pub mod stark;
 pub mod storage_device;
 pub mod tape_commitments;
