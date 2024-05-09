@@ -8,9 +8,7 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
-use clap_derive::Args;
-use clio::{Input, Output};
+use clio::Input;
 use itertools::Itertools;
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
@@ -27,8 +25,9 @@ use mozak_circuits::stark::recursive_verifier::{
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
-use mozak_cli::cli_benches::benches::BenchArgs;
+use mozak_cli::cli_benches::benches::bench;
 use mozak_cli::runner::{deserialize_system_tape, load_program, raw_tapes_from_system_tape};
+use mozak_cli_args::{parse, Command, ProveArgs, RunArgs};
 use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
@@ -42,75 +41,11 @@ use starky::config::StarkConfig;
 
 const PROGRAMS_MAP_JSON: &str = "examples/programs_map.json";
 
-#[derive(Parser, Debug, Clone)]
-#[command(author, version, about, long_about = None)]
-struct Cli {
-    #[clap(flatten)]
-    verbose: clap_verbosity_flag::Verbosity,
-    #[command(subcommand)]
-    command: Command,
-    /// Debug API, default is OFF, currently only `prove` command is supported
-    #[arg(short, long)]
-    debug: bool,
-}
-
-#[derive(Clone, Debug, Args)]
-pub struct RunArgs {
-    elf: Input,
-    #[arg(long)]
-    system_tape: Option<Input>,
-    #[arg(long)]
-    self_prog_id: Option<String>,
-}
-
-#[derive(Clone, Debug, Args)]
-pub struct ProveArgs {
-    elf: Input,
-    proof: Output,
-    #[arg(long)]
-    system_tape: Option<Input>,
-    #[arg(long)]
-    self_prog_id: Option<String>,
-    recursive_proof: Option<Output>,
-}
-
-#[derive(Clone, Debug, Subcommand)]
-enum Command {
-    /// Decode a given ELF and prints the program
-    Decode { elf: Input },
-    /// Decode and execute a given ELF. Prints the final state of
-    /// the registers
-    Run(RunArgs),
-    /// Prove and verify the execution of a given ELF
-    ProveAndVerify(RunArgs),
-    /// Prove the execution of given ELF and write proof to file.
-    Prove(ProveArgs),
-    /// Verify the given proof from file.
-    Verify { proof: Input },
-    /// Verify the given recursive proof from file.
-    VerifyRecursiveProof { proof: Input, verifier_key: Input },
-    /// Builds a transaction bundle.
-    BundleTransaction {
-        /// System tape generated from native execution.
-        #[arg(long, required = true)]
-        system_tape: Input,
-        /// Output file path of the serialized bundle.
-        #[arg(long, default_value = "bundle")]
-        bundle: Output,
-    },
-    /// Compute the Program Rom Hash of the given ELF.
-    ProgramRomHash { elf: Input },
-    /// Compute the Memory Init Hash of the given ELF.
-    MemoryInitHash { elf: Input },
-    /// Bench the function with given parameters
-    Bench(BenchArgs),
-}
-
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
 /// iotape.txt`
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let cli = parse();
     let config = StarkConfig::standard_fast_config();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
@@ -415,8 +350,8 @@ fn main() -> Result<()> {
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
         }
-        Command::Bench(bench) => {
-            let time_taken = bench.bench()?.as_secs_f64();
+        Command::Bench(args) => {
+            let time_taken = bench(&args)?.as_secs_f64();
             println!("{time_taken}");
         }
     }

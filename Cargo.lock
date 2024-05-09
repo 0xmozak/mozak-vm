@@ -962,12 +962,35 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "mozak-circuits",
+ "mozak-cli-args",
  "mozak-examples",
  "mozak-node",
  "mozak-runner",
  "mozak-sdk",
  "plonky2",
  "plonky2_maybe_rayon",
+ "proptest",
+ "rkyv",
+ "rkyv_derive",
+ "serde",
+ "serde_json",
+ "starky",
+ "tempfile",
+]
+
+[[package]]
+name = "mozak-cli-args"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "clap-verbosity-flag",
+ "clap_derive",
+ "clio",
+ "criterion",
+ "env_logger",
+ "itertools 0.12.1",
+ "log",
  "proptest",
  "rkyv",
  "rkyv_derive",
