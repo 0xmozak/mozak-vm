@@ -49,6 +49,7 @@ fn merkleize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
 mod tests {
     use itertools::chain;
 
+    use crate::common::constants::DIGEST_BYTES;
     use crate::common::merkle::merkleize;
     use crate::common::types::Poseidon2Hash;
     use crate::native::helpers::poseidon2_hash_no_pad;
@@ -57,13 +58,13 @@ mod tests {
     #[rustfmt::skip] 
     fn merkleize_test() {
         let hashes_with_addr = vec![
-            (0x010, Poseidon2Hash([1u8; 32])),// ------------|
+            (0x010, Poseidon2Hash([1u8; DIGEST_BYTES])),// ------------|
                                               //             |--h_2---|  
-            (0x011, Poseidon2Hash([2u8; 32])),// ----|       |        |
+            (0x011, Poseidon2Hash([2u8; DIGEST_BYTES])),// ----|       |        |
                                               //     |-h_1---|        |---root
-            (0x011, Poseidon2Hash([3u8; 32])),// ----|                |
+            (0x011, Poseidon2Hash([3u8; DIGEST_BYTES])),// ----|                |
                                               //                      |
-            (0x111, Poseidon2Hash([4u8; 32])),//--------------------- |
+            (0x111, Poseidon2Hash([4u8; DIGEST_BYTES])),//--------------------- |
         ];
         let h_1 = poseidon2_hash_no_pad(
             &chain![
