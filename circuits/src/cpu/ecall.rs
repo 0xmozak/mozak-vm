@@ -34,27 +34,9 @@ pub(crate) fn constraints<'a, P: Copy>(
                 + lv.is_self_prog_id_tape
                 + lv.is_poseidon2),
     );
-    halt_constraints(lv, cb);
+    cb.always(lv.is_halt * (lv.op1_value - i64::from(ecall::HALT)));
     storage_device_constraints(lv, cb);
     poseidon2_constraints(lv, cb);
-}
-
-pub(crate) fn halt_constraints<'a, P: Copy>(
-    lv: &CpuState<Expr<'a, P>>,
-    cb: &mut ConstraintBuilder<Expr<'a, P>>,
-) {
-    // Thus we can equate ecall with halt in the next row.
-    // Crucially, this prevents a malicious prover from just halting the program
-    // anywhere else.
-    // Enable only for halt !!!
-    cb.transition(lv.is_halt * (lv.inst.ops.ecall + lv.next_is_running - 1));
-    cb.always(lv.is_halt * (lv.op1_value - i64::from(ecall::HALT)));
-
-    // We also need to make sure that the program counter is not changed by the
-    // 'halt' system call.
-    // Enable only for halt !!!
-    cb.transition(lv.is_halt * (lv.inst.ops.ecall * (lv.new_pc - lv.inst.pc)));
-    cb.always(lv.is_running().is_binary());
 }
 
 pub(crate) fn storage_device_constraints<'a, P: Copy>(

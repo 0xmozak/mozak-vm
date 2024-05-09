@@ -94,9 +94,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             // It seems too simple.
             op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
                 + from_u32(inst.args.imm),
-            // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
-            // is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain

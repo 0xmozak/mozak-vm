@@ -98,9 +98,6 @@ pub struct CpuState<T> {
     pub new_pc: T,
     pub inst: Instruction<T>,
 
-    // TODO(Matthias): we can remove this, once our 'halt' instruction is in its own table.
-    pub next_is_running: T,
-
     pub op1_value: T,
     pub op2_value_raw: T,
     /// The sum of the value of the second operand register and the
