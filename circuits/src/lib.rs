@@ -4,7 +4,6 @@
 // exceptions:
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
-#![allow(clippy::multiple_crate_versions)]
 #![feature(const_trait_impl)]
 
 pub mod benches;

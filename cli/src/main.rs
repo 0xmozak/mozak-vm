@@ -1,8 +1,6 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// TODO(bing): `clio` uses an older `windows-sys` vs other dependencies.
-// Remove when `clio` updates, or if `clio` is no longer needed.
-#![allow(clippy::multiple_crate_versions)]
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
