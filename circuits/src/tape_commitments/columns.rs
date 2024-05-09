@@ -1,4 +1,4 @@
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+use mozak_sdk::common::constants::DIGEST_BYTES;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
@@ -69,7 +69,7 @@ pub fn make_event_commitment_tape_public() -> PublicSubTable {
             vec![TAPE_COMMITMENTS.commitment_byte_row.byte],
             TAPE_COMMITMENTS.is_event_commitment_tape_row,
         ),
-        num_rows: COMMITMENT_SIZE,
+        num_rows: DIGEST_BYTES,
     }
 }
 
@@ -80,6 +80,6 @@ pub fn make_castlist_commitment_tape_public() -> PublicSubTable {
             vec![TAPE_COMMITMENTS.commitment_byte_row.byte],
             TAPE_COMMITMENTS.is_castlist_commitment_tape_row,
         ),
-        num_rows: COMMITMENT_SIZE,
+        num_rows: DIGEST_BYTES,
     }
 }

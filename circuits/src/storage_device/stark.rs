@@ -120,7 +120,8 @@ mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::state::RawTapes;
     use mozak_runner::test_utils::{u32_extra, u8_extra};
-    use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
+    use mozak_sdk::common::constants::DIGEST_BYTES;
+    use mozak_sdk::core::ecall::{self};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
@@ -302,13 +303,13 @@ mod tests {
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &[],
-            &(0..COMMITMENT_SIZE)
+            &(0..DIGEST_BYTES)
                 .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
                 .collect_vec(),
             &[
                 (REG_A0, ecall::EVENTS_COMMITMENT_TAPE),
-                (REG_A1, address),                                 // A1 - address
-                (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
+                (REG_A1, address),                              // A1 - address
+                (REG_A2, u32::try_from(DIGEST_BYTES).unwrap()), // A2 - size
             ],
             RawTapes {
                 events_commitment_tape,
@@ -333,13 +334,13 @@ mod tests {
             // set sys-call IO_READ in x10(or a0)
             [ECALL],
             &[],
-            &(0..COMMITMENT_SIZE)
+            &(0..DIGEST_BYTES)
                 .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
                 .collect_vec(),
             &[
                 (REG_A0, ecall::CAST_LIST_COMMITMENT_TAPE),
-                (REG_A1, address),                                 // A1 - address
-                (REG_A2, u32::try_from(COMMITMENT_SIZE).unwrap()), // A2 - size
+                (REG_A1, address),                              // A1 - address
+                (REG_A2, u32::try_from(DIGEST_BYTES).unwrap()), // A2 - size
             ],
             RawTapes {
                 cast_list_commitment_tape,
