@@ -2,7 +2,7 @@
 use core::arch::asm;
 
 #[cfg(target_os = "mozakvm")]
-use crate::common::types::poseidon2hash::DIGEST_BYTES;
+use crate::core::constants::DIGEST_BYTES;
 
 pub const HALT: u32 = 0;
 pub const PANIC: u32 = 1;

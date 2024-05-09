@@ -1,11 +1,11 @@
 use once_cell::unsync::Lazy;
 #[cfg(target_os = "mozakvm")]
 use {
-    crate::common::constants::DIGEST_BYTES,
     crate::common::merkle::merkleize,
     crate::common::types::{
         CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
     },
+    crate::core::constants::DIGEST_BYTES,
     crate::core::ecall::{
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
