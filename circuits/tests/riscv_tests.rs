@@ -1,5 +1,3 @@
-use std::fs;
-
 use anyhow::{Ok, Result};
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 use mozak_runner::elf::Program;
