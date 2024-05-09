@@ -12,6 +12,8 @@ pub fn nop_execute((program, record): (Program, ExecutionRecord<F>)) -> Result<(
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
 
+#[allow(clippy::module_name_repetitions)]
+#[must_use]
 pub fn nop_prepare(iterations: u32) -> (Program, ExecutionRecord<F>) {
     let instructions = [
         Instruction {
