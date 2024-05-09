@@ -44,10 +44,6 @@ parallel = ["plonky2/parallel", "starky/parallel", "plonky2_maybe_rayon/parallel
 test = []
 timing = ["plonky2/timing", "starky/timing"]
 
-[[test]]
-name = "riscv_tests"
-required-features = ["test"]
-
 [[bench]]
 harness = false
 name = "simple_prover"
