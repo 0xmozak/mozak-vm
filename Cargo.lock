@@ -953,9 +953,6 @@ name = "mozak-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
- "clap-verbosity-flag",
- "clap_derive",
  "clio",
  "criterion",
  "env_logger",
@@ -982,21 +979,13 @@ dependencies = [
 name = "mozak-cli-args"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "clap",
  "clap-verbosity-flag",
  "clap_derive",
  "clio",
  "criterion",
- "env_logger",
- "itertools 0.12.1",
  "log",
  "proptest",
- "rkyv",
- "rkyv_derive",
- "serde",
- "serde_json",
- "starky",
  "tempfile",
 ]
 

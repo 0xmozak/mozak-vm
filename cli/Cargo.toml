@@ -10,27 +10,17 @@ repository = "https://github.com/0xmozak/mozak-vm"
 version = "0.1.0"
 
 [dependencies]
-clap = { version = "4.5", features = [
-  "derive",
-  "cargo",
-  "env",
-  "unicode",
-] }
-mozak-circuits = { path = "../circuits", features = ["test"] }
-mozak-node = { path = "../node", features = ["std"] }
-mozak-runner = { path = "../runner", features = ["test"] }
-mozak-sdk = { path = "../sdk", features = ["std"] }
-# TODO(Matthias): implement shell completion for CLI via clap_complete
-# clap_complete = "4.3"
 anyhow = "1.0"
-clap-verbosity-flag = "2.2"
-clap_derive = "4.5"
-clio = { version = "0.3", features = ["clap-parse"] }
+clio = { version = "0.3" }
 env_logger = "0.11"
 itertools = "0.12"
 log = "0.4"
+mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-cli-args = { path = "../args" }
 mozak-examples = { path = "../examples-builder", features = ["mozak-sort"] }
+mozak-node = { path = "../node", features = ["std"] }
+mozak-runner = { path = "../runner", features = ["test"] }
+mozak-sdk = { path = "../sdk", features = ["std"] }
 plonky2 = { workspace = true, default-features = false }
 plonky2_maybe_rayon = { workspace = true, default-features = false }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }

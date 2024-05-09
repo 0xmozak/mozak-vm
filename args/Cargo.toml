@@ -18,18 +18,10 @@ clap = { version = "4.5", features = [
 ] }
 # TODO(Matthias): implement shell completion for CLI via clap_complete
 # clap_complete = "4.3"
-anyhow = "1.0"
 clap-verbosity-flag = "2.2"
 clap_derive = "4.5"
 clio = { version = "0.3", features = ["clap-parse"] }
-env_logger = "0.11"
-itertools = "0.12"
 log = "0.4"
-rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
-rkyv_derive = "=0.8.0-alpha.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-starky = { workspace = true, default-features = false }
 tempfile = "3"
 
 [dev-dependencies]
