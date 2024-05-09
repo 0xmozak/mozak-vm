@@ -93,6 +93,7 @@ mod tests {
 
     #[test]
     fn test_sort_bench() -> Result<()> { SortBench {}.execute(SortBench {}.prepare(&10)) }
+
     #[test]
     fn test_recursive_sort_bench() -> Result<()> {
         SortBenchRecursive {}.execute(SortBenchRecursive {}.prepare(&10))
