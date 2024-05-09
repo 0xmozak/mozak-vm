@@ -24,13 +24,15 @@ use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
+use super::mozak_stark::{
+    all_starks_par, MozakStark, TableKind, TableKindArray, TableKindSetBuilder,
+};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::public_sub_table::public_sub_table_data_and_values;
-use crate::stark::mozak_stark::{all_starks, PublicInputs};
+use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 
@@ -363,7 +365,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
-    timing: &mut TimingTree,
+    _timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
@@ -374,8 +376,11 @@ where
         ..Default::default()
     }
     .build();
+    challenger.compact();
+    let challenger: &Challenger<F, C::Hasher> = &challenger.clone();
 
-    Ok(all_starks!(mozak_stark, |stark, kind| {
+    Ok(all_starks_par!(mozak_stark, |stark, kind| {
+        let mut timing = TimingTree::default();
         prove_single_table(
             stark,
             config,
@@ -383,9 +388,10 @@ where
             public_inputs[kind],
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
-            challenger,
-            timing,
-        )?
+            &mut challenger.clone(),
+            &mut timing,
+        )
+        .unwrap()
     }))
 }
 
