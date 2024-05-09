@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use anyhow::Result;
 use itertools::{zip_eq, Itertools};
 use log::info;
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
@@ -63,8 +63,8 @@ pub struct VMRecursiveProofPublicInputs<T> {
     pub entry_point: T,
     pub program_trace_cap: [[T; NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
     pub elf_memory_init_trace_cap: [[T; NUM_HASH_OUT_ELTS]; VM_RECURSION_CONFIG_NUM_CAPS],
-    pub event_commitment_tape: [T; COMMITMENT_SIZE],
-    pub castlist_commitment_tape: [T; COMMITMENT_SIZE],
+    pub event_commitment_tape: [T; DIGEST_BYTES],
+    pub castlist_commitment_tape: [T; DIGEST_BYTES],
 }
 
 columns_view_impl!(VMRecursiveProofPublicInputs);
@@ -652,7 +652,7 @@ mod tests {
     use log::info;
     use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+    use mozak_sdk::core::constants::DIGEST_BYTES;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -718,8 +718,8 @@ mod tests {
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
         let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
             recursive_proof.public_inputs.as_slice().try_into().unwrap();
-        let expected_event_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
-        let expected_castlist_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
+        let expected_event_commitment_tape = [F::ZERO; DIGEST_BYTES];
+        let expected_castlist_commitment_tape = [F::ZERO; DIGEST_BYTES];
         let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
             &public_input_slice.into();
         assert_eq!(
