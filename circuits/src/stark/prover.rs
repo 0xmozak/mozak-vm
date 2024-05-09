@@ -102,9 +102,10 @@ where
         timing,
         "Compute trace commitments for each table",
         traces_poly_values
-            .clone()
+            .each_ref()
             .with_kind()
-            .map(|(trace, table)| {
+            .par_map(|(trace, table)| {
+                let mut timing = TimingTree::default();
                 timed!(
                     timing,
                     &format!("compute trace commitment for {table:?}"),
@@ -113,7 +114,7 @@ where
                         rate_bits,
                         false,
                         cap_height,
-                        timing,
+                        &mut timing,
                         None,
                     )
                 )
@@ -154,7 +155,6 @@ where
             mozak_stark,
             config,
             &public_inputs,
-            traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
             &public_sub_table_data_per_table,
@@ -187,7 +187,6 @@ where
 pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,
-    trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
@@ -199,7 +198,7 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D> + Display, {
-    let degree = trace_poly_values[0].len();
+    let degree = trace_commitment.polynomials[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
     let rate_bits = config.fri_config.rate_bits;
@@ -360,7 +359,6 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: &PublicInputs<F>,
-    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
@@ -381,7 +379,6 @@ where
         prove_single_table(
             stark,
             config,
-            &traces_poly_values[kind],
             &trace_commitments[kind],
             public_inputs[kind],
             &ctl_data_per_table[kind],
