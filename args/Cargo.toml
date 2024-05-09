@@ -23,8 +23,3 @@ clap_derive = "4.5"
 clio = { version = "0.3", features = ["clap-parse"] }
 log = "0.4"
 tempfile = "3"
-
-[dev-dependencies]
-# Only as a workaround to be able to control criterion's rayon feature and optional dependency.
-criterion = { workspace = true, default-features = false }
-proptest = "1.4"
