@@ -22,17 +22,6 @@ impl IdentityStack {
     pub fn rm_identity(&mut self) { self.0.truncate(self.0.len().saturating_sub(1)); }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GuestProgramTomlCfg {
-    bin: Vec<Bin>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub(crate) struct Bin {
-    name: String,
-    path: String,
-}
-
 /// Manually add a `ProgramIdentifier` onto `IdentityStack`. Useful
 /// when one want to escape automatic management of `IdentityStack`
 /// via cross-program-calls sends (ideally temporarily).
