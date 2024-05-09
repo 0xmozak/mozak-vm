@@ -167,16 +167,15 @@ where
 #[cfg(test)]
 pub mod test {
     use anyhow::Ok;
-    use once_cell::sync::Lazy;
     use plonky2::field::types::Field;
 
     pub use super::BranchCircuit;
     use super::*;
     use crate::circuits::test_data::{
-        EVENT_T0_P0_A_CREDIT, EVENT_T0_P0_A_WRITE, EVENT_T0_P2_A_ENSURE, EVENT_T0_P2_A_READ,
-        EVENT_T0_P2_C_TAKE, EVENT_T0_PM_C_CREDIT, EVENT_T0_PM_C_GIVE, EVENT_T0_PM_C_WRITE,
-        EVENT_T1_P1_B_CREDIT, EVENT_T1_P1_B_GIVE, EVENT_T1_P1_B_WRITE, EVENT_T1_P2_A_READ,
-        EVENT_T1_P2_D_READ, EVENT_T1_PM_B_ENSURE, EVENT_T1_PM_B_TAKE,
+        T0_A_HASH, T0_C_HASH, T0_HASH, T0_P0_HASH, T0_P2_A_HASH, T0_P2_C_HASH, T0_P2_HASH,
+        T0_PM_HASH, T0_PM_P0_HASH, T0_T1_AB_HASH, T0_T1_A_HASH, T0_T1_CD_HASH, T0_T1_HASH,
+        T1_AB_HASH, T1_B_HASH, T1_HASH, T1_P1_HASH, T1_P2_A_HASH, T1_P2_D_HASH, T1_P2_HASH,
+        T1_PM_HASH,
     };
     use crate::test_utils::{hash_branch, C, CONFIG, D, F, NON_ZERO_HASHES, ZERO_HASH};
 
@@ -369,22 +368,7 @@ pub mod test {
         Ok(proof)
     }
 
-    // T1 merges
-    static T0_PM_HASH: Lazy<HashOut<F>> = Lazy::new(|| {
-        hash_branch(
-            &hash_branch(&EVENT_T0_PM_C_CREDIT.hash(), &EVENT_T0_PM_C_GIVE.hash()),
-            &EVENT_T0_PM_C_WRITE.hash(),
-        )
-    });
-    static T0_P0_HASH: Lazy<HashOut<F>> =
-        Lazy::new(|| hash_branch(&EVENT_T0_P0_A_WRITE.hash(), &EVENT_T0_P0_A_CREDIT.hash()));
-    static T0_P2_A_HASH: Lazy<HashOut<F>> =
-        Lazy::new(|| hash_branch(&EVENT_T0_P2_A_READ.hash(), &EVENT_T0_P2_A_ENSURE.hash()));
-    static T0_P2_C_HASH: Lazy<HashOut<F>> = Lazy::new(|| EVENT_T0_P2_C_TAKE.hash());
-    static T0_P2_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T0_P2_A_HASH, &T0_P2_C_HASH));
-    static T0_A_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T0_P0_HASH, &T0_P2_A_HASH));
-    static T0_C_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T0_PM_HASH, &T0_P2_C_HASH));
-    static T0_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T0_A_HASH, &T0_C_HASH));
+    // T0 merges
 
     #[tested_fixture::tested_fixture(T0_PM_LEFT_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_t0_pm_left_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
@@ -418,17 +402,21 @@ pub mod test {
         Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(pub T0_PM_P0_BRANCH_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_t0_pm_p0_branch() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
+    #[tested_fixture::tested_fixture(pub T0_PM_P0_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_pm_p0_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
         // This is a simple merge because:
         // P0 contains only A and
         // PM contains only C
         // Also we put P0 to the left of PM because A < C
-        let merged = hash_branch(&T0_P0_HASH, &T0_PM_HASH);
         let proof = BRANCH.prove(true, *T0_P0_RIGHT_LEAF_PROOF, true, *T0_PM_LEFT_LEAF_PROOF)?;
-        assert_branch(&proof, Some(*T0_PM_HASH), Some(*T0_P0_HASH), Some(merged));
+        assert_branch(
+            &proof,
+            Some(*T0_PM_HASH),
+            Some(*T0_P0_HASH),
+            Some(*T0_PM_P0_HASH),
+        );
         BRANCH.circuit.verify(proof.clone())?;
-        Ok((proof, merged))
+        Ok(proof)
     }
 
     #[tested_fixture::tested_fixture(pub T0_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
@@ -441,20 +429,6 @@ pub mod test {
     }
 
     // T1 merges
-    static T1_PM_HASH: Lazy<HashOut<F>> =
-        Lazy::new(|| hash_branch(&EVENT_T1_PM_B_TAKE.hash(), &EVENT_T1_PM_B_ENSURE.hash()));
-    static T1_P1_HASH: Lazy<HashOut<F>> = Lazy::new(|| {
-        hash_branch(
-            &hash_branch(&EVENT_T1_P1_B_WRITE.hash(), &EVENT_T1_P1_B_GIVE.hash()),
-            &EVENT_T1_P1_B_CREDIT.hash(),
-        )
-    });
-    static T1_B_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_PM_HASH, &T1_P1_HASH));
-    static T1_P2_A_HASH: Lazy<HashOut<F>> = Lazy::new(|| EVENT_T1_P2_A_READ.hash());
-    static T1_P2_D_HASH: Lazy<HashOut<F>> = Lazy::new(|| EVENT_T1_P2_D_READ.hash());
-    static T1_P2_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_P2_A_HASH, &T1_P2_D_HASH));
-    static T1_AB_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_P2_A_HASH, &T1_B_HASH));
-    static T1_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_AB_HASH, &T1_P2_D_HASH));
 
     #[tested_fixture::tested_fixture(pub T1_PM_P1_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_t1_pm_p1_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
@@ -524,11 +498,44 @@ pub mod test {
         Ok(proof)
     }
 
+    #[tested_fixture::tested_fixture(T1_P2_PARTIAL_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_p2_partial_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(&BRANCH, Some(*T1_P2_HASH), None)?;
+        assert_leaf(&proof, Some(*T1_P2_HASH));
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub T1_P2_PARTIAL_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_p2_partial_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH.prove(true, *T1_P2_PARTIAL_LEAF_PROOF, true, *EMPTY_LEAF_PROOF)?;
+        assert_branch(&proof, Some(*T1_P2_HASH), None, Some(*T1_P2_HASH));
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub T1_PM_P1_PARTIAL_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_pm_p1_partial_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH.prove(true, *T1_B_LEFT_LEAF_PROOF, true, *EMPTY_LEAF_PROOF)?;
+        assert_branch(&proof, Some(*T1_B_HASH), None, Some(*T1_B_HASH));
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T1_PARTIAL_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_partial_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(&BRANCH, Some(*T1_HASH), None)?;
+        assert_leaf(&proof, Some(*T1_HASH));
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub T1_PARTIAL_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_partial_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH.prove(true, *T1_PARTIAL_LEAF_PROOF, true, *EMPTY_LEAF_PROOF)?;
+        assert_branch(&proof, Some(*T1_HASH), None, Some(*T1_HASH));
+        Ok(proof)
+    }
+
     // Merge transactions
-    static T0_T1_A_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T0_A_HASH, &T1_P2_A_HASH));
-    static T0_T1_AB_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T0_T1_A_HASH, &T1_B_HASH));
-    static T0_T1_CD_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T0_C_HASH, &T1_P2_D_HASH));
-    static T0_T1_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T0_T1_AB_HASH, &T0_T1_CD_HASH));
 
     #[tested_fixture::tested_fixture(T0_T1_A_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_t0_t1_a_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
