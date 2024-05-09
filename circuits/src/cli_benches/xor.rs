@@ -1,4 +1,3 @@
-use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, F};
 use mozak_runner::code;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
@@ -6,6 +5,7 @@ use mozak_runner::vm::ExecutionRecord;
 use starky::config::StarkConfig;
 
 use super::benches::Bench;
+use crate::test_utils::{prove_and_verify_mozak_stark, F};
 
 #[allow(clippy::module_name_repetitions)]
 pub fn xor_execute((program, record): (Program, ExecutionRecord<F>)) -> Result<(), anyhow::Error> {

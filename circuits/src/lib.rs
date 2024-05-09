@@ -4,9 +4,11 @@
 // exceptions:
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
+#![allow(clippy::multiple_crate_versions)]
 #![feature(const_trait_impl)]
 
 pub mod bitshift;
+pub mod cli_benches;
 pub mod columns_view;
 pub mod cpu;
 pub mod cross_table_lookup;

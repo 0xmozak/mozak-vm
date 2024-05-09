@@ -924,6 +924,8 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "mozak-circuits-derive",
+ "mozak-cli-args",
+ "mozak-examples",
  "mozak-runner",
  "mozak-sdk",
  "plonky2",

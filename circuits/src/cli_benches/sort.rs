@@ -1,12 +1,4 @@
 use anyhow::Result;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
-use mozak_circuits::stark::proof::AllProof;
-use mozak_circuits::stark::prover::prove;
-use mozak_circuits::stark::recursive_verifier::{
-    recursive_mozak_stark_circuit, MozakStarkVerifierCircuit,
-};
-use mozak_circuits::stark::verifier::verify_proof;
-use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F};
 use mozak_examples::MOZAK_SORT_ELF;
 use mozak_runner::elf::Program;
 use mozak_runner::state::{RawTapes, State};
@@ -17,6 +9,12 @@ use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
 use super::benches::Bench;
+use crate::stark::mozak_stark::{MozakStark, PublicInputs};
+use crate::stark::proof::AllProof;
+use crate::stark::prover::prove;
+use crate::stark::recursive_verifier::{recursive_mozak_stark_circuit, MozakStarkVerifierCircuit};
+use crate::stark::verifier::verify_proof;
+use crate::test_utils::{prove_and_verify_mozak_stark, C, D, F};
 
 pub fn sort_execute(result: Result<(Program, ExecutionRecord<F>)>) -> Result<()> {
     let (program, record) = result?;

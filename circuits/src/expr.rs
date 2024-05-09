@@ -10,6 +10,8 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
+pub const Food: i32 = 7;
+
 struct CircuitBuilderEvaluator<'a, F, const D: usize>
 where
     F: RichField,

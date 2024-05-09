@@ -11,6 +11,7 @@ use anyhow::Result;
 use clio::Input;
 use itertools::Itertools;
 use log::debug;
+use mozak_circuits::cli_benches::benches::bench;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::storage_device::generate_call_tape_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
@@ -25,7 +26,6 @@ use mozak_circuits::stark::recursive_verifier::{
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
-use mozak_cli::cli_benches::benches::bench;
 use mozak_cli::runner::{deserialize_system_tape, load_program, raw_tapes_from_system_tape};
 use mozak_cli_args::{parse, Command, ProveArgs, RunArgs};
 use mozak_node::types::{Attestation, Transaction};

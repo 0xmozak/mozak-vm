@@ -1,11 +1,9 @@
-use mozak_circuits::test_utils::{
-    create_poseidon2_test, prove_and_verify_mozak_stark, Poseidon2Test, F,
-};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use starky::config::StarkConfig;
 
 use super::benches::Bench;
+use crate::test_utils::{create_poseidon2_test, prove_and_verify_mozak_stark, Poseidon2Test, F};
 
 pub fn poseidon2_execute(
     (program, record): (Program, ExecutionRecord<F>),
