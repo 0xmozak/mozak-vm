@@ -10,8 +10,9 @@ pub const CALL_TAPE: u32 = 5;
 pub const EVENT_TAPE: u32 = 6;
 pub const EVENTS_COMMITMENT_TAPE: u32 = 7;
 pub const CAST_LIST_COMMITMENT_TAPE: u32 = 8;
+pub const SELF_PROG_ID_TAPE: u32 = 9;
 /// Syscall to output the VM trace log at `clk`. Useful for debugging.
-pub const VM_TRACE_LOG: u32 = 9;
+pub const VM_TRACE_LOG: u32 = 10;
 
 /// The number of bytes requested for events commitment tape and
 /// cast list commitment tape is hardcoded to 32 bytes.
@@ -29,6 +30,7 @@ pub fn log<'a>(raw_id: u32) -> &'a str {
         EVENT_TAPE => "ioread event tape",
         EVENTS_COMMITMENT_TAPE => "ioread events commitment tape",
         CAST_LIST_COMMITMENT_TAPE => "ioread cast list commitment tape",
+        SELF_PROG_ID_TAPE => "self prog id tape",
         VM_TRACE_LOG => "vm trace log",
         _ => "",
     }
@@ -71,7 +73,7 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+#[cfg(target_os = "mozakvm")]
 pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     unsafe {
         core::arch::asm!(
@@ -95,7 +97,7 @@ pub fn event_tape_read(buf_ptr: *mut u8, buf_len: usize) {
     }
 }
 
-#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+#[cfg(target_os = "mozakvm")]
 pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
     unsafe {
         core::arch::asm!(
@@ -107,7 +109,7 @@ pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
     }
 }
 
-#[cfg(all(target_os = "mozakvm", not(feature = "mozak-ro-memory")))]
+#[cfg(target_os = "mozakvm")]
 pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
     unsafe {
         core::arch::asm!(
@@ -115,6 +117,18 @@ pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
         in ("a0") CAST_LIST_COMMITMENT_TAPE,
         in ("a1") buf_ptr,
         in ("a2") COMMITMENT_SIZE,
+        );
+    }
+}
+
+#[cfg(target_os = "mozakvm")]
+pub fn self_prog_id_tape_read(buf_ptr: *mut u8, buf_len: usize) {
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") SELF_PROG_ID_TAPE,
+        in ("a1") buf_ptr,
+        in ("a2") buf_len,
         );
     }
 }

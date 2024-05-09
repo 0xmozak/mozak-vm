@@ -166,6 +166,7 @@ pub fn generate_memory_trace<F: RichField>(
     event_tape_rows: &[StorageDevice<F>],
     events_commitment_tape_rows: &[StorageDevice<F>],
     castlist_commitment_tape_rows: &[StorageDevice<F>],
+    self_prog_id_tape_rows: &[StorageDevice<F>],
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
     poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
@@ -192,6 +193,7 @@ pub fn generate_memory_trace<F: RichField>(
         transform_storage(event_tape_rows),
         transform_storage(events_commitment_tape_rows),
         transform_storage(castlist_commitment_tape_rows),
+        transform_storage(self_prog_id_tape_rows),
         transform_poseidon2_sponge(poseidon2_sponge_rows),
         transform_poseidon2_output_bytes(poseidon2_output_bytes_rows,),
     )
@@ -233,7 +235,7 @@ mod tests {
     use crate::generation::storage_device::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
         generate_event_tape_trace, generate_events_commitment_tape_trace,
-        generate_private_tape_trace, generate_public_tape_trace,
+        generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
     };
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
@@ -304,6 +306,7 @@ mod tests {
         let event_tape_rows = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
 
@@ -320,6 +323,7 @@ mod tests {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
@@ -396,6 +400,7 @@ mod tests {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&[]);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&[]);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&[]);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&[]);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let trace = super::generate_memory_trace::<F>(
@@ -411,6 +416,7 @@ mod tests {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );

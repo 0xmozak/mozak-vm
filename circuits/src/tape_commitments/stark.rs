@@ -85,8 +85,8 @@ mod tests {
     use itertools::chain;
     use mozak_runner::code;
     use mozak_runner::decode::ECALL;
-    use mozak_runner::elf::RuntimeArguments;
     use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::state::RawTapes;
     use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::field::types::Field;
@@ -169,12 +169,11 @@ mod tests {
         let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
         let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
         let code = read_tape_commitments_code();
-        let (program, record) =
-            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
-                events_commitment_tape,
-                cast_list_commitment_tape,
-                ..Default::default()
-            });
+        let (program, record) = code::execute_code_with_ro_memory(code, &[], &[], &[], RawTapes {
+            events_commitment_tape,
+            cast_list_commitment_tape,
+            ..Default::default()
+        });
         TapeCommitmentsStark::prove_and_verify(&program, &record)
     }
     #[test]
@@ -184,12 +183,11 @@ mod tests {
         let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
         let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
         let code = read_tape_commitments_code();
-        let (program, record) =
-            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
-                events_commitment_tape,
-                cast_list_commitment_tape,
-                ..Default::default()
-            });
+        let (program, record) = code::execute_code_with_ro_memory(code, &[], &[], &[], RawTapes {
+            events_commitment_tape,
+            cast_list_commitment_tape,
+            ..Default::default()
+        });
         MozakStark::prove_and_verify(&program, &record)
     }
 
@@ -200,12 +198,11 @@ mod tests {
         let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
         let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
         let code = read_tape_commitments_code();
-        let (program, record) =
-            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
-                events_commitment_tape,
-                cast_list_commitment_tape,
-                ..Default::default()
-            });
+        let (program, record) = code::execute_code_with_ro_memory(code, &[], &[], &[], RawTapes {
+            events_commitment_tape,
+            cast_list_commitment_tape,
+            ..Default::default()
+        });
         let stark = MozakStark::<F, D>::default();
         let config = StarkConfig::standard_fast_config();
         let public_inputs = PublicInputs {

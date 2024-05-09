@@ -39,6 +39,60 @@ use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::prover::prove_single_table;
 
+#[derive(Debug)]
+pub struct BatchFriOracleIndices {
+    poly_count: TableKindArray<usize>,
+    // start index in BatchFriOracle's field merkle tree leaves
+    fmt_start_indices: TableKindArray<Option<usize>>,
+    // start index in BatchFriOracle's polynomial vector
+    poly_start_indices: TableKindArray<Option<usize>>,
+    // degree bits (leaf layer) index in BatchFriOrable's field merkle tree
+    degree_bits_indices: TableKindArray<Option<usize>>,
+}
+
+#[allow(unused_assignments)]
+impl BatchFriOracleIndices {
+    fn new(
+        public_table_kinds: &[TableKind],
+        poly_count: TableKindArray<usize>,
+        degree_bits: &TableKindArray<usize>,
+    ) -> Self {
+        let sorted_degree_bits = sort_degree_bits(public_table_kinds, degree_bits);
+
+        let mut poly_start_indices =
+            all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(0));
+        let mut fmt_start_indices =
+            all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(0));
+        let mut poly_start_index = 0;
+        for deg in &sorted_degree_bits {
+            let mut fmt_start_index = 0;
+            all_kind!(|kind| {
+                if !public_table_kinds.contains(&kind) && degree_bits[kind] == *deg {
+                    fmt_start_indices[kind] = Some(fmt_start_index);
+                    poly_start_indices[kind] = Some(poly_start_index);
+                    fmt_start_index += poly_count[kind];
+                    poly_start_index += poly_count[kind];
+                }
+            });
+        }
+
+        let degree_bits_index_map: HashMap<usize, usize> = sorted_degree_bits
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| (value, index))
+            .collect();
+        let degree_bits_indices = all_kind!(|kind| (!public_table_kinds.contains(&kind))
+            .then_some(degree_bits_index_map[&degree_bits[kind]]));
+
+        BatchFriOracleIndices {
+            poly_count,
+            fmt_start_indices,
+            poly_start_indices,
+            degree_bits_indices,
+        }
+    }
+}
+
 pub(crate) fn sort_degree_bits(
     public_table_kinds: &[TableKind],
     degree_bits: &TableKindArray<usize>,
@@ -181,8 +235,10 @@ where
     }
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
-
     let degree_bits = all_kind!(|kind| log2_strict(traces_poly_values[kind][0].len()));
+    let traces_poly_count = all_kind!(|kind| traces_poly_values[kind].len());
+    let trace_indices =
+        BatchFriOracleIndices::new(public_table_kinds, traces_poly_count, &degree_bits);
 
     let batch_traces_poly_values = all_kind!(|kind| if public_table_kinds.contains(&kind) {
         None
@@ -195,9 +251,11 @@ where
         .filter_map(|t| *t)
         .flat_map(std::clone::Clone::clone)
         .collect();
-    batch_trace_polys.sort_by_key(|b| std::cmp::Reverse(b.len()));
-    let batch_trace_polys_len = batch_trace_polys.len();
+    batch_trace_polys.sort_by_key(|p| std::cmp::Reverse(p.len()));
 
+    // This commitment is for all tables but public tables, in form of Field Merkle
+    // Tree (1st oracle)
+    let batch_trace_polys_len = batch_trace_polys.len();
     let batch_trace_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "Compute trace commitments for batch tables",
@@ -211,37 +269,42 @@ where
         )
     );
 
-    // TODO: only need for public tables
+    // This commitment is for public tables, and would have separate oracle.
     let trace_commitments = timed!(
         timing,
-        "Compute trace commitments for each table",
+        "Compute trace commitments for public tables",
         traces_poly_values
             .clone()
             .with_kind()
             .map(|(trace, table)| {
-                timed!(
-                    timing,
-                    &format!("compute trace commitment for {table:?}"),
-                    PolynomialBatch::<F, C, D>::from_values(
-                        trace.clone(),
-                        rate_bits,
-                        false,
-                        cap_height,
+                if public_table_kinds.contains(&table) {
+                    Some(timed!(
                         timing,
-                        None,
-                    )
-                )
+                        &format!("compute trace commitment for {table:?}"),
+                        PolynomialBatch::<F, C, D>::from_values(
+                            trace.clone(),
+                            rate_bits,
+                            false,
+                            cap_height,
+                            timing,
+                            None,
+                        )
+                    ))
+                } else {
+                    None
+                }
             })
     );
 
-    let trace_caps = trace_commitments
-        .each_ref()
-        .map(|c| c.merkle_tree.cap.clone());
+    let trace_caps = all_kind!(|kind| trace_commitments[kind]
+        .as_ref()
+        .map(|c| c.merkle_tree.cap.clone()));
+
     // Add trace commitments to the challenger entropy pool.
     let mut challenger = Challenger::<F, C::Hasher>::new();
     all_kind!(|kind| {
-        if public_table_kinds.contains(&kind) {
-            challenger.observe_cap(&trace_caps[kind]);
+        if let Some(c) = trace_caps[kind].clone() {
+            challenger.observe_cap(&c);
         }
     });
     let fmt_trace_cap = batch_trace_commitments.field_merkle_tree.cap.clone();
@@ -273,6 +336,7 @@ where
         &degree_bits,
         &traces_poly_values,
         &trace_commitments,
+        &trace_indices,
         &batch_trace_commitments,
         &ctl_data_per_table,
         &public_sub_table_data_per_table,
@@ -280,8 +344,8 @@ where
         timing,
     )?;
 
-    let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
-    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
+    let program_rom_trace_cap = trace_caps[TableKind::Program].clone().unwrap();
+    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone().unwrap();
     if log_enabled!(Debug) {
         timing.print();
     }
@@ -310,7 +374,8 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     public_inputs: &PublicInputs<F>,
     degree_bits: &TableKindArray<usize>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
-    trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
+    trace_commitments: &TableKindArray<Option<PolynomialBatch<F, C, D>>>,
+    trace_indices: &BatchFriOracleIndices,
     batch_trace_commitments: &BatchFriOracle<F, C, D>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
@@ -331,14 +396,15 @@ where
     }
     .build();
 
-    let separate_proofs = all_starks!(mozak_stark, |stark, kind| if public_table_kinds
-        .contains(&kind)
+    // Computes separate proofs for each public table.
+    let separate_proofs = all_starks!(mozak_stark, |stark, kind| if let Some(trace_commitment) =
+        &trace_commitments[kind]
     {
         Some(prove_single_table(
             stark,
             config,
             &traces_poly_values[kind],
-            &trace_commitments[kind],
+            trace_commitment,
             public_inputs[kind],
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
@@ -349,6 +415,8 @@ where
         None
     });
 
+    // Computing ctl zs polynomials for all but those for public tables
+    let mut ctl_zs_poly_count = all_kind!(|_kind| 0);
     let all_ctl_z_polys = all_kind!(|kind| {
         if public_table_kinds.contains(&kind) {
             None
@@ -374,11 +442,15 @@ where
                     ctl_data_per_table[kind].zs_columns.len()
                 );
                 info!("z_poly len {}", z_polys.len());
+                ctl_zs_poly_count[kind] = z_polys.len();
 
                 z_polys
             })
         }
     });
+
+    let ctl_zs_indices =
+        BatchFriOracleIndices::new(public_table_kinds, ctl_zs_poly_count, degree_bits);
 
     // TODO: can we remove duplicates in the ctl polynomials?
     let mut batch_ctl_z_polys: Vec<_> = all_ctl_z_polys
@@ -389,6 +461,9 @@ where
     batch_ctl_z_polys.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let batch_ctl_zs_polys_len = batch_ctl_z_polys.len();
 
+    // Commitment to all ctl_zs polynomials, except for those of public tables.
+    // Field Merkle tree is used as oracle here, same as we did for batched traces.
+    // (2nd FMT Oracle)
     let batch_ctl_zs_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "compute batch Zs commitment",
@@ -402,39 +477,51 @@ where
         )
     );
 
-    // TODO: remove it
-    let ctl_zs_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
-        timing,
-        format!("{stark}: compute Zs commitment").as_str(),
-        all_ctl_z_polys[kind]
-            .as_ref()
-            .map(|poly| PolynomialBatch::<F, C, D>::from_values(
-                poly.clone(),
-                rate_bits,
-                false,
-                config.fri_config.cap_height,
-                timing,
-                None,
-            ))
-    ));
-
     let ctl_zs_cap = batch_ctl_zs_commitments.field_merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
+    let sorted_degree_bits = sort_degree_bits(public_table_kinds, degree_bits);
 
-    // TODO: we should be able to compute `quotient_polys` from
-    // `batch_trace_commitments` and `batch_ctl_zs_commitments`.
+    let mut quotient_poly_count = all_kind!(|_kind| 0);
     let quotient_chunks = all_starks!(mozak_stark, |stark, kind| {
-        if let Some(ctl_zs_commitment) = ctl_zs_commitments[kind].as_ref() {
+        if public_table_kinds.contains(&kind) {
+            None
+        } else {
             let degree = 1 << degree_bits[kind];
+
+            let degree_bits_index = trace_indices.degree_bits_indices[kind].unwrap();
+            let trace_slice_start = trace_indices.fmt_start_indices[kind].unwrap();
+            let trace_slice_len = trace_indices.poly_count[kind];
+            let get_trace_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+                batch_trace_commitments.get_lde_values_packed(
+                    degree_bits_index,
+                    i_start,
+                    step,
+                    trace_slice_start,
+                    trace_slice_len,
+                )
+            };
+
+            let ctl_zs_slice_start = ctl_zs_indices.fmt_start_indices[kind].unwrap();
+            let ctl_zs_slice_len = ctl_zs_indices.poly_count[kind];
+            let get_ctl_zs_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
+                batch_ctl_zs_commitments.get_lde_values_packed(
+                    degree_bits_index,
+                    i_start,
+                    step,
+                    ctl_zs_slice_start,
+                    ctl_zs_slice_len,
+                )
+            };
+
             let quotient_polys = timed!(
                 timing,
                 format!("{stark}: compute quotient polynomial").as_str(),
                 compute_quotient_polys::<F, <F as Packable>::Packing, C, _, D>(
                     stark,
-                    &trace_commitments[kind],
-                    ctl_zs_commitment,
+                    &get_trace_values_packed,
+                    &get_ctl_zs_values_packed,
                     public_inputs[kind],
                     &ctl_data_per_table[kind],
                     &public_sub_data_per_table[kind],
@@ -461,11 +548,13 @@ where
                     })
                     .collect()
             );
+            quotient_poly_count[kind] = quotient_chunks.len();
             Some(quotient_chunks)
-        } else {
-            None
         }
     });
+
+    let quotient_indices =
+        BatchFriOracleIndices::new(public_table_kinds, quotient_poly_count, degree_bits);
 
     let mut batch_quotient_chunks: Vec<_> = quotient_chunks
         .iter()
@@ -475,22 +564,8 @@ where
     batch_quotient_chunks.sort_by_key(|b| std::cmp::Reverse(b.len()));
     let batch_quotient_chunks_len = batch_quotient_chunks.len();
 
-    // TODO: remove it
-    let quotient_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
-        timing,
-        format!("{stark}: compute quotient commitment").as_str(),
-        quotient_chunks[kind]
-            .as_ref()
-            .map(|poly| PolynomialBatch::<F, C, D>::from_coeffs(
-                poly.clone(),
-                rate_bits,
-                false,
-                config.fri_config.cap_height,
-                timing,
-                None,
-            ))
-    ));
-
+    // Commitment to quotient polynomials for all except those of public tables.
+    // Stored as Field merkle tree (3rd and final FMT oracle)
     let batch_quotient_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "compute batch Zs commitment",
@@ -509,40 +584,44 @@ where
 
     let zeta = challenger.get_extension_challenge::<D>();
 
-    // TODO: compute `openings` from `batch_trace_commitments` and
-    // `batch_ctl_zs_commitments`.
-    let batch_openings = all_starks!(mozak_stark, |_stark, kind| if let Some(ctl_zs_commitment) =
-        ctl_zs_commitments[kind].as_ref()
+    // Sets up batched fri instance for all tables but the public tables.
+    let batch_openings = all_starks!(mozak_stark, |_stark, kind| if public_table_kinds
+        .contains(&kind)
     {
-        if let Some(quotient_commitment) = quotient_commitments[kind].as_ref() {
-            // To avoid leaking witness data, we want to ensure that our opening locations,
-            // `zeta` and `g * zeta`, are not in our subgroup `H`. It suffices to check
-            // `zeta` only, since `(g * zeta)^n = zeta^n`, where `n` is the order of
-            // `g`.
-            let g = F::primitive_root_of_unity(degree_bits[kind]);
-            ensure!(
-                zeta.exp_power_of_2(degree_bits[kind]) != F::Extension::ONE,
-                "Opening point is in the subgroup."
-            );
-            let openings = StarkOpeningSet::new(
-                zeta,
-                g,
-                &trace_commitments[kind],
-                ctl_zs_commitment,
-                quotient_commitment,
-                degree_bits[kind],
-            );
-
-            challenger.observe_openings(&openings.to_fri_openings());
-            Some(openings)
-        } else {
-            None
-        }
-    } else {
         None
-    });
+    } else {
+        // To avoid leaking witness data, we want to ensure that our opening locations,
+        // `zeta` and `g * zeta`, are not in our subgroup `H`. It suffices to check
+        // `zeta` only, since `(g * zeta)^n = zeta^n`, where `n` is the order of
+        // `g`.
+        let g = F::primitive_root_of_unity(degree_bits[kind]);
+        ensure!(
+            zeta.exp_power_of_2(degree_bits[kind]) != F::Extension::ONE,
+            "Opening point is in the subgroup."
+        );
 
-    let sorted_degree_bits = sort_degree_bits(public_table_kinds, degree_bits);
+        let openings = StarkOpeningSet::batch_new(
+            zeta,
+            g,
+            [
+                trace_indices.poly_start_indices[kind].unwrap(),
+                ctl_zs_indices.poly_start_indices[kind].unwrap(),
+                quotient_indices.poly_start_indices[kind].unwrap(),
+            ],
+            [
+                trace_indices.poly_count[kind],
+                ctl_zs_indices.poly_count[kind],
+                quotient_indices.poly_count[kind],
+            ],
+            batch_trace_commitments,
+            &batch_ctl_zs_commitments,
+            &batch_quotient_commitments,
+            degree_bits[kind],
+        );
+
+        challenger.observe_openings(&openings.to_fri_openings());
+        Some(openings)
+    });
 
     let num_ctl_zs_per_table =
         all_kind!(|kind| ctl_data_per_table[kind].len() + public_sub_data_per_table[kind].len());
