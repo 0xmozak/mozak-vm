@@ -44,9 +44,10 @@ macro_rules! test_elf {
     ($test_name:ident, $file_name:tt) => {
         #[test]
         fn $test_name() -> Result<()> {
-            let elf = fs::read(concat!("riscv-testdata/testdata/", $file_name))
-                .expect("Should have been able to read the file");
-            run_test(&elf)
+            run_test(include_bytes!(concat!(
+                "../../riscv-testdata/testdata/",
+                $file_name
+            )))
         }
     };
 }
