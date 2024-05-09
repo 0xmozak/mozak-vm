@@ -248,6 +248,7 @@ where
         let mut inputs = PartialWitness::new();
         self.bounded
             .set_witness(&mut inputs, left_proof, right_proof);
+        self.summarized.set_witness(&mut inputs);
         self.circuit.prove(inputs)
     }
 
@@ -266,7 +267,11 @@ where
         self.bounded
             .set_witness(&mut inputs, left_proof, right_proof);
         if let Some(summary_hash) = summary_hash {
-            self.summarized.set_witness(&mut inputs, summary_hash);
+            self.summarized.set_witness_unsafe(
+                &mut inputs,
+                summary_hash.is_some(),
+                summary_hash.unwrap_or_default(),
+            );
         }
         if let Some(old_hash) = old_hash {
             self.old.set_witness_unsafe(&mut inputs, old_hash);
