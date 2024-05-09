@@ -748,7 +748,7 @@ mod tests {
 
     use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits};
     use crate::stark::batch_verifier::batch_verify_proof;
-    use crate::stark::mozak_stark::{all_kind, MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
     use crate::stark::proof::BatchProof;
     use crate::test_utils::fast_test_config;
     use crate::utils::from_u32;
