@@ -714,27 +714,26 @@ pub(crate) fn batch_reduction_arity_bits(
 ) -> Vec<usize> {
     let default_arity_bits = 3;
     let final_poly_bits = 5;
-    // First, let's figure out our intermediate degree bits.
-    let part1 = degree_bits
-        .iter()
-        .tuple_windows()
-        .flat_map(|(&degree_bit, &next_degree_bit)| {
-            (next_degree_bit + 1..=degree_bit)
-                .rev()
-                .step_by(default_arity_bits)
-        })
-        .collect_vec();
-    // Next, deal with the last part.
     let lowest_degree_bits = degree_bits.last().unwrap();
     assert!(lowest_degree_bits + rate_bits >= cap_height);
+    // First, let's figure out our intermediate degree bits.
+    let intermediate_degree_bits =
+        degree_bits
+            .iter()
+            .tuple_windows()
+            .flat_map(|(&degree_bit, &next_degree_bit)| {
+                (next_degree_bit + 1..=degree_bit)
+                    .rev()
+                    .step_by(default_arity_bits)
+            });
+    // Next, deal with the last part.
     let last_degree_bits =
         (lowest_degree_bits + rate_bits).min(cap_height.max(final_poly_bits)) - rate_bits;
-    let part2 = (last_degree_bits..=*lowest_degree_bits)
+    let final_degree_bits = (last_degree_bits..=*lowest_degree_bits)
         .rev()
-        .step_by(default_arity_bits)
-        .collect_vec();
+        .step_by(default_arity_bits);
     // Finally, the reduction arity bits are just the differences:
-    chain!(part1, part2)
+    chain!(intermediate_degree_bits, final_degree_bits)
         .tuple_windows()
         .map(|(degree_bit, next_degree_bit)| degree_bit - next_degree_bit)
         .collect()
@@ -747,7 +746,7 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
 
-    use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits, sort_degree_bits};
+    use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits};
     use crate::stark::batch_verifier::batch_verify_proof;
     use crate::stark::mozak_stark::{all_kind, MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
     use crate::stark::proof::BatchProof;
@@ -781,18 +780,6 @@ mod tests {
         let rate_bits = 2;
         let cap_height = 6;
         batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height);
-    }
-
-    #[test]
-    fn sorted_bits() {
-        let mut n = 0;
-        let degree_bits = all_kind!(|_kind| {
-            n += 1;
-            n
-        });
-        let res = sort_degree_bits(&PUBLIC_TABLE_KINDS, &degree_bits);
-        let expected_res = vec![0, 1];
-        assert_eq!(res, expected_res);
     }
 
     #[test]
