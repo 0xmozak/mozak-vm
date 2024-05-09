@@ -17,8 +17,8 @@ derive_more = { version = "1.0.0-beta.6", features = ["full"] }
 expr = { path = "../expr" }
 itertools = "0.12"
 log = "0.4"
-mozak-cli-args = { path = "../args" }
 mozak-circuits-derive = { path = "./derive" }
+mozak-cli-args = { path = "../args" }
 mozak-examples = { path = "../examples-builder" }
 mozak-runner = { path = "../runner" }
 mozak-sdk = { path = "../sdk" }

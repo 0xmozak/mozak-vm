@@ -985,8 +985,6 @@ dependencies = [
  "clap-verbosity-flag",
  "clap_derive",
  "clio",
- "log",
- "tempfile",
 ]
 
 [[package]]
