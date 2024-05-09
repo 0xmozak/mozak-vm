@@ -367,8 +367,8 @@ where
             right_is_leaf,
             right_proof,
         );
-        self.event_hash.set_witness(&mut inputs, None, partial);
-        self.state_hash.set_witness(&mut inputs, None, partial);
+        self.event_hash.set_witness(&mut inputs, partial);
+        self.state_hash.set_witness(&mut inputs, partial);
         self.circuit.prove(inputs)
     }
 }

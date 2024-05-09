@@ -176,7 +176,7 @@ where
             right_is_leaf,
             right_proof,
         );
-        self.event_hash.set_witness(&mut inputs, None, partial);
+        self.event_hash.set_witness(&mut inputs, partial);
         if partial {
             self.partial_state
                 .set_witness_from_proof(&mut inputs, &left_proof.public_inputs);

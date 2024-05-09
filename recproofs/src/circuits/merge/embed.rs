@@ -12,6 +12,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
 use crate::indices::{BoolTargetIndex, HashTargetIndex};
+use crate::{false_if, zero_hash_if};
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
@@ -106,6 +107,9 @@ pub struct BranchTargets<const D: usize> {
     /// The right direction
     pub right: SubCircuitInputs,
 
+    /// Whether or not the right direction is present
+    pub partial: BoolTarget,
+
     /// The proof of event accumulation
     pub proof: ProofWithPublicInputsTarget<D>,
 }
@@ -134,8 +138,10 @@ impl SubCircuitInputs {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         C::Hasher: AlgebraicHasher<F>, {
+        let _false = builder._false();
         let left = Self::direction_from_node(left_proof, indices);
         let right = Self::direction_from_node(right_proof, indices);
+        let partial = builder.add_virtual_bool_target_safe();
 
         let circuit = &mc.circuit;
         let proof = builder.add_virtual_proof_with_pis(&circuit.common);
@@ -152,17 +158,22 @@ impl SubCircuitInputs {
         let a_hash = mc.merge.indices.a_hash.get(&proof.public_inputs);
         let b_hash = mc.merge.indices.b_hash.get(&proof.public_inputs);
         let merged_hash = mc.merge.indices.merged_hash.get(&proof.public_inputs);
+
+        let b_present_calc = false_if(builder, partial, right.hash_present);
+        let b_hash_calc = zero_hash_if(builder, partial, right.hash);
+
         builder.connect(a_present, left.hash_present.target);
-        builder.connect(b_present, right.hash_present.target);
+        builder.connect(b_present, b_present_calc.target);
         builder.connect(merged_present, self.hash_present.target);
         builder.connect_hashes(a_hash, left.hash);
-        builder.connect_hashes(b_hash, right.hash);
+        builder.connect_hashes(b_hash, b_hash_calc);
         builder.connect_hashes(merged_hash, self.hash);
 
         BranchTargets {
             inputs: self,
             left,
             right,
+            partial,
             proof,
         }
     }
@@ -193,17 +204,20 @@ impl<const D: usize> BranchSubCircuit<D> {
     pub fn set_witness<F, C>(
         &self,
         inputs: &mut PartialWitness<F>,
+        partial: bool,
         proof: &ProofWithPublicInputs<F, C, D>,
     ) where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
+        inputs.set_bool_target(self.targets.partial, partial);
         inputs.set_proof_with_pis_target(&self.targets.proof, proof);
     }
 
     pub fn set_witness_unsafe<F, C>(
         &self,
         inputs: &mut PartialWitness<F>,
+        partial: bool,
         proof: &ProofWithPublicInputs<F, C, D>,
         hash_present: bool,
         hash: HashOut<F>,
@@ -211,6 +225,7 @@ impl<const D: usize> BranchSubCircuit<D> {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
+        inputs.set_bool_target(self.targets.partial, partial);
         inputs.set_proof_with_pis_target(&self.targets.proof, proof);
         inputs.set_bool_target(self.targets.inputs.hash_present, hash_present);
         inputs.set_hash_target(self.targets.inputs.hash, hash);
@@ -221,13 +236,12 @@ impl<const D: usize> BranchSubCircuit<D> {
 mod test {
     use anyhow::Result;
     use plonky2::field::types::Field;
-    use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 
     use super::*;
     use crate::circuits::merge::test as merge;
     use crate::subcircuits::bounded;
-    use crate::test_utils::{hash_branch, hash_str, C, CONFIG, D, F, NON_ZERO_HASHES, ZERO_HASH};
+    use crate::test_utils::{hash_branch, C, CONFIG, D, F, NON_ZERO_HASHES, ZERO_HASH};
 
     pub struct DummyLeafCircuit {
         pub bounded: bounded::LeafSubCircuit,
@@ -341,18 +355,20 @@ mod test {
             &self,
             merged_proof: &ProofWithPublicInputs<F, C, D>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
-            right_proof: &ProofWithPublicInputs<F, C, D>,
+            right_proof: Option<&ProofWithPublicInputs<F, C, D>>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.bounded
-                .set_witness(&mut inputs, left_proof, right_proof);
-            self.merge.set_witness(&mut inputs, merged_proof);
+                .set_witness(&mut inputs, left_proof, right_proof.unwrap_or(left_proof));
+            self.merge
+                .set_witness(&mut inputs, right_proof.is_none(), merged_proof);
             self.circuit.prove(inputs)
         }
 
         #[allow(clippy::too_many_arguments)]
         pub fn prove_unsafe(
             &self,
+            partial: bool,
             merged_proof: &ProofWithPublicInputs<F, C, D>,
             present: bool,
             hash: HashOut<F>,
@@ -363,7 +379,7 @@ mod test {
             self.bounded
                 .set_witness(&mut inputs, left_proof, right_proof);
             self.merge
-                .set_witness_unsafe(&mut inputs, merged_proof, present, hash);
+                .set_witness_unsafe(&mut inputs, partial, merged_proof, present, hash);
             self.circuit.prove(inputs)
         }
     }
@@ -381,36 +397,37 @@ mod test {
         DummyBranchCircuit::from_branch(&CONFIG, &merge::BRANCH, &BRANCH_1)
     }
 
-    #[test]
-    fn verify_leaf() -> Result<()> {
-        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
-        let a_val = hash_str("Value Alpha");
-        let b_val = hash_str("Value Beta");
+    fn assert_leaf(proof: &ProofWithPublicInputs<F, C, D>, hash: Option<HashOut<F>>) {
+        let indices = &LEAF.merge.indices;
 
-        let proof = LEAF.prove(None)?;
-        LEAF.circuit.verify(proof)?;
+        let p_hash = indices.hash_present.get_any(&proof.public_inputs);
+        assert_eq!(p_hash, F::from_bool(hash.is_some()));
 
-        let proof = LEAF.prove(Some(zero_hash))?;
-        LEAF.circuit.verify(proof)?;
+        let p_hash = indices.hash.get_any(&proof.public_inputs);
+        assert_eq!(p_hash, hash.unwrap_or_default().elements);
+    }
 
-        let proof = LEAF.prove(Some(a_val))?;
-        LEAF.circuit.verify(proof)?;
+    fn assert_branch(proof: &ProofWithPublicInputs<F, C, D>, hash: Option<HashOut<F>>) {
+        let indices = &LEAF.merge.indices;
 
-        let proof = LEAF.prove(Some(b_val))?;
-        LEAF.circuit.verify(proof)?;
+        let p_hash = indices.hash_present.get_any(&proof.public_inputs);
+        assert_eq!(p_hash, F::from_bool(hash.is_some()));
 
-        Ok(())
+        let p_hash = indices.hash.get_any(&proof.public_inputs);
+        assert_eq!(p_hash, hash.unwrap_or_default().elements);
     }
 
     #[tested_fixture::tested_fixture(EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_empty_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(None)?;
+        assert_leaf(&proof, None);
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
 
     #[tested_fixture::tested_fixture(BAD_EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_bad_empty_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        // We allow non-correspondance here
         let proof = LEAF.prove_unsafe(false, NON_ZERO_HASHES[2])?;
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
@@ -419,6 +436,7 @@ mod test {
     #[tested_fixture::tested_fixture(ZERO_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_zero_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(Some(ZERO_HASH))?;
+        assert_leaf(&proof, Some(ZERO_HASH));
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -426,6 +444,7 @@ mod test {
     #[tested_fixture::tested_fixture(NON_ZERO_LEAF_PROOF_1: ProofWithPublicInputs<F, C, D>)]
     fn verify_non_zero_leaf_1() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(Some(NON_ZERO_HASHES[0]))?;
+        assert_leaf(&proof, Some(NON_ZERO_HASHES[0]));
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -433,6 +452,7 @@ mod test {
     #[tested_fixture::tested_fixture(NON_ZERO_LEAF_PROOF_2: ProofWithPublicInputs<F, C, D>)]
     fn verify_non_zero_leaf_2() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(Some(NON_ZERO_HASHES[1]))?;
+        assert_leaf(&proof, Some(NON_ZERO_HASHES[1]));
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -442,8 +462,32 @@ mod test {
         let proof = BRANCH_1.prove(
             *merge::EMPTY_BRANCH_PROOF,
             *EMPTY_LEAF_PROOF,
-            *EMPTY_LEAF_PROOF,
+            Some(*EMPTY_LEAF_PROOF),
         )?;
+        assert_branch(&proof, None);
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(EMPTY_PARTIAL_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_empty_partial_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(*merge::EMPTY_BRANCH_PROOF, *EMPTY_LEAF_PROOF, None)?;
+        assert_branch(&proof, None);
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(EMPTY_PARTIAL_BAD_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_empty_partial_bad_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove_unsafe(
+            true,
+            *merge::EMPTY_BRANCH_PROOF,
+            false,
+            ZERO_HASH,
+            *EMPTY_LEAF_PROOF,
+            *BAD_EMPTY_LEAF_PROOF,
+        )?;
+        assert_branch(&proof, None);
         BRANCH_1.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -453,8 +497,17 @@ mod test {
         let proof = BRANCH_1.prove(
             *merge::LEFT_BRANCH_PROOF,
             *NON_ZERO_LEAF_PROOF_1,
-            *EMPTY_LEAF_PROOF,
+            Some(*EMPTY_LEAF_PROOF),
         )?;
+        assert_branch(&proof, Some(NON_ZERO_HASHES[0]));
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(LEFT_PARTIAL_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_left_partial_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(*merge::LEFT_BRANCH_PROOF, *NON_ZERO_LEAF_PROOF_1, None)?;
+        assert_branch(&proof, Some(NON_ZERO_HASHES[0]));
         BRANCH_1.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -464,8 +517,9 @@ mod test {
         let proof = BRANCH_1.prove(
             *merge::RIGHT_BRANCH_PROOF,
             *EMPTY_LEAF_PROOF,
-            *NON_ZERO_LEAF_PROOF_2,
+            Some(*NON_ZERO_LEAF_PROOF_2),
         )?;
+        assert_branch(&proof, Some(NON_ZERO_HASHES[1]));
         BRANCH_1.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -475,8 +529,12 @@ mod test {
         let proof = BRANCH_1.prove(
             &merge::BOTH_BRANCH_PROOF,
             *NON_ZERO_LEAF_PROOF_1,
-            *NON_ZERO_LEAF_PROOF_2,
+            Some(*NON_ZERO_LEAF_PROOF_2),
         )?;
+        assert_branch(
+            &proof,
+            Some(hash_branch(&NON_ZERO_HASHES[0], &NON_ZERO_HASHES[1])),
+        );
         BRANCH_1.circuit.verify(proof)?;
         Ok(())
     }
@@ -486,8 +544,12 @@ mod test {
         let proof = BRANCH_2.prove(
             &merge::BOTH_BRANCH_PROOF,
             *LEFT_BRANCH_PROOF,
-            *RIGHT_BRANCH_PROOF,
+            Some(*RIGHT_BRANCH_PROOF),
         )?;
+        assert_branch(
+            &proof,
+            Some(hash_branch(&NON_ZERO_HASHES[0], &NON_ZERO_HASHES[1])),
+        );
         BRANCH_2.circuit.verify(proof)?;
         Ok(())
     }
@@ -499,7 +561,7 @@ mod test {
             .prove(
                 *merge::EMPTY_BRANCH_PROOF,
                 *EMPTY_LEAF_PROOF,
-                *ZERO_LEAF_PROOF,
+                Some(*ZERO_LEAF_PROOF),
             )
             .unwrap();
         BRANCH_1.circuit.verify(proof).unwrap();
@@ -512,7 +574,7 @@ mod test {
             .prove(
                 *merge::EMPTY_BRANCH_PROOF,
                 *EMPTY_LEAF_PROOF,
-                *BAD_EMPTY_LEAF_PROOF,
+                Some(*BAD_EMPTY_LEAF_PROOF),
             )
             .unwrap();
         BRANCH_1.circuit.verify(proof).unwrap();
@@ -523,9 +585,9 @@ mod test {
     fn bad_branch_empty_3() {
         let proof = BRANCH_1
             .prove(
-                *merge::LEFT_ZERO_BRANCH_PROOF,
-                *EMPTY_LEAF_PROOF,
-                *EMPTY_LEAF_PROOF,
+                *merge::EMPTY_BRANCH_PROOF,
+                *BAD_EMPTY_LEAF_PROOF,
+                Some(*EMPTY_LEAF_PROOF),
             )
             .unwrap();
         BRANCH_1.circuit.verify(proof).unwrap();
@@ -535,10 +597,19 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_empty_4() {
         let proof = BRANCH_1
+            .prove(*merge::EMPTY_BRANCH_PROOF, *BAD_EMPTY_LEAF_PROOF, None)
+            .unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_empty_5() {
+        let proof = BRANCH_1
             .prove(
-                *merge::RIGHT_ZERO_BRANCH_PROOF,
+                *merge::LEFT_ZERO_BRANCH_PROOF,
                 *EMPTY_LEAF_PROOF,
-                *EMPTY_LEAF_PROOF,
+                Some(*EMPTY_LEAF_PROOF),
             )
             .unwrap();
         BRANCH_1.circuit.verify(proof).unwrap();
@@ -546,9 +617,41 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_empty_6() {
+        let proof = BRANCH_1
+            .prove(
+                *merge::RIGHT_ZERO_BRANCH_PROOF,
+                *EMPTY_LEAF_PROOF,
+                Some(*EMPTY_LEAF_PROOF),
+            )
+            .unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_right_partial_branch_1() {
+        let proof = BRANCH_1
+            .prove(*merge::RIGHT_BRANCH_PROOF, *EMPTY_LEAF_PROOF, None)
+            .unwrap();
+        BRANCH_1.circuit.verify(proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_right_partial_branch_2() {
+        let proof = BRANCH_1
+            .prove(*merge::RIGHT_BRANCH_PROOF, *NON_ZERO_LEAF_PROOF_2, None)
+            .unwrap();
+        BRANCH_1.circuit.verify(proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_pair() {
         let proof = BRANCH_1
             .prove_unsafe(
+                false,
                 &merge::BOTH_BRANCH_PROOF,
                 true,
                 hash_branch(&NON_ZERO_HASHES[1], &NON_ZERO_HASHES[0]),
