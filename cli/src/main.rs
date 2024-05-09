@@ -11,7 +11,7 @@ use anyhow::Result;
 use clio::Input;
 use itertools::Itertools;
 use log::debug;
-use mozak_circuits::benches::benches::bench;
+use mozak_circuits::benches::bench;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::storage_device::generate_call_tape_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
