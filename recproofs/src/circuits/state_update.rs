@@ -269,10 +269,10 @@ where
             self.summarized.set_witness(&mut inputs, summary_hash);
         }
         if let Some(old_hash) = old_hash {
-            self.old.set_witness(&mut inputs, old_hash);
+            self.old.set_witness_unsafe(&mut inputs, old_hash);
         }
         if let Some(new_hash) = new_hash {
-            self.new.set_witness(&mut inputs, new_hash);
+            self.new.set_witness_unsafe(&mut inputs, new_hash);
         }
         match address.into() {
             AddressPresent::Present(a) => self.address.set_witness(&mut inputs, Some(a)),
