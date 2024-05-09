@@ -5,6 +5,7 @@ use {
     crate::common::types::{
         CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
     },
+    crate::core::constants::DIGEST_BYTES,
     crate::core::ecall::{
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
@@ -62,8 +63,8 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // pre-populated data elements
     #[cfg(target_os = "mozakvm")]
     {
-        let mut self_prog_id_bytes = [0; 32];
-        self_prog_id_tape_read(self_prog_id_bytes.as_mut_ptr(), 32);
+        let mut self_prog_id_bytes = [0; DIGEST_BYTES];
+        self_prog_id_tape_read(self_prog_id_bytes.as_mut_ptr());
         let self_prog_id = ProgramIdentifier(Poseidon2Hash::from(self_prog_id_bytes));
 
         let call_tape = populate_call_tape(self_prog_id);

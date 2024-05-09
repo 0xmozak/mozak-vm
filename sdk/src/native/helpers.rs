@@ -6,19 +6,8 @@ use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
 
-use crate::common::types::poseidon2hash::RATE;
 use crate::common::types::Poseidon2Hash;
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GuestProgramTomlCfg {
-    bin: Vec<Bin>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub(crate) struct Bin {
-    name: String,
-    path: String,
-}
+use crate::core::constants::RATE;
 
 /// Hashes the input slice to `Poseidon2Hash` after padding.
 /// We use the well known "Bit padding scheme".

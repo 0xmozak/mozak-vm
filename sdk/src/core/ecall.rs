@@ -1,6 +1,9 @@
 #[cfg(target_os = "mozakvm")]
 use core::arch::asm;
 
+#[cfg(target_os = "mozakvm")]
+use crate::core::constants::DIGEST_BYTES;
+
 pub const HALT: u32 = 0;
 pub const PANIC: u32 = 1;
 pub const PRIVATE_TAPE: u32 = 2;
@@ -13,10 +16,6 @@ pub const CAST_LIST_COMMITMENT_TAPE: u32 = 8;
 pub const SELF_PROG_ID_TAPE: u32 = 9;
 /// Syscall to output the VM trace log at `clk`. Useful for debugging.
 pub const VM_TRACE_LOG: u32 = 10;
-
-/// The number of bytes requested for events commitment tape and
-/// cast list commitment tape is hardcoded to 32 bytes.
-pub const COMMITMENT_SIZE: usize = 32;
 
 #[must_use]
 pub fn log<'a>(raw_id: u32) -> &'a str {
@@ -104,7 +103,7 @@ pub fn events_commitment_tape_read(buf_ptr: *mut u8) {
         "ecall",
         in ("a0") EVENTS_COMMITMENT_TAPE,
         in ("a1") buf_ptr,
-        in ("a2") COMMITMENT_SIZE,
+        in ("a2") DIGEST_BYTES,
         );
     }
 }
@@ -116,19 +115,19 @@ pub fn cast_list_commitment_tape_read(buf_ptr: *mut u8) {
         "ecall",
         in ("a0") CAST_LIST_COMMITMENT_TAPE,
         in ("a1") buf_ptr,
-        in ("a2") COMMITMENT_SIZE,
+        in ("a2") DIGEST_BYTES,
         );
     }
 }
 
 #[cfg(target_os = "mozakvm")]
-pub fn self_prog_id_tape_read(buf_ptr: *mut u8, buf_len: usize) {
+pub fn self_prog_id_tape_read(buf_ptr: *mut u8) {
     unsafe {
         core::arch::asm!(
         "ecall",
         in ("a0") SELF_PROG_ID_TAPE,
         in ("a1") buf_ptr,
-        in ("a2") buf_len,
+        in ("a2") DIGEST_BYTES,
         );
     }
 }
