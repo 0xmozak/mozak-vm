@@ -212,6 +212,7 @@ where
         inner_config,
     );
 
+    let state = challenger.compact(&mut builder);
     let targets = all_starks!(mozak_stark, |stark, kind| {
         let ctl_vars = CtlCheckVarsTarget::from_proof(
             kind,
@@ -221,6 +222,7 @@ where
             &ctl_challenges,
         );
 
+        let mut challenger = RecursiveChallenger::from_state(state);
         let challenges_target = stark_proof_with_pis_target[kind]
             .proof
             .get_challenges::<F, C>(&mut builder, &mut challenger, inner_config);
