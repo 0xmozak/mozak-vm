@@ -17,6 +17,7 @@ once_cell = { version = "1.19", default-features = false, features = ["race"] }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 rkyv_derive = "=0.8.0-alpha.1"
 slice-group-by = { version = "0.3", default-features = false, features = ["nightly"] }
+sdk-core-types = { path = "../sdk-core-types"}
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies]
 hex = "0.4"

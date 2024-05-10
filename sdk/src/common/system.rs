@@ -5,13 +5,13 @@ use {
     crate::common::types::{
         CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
     },
-    crate::core::constants::DIGEST_BYTES,
     crate::core::ecall::{
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
     core::ptr::slice_from_raw_parts,
     rkyv::rancor::{Panic, Strategy},
     rkyv::Deserialize,
+    sdk_core_types::constants::poseidon2::DIGEST_BYTES,
     std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]

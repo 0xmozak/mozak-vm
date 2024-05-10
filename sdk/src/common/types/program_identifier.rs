@@ -1,4 +1,5 @@
-use crate::core::constants::DIGEST_BYTES;
+use sdk_core_types::constants::poseidon2::DIGEST_BYTES;
+
 #[cfg(target_os = "mozakvm")]
 use crate::mozakvm::helpers::poseidon2_hash_with_pad;
 #[cfg(not(target_os = "mozakvm"))]

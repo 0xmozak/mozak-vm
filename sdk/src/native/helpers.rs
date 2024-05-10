@@ -5,9 +5,9 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
 use plonky2::plonk::config::{GenericHashOut, Hasher};
+use sdk_core_types::constants::poseidon2::RATE;
 
 use crate::common::types::Poseidon2Hash;
-use crate::core::constants::RATE;
 
 /// Hashes the input slice to `Poseidon2Hash` after padding.
 /// We use the well known "Bit padding scheme".

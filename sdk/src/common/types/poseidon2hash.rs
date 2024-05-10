@@ -1,7 +1,6 @@
+use sdk_core_types::constants::poseidon2::DIGEST_BYTES;
 #[cfg(not(target_os = "mozakvm"))]
 use serde_hex::{SerHex, StrictPfx};
-
-use crate::core::constants::DIGEST_BYTES;
 
 #[derive(
     Clone,

@@ -1,6 +1,6 @@
 use core::ops::{Deref, DerefMut};
 
-use crate::core::ecall;
+use sdk_core_types::ecall_id;
 
 #[derive(Default, Clone)]
 pub struct RandomAccessEcallTape {
@@ -111,7 +111,7 @@ pub struct PublicInputTape(RandomAccessEcallTape);
 impl Default for PrivateInputTape {
     fn default() -> Self {
         Self(RandomAccessEcallTape {
-            ecall_id: ecall::PRIVATE_TAPE,
+            ecall_id: ecall_id::PRIVATE_TAPE,
             read_offset: 0,
             size_hint: 0,
             internal_buf: vec![],
@@ -123,7 +123,7 @@ impl PrivateInputTape {
     /// Creates a new `PrivateInputTape` with a given `size_hint`.
     pub fn with_size_hint(size_hint: usize) -> Self {
         Self(RandomAccessEcallTape {
-            ecall_id: ecall::PRIVATE_TAPE,
+            ecall_id: ecall_id::PRIVATE_TAPE,
             read_offset: 0,
             size_hint,
             internal_buf: vec![],
@@ -134,7 +134,7 @@ impl PrivateInputTape {
 impl Default for PublicInputTape {
     fn default() -> Self {
         Self(RandomAccessEcallTape {
-            ecall_id: ecall::PUBLIC_TAPE,
+            ecall_id: ecall_id::PUBLIC_TAPE,
             read_offset: 0,
             size_hint: 0,
             internal_buf: vec![],
@@ -146,7 +146,7 @@ impl PublicInputTape {
     /// Creates a new `PublicInputTape` with a given `size_hint`.
     pub fn with_size_hint(size_hint: usize) -> Self {
         Self(RandomAccessEcallTape {
-            ecall_id: ecall::PUBLIC_TAPE,
+            ecall_id: ecall_id::PUBLIC_TAPE,
             read_offset: 0,
             size_hint,
             internal_buf: vec![],
