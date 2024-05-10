@@ -924,11 +924,11 @@ dependencies = [
  "log",
  "mozak-circuits-derive",
  "mozak-runner",
- "mozak-sdk",
  "plonky2",
  "plonky2_maybe_rayon",
  "proptest",
  "rand",
+ "sdk-core-types",
  "serde",
  "serde_json",
  "starky",
@@ -1022,9 +1022,9 @@ dependencies = [
  "log",
  "mimalloc",
  "mozak-examples",
- "mozak-sdk",
  "plonky2",
  "proptest",
+ "sdk-core-types",
  "serde",
  "serde_json",
  "test-case",
@@ -1042,6 +1042,7 @@ dependencies = [
  "rand_chacha",
  "rkyv",
  "rkyv_derive",
+ "sdk-core-types",
  "serde",
  "serde-hex",
  "serde_json",
@@ -1532,6 +1533,10 @@ checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "sdk-core-types"
+version = "0.1.0"
 
 [[package]]
 name = "serde"
