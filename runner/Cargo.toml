@@ -20,8 +20,8 @@ itertools = "0.12"
 log = "0.4"
 plonky2 = { workspace = true, default-features = false }
 proptest = { version = "1.4", optional = true }
+sdk-core-types = { path = "../sdk-core-types" }
 serde = { version = "1.0", features = ["derive"] }
-sdk-core-types = { path = "../sdk-core-types"}
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 mimalloc = "0.1"

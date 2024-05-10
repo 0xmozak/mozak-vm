@@ -18,7 +18,8 @@
 exclude = ["sdk"]
 members = [
   "circuits",
-  "cli", "sdk-core-types",
+  "cli",
+  "sdk-core-types",
   "examples-builder",
   "expr",
   "node",
