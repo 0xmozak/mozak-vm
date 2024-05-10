@@ -229,7 +229,7 @@ where
     pub fn prove(
         &self,
         branch: &BranchCircuit<F, C, D>,
-        accumulate_event_proof: ProofWithPublicInputs<F, C, D>,
+        accumulate_event_proof: &ProofWithPublicInputs<F, C, D>,
         v: LeafWitnessValue<F>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
@@ -254,7 +254,7 @@ where
         inputs.set_target_arr(&self.compare_delta.targets.new_owner, &v.new_owner);
         inputs.set_target_arr(&self.compare_delta.targets.old_data, &v.old_data);
         inputs.set_target_arr(&self.compare_delta.targets.new_data, &v.new_data);
-        inputs.set_proof_with_pis_target(&self.targets.accumulate_event, &accumulate_event_proof);
+        inputs.set_proof_with_pis_target(&self.targets.accumulate_event, accumulate_event_proof);
         self.circuit.prove(inputs)
     }
 }
@@ -367,26 +367,31 @@ where
             right_is_leaf,
             right_proof,
         );
-        self.event_hash.set_witness(&mut inputs, None, partial);
-        self.state_hash.set_witness(&mut inputs, None, partial);
+        self.event_hash.set_witness(&mut inputs, partial);
+        self.state_hash.set_witness(&mut inputs, partial);
         self.circuit.prove(inputs)
     }
 }
 
 #[cfg(test)]
 pub mod test {
-    use lazy_static::lazy_static;
-    use plonky2::field::types::Field;
+    use plonky2::field::types::{Field, PrimeField64};
 
     use super::*;
-    use crate::circuits::accumulate_delta::test::{BRANCH as ACC_BRANCH, LEAF as ACC_LEAF};
+    use crate::circuits::accumulate_delta::test::{
+        self as acc, BRANCH as ACC_BRANCH, LEAF as ACC_LEAF,
+    };
+    use crate::circuits::test_data::{
+        ADDRESS_A, ADDRESS_B, ADDRESS_C, ADDRESS_D, STATE_0, STATE_1,
+    };
     use crate::test_utils::{C, CONFIG, D, F};
     use crate::EventType;
 
-    lazy_static! {
-        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG, &ACC_BRANCH);
-        pub static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
-    }
+    #[tested_fixture::tested_fixture(pub LEAF)]
+    fn build_leaf() -> LeafCircuit<F, C, D> { LeafCircuit::new(&CONFIG, &ACC_BRANCH) }
+
+    #[tested_fixture::tested_fixture(pub BRANCH)]
+    fn build_branch() -> BranchCircuit<F, C, D> { BranchCircuit::new(&CONFIG, &LEAF) }
 
     fn make_acc_proof(
         vals: impl IntoIterator<Item = (u64, [F; 4], EventType, [F; 4])>,
@@ -415,32 +420,81 @@ pub mod test {
         Ok(acc_left_proof)
     }
 
-    #[test]
-    fn verify_leaf() -> Result<()> {
-        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+    #[tested_fixture::tested_fixture(pub A_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
 
-        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
-        let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
+    fn verify_a_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let address = ADDRESS_A;
+        let (old, new) = (&STATE_0[address], &STATE_1[address]);
+        let witness = LeafWitnessValue {
+            block_height: 1,
+            last_updated: 0,
+            old_owner: old.constraint_owner,
+            new_owner: new.constraint_owner,
+            old_data: old.data,
+            new_data: new.data,
+            old_credits: old.credits.to_canonical_u64(),
+            new_credits: new.credits.to_canonical_u64(),
+        };
+        let proof = LEAF.prove(&BRANCH, *acc::A_BRANCH_PROOF, witness)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        let acc_branch_proof_1 = make_acc_proof([
-            (200, program_hash_1, EventType::Read, non_zero_val_1),
-            (200, program_hash_1, EventType::Write, non_zero_val_2),
-            (200, program_hash_1, EventType::Ensure, non_zero_val_2),
-        ])?;
+    #[tested_fixture::tested_fixture(pub B_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_b_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let address = ADDRESS_B;
+        let (old, new) = (&STATE_0[address], &STATE_1[address]);
+        let witness = LeafWitnessValue {
+            block_height: 1,
+            last_updated: 0,
+            old_owner: old.constraint_owner,
+            new_owner: new.constraint_owner,
+            old_data: old.data,
+            new_data: new.data,
+            old_credits: old.credits.to_canonical_u64(),
+            new_credits: new.credits.to_canonical_u64(),
+        };
+        let proof = LEAF.prove(&BRANCH, *acc::B_BRANCH_PROOF, witness)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        let leaf_proof = LEAF.prove(&BRANCH, acc_branch_proof_1, LeafWitnessValue {
-            block_height: 10,
-            last_updated: 9,
-            old_owner: program_hash_1,
-            new_owner: program_hash_1,
-            old_data: non_zero_val_1,
-            new_data: non_zero_val_2,
-            old_credits: 50,
-            new_credits: 50,
-        })?;
-        LEAF.circuit.verify(leaf_proof)?;
+    #[tested_fixture::tested_fixture(pub C_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_c_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let address = ADDRESS_C;
+        let (old, new) = (&STATE_0[address], &STATE_1[address]);
+        let witness = LeafWitnessValue {
+            block_height: 1,
+            last_updated: 0,
+            old_owner: old.constraint_owner,
+            new_owner: new.constraint_owner,
+            old_data: old.data,
+            new_data: new.data,
+            old_credits: old.credits.to_canonical_u64(),
+            new_credits: new.credits.to_canonical_u64(),
+        };
+        let proof = LEAF.prove(&BRANCH, *acc::C_BRANCH_PROOF, witness)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        Ok(())
+    #[tested_fixture::tested_fixture(pub D_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_d_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let address = ADDRESS_D;
+        let (old, new) = (&STATE_0[address], &STATE_1[address]);
+        let witness = LeafWitnessValue {
+            block_height: 1,
+            last_updated: 0,
+            old_owner: old.constraint_owner,
+            new_owner: new.constraint_owner,
+            old_data: old.data,
+            new_data: new.data,
+            old_credits: old.credits.to_canonical_u64(),
+            new_credits: new.credits.to_canonical_u64(),
+        };
+        let proof = LEAF.prove(&BRANCH, *acc::D_BRANCH_PROOF, witness)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
     }
 
     #[test]
@@ -462,7 +516,7 @@ pub mod test {
             (400, program_hash_1, EventType::Ensure, non_zero_val_2),
         ])?;
 
-        let leaf_proof_200 = LEAF.prove(&BRANCH, acc_branch_proof_200, LeafWitnessValue {
+        let leaf_proof_200 = LEAF.prove(&BRANCH, &acc_branch_proof_200, LeafWitnessValue {
             block_height: 10,
             last_updated: 9,
             old_owner: program_hash_1,
@@ -474,7 +528,7 @@ pub mod test {
         })?;
         LEAF.circuit.verify(leaf_proof_200.clone())?;
 
-        let leaf_proof_400 = LEAF.prove(&BRANCH, acc_branch_proof_400, LeafWitnessValue {
+        let leaf_proof_400 = LEAF.prove(&BRANCH, &acc_branch_proof_400, LeafWitnessValue {
             block_height: 10,
             last_updated: 9,
             old_owner: program_hash_1,

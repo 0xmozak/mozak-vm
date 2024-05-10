@@ -324,7 +324,6 @@ impl BranchSubCircuit {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use lazy_static::lazy_static;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::config::Hasher;
     use plonky2::plonk::proof::ProofWithPublicInputs;
@@ -450,11 +449,15 @@ mod test {
         }
     }
 
-    lazy_static! {
-        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
-        static ref BRANCH_1: DummyBranchCircuit = DummyBranchCircuit::from_leaf(&CONFIG, &LEAF);
-        static ref BRANCH_2: DummyBranchCircuit =
-            DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1);
+    #[tested_fixture::tested_fixture(LEAF)]
+    fn build_leaf() -> DummyLeafCircuit { DummyLeafCircuit::new(&CONFIG) }
+
+    #[tested_fixture::tested_fixture(BRANCH_1)]
+    fn build_branch_1() -> DummyBranchCircuit { DummyBranchCircuit::from_leaf(&CONFIG, &LEAF) }
+
+    #[tested_fixture::tested_fixture(BRANCH_2)]
+    fn build_branch_2() -> DummyBranchCircuit {
+        DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1)
     }
 
     #[test]

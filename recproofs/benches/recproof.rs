@@ -3,20 +3,18 @@ use std::time::Duration;
 use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use mozak_recproofs::circuits::state_update::{BranchCircuit, LeafCircuit};
-use mozak_recproofs::subcircuits::{make_tree, unbounded};
-use mozak_recproofs::test_utils::{hash_branch, hash_str, C, D, F};
+use mozak_recproofs::subcircuits::{propagate, unbounded};
+use mozak_recproofs::test_utils::{hash_str, C, D, F};
 use plonky2::field::types::Field;
-use plonky2::hash::hash_types::{HashOut, RichField};
-use plonky2::hash::poseidon2::Poseidon2Hash;
+use plonky2::hash::hash_types::HashOut;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-use plonky2::plonk::config::Hasher;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 pub struct DummyLeafCircuit {
     pub unbounded: unbounded::LeafSubCircuit,
-    pub make_tree: make_tree::LeafSubCircuit,
+    pub propagate: propagate::LeafSubCircuit<4>,
     pub circuit: CircuitData<F, C, D>,
 }
 
@@ -26,19 +24,19 @@ impl DummyLeafCircuit {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
-        let make_tree_inputs = make_tree::SubCircuitInputs::default(&mut builder);
+        let propagate_inputs = propagate::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets = unbounded_inputs.build_leaf::<F, C, D>(&mut builder);
-        let make_tree_targets = make_tree_inputs.build_leaf(&mut builder);
+        let propagate_targets = propagate_inputs.build_leaf(&mut builder);
 
         let circuit = builder.build();
 
         let public_inputs = &circuit.prover_only.public_inputs;
         let unbounded = unbounded_targets.build(public_inputs);
-        let make_tree = make_tree_targets.build(public_inputs);
+        let propagate = propagate_targets.build(public_inputs);
 
         Self {
-            make_tree,
+            propagate,
             unbounded,
             circuit,
         }
@@ -46,12 +44,11 @@ impl DummyLeafCircuit {
 
     pub fn prove(
         &self,
-        present: bool,
         leaf_value: HashOut<F>,
         branch: &DummyBranchCircuit,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.make_tree.set_witness(&mut inputs, present, leaf_value);
+        self.propagate.set_witness(&mut inputs, leaf_value.elements);
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.circuit.prove(inputs)
     }
@@ -59,7 +56,7 @@ impl DummyLeafCircuit {
 
 pub struct DummyBranchCircuit {
     pub unbounded: unbounded::BranchSubCircuit<D>,
-    pub make_tree: make_tree::BranchSubCircuit,
+    pub propagate: propagate::BranchSubCircuit<4>,
     pub circuit: CircuitData<F, C, D>,
 }
 
@@ -69,34 +66,25 @@ impl DummyBranchCircuit {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
         let unbounded_inputs = unbounded::SubCircuitInputs::default(&mut builder);
-        let make_tree_inputs = make_tree::SubCircuitInputs::default(&mut builder);
+        let propagate_inputs = propagate::SubCircuitInputs::default(&mut builder);
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
-        let make_tree_targets = make_tree_inputs.build_branch(
+        let propagate_targets = propagate_inputs.build_branch(
             &mut builder,
-            &leaf.make_tree.indices,
+            &leaf.propagate.indices,
             &unbounded_targets.left_proof,
             &unbounded_targets.right_proof,
-        );
-
-        builder.connect(
-            unbounded_targets.left_is_leaf.target,
-            make_tree_targets.left_is_leaf.target,
-        );
-        builder.connect(
-            unbounded_targets.right_is_leaf.target,
-            make_tree_targets.right_is_leaf.target,
         );
 
         let circuit = builder.build();
 
         let public_inputs = &circuit.prover_only.public_inputs;
         let unbounded = unbounded_targets.build(&leaf.unbounded, public_inputs);
-        let make_tree = make_tree_targets.build(&leaf.make_tree.indices, public_inputs);
+        let propagate = propagate_targets.build(&leaf.propagate.indices, public_inputs);
 
         Self {
-            make_tree,
+            propagate,
             unbounded,
             circuit,
         }
@@ -104,24 +92,21 @@ impl DummyBranchCircuit {
 
     pub fn prove(
         &self,
-        hash: HashOut<F>,
-        leaf_value: HashOut<F>,
+        left_is_leaf: bool,
         left_proof: &ProofWithPublicInputs<F, C, D>,
+        right_is_leaf: bool,
         right_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.unbounded
-            .set_partial_witness(&mut inputs, left_proof, right_proof);
-        self.make_tree.set_witness(&mut inputs, hash, leaf_value);
+        self.unbounded.set_witness(
+            &mut inputs,
+            left_is_leaf,
+            left_proof,
+            right_is_leaf,
+            right_proof,
+        );
         self.circuit.prove(inputs)
     }
-}
-
-fn hash_write<F: RichField>(address: u64, left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
-    let address = F::from_canonical_u64(address);
-    let [l0, l1, l2, l3] = left.elements;
-    let [r0, r1, r2, r3] = right.elements;
-    Poseidon2Hash::hash_no_pad(&[address, l0, l1, l2, l3, r0, r1, r2, r3])
 }
 
 fn bench_prove_verify_recproof(c: &mut Criterion) {
@@ -135,24 +120,13 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
 
     let zero_hash = black_box(HashOut::from([F::ZERO; 4]));
     let non_zero_hash_1 = black_box(hash_str("Non-Zero Hash 1"));
-    let hash_0_and_0 = black_box(hash_branch(&zero_hash, &zero_hash));
-    let hash_0_and_1 = black_box(hash_branch(&zero_hash, &non_zero_hash_1));
-    let hash_1_and_0 = hash_branch(&non_zero_hash_1, &zero_hash);
-    let hash_00_and_00 = hash_branch(&hash_0_and_0, &hash_0_and_0);
-    let hash_01_and_10 = hash_branch(&hash_0_and_1, &hash_1_and_0);
-
-    let slot_3_r0w1 = hash_write(3, &zero_hash, &non_zero_hash_1);
-    let slot_4_r0w1 = hash_write(4, &zero_hash, &non_zero_hash_1);
-    let slot_3_and_4 = hash_branch(&slot_3_r0w1, &slot_4_r0w1);
 
     // Leaf proofs
-    let zero_proof = leaf_circuit
-        .prove(zero_hash, zero_hash, zero_hash, None)
-        .unwrap();
+    let zero_proof = leaf_circuit.prove(zero_hash, zero_hash, None).unwrap();
     leaf_circuit.circuit.verify(zero_proof.clone()).unwrap();
 
     let proof_0_to_1_id_3 = leaf_circuit
-        .prove(zero_hash, non_zero_hash_1, slot_3_r0w1, Some(3))
+        .prove(zero_hash, non_zero_hash_1, Some(3))
         .unwrap();
     leaf_circuit
         .circuit
@@ -160,7 +134,7 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
         .unwrap();
 
     let proof_0_to_1_id_4 = leaf_circuit
-        .prove(zero_hash, non_zero_hash_1, slot_4_r0w1, Some(4))
+        .prove(zero_hash, non_zero_hash_1, Some(4))
         .unwrap();
     leaf_circuit
         .circuit
@@ -169,32 +143,18 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
 
     // Branch proofs
     let branch_00_and_01_proof = branch_circuit_1
-        .prove(
-            hash_0_and_0,
-            hash_0_and_1,
-            slot_3_r0w1,
-            (),
-            &zero_proof,
-            &proof_0_to_1_id_3,
-        )
+        .prove(&zero_proof, &proof_0_to_1_id_3)
         .unwrap();
 
     let branch_01_and_00_proof = branch_circuit_1
-        .prove(
-            hash_0_and_0,
-            hash_1_and_0,
-            slot_4_r0w1,
-            (),
-            &proof_0_to_1_id_4,
-            &zero_proof,
-        )
+        .prove(&proof_0_to_1_id_4, &zero_proof)
         .unwrap();
 
     // Benches
     group.bench_function("recproof_leaf_prove", |b| {
         b.iter(|| {
             leaf_circuit
-                .prove(zero_hash, non_zero_hash_1, slot_3_r0w1, Some(3))
+                .prove(zero_hash, non_zero_hash_1, Some(3))
                 .unwrap()
         })
     });
@@ -210,14 +170,7 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
     group.bench_function("recproof_branch_prove_1", |b| {
         b.iter(|| {
             branch_circuit_1
-                .prove(
-                    hash_0_and_0,
-                    hash_0_and_1,
-                    slot_3_r0w1,
-                    (),
-                    &zero_proof,
-                    &proof_0_to_1_id_3,
-                )
+                .prove(&zero_proof, &proof_0_to_1_id_3)
                 .unwrap()
         })
     });
@@ -233,14 +186,7 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
     group.bench_function("recproof_branch_prove_2", |b| {
         b.iter(|| {
             branch_circuit_2
-                .prove(
-                    hash_00_and_00,
-                    hash_01_and_10,
-                    slot_3_and_4,
-                    (),
-                    &branch_00_and_01_proof,
-                    &branch_01_and_00_proof,
-                )
+                .prove(&branch_00_and_01_proof, &branch_01_and_00_proof)
                 .unwrap()
         })
     });
@@ -257,34 +203,32 @@ fn bench_prove_verify_unbounded(c: &mut Criterion) {
     let branch = DummyBranchCircuit::new(&circuit_config, &leaf);
 
     let non_zero_hash = black_box(hash_str("Non-Zero Hash"));
-    let branch_hash = hash_branch(&non_zero_hash, &non_zero_hash);
-    let branch_hash_1 = hash_branch(&non_zero_hash, &branch_hash);
 
-    let leaf_1_proof = leaf.prove(false, non_zero_hash, &branch).unwrap();
+    let leaf_1_proof = leaf.prove(non_zero_hash, &branch).unwrap();
     leaf.circuit.verify(leaf_1_proof.clone()).unwrap();
 
-    let leaf_2_proof = leaf.prove(true, non_zero_hash, &branch).unwrap();
+    let leaf_2_proof = leaf.prove(non_zero_hash, &branch).unwrap();
     leaf.circuit.verify(leaf_2_proof.clone()).unwrap();
 
     let branch_proof_1 = branch
-        .prove(non_zero_hash, non_zero_hash, &leaf_1_proof, &leaf_2_proof)
+        .prove(true, &leaf_1_proof, true, &leaf_2_proof)
         .unwrap();
     branch.circuit.verify(branch_proof_1.clone()).unwrap();
 
     let branch_proof_2 = branch
-        .prove(branch_hash, non_zero_hash, &leaf_2_proof, &leaf_2_proof)
+        .prove(true, &leaf_2_proof, true, &leaf_2_proof)
         .unwrap();
     branch.circuit.verify(branch_proof_2.clone()).unwrap();
 
     let double_branch_proof = branch
-        .prove(branch_hash_1, non_zero_hash, &leaf_2_proof, &branch_proof_2)
+        .prove(true, &leaf_2_proof, false, &branch_proof_2)
         .unwrap();
     branch.circuit.verify(double_branch_proof.clone()).unwrap();
 
     group.bench_function("branch_prove_1", |b| {
         b.iter(|| {
             branch
-                .prove(non_zero_hash, non_zero_hash, &leaf_1_proof, &leaf_2_proof)
+                .prove(true, &leaf_1_proof, true, &leaf_2_proof)
                 .unwrap()
         })
     });
@@ -295,7 +239,7 @@ fn bench_prove_verify_unbounded(c: &mut Criterion) {
     group.bench_function("branch_prove_2", |b| {
         b.iter(|| {
             branch
-                .prove(branch_hash_1, non_zero_hash, &leaf_2_proof, &branch_proof_2)
+                .prove(true, &leaf_2_proof, false, &branch_proof_2)
                 .unwrap()
         })
     });

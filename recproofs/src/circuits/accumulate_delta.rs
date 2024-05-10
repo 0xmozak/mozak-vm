@@ -176,7 +176,7 @@ where
             right_is_leaf,
             right_proof,
         );
-        self.event_hash.set_witness(&mut inputs, None, partial);
+        self.event_hash.set_witness(&mut inputs, partial);
         if partial {
             self.partial_state
                 .set_witness_from_proof(&mut inputs, &left_proof.public_inputs);
@@ -193,138 +193,547 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use lazy_static::lazy_static;
+    use enumflags2::BitFlags;
     use plonky2::field::types::Field;
 
     use super::*;
+    use crate::circuits::test_data::{
+        ADDRESS_A, ADDRESS_B, ADDRESS_C, ADDRESS_D, EVENT_T0_P0_A_CREDIT, EVENT_T0_P0_A_WRITE,
+        EVENT_T0_P2_A_ENSURE, EVENT_T0_P2_A_READ, EVENT_T0_P2_C_TAKE, EVENT_T0_PM_C_CREDIT,
+        EVENT_T0_PM_C_GIVE, EVENT_T0_PM_C_WRITE, EVENT_T1_P1_B_CREDIT, EVENT_T1_P1_B_GIVE,
+        EVENT_T1_P1_B_WRITE, EVENT_T1_P2_A_READ, EVENT_T1_P2_D_READ, EVENT_T1_PM_B_ENSURE,
+        EVENT_T1_PM_B_TAKE, STATE_0, STATE_1,
+    };
     use crate::test_utils::{C, CONFIG, D, F};
+    use crate::EventFlags;
 
-    lazy_static! {
-        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
-        pub static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
+    #[tested_fixture::tested_fixture(pub LEAF)]
+    fn build_leaf() -> LeafCircuit<F, C, D> { LeafCircuit::new(&CONFIG) }
+
+    #[tested_fixture::tested_fixture(pub BRANCH)]
+    fn build_branch() -> BranchCircuit<F, C, D> { BranchCircuit::new(&CONFIG, &LEAF) }
+
+    #[allow(clippy::too_many_arguments)]
+    fn assert_proof(
+        proof: &ProofWithPublicInputs<F, C, D>,
+        address: u64,
+        flags: impl Into<BitFlags<EventFlags>>,
+        old_owner: impl Into<Option<[F; 4]>>,
+        new_owner: impl Into<Option<[F; 4]>>,
+        old_data: impl Into<Option<[F; 4]>>,
+        new_data: impl Into<Option<[F; 4]>>,
+        credit_delta: impl Into<Option<F>>,
+    ) {
+        let indices = &LEAF.partial_state.indices;
+        assert_eq!(*indices, BRANCH.partial_state.indices);
+
+        let p_address = indices.address.get(&proof.public_inputs);
+        assert_eq!(p_address, F::from_canonical_u64(address));
+        let p_flags = indices.object_flags.get(&proof.public_inputs);
+        assert_eq!(p_flags, F::from_canonical_u8(flags.into().bits()));
+        let p_old_owner = indices.old_owner.get_any(&proof.public_inputs);
+        assert_eq!(p_old_owner, old_owner.into().unwrap_or_default());
+        let p_new_owner = indices.new_owner.get_any(&proof.public_inputs);
+        assert_eq!(p_new_owner, new_owner.into().unwrap_or_default());
+        let p_old_data = indices.old_data.get_any(&proof.public_inputs);
+        assert_eq!(p_old_data, old_data.into().unwrap_or_default());
+        let p_new_data = indices.new_data.get_any(&proof.public_inputs);
+        assert_eq!(p_new_data, new_data.into().unwrap_or_default());
+        let p_credit_delta = indices.credit_delta.get(&proof.public_inputs);
+        assert_eq!(p_credit_delta, credit_delta.into().unwrap_or_default());
     }
 
-    #[test]
-    fn verify_leaf() -> Result<()> {
-        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
-        let program_hash_2 = [2, 3, 4, 2].map(F::from_canonical_u64);
-
-        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
-        let non_zero_val_2 = [42, 0, 0, 0].map(F::from_canonical_u64);
-        let non_zero_val_3 = [42, 0, 0, 1].map(F::from_canonical_u64);
-
-        let proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_1,
-            EventType::Write,
-            non_zero_val_1,
-        )?;
-        LEAF.circuit.verify(proof)?;
-
-        let proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_1,
-            EventType::Read,
-            non_zero_val_1,
-        )?;
-        LEAF.circuit.verify(proof)?;
-
-        let proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_1,
-            EventType::Ensure,
-            non_zero_val_1,
-        )?;
-        LEAF.circuit.verify(proof)?;
-
-        let proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_1,
-            EventType::GiveOwner,
-            program_hash_2,
-        )?;
-        LEAF.circuit.verify(proof)?;
-
-        let proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_2,
-            EventType::TakeOwner,
-            program_hash_1,
-        )?;
-        LEAF.circuit.verify(proof)?;
-
-        let proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_1,
-            EventType::CreditDelta,
-            non_zero_val_2,
-        )?;
-        LEAF.circuit.verify(proof)?;
-
-        let proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_1,
-            EventType::CreditDelta,
-            non_zero_val_3,
-        )?;
-        LEAF.circuit.verify(proof)?;
-
-        Ok(())
+    #[tested_fixture::tested_fixture(T0_PM_C_CREDIT_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_pm_c_credit_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T0_PM_C_CREDIT;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            BitFlags::empty(),
+            event.owner,
+            None,
+            None,
+            None,
+            event.value[0],
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
     }
 
-    #[test]
-    fn verify_branch() -> Result<()> {
-        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+    #[tested_fixture::tested_fixture(T0_PM_C_GIVE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_pm_c_give_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T0_PM_C_GIVE;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::GiveOwnerFlag,
+            event.owner,
+            event.value,
+            None,
+            None,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
-        let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
+    #[tested_fixture::tested_fixture(T0_PM_C_WRITE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_pm_c_write_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T0_PM_C_WRITE;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::WriteFlag,
+            event.owner,
+            None,
+            None,
+            event.value,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        let read_proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_1,
-            EventType::Read,
-            non_zero_val_1,
+    #[tested_fixture::tested_fixture(T0_P0_A_WRITE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_p0_a_write_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T0_P0_A_WRITE;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::WriteFlag,
+            event.owner,
+            None,
+            None,
+            event.value,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T0_P0_A_CREDIT_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_p0_a_credit_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T0_P0_A_CREDIT;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            BitFlags::empty(),
+            event.owner,
+            None,
+            None,
+            None,
+            -event.value[0],
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T0_P2_A_READ_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_p2_a_read_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T0_P2_A_READ;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::ReadFlag,
+            None,
+            None,
+            event.value,
+            None,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T0_P2_A_ENSURE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_p2_a_ensure_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T0_P2_A_ENSURE;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::EnsureFlag,
+            None,
+            None,
+            None,
+            event.value,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T0_P2_C_TAKE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_p2_c_take_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T0_P2_C_TAKE;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::TakeOwnerFlag,
+            event.value,
+            event.owner,
+            None,
+            None,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T1_PM_B_TAKE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_pm_b_take_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T1_PM_B_TAKE;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::TakeOwnerFlag,
+            event.value,
+            event.owner,
+            None,
+            None,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T1_PM_B_ENSURE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_pm_b_ensure_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T1_PM_B_ENSURE;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::EnsureFlag,
+            None,
+            None,
+            None,
+            event.value,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T1_P1_B_WRITE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_p1_b_write_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T1_P1_B_WRITE;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::WriteFlag,
+            event.owner,
+            None,
+            None,
+            event.value,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T1_P1_B_GIVE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_p1_b_give_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T1_P1_B_GIVE;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::GiveOwnerFlag,
+            event.owner,
+            event.value,
+            None,
+            None,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T1_P1_B_CREDIT_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_p1_b_credit_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T1_P1_B_CREDIT;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            BitFlags::empty(),
+            event.owner,
+            None,
+            None,
+            None,
+            -event.value[0],
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T1_P2_A_READ_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_p2_a_read_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T1_P2_A_READ;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::ReadFlag,
+            None,
+            None,
+            event.value,
+            None,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T1_P2_D_READ_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_p2_d_read_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let event = EVENT_T1_P2_D_READ;
+        let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
+        assert_proof(
+            &proof,
+            event.address,
+            EventFlags::ReadFlag,
+            None,
+            None,
+            event.value,
+            None,
+            None,
+        );
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub A_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_a_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let address = ADDRESS_A;
+        let old = &STATE_0[address];
+        let new = &STATE_1[address];
+        let address = address as u64;
+        let credit_delta = -EVENT_T0_P0_A_CREDIT.value[0];
+
+        let p0_proof = BRANCH.prove(
+            true,
+            &T0_P0_A_WRITE_LEAF_PROOF,
+            Some((true, &T0_P0_A_CREDIT_LEAF_PROOF)),
         )?;
-        LEAF.circuit.verify(read_proof.clone())?;
+        assert_proof(
+            &p0_proof,
+            address,
+            EventFlags::WriteFlag,
+            old.constraint_owner,
+            None,
+            None,
+            new.data,
+            credit_delta,
+        );
+        BRANCH.circuit.verify(p0_proof.clone())?;
 
-        let write_proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_1,
-            EventType::Write,
-            non_zero_val_2,
+        let p2_proof = BRANCH.prove(
+            true,
+            &T0_P2_A_READ_LEAF_PROOF,
+            Some((true, &T0_P2_A_ENSURE_LEAF_PROOF)),
         )?;
-        LEAF.circuit.verify(write_proof.clone())?;
+        assert_proof(
+            &p2_proof,
+            address,
+            EventFlags::ReadFlag | EventFlags::EnsureFlag,
+            None,
+            None,
+            old.data,
+            new.data,
+            None,
+        );
+        BRANCH.circuit.verify(p2_proof.clone())?;
 
-        let ensure_proof = LEAF.prove(
-            &BRANCH,
-            200,
-            program_hash_1,
-            EventType::Ensure,
-            non_zero_val_2,
+        let t0_proof = BRANCH.prove(false, &p0_proof, Some((false, &p2_proof)))?;
+        assert_proof(
+            &t0_proof,
+            address,
+            EventFlags::WriteFlag | EventFlags::ReadFlag | EventFlags::EnsureFlag,
+            old.constraint_owner,
+            None,
+            old.data,
+            new.data,
+            credit_delta,
+        );
+        BRANCH.circuit.verify(t0_proof.clone())?;
+
+        let root_proof = BRANCH.prove(false, &t0_proof, Some((true, &T1_P2_A_READ_LEAF_PROOF)))?;
+        assert_proof(
+            &root_proof,
+            address,
+            EventFlags::WriteFlag | EventFlags::ReadFlag | EventFlags::EnsureFlag,
+            old.constraint_owner,
+            None,
+            old.data,
+            new.data,
+            credit_delta,
+        );
+        BRANCH.circuit.verify(root_proof.clone())?;
+
+        Ok(root_proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub B_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_b_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let address = ADDRESS_B;
+        let old = &STATE_0[address];
+        let new = &STATE_1[address];
+        let address = address as u64;
+        let credit_delta = -EVENT_T1_P1_B_CREDIT.value[0];
+
+        let pm_proof = BRANCH.prove(
+            true,
+            &T1_PM_B_TAKE_LEAF_PROOF,
+            Some((true, &T1_PM_B_ENSURE_LEAF_PROOF)),
         )?;
-        LEAF.circuit.verify(ensure_proof.clone())?;
+        assert_proof(
+            &pm_proof,
+            address,
+            EventFlags::TakeOwnerFlag | EventFlags::EnsureFlag,
+            old.constraint_owner,
+            new.constraint_owner,
+            None,
+            new.data,
+            None,
+        );
+        BRANCH.circuit.verify(pm_proof.clone())?;
 
-        let branch_proof_1 = BRANCH.prove(true, &read_proof, Some((true, &write_proof)))?;
-        BRANCH.circuit.verify(branch_proof_1.clone())?;
+        let p1_proof_1 = BRANCH.prove(
+            true,
+            &T1_P1_B_WRITE_LEAF_PROOF,
+            Some((true, &T1_P1_B_GIVE_LEAF_PROOF)),
+        )?;
+        assert_proof(
+            &p1_proof_1,
+            address,
+            EventFlags::GiveOwnerFlag | EventFlags::WriteFlag,
+            old.constraint_owner,
+            new.constraint_owner,
+            None,
+            new.data,
+            None,
+        );
+        BRANCH.circuit.verify(p1_proof_1.clone())?;
 
-        let branch_proof_2 = BRANCH.prove(false, &branch_proof_1, Some((true, &ensure_proof)))?;
-        BRANCH.circuit.verify(branch_proof_2.clone())?;
+        let p1_proof_2 =
+            BRANCH.prove(false, &p1_proof_1, Some((true, &T1_P1_B_CREDIT_LEAF_PROOF)))?;
+        assert_proof(
+            &p1_proof_2,
+            address,
+            EventFlags::GiveOwnerFlag | EventFlags::WriteFlag,
+            old.constraint_owner,
+            new.constraint_owner,
+            None,
+            new.data,
+            credit_delta,
+        );
+        BRANCH.circuit.verify(p1_proof_2.clone())?;
 
-        let branch_proof_3 = BRANCH.prove(false, &branch_proof_2, None)?;
-        BRANCH.circuit.verify(branch_proof_3)?;
+        let root_proof = BRANCH.prove(false, &pm_proof, Some((false, &p1_proof_2)))?;
+        assert_proof(
+            &root_proof,
+            address,
+            EventFlags::TakeOwnerFlag
+                | EventFlags::EnsureFlag
+                | EventFlags::GiveOwnerFlag
+                | EventFlags::WriteFlag,
+            old.constraint_owner,
+            new.constraint_owner,
+            None,
+            new.data,
+            credit_delta,
+        );
+        BRANCH.circuit.verify(root_proof.clone())?;
 
-        let branch_proof_4 = BRANCH.prove(true, &read_proof, None)?;
-        BRANCH.circuit.verify(branch_proof_4)?;
+        Ok(root_proof)
+    }
 
-        Ok(())
+    #[tested_fixture::tested_fixture(pub C_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_c_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let address = ADDRESS_C;
+        let old = &STATE_0[address];
+        let new = &STATE_1[address];
+        let address = address as u64;
+        let credit_delta = EVENT_T0_PM_C_CREDIT.value[0];
+
+        let pm_proof_1 = BRANCH.prove(
+            true,
+            &T0_PM_C_CREDIT_LEAF_PROOF,
+            Some((true, &T0_PM_C_GIVE_LEAF_PROOF)),
+        )?;
+        assert_proof(
+            &pm_proof_1,
+            address,
+            EventFlags::GiveOwnerFlag,
+            old.constraint_owner,
+            new.constraint_owner,
+            None,
+            None,
+            credit_delta,
+        );
+        BRANCH.circuit.verify(pm_proof_1.clone())?;
+
+        let pm_proof_2 =
+            BRANCH.prove(false, &pm_proof_1, Some((true, &T0_PM_C_WRITE_LEAF_PROOF)))?;
+        assert_proof(
+            &pm_proof_2,
+            address,
+            EventFlags::GiveOwnerFlag | EventFlags::WriteFlag,
+            old.constraint_owner,
+            new.constraint_owner,
+            None,
+            new.data,
+            credit_delta,
+        );
+        BRANCH.circuit.verify(pm_proof_2.clone())?;
+
+        let root_proof =
+            BRANCH.prove(false, &pm_proof_2, Some((true, &T0_P2_C_TAKE_LEAF_PROOF)))?;
+        assert_proof(
+            &root_proof,
+            address,
+            EventFlags::GiveOwnerFlag | EventFlags::WriteFlag | EventFlags::TakeOwnerFlag,
+            old.constraint_owner,
+            new.constraint_owner,
+            None,
+            new.data,
+            credit_delta,
+        );
+        BRANCH.circuit.verify(root_proof.clone())?;
+
+        Ok(root_proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub D_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_d_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let address = ADDRESS_D;
+        let old = &STATE_0[address];
+        let address = address as u64;
+
+        let proof = BRANCH.prove(true, &T1_P2_D_READ_LEAF_PROOF, None)?;
+        assert_proof(
+            &proof,
+            address,
+            EventFlags::ReadFlag,
+            None,
+            None,
+            old.data,
+            None,
+            None,
+        );
+        BRANCH.circuit.verify(proof.clone())?;
+
+        Ok(proof)
     }
 }

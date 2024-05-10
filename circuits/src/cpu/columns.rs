@@ -98,9 +98,6 @@ pub struct CpuState<T> {
     pub new_pc: T,
     pub inst: Instruction<T>,
 
-    // TODO(Matthias): we can remove this, once our 'halt' instruction is in its own table.
-    pub next_is_running: T,
-
     pub op1_value: T,
     pub op2_value_raw: T,
     /// The sum of the value of the second operand register and the
@@ -180,6 +177,7 @@ pub struct CpuState<T> {
     pub is_event_tape: T,
     pub is_events_commitment_tape: T,
     pub is_cast_list_commitment_tape: T,
+    pub is_self_prog_id_tape: T,
     pub is_halt: T,
     pub is_poseidon2: T,
 }
@@ -336,6 +334,7 @@ pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Colu
                 CPU.is_event_tape,
                 CPU.is_events_commitment_tape,
                 CPU.is_cast_list_commitment_tape,
+                CPU.is_self_prog_id_tape,
             ]),
             clk: CPU.clk,
             addr: CPU.io_addr,
@@ -348,6 +347,7 @@ pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Colu
             CPU.is_event_tape,
             CPU.is_events_commitment_tape,
             CPU.is_cast_list_commitment_tape,
+            CPU.is_self_prog_id_tape,
         ]
         .iter()
         .sum(),

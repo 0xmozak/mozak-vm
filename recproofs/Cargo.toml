@@ -19,7 +19,7 @@ plonky2 = { workspace = true, default-features = false }
 [dev-dependencies]
 array-util = "1"
 criterion = { workspace = true, default-features = false }
-lazy_static = "1.4"
+once_cell = "1"
 tested-fixture = "1"
 
 [features]
