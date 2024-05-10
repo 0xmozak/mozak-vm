@@ -276,6 +276,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mozak-poseidon2"
+version = "0.1.0"
+dependencies = [
+ "mozak-sdk",
+]
+
+[[package]]
 name = "mozak-sdk"
 version = "0.2.0"
 dependencies = [

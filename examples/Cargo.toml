@@ -11,6 +11,7 @@ members = [
   "rkyv-serialization",
   "empty",
   "mozak-sort",
+  "mozak-poseidon2",
 
   # Members that depend on more than sdk::core
   "token",

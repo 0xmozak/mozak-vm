@@ -201,6 +201,10 @@ pub fn generate_memory_trace<F: RichField>(
         .collect();
 
     log::trace!("trace {:?}", merged_trace);
+    log::info!(
+        "memory trace len {:?}",
+        merged_trace.len().next_power_of_two()
+    );
     pad_mem_trace(merged_trace)
 }
 
