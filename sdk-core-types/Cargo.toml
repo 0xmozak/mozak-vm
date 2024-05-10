@@ -1,4 +1,10 @@
 [package]
-name = "sdk-core-types"
-version = "0.1.0"
+categories = ["development-tools", "zk"]
+description = "Provides types for used by sdk::core"
 edition = "2021"
+keywords = ["sdk", "types"]
+license = "Apache-2.0"
+name = "sdk-core-types"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-node/sdk-core-types"
+version = "0.1.0"
