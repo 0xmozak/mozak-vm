@@ -8,7 +8,6 @@ use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 use mozak_runner::vm::ExecutionRecord;
-use mozak_sdk::core::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::FriConfig;
@@ -18,6 +17,7 @@ use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
+use sdk_core_types::ecall_id;
 use starky::config::StarkConfig;
 use starky::prover::prove as prove_table;
 use starky::stark::Stark;
@@ -523,7 +523,7 @@ pub fn create_poseidon2_test(
                 op: Op::ADD,
                 args: Args {
                     rd: REG_A0,
-                    imm: ecall::POSEIDON2,
+                    imm: ecall_id::POSEIDON2,
                     ..Args::default()
                 },
             },

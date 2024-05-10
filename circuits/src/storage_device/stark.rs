@@ -121,11 +121,11 @@ mod tests {
     use mozak_runner::reg_abi::{REG_A0, REG_A1, REG_A2};
     use mozak_runner::state::RawTapes;
     use mozak_runner::test_utils::{u32_extra, u8_extra};
-    use mozak_sdk::core::constants::DIGEST_BYTES;
-    use mozak_sdk::core::ecall::{self};
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
+    use sdk_core_types::constants::poseidon2::DIGEST_BYTES;
+    use sdk_core_types::ecall_id;
     use starky::stark_testing::test_stark_circuit_constraints;
 
     use crate::stark::mozak_stark::MozakStark;
@@ -139,7 +139,7 @@ mod tests {
             &[],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::PRIVATE_TAPE),
+                (REG_A0, ecall_id::PRIVATE_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
@@ -155,7 +155,7 @@ mod tests {
             &[],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::PUBLIC_TAPE),
+                (REG_A0, ecall_id::PUBLIC_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
@@ -171,7 +171,7 @@ mod tests {
             &[],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::CALL_TAPE),
+                (REG_A0, ecall_id::CALL_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
@@ -187,7 +187,7 @@ mod tests {
             &[],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::EVENT_TAPE),
+                (REG_A0, ecall_id::EVENT_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 0),       // A2 - size
             ],
@@ -203,7 +203,7 @@ mod tests {
             &[],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::PRIVATE_TAPE),
+                (REG_A0, ecall_id::PRIVATE_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
@@ -228,7 +228,7 @@ mod tests {
             &[],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::PUBLIC_TAPE),
+                (REG_A0, ecall_id::PUBLIC_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
@@ -254,7 +254,7 @@ mod tests {
             &[],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::CALL_TAPE),
+                (REG_A0, ecall_id::CALL_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
@@ -278,7 +278,7 @@ mod tests {
             &[],
             &[(address, 0)],
             &[
-                (REG_A0, ecall::EVENT_TAPE),
+                (REG_A0, ecall_id::EVENT_TAPE),
                 (REG_A1, address), // A1 - address
                 (REG_A2, 1),       // A2 - size
             ],
@@ -307,7 +307,7 @@ mod tests {
                 .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
                 .collect_vec(),
             &[
-                (REG_A0, ecall::EVENTS_COMMITMENT_TAPE),
+                (REG_A0, ecall_id::EVENTS_COMMITMENT_TAPE),
                 (REG_A1, address),                              // A1 - address
                 (REG_A2, u32::try_from(DIGEST_BYTES).unwrap()), // A2 - size
             ],
@@ -338,7 +338,7 @@ mod tests {
                 .map(|i| (address.wrapping_add(u32::try_from(i).unwrap()), 0_u8))
                 .collect_vec(),
             &[
-                (REG_A0, ecall::CAST_LIST_COMMITMENT_TAPE),
+                (REG_A0, ecall_id::CAST_LIST_COMMITMENT_TAPE),
                 (REG_A1, address),                              // A1 - address
                 (REG_A2, u32::try_from(DIGEST_BYTES).unwrap()), // A2 - size
             ],
@@ -382,7 +382,7 @@ mod tests {
                     op: Op::ADD,
                     args: Args {
                         rd: REG_A0,
-                        imm: ecall::PRIVATE_TAPE,
+                        imm: ecall_id::PRIVATE_TAPE,
                         ..Args::default()
                     },
                 },

@@ -86,15 +86,15 @@ mod tests {
     use mozak_runner::code;
     use mozak_runner::decode::ECALL;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::state::RawTapes;
-    use mozak_sdk::core::constants::DIGEST_BYTES;
-    use mozak_sdk::core::ecall::{self};
     use mozak_runner::reg_abi::{REG_A0, REG_A1, REG_A2};
+    use mozak_runner::state::RawTapes;
     use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
     use rand::Rng;
+    use sdk_core_types::constants::poseidon2::DIGEST_BYTES;
+    use sdk_core_types::ecall_id;
     use starky::config::StarkConfig;
     use starky::stark_testing::test_stark_circuit_constraints;
 
@@ -147,12 +147,12 @@ mod tests {
             ]
         }
         let code_ecall_cast_list_commitment_tape = read_ecall_code(
-            ecall::CAST_LIST_COMMITMENT_TAPE,
+            ecall_id::CAST_LIST_COMMITMENT_TAPE,
             CAST_LIST_COMMITMENT_ADDRESS,
             DIGEST_BYTES,
         );
         let code_ecall_events_commitment_tape = read_ecall_code(
-            ecall::EVENTS_COMMITMENT_TAPE,
+            ecall_id::EVENTS_COMMITMENT_TAPE,
             EVENTS_COMMITMENT_ADDRESS,
             DIGEST_BYTES,
         );

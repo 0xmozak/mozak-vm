@@ -4,8 +4,8 @@ use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::reg_abi::REG_A0;
 use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 use mozak_runner::vm::{ExecutionRecord, Row};
-use mozak_sdk::core::ecall;
 use plonky2::hash::hash_types::RichField;
+use sdk_core_types::ecall_id;
 
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
@@ -110,7 +110,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             )),
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::from(REG_A0)]),
-                (Op::ECALL, ecall::HALT)
+                (Op::ECALL, ecall_id::HALT)
             )),
             ..CpuState::default()
         };
