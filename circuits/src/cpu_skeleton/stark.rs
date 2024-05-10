@@ -8,7 +8,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use super::columns::CpuSkeleton;
@@ -85,16 +85,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        // TODO(Matthias): handle conversion of public inputs less uglily.
-        let public_inputs: [P::Scalar; PUBLIC_INPUTS] =
-            vars.get_public_inputs().try_into().unwrap();
-        let vars: StarkFrame<P, P, COLUMNS, PUBLIC_INPUTS> = StarkFrame::from_values(
-            vars.get_local_values(),
-            vars.get_next_values(),
-            &public_inputs.map(P::from),
-        );
-        let vars: StarkFrameTyped<CpuSkeleton<Expr<'_, P>>, PublicInputs<_>> =
-            expr_builder.to_typed_starkframe(&vars);
+        let vars = expr_builder.to_typed_starkframe(vars);
         let constraints = generate_constraints(&vars);
         build_packed(constraints, consumer);
     }
