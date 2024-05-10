@@ -1,0 +1,23 @@
+[package]
+categories = ["cryptography"]
+description = "MozakVM cli"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "mozak-cli-args"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[dependencies]
+clap = { version = "4.5", features = [
+  "derive",
+  "cargo",
+  "env",
+  "unicode",
+] }
+# TODO(Matthias): implement shell completion for CLI via clap_complete
+# clap_complete = "4.3"
+clap-verbosity-flag = "2.2"
+clap_derive = "4.5"
+clio = { version = "0.3", features = ["clap-parse"] }

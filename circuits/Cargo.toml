@@ -18,6 +18,8 @@ expr = { path = "../expr" }
 itertools = "0.12"
 log = "0.4"
 mozak-circuits-derive = { path = "./derive" }
+mozak-cli-args = { path = "../args" }
+mozak-examples = { path = "../examples-builder" }
 mozak-runner = { path = "../runner" }
 mozak-sdk = { path = "../sdk" }
 plonky2 = { workspace = true, default-features = false }

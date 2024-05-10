@@ -6,6 +6,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![feature(const_trait_impl)]
 
+pub mod benches;
 pub mod bitshift;
 pub mod columns_view;
 pub mod cpu;
