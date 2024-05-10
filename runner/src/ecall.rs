@@ -3,9 +3,9 @@
 use std::str::from_utf8;
 
 use mozak_sdk::core::ecall;
-use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
 use plonky2::hash::hash_types::RichField;
 
+use crate::reg_abi::{REG_A0, REG_A1, REG_A2};
 use crate::state::{read_bytes, Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 
 impl<F: RichField> State<F> {

@@ -2,7 +2,6 @@
 mod alloc;
 pub mod ecall;
 pub mod env;
-pub mod reg_abi;
 
 pub mod constants {
     /// The size of a `Poseidon2Hash` digest in bytes.

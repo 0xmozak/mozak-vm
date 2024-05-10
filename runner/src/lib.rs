@@ -15,6 +15,7 @@ pub mod ecall;
 pub mod elf;
 pub mod instruction;
 pub mod poseidon2;
+pub mod reg_abi;
 pub mod state;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;

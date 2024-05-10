@@ -1,7 +1,7 @@
 use core::ops::Add;
 
 use mozak_sdk::core::constants::DIGEST_BYTES;
-use mozak_sdk::core::reg_abi::REG_A1;
+use mozak_runner::reg_abi::REG_A1;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};

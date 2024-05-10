@@ -89,7 +89,7 @@ mod tests {
     use mozak_runner::state::RawTapes;
     use mozak_sdk::core::constants::DIGEST_BYTES;
     use mozak_sdk::core::ecall::{self};
-    use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
+    use mozak_runner::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};

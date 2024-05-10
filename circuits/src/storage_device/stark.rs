@@ -118,11 +118,11 @@ mod tests {
     use mozak_runner::code::execute_code_with_ro_memory;
     use mozak_runner::decode::ECALL;
     use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::reg_abi::{REG_A0, REG_A1, REG_A2};
     use mozak_runner::state::RawTapes;
     use mozak_runner::test_utils::{u32_extra, u8_extra};
     use mozak_sdk::core::constants::DIGEST_BYTES;
     use mozak_sdk::core::ecall::{self};
-    use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;

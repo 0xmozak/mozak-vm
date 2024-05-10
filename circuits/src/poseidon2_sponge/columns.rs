@@ -1,7 +1,7 @@
 use core::ops::Add;
 
 use itertools::izip;
-use mozak_sdk::core::reg_abi::{REG_A1, REG_A2, REG_A3};
+use mozak_runner::reg_abi::{REG_A1, REG_A2, REG_A3};
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 use plonky2::hash::hashing::PlonkyPermutation;
