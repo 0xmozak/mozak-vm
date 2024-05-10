@@ -10,7 +10,7 @@ use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
-use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
+use plonky2::field::polynomial::PolynomialCoeffs;
 use plonky2::field::types::Field;
 use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -335,7 +335,6 @@ where
         public_table_kinds,
         &public_inputs,
         &degree_bits,
-        &traces_poly_values,
         &trace_commitments,
         &trace_indices,
         &batch_trace_commitments,
@@ -374,7 +373,6 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     public_table_kinds: &[TableKind],
     public_inputs: &PublicInputs<F>,
     degree_bits: &TableKindArray<usize>,
-    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<Option<PolynomialBatch<F, C, D>>>,
     trace_indices: &BatchFriOracleIndices,
     batch_trace_commitments: &BatchFriOracle<F, C, D>,
@@ -403,7 +401,6 @@ where
         Some(prove_single_table(
             stark,
             config,
-            &traces_poly_values[kind],
             trace_commitment,
             public_inputs[kind],
             &ctl_data_per_table[kind],
