@@ -1,4 +1,3 @@
-
 pub const HALT: u32 = 0;
 pub const PANIC: u32 = 1;
 pub const PRIVATE_TAPE: u32 = 2;
