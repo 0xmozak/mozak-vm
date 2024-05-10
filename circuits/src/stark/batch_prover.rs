@@ -3,14 +3,14 @@
 use std::collections::HashMap;
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use log::Level::Debug;
-use log::{debug, info, log_enabled};
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
-use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
+use plonky2::field::polynomial::PolynomialCoeffs;
 use plonky2::field::types::Field;
 use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
@@ -277,8 +277,8 @@ where
             .clone()
             .with_kind()
             .map(|(trace, table)| {
-                if public_table_kinds.contains(&table) {
-                    Some(timed!(
+                public_table_kinds.contains(&table).then(|| {
+                    timed!(
                         timing,
                         &format!("compute trace commitment for {table:?}"),
                         PolynomialBatch::<F, C, D>::from_values(
@@ -289,10 +289,8 @@ where
                             timing,
                             None,
                         )
-                    ))
-                } else {
-                    None
-                }
+                    )
+                })
             })
     );
 
@@ -334,7 +332,6 @@ where
         public_table_kinds,
         &public_inputs,
         &degree_bits,
-        &traces_poly_values,
         &trace_commitments,
         &trace_indices,
         &batch_trace_commitments,
@@ -373,7 +370,6 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     public_table_kinds: &[TableKind],
     public_inputs: &PublicInputs<F>,
     degree_bits: &TableKindArray<usize>,
-    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<Option<PolynomialBatch<F, C, D>>>,
     trace_indices: &BatchFriOracleIndices,
     batch_trace_commitments: &BatchFriOracle<F, C, D>,
@@ -402,7 +398,6 @@ where
         Some(prove_single_table(
             stark,
             config,
-            &traces_poly_values[kind],
             trace_commitment,
             public_inputs[kind],
             &ctl_data_per_table[kind],
@@ -436,11 +431,6 @@ where
 
                 assert!(!z_polys.is_empty());
 
-                info!(
-                    "ctl_data_per_table len {}",
-                    ctl_data_per_table[kind].zs_columns.len()
-                );
-                info!("z_poly len {}", z_polys.len());
                 ctl_zs_poly_count[kind] = z_polys.len();
 
                 z_polys
@@ -716,22 +706,31 @@ pub(crate) fn batch_reduction_arity_bits(
     rate_bits: usize,
     cap_height: usize,
 ) -> Vec<usize> {
-    let mut result = Vec::new();
-    let arity_bits = 3;
-    let mut cur_index = 0;
-    let mut cur_degree_bits = degree_bits[cur_index];
-    while cur_degree_bits + rate_bits >= cap_height + arity_bits {
-        let mut cur_arity_bits = arity_bits;
-        let target_degree_bits = cur_degree_bits - arity_bits;
-        if cur_index < degree_bits.len() - 1 && target_degree_bits < degree_bits[cur_index + 1] {
-            cur_arity_bits = cur_degree_bits - degree_bits[cur_index + 1];
-            cur_index += 1;
-        }
-        result.push(cur_arity_bits);
-        assert!(cur_degree_bits >= cur_arity_bits);
-        cur_degree_bits -= cur_arity_bits;
-    }
-    result
+    let default_arity_bits = 3;
+    let final_poly_bits = 5;
+    let lowest_degree_bits = degree_bits.last().unwrap();
+    assert!(lowest_degree_bits + rate_bits >= cap_height);
+    // First, let's figure out our intermediate degree bits.
+    let intermediate_degree_bits =
+        degree_bits
+            .iter()
+            .tuple_windows()
+            .flat_map(|(&degree_bit, &next_degree_bit)| {
+                (next_degree_bit + 1..=degree_bit)
+                    .rev()
+                    .step_by(default_arity_bits)
+            });
+    // Next, deal with the last part.
+    let last_degree_bits =
+        (lowest_degree_bits + rate_bits).min(cap_height.max(final_poly_bits)) - rate_bits;
+    let final_degree_bits = (last_degree_bits..=*lowest_degree_bits)
+        .rev()
+        .step_by(default_arity_bits);
+    // Finally, the reduction arity bits are just the differences:
+    chain!(intermediate_degree_bits, final_degree_bits)
+        .tuple_windows()
+        .map(|(degree_bit, next_degree_bit)| degree_bit - next_degree_bit)
+        .collect()
 }
 
 #[cfg(test)]
@@ -741,12 +740,41 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
 
-    use crate::stark::batch_prover::batch_prove;
+    use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits};
     use crate::stark::batch_verifier::batch_verify_proof;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
     use crate::stark::proof::BatchProof;
     use crate::test_utils::fast_test_config;
     use crate::utils::from_u32;
+
+    #[test]
+    fn reduction_arity_bits_in_batch_proving() {
+        let degree_bits = vec![15, 8, 6, 5, 3];
+        let rate_bits = 2;
+        let cap_height = 0;
+        let expected_res = vec![3, 3, 1, 2, 1, 2];
+        assert_eq!(
+            expected_res,
+            batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
+        );
+
+        let rate_bits = 1;
+        let cap_height = 4;
+        let expected_res = vec![3, 3, 1, 2, 1, 2];
+        assert_eq!(
+            expected_res,
+            batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion failed")]
+    fn bad_reduction_arity_bits_in_batch_proving() {
+        let degree_bits = vec![8, 6, 5, 3];
+        let rate_bits = 2;
+        let cap_height = 6;
+        batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height);
+    }
 
     #[test]
     fn batch_prove_add() {

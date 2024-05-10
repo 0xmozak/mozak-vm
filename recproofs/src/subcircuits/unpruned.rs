@@ -239,7 +239,10 @@ impl<E: Extended> BranchTargets<E> {
 
 impl BranchSubCircuit<OnlyFull> {
     /// Get ready to generate a proof
-    pub fn set_witness<F: RichField>(
+    pub fn set_witness<F: RichField>(&self, _inputs: &mut PartialWitness<F>) {}
+
+    /// Get ready to generate a proof
+    pub fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         unpruned_hash: HashOut<F>,
@@ -250,15 +253,18 @@ impl BranchSubCircuit<OnlyFull> {
 
 impl BranchSubCircuit<PartialAllowed> {
     /// Get ready to generate a proof
-    pub fn set_witness<F: RichField>(
+    pub fn set_witness<F: RichField>(&self, inputs: &mut PartialWitness<F>, partial: bool) {
+        inputs.set_bool_target(self.targets.extension.partial, partial);
+    }
+
+    /// Get ready to generate a proof
+    pub fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
-        unpruned_hash: Option<HashOut<F>>,
+        unpruned_hash: HashOut<F>,
         partial: bool,
     ) {
-        if let Some(unpruned_hash) = unpruned_hash {
-            inputs.set_hash_target(self.targets.inputs.unpruned_hash, unpruned_hash);
-        }
+        inputs.set_hash_target(self.targets.inputs.unpruned_hash, unpruned_hash);
         inputs.set_bool_target(self.targets.extension.partial, partial);
     }
 }
@@ -332,7 +338,6 @@ mod test {
 
         fn prove(
             &self,
-            unpruned_hash: HashOut<F>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_proof: Self::RightProof<'_>,
         ) -> Result<ProofWithPublicInputs<F, C, D>>;
@@ -418,6 +423,19 @@ mod test {
                 SubCircuitInputs::build_branch,
             )
         }
+
+        fn prove_unsafe(
+            &self,
+            unpruned_hash: HashOut<F>,
+            left_proof: &ProofWithPublicInputs<F, C, D>,
+            right_proof: &ProofWithPublicInputs<F, C, D>,
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+            let mut inputs = PartialWitness::new();
+            self.bounded
+                .set_witness(&mut inputs, left_proof, right_proof);
+            self.unpruned.set_witness_unsafe(&mut inputs, unpruned_hash);
+            self.circuit.prove(inputs)
+        }
     }
 
     impl Branch for DummyBranchCircuit<OnlyFull> {
@@ -430,14 +448,13 @@ mod test {
 
         fn prove(
             &self,
-            unpruned_hash: HashOut<F>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_proof: Self::RightProof<'_>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.bounded
                 .set_witness(&mut inputs, left_proof, right_proof);
-            self.unpruned.set_witness(&mut inputs, unpruned_hash);
+            self.unpruned.set_witness(&mut inputs);
             self.circuit.prove(inputs)
         }
     }
@@ -468,6 +485,20 @@ mod test {
                 SubCircuitInputs::build_extended_branch,
             )
         }
+
+        fn prove_unsafe(
+            &self,
+            unpruned_hash: HashOut<F>,
+            left_proof: &ProofWithPublicInputs<F, C, D>,
+            right_proof: Option<&ProofWithPublicInputs<F, C, D>>,
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+            let mut inputs = PartialWitness::new();
+            self.bounded
+                .set_witness(&mut inputs, left_proof, right_proof.unwrap_or(left_proof));
+            self.unpruned
+                .set_witness_unsafe(&mut inputs, unpruned_hash, right_proof.is_none());
+            self.circuit.prove(inputs)
+        }
     }
 
     impl Branch for DummyBranchCircuit<PartialAllowed> {
@@ -484,7 +515,6 @@ mod test {
 
         fn prove(
             &self,
-            unpruned_hash: HashOut<F>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_proof: Self::RightProof<'_>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
@@ -492,7 +522,7 @@ mod test {
             self.bounded
                 .set_witness(&mut inputs, left_proof, right_proof.unwrap_or(left_proof));
             self.unpruned
-                .set_witness(&mut inputs, Some(unpruned_hash), right_proof.is_none());
+                .set_witness(&mut inputs, right_proof.is_none());
             self.circuit.prove(inputs)
         }
 
@@ -501,22 +531,6 @@ mod test {
 
     #[tested_fixture::tested_fixture(LEAF)]
     fn build_leaf() -> DummyLeafCircuit { DummyLeafCircuit::new(&CONFIG) }
-
-    #[tested_fixture::tested_fixture(ZERO_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
-    fn verify_zero_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
-        let proof = LEAF.prove(ZERO_HASH)?;
-        LEAF.circuit.verify(proof.clone())?;
-        Ok(proof)
-    }
-
-    #[tested_fixture::tested_fixture(NON_ZERO_LEAF_PROOFS: [(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES])]
-    fn verify_leaf() -> Result<[(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES]> {
-        NON_ZERO_VALUES.try_map_ext(|non_zero_hash| {
-            let proof = LEAF.prove(non_zero_hash)?;
-            LEAF.circuit.verify(proof.clone())?;
-            Ok((non_zero_hash, proof))
-        })
-    }
 
     #[tested_fixture::tested_fixture(BRANCH_1)]
     fn build_branch_1() -> DummyBranchCircuit<OnlyFull> {
@@ -528,6 +542,32 @@ mod test {
         DummyBranchCircuit::<OnlyFull>::from_branch(&CONFIG, &BRANCH_1, false)
     }
 
+    #[tested_fixture::tested_fixture(VM_BRANCH_1)]
+    fn build_vm_branch_1() -> DummyBranchCircuit<OnlyFull> {
+        DummyBranchCircuit::<OnlyFull>::from_leaf(&CONFIG, &LEAF, true)
+    }
+
+    #[tested_fixture::tested_fixture(VM_BRANCH_2)]
+    fn build_vm_branch_2() -> DummyBranchCircuit<OnlyFull> {
+        DummyBranchCircuit::<OnlyFull>::from_branch(&CONFIG, &VM_BRANCH_1, true)
+    }
+
+    #[tested_fixture::tested_fixture(PAR_BRANCH_1)]
+    fn build_par_branch_1() -> DummyBranchCircuit<PartialAllowed> {
+        DummyBranchCircuit::<PartialAllowed>::from_leaf(&CONFIG, &LEAF, false)
+    }
+
+    #[tested_fixture::tested_fixture(PAR_BRANCH_2)]
+    fn build_par_branch_2() -> DummyBranchCircuit<PartialAllowed> {
+        DummyBranchCircuit::<PartialAllowed>::from_branch(&CONFIG, &PAR_BRANCH_1, false)
+    }
+
+    fn assert_value(proof: &ProofWithPublicInputs<F, C, D>, hash: HashOut<F>) {
+        let indices = &LEAF.unpruned.indices;
+        let p_hash = indices.unpruned_hash.get_any(&proof.public_inputs);
+        assert_eq!(p_hash, hash.elements);
+    }
+
     fn verify_branch_helper<'a, B: Branch>(
         branch: &B,
         l_hash: &HashOut<F>,
@@ -536,9 +576,28 @@ mod test {
         r_proof: B::RightProof<'a>,
     ) -> Result<(HashOut<F>, ProofWithPublicInputs<F, C, D>)> {
         let hash = branch.hash(l_hash, r_hash);
-        let proof = branch.prove(hash, l_proof, r_proof)?;
+        let proof = branch.prove(l_proof, r_proof)?;
+        assert_value(&proof, hash);
         branch.circuit().verify(proof.clone())?;
         Ok((hash, proof))
+    }
+
+    #[tested_fixture::tested_fixture(ZERO_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_zero_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(ZERO_HASH)?;
+        assert_value(&proof, ZERO_HASH);
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(NON_ZERO_LEAF_PROOFS: [(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES])]
+    fn verify_leaf() -> Result<[(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES]> {
+        NON_ZERO_VALUES.try_map_ext(|non_zero_hash| {
+            let proof = LEAF.prove(non_zero_hash)?;
+            assert_value(&proof, non_zero_hash);
+            LEAF.circuit.verify(proof.clone())?;
+            Ok((non_zero_hash, proof))
+        })
     }
 
     #[tested_fixture::tested_fixture(ZERO_BRANCH_PROOF: (HashOut<F>, ProofWithPublicInputs<F, C, D>))]
@@ -586,39 +645,30 @@ mod test {
     #[tested_fixture::tested_fixture(FULL_BRANCH_PROOFS: [[(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES]; LEAF_VALUES])]
     fn verify_full_branch(
     ) -> Result<[[(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES]; LEAF_VALUES]> {
-        NON_ZERO_LEAF_PROOFS
-            .each_ref()
-            .try_map_ext(|(non_zero_hash_1, non_zero_leaf_1)| {
-                NON_ZERO_LEAF_PROOFS
-                    .each_ref()
-                    .try_map_ext(|(non_zero_hash_2, non_zero_leaf_2)| {
-                        verify_branch_helper(
-                            *BRANCH_1,
-                            non_zero_hash_1,
-                            non_zero_leaf_1,
-                            non_zero_hash_2,
-                            non_zero_leaf_2,
-                        )
-                    })
+        let leaf_proofs = NON_ZERO_LEAF_PROOFS.each_ref();
+        leaf_proofs.try_map_ext(|(non_zero_hash_1, non_zero_leaf_1)| {
+            leaf_proofs.try_map_ext(|(non_zero_hash_2, non_zero_leaf_2)| {
+                verify_branch_helper(
+                    *BRANCH_1,
+                    non_zero_hash_1,
+                    non_zero_leaf_1,
+                    non_zero_hash_2,
+                    non_zero_leaf_2,
+                )
             })
+        })
     }
 
     #[test]
-    #[ignore]
     fn verify_double_branch() -> Result<()> {
         let branches = chain![
-            LEFT_BRANCH_PROOFS.iter(),
-            RIGHT_BRANCH_PROOFS.iter(),
-            FULL_BRANCH_PROOFS.iter().flatten(),
+            [*ZERO_BRANCH_PROOF],
+            LEFT_BRANCH_PROOFS.iter().take(1),
+            RIGHT_BRANCH_PROOFS.iter().take(1),
+            FULL_BRANCH_PROOFS.iter().flat_map(|v| v.iter().take(1)),
         ];
 
-        let (ref zero_hash, ref zero_proof) = *ZERO_BRANCH_PROOF;
-        verify_branch_helper(*BRANCH_2, zero_hash, zero_proof, zero_hash, zero_proof)?;
-
         for (ref hash_1, ref proof_1) in branches.clone() {
-            verify_branch_helper(*BRANCH_2, hash_1, proof_1, zero_hash, zero_proof)?;
-            verify_branch_helper(*BRANCH_2, zero_hash, zero_proof, hash_1, proof_1)?;
-
             for (ref hash_2, ref proof_2) in branches.clone() {
                 verify_branch_helper(*BRANCH_2, hash_1, proof_1, hash_2, proof_2)?;
                 verify_branch_helper(*BRANCH_2, hash_2, proof_2, hash_1, proof_1)?;
@@ -628,14 +678,17 @@ mod test {
         Ok(())
     }
 
-    #[tested_fixture::tested_fixture(VM_BRANCH_1)]
-    fn build_vm_branch_1() -> DummyBranchCircuit<OnlyFull> {
-        DummyBranchCircuit::<OnlyFull>::from_leaf(&CONFIG, &LEAF, true)
-    }
-
-    #[tested_fixture::tested_fixture(VM_BRANCH_2)]
-    fn build_vm_branch_2() -> DummyBranchCircuit<OnlyFull> {
-        DummyBranchCircuit::<OnlyFull>::from_branch(&CONFIG, &VM_BRANCH_1, true)
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_wrong_hash_branch() {
+        let branch_proof = BRANCH_1
+            .prove_unsafe(
+                NON_ZERO_LEAF_PROOFS[0].0,
+                &NON_ZERO_LEAF_PROOFS[0].1,
+                &NON_ZERO_LEAF_PROOFS[1].1,
+            )
+            .unwrap();
+        BRANCH_1.circuit.verify(branch_proof).unwrap();
     }
 
     #[tested_fixture::tested_fixture(ZERO_VM_BRANCH_PROOF: (HashOut<F>, ProofWithPublicInputs<F, C, D>))]
@@ -684,38 +737,30 @@ mod test {
     #[tested_fixture::tested_fixture(FULL_VM_BRANCH_PROOFS: [[(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES]; LEAF_VALUES])]
     fn verify_full_vm_branch(
     ) -> Result<[[(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES]; LEAF_VALUES]> {
-        NON_ZERO_LEAF_PROOFS
-            .each_ref()
-            .try_map_ext(|(non_zero_hash_1, non_zero_leaf_1)| {
-                NON_ZERO_LEAF_PROOFS
-                    .each_ref()
-                    .try_map_ext(|(non_zero_hash_2, non_zero_leaf_2)| {
-                        verify_branch_helper(
-                            *VM_BRANCH_1,
-                            non_zero_hash_1,
-                            non_zero_leaf_1,
-                            non_zero_hash_2,
-                            non_zero_leaf_2,
-                        )
-                    })
+        let leaf_proofs = NON_ZERO_LEAF_PROOFS.each_ref();
+        leaf_proofs.try_map_ext(|(non_zero_hash_1, non_zero_leaf_1)| {
+            leaf_proofs.try_map_ext(|(non_zero_hash_2, non_zero_leaf_2)| {
+                verify_branch_helper(
+                    *VM_BRANCH_1,
+                    non_zero_hash_1,
+                    non_zero_leaf_1,
+                    non_zero_hash_2,
+                    non_zero_leaf_2,
+                )
             })
+        })
     }
 
     #[test]
     fn verify_double_vm_branch() -> Result<()> {
         let branches = chain![
-            LEFT_VM_BRANCH_PROOFS.iter(),
-            RIGHT_VM_BRANCH_PROOFS.iter(),
-            FULL_VM_BRANCH_PROOFS.iter().flatten(),
+            [*ZERO_VM_BRANCH_PROOF],
+            LEFT_VM_BRANCH_PROOFS.iter().take(1),
+            RIGHT_VM_BRANCH_PROOFS.iter().take(1),
+            FULL_VM_BRANCH_PROOFS.iter().flat_map(|v| v.iter().take(1)),
         ];
 
-        let (ref zero_hash, ref zero_proof) = *ZERO_VM_BRANCH_PROOF;
-        verify_branch_helper(*VM_BRANCH_2, zero_hash, zero_proof, zero_hash, zero_proof)?;
-
         for (ref hash_1, ref proof_1) in branches.clone() {
-            verify_branch_helper(*VM_BRANCH_2, hash_1, proof_1, zero_hash, zero_proof)?;
-            verify_branch_helper(*VM_BRANCH_2, zero_hash, zero_proof, hash_1, proof_1)?;
-
             for (ref hash_2, ref proof_2) in branches.clone() {
                 verify_branch_helper(*VM_BRANCH_2, hash_1, proof_1, hash_2, proof_2)?;
                 verify_branch_helper(*VM_BRANCH_2, hash_2, proof_2, hash_1, proof_1)?;
@@ -725,14 +770,17 @@ mod test {
         Ok(())
     }
 
-    #[tested_fixture::tested_fixture(PAR_BRANCH_1)]
-    fn build_par_branch_1() -> DummyBranchCircuit<PartialAllowed> {
-        DummyBranchCircuit::<PartialAllowed>::from_leaf(&CONFIG, &LEAF, false)
-    }
-
-    #[tested_fixture::tested_fixture(PAR_BRANCH_2)]
-    fn build_par_branch_2() -> DummyBranchCircuit<PartialAllowed> {
-        DummyBranchCircuit::<PartialAllowed>::from_branch(&CONFIG, &PAR_BRANCH_1, false)
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_wrong_hash_vm_branch() {
+        let branch_proof = VM_BRANCH_1
+            .prove_unsafe(
+                NON_ZERO_LEAF_PROOFS[0].0,
+                &NON_ZERO_LEAF_PROOFS[0].1,
+                &NON_ZERO_LEAF_PROOFS[1].1,
+            )
+            .unwrap();
+        VM_BRANCH_1.circuit.verify(branch_proof).unwrap();
     }
 
     #[tested_fixture::tested_fixture(ZERO_PAR_BRANCH_PROOF: [(HashOut<F>, ProofWithPublicInputs<F, C, D>); 2])]
@@ -787,78 +835,59 @@ mod test {
     #[tested_fixture::tested_fixture(FULL_PAR_BRANCH_PROOFS: [[(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES]; LEAF_VALUES])]
     fn verify_full_partial_branch(
     ) -> Result<[[(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES]; LEAF_VALUES]> {
-        NON_ZERO_LEAF_PROOFS
-            .each_ref()
-            .try_map_ext(|(non_zero_hash_1, non_zero_leaf_1)| {
-                NON_ZERO_LEAF_PROOFS
-                    .each_ref()
-                    .try_map_ext(|(non_zero_hash_2, non_zero_leaf_2)| {
-                        verify_branch_helper(
-                            *PAR_BRANCH_1,
-                            non_zero_hash_1,
-                            non_zero_leaf_1,
-                            Some(non_zero_hash_2),
-                            Some(non_zero_leaf_2),
-                        )
-                    })
+        let leaf_proofs = NON_ZERO_LEAF_PROOFS.each_ref();
+        leaf_proofs.try_map_ext(|(non_zero_hash_1, non_zero_leaf_1)| {
+            leaf_proofs.try_map_ext(|(non_zero_hash_2, non_zero_leaf_2)| {
+                verify_branch_helper(
+                    *PAR_BRANCH_1,
+                    non_zero_hash_1,
+                    non_zero_leaf_1,
+                    Some(non_zero_hash_2),
+                    Some(non_zero_leaf_2),
+                )
             })
+        })
     }
 
     #[test]
-    #[ignore = "slow"]
-    fn verify_partial_branch() -> Result<()> {
+    fn verify_double_partial_branch() -> Result<()> {
         let branches = chain![
-            LEFT_PAR_BRANCH_PROOFS.iter().flatten(),
+            ZERO_PAR_BRANCH_PROOF.iter(),
+            LEFT_PAR_BRANCH_PROOFS.iter().flat_map(|v| v.iter().take(1)),
             RIGHT_PAR_BRANCH_PROOFS.iter(),
-            FULL_PAR_BRANCH_PROOFS.iter().flatten(),
+            FULL_PAR_BRANCH_PROOFS.iter().flat_map(|v| v.iter().take(1)),
         ];
 
-        for (ref zero_hash, ref zero_proof) in ZERO_PAR_BRANCH_PROOF.iter() {
-            verify_branch_helper(*PAR_BRANCH_2, zero_hash, zero_proof, None, None)?;
-            verify_branch_helper(
-                *PAR_BRANCH_2,
-                zero_hash,
-                zero_proof,
-                Some(zero_hash),
-                Some(zero_proof),
-            )?;
-
-            for (ref hash_1, ref proof_1) in branches.clone() {
-                verify_branch_helper(*PAR_BRANCH_2, hash_1, proof_1, None, None)?;
-                verify_branch_helper(
-                    *PAR_BRANCH_2,
-                    hash_1,
-                    proof_1,
-                    Some(zero_hash),
-                    Some(zero_proof),
-                )?;
-                verify_branch_helper(
-                    *PAR_BRANCH_2,
-                    zero_hash,
-                    zero_proof,
-                    Some(hash_1),
-                    Some(proof_1),
-                )?;
-
-                for (ref hash_2, ref proof_2) in branches.clone() {
-                    verify_branch_helper(
-                        *PAR_BRANCH_2,
-                        hash_1,
-                        proof_1,
-                        Some(hash_2),
-                        Some(proof_2),
-                    )?;
-                    verify_branch_helper(
-                        *PAR_BRANCH_2,
-                        hash_2,
-                        proof_2,
-                        Some(hash_1),
-                        Some(proof_1),
-                    )?;
-                }
+        for (ref hash_1, ref proof_1) in branches.clone() {
+            verify_branch_helper(*PAR_BRANCH_2, hash_1, proof_1, None, None)?;
+            for (ref hash_2, ref proof_2) in branches.clone() {
+                verify_branch_helper(*PAR_BRANCH_2, hash_1, proof_1, Some(hash_2), Some(proof_2))?;
+                verify_branch_helper(*PAR_BRANCH_2, hash_2, proof_2, Some(hash_1), Some(proof_1))?;
             }
         }
 
         Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_wrong_hash_partial_branch_1() {
+        let branch_proof = PAR_BRANCH_1
+            .prove_unsafe(
+                NON_ZERO_LEAF_PROOFS[0].0,
+                &NON_ZERO_LEAF_PROOFS[0].1,
+                Some(&NON_ZERO_LEAF_PROOFS[1].1),
+            )
+            .unwrap();
+        PAR_BRANCH_1.circuit.verify(branch_proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_wrong_hash_partial_branch_2() {
+        let branch_proof = PAR_BRANCH_1
+            .prove_unsafe(NON_ZERO_LEAF_PROOFS[0].0, &NON_ZERO_LEAF_PROOFS[1].1, None)
+            .unwrap();
+        PAR_BRANCH_1.circuit.verify(branch_proof).unwrap();
     }
 }

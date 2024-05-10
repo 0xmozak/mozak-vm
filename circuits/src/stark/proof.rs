@@ -394,11 +394,11 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         // TODO: Observe public values.
 
         let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
+        challenger.compact();
 
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
-                challenger.compact();
-                self.proofs[kind].get_challenges(&mut challenger, config)
+                self.proofs[kind].get_challenges(&mut challenger.clone(), config)
             }),
             ctl_challenges,
         }
