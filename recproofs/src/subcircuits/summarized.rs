@@ -194,19 +194,9 @@ impl BranchTargets {
 }
 
 impl BranchSubCircuit {
-    pub fn set_witness<F: RichField>(
-        &self,
-        inputs: &mut PartialWitness<F>,
-        summary_hash: Option<HashOut<F>>,
-    ) {
-        self.set_witness_unsafe(
-            inputs,
-            summary_hash.is_some(),
-            summary_hash.unwrap_or(HashOut::ZERO),
-        );
-    }
+    pub fn set_witness<F: RichField>(&self, _inputs: &mut PartialWitness<F>) {}
 
-    fn set_witness_unsafe<F: RichField>(
+    pub fn set_witness_unsafe<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
         summary_hash_present: bool,
@@ -225,6 +215,7 @@ mod test {
     use anyhow::Result;
     use array_util::ArrayExt;
     use itertools::chain;
+    use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
@@ -339,14 +330,13 @@ mod test {
 
         pub fn prove(
             &self,
-            summary_hash: Option<HashOut<F>>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.bounded
                 .set_witness(&mut inputs, left_proof, right_proof);
-            self.summarized.set_witness(&mut inputs, summary_hash);
+            self.summarized.set_witness(&mut inputs);
             self.circuit.prove(inputs)
         }
 
@@ -377,9 +367,20 @@ mod test {
         DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1)
     }
 
+    fn assert_value(proof: &ProofWithPublicInputs<F, C, D>, hash: Option<HashOut<F>>) {
+        let indices = &LEAF.summarized.indices;
+
+        let p_present = indices.summary_hash_present.get_any(&proof.public_inputs);
+        assert_eq!(p_present, F::from_bool(hash.is_some()));
+
+        let p_merged = indices.summary_hash.get_any(&proof.public_inputs);
+        assert_eq!(p_merged, hash.unwrap_or_default().elements);
+    }
+
     #[tested_fixture::tested_fixture(EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_empty_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(None)?;
+        assert_value(&proof, None);
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -387,6 +388,7 @@ mod test {
     #[tested_fixture::tested_fixture(ZERO_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_zero_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(Some(ZERO_HASH))?;
+        assert_value(&proof, Some(ZERO_HASH));
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -395,6 +397,7 @@ mod test {
     fn verify_leaf() -> Result<[(HashOut<F>, ProofWithPublicInputs<F, C, D>); LEAF_VALUES]> {
         NON_ZERO_VALUES.try_map_ext(|non_zero_hash| {
             let proof = LEAF.prove(Some(non_zero_hash))?;
+            assert_value(&proof, Some(non_zero_hash));
             LEAF.circuit.verify(proof.clone())?;
             Ok((non_zero_hash, proof))
         })
@@ -409,17 +412,22 @@ mod test {
 
     #[tested_fixture::tested_fixture(EMPTY_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_empty_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
-        let proof = BRANCH_1.prove(None, &EMPTY_LEAF_PROOF, &EMPTY_LEAF_PROOF)?;
+        let proof = BRANCH_1.prove(&EMPTY_LEAF_PROOF, &EMPTY_LEAF_PROOF)?;
+        assert_value(&proof, None);
         BRANCH_1.circuit.verify(proof.clone())?;
         Ok(proof)
     }
 
     #[tested_fixture::tested_fixture(ZERO_BRANCH_PROOFS: [(HashOut<F>, ProofWithPublicInputs<F, C, D>); 2])]
     fn verify_zero_branch() -> Result<[(HashOut<F>, ProofWithPublicInputs<F, C, D>); 2]> {
-        let proof_0 = BRANCH_1.prove(Some(ZERO_HASH), &EMPTY_LEAF_PROOF, &ZERO_LEAF_PROOF)?;
+        let proof_0 = BRANCH_1.prove(&EMPTY_LEAF_PROOF, &ZERO_LEAF_PROOF)?;
+        assert_value(&proof_0, Some(ZERO_HASH));
         BRANCH_1.circuit.verify(proof_0.clone())?;
-        let proof_1 = BRANCH_1.prove(Some(ZERO_HASH), &ZERO_LEAF_PROOF, &EMPTY_LEAF_PROOF)?;
+
+        let proof_1 = BRANCH_1.prove(&ZERO_LEAF_PROOF, &EMPTY_LEAF_PROOF)?;
+        assert_value(&proof_1, Some(ZERO_HASH));
         BRANCH_1.circuit.verify(proof_1.clone())?;
+
         Ok([(ZERO_HASH, proof_0), (ZERO_HASH, proof_1)])
     }
 
@@ -428,8 +436,8 @@ mod test {
         NON_ZERO_LEAF_PROOFS
             .each_ref()
             .try_map_ext(|&(non_zero_hash, ref non_zero_leaf)| {
-                let proof =
-                    BRANCH_1.prove(Some(non_zero_hash), non_zero_leaf, &EMPTY_LEAF_PROOF)?;
+                let proof = BRANCH_1.prove(non_zero_leaf, &EMPTY_LEAF_PROOF)?;
+                assert_value(&proof, Some(non_zero_hash));
                 BRANCH_1.circuit.verify(proof.clone())?;
                 Ok((non_zero_hash, proof))
             })
@@ -441,8 +449,8 @@ mod test {
         NON_ZERO_LEAF_PROOFS
             .each_ref()
             .try_map_ext(|&(non_zero_hash, ref non_zero_leaf)| {
-                let proof =
-                    BRANCH_1.prove(Some(non_zero_hash), &EMPTY_LEAF_PROOF, non_zero_leaf)?;
+                let proof = BRANCH_1.prove(&EMPTY_LEAF_PROOF, non_zero_leaf)?;
+                assert_value(&proof, Some(non_zero_hash));
                 BRANCH_1.circuit.verify(proof.clone())?;
                 Ok((non_zero_hash, proof))
             })
@@ -458,8 +466,8 @@ mod test {
                     .each_ref()
                     .try_map_ext(|(non_zero_hash_2, non_zero_leaf_2)| {
                         let both_hash = hash_branch(non_zero_hash_1, non_zero_hash_2);
-                        let proof =
-                            BRANCH_1.prove(Some(both_hash), non_zero_leaf_1, non_zero_leaf_2)?;
+                        let proof = BRANCH_1.prove(non_zero_leaf_1, non_zero_leaf_2)?;
+                        assert_value(&proof, Some(both_hash));
                         BRANCH_1.circuit.verify(proof.clone())?;
                         Ok((both_hash, proof))
                     })
@@ -473,11 +481,13 @@ mod test {
             .each_ref()
             .try_map_ext(|(non_zero_hash, non_zero_leaf)| {
                 let hash_0 = hash_branch(&ZERO_HASH, non_zero_hash);
-                let proof_0 = BRANCH_1.prove(Some(hash_0), &ZERO_LEAF_PROOF, non_zero_leaf)?;
+                let proof_0 = BRANCH_1.prove(&ZERO_LEAF_PROOF, non_zero_leaf)?;
+                assert_value(&proof_0, Some(hash_0));
                 BRANCH_1.circuit.verify(proof_0.clone())?;
 
                 let hash_1 = hash_branch(&ZERO_HASH, non_zero_hash);
-                let proof_1 = BRANCH_1.prove(Some(hash_1), &ZERO_LEAF_PROOF, non_zero_leaf)?;
+                let proof_1 = BRANCH_1.prove(&ZERO_LEAF_PROOF, non_zero_leaf)?;
+                assert_value(&proof_1, Some(hash_1));
                 BRANCH_1.circuit.verify(proof_1.clone())?;
 
                 Ok([(hash_0, proof_0), (hash_1, proof_1)])
@@ -496,19 +506,23 @@ mod test {
         ];
 
         for &(hash_1, ref proof_1) in branches.clone() {
-            let proof = BRANCH_2.prove(Some(hash_1), &EMPTY_BRANCH_PROOF, proof_1)?;
+            let proof = BRANCH_2.prove(&EMPTY_BRANCH_PROOF, proof_1)?;
+            assert_value(&proof, Some(hash_1));
             BRANCH_2.circuit.verify(proof)?;
 
-            let proof = BRANCH_2.prove(Some(hash_1), proof_1, &EMPTY_BRANCH_PROOF)?;
+            let proof = BRANCH_2.prove(proof_1, &EMPTY_BRANCH_PROOF)?;
+            assert_value(&proof, Some(hash_1));
             BRANCH_2.circuit.verify(proof)?;
 
             for &(hash_2, ref proof_2) in branches.clone() {
                 let both_hash = hash_branch(&hash_1, &hash_2);
-                let proof = BRANCH_2.prove(Some(both_hash), proof_1, proof_2)?;
+                let proof = BRANCH_2.prove(proof_1, proof_2)?;
+                assert_value(&proof, Some(both_hash));
                 BRANCH_2.circuit.verify(proof)?;
 
                 let both_hash = hash_branch(&hash_2, &hash_1);
-                let proof = BRANCH_2.prove(Some(both_hash), proof_2, proof_1)?;
+                let proof = BRANCH_2.prove(proof_2, proof_1)?;
+                assert_value(&proof, Some(both_hash));
                 BRANCH_2.circuit.verify(proof)?;
             }
         }
@@ -543,8 +557,9 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_wrong_hash_branch() {
         let branch_proof = BRANCH_1
-            .prove(
-                Some(NON_ZERO_LEAF_PROOFS[0].0),
+            .prove_unsafe(
+                true,
+                NON_ZERO_LEAF_PROOFS[0].0,
                 &NON_ZERO_LEAF_PROOFS[0].1,
                 &NON_ZERO_LEAF_PROOFS[1].1,
             )

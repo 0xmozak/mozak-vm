@@ -248,6 +248,7 @@ where
         let mut inputs = PartialWitness::new();
         self.bounded
             .set_witness(&mut inputs, left_proof, right_proof);
+        self.summarized.set_witness(&mut inputs);
         self.circuit.prove(inputs)
     }
 
@@ -266,13 +267,17 @@ where
         self.bounded
             .set_witness(&mut inputs, left_proof, right_proof);
         if let Some(summary_hash) = summary_hash {
-            self.summarized.set_witness(&mut inputs, summary_hash);
+            self.summarized.set_witness_unsafe(
+                &mut inputs,
+                summary_hash.is_some(),
+                summary_hash.unwrap_or_default(),
+            );
         }
         if let Some(old_hash) = old_hash {
-            self.old.set_witness(&mut inputs, old_hash);
+            self.old.set_witness_unsafe(&mut inputs, old_hash);
         }
         if let Some(new_hash) = new_hash {
-            self.new.set_witness(&mut inputs, new_hash);
+            self.new.set_witness_unsafe(&mut inputs, new_hash);
         }
         match address.into() {
             AddressPresent::Present(a) => self.address.set_witness(&mut inputs, Some(a)),

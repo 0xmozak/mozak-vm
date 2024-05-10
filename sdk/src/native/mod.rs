@@ -1,6 +1,7 @@
 pub(crate) mod calltape;
 pub(crate) mod eventtape;
 pub mod helpers;
+pub mod identity;
 pub(crate) mod inputtape;
 
 pub use eventtape::OrderedEvents;

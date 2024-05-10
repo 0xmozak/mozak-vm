@@ -249,8 +249,8 @@ where
             right_is_leaf,
             right_proof,
         );
-        self.hash.set_witness(&mut inputs, None, partial);
-        self.vm_hash.set_witness(&mut inputs, None, partial);
+        self.hash.set_witness(&mut inputs, partial);
+        self.vm_hash.set_witness(&mut inputs, partial);
         self.circuit.prove(inputs)
     }
 
@@ -259,8 +259,8 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn prove_unsafe(
         &self,
-        hash: Option<HashOut<F>>,
-        vm_hash: Option<HashOut<F>>,
+        hash: HashOut<F>,
+        vm_hash: HashOut<F>,
         event_owner: Option<[F; 4]>,
         left_is_leaf: bool,
         left_proof: &ProofWithPublicInputs<F, C, D>,
@@ -280,8 +280,9 @@ where
             right_is_leaf,
             right_proof,
         );
-        self.hash.set_witness(&mut inputs, hash, partial);
-        self.vm_hash.set_witness(&mut inputs, vm_hash, partial);
+        self.hash.set_witness_unsafe(&mut inputs, hash, partial);
+        self.vm_hash
+            .set_witness_unsafe(&mut inputs, vm_hash, partial);
         if let Some(event_owner) = event_owner {
             self.event_owner.set_witness(&mut inputs, event_owner);
         }
@@ -535,8 +536,8 @@ pub mod test {
         // This tree requires all events are from the same program
         BRANCH
             .prove_unsafe(
-                Some(branch_1_hash),
-                Some(branch_1_bytes_hash),
+                branch_1_hash,
+                branch_1_bytes_hash,
                 Some(program_hash_1),
                 true,
                 &read_proof_1,
