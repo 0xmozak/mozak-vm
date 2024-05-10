@@ -234,6 +234,44 @@ pub fn summarize<F: Field + RichField>(
     Poseidon2Hash::hash_no_pad(&inputs)
 }
 
+/// Computes `if b { false } else { t }`
+pub(crate) fn false_if<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    b: BoolTarget,
+    t: BoolTarget,
+) -> BoolTarget
+where
+    F: RichField + Extendable<D>, {
+    BoolTarget::new_unsafe(zero_if(builder, b, t.target))
+}
+
+/// Computes `if b { zero } else { t }`
+pub(crate) fn zero_if<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    b: BoolTarget,
+    t: Target,
+) -> Target
+where
+    F: RichField + Extendable<D>, {
+    // (1-b) * t
+    // t - b*t
+    // -1*b*t + 1*t
+    builder.arithmetic(F::NEG_ONE, F::ONE, b.target, t, t)
+}
+
+/// Computes `if b { zero } else { t }`
+pub(crate) fn zero_hash_if<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    b: BoolTarget,
+    t: HashOutTarget,
+) -> HashOutTarget
+where
+    F: RichField + Extendable<D>, {
+    HashOutTarget {
+        elements: t.elements.map(|t| zero_if(builder, b, t)),
+    }
+}
+
 /// Computes `if b { h0 } else { h1 }`.
 pub(crate) fn select_hash<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,

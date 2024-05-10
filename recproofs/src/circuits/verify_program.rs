@@ -13,6 +13,7 @@ use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::{build_event_root, merge};
 use crate::connect_arrays;
+use crate::subcircuits::unpruned::PartialAllowed;
 use crate::subcircuits::{propagate, unbounded, unpruned};
 
 pub mod core;
@@ -184,7 +185,7 @@ where
     pub unbounded: unbounded::BranchSubCircuit<D>,
 
     /// The program identifier
-    pub program_id: unpruned::BranchSubCircuit,
+    pub program_id: unpruned::BranchSubCircuit<PartialAllowed>,
 
     // The events list
     pub events: merge::embed::BranchSubCircuit<D>,
@@ -220,7 +221,7 @@ where
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
-        let program_id_targets = program_id_inputs.build_branch(
+        let program_id_targets = program_id_inputs.build_extended_branch(
             &mut builder,
             &leaf.program_id.indices,
             &unbounded_targets.left_proof,
@@ -245,6 +246,12 @@ where
             &leaf.cast_root.indices,
             &unbounded_targets.left_proof,
             &unbounded_targets.right_proof,
+        );
+
+        // Connect the partials
+        builder.connect(
+            events_targets.partial.target,
+            program_id_targets.extension.partial.target,
         );
 
         let circuit = builder.build();
@@ -273,10 +280,11 @@ where
         merge: &ProofWithPublicInputs<F, C, D>,
         left_is_leaf: bool,
         left_proof: &ProofWithPublicInputs<F, C, D>,
-        right_is_leaf: bool,
-        right_proof: &ProofWithPublicInputs<F, C, D>,
+        right_proof: Option<(bool, &ProofWithPublicInputs<F, C, D>)>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
+        let partial = right_proof.is_none();
+        let (right_is_leaf, right_proof) = right_proof.unwrap_or((left_is_leaf, left_proof));
         self.unbounded.set_witness(
             &mut inputs,
             left_is_leaf,
@@ -284,7 +292,7 @@ where
             right_is_leaf,
             right_proof,
         );
-        self.events.set_witness(&mut inputs, merge);
+        self.events.set_witness(&mut inputs, partial, merge);
         self.circuit.prove(inputs)
     }
 }
@@ -302,7 +310,10 @@ pub mod test {
     use super::*;
     use crate::circuits::build_event_root::test as build_event_root;
     use crate::circuits::merge::test as merge;
-    use crate::circuits::test_data::{CALL_LISTS, CAST_ROOT, PROGRAM_HASHES};
+    use crate::circuits::test_data::{
+        CALL_LISTS, CAST_PM_P0, CAST_PM_P1, CAST_ROOT, CAST_T0, CAST_T1, PROGRAM_HASHES, T0_HASH,
+        T0_PM_P0_HASH, T1_B_HASH, T1_HASH, T1_P2_HASH,
+    };
     use crate::indices::{ArrayTargetIndex, BoolTargetIndex, HashTargetIndex};
     use crate::test_utils::{C, CONFIG, D, F, NON_ZERO_VALUES, ZERO_VAL};
 
@@ -435,7 +446,7 @@ pub mod test {
         BranchCircuit::new(&CONFIG, &merge::BRANCH, &LEAF)
     }
 
-    fn assert_leaf(
+    fn assert_value(
         proof: &ProofWithPublicInputs<F, C, D>,
         event_hash: Option<HashOut<F>>,
         pid: [F; 4],
@@ -478,7 +489,7 @@ pub mod test {
             &program_proof,
             event_proof,
         )?;
-        assert_leaf(&proof, Some(hash), program.program_hash_val);
+        assert_value(&proof, Some(hash), program.program_hash_val);
         LEAF.circuit.verify(proof.clone())?;
         Ok((proof, hash, program.program_hash_val))
     }
@@ -635,12 +646,12 @@ pub mod test {
     #[tested_fixture::tested_fixture(T0_PM_P0_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_t0_pm_p0_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = BRANCH.prove(
-            &merge::T0_PM_P0_BRANCH_PROOF.0,
+            *merge::T0_PM_P0_BRANCH_PROOF,
             true,
             &T0_PM_LEAF_PROOF.0,
-            true,
-            &T0_P0_LEAF_PROOF.0,
+            Some((true, &T0_P0_LEAF_PROOF.0)),
         )?;
+        assert_value(&proof, Some(*T0_PM_P0_HASH), *CAST_PM_P0);
         BRANCH.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -650,10 +661,10 @@ pub mod test {
         let proof = BRANCH.prove(
             *merge::T0_BRANCH_PROOF,
             false,
-            &T0_PM_P0_BRANCH_PROOF,
-            true,
-            &T0_P2_LEAF_PROOF.0,
+            *T0_PM_P0_BRANCH_PROOF,
+            Some((true, &T0_P2_LEAF_PROOF.0)),
         )?;
+        assert_value(&proof, Some(*T0_HASH), *CAST_T0);
         BRANCH.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -664,9 +675,9 @@ pub mod test {
             *merge::T1_PM_P1_BRANCH_PROOF,
             true,
             &T1_PM_LEAF_PROOF.0,
-            true,
-            &T1_P1_LEAF_PROOF.0,
+            Some((true, &T1_P1_LEAF_PROOF.0)),
         )?;
+        assert_value(&proof, Some(*T1_B_HASH), *CAST_PM_P1);
         BRANCH.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -677,11 +688,37 @@ pub mod test {
             *merge::T1_BRANCH_PROOF,
             false,
             &T1_PM_P1_BRANCH_PROOF,
-            true,
-            &T1_P2_LEAF_PROOF.0,
+            Some((true, &T1_P2_LEAF_PROOF.0)),
         )?;
+        assert_value(&proof, Some(*T1_HASH), *CAST_T1);
         BRANCH.circuit.verify(proof.clone())?;
         Ok(proof)
+    }
+
+    #[test]
+    fn verify_partial_branch_1() -> Result<()> {
+        let proof = BRANCH.prove(
+            *merge::T1_P2_PARTIAL_BRANCH_PROOF,
+            true,
+            &T1_P2_LEAF_PROOF.0,
+            None,
+        )?;
+        assert_value(&proof, Some(*T1_P2_HASH), PROGRAM_HASHES[2]);
+        BRANCH.circuit.verify(proof)?;
+        Ok(())
+    }
+
+    #[test]
+    fn verify_partial_branch_2() -> Result<()> {
+        let proof = BRANCH.prove(
+            *merge::T1_PM_P1_PARTIAL_BRANCH_PROOF,
+            false,
+            &T1_PM_P1_BRANCH_PROOF,
+            None,
+        )?;
+        assert_value(&proof, Some(*T1_B_HASH), *CAST_PM_P1);
+        BRANCH.circuit.verify(proof)?;
+        Ok(())
     }
 
     #[test]
@@ -689,12 +726,11 @@ pub mod test {
     fn bad_branch_hash_merge_1() {
         let proof = BRANCH
             .prove(
-                &merge::T0_PM_P0_BRANCH_PROOF.0,
+                *merge::T0_PM_P0_BRANCH_PROOF,
                 // Flip the merge to break stuff
                 true,
                 &T0_P0_LEAF_PROOF.0,
-                true,
-                &T0_PM_LEAF_PROOF.0,
+                Some((true, &T0_PM_LEAF_PROOF.0)),
             )
             .unwrap();
         BRANCH.circuit.verify(proof.clone()).unwrap();
@@ -709,8 +745,7 @@ pub mod test {
                 // Flip the merge to break stuff
                 true,
                 &T0_P2_LEAF_PROOF.0,
-                false,
-                &T0_PM_P0_BRANCH_PROOF,
+                Some((false, *T0_PM_P0_BRANCH_PROOF)),
             )
             .unwrap();
         BRANCH.circuit.verify(proof.clone()).unwrap();
@@ -721,11 +756,10 @@ pub mod test {
     fn bad_branch_call_list() {
         let proof = BRANCH
             .prove(
-                &merge::T0_PM_P0_BRANCH_PROOF.0,
+                *merge::T0_PM_P0_BRANCH_PROOF,
                 true,
                 &T0_PM_BAD_CALL_LEAF_PROOF.0,
-                true,
-                &T0_P0_LEAF_PROOF.0,
+                Some((true, &T0_P0_LEAF_PROOF.0)),
             )
             .unwrap();
         BRANCH.circuit.verify(proof.clone()).unwrap();
