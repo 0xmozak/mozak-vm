@@ -847,3 +847,8 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[patch.unused]]
+name = "starky"
+version = "0.4.0"
+source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
