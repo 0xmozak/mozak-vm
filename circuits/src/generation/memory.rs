@@ -176,6 +176,13 @@ pub fn generate_memory_trace<F: RichField>(
 
     // How to deal with ecalls etc?  We probably want to enforce that they do
     // aligned access only, and then send them to one of the full-word tables?
+    // Yes, we can do that later.  Not necessarily for the first version, because of
+    // how our benchmark works.
+
+    // Idea: construct the set of all memory addreseses used.
+    // Partition it into the set of addresses that are only accessed by lw/sw, and
+    // the rest. As a matter of practicality, we need to break apart the lw/sw
+    // accesses.
 
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)

@@ -42,8 +42,7 @@ use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-use crate::generation::memoryinit::
-    generate_elf_memory_init_trace;
+use crate::generation::memoryinit::generate_elf_memory_init_trace;
 use crate::ops;
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
@@ -80,8 +79,11 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let skeleton_rows = generate_cpu_skeleton_trace(record);
     let add_rows = ops::add::generate(record);
     let blt_taken_rows = ops::blt_taken::generate(record);
+
+    // TODO(Matthias): we need to break these apart.
     let store_word_rows = ops::sw::generate(&record.executed);
     let load_word_rows = ops::lw::generate(&record.executed);
+
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);

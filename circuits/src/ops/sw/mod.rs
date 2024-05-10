@@ -157,38 +157,41 @@ use crate::utils::pad_trace_with_default;
 
 #[must_use]
 pub fn generate<F: RichField>(executed: &[Row<F>]) -> Vec<StoreWord<F>> {
-    let mut trace: Vec<StoreWord<F>> = vec![];
-    for Row {
-        state,
-        instruction: inst,
-        aux,
-    } in executed
-    {
-        if let Op::SW = inst.op {
-            let rs1_selected = inst.args.rs1;
-            let rs2_selected = inst.args.rs2;
-            let op1_value = state.get_register_value(rs1_selected);
-            let op2_value = state.get_register_value(rs2_selected);
-            let imm_value = inst.args.imm;
-            let address = aux.mem.unwrap().addr;
-            assert_eq!(address, op2_value.wrapping_add(imm_value));
-            let op1_limbs = op1_value.to_le_bytes().map(u32::from);
-            let row = StoreWord {
-                inst: Instruction {
-                    pc: state.get_pc(),
-                    rs1_selected: u32::from(rs1_selected),
-                    rs2_selected: u32::from(rs2_selected),
-                    imm_value,
+    pad_trace_with_default(
+        executed
+            .iter()
+            .filter(|row| (Op::SW == row.instruction.op))
+            .map(
+                |Row {
+                     state,
+                     instruction: inst,
+                     aux,
+                 }| {
+                    let rs1_selected = inst.args.rs1;
+                    let rs2_selected = inst.args.rs2;
+                    let op1_value = state.get_register_value(rs1_selected);
+                    let op2_value = state.get_register_value(rs2_selected);
+                    let imm_value = inst.args.imm;
+                    let address = aux.mem.unwrap().addr;
+                    assert_eq!(address, op2_value.wrapping_add(imm_value));
+                    let op1_limbs = op1_value.to_le_bytes().map(u32::from);
+
+                    StoreWord {
+                        inst: Instruction {
+                            pc: state.get_pc(),
+                            rs1_selected: u32::from(rs1_selected),
+                            rs2_selected: u32::from(rs2_selected),
+                            imm_value,
+                        },
+                        clk: u32::try_from(state.clk).unwrap(),
+                        op1_limbs,
+                        op2_value,
+                        address,
+                        is_running: 1,
+                    }
+                    .map(F::from_canonical_u32)
                 },
-                clk: u32::try_from(state.clk).unwrap(),
-                op1_limbs,
-                op2_value,
-                address,
-                is_running: 1,
-            }
-            .map(F::from_canonical_u32);
-            trace.push(row);
-        }
-    }
-    pad_trace_with_default(trace)
+            )
+            .collect(),
+    )
 }

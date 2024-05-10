@@ -152,40 +152,42 @@ use crate::utils::pad_trace_with_default;
 
 #[must_use]
 pub fn generate<F: RichField>(executed: &[Row<F>]) -> Vec<LoadWord<F>> {
-    let mut trace: Vec<LoadWord<F>> = vec![];
-    for Row {
-        state,
-        instruction: inst,
-        aux,
-    } in executed
-    {
-        if let Op::LW = inst.op {
-            let rs2_selected = inst.args.rs2;
-            let rd_selected = inst.args.rd;
-            let op2_value = state.get_register_value(rs2_selected);
-            let imm_value = inst.args.imm;
-            let address = aux.mem.unwrap().addr;
-            let dst_value = aux.mem.unwrap().raw_value;
-            let dst_value_from_aux = aux.dst_val;
-            assert_eq!(dst_value, dst_value_from_aux);
-            assert_eq!(address, op2_value.wrapping_add(imm_value));
-            let dst_limbs = aux.dst_val.to_le_bytes().map(u32::from);
-            let row = LoadWord {
-                inst: Instruction {
-                    pc: state.get_pc(),
-                    rs2_selected: u32::from(rs2_selected),
-                    rd_selected: u32::from(rd_selected),
-                    imm_value,
+    pad_trace_with_default(
+        executed
+            .iter()
+            .filter(|row| (Op::LW == row.instruction.op))
+            .map(
+                |Row {
+                     state,
+                     instruction: inst,
+                     aux,
+                 }| {
+                    let rs2_selected = inst.args.rs2;
+                    let rd_selected = inst.args.rd;
+                    let op2_value = state.get_register_value(rs2_selected);
+                    let imm_value = inst.args.imm;
+                    let address = aux.mem.unwrap().addr;
+                    let dst_value = aux.mem.unwrap().raw_value;
+                    let dst_value_from_aux = aux.dst_val;
+                    assert_eq!(dst_value, dst_value_from_aux);
+                    assert_eq!(address, op2_value.wrapping_add(imm_value));
+                    let dst_limbs = aux.dst_val.to_le_bytes().map(u32::from);
+                    LoadWord {
+                        inst: Instruction {
+                            pc: state.get_pc(),
+                            rs2_selected: u32::from(rs2_selected),
+                            rd_selected: u32::from(rd_selected),
+                            imm_value,
+                        },
+                        clk: u32::try_from(state.clk).unwrap(),
+                        op2_value,
+                        address,
+                        dst_limbs,
+                        is_running: 1,
+                    }
+                    .map(F::from_canonical_u32)
                 },
-                clk: u32::try_from(state.clk).unwrap(),
-                op2_value,
-                address,
-                dst_limbs,
-                is_running: 1,
-            }
-            .map(F::from_canonical_u32);
-            trace.push(row);
-        }
-    }
-    pad_trace_with_default(trace)
+            )
+            .collect(),
+    )
 }
