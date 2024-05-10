@@ -343,7 +343,7 @@ tt_call::tt_call! {
     ~~> mozak_stark_helpers
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Copy, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
 #[serde(bound = "T: Serialize + DeserializeOwned")]
 pub struct TableKindArray<T>(#[serde(with = "BigArray")] pub [T; TableKind::COUNT]);
