@@ -2,8 +2,26 @@
 
 use std::str::from_utf8;
 
-use mozak_sdk::core::ecall;
 use plonky2::hash::hash_types::RichField;
+use sdk_core_types::ecall_id;
+
+#[must_use]
+pub fn log<'a>(raw_id: u32) -> &'a str {
+    match raw_id {
+        ecall_id::HALT => "halt",
+        ecall_id::PANIC => "panic",
+        ecall_id::PUBLIC_TAPE => "ioread public tape",
+        ecall_id::POSEIDON2 => "poseidon2",
+        ecall_id::PRIVATE_TAPE => "ioread private tape",
+        ecall_id::CALL_TAPE => "ioread call tape",
+        ecall_id::EVENT_TAPE => "ioread event tape",
+        ecall_id::EVENTS_COMMITMENT_TAPE => "ioread events commitment tape",
+        ecall_id::CAST_LIST_COMMITMENT_TAPE => "ioread cast list commitment tape",
+        ecall_id::SELF_PROG_ID_TAPE => "self prog id tape",
+        ecall_id::VM_TRACE_LOG => "vm trace log",
+        _ => "",
+    }
+}
 
 use crate::reg_abi::{REG_A0, REG_A1, REG_A2};
 use crate::state::{read_bytes, Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
@@ -134,23 +152,24 @@ impl<F: RichField> State<F> {
     pub fn ecall(self) -> (Aux<F>, Self) {
         log::trace!(
             "ecall '{}' at clk: {}",
-            ecall::log(self.get_register_value(REG_A0)),
+            log(self.get_register_value(REG_A0)),
             self.clk
         );
         match self.get_register_value(REG_A0) {
-            ecall::HALT => self.ecall_halt(),
-            ecall::PRIVATE_TAPE => self.ecall_read(StorageDeviceOpcode::StorePrivate),
-            ecall::PUBLIC_TAPE => self.ecall_read(StorageDeviceOpcode::StorePublic),
-            ecall::CALL_TAPE => self.ecall_read(StorageDeviceOpcode::StoreCallTape),
-            ecall::EVENT_TAPE => self.ecall_read(StorageDeviceOpcode::StoreEventTape),
-            ecall::EVENTS_COMMITMENT_TAPE =>
+            ecall_id::HALT => self.ecall_halt(),
+            ecall_id::PRIVATE_TAPE => self.ecall_read(StorageDeviceOpcode::StorePrivate),
+            ecall_id::PUBLIC_TAPE => self.ecall_read(StorageDeviceOpcode::StorePublic),
+            ecall_id::CALL_TAPE => self.ecall_read(StorageDeviceOpcode::StoreCallTape),
+            ecall_id::EVENT_TAPE => self.ecall_read(StorageDeviceOpcode::StoreEventTape),
+            ecall_id::EVENTS_COMMITMENT_TAPE =>
                 self.ecall_read(StorageDeviceOpcode::StoreEventsCommitmentTape),
-            ecall::CAST_LIST_COMMITMENT_TAPE =>
+            ecall_id::CAST_LIST_COMMITMENT_TAPE =>
                 self.ecall_read(StorageDeviceOpcode::StoreCastListCommitmentTape),
-            ecall::SELF_PROG_ID_TAPE => self.ecall_read(StorageDeviceOpcode::StoreSelfProgIdTape),
-            ecall::PANIC => self.ecall_panic(),
-            ecall::POSEIDON2 => self.ecall_poseidon2(),
-            ecall::VM_TRACE_LOG => self.ecall_trace_log(),
+            ecall_id::SELF_PROG_ID_TAPE =>
+                self.ecall_read(StorageDeviceOpcode::StoreSelfProgIdTape),
+            ecall_id::PANIC => self.ecall_panic(),
+            ecall_id::POSEIDON2 => self.ecall_poseidon2(),
+            ecall_id::VM_TRACE_LOG => self.ecall_trace_log(),
             _ => (Aux::default(), self.bump_pc()),
         }
     }

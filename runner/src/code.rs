@@ -4,8 +4,8 @@ use anyhow::Result;
 use derive_more::{Deref, IntoIterator};
 use im::hashmap::HashMap;
 use itertools::{chain, izip};
-use mozak_sdk::core::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
+use sdk_core_types::ecall_id;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::{decode_instruction, ECALL};
@@ -74,7 +74,7 @@ pub fn execute_code_with_ro_memory(
                     op: Op::ADD,
                     args: Args {
                         rd: 10,
-                        imm: ecall::HALT,
+                        imm: ecall_id::HALT,
                         ..Args::default()
                     },
                 },

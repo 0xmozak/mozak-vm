@@ -7,8 +7,8 @@ use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
-use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::hash::hash_types::RichField;
+use sdk_core_types::constants::poseidon2::DIGEST_BYTES;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;

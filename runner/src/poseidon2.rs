@@ -1,11 +1,11 @@
 use std::iter::repeat;
 
 use itertools::{chain, izip};
-use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::{Poseidon2Permutation, WIDTH};
 use plonky2::plonk::config::GenericHashOut;
+use sdk_core_types::constants::poseidon2::DIGEST_BYTES;
 
 use crate::reg_abi::{REG_A1, REG_A2, REG_A3};
 use crate::state::{Aux, State};
