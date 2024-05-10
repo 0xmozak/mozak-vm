@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use itertools::chain;
+use itertools::{chain, iproduct};
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -143,6 +143,25 @@ fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
         memory.addr.to_canonical_u64(),
         memory.clk.to_canonical_u64(),
     )
+}
+
+// TODO(Matthias): deduplicate logic perhaps?
+// TODO(Matthias): use this when generating LW/SW traces and memory init traces?
+/// The memory addresses that can't be used for aligned-only access, because
+/// they have a byte or half-word access at some point in their history.
+#[must_use]
+pub fn poisoned_for_aligned_access<F: RichField>(step_rows: &[Row<F>]) -> HashSet<u32> {
+    step_rows
+        .iter()
+        // For now, ecalls are considered unaligned.  We'll change that later.
+        .filter(|row| !matches!(row.instruction.op, Op::LW | Op::SW))
+        .flat_map(|row| {
+            // We need the offset here, because accessing a byte at address 11, also messes
+            // with word access at address 8
+            iproduct!(&row.aux.mem_addresses_used, 0..4)
+                .map(|(addr, offset)| addr.wrapping_sub(offset))
+        })
+        .collect()
 }
 
 /// Generates memory trace using static component `program` for memory

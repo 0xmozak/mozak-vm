@@ -41,6 +41,7 @@ use self::storage_device::{
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
+use crate::generation::memory::poisoned_for_aligned_access;
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::generate_elf_memory_init_trace;
 use crate::ops;
@@ -80,6 +81,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let add_rows = ops::add::generate(record);
     let blt_taken_rows = ops::blt_taken::generate(record);
 
+    let _ = poisoned_for_aligned_access(&record.executed);
     // TODO(Matthias): we need to break these apart.
     let store_word_rows = ops::sw::generate(&record.executed);
     let load_word_rows = ops::lw::generate(&record.executed);

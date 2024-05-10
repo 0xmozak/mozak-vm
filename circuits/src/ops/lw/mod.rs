@@ -155,7 +155,7 @@ pub fn generate<F: RichField>(executed: &[Row<F>]) -> Vec<LoadWord<F>> {
     pad_trace_with_default(
         executed
             .iter()
-            .filter(|row| (Op::LW == row.instruction.op))
+            .filter(|row| matches!(row.instruction.op, Op::LW))
             .map(
                 |Row {
                      state,
