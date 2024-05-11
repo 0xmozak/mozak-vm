@@ -448,9 +448,8 @@ impl<const D: usize> StateUpdateVerifierSubCircuit<D> {
 mod test {
     use std::panic::catch_unwind;
 
-    use anyhow::Result;
     use plonky2::field::types::Field;
-    use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+    use plonky2::plonk::circuit_data::CircuitConfig;
 
     use super::*;
     use crate::test_utils::{C, CONFIG, D, F, NON_ZERO_HASHES, ZERO_HASH};
