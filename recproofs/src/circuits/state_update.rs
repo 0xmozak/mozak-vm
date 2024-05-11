@@ -307,14 +307,23 @@ impl From<u64> for AddressPresent {
 
 #[cfg(test)]
 pub mod test {
+    use once_cell::sync::Lazy;
     use plonky2::field::types::Field;
 
     use super::*;
     use crate::circuits::test_data::{
-        ADDRESS_A, ADDRESS_B, ADDRESS_C, ADDRESS_D, ADDRESS_E, STATE_0, STATE_1, ZERO_OBJ_HASH,
+        ADDRESS_A, ADDRESS_A_SUMMARY_HASH, ADDRESS_B, ADDRESS_BCD_SUMMARY_HASH,
+        ADDRESS_BC_SUMMARY_HASH, ADDRESS_B_SUMMARY_HASH, ADDRESS_C, ADDRESS_C_SUMMARY_HASH,
+        ADDRESS_D, ADDRESS_D_SUMMARY_HASH, ADDRESS_E, ROOT_SUMMARY_HASH, STATE_0_BRANCH_HASHES,
+        STATE_0_DOUBLE_BRANCH_HASHES, STATE_0_LEAF_HASHES, STATE_0_ROOT_HASH,
+        STATE_1_BRANCH_HASHES, STATE_1_DOUBLE_BRANCH_HASHES, STATE_1_LEAF_HASHES,
+        STATE_1_ROOT_HASH, ZERO_OBJ_HASH,
     };
     use crate::summarize;
     use crate::test_utils::{hash_branch, C, CONFIG, D, F, NON_ZERO_HASHES, ZERO_HASH};
+
+    static EMPTY_BRANCH_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| hash_branch(&ZERO_OBJ_HASH, &ZERO_OBJ_HASH));
 
     #[tested_fixture::tested_fixture(LEAF)]
     fn build_leaf() -> LeafCircuit<F, C, D> { LeafCircuit::new(&CONFIG) }
@@ -328,20 +337,33 @@ pub mod test {
     #[tested_fixture::tested_fixture(pub BRANCH_3)]
     fn build_branch_3() -> BranchCircuit<F, C, D> { BranchCircuit::from_branch(&CONFIG, &BRANCH_2) }
 
-    fn assert_leaf(proof: &ProofWithPublicInputs<F, C, D>, summary: Option<HashOut<F>>) {
-        let indices = &LEAF.summarized.indices;
-        let p_summary_present = indices.summary_hash_present.get_any(&proof.public_inputs);
-        assert_eq!(p_summary_present, F::from_bool(summary.is_some()));
-
-        let p_summary = indices.summary_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_summary, summary.unwrap_or_default().elements);
-    }
-
-    fn assert_branch(
+    fn assert_proof(
         proof: &ProofWithPublicInputs<F, C, D>,
+        old_state: HashOut<F>,
+        new_state: HashOut<F>,
         summary_address: Option<(HashOut<F>, u64)>,
     ) {
+        let indices = &LEAF.old.indices;
+        assert_eq!(indices, &BRANCH_1.old.indices);
+        assert_eq!(indices, &BRANCH_2.old.indices);
+        assert_eq!(indices, &BRANCH_3.old.indices);
+
+        let p_old = indices.unpruned_hash.get_any(&proof.public_inputs);
+        assert_eq!(p_old, old_state.elements);
+
+        let indices = &LEAF.new.indices;
+        assert_eq!(indices, &BRANCH_1.new.indices);
+        assert_eq!(indices, &BRANCH_2.new.indices);
+        assert_eq!(indices, &BRANCH_3.new.indices);
+
+        let p_new = indices.unpruned_hash.get_any(&proof.public_inputs);
+        assert_eq!(p_new, new_state.elements);
+
         let indices = &LEAF.summarized.indices;
+        assert_eq!(indices, &BRANCH_1.summarized.indices);
+        assert_eq!(indices, &BRANCH_2.summarized.indices);
+        assert_eq!(indices, &BRANCH_3.summarized.indices);
+
         let p_summary_present = indices.summary_hash_present.get_any(&proof.public_inputs);
         assert_eq!(p_summary_present, F::from_bool(summary_address.is_some()));
 
@@ -349,6 +371,10 @@ pub mod test {
         assert_eq!(p_summary, summary_address.unwrap_or_default().0.elements);
 
         let indices = &LEAF.address.indices;
+        assert_eq!(indices, &BRANCH_1.address.indices);
+        assert_eq!(indices, &BRANCH_2.address.indices);
+        assert_eq!(indices, &BRANCH_3.address.indices);
+
         let p_address = indices.node_address.get(&proof.public_inputs);
         assert_eq!(
             p_address,
@@ -359,67 +385,73 @@ pub mod test {
     #[tested_fixture::tested_fixture(EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_empty_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(*ZERO_OBJ_HASH, *ZERO_OBJ_HASH, None)?;
-        assert_leaf(&proof, None);
+        assert_proof(&proof, *ZERO_OBJ_HASH, *ZERO_OBJ_HASH, None);
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(UPDATE_LEAF_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_update_leaf() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let old = STATE_0[ADDRESS_A].hash();
-        let new = STATE_1[ADDRESS_A].hash();
+    #[tested_fixture::tested_fixture(A_UPDATE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_a_update_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let (old, new) = (
+            STATE_0_LEAF_HASHES[ADDRESS_A],
+            STATE_1_LEAF_HASHES[ADDRESS_A],
+        );
         let a = ADDRESS_A as u64;
-        let summary = summarize(a, old, new);
         let proof = LEAF.prove(old, new, Some(a))?;
-        assert_leaf(&proof, Some(summary));
+        assert_proof(&proof, old, new, Some((*ADDRESS_A_SUMMARY_HASH, a)));
         LEAF.circuit.verify(proof.clone())?;
-        Ok((proof, summary))
+        Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(DELETE_LEAF_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_delete_leaf() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let old = STATE_0[ADDRESS_B].hash();
-        let new = STATE_1[ADDRESS_B].hash();
+    #[tested_fixture::tested_fixture(B_DELETE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_b_delete_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let (old, new) = (
+            STATE_0_LEAF_HASHES[ADDRESS_B],
+            STATE_1_LEAF_HASHES[ADDRESS_B],
+        );
         let a = ADDRESS_B as u64;
-        let summary = summarize(a, old, new);
         let proof = LEAF.prove(old, new, Some(a))?;
-        assert_leaf(&proof, Some(summary));
+        assert_proof(&proof, old, new, Some((*ADDRESS_B_SUMMARY_HASH, a)));
         LEAF.circuit.verify(proof.clone())?;
-        Ok((proof, summary))
+        Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(CREATE_LEAF_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_create_leaf() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let old = STATE_0[ADDRESS_C].hash();
-        let new = STATE_1[ADDRESS_C].hash();
+    #[tested_fixture::tested_fixture(C_CREATE_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_c_create_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let (old, new) = (
+            STATE_0_LEAF_HASHES[ADDRESS_C],
+            STATE_1_LEAF_HASHES[ADDRESS_C],
+        );
         let a = ADDRESS_C as u64;
-        let summary = summarize(a, old, new);
         let proof = LEAF.prove(old, new, Some(a))?;
-        assert_leaf(&proof, Some(summary));
+        assert_proof(&proof, old, new, Some((*ADDRESS_C_SUMMARY_HASH, a)));
         LEAF.circuit.verify(proof.clone())?;
-        Ok((proof, summary))
+        Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(READ_LEAF_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_read_leaf() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let old = STATE_0[ADDRESS_D].hash();
-        let new = STATE_1[ADDRESS_D].hash();
+    #[tested_fixture::tested_fixture(D_READ_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_d_read_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let (old, new) = (
+            STATE_0_LEAF_HASHES[ADDRESS_D],
+            STATE_1_LEAF_HASHES[ADDRESS_D],
+        );
         assert_eq!(old, new);
         let a = ADDRESS_D as u64;
-        let summary = summarize(a, old, new);
         let proof = LEAF.prove(old, new, Some(a))?;
-        assert_leaf(&proof, Some(summary));
+        assert_proof(&proof, old, new, Some((*ADDRESS_D_SUMMARY_HASH, a)));
         LEAF.circuit.verify(proof.clone())?;
-        Ok((proof, summary))
+        Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(IGNORED_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
-    fn verify_ignored_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
-        let old = STATE_0[ADDRESS_E].hash();
-        let new = STATE_1[ADDRESS_E].hash();
+    #[tested_fixture::tested_fixture(E_IGNORED_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_e_ignored_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let (old, new) = (
+            STATE_0_LEAF_HASHES[ADDRESS_E],
+            STATE_1_LEAF_HASHES[ADDRESS_E],
+        );
         assert_eq!(old, new);
         let proof = LEAF.prove(old, new, None)?;
-        assert_leaf(&proof, None);
+        assert_proof(&proof, old, new, None);
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
@@ -474,78 +506,99 @@ pub mod test {
     #[tested_fixture::tested_fixture(EMPTY_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_empty_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = BRANCH_1.prove(&EMPTY_LEAF_PROOF, &EMPTY_LEAF_PROOF)?;
-        assert_branch(&proof, None);
+        assert_proof(&proof, *EMPTY_BRANCH_HASH, *EMPTY_BRANCH_HASH, None);
         BRANCH_1.circuit.verify(proof.clone())?;
         Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(UPDATE_BRANCH_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_update_branch() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let (left_proof, left_hash) = *UPDATE_LEAF_PROOF;
-        let proof = BRANCH_1.prove(left_proof, &EMPTY_LEAF_PROOF)?;
-        assert_branch(&proof, Some((*left_hash, ADDRESS_A as u64 / 2)));
+    #[tested_fixture::tested_fixture(A_UPDATE_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_a_update_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(*A_UPDATE_LEAF_PROOF, &EMPTY_LEAF_PROOF)?;
+        assert_proof(
+            &proof,
+            STATE_0_BRANCH_HASHES[ADDRESS_A / 2],
+            STATE_1_BRANCH_HASHES[ADDRESS_A / 2],
+            Some((*ADDRESS_A_SUMMARY_HASH, ADDRESS_A as u64 / 2)),
+        );
         BRANCH_1.circuit.verify(proof.clone())?;
-        Ok((proof, *left_hash))
+        Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(DELETE_CREATE_BRANCH_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_delete_create_branch() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let (left_proof, left_hash) = *DELETE_LEAF_PROOF;
-        let (right_proof, right_hash) = *CREATE_LEAF_PROOF;
-        let summary = hash_branch(left_hash, right_hash);
-        let proof = BRANCH_1.prove(left_proof, right_proof)?;
-        assert_branch(&proof, Some((summary, ADDRESS_B as u64 / 2)));
+    #[tested_fixture::tested_fixture(BC_DELETE_CREATE_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_bc_delete_create_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(*B_DELETE_LEAF_PROOF, *C_CREATE_LEAF_PROOF)?;
+        assert_eq!(ADDRESS_B / 2, ADDRESS_C / 2);
+        assert_proof(
+            &proof,
+            STATE_0_BRANCH_HASHES[ADDRESS_B / 2],
+            STATE_1_BRANCH_HASHES[ADDRESS_B / 2],
+            Some((*ADDRESS_BC_SUMMARY_HASH, ADDRESS_B as u64 / 2)),
+        );
         BRANCH_1.circuit.verify(proof.clone())?;
-        Ok((proof, summary))
+        Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(READ_IGNORED_BRANCH_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_read_ignored_branch() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let (left_proof, left_hash) = *READ_LEAF_PROOF;
-        let right_proof = *IGNORED_LEAF_PROOF;
-        let proof = BRANCH_1.prove(left_proof, right_proof)?;
-        assert_branch(&proof, Some((*left_hash, ADDRESS_D as u64 / 2)));
+    #[tested_fixture::tested_fixture(DE_READ_IGNORED_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_de_read_ignored_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(*D_READ_LEAF_PROOF, *E_IGNORED_LEAF_PROOF)?;
+        assert_eq!(ADDRESS_D / 2, ADDRESS_E / 2);
+        assert_proof(
+            &proof,
+            STATE_0_BRANCH_HASHES[ADDRESS_D / 2],
+            STATE_1_BRANCH_HASHES[ADDRESS_D / 2],
+            Some((*ADDRESS_D_SUMMARY_HASH, ADDRESS_D as u64 / 2)),
+        );
         BRANCH_1.circuit.verify(proof.clone())?;
-        Ok((proof, *left_hash))
+        Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(LEFT_DOUBLE_BRANCH_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_left_double_branch() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let left_proof = *EMPTY_BRANCH_PROOF;
-        let (right_proof, right_hash) = *UPDATE_BRANCH_PROOF;
-        let proof = BRANCH_2.prove(left_proof, right_proof)?;
-        assert_branch(&proof, Some((*right_hash, 0)));
+    #[tested_fixture::tested_fixture(A_LEFT_DOUBLE_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_a_left_double_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_2.prove(*EMPTY_BRANCH_PROOF, *A_UPDATE_BRANCH_PROOF)?;
+        assert_proof(
+            &proof,
+            STATE_0_DOUBLE_BRANCH_HASHES[ADDRESS_A / 4],
+            STATE_1_DOUBLE_BRANCH_HASHES[ADDRESS_A / 4],
+            Some((*ADDRESS_A_SUMMARY_HASH, ADDRESS_A as u64 / 4)),
+        );
         BRANCH_2.circuit.verify(proof.clone())?;
-        Ok((proof, *right_hash))
+        Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(RIGHT_DOUBLE_BRANCH_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_right_double_branch() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let (left_proof, left_hash) = *DELETE_CREATE_BRANCH_PROOF;
-        let (right_proof, right_hash) = *READ_IGNORED_BRANCH_PROOF;
-        let summary = hash_branch(left_hash, right_hash);
-        let proof = BRANCH_2.prove(left_proof, right_proof)?;
-        assert_branch(&proof, Some((summary, 1)));
+    #[tested_fixture::tested_fixture(BCDE_RIGHT_DOUBLE_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_bcde_right_double_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_2.prove(
+            *BC_DELETE_CREATE_BRANCH_PROOF,
+            *DE_READ_IGNORED_BRANCH_PROOF,
+        )?;
+        assert_proof(
+            &proof,
+            STATE_0_DOUBLE_BRANCH_HASHES[ADDRESS_B / 4],
+            STATE_1_DOUBLE_BRANCH_HASHES[ADDRESS_B / 4],
+            Some((*ADDRESS_BCD_SUMMARY_HASH, ADDRESS_B as u64 / 4)),
+        );
         BRANCH_2.circuit.verify(proof.clone())?;
-        Ok((proof, summary))
+        Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(pub ROOT_PROOF: (ProofWithPublicInputs<F, C, D>, HashOut<F>))]
-    fn verify_root() -> Result<(ProofWithPublicInputs<F, C, D>, HashOut<F>)> {
-        let (left_proof, left_hash) = *LEFT_DOUBLE_BRANCH_PROOF;
-        let (right_proof, right_hash) = *RIGHT_DOUBLE_BRANCH_PROOF;
-        let summary = hash_branch(left_hash, right_hash);
-        let proof = BRANCH_3.prove(left_proof, right_proof)?;
-        assert_branch(&proof, Some((summary, 0)));
+    #[tested_fixture::tested_fixture(pub ROOT_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_root() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_3.prove(*A_LEFT_DOUBLE_BRANCH_PROOF, *BCDE_RIGHT_DOUBLE_BRANCH_PROOF)?;
+        assert_proof(
+            &proof,
+            *STATE_0_ROOT_HASH,
+            *STATE_1_ROOT_HASH,
+            Some((*ROOT_SUMMARY_HASH, 0)),
+        );
         BRANCH_3.circuit.verify(proof.clone())?;
-        Ok((proof, summary))
+        Ok(proof)
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_root_address() {
         let proof = BRANCH_3
-            .prove(&RIGHT_DOUBLE_BRANCH_PROOF.0, &LEFT_DOUBLE_BRANCH_PROOF.0)
+            .prove(*BCDE_RIGHT_DOUBLE_BRANCH_PROOF, *A_LEFT_DOUBLE_BRANCH_PROOF)
             .unwrap();
         BRANCH_3.circuit.verify(proof).unwrap();
     }

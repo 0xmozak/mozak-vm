@@ -82,23 +82,14 @@ where
 
     pub fn prove_base(
         &self,
-        tx_proof: &ProofWithPublicInputs<F, C, D>,
-        match_proof: &ProofWithPublicInputs<F, C, D>,
-        state_proof: &ProofWithPublicInputs<F, C, D>,
         base_state_root: HashOut<F>,
-        state_root: HashOut<F>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
-        let mut inputs = PartialWitness::new();
-        self.tx.set_witness(&mut inputs, tx_proof);
-        self.match_delta.set_witness(&mut inputs, match_proof);
-        self.state_update.set_witness(&mut inputs, state_proof);
-        self.block.set_base_witness(
-            &mut inputs,
-            base_state_root,
-            state_root,
-            &self.circuit.verifier_only,
-        );
-        self.circuit.prove(inputs)
+        self.block
+            .prove_base(base_state_root, &self.circuit.verifier_only)
+    }
+
+    pub fn verify_base(&self, base_proof: ProofWithPublicInputs<F, C, D>) -> Result<()> {
+        self.block.verify_base(base_proof)
     }
 
     pub fn prove(
@@ -119,12 +110,14 @@ where
 
 #[cfg(test)]
 pub mod test {
+    use plonky2::field::types::Field;
+
     use super::*;
     use crate::circuits::match_delta::test as match_delta;
     use crate::circuits::state_update::test as state_update;
-    // use crate::circuits::verify_program::test::{PROGRAM_1, PROGRAM_2};
+    use crate::circuits::test_data::{STATE_0_ROOT_HASH, STATE_1_ROOT_HASH};
     use crate::circuits::verify_tx::test as verify_tx;
-    use crate::test_utils::{C, CONFIG, D, F};
+    use crate::test_utils::{C, CONFIG, D, F, NON_ZERO_HASHES, ZERO_HASH};
 
     #[tested_fixture::tested_fixture(CIRCUIT)]
     fn build_circuit() -> Circuit<F, C, D> {
@@ -136,10 +129,58 @@ pub mod test {
         )
     }
 
+    fn assert_value(
+        proof: &ProofWithPublicInputs<F, C, D>,
+        base_root: HashOut<F>,
+        root: HashOut<F>,
+        block_height: i64,
+    ) {
+        let indices = &CIRCUIT.block.indices;
+
+        let p_base_root = indices.base_state_root.get_any(&proof.public_inputs);
+        assert_eq!(p_base_root, base_root.elements);
+
+        let p_root = indices.state_root.get_any(&proof.public_inputs);
+        assert_eq!(p_root, root.elements);
+
+        let p_block_height = indices.block_height.get(&proof.public_inputs);
+        assert_eq!(p_block_height, F::from_noncanonical_i64(block_height));
+    }
+
     #[test]
-    fn verify_leaf() -> Result<()> {
-        let _ = &CIRCUIT.circuit;
-        // CIRCUIT.prove(tx_proof, match_proof, state_proof, prev_proof);
+    fn verify_zero_base() -> Result<()> {
+        let proof = CIRCUIT.prove_base(ZERO_HASH)?;
+        assert_value(&proof, ZERO_HASH, ZERO_HASH, 0);
+        CIRCUIT.verify_base(proof.clone())?;
+        Ok(())
+    }
+
+    #[test]
+    fn verify_non_zero_base() -> Result<()> {
+        let proof = CIRCUIT.prove_base(NON_ZERO_HASHES[0])?;
+        assert_value(&proof, NON_ZERO_HASHES[0], NON_ZERO_HASHES[0], 0);
+        CIRCUIT.verify_base(proof.clone())?;
+        Ok(())
+    }
+
+    #[tested_fixture::tested_fixture(STATE_0_BASE_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_state_0_base() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = CIRCUIT.prove_base(*STATE_0_ROOT_HASH)?;
+        assert_value(&proof, *STATE_0_ROOT_HASH, *STATE_0_ROOT_HASH, 0);
+        CIRCUIT.verify_base(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[test]
+    fn verify() -> Result<()> {
+        let proof = CIRCUIT.prove(
+            *verify_tx::BRANCH_PROOF,
+            *match_delta::BRANCH_PROOF,
+            *state_update::ROOT_PROOF,
+            *STATE_0_BASE_PROOF,
+        )?;
+        assert_value(&proof, *STATE_0_ROOT_HASH, *STATE_1_ROOT_HASH, 1);
+        CIRCUIT.circuit.verify(proof)?;
         Ok(())
     }
 }

@@ -15,6 +15,8 @@ pub mod verify_tx;
 /// (only addresses 0..=7 are valid).
 #[cfg(test)]
 pub mod test_data {
+    use std::array::from_fn;
+
     use once_cell::sync::Lazy;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::HashOut;
@@ -22,7 +24,7 @@ pub mod test_data {
     use crate::test_utils::{
         hash_branch, hash_val_bytes, make_f, make_fs, F, NON_ZERO_VALUES, ZERO_VAL,
     };
-    use crate::{Event, EventType, Object};
+    use crate::{summarize, Event, EventType, Object};
 
     /// The hashes of the programs used
     pub const PROGRAM_HASHES: [[F; 4]; 3] = [
@@ -97,6 +99,25 @@ pub mod test_data {
         state
     };
 
+    pub static STATE_0_LEAF_HASHES: Lazy<[HashOut<F>; 8]> = Lazy::new(|| STATE_0.map(|x| x.hash()));
+    pub static STATE_0_BRANCH_HASHES: Lazy<[HashOut<F>; 4]> = Lazy::new(|| {
+        from_fn(|i| hash_branch(&STATE_0_LEAF_HASHES[i * 2], &STATE_0_LEAF_HASHES[i * 2 + 1]))
+    });
+    pub static STATE_0_DOUBLE_BRANCH_HASHES: Lazy<[HashOut<F>; 2]> = Lazy::new(|| {
+        from_fn(|i| {
+            hash_branch(
+                &STATE_0_BRANCH_HASHES[i * 2],
+                &STATE_0_BRANCH_HASHES[i * 2 + 1],
+            )
+        })
+    });
+    pub static STATE_0_ROOT_HASH: Lazy<HashOut<F>> = Lazy::new(|| {
+        hash_branch(
+            &STATE_0_DOUBLE_BRANCH_HASHES[0],
+            &STATE_0_DOUBLE_BRANCH_HASHES[1],
+        )
+    });
+
     /// The next state
     pub const STATE_1: [Object<F>; 8] = {
         let mut state = [ZERO_OBJ; 8];
@@ -118,6 +139,25 @@ pub mod test_data {
 
         state
     };
+
+    pub static STATE_1_LEAF_HASHES: Lazy<[HashOut<F>; 8]> = Lazy::new(|| STATE_1.map(|x| x.hash()));
+    pub static STATE_1_BRANCH_HASHES: Lazy<[HashOut<F>; 4]> = Lazy::new(|| {
+        from_fn(|i| hash_branch(&STATE_1_LEAF_HASHES[i * 2], &STATE_1_LEAF_HASHES[i * 2 + 1]))
+    });
+    pub static STATE_1_DOUBLE_BRANCH_HASHES: Lazy<[HashOut<F>; 2]> = Lazy::new(|| {
+        from_fn(|i| {
+            hash_branch(
+                &STATE_1_BRANCH_HASHES[i * 2],
+                &STATE_1_BRANCH_HASHES[i * 2 + 1],
+            )
+        })
+    });
+    pub static STATE_1_ROOT_HASH: Lazy<HashOut<F>> = Lazy::new(|| {
+        hash_branch(
+            &STATE_1_DOUBLE_BRANCH_HASHES[0],
+            &STATE_1_DOUBLE_BRANCH_HASHES[1],
+        )
+    });
 
     // The events of the first transaction
 
@@ -178,12 +218,10 @@ pub mod test_data {
     };
 
     // Transaction merges
-    pub static T0_PM_HASH: Lazy<HashOut<F>> = Lazy::new(|| {
-        hash_branch(
-            &hash_branch(&EVENT_T0_PM_C_CREDIT.hash(), &EVENT_T0_PM_C_GIVE.hash()),
-            &EVENT_T0_PM_C_WRITE.hash(),
-        )
-    });
+    pub static T0_PM_C_CREDIT_GIVE_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| hash_branch(&EVENT_T0_PM_C_CREDIT.hash(), &EVENT_T0_PM_C_GIVE.hash()));
+    pub static T0_PM_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| hash_branch(&T0_PM_C_CREDIT_GIVE_HASH, &EVENT_T0_PM_C_WRITE.hash()));
     pub static T0_P0_HASH: Lazy<HashOut<F>> =
         Lazy::new(|| hash_branch(&EVENT_T0_P0_A_WRITE.hash(), &EVENT_T0_P0_A_CREDIT.hash()));
     pub static T0_PM_P0_HASH: Lazy<HashOut<F>> =
@@ -251,27 +289,45 @@ pub mod test_data {
     // Transaction merges
     pub static T1_PM_HASH: Lazy<HashOut<F>> =
         Lazy::new(|| hash_branch(&EVENT_T1_PM_B_TAKE.hash(), &EVENT_T1_PM_B_ENSURE.hash()));
-    pub static T1_P1_HASH: Lazy<HashOut<F>> = Lazy::new(|| {
-        hash_branch(
-            &hash_branch(&EVENT_T1_P1_B_WRITE.hash(), &EVENT_T1_P1_B_GIVE.hash()),
-            &EVENT_T1_P1_B_CREDIT.hash(),
-        )
-    });
+    pub static T1_P1_B_WRITE_GIVE_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| hash_branch(&EVENT_T1_P1_B_WRITE.hash(), &EVENT_T1_P1_B_GIVE.hash()));
+    pub static T1_P1_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| hash_branch(&T1_P1_B_WRITE_GIVE_HASH, &EVENT_T1_P1_B_CREDIT.hash()));
     pub static T1_B_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_PM_HASH, &T1_P1_HASH));
     pub static T1_P2_A_HASH: Lazy<HashOut<F>> = Lazy::new(|| EVENT_T1_P2_A_READ.hash());
     pub static T1_P2_D_HASH: Lazy<HashOut<F>> = Lazy::new(|| EVENT_T1_P2_D_READ.hash());
     pub static T1_P2_HASH: Lazy<HashOut<F>> =
         Lazy::new(|| hash_branch(&T1_P2_A_HASH, &T1_P2_D_HASH));
-    pub static T1_AB_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_P2_A_HASH, &T1_B_HASH));
-    pub static T1_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_AB_HASH, &T1_P2_D_HASH));
+    pub static T1_BD_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_B_HASH, &T1_P2_D_HASH));
+    pub static T1_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_P2_A_HASH, &T1_BD_HASH));
 
     // Cross transaction merges
     pub static T0_T1_A_HASH: Lazy<HashOut<F>> =
         Lazy::new(|| hash_branch(&T0_A_HASH, &T1_P2_A_HASH));
-    pub static T0_T1_AB_HASH: Lazy<HashOut<F>> =
-        Lazy::new(|| hash_branch(&T0_T1_A_HASH, &T1_B_HASH));
-    pub static T0_T1_CD_HASH: Lazy<HashOut<F>> =
-        Lazy::new(|| hash_branch(&T0_C_HASH, &T1_P2_D_HASH));
+    pub static T0_T1_BC_HASH: Lazy<HashOut<F>> = Lazy::new(|| hash_branch(&T1_B_HASH, &T0_C_HASH));
+    pub static T0_T1_BCD_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| hash_branch(&T0_T1_BC_HASH, &T1_P2_D_HASH));
     pub static T0_T1_HASH: Lazy<HashOut<F>> =
-        Lazy::new(|| hash_branch(&T0_T1_AB_HASH, &T0_T1_CD_HASH));
+        Lazy::new(|| hash_branch(&T0_T1_A_HASH, &T0_T1_BCD_HASH));
+
+    // Summaries
+    fn summarize_address(a: usize) -> HashOut<F> {
+        summarize(a as u64, STATE_0_LEAF_HASHES[a], STATE_1_LEAF_HASHES[a])
+    }
+
+    pub static ADDRESS_A_SUMMARY_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| summarize_address(ADDRESS_A));
+    pub static ADDRESS_B_SUMMARY_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| summarize_address(ADDRESS_B));
+    pub static ADDRESS_C_SUMMARY_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| summarize_address(ADDRESS_C));
+    pub static ADDRESS_D_SUMMARY_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| summarize_address(ADDRESS_D));
+
+    pub static ADDRESS_BC_SUMMARY_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| hash_branch(&ADDRESS_B_SUMMARY_HASH, &ADDRESS_C_SUMMARY_HASH));
+    pub static ADDRESS_BCD_SUMMARY_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| hash_branch(&ADDRESS_BC_SUMMARY_HASH, &ADDRESS_D_SUMMARY_HASH));
+    pub static ROOT_SUMMARY_HASH: Lazy<HashOut<F>> =
+        Lazy::new(|| hash_branch(&ADDRESS_A_SUMMARY_HASH, &ADDRESS_BCD_SUMMARY_HASH));
 }

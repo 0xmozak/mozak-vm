@@ -1,3 +1,4 @@
+use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
@@ -12,9 +13,7 @@ use crate::circuits::{match_delta, state_update, verify_tx};
 use crate::indices::{HashTargetIndex, TargetIndex, VerifierCircuitTargetIndex};
 use crate::{circuit_data_for_recursion, dummy_circuit, select_hash, select_verifier};
 
-/// Plonky2's recursion threshold is 2^12 gates. We use a slightly relaxed
-/// threshold here to support the case that two proofs are verified in the same
-/// circuit.
+/// Plonky2's recursion threshold is 2^12 gates.
 const RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -124,8 +123,9 @@ impl SubCircuitInputs {
             state_root: HashTargetIndex::new(public_inputs, self.state_root),
             block_height: TargetIndex::new(public_inputs, self.block_height),
         };
+        let prev_block_height = indices.block_height.get(&prev_proof.public_inputs);
 
-        let non_base = builder.is_nonzero(self.block_height);
+        let non_base = builder.is_nonzero(prev_block_height);
 
         // Connect previous verifier data to current one. This guarantees that every
         // proof in the cycle uses the same verifier data.
@@ -137,8 +137,7 @@ impl SubCircuitInputs {
         builder.verify_proof::<C>(&prev_proof, &verifier_calc, &common);
 
         // Connect heights
-        let block_height_calc =
-            builder.add_const(indices.block_height.get(&prev_proof.public_inputs), F::ONE);
+        let block_height_calc = builder.add_const(prev_block_height, F::ONE);
         builder.connect(self.block_height, block_height_calc);
 
         // Ensure base states match
@@ -176,53 +175,58 @@ where
     C: GenericConfig<D, F = F>,
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
 {
-    pub fn set_base_witness(
+    pub fn prove_base(
         &self,
-        inputs: &mut PartialWitness<F>,
         base_state_root: HashOut<F>,
-        state_root: HashOut<F>,
         verifier: &VerifierOnlyCircuitData<C, D>,
-    ) {
-        let dummy_proof = {
-            let mut dummy_inputs = PartialWitness::new();
-            dummy_inputs.set_verifier_data_target(&self.inputs.verifier, verifier);
-            dummy_inputs.set_hash_target(self.inputs.base_state_root, base_state_root);
-            dummy_inputs.set_hash_target(self.inputs.state_root, base_state_root);
-            dummy_inputs.set_target(self.inputs.block_height, F::NEG_ONE);
-            for i in 0..self.dummy.common.num_public_inputs {
-                let target = self.dummy.prover_only.public_inputs[i];
-                if dummy_inputs.try_get_target(target).is_none() {
-                    dummy_inputs.set_target(target, F::ZERO);
-                }
-            }
-            self.dummy.prove(dummy_inputs).unwrap()
-        };
+    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        let mut dummy_inputs = PartialWitness::new();
 
-        inputs.set_verifier_data_target(&self.inputs.verifier, verifier);
-        inputs.set_hash_target(self.inputs.base_state_root, base_state_root);
-        inputs.set_hash_target(self.inputs.state_root, state_root);
-        inputs.set_target(self.inputs.block_height, F::ZERO);
-        inputs.set_proof_with_pis_target(&self.prev_proof, &dummy_proof);
+        // Set the base inputs
+        dummy_inputs.set_verifier_data_target(&self.inputs.verifier, verifier);
+        dummy_inputs.set_hash_target(self.inputs.base_state_root, base_state_root);
+        dummy_inputs.set_hash_target(self.inputs.state_root, base_state_root);
+        dummy_inputs.set_target(self.inputs.block_height, F::ZERO);
+
+        // Zero out all other inputs
+        for i in 0..self.dummy.common.num_public_inputs {
+            let target = self.dummy.prover_only.public_inputs[i];
+            if dummy_inputs.try_get_target(target).is_none() {
+                dummy_inputs.set_target(target, F::ZERO);
+            }
+        }
+
+        self.dummy.prove(dummy_inputs)
+    }
+
+    pub fn verify_base(&self, base_proof: ProofWithPublicInputs<F, C, D>) -> Result<()> {
+        self.dummy.verify(base_proof)
     }
 
     pub fn set_witness(
         &self,
         inputs: &mut PartialWitness<F>,
-        base_state_root: Option<HashOut<F>>,
         state_root: HashOut<F>,
-        block_height: Option<u64>,
         prev_proof: &ProofWithPublicInputs<F, C, D>,
     ) {
-        if let Some(base_state_root) = base_state_root {
-            inputs.set_hash_target(self.inputs.base_state_root, base_state_root);
-        }
         inputs.set_hash_target(self.inputs.state_root, state_root);
-        if let Some(block_height) = block_height {
-            inputs.set_target(
-                self.inputs.block_height,
-                F::from_canonical_u64(block_height),
-            );
-        }
+        inputs.set_proof_with_pis_target(&self.prev_proof, prev_proof);
+    }
+
+    pub fn set_witness_unsafe(
+        &self,
+        inputs: &mut PartialWitness<F>,
+        base_state_root: HashOut<F>,
+        state_root: HashOut<F>,
+        block_height: u64,
+        prev_proof: &ProofWithPublicInputs<F, C, D>,
+    ) {
+        inputs.set_hash_target(self.inputs.base_state_root, base_state_root);
+        inputs.set_hash_target(self.inputs.state_root, state_root);
+        inputs.set_target(
+            self.inputs.block_height,
+            F::from_canonical_u64(block_height),
+        );
         inputs.set_proof_with_pis_target(&self.prev_proof, prev_proof);
     }
 }
@@ -449,7 +453,7 @@ mod test {
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 
     use super::*;
-    use crate::test_utils::{hash_str, C, CONFIG, D, F};
+    use crate::test_utils::{C, CONFIG, D, F, NON_ZERO_HASHES, ZERO_HASH};
 
     pub struct DummyCircuit {
         pub verify_block: SubCircuit<F, C, D>,
@@ -488,38 +492,34 @@ mod test {
             }
         }
 
+        pub fn prove_base(
+            &self,
+            base_state_root: HashOut<F>,
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+            self.verify_block
+                .prove_base(base_state_root, &self.circuit.verifier_only)
+        }
+
         pub fn prove(
             &self,
             state_root: HashOut<F>,
-            prev_proof: Result<&ProofWithPublicInputs<F, C, D>, HashOut<F>>,
+            prev_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            match prev_proof {
-                Ok(prev_proof) => {
-                    self.verify_block
-                        .set_witness(&mut inputs, None, state_root, None, prev_proof);
-                }
-                Err(base_state_root) => {
-                    self.verify_block.set_base_witness(
-                        &mut inputs,
-                        base_state_root,
-                        state_root,
-                        &self.circuit.verifier_only,
-                    );
-                }
-            }
+            self.verify_block
+                .set_witness(&mut inputs, state_root, prev_proof);
             self.circuit.prove(inputs)
         }
 
         pub fn prove_unsafe(
             &self,
-            base_state_root: Option<HashOut<F>>,
+            base_state_root: HashOut<F>,
             state_root: HashOut<F>,
-            block_height: Option<u64>,
+            block_height: u64,
             prev_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            self.verify_block.set_witness(
+            self.verify_block.set_witness_unsafe(
                 &mut inputs,
                 base_state_root,
                 state_root,
@@ -528,101 +528,98 @@ mod test {
             );
             self.circuit.prove(inputs)
         }
+
+        pub fn verify_base(&self, base_proof: ProofWithPublicInputs<F, C, D>) -> Result<()> {
+            self.verify_block.verify_base(base_proof)
+        }
     }
 
     #[tested_fixture::tested_fixture(CIRCUIT)]
     fn build_circuit() -> DummyCircuit { DummyCircuit::new(&CONFIG) }
 
+    fn assert_proof(
+        proof: &ProofWithPublicInputs<F, C, D>,
+        base_root: HashOut<F>,
+        root: HashOut<F>,
+        block_height: u64,
+    ) {
+        let indices = &CIRCUIT.verify_block.indices;
+
+        let p_base_root = indices.base_state_root.get_any(&proof.public_inputs);
+        assert_eq!(p_base_root, base_root.elements);
+
+        let p_root = indices.state_root.get_any(&proof.public_inputs);
+        assert_eq!(p_root, root.elements);
+
+        let p_block_height = indices.block_height.get(&proof.public_inputs);
+        assert_eq!(p_block_height, F::from_canonical_u64(block_height));
+    }
+
+    #[tested_fixture::tested_fixture(ZERO_BASE_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_zero_base() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = CIRCUIT.prove_base(ZERO_HASH)?;
+        CIRCUIT.verify_base(proof.clone())?;
+        assert_proof(&proof, ZERO_HASH, ZERO_HASH, 0);
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(NON_ZERO_BASE_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_non_zero_base() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = CIRCUIT.prove_base(NON_ZERO_HASHES[0])?;
+        CIRCUIT.verify_base(proof.clone())?;
+        assert_proof(&proof, NON_ZERO_HASHES[0], NON_ZERO_HASHES[0], 0);
+        Ok(proof)
+    }
+
     #[test]
     fn verify_static_zero() -> Result<()> {
-        let zero_hash = HashOut::from([F::ZERO; 4]);
-
-        let mut proof = CIRCUIT.prove(zero_hash, Err(zero_hash))?;
-        CIRCUIT.circuit.verify(proof.clone())?;
-
-        for _ in 0..4 {
-            proof = CIRCUIT.prove(zero_hash, Ok(&proof))?;
+        let mut proof = ZERO_BASE_PROOF.clone();
+        for i in 1..5 {
+            proof = CIRCUIT.prove(ZERO_HASH, &proof)?;
+            assert_proof(&proof, ZERO_HASH, ZERO_HASH, i);
             CIRCUIT.circuit.verify(proof.clone())?;
         }
-
         Ok(())
     }
 
     #[test]
     fn verify_static_nonzero() -> Result<()> {
-        let non_zero_hash = hash_str("Non-Zero Hash 1");
-
-        let mut proof = CIRCUIT.prove(non_zero_hash, Err(non_zero_hash))?;
-        CIRCUIT.circuit.verify(proof.clone())?;
-
-        for _ in 0..4 {
-            proof = CIRCUIT.prove(non_zero_hash, Ok(&proof))?;
+        let mut proof = NON_ZERO_BASE_PROOF.clone();
+        for i in 1..5 {
+            proof = CIRCUIT.prove(NON_ZERO_HASHES[0], &proof)?;
+            assert_proof(&proof, NON_ZERO_HASHES[0], NON_ZERO_HASHES[0], i);
             CIRCUIT.circuit.verify(proof.clone())?;
         }
-
         Ok(())
     }
 
     #[test]
     fn verify_zero_based() -> Result<()> {
-        let zero_hash = HashOut::from([F::ZERO; 4]);
-        let non_zero_hash = hash_str("Non-Zero Hash 0");
-        let hashes = [
-            hash_str("Non-Zero Hash 1"),
-            hash_str("Non-Zero Hash 2"),
-            hash_str("Non-Zero Hash 3"),
-            hash_str("Non-Zero Hash 4"),
-        ];
-
-        let mut proof = CIRCUIT.prove(non_zero_hash, Err(zero_hash))?;
-        CIRCUIT.circuit.verify(proof.clone())?;
-
-        for hash in hashes {
-            proof = CIRCUIT.prove(hash, Ok(&proof))?;
+        let mut proof = ZERO_BASE_PROOF.clone();
+        for (i, hash) in NON_ZERO_HASHES.into_iter().enumerate() {
+            proof = CIRCUIT.prove(hash, &proof)?;
+            assert_proof(&proof, ZERO_HASH, hash, i as u64 + 1);
             CIRCUIT.circuit.verify(proof.clone())?;
         }
-
         Ok(())
     }
 
     #[test]
     fn verify_nonzero_based() -> Result<()> {
-        let non_zero_hash_0 = hash_str("Non-Zero Hash 0");
-        let non_zero_hash_1 = hash_str("Non-Zero Hash 0");
-        let hashes = [
-            hash_str("Non-Zero Hash 2"),
-            hash_str("Non-Zero Hash 3"),
-            hash_str("Non-Zero Hash 4"),
-        ];
-
-        let mut proof = CIRCUIT.prove(non_zero_hash_1, Err(non_zero_hash_0))?;
-        CIRCUIT.circuit.verify(proof.clone())?;
-
-        for hash in hashes {
-            proof = CIRCUIT.prove(hash, Ok(&proof))?;
+        let mut proof = NON_ZERO_BASE_PROOF.clone();
+        for (i, hash) in NON_ZERO_HASHES.into_iter().enumerate() {
+            proof = CIRCUIT.prove(hash, &proof)?;
+            assert_proof(&proof, NON_ZERO_HASHES[0], hash, i as u64 + 1);
             CIRCUIT.circuit.verify(proof.clone())?;
         }
-
         Ok(())
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_base() {
-        let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
-        let non_zero_hash_2 = hash_str("Non-Zero Hash 2");
-
-        let proof = catch_unwind(|| {
-            let zero_hash = HashOut::from([F::ZERO; 4]);
-            let proof = CIRCUIT.prove(zero_hash, Err(zero_hash))?;
-            CIRCUIT.circuit.verify(proof.clone())?;
-            Result::<_>::Ok(proof)
-        })
-        .expect("shouldn't fail")
-        .unwrap();
-
         let proof = CIRCUIT
-            .prove_unsafe(Some(non_zero_hash_1), non_zero_hash_2, None, &proof)
+            .prove_unsafe(NON_ZERO_HASHES[0], ZERO_HASH, 0, *ZERO_BASE_PROOF)
             .unwrap();
         CIRCUIT.circuit.verify(proof.clone()).unwrap();
     }
@@ -630,19 +627,8 @@ mod test {
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_height_0() {
-        let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
-
-        let proof = catch_unwind(|| {
-            let zero_hash = HashOut::from([F::ZERO; 4]);
-            let proof = CIRCUIT.prove(zero_hash, Err(zero_hash))?;
-            CIRCUIT.circuit.verify(proof.clone())?;
-            Result::<_>::Ok(proof)
-        })
-        .expect("shouldn't fail")
-        .unwrap();
-
         let proof = CIRCUIT
-            .prove_unsafe(None, non_zero_hash_1, Some(0), &proof)
+            .prove_unsafe(ZERO_HASH, ZERO_HASH, 0, *ZERO_BASE_PROOF)
             .unwrap();
         CIRCUIT.circuit.verify(proof.clone()).unwrap();
     }
@@ -650,19 +636,20 @@ mod test {
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_height_2() {
-        let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
+        let proof = CIRCUIT
+            .prove_unsafe(ZERO_HASH, ZERO_HASH, 2, *ZERO_BASE_PROOF)
+            .unwrap();
+        CIRCUIT.circuit.verify(proof.clone()).unwrap();
+    }
 
-        let proof = catch_unwind(|| {
-            let zero_hash = HashOut::from([F::ZERO; 4]);
-            let proof = CIRCUIT.prove(zero_hash, Err(zero_hash))?;
-            CIRCUIT.circuit.verify(proof.clone())?;
-            Result::<_>::Ok(proof)
-        })
-        .expect("shouldn't fail")
-        .unwrap();
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_height_1() {
+        let proof = catch_unwind(|| CIRCUIT.prove(ZERO_HASH, *ZERO_BASE_PROOF).unwrap())
+            .expect("shouldn't fail");
 
         let proof = CIRCUIT
-            .prove_unsafe(None, non_zero_hash_1, Some(2), &proof)
+            .prove_unsafe(ZERO_HASH, NON_ZERO_HASHES[0], 1, &proof)
             .unwrap();
         CIRCUIT.circuit.verify(proof.clone()).unwrap();
     }
