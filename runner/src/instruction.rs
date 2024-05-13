@@ -1,5 +1,4 @@
 //! RV32I Base Integer Instructions + RV32M Multiply Extension
-use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
 /// Arguments of a RISC-V instruction
@@ -16,7 +15,7 @@ pub struct Args {
 }
 
 /// Operands of RV32I + RV32M
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Serialize, Deserialize, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Ord, PartialOrd)]
 #[repr(u8)]
 pub enum Op {
     // RV32I Base Integer Instructions
