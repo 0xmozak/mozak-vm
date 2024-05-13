@@ -44,7 +44,7 @@ mod tests {
     use plonky2::field::types::{Field, PrimeField64};
 
     use super::*;
-    use crate::generation::cpu::generate_cpu_trace;
+    use crate::cpu::generation::generate_cpu_trace;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::memory::generate_memory_trace;

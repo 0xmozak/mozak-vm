@@ -104,7 +104,7 @@ mod tests {
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
     use starky::verifier::verify_stark_proof;
 
-    use crate::generation::cpu::generate_cpu_trace;
+    use crate::cpu::generation::generate_cpu_trace;
     use crate::generation::xor::generate_xor_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, C, D, F};
