@@ -27,7 +27,6 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::generate_cpu_trace;
-use crate::generation::xor::generate_xor_trace;
 use crate::memory::generation::generate_memory_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
@@ -56,6 +55,7 @@ use crate::storage_device::stark::StorageDeviceStark;
 use crate::tape_commitments::generation::generate_tape_commitments_trace;
 use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::utils::from_u32;
+use crate::xor::generation::generate_xor_trace;
 use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
