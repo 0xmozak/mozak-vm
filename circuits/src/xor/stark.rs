@@ -105,9 +105,9 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::generation::cpu::generate_cpu_trace;
-    use crate::generation::xor::generate_xor_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, C, D, F};
+    use crate::xor::generation::generate_xor_trace;
     use crate::xor::stark::XorStark;
 
     type S = XorStark<F, D>;
