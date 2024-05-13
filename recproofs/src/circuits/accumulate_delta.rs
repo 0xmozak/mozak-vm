@@ -195,6 +195,7 @@ where
 pub mod test {
     use enumflags2::BitFlags;
     use plonky2::field::types::Field;
+    use plonky2::hash::hash_types::HashOut;
 
     use super::*;
     use crate::circuits::test_data::{
@@ -202,7 +203,9 @@ pub mod test {
         EVENT_T0_P2_A_ENSURE, EVENT_T0_P2_A_READ, EVENT_T0_P2_C_TAKE, EVENT_T0_PM_C_CREDIT,
         EVENT_T0_PM_C_GIVE, EVENT_T0_PM_C_WRITE, EVENT_T1_P1_B_CREDIT, EVENT_T1_P1_B_GIVE,
         EVENT_T1_P1_B_WRITE, EVENT_T1_P2_A_READ, EVENT_T1_P2_D_READ, EVENT_T1_PM_B_ENSURE,
-        EVENT_T1_PM_B_TAKE, STATE_0, STATE_1,
+        EVENT_T1_PM_B_TAKE, STATE_0, STATE_1, T0_A_HASH, T0_C_HASH, T0_P0_HASH, T0_P2_A_HASH,
+        T0_PM_C_CREDIT_GIVE_HASH, T0_PM_HASH, T0_T1_A_HASH, T1_B_HASH, T1_P1_B_WRITE_GIVE_HASH,
+        T1_P1_HASH, T1_P2_D_HASH, T1_PM_HASH,
     };
     use crate::test_utils::{C, CONFIG, D, F};
     use crate::EventFlags;
@@ -216,6 +219,7 @@ pub mod test {
     #[allow(clippy::too_many_arguments)]
     fn assert_proof(
         proof: &ProofWithPublicInputs<F, C, D>,
+        event_hash: HashOut<F>,
         address: u64,
         flags: impl Into<BitFlags<EventFlags>>,
         old_owner: impl Into<Option<[F; 4]>>,
@@ -241,6 +245,12 @@ pub mod test {
         assert_eq!(p_new_data, new_data.into().unwrap_or_default());
         let p_credit_delta = indices.credit_delta.get(&proof.public_inputs);
         assert_eq!(p_credit_delta, credit_delta.into().unwrap_or_default());
+
+        let indices = &LEAF.event_hash.indices;
+        assert_eq!(*indices, BRANCH.event_hash.indices);
+
+        let p_event_hash = indices.unpruned_hash.get_any(&proof.public_inputs);
+        assert_eq!(p_event_hash, event_hash.elements);
     }
 
     #[tested_fixture::tested_fixture(T0_PM_C_CREDIT_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
@@ -249,6 +259,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             BitFlags::empty(),
             event.owner,
@@ -267,6 +278,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::GiveOwnerFlag,
             event.owner,
@@ -285,6 +297,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::WriteFlag,
             event.owner,
@@ -303,6 +316,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::WriteFlag,
             event.owner,
@@ -321,6 +335,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             BitFlags::empty(),
             event.owner,
@@ -339,6 +354,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::ReadFlag,
             None,
@@ -357,6 +373,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::EnsureFlag,
             None,
@@ -375,6 +392,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::TakeOwnerFlag,
             event.value,
@@ -393,6 +411,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::TakeOwnerFlag,
             event.value,
@@ -411,6 +430,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::EnsureFlag,
             None,
@@ -429,6 +449,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::WriteFlag,
             event.owner,
@@ -447,6 +468,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::GiveOwnerFlag,
             event.owner,
@@ -465,6 +487,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             BitFlags::empty(),
             event.owner,
@@ -483,6 +506,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::ReadFlag,
             None,
@@ -501,6 +525,7 @@ pub mod test {
         let proof = LEAF.prove(&BRANCH, event.address, event.owner, event.ty, event.value)?;
         assert_proof(
             &proof,
+            event.hash(),
             event.address,
             EventFlags::ReadFlag,
             None,
@@ -528,6 +553,7 @@ pub mod test {
         )?;
         assert_proof(
             &p0_proof,
+            *T0_P0_HASH,
             address,
             EventFlags::WriteFlag,
             old.constraint_owner,
@@ -545,6 +571,7 @@ pub mod test {
         )?;
         assert_proof(
             &p2_proof,
+            *T0_P2_A_HASH,
             address,
             EventFlags::ReadFlag | EventFlags::EnsureFlag,
             None,
@@ -558,6 +585,7 @@ pub mod test {
         let t0_proof = BRANCH.prove(false, &p0_proof, Some((false, &p2_proof)))?;
         assert_proof(
             &t0_proof,
+            *T0_A_HASH,
             address,
             EventFlags::WriteFlag | EventFlags::ReadFlag | EventFlags::EnsureFlag,
             old.constraint_owner,
@@ -571,6 +599,7 @@ pub mod test {
         let root_proof = BRANCH.prove(false, &t0_proof, Some((true, &T1_P2_A_READ_LEAF_PROOF)))?;
         assert_proof(
             &root_proof,
+            *T0_T1_A_HASH,
             address,
             EventFlags::WriteFlag | EventFlags::ReadFlag | EventFlags::EnsureFlag,
             old.constraint_owner,
@@ -599,6 +628,7 @@ pub mod test {
         )?;
         assert_proof(
             &pm_proof,
+            *T1_PM_HASH,
             address,
             EventFlags::TakeOwnerFlag | EventFlags::EnsureFlag,
             old.constraint_owner,
@@ -616,6 +646,7 @@ pub mod test {
         )?;
         assert_proof(
             &p1_proof_1,
+            *T1_P1_B_WRITE_GIVE_HASH,
             address,
             EventFlags::GiveOwnerFlag | EventFlags::WriteFlag,
             old.constraint_owner,
@@ -630,6 +661,7 @@ pub mod test {
             BRANCH.prove(false, &p1_proof_1, Some((true, &T1_P1_B_CREDIT_LEAF_PROOF)))?;
         assert_proof(
             &p1_proof_2,
+            *T1_P1_HASH,
             address,
             EventFlags::GiveOwnerFlag | EventFlags::WriteFlag,
             old.constraint_owner,
@@ -643,6 +675,7 @@ pub mod test {
         let root_proof = BRANCH.prove(false, &pm_proof, Some((false, &p1_proof_2)))?;
         assert_proof(
             &root_proof,
+            *T1_B_HASH,
             address,
             EventFlags::TakeOwnerFlag
                 | EventFlags::EnsureFlag
@@ -674,6 +707,7 @@ pub mod test {
         )?;
         assert_proof(
             &pm_proof_1,
+            *T0_PM_C_CREDIT_GIVE_HASH,
             address,
             EventFlags::GiveOwnerFlag,
             old.constraint_owner,
@@ -688,6 +722,7 @@ pub mod test {
             BRANCH.prove(false, &pm_proof_1, Some((true, &T0_PM_C_WRITE_LEAF_PROOF)))?;
         assert_proof(
             &pm_proof_2,
+            *T0_PM_HASH,
             address,
             EventFlags::GiveOwnerFlag | EventFlags::WriteFlag,
             old.constraint_owner,
@@ -702,6 +737,7 @@ pub mod test {
             BRANCH.prove(false, &pm_proof_2, Some((true, &T0_P2_C_TAKE_LEAF_PROOF)))?;
         assert_proof(
             &root_proof,
+            *T0_C_HASH,
             address,
             EventFlags::GiveOwnerFlag | EventFlags::WriteFlag | EventFlags::TakeOwnerFlag,
             old.constraint_owner,
@@ -724,6 +760,7 @@ pub mod test {
         let proof = BRANCH.prove(true, &T1_P2_D_READ_LEAF_PROOF, None)?;
         assert_proof(
             &proof,
+            *T1_P2_D_HASH,
             address,
             EventFlags::ReadFlag,
             None,

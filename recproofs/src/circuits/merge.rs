@@ -173,8 +173,8 @@ pub mod test {
     use super::*;
     use crate::circuits::test_data::{
         T0_A_HASH, T0_C_HASH, T0_HASH, T0_P0_HASH, T0_P2_A_HASH, T0_P2_C_HASH, T0_P2_HASH,
-        T0_PM_HASH, T0_PM_P0_HASH, T0_T1_AB_HASH, T0_T1_A_HASH, T0_T1_CD_HASH, T0_T1_HASH,
-        T1_AB_HASH, T1_B_HASH, T1_HASH, T1_P1_HASH, T1_P2_A_HASH, T1_P2_D_HASH, T1_P2_HASH,
+        T0_PM_HASH, T0_PM_P0_HASH, T0_T1_A_HASH, T0_T1_BCD_HASH, T0_T1_BC_HASH, T0_T1_HASH,
+        T1_BD_HASH, T1_B_HASH, T1_HASH, T1_P1_HASH, T1_P2_A_HASH, T1_P2_D_HASH, T1_P2_HASH,
         T1_PM_HASH,
     };
     use crate::test_utils::{hash_branch, C, CONFIG, D, F, NON_ZERO_HASHES, ZERO_HASH};
@@ -477,23 +477,23 @@ pub mod test {
         Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(T1_AB_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
-    fn verify_t1_ab_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
-        // Merge A to the left of B because A < B
-        let proof = BRANCH.prove(true, *T1_P2_A_RIGHT_LEAF_PROOF, true, *T1_B_LEFT_LEAF_PROOF)?;
+    #[tested_fixture::tested_fixture(T1_BD_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t1_bd_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        // Merge B to the left of D because B < D
+        let proof = BRANCH.prove(true, *T1_B_LEFT_LEAF_PROOF, true, *T1_P2_D_RIGHT_LEAF_PROOF)?;
         assert_branch(
             &proof,
             Some(*T1_B_HASH),
-            Some(*T1_P2_A_HASH),
-            Some(*T1_AB_HASH),
+            Some(*T1_P2_D_HASH),
+            Some(*T1_BD_HASH),
         );
         Ok(proof)
     }
 
     #[tested_fixture::tested_fixture(pub T1_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_t1_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
-        // Merge A to the left of B because A < B
-        let proof = BRANCH.prove(false, *T1_AB_BRANCH_PROOF, true, *T1_P2_D_RIGHT_LEAF_PROOF)?;
+        // Merge A to the left of BD because A < BD
+        let proof = BRANCH.prove(true, *T1_P2_A_RIGHT_LEAF_PROOF, false, *T1_BD_BRANCH_PROOF)?;
         assert_branch(&proof, Some(*T1_B_HASH), Some(*T1_P2_HASH), Some(*T1_HASH));
         Ok(proof)
     }
@@ -545,30 +545,51 @@ pub mod test {
         Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(T0_T1_B_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
-    fn verify_t0_t1_b_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+    #[tested_fixture::tested_fixture(X_T1_B_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_x_t1_b_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(&BRANCH, None, Some(*T1_B_HASH))?;
         assert_leaf(&proof, Some(*T1_B_HASH));
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(T0_T1_CD_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
-    fn verify_t0_t1_cd_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
-        let proof = LEAF.prove(&BRANCH, Some(*T0_C_HASH), Some(*T1_P2_D_HASH))?;
-        assert_leaf(&proof, Some(*T0_T1_CD_HASH));
+    #[tested_fixture::tested_fixture(T0_X_C_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_x_c_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(&BRANCH, Some(*T0_C_HASH), None)?;
+        assert_leaf(&proof, Some(*T0_C_HASH));
         LEAF.circuit.verify(proof.clone())?;
         Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(T0_T1_AB_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
-    fn verify_t0_t1_ab_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
-        let proof = BRANCH.prove(true, &T0_T1_A_LEAF_PROOF, true, *T0_T1_B_LEAF_PROOF)?;
+    #[tested_fixture::tested_fixture(X_T1_D_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_x_t1_d_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(&BRANCH, None, Some(*T1_P2_D_HASH))?;
+        assert_leaf(&proof, Some(*T1_P2_D_HASH));
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T0_T1_BC_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_t1_bc_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH.prove(true, *X_T1_B_LEAF_PROOF, true, *T0_X_C_LEAF_PROOF)?;
         assert_branch(
             &proof,
-            Some(*T0_A_HASH),
-            Some(*T1_AB_HASH),
-            Some(*T0_T1_AB_HASH),
+            Some(*T0_C_HASH),
+            Some(*T1_B_HASH),
+            Some(*T0_T1_BC_HASH),
+        );
+        BRANCH.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T0_T1_BCD_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_t0_t1_bcd_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH.prove(false, *T0_T1_BC_BRANCH_PROOF, true, *X_T1_D_LEAF_PROOF)?;
+        assert_branch(
+            &proof,
+            Some(*T0_C_HASH),
+            Some(*T1_BD_HASH),
+            Some(*T0_T1_BCD_HASH),
         );
         BRANCH.circuit.verify(proof.clone())?;
         Ok(proof)
@@ -576,7 +597,7 @@ pub mod test {
 
     #[tested_fixture::tested_fixture(pub T0_T1_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
     fn verify_t0_t1_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
-        let proof = BRANCH.prove(false, &T0_T1_AB_BRANCH_PROOF, true, *T0_T1_CD_LEAF_PROOF)?;
+        let proof = BRANCH.prove(true, &T0_T1_A_LEAF_PROOF, false, *T0_T1_BCD_BRANCH_PROOF)?;
         assert_branch(&proof, Some(*T0_HASH), Some(*T1_HASH), Some(*T0_T1_HASH));
         BRANCH.circuit.verify(proof.clone())?;
         Ok(proof)
