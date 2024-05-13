@@ -4,13 +4,7 @@
 use std::fmt::Debug;
 pub mod bitshift;
 pub mod cpu;
-pub mod fullword_memory;
-pub mod halfword_memory;
 pub mod instruction;
-pub mod memory;
-pub mod memory_zeroinit;
-pub mod memoryinit;
-pub mod storage_device;
 use std::borrow::Borrow;
 use std::fmt::Display;
 
@@ -28,18 +22,12 @@ use starky::stark::Stark;
 
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_program_mult_trace};
-use self::fullword_memory::generate_fullword_memory_trace;
-use self::halfword_memory::generate_halfword_memory_trace;
-use self::memory::generate_memory_trace;
-use self::memoryinit::generate_memory_init_trace;
-use self::storage_device::{
-    generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
-    generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
-    generate_self_prog_id_tape_trace,
-};
 use crate::columns_view::HasNamedColumns;
-use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-use crate::generation::memoryinit::generate_elf_memory_init_trace;
+use crate::memory::generation::generate_memory_trace;
+use crate::memory_fullword::generation::generate_fullword_memory_trace;
+use crate::memory_halfword::generation::generate_halfword_memory_trace;
+use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
+use crate::memoryinit::generation::{generate_elf_memory_init_trace, generate_memory_init_trace};
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
@@ -51,6 +39,11 @@ use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
 use crate::stark::utils::trace_rows_to_poly_values;
+use crate::storage_device::generation::{
+    generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
+    generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
+    generate_self_prog_id_tape_trace,
+};
 use crate::tape_commitments::generation::generate_tape_commitments_trace;
 use crate::xor::generation::generate_xor_trace;
 
