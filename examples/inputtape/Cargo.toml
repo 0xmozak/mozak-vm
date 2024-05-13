@@ -13,7 +13,7 @@ rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["poin
 rkyv_derive = "=0.8.0-alpha.1"
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies]
-mozak-prover-sdk = { path = "../../prover-sdk"}
+mozak-prover-sdk = { path = "../../prover-sdk" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"

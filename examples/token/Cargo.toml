@@ -14,7 +14,7 @@ rkyv_derive = "=0.8.0-alpha.1"
 wallet = { path = "../wallet" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies]
-mozak-prover-sdk = { path = "../../prover-sdk"}
+mozak-prover-sdk = { path = "../../prover-sdk" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"

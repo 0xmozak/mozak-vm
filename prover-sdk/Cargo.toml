@@ -10,10 +10,10 @@ repository = "https://github.com/0xmozak/mozak-node/prover_sdk"
 version = "0.1.0"
 
 [dependencies]
-mozak-sdk = { path = "../sdk"}
-mozak-runner = { path = "../runner"}
-mozak-circuits = { path = "../circuits"}
+anyhow = "1.0.83"
+itertools = "0.12.1"
+mozak-circuits = { path = "../circuits" }
+mozak-runner = { path = "../runner" }
+mozak-sdk = { path = "../sdk" }
 plonky2 = { workspace = true, default-features = false }
 starky = { workspace = true, default-features = false }
-itertools = "0.12.1"
-anyhow = "1.0.83"
