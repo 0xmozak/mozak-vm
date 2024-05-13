@@ -2,7 +2,6 @@ use std::cmp::{max, min};
 use std::iter::repeat;
 
 use anyhow::{anyhow, ensure, Result};
-use derive_more::{Deref, DerefMut, IntoIterator};
 use elf::endian::LittleEndian;
 use elf::file::Class;
 use elf::segment::{ProgramHeader, SegmentTable};
@@ -34,10 +33,14 @@ pub struct Program {
 /// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
-#[derive(
-    Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, IntoIterator, PartialEq,
-)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Data(pub HashMap<u32, u8>);
+
+impl std::ops::Deref for Data {
+    type Target = HashMap<u32, u8>;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
 
 impl From<HashMap<u32, u32>> for Program {
     fn from(image: HashMap<u32, u32>) -> Self {
