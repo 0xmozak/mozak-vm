@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
-use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
@@ -16,8 +15,14 @@ use crate::elf::{Data, Program};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
 
-#[derive(Debug, Clone, Deref)]
+#[derive(Debug, Clone)]
 pub struct CommitmentTape(pub [u8; DIGEST_BYTES]);
+
+impl std::ops::Deref for CommitmentTape {
+    type Target = [u8; DIGEST_BYTES];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -97,9 +102,8 @@ impl StateMemory {
     }
 }
 
-#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StorageDeviceTape {
-    #[deref]
     pub data: Rc<[u8]>,
     pub read_index: usize,
 }
@@ -174,7 +178,7 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[repr(u8)]
 pub enum StorageDeviceOpcode {
     #[default]
