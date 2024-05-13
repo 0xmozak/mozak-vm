@@ -37,7 +37,6 @@ use crate::generation::storage_device::{
     generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
     generate_self_prog_id_tape_trace,
 };
-use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
@@ -56,6 +55,7 @@ use crate::storage_device::stark::StorageDeviceStark;
 use crate::tape_commitments::generation::generate_tape_commitments_trace;
 use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::utils::from_u32;
+use crate::xor::generation::generate_xor_trace;
 use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
