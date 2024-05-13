@@ -91,20 +91,20 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
-    use crate::generation::fullword_memory::generate_fullword_memory_trace;
-    use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::memory::generate_memory_trace;
-    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-    use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::storage_device::{
+    use crate::generation::MIN_TRACE_LENGTH;
+    use crate::memory::generation::generate_memory_trace;
+    use crate::memory_fullword::generation::generate_fullword_memory_trace;
+    use crate::memory_halfword::generation::generate_halfword_memory_trace;
+    use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
+    use crate::memoryinit::generation::generate_memory_init_trace;
+    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
+    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
+    use crate::register::generation::{generate_register_init_trace, generate_register_trace};
+    use crate::storage_device::generation::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
         generate_event_tape_trace, generate_events_commitment_tape_trace,
         generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
     };
-    use crate::generation::MIN_TRACE_LENGTH;
-    use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
-    use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
-    use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 
     #[test]
     fn test_generate_trace() {
