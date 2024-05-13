@@ -25,8 +25,8 @@ use starky::verifier::verify_stark_proof;
 
 use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::bitshift::stark::BitshiftStark;
+use crate::cpu::generation::generate_cpu_trace;
 use crate::cpu::stark::CpuStark;
-use crate::generation::cpu::generate_cpu_trace;
 use crate::memory::generation::generate_memory_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;

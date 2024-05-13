@@ -174,7 +174,7 @@ mod tests {
     use plonky2::field::types::Field;
 
     use super::*;
-    use crate::generation::cpu::generate_cpu_trace;
+    use crate::cpu::generation::generate_cpu_trace;
     use crate::poseidon2_sponge;
     use crate::storage_device::generation::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,

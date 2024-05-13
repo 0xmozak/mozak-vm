@@ -90,7 +90,7 @@ mod tests {
     use plonky2::field::types::Field;
 
     use super::*;
-    use crate::generation::cpu::generate_cpu_trace;
+    use crate::cpu::generation::generate_cpu_trace;
     use crate::generation::MIN_TRACE_LENGTH;
     use crate::memory::generation::generate_memory_trace;
     use crate::memory_fullword::generation::generate_fullword_memory_trace;
