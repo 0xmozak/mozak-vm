@@ -1,6 +1,5 @@
 use std::panic::Location;
 
-use derive_more::Display;
 pub use expr::PureEvaluator;
 use expr::{BinOp, Cached, Evaluator, Expr, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -87,7 +86,7 @@ impl<E> Constraint<E> {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Debug, Display)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Debug)]
 enum ConstraintType {
     FirstRow,
     #[default]
