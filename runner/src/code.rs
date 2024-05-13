@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
-use derive_more::{Deref, IntoIterator};
 use im::hashmap::HashMap;
 use itertools::{chain, izip};
 use mozak_sdk::core::ecall;
@@ -17,8 +16,14 @@ use crate::vm::{step, ExecutionRecord};
 /// Executable code of the ELF
 ///
 /// A wrapper of a map from pc to [Instruction]
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
+
+impl std::ops::Deref for Code {
+    type Target = HashMap<u32, Result<Instruction, DecodingError>>;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
 
 impl Code {
     /// Get [Instruction] given `pc`
