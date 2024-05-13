@@ -20,6 +20,7 @@ mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-node = { path = "../node", features = ["std"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 mozak-sdk = { path = "../sdk", features = ["std"] }
+mozak-prover-sdk = { path = "../prover-sdk" }
 # TODO(Matthias): implement shell completion for CLI via clap_complete
 # clap_complete = "4.3"
 anyhow = "1.0"
