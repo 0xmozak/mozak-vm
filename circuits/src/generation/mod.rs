@@ -2,7 +2,6 @@
 //! appropriate values based on the [`Program`] and [`ExecutionRecord`].
 
 use std::fmt::Debug;
-pub mod bitshift;
 pub mod cpu;
 pub mod fullword_memory;
 pub mod halfword_memory;
@@ -27,7 +26,6 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
-use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_program_mult_trace};
 use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
@@ -39,6 +37,7 @@ use self::storage_device::{
     generate_self_prog_id_tape_trace,
 };
 use self::xor::generate_xor_trace;
+use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::generate_elf_memory_init_trace;

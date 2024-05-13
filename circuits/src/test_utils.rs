@@ -23,9 +23,9 @@ use starky::prover::prove as prove_table;
 use starky::stark::Stark;
 use starky::verifier::verify_stark_proof;
 
+use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
-use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::generate_cpu_trace;
 use crate::generation::fullword_memory::generate_fullword_memory_trace;
 use crate::generation::halfword_memory::generate_halfword_memory_trace;
