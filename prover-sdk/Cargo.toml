@@ -1,0 +1,19 @@
+[package]
+categories = ["development-tools", "zk"]
+description = "Provides tools for interacting with the proving system"
+edition = "2021"
+keywords = ["sdk", "prover"]
+license = "Apache-2.0"
+name = "mozak-prover-sdk"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-node/prover_sdk"
+version = "0.1.0"
+
+[dependencies]
+mozak-sdk = { path = "../sdk"}
+mozak-runner = { path = "../runner"}
+mozak-circuits = { path = "../circuits"}
+plonky2 = { workspace = true, default-features = false }
+starky = { workspace = true, default-features = false }
+itertools = "0.12.1"
+anyhow = "1.0.83"
