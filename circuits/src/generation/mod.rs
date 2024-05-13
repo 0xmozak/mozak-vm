@@ -11,7 +11,6 @@ pub mod memory;
 pub mod memory_zeroinit;
 pub mod memoryinit;
 pub mod storage_device;
-pub mod xor;
 use std::borrow::Borrow;
 use std::fmt::Display;
 
@@ -38,7 +37,6 @@ use self::storage_device::{
     generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
     generate_self_prog_id_tape_trace,
 };
-use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::generate_elf_memory_init_trace;
@@ -54,6 +52,7 @@ use crate::stark::mozak_stark::{
 };
 use crate::stark::utils::trace_rows_to_poly_values;
 use crate::tape_commitments::generation::generate_tape_commitments_trace;
+use crate::xor::generation::generate_xor_trace;
 
 pub const MIN_TRACE_LENGTH: usize = 8;
 
