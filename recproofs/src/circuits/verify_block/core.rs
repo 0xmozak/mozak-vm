@@ -177,16 +177,29 @@ where
 {
     pub fn prove_base(
         &self,
-        base_state_root: HashOut<F>,
         verifier: &VerifierOnlyCircuitData<C, D>,
+        base_state_root: HashOut<F>,
+    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        self.prove_base_unsafe(verifier, base_state_root, base_state_root, 0)
+    }
+
+    pub fn prove_base_unsafe(
+        &self,
+        verifier: &VerifierOnlyCircuitData<C, D>,
+        base_state_root: HashOut<F>,
+        state_root: HashOut<F>,
+        block_height: u64,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut dummy_inputs = PartialWitness::new();
 
         // Set the base inputs
         dummy_inputs.set_verifier_data_target(&self.inputs.verifier, verifier);
         dummy_inputs.set_hash_target(self.inputs.base_state_root, base_state_root);
-        dummy_inputs.set_hash_target(self.inputs.state_root, base_state_root);
-        dummy_inputs.set_target(self.inputs.block_height, F::ZERO);
+        dummy_inputs.set_hash_target(self.inputs.state_root, state_root);
+        dummy_inputs.set_target(
+            self.inputs.block_height,
+            F::from_canonical_u64(block_height),
+        );
 
         // Zero out all other inputs
         for i in 0..self.dummy.common.num_public_inputs {
@@ -216,11 +229,13 @@ where
     pub fn set_witness_unsafe(
         &self,
         inputs: &mut PartialWitness<F>,
+        verifier: &VerifierOnlyCircuitData<C, D>,
         base_state_root: HashOut<F>,
         state_root: HashOut<F>,
         block_height: u64,
         prev_proof: &ProofWithPublicInputs<F, C, D>,
     ) {
+        inputs.set_verifier_data_target(&self.inputs.verifier, verifier);
         inputs.set_hash_target(self.inputs.base_state_root, base_state_root);
         inputs.set_hash_target(self.inputs.state_root, state_root);
         inputs.set_target(
@@ -496,7 +511,22 @@ mod test {
             base_state_root: HashOut<F>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             self.verify_block
-                .prove_base(base_state_root, &self.circuit.verifier_only)
+                .prove_base(&self.circuit.verifier_only, base_state_root)
+        }
+
+        pub fn prove_base_unsafe(
+            &self,
+            verifier: Option<&VerifierOnlyCircuitData<C, D>>,
+            base_state_root: HashOut<F>,
+            state_root: HashOut<F>,
+            block_height: u64,
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+            self.verify_block.prove_base_unsafe(
+                verifier.unwrap_or(&self.circuit.verifier_only),
+                base_state_root,
+                state_root,
+                block_height,
+            )
         }
 
         pub fn prove(
@@ -512,6 +542,7 @@ mod test {
 
         pub fn prove_unsafe(
             &self,
+            verifier: Option<&VerifierOnlyCircuitData<C, D>>,
             base_state_root: HashOut<F>,
             state_root: HashOut<F>,
             block_height: u64,
@@ -520,6 +551,7 @@ mod test {
             let mut inputs = PartialWitness::new();
             self.verify_block.set_witness_unsafe(
                 &mut inputs,
+                verifier.unwrap_or(&self.circuit.verifier_only),
                 base_state_root,
                 state_root,
                 block_height,
@@ -567,6 +599,27 @@ mod test {
         let proof = CIRCUIT.prove_base(NON_ZERO_HASHES[0])?;
         CIRCUIT.verify_base(proof.clone())?;
         assert_proof(&proof, NON_ZERO_HASHES[0], NON_ZERO_HASHES[0], 0);
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(BAD_HEIGHT_ZERO_BASE_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_bad_height_zero_base() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = CIRCUIT.prove_base_unsafe(None, ZERO_HASH, ZERO_HASH, 1)?;
+        CIRCUIT.verify_base(proof.clone())?;
+        assert_proof(&proof, ZERO_HASH, ZERO_HASH, 1);
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(BAD_VERIFIER_ZERO_BASE_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_bad_verifier_zero_base() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = CIRCUIT.prove_base_unsafe(
+            Some(&CIRCUIT.verify_block.dummy.verifier_only),
+            ZERO_HASH,
+            ZERO_HASH,
+            0,
+        )?;
+        CIRCUIT.verify_base(proof.clone())?;
+        assert_proof(&proof, ZERO_HASH, ZERO_HASH, 0);
         Ok(proof)
     }
 
@@ -618,7 +671,7 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_base() {
         let proof = CIRCUIT
-            .prove_unsafe(NON_ZERO_HASHES[0], ZERO_HASH, 0, *ZERO_BASE_PROOF)
+            .prove_unsafe(None, NON_ZERO_HASHES[0], ZERO_HASH, 0, *ZERO_BASE_PROOF)
             .unwrap();
         CIRCUIT.circuit.verify(proof.clone()).unwrap();
     }
@@ -627,7 +680,7 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_height_0() {
         let proof = CIRCUIT
-            .prove_unsafe(ZERO_HASH, ZERO_HASH, 0, *ZERO_BASE_PROOF)
+            .prove_unsafe(None, ZERO_HASH, ZERO_HASH, 0, *ZERO_BASE_PROOF)
             .unwrap();
         CIRCUIT.circuit.verify(proof.clone()).unwrap();
     }
@@ -636,7 +689,7 @@ mod test {
     #[should_panic(expected = "was set twice with different values")]
     fn bad_height_2() {
         let proof = CIRCUIT
-            .prove_unsafe(ZERO_HASH, ZERO_HASH, 2, *ZERO_BASE_PROOF)
+            .prove_unsafe(None, ZERO_HASH, ZERO_HASH, 2, *ZERO_BASE_PROOF)
             .unwrap();
         CIRCUIT.circuit.verify(proof.clone()).unwrap();
     }
@@ -648,7 +701,58 @@ mod test {
             .expect("shouldn't fail");
 
         let proof = CIRCUIT
-            .prove_unsafe(ZERO_HASH, NON_ZERO_HASHES[0], 1, &proof)
+            .prove_unsafe(None, ZERO_HASH, NON_ZERO_HASHES[0], 1, &proof)
+            .unwrap();
+        CIRCUIT.circuit.verify(proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_base_height_0() {
+        let proof = CIRCUIT
+            .prove_unsafe(None, ZERO_HASH, ZERO_HASH, 0, &BAD_HEIGHT_ZERO_BASE_PROOF)
+            .unwrap();
+        CIRCUIT.circuit.verify(proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_base_height_1() {
+        let proof = CIRCUIT
+            .prove_unsafe(None, ZERO_HASH, ZERO_HASH, 1, &BAD_HEIGHT_ZERO_BASE_PROOF)
+            .unwrap();
+        CIRCUIT.circuit.verify(proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_base_height_2() {
+        let proof = CIRCUIT
+            .prove_unsafe(None, ZERO_HASH, ZERO_HASH, 2, &BAD_HEIGHT_ZERO_BASE_PROOF)
+            .unwrap();
+        CIRCUIT.circuit.verify(proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_base_verifier_match() {
+        let proof = CIRCUIT
+            .prove_unsafe(None, ZERO_HASH, ZERO_HASH, 1, &BAD_VERIFIER_ZERO_BASE_PROOF)
+            .unwrap();
+        CIRCUIT.circuit.verify(proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_base_verifier_mismatch() {
+        let proof = CIRCUIT
+            .prove_unsafe(
+                Some(&CIRCUIT.circuit.verifier_only),
+                ZERO_HASH,
+                ZERO_HASH,
+                1,
+                &BAD_VERIFIER_ZERO_BASE_PROOF,
+            )
             .unwrap();
         CIRCUIT.circuit.verify(proof.clone()).unwrap();
     }

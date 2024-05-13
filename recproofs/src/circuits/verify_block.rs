@@ -85,7 +85,7 @@ where
         base_state_root: HashOut<F>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         self.block
-            .prove_base(base_state_root, &self.circuit.verifier_only)
+            .prove_base(&self.circuit.verifier_only, base_state_root)
     }
 
     pub fn verify_base(&self, base_proof: ProofWithPublicInputs<F, C, D>) -> Result<()> {
