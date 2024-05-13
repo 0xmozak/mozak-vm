@@ -12,10 +12,12 @@ mozak-sdk = { path = "../../sdk" }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 rkyv_derive = "=0.8.0-alpha.1"
 
+
 [target.'cfg(not(target_os="mozakvm"))'.dependencies]
 hex = "0.4"
 rand = "0.8"
 rand_chacha = "0.3"
+mozak-prover-sdk = { path = "../../prover-sdk"}
 
 [[bin]]
 name = "walletbin"
@@ -32,4 +34,4 @@ path = "core_logic.rs"
 
 # The following is read by `run_examples.py`
 [package.metadata.mozak]
-example_program_id = "MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb"
+example_program_id = "MZK-8475b3990f7d99e8380c6597dcf445e42235b9fef6951a91cf546ac9a319a710"

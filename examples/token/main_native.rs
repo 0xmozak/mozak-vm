@@ -1,12 +1,16 @@
 #![feature(restricted_std)]
 #![allow(unused_attributes)]
 mod core_logic;
+use mozak_prover_sdk::prog_id_bytes::{ProgIdBytes, ELF_DIR};
 use mozak_sdk::common::types::{ProgramIdentifier, StateAddress, StateObject};
 use rkyv::rancor::Panic;
 use token::{dispatch, MethodArgs};
 
 fn main() {
-    let token_program = ProgramIdentifier::new_from_rand_seed(1);
+    let token_program: ProgramIdentifier =
+        ProgIdBytes::from_elf(&format!("{}{}", ELF_DIR, "tokenbin"))
+            .unwrap()
+            .into();
 
     // We assume both wallet are the same program for now
     let remitter_program = ProgramIdentifier::new_from_rand_seed(2);

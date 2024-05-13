@@ -21,7 +21,8 @@ pub const PRODUCTION_STARK_CONFIG: StarkConfig = StarkConfig::standard_fast_conf
 pub type ProductionGenericConfig = Poseidon2GoldilocksConfig;
 pub type F = <ProductionGenericConfig as GenericConfig<D>>::F;
 pub const D: usize = 2;
-pub const ELF_DIR: &str = "../examples/target/riscv32im-mozak-mozakvm-elf/release/";
+// TODO: remove this once we have a way to access ELF path inside native
+pub const ELF_DIR: &str = "../target/riscv32im-mozak-mozakvm-elf/release/"; // relative to example in /examples
 
 impl ProgIdBytes {
     pub fn inner(&self) -> Poseidon2Hash { self.0 }
