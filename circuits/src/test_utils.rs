@@ -27,11 +27,6 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::generate_cpu_trace;
-use crate::generation::storage_device::{
-    generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
-    generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
-    generate_self_prog_id_tape_trace,
-};
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::generation::generate_memory_trace;
 use crate::memory::stark::MemoryStark;
@@ -52,6 +47,11 @@ use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
 use crate::stark::utils::trace_rows_to_poly_values;
 use crate::stark::verifier::verify_proof;
+use crate::storage_device::generation::{
+    generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
+    generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
+    generate_self_prog_id_tape_trace,
+};
 use crate::storage_device::stark::StorageDeviceStark;
 use crate::tape_commitments::generation::generate_tape_commitments_trace;
 use crate::tape_commitments::stark::TapeCommitmentsStark;

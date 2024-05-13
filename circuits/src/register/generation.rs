@@ -175,12 +175,12 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
-    use crate::generation::storage_device::{
+    use crate::poseidon2_sponge;
+    use crate::storage_device::generation::{
         generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
         generate_event_tape_trace, generate_events_commitment_tape_trace,
         generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
     };
-    use crate::poseidon2_sponge;
     use crate::test_utils::prep_table;
 
     type F = GoldilocksField;

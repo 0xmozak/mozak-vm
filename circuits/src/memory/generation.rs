@@ -215,11 +215,6 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use super::pad_mem_trace;
-    use crate::generation::storage_device::{
-        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
-        generate_event_tape_trace, generate_events_commitment_tape_trace,
-        generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
-    };
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
@@ -230,6 +225,11 @@ mod tests {
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
+    use crate::storage_device::generation::{
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_event_tape_trace, generate_events_commitment_tape_trace,
+        generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
+    };
     use crate::test_utils::{fast_test_config, prep_table};
 
     const D: usize = 2;

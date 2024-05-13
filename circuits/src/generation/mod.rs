@@ -5,7 +5,6 @@ use std::fmt::Debug;
 pub mod bitshift;
 pub mod cpu;
 pub mod instruction;
-pub mod storage_device;
 pub mod xor;
 use std::borrow::Borrow;
 use std::fmt::Display;
@@ -24,11 +23,6 @@ use starky::stark::Stark;
 
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_program_mult_trace};
-use self::storage_device::{
-    generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
-    generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
-    generate_self_prog_id_tape_trace,
-};
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::memory::generation::generate_memory_trace;
@@ -47,6 +41,11 @@ use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
 use crate::stark::utils::trace_rows_to_poly_values;
+use crate::storage_device::generation::{
+    generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
+    generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
+    generate_self_prog_id_tape_trace,
+};
 use crate::tape_commitments::generation::generate_tape_commitments_trace;
 
 pub const MIN_TRACE_LENGTH: usize = 8;
