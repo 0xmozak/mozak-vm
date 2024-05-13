@@ -4,8 +4,8 @@ use mozak_runner::elf::Program;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use super::memoryinit::generate_memory_init_trace;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
+use crate::memoryinit::generation::generate_memory_init_trace;
 use crate::utils::pad_trace_with_default;
 
 #[must_use]

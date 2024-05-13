@@ -5,4 +5,5 @@
 //! It is used from the CPU STARK with the Cross Table Lookup (CTL) technique.
 
 pub mod columns;
+pub mod generation;
 pub mod stark;
