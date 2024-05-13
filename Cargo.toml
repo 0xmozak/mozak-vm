@@ -21,7 +21,7 @@ members = [
   "cli",
   "examples-builder",
   "expr",
-  "node",
+  "node", "prover_sdk",
   "recproofs",
   "runner",
   "signatures",
