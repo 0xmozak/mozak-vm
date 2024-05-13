@@ -243,7 +243,7 @@ where
         }
     });
 
-    // Register program ROM and memory init trace cap as public inputs.
+    // Register the public tables as public inputs.
     for kind in PUBLIC_TABLE_KINDS {
         builder.register_public_inputs(
             &targets[kind]
