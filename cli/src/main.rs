@@ -435,7 +435,7 @@ fn main() -> Result<()> {
         Command::SelfProgId { elf } => {
             let elf_path = elf.path().to_str().unwrap();
             let prog_id: ProgramIdentifier = ProgIdBytes::from_elf(elf_path)?.into();
-            println!("{:?}", prog_id);
+            println!("{prog_id:?}");
         }
     }
     Ok(())

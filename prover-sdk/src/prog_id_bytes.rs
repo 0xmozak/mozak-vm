@@ -31,8 +31,8 @@ impl ProgIdBytes {
     /// and recursive plonky2 prover
     pub fn from_production_configs(program: &Program) -> Self {
         let entry_point = F::from_canonical_u32(program.entry_point);
-        let elf_memory_init_trace = generate_elf_memory_init_trace::<F>(&program);
-        let program_rom_trace = generate_program_rom_trace::<F>(&program);
+        let elf_memory_init_trace = generate_elf_memory_init_trace::<F>(program);
+        let program_rom_trace = generate_program_rom_trace::<F>(program);
         let elf_memory_init_hash = get_trace_commitment_hash::<F, ProductionGenericConfig, D, _>(
             elf_memory_init_trace,
             &PRODUCTION_STARK_CONFIG,
@@ -50,7 +50,7 @@ impl ProgIdBytes {
                 )
                 .collect_vec(),
             );
-        Self(hashout.to_bytes().try_into().unwrap())
+        Self(hashout.to_bytes().into())
     }
 
     pub fn from_elf(elf_path: &str) -> anyhow::Result<Self> {
@@ -61,8 +61,8 @@ impl ProgIdBytes {
     }
 }
 
-impl Into<ProgramIdentifier> for ProgIdBytes {
-    fn into(self) -> ProgramIdentifier { ProgramIdentifier(self.inner().into()) }
+impl From<ProgIdBytes> for ProgramIdentifier {
+    fn from(val: ProgIdBytes) -> Self { ProgramIdentifier(val.0) }
 }
 /// Compute merkle cap of the trace, and return its hash.
 fn get_trace_commitment_hash<F, C, const D: usize, Row: IntoIterator<Item = F>>(
