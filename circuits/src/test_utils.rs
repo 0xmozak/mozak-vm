@@ -27,20 +27,20 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::generate_cpu_trace;
-use crate::generation::fullword_memory::generate_fullword_memory_trace;
-use crate::generation::halfword_memory::generate_halfword_memory_trace;
-use crate::generation::memory::generate_memory_trace;
-use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::storage_device::{
     generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
     generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
     generate_self_prog_id_tape_trace,
 };
 use crate::generation::xor::generate_xor_trace;
+use crate::memory::generation::generate_memory_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_fullword::stark::FullWordMemoryStark;
+use crate::memory_halfword::generation::generate_halfword_memory_trace;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
+use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
+use crate::memoryinit::generation::generate_memory_init_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
 use crate::rangecheck::generation::generate_rangecheck_trace;
