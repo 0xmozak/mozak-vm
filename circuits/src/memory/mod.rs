@@ -4,6 +4,7 @@
 //! using the CTL (cross table lookup) technique.
 
 pub mod columns;
+pub mod generation;
 pub mod stark;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;
