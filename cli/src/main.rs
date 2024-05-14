@@ -13,7 +13,8 @@ use itertools::Itertools;
 use log::debug;
 use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
+use mozak_circuits::stark::batch_prover::batch_prove;
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
@@ -58,7 +59,7 @@ pub struct RunArgs {
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -66,9 +67,11 @@ pub struct ProveArgs {
     elf: Input,
     proof: Output,
     #[arg(long)]
+    batch_proof: Option<Output>,
+    #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
     recursive_proof: Option<Output>,
 }
 
@@ -123,7 +126,7 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
             let program = load_program(elf).unwrap();
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
@@ -135,7 +138,7 @@ fn main() -> Result<()> {
         }) => {
             let program = load_program(elf).unwrap();
 
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
@@ -147,9 +150,10 @@ fn main() -> Result<()> {
             self_prog_id,
             mut proof,
             recursive_proof,
+            batch_proof,
         }) => {
             let program = load_program(elf).unwrap();
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
@@ -172,6 +176,20 @@ fn main() -> Result<()> {
 
             let serialized = serde_json::to_string(&all_proof).unwrap();
             proof.write_all(serialized.as_bytes())?;
+
+            if let Some(mut batch_proof_output) = batch_proof {
+                let batch_proofs = batch_prove::<F, C, D>(
+                    &program,
+                    &record,
+                    &stark,
+                    &PUBLIC_TABLE_KINDS,
+                    &config,
+                    public_inputs,
+                    &mut TimingTree::default(),
+                )?;
+                let serialized = serde_json::to_string(&batch_proofs).unwrap();
+                batch_proof_output.write_all(serialized.as_bytes())?;
+            }
 
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {

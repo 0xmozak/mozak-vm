@@ -42,7 +42,9 @@ use crate::rangecheck::stark::RangeCheckStark;
 use crate::register::general::stark::RegisterStark;
 use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 use crate::register::init::stark::RegisterInitStark;
-use crate::stark::mozak_stark::{MozakStark, PublicInputs};
+use crate::stark::batch_prover::batch_prove;
+use crate::stark::batch_verifier::batch_verify_proof;
+use crate::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
 use crate::stark::prover::prove;
 use crate::stark::utils::trace_rows_to_poly_values;
 use crate::stark::verifier::verify_proof;
@@ -482,6 +484,28 @@ pub fn prove_and_verify_mozak_stark(
         &mut TimingTree::default(),
     )?;
     verify_proof(&stark, all_proof, config)
+}
+
+pub fn prove_and_verify_batch_mozak_stark(
+    program: &Program,
+    record: &ExecutionRecord<F>,
+    config: &StarkConfig,
+) -> Result<()> {
+    let stark = MozakStark::default();
+    let public_inputs = PublicInputs {
+        entry_point: from_u32(program.entry_point),
+    };
+
+    let all_proof = batch_prove::<F, C, D>(
+        program,
+        record,
+        &stark,
+        &PUBLIC_TABLE_KINDS,
+        config,
+        public_inputs,
+        &mut TimingTree::default(),
+    )?;
+    batch_verify_proof(&stark, &PUBLIC_TABLE_KINDS, all_proof, config)
 }
 
 /// Interpret a u64 as a field element and try to invert it.
