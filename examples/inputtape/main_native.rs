@@ -2,14 +2,14 @@
 #![allow(unused_attributes)]
 mod core_logic;
 
-use mozak_prover_sdk::prog_id_bytes::{ProgIdBytes, ELF_DIR};
+use mozak_prover_sdk::prog_id::{ProgId, ELF_DIR};
 use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier};
 
 use crate::core_logic::{dispatch, MethodArgs};
 
 fn main() {
     let token_program: ProgramIdentifier =
-        ProgIdBytes::from_elf(&format!("{}{}", ELF_DIR, "inputtapebin"))
+        ProgId::from_elf(&format!("{}{}", ELF_DIR, "inputtapebin"))
             .unwrap()
             .into();
 

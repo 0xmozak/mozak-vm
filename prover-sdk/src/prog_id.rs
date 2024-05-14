@@ -14,7 +14,7 @@ use plonky2::plonk::config::{
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
-pub struct ProgIdBytes(Poseidon2Hash);
+pub struct ProgId(Poseidon2Hash);
 
 // TODO: have a separate type for these in circuits
 pub const PRODUCTION_STARK_CONFIG: StarkConfig = StarkConfig::standard_fast_config();
@@ -24,10 +24,10 @@ pub const D: usize = 2;
 // TODO: remove this once we have a way to access ELF path inside native
 pub const ELF_DIR: &str = "../target/riscv32im-mozak-mozakvm-elf/release/"; // relative to example in /examples
 
-impl ProgIdBytes {
+impl ProgId {
     pub fn inner(&self) -> Poseidon2Hash { self.0 }
 
-    /// Create [ProgIdBytes] from `program` using production configs for stark
+    /// Create [ProgId] from `program` using production configs for stark
     /// and recursive plonky2 prover
     pub fn from_production_configs(program: &Program) -> Self {
         let entry_point = F::from_canonical_u32(program.entry_point);
@@ -61,8 +61,8 @@ impl ProgIdBytes {
     }
 }
 
-impl From<ProgIdBytes> for ProgramIdentifier {
-    fn from(val: ProgIdBytes) -> Self { ProgramIdentifier(val.0) }
+impl From<ProgId> for ProgramIdentifier {
+    fn from(val: ProgId) -> Self { ProgramIdentifier(val.0) }
 }
 /// Compute merkle cap of the trace, and return its hash.
 fn get_trace_commitment_hash<F, C, const D: usize, Row: IntoIterator<Item = F>>(

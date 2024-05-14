@@ -28,7 +28,7 @@ use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, raw_tapes_from_system_tape};
 use mozak_node::types::{Attestation, Transaction};
-use mozak_prover_sdk::prog_id_bytes::ProgIdBytes;
+use mozak_prover_sdk::prog_id::ProgId;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
@@ -434,7 +434,7 @@ fn main() -> Result<()> {
         }
         Command::SelfProgId { elf } => {
             let elf_path = elf.path().to_str().unwrap();
-            let prog_id: ProgramIdentifier = ProgIdBytes::from_elf(elf_path)?.into();
+            let prog_id: ProgramIdentifier = ProgId::from_elf(elf_path)?.into();
             println!("{prog_id:?}");
         }
     }

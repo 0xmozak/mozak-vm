@@ -2,14 +2,14 @@
 #![allow(unused_attributes)]
 
 mod core_logic;
-use mozak_prover_sdk::prog_id_bytes::{ProgIdBytes, ELF_DIR};
+use mozak_prover_sdk::prog_id::{ProgId, ELF_DIR};
 use mozak_sdk::common::types::ProgramIdentifier;
 
 use crate::core_logic::{dispatch, BlackBox, MethodArgs, PublicKey, TokenObject};
 
 fn main() {
     let wallet_program: ProgramIdentifier =
-        ProgIdBytes::from_elf(&format!("{}{}", ELF_DIR, "walletbin"))
+        ProgId::from_elf(&format!("{}{}", ELF_DIR, "walletbin"))
             .unwrap()
             .into();
     let remitter_program = ProgramIdentifier::new_from_rand_seed(20);
