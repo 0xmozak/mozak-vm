@@ -20,8 +20,8 @@ plonky2 = { workspace = true, default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
-mozak-recproofs = { path = '../recproofs', features = ["test"] }
 mozak-circuits = { path = '../circuits', features = ["test"] }
+mozak-recproofs = { path = '../recproofs', features = ["test"] }
 
 [features]
 default = ["std"]
