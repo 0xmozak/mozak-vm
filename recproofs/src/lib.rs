@@ -12,7 +12,9 @@ use plonky2::hash::hash_types::{
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
+use plonky2::plonk::circuit_data::{
+    CircuitConfig, CircuitData, CommonCircuitData, VerifierCircuitTarget,
+};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 
 pub mod circuits;
@@ -587,4 +589,39 @@ where
         builder.add_gate(NoopGate, vec![]);
     }
     builder.build::<C>()
+}
+
+/// Generate a circuit matching a given `CommonCircuitData`.
+#[must_use]
+pub fn dummy_circuit<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>(
+    common_data: &CommonCircuitData<F, D>,
+    register_public_inputs: impl FnOnce(&mut CircuitBuilder<F, D>),
+) -> CircuitData<F, C, D> {
+    let config = common_data.config.clone();
+
+    let mut builder = CircuitBuilder::<F, D>::new(config);
+    // Build up enough wires to cover all our inputs
+    for _ in 0..common_data.num_public_inputs {
+        let _ = builder.add_virtual_target();
+    }
+    register_public_inputs(&mut builder);
+    while builder.num_public_inputs() < common_data.num_public_inputs {
+        builder.add_virtual_public_input();
+    }
+    for gate in &common_data.gates {
+        builder.add_gate_to_gate_set(gate.clone());
+    }
+
+    // We don't want to pad all the way up to 2^target_degree_bits, as the builder
+    // will add a few special gates afterward. So just pad to
+    // 2^(degree - 1) + 1. Then the builder will pad to the next
+    // power of two.
+    let min_gates = (1 << (common_data.degree_bits() - 1)) + 1;
+    while builder.num_gates() < min_gates {
+        builder.add_gate(NoopGate, vec![]);
+    }
+
+    let circuit = builder.build::<C>();
+    assert_eq!(&circuit.common, common_data);
+    circuit
 }
