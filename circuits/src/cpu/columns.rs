@@ -1,13 +1,10 @@
 use core::ops::{Add, Mul, Sub};
 
-use itertools::izip;
 use mozak_runner::instruction::Op;
-use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
-use crate::generation::ascending_sum;
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::ProgramRom;
@@ -140,35 +137,6 @@ impl From<(u32, mozak_runner::instruction::Instruction)> for Instruction<u32> {
         cols.rs2_selected = u32::from(inst.args.rs2);
         cols.rd_selected = u32::from(inst.args.rd);
         cols
-    }
-}
-
-impl<F: RichField> From<Instruction<F>> for ProgramRom<F> {
-    fn from(inst: Instruction<F>) -> Self {
-        pub fn reduce_with_powers<F: RichField, I: IntoIterator<Item = F>>(
-            terms: I,
-            alpha: u64,
-        ) -> F {
-            izip!((0..).map(|i| F::from_canonical_u64(alpha.pow(i))), terms)
-                .map(|(base, val)| base * val)
-                .sum()
-        }
-
-        Self {
-            pc: inst.pc,
-            inst_data: reduce_with_powers(
-                [
-                    ascending_sum(inst.ops),
-                    inst.is_op1_signed,
-                    inst.is_op2_signed,
-                    inst.rs1_selected,
-                    inst.rs2_selected,
-                    inst.rd_selected,
-                    inst.imm_value,
-                ],
-                1 << 5,
-            ),
-        }
     }
 }
 
