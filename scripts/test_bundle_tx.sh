@@ -4,17 +4,21 @@
 set -euo pipefail
 
 # Run native executions and build mozakvm binaries
-cd examples/token && cargo run --release \
+cd examples/token && \
+    cargo build --bin tokenbin --release && \
+    cargo run --release \
     --features="native" \
     --bin token-native \
-    --target "$(rustc --verbose --version | grep host | awk '{ print $2; }')" &&
-    cargo build --bin tokenbin --release
+    --target "$(rustc --verbose --version | grep host | awk '{ print $2; }')" 
+    
 
-cd ../wallet && cargo run --release \
+cd ../wallet && \
+    cargo build --bin walletbin --release && \
+    cargo run --release \
     --features="native" \
     --bin wallet-native \
-    --target "$(rustc --verbose --version | grep host | awk '{ print $2; }')" &&
-    cargo build --bin walletbin --release
+    --target "$(rustc --verbose --version | grep host | awk '{ print $2; }')" 
+    
 
 # Run CLI
 cd ../../
