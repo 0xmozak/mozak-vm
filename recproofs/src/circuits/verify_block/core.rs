@@ -418,17 +418,17 @@ impl<const D: usize> StateUpdateVerifierTargets<D> {
         let old_root = su.old.indices.unpruned_hash.get(&proof.public_inputs);
         let new_root = su.new.indices.unpruned_hash.get(&proof.public_inputs);
 
-        let _true = builder._true();
+        // There must be some summary present
         let summary_present = su
             .summarized
             .indices
             .summary_hash_present
             .get(&proof.public_inputs);
-        builder.connect(summary_present.target, _true.target);
+        builder.assert_one(summary_present.target);
 
-        let zero = builder.zero();
+        // The root address must be 0
         let address = su.address.indices.node_address.get(&proof.public_inputs);
-        builder.connect(address, zero);
+        builder.assert_zero(address);
 
         Self {
             proof,
