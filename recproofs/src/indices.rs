@@ -1,7 +1,7 @@
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
 use iter_fixed::IntoIteratorFixed;
+use itertools::Itertools;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::{
     HashOut, HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS,
@@ -20,17 +20,24 @@ pub trait Indices: Clone + PartialEq + Eq + Debug {
     fn set_target(&self, public_inputs: &mut [Target], v: Self::Target);
 }
 
-pub struct ConfigMarked<C, const D: usize, T> {
-    pub _marker: PhantomData<C>,
-    pub t: T,
+pub trait HasHasher<F: RichField, const D: usize> {
+    type Hasher: Hasher<F, Hash = HashOut<F>>;
 }
 
-pub struct HashMarked<H, T> {
-    pub _marker: PhantomData<H>,
-    pub t: T,
+impl<C: GenericConfig<D>, const D: usize> HasHasher<C::F, D> for C
+where
+    C::Hasher: Hasher<C::F, Hash = HashOut<C::F>>,
+{
+    type Hasher = C::Hasher;
 }
 
 pub trait FieldIndices<F> {
+    type Field;
+    fn get_field(&self, public_inputs: &[F]) -> Self::Field;
+    fn set_field(&self, public_inputs: &mut [F], v: Self::Field);
+}
+
+pub trait ConfiguredFieldIndices<F, C, const D: usize> {
     type Field;
     fn get_field(&self, public_inputs: &[F]) -> Self::Field;
     fn set_field(&self, public_inputs: &mut [F], v: Self::Field);
@@ -52,15 +59,15 @@ impl TargetIndex {
 
     fn get_raw<T: Copy>(&self, public_inputs: &[T]) -> T { public_inputs[self.0] }
 
-    pub fn get_target(&self, public_inputs: &[Target]) -> Target { self.get_raw(public_inputs) }
-
-    pub fn get_field<F: Copy>(&self, public_inputs: &[F]) -> F { self.get_raw(public_inputs) }
-
     fn set_raw<T>(&self, public_inputs: &mut [T], v: T) { public_inputs[self.0] = v; }
+
+    pub fn get_target(&self, public_inputs: &[Target]) -> Target { self.get_raw(public_inputs) }
 
     pub fn set_target(&self, public_inputs: &mut [Target], v: Target) {
         self.set_raw(public_inputs, v)
     }
+
+    pub fn get_field<F: Copy>(&self, public_inputs: &[F]) -> F { self.get_raw(public_inputs) }
 
     pub fn set_field<F>(&self, public_inputs: &mut [F], v: F) { self.set_raw(public_inputs, v) }
 }
@@ -92,6 +99,16 @@ impl<F: Copy> FieldIndices<F> for TargetIndex {
     }
 }
 
+impl<F: Copy, C, const D: usize> ConfiguredFieldIndices<F, C, D> for TargetIndex {
+    type Field = F;
+
+    fn get_field(&self, public_inputs: &[F]) -> Self::Field { self.get_field(public_inputs) }
+
+    fn set_field(&self, public_inputs: &mut [F], v: Self::Field) {
+        self.set_field(public_inputs, v)
+    }
+}
+
 /// The indices of a single `BoolTarget` in a `ProofWithPublicInputs`
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct BoolTargetIndex(pub TargetIndex);
@@ -105,14 +122,14 @@ impl BoolTargetIndex {
         BoolTarget::new_unsafe(self.0.get_target(public_inputs))
     }
 
+    pub fn set_target(&self, public_inputs: &mut [Target], v: BoolTarget) {
+        self.0.set_target(public_inputs, v.target)
+    }
+
     pub fn get_field<F: Field>(&self, public_inputs: &[F]) -> bool {
         let v = self.0.get_field(public_inputs);
         debug_assert!(v.is_zero() || v.is_one());
         v.is_one()
-    }
-
-    pub fn set_target(&self, public_inputs: &mut [Target], v: BoolTarget) {
-        self.0.set_target(public_inputs, v.target)
     }
 
     pub fn set_field<F: Field>(&self, public_inputs: &mut [F], v: bool) {
@@ -147,6 +164,16 @@ impl<F: Field> FieldIndices<F> for BoolTargetIndex {
     }
 }
 
+impl<F: Field, C, const D: usize> ConfiguredFieldIndices<F, C, D> for BoolTargetIndex {
+    type Field = bool;
+
+    fn get_field(&self, public_inputs: &[F]) -> Self::Field { self.get_field(public_inputs) }
+
+    fn set_field(&self, public_inputs: &mut [F], v: Self::Field) {
+        self.set_field(public_inputs, v)
+    }
+}
+
 /// The indices of a single `HashOutTarget` in a `ProofWithPublicInputs`
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct HashOutTargetIndex(pub ArrayTargetIndex<TargetIndex, NUM_HASH_OUT_ELTS>);
@@ -162,14 +189,14 @@ impl HashOutTargetIndex {
         }
     }
 
-    pub fn get_field<F: Field>(&self, public_inputs: &[F]) -> HashOut<F> {
-        HashOut {
-            elements: self.0 .0.each_ref().map(|i| i.get_field(public_inputs)),
-        }
-    }
-
     pub fn set_target(&self, public_inputs: &mut [Target], v: HashOutTarget) {
         self.0.set_target(public_inputs, v.elements)
+    }
+
+    pub fn get_field<F: Field>(&self, public_inputs: &[F]) -> HashOut<F> {
+        HashOut {
+            elements: self.0.get_field(public_inputs),
+        }
     }
 
     pub fn set_field<F: Field>(&self, public_inputs: &mut [F], v: HashOut<F>) {
@@ -204,6 +231,19 @@ impl<F: Field> FieldIndices<F> for HashOutTargetIndex {
     }
 }
 
+impl<F, C, const D: usize> ConfiguredFieldIndices<F, C, D> for HashOutTargetIndex
+where
+    F: Field,
+{
+    type Field = HashOut<F>;
+
+    fn get_field(&self, public_inputs: &[F]) -> Self::Field { self.get_field(public_inputs) }
+
+    fn set_field(&self, public_inputs: &mut [F], v: Self::Field) {
+        self.set_field(public_inputs, v)
+    }
+}
+
 /// The indices of an array of `Indicies` in a `ProofWithPublicInputs`
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct ArrayTargetIndex<I, const N: usize>(pub [I; N]);
@@ -222,18 +262,18 @@ impl<I, const N: usize> ArrayTargetIndex<I, N> {
         self.0.each_ref().map(|i| i.get_target(public_inputs))
     }
 
-    pub fn get_field<F>(&self, public_inputs: &[F]) -> [I::Field; N]
-    where
-        I: FieldIndices<F>, {
-        self.0.each_ref().map(|i| i.get_field(public_inputs))
-    }
-
     pub fn set_target(&self, public_inputs: &mut [Target], v: [I::Target; N])
     where
         I: Indices, {
         for (i, v) in self.0.each_ref().into_iter_fixed().zip(v) {
             i.set_target(public_inputs, v);
         }
+    }
+
+    pub fn get_field<F>(&self, public_inputs: &[F]) -> [I::Field; N]
+    where
+        I: FieldIndices<F>, {
+        self.0.each_ref().map(|i| i.get_field(public_inputs))
     }
 
     pub fn set_field<F>(&self, public_inputs: &mut [F], v: [I::Field; N])
@@ -243,10 +283,28 @@ impl<I, const N: usize> ArrayTargetIndex<I, N> {
             i.set_field(public_inputs, v);
         }
     }
+
+    pub fn get_configured_field<F, C, const D: usize>(&self, public_inputs: &[F]) -> [I::Field; N]
+    where
+        I: ConfiguredFieldIndices<F, C, D>, {
+        self.0.each_ref().map(|i| i.get_field(public_inputs))
+    }
+
+    pub fn set_configured_field<F, C, const D: usize>(
+        &self,
+        public_inputs: &mut [F],
+        v: [I::Field; N],
+    ) where
+        I: ConfiguredFieldIndices<F, C, D>, {
+        for (i, v) in self.0.each_ref().into_iter_fixed().zip(v) {
+            i.set_field(public_inputs, v);
+        }
+    }
 }
 
-impl<I: Indices, const N: usize> Indices for ArrayTargetIndex<I, N>
+impl<I, const N: usize> Indices for ArrayTargetIndex<I, N>
 where
+    I: Indices,
     I::SourceTarget: Sized,
 {
     type SourceTarget = [I::SourceTarget; N];
@@ -265,13 +323,34 @@ where
     }
 }
 
-impl<F: Field, I: FieldIndices<F>, const N: usize> FieldIndices<F> for ArrayTargetIndex<I, N> {
+impl<F, I, const N: usize> FieldIndices<F> for ArrayTargetIndex<I, N>
+where
+    F: Field,
+    I: FieldIndices<F>,
+{
     type Field = [I::Field; N];
 
     fn get_field(&self, public_inputs: &[F]) -> Self::Field { self.get_field(public_inputs) }
 
     fn set_field(&self, public_inputs: &mut [F], v: Self::Field) {
         self.set_field(public_inputs, v)
+    }
+}
+
+impl<F, C, const D: usize, I, const N: usize> ConfiguredFieldIndices<F, C, D>
+    for ArrayTargetIndex<I, N>
+where
+    F: Field,
+    I: ConfiguredFieldIndices<F, C, D>,
+{
+    type Field = [I::Field; N];
+
+    fn get_field(&self, public_inputs: &[F]) -> Self::Field {
+        self.get_configured_field(public_inputs)
+    }
+
+    fn set_field(&self, public_inputs: &mut [F], v: Self::Field) {
+        self.set_configured_field(public_inputs, v)
     }
 }
 
@@ -293,31 +372,49 @@ impl<I> VecTargetIndex<I> {
         self.0.iter().map(|i| i.get_target(public_inputs)).collect()
     }
 
+    pub fn set_target(&self, public_inputs: &mut [Target], v: Vec<I::Target>)
+    where
+        I: Indices, {
+        for (i, v) in self.0.iter().zip_eq(v) {
+            i.set_target(public_inputs, v)
+        }
+    }
+
     pub fn get_field<F>(&self, public_inputs: &[F]) -> Vec<I::Field>
     where
         I: FieldIndices<F>, {
         self.0.iter().map(|i| i.get_field(public_inputs)).collect()
     }
 
-    pub fn set_target(&self, public_inputs: &mut [Target], v: Vec<I::Target>)
-    where
-        I: Indices, {
-        for (i, v) in self.0.iter().zip(v) {
-            i.set_target(public_inputs, v)
-        }
-    }
-
     pub fn set_field<F>(&self, public_inputs: &mut [F], v: Vec<I::Field>)
     where
         I: FieldIndices<F>, {
-        for (i, v) in self.0.iter().zip(v) {
+        for (i, v) in self.0.iter().zip_eq(v) {
+            i.set_field(public_inputs, v)
+        }
+    }
+
+    pub fn get_configured_field<F, C, const D: usize>(&self, public_inputs: &[F]) -> Vec<I::Field>
+    where
+        I: ConfiguredFieldIndices<F, C, D>, {
+        self.0.iter().map(|i| i.get_field(public_inputs)).collect()
+    }
+
+    pub fn set_configured_field<F, C, const D: usize>(
+        &self,
+        public_inputs: &mut [F],
+        v: Vec<I::Field>,
+    ) where
+        I: ConfiguredFieldIndices<F, C, D>, {
+        for (i, v) in self.0.iter().zip_eq(v) {
             i.set_field(public_inputs, v)
         }
     }
 }
 
-impl<I: Indices> Indices for VecTargetIndex<I>
+impl<I> Indices for VecTargetIndex<I>
 where
+    I: Indices,
     I::SourceTarget: Sized,
 {
     type SourceTarget = [I::SourceTarget];
@@ -336,13 +433,33 @@ where
     }
 }
 
-impl<F: Field, I: FieldIndices<F>> FieldIndices<F> for VecTargetIndex<I> {
+impl<F, I> FieldIndices<F> for VecTargetIndex<I>
+where
+    F: Field,
+    I: FieldIndices<F>,
+{
     type Field = Vec<I::Field>;
 
     fn get_field(&self, public_inputs: &[F]) -> Self::Field { self.get_field(public_inputs) }
 
     fn set_field(&self, public_inputs: &mut [F], v: Self::Field) {
         self.set_field(public_inputs, v)
+    }
+}
+
+impl<F, C, const D: usize, I> ConfiguredFieldIndices<F, C, D> for VecTargetIndex<I>
+where
+    F: Field,
+    I: ConfiguredFieldIndices<F, C, D>,
+{
+    type Field = Vec<I::Field>;
+
+    fn get_field(&self, public_inputs: &[F]) -> Self::Field {
+        self.get_configured_field(public_inputs)
+    }
+
+    fn set_field(&self, public_inputs: &mut [F], v: Self::Field) {
+        self.set_configured_field(public_inputs, v)
     }
 }
 
@@ -359,15 +476,15 @@ impl MerkleCapTargetIndex {
         MerkleCapTarget(self.0.get_target(public_inputs))
     }
 
+    pub fn set_target(&self, public_inputs: &mut [Target], v: MerkleCapTarget) {
+        self.0.set_target(public_inputs, v.0)
+    }
+
     pub fn get_field<F, H>(&self, public_inputs: &[F]) -> MerkleCap<F, H>
     where
         F: RichField,
         H: Hasher<F, Hash = HashOut<F>>, {
         MerkleCap(self.0.get_field(public_inputs))
-    }
-
-    pub fn set_target(&self, public_inputs: &mut [Target], v: MerkleCapTarget) {
-        self.0.set_target(public_inputs, v.0)
     }
 
     pub fn set_field<F, H>(&self, public_inputs: &mut [F], v: MerkleCap<F, H>)
@@ -395,17 +512,17 @@ impl Indices for MerkleCapTargetIndex {
     }
 }
 
-impl<F, H> FieldIndices<F> for HashMarked<H, MerkleCapTargetIndex>
+impl<F, C, const D: usize> ConfiguredFieldIndices<F, C, D> for MerkleCapTargetIndex
 where
     F: RichField,
-    H: Hasher<F, Hash = HashOut<F>>,
+    C: HasHasher<F, D>,
 {
-    type Field = MerkleCap<F, H>;
+    type Field = MerkleCap<F, C::Hasher>;
 
-    fn get_field(&self, public_inputs: &[F]) -> Self::Field { self.t.get_field(public_inputs) }
+    fn get_field(&self, public_inputs: &[F]) -> Self::Field { self.get_field(public_inputs) }
 
     fn set_field(&self, public_inputs: &mut [F], v: Self::Field) {
-        self.t.set_field(public_inputs, v)
+        self.set_field(public_inputs, v)
     }
 }
 
@@ -438,6 +555,13 @@ impl VerifierCircuitTargetIndex {
         }
     }
 
+    pub fn set_target(&self, public_inputs: &mut [Target], v: VerifierCircuitTarget) {
+        self.constants_sigmas_cap
+            .set_target(public_inputs, v.constants_sigmas_cap);
+        self.circuit_digest
+            .set_target(public_inputs, v.circuit_digest);
+    }
+
     pub fn get_field<C, const D: usize>(
         &self,
         public_inputs: &[C::F],
@@ -449,13 +573,6 @@ impl VerifierCircuitTargetIndex {
             constants_sigmas_cap: self.constants_sigmas_cap.get_field(public_inputs),
             circuit_digest: self.circuit_digest.get_field(public_inputs),
         }
-    }
-
-    pub fn set_target(&self, public_inputs: &mut [Target], v: VerifierCircuitTarget) {
-        self.constants_sigmas_cap
-            .set_target(public_inputs, v.constants_sigmas_cap);
-        self.circuit_digest
-            .set_target(public_inputs, v.circuit_digest);
     }
 
     pub fn set_field<C, const D: usize>(
@@ -489,16 +606,16 @@ impl Indices for VerifierCircuitTargetIndex {
     }
 }
 
-impl<C, const D: usize> FieldIndices<C::F> for ConfigMarked<C, D, VerifierCircuitTargetIndex>
+impl<C, const D: usize> ConfiguredFieldIndices<C::F, C, D> for VerifierCircuitTargetIndex
 where
     C: GenericConfig<D>,
     C::Hasher: Hasher<C::F, Hash = HashOut<C::F>>,
 {
     type Field = VerifierOnlyCircuitData<C, D>;
 
-    fn get_field(&self, public_inputs: &[C::F]) -> Self::Field { self.t.get_field(public_inputs) }
+    fn get_field(&self, public_inputs: &[C::F]) -> Self::Field { self.get_field(public_inputs) }
 
     fn set_field(&self, public_inputs: &mut [C::F], v: Self::Field) {
-        self.t.set_field(public_inputs, v)
+        self.set_field(public_inputs, v)
     }
 }
