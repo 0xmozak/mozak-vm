@@ -1,5 +1,7 @@
 use core::ops::{Add, Mul, Sub};
 
+use mozak_runner::instruction::Op;
+
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
@@ -84,6 +86,58 @@ pub struct Instruction<T> {
     pub rd_selected: T,
     /// Special immediate value used for code constants
     pub imm_value: T,
+}
+
+impl From<(u32, mozak_runner::instruction::Instruction)> for Instruction<u32> {
+    fn from((pc, inst): (u32, mozak_runner::instruction::Instruction)) -> Self {
+        let mut cols: Instruction<u32> = Self {
+            pc,
+            imm_value: inst.args.imm,
+            is_op1_signed: matches!(
+                inst.op,
+                Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::MULHSU | Op::BLT | Op::BGE | Op::SRA
+            )
+            .into(),
+            is_op2_signed: matches!(
+                inst.op,
+                Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::BLT | Op::BGE
+            )
+            .into(),
+            is_dst_signed: matches!(inst.op, Op::LB | Op::LH).into(),
+            ..Self::default()
+        };
+        *match inst.op {
+            Op::ADD => &mut cols.ops.add,
+            Op::LBU | Op::LB => &mut cols.ops.lb,
+            Op::LH | Op::LHU => &mut cols.ops.lh,
+            Op::LW => &mut cols.ops.lw,
+            Op::SLL => &mut cols.ops.sll,
+            Op::SLT | Op::SLTU => &mut cols.ops.slt,
+            Op::SB => &mut cols.ops.sb,
+            Op::SH => &mut cols.ops.sh,
+            Op::SW => &mut cols.ops.sw,
+            Op::SRL => &mut cols.ops.srl,
+            Op::SRA => &mut cols.ops.sra,
+            Op::SUB => &mut cols.ops.sub,
+            Op::DIV | Op::DIVU => &mut cols.ops.div,
+            Op::REM | Op::REMU => &mut cols.ops.rem,
+            Op::MUL => &mut cols.ops.mul,
+            Op::MULH | Op::MULHU | Op::MULHSU => &mut cols.ops.mulh,
+            Op::JALR => &mut cols.ops.jalr,
+            Op::BEQ => &mut cols.ops.beq,
+            Op::BNE => &mut cols.ops.bne,
+            Op::BLT | Op::BLTU => &mut cols.ops.blt,
+            Op::BGE | Op::BGEU => &mut cols.ops.bge,
+            Op::ECALL => &mut cols.ops.ecall,
+            Op::XOR => &mut cols.ops.xor,
+            Op::OR => &mut cols.ops.or,
+            Op::AND => &mut cols.ops.and,
+        } = 1;
+        cols.rs1_selected = u32::from(inst.args.rs1);
+        cols.rs2_selected = u32::from(inst.args.rs2);
+        cols.rd_selected = u32::from(inst.args.rd);
+        cols
+    }
 }
 
 make_col_map!(CpuState);

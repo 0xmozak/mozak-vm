@@ -3,7 +3,7 @@ use core::ops::Add;
 use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::generation::instruction::ascending_sum;
+use crate::generation::ascending_sum;
 use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::rangecheck::columns::RangeCheckCtl;
