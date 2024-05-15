@@ -1,12 +1,10 @@
 //! This module is responsible for populating the the Stark Tables with the
 //! appropriate values based on the [`Program`] and [`ExecutionRecord`].
 
-use std::fmt::Debug;
-pub mod instruction;
 use std::borrow::Borrow;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -151,6 +149,12 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         tape_commitments_stark: trace_rows_to_poly_values(tape_commitments_rows),
     }
     .build()
+}
+
+pub fn ascending_sum<F: RichField, I: IntoIterator<Item = F>>(cs: I) -> F {
+    izip![(0..).map(F::from_canonical_u64), cs]
+        .map(|(i, x)| i * x)
+        .sum()
 }
 
 #[must_use]
