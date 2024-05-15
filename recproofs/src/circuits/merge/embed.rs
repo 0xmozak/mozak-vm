@@ -209,13 +209,13 @@ impl<const D: usize> BranchSubCircuit<D> {
         &self,
         inputs: &mut PartialWitness<F>,
         partial: bool,
-        proof: &ProofWithPublicInputs<F, C, D>,
+        proof: &super::BranchProof<F, C, D>,
     ) where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
         inputs.set_bool_target(self.targets.partial, partial);
-        inputs.set_proof_with_pis_target(&self.targets.proof, proof);
+        inputs.set_proof_with_pis_target(&self.targets.proof, &proof.proof);
     }
 
     pub fn set_witness_unsafe<F, C>(
@@ -356,7 +356,7 @@ mod test {
 
         pub fn prove(
             &self,
-            merged_proof: &ProofWithPublicInputs<F, C, D>,
+            merged_proof: &merge::BranchProof<F, C, D>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_proof: Option<&ProofWithPublicInputs<F, C, D>>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
@@ -484,7 +484,7 @@ mod test {
     fn verify_empty_partial_bad_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = BRANCH_1.prove_unsafe(
             true,
-            *merge::EMPTY_BRANCH_PROOF,
+            &merge::EMPTY_BRANCH_PROOF.proof,
             false,
             ZERO_HASH,
             *EMPTY_LEAF_PROOF,
@@ -655,7 +655,7 @@ mod test {
         let proof = BRANCH_1
             .prove_unsafe(
                 false,
-                &merge::BOTH_BRANCH_PROOF,
+                &merge::BOTH_BRANCH_PROOF.proof,
                 true,
                 hash_branch(&NON_ZERO_HASHES[1], &NON_ZERO_HASHES[0]),
                 *NON_ZERO_LEAF_PROOF_1,

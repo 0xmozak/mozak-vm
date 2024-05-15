@@ -1,18 +1,59 @@
 //! Circuits for proving events correspond to a proof
 
+use std::marker::PhantomData;
+
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
-use plonky2::plonk::proof::ProofWithPublicInputs;
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierOnlyCircuitData};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 
-use super::{merge, verify_program};
+use super::{merge, verify_program, Branch, IsLeaf, Leaf};
 use crate::subcircuits::unbounded;
 
 pub mod core;
+
+#[derive(Clone)]
+pub struct Indices {
+    pub unbounded: unbounded::PublicIndices,
+    pub events: merge::embed::PublicIndices,
+}
+
+pub type Proof<T, F, C, const D: usize> = super::Proof<T, Indices, F, C, D>;
+
+pub type LeafProof<F, C, const D: usize> = Proof<Leaf, F, C, D>;
+
+pub type BranchProof<F, C, const D: usize> = Proof<Branch, F, C, D>;
+
+impl<T, F, C, const D: usize> Proof<T, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: Hasher<F, Hash = HashOut<F>>,
+{
+    pub fn verifier(&self) -> VerifierOnlyCircuitData<C, D> {
+        self.indices
+            .unbounded
+            .verifier
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn events_present(&self) -> bool {
+        self.indices
+            .events
+            .hash_present
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn events(&self) -> HashOut<F> {
+        self.indices
+            .events
+            .hash
+            .get_field(&self.proof.public_inputs)
+    }
+}
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
@@ -77,16 +118,32 @@ where
         }
     }
 
+    fn indices(&self) -> Indices {
+        Indices {
+            unbounded: self.unbounded.indices.clone(),
+            events: self.events.indices,
+        }
+    }
+
     pub fn prove(
         &self,
         branch: &BranchCircuit<F, C, D>,
-        program_set_proof: &ProofWithPublicInputs<F, C, D>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        program_set_proof: &verify_program::BranchProof<F, C, D>,
+    ) -> Result<LeafProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.program_verifier
-            .set_witness(&mut inputs, program_set_proof);
-        self.circuit.prove(inputs)
+            .set_witness(&mut inputs, &program_set_proof.proof);
+        let proof = self.circuit.prove(inputs)?;
+        Ok(LeafProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    pub fn verify(&self, proof: LeafProof<F, C, D>) -> Result<()> {
+        self.circuit.verify(proof.proof)
     }
 }
 
@@ -143,27 +200,44 @@ where
         }
     }
 
-    /// `hash` `vm_hash` and `event_owner` only need to be provided to check
-    /// externally, otherwise they will be calculated
-    pub fn prove(
+    fn indices(&self) -> Indices {
+        Indices {
+            unbounded: self.unbounded.indices.clone(),
+            events: self.events.indices,
+        }
+    }
+
+    pub fn prove<L: IsLeaf, R: IsLeaf>(
         &self,
-        merge: &ProofWithPublicInputs<F, C, D>,
-        left_is_leaf: bool,
-        left_proof: &ProofWithPublicInputs<F, C, D>,
-        right_proof: Option<(bool, &ProofWithPublicInputs<F, C, D>)>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        merge: &merge::BranchProof<F, C, D>,
+        left_proof: &Proof<L, F, C, D>,
+        right_proof: Option<&Proof<R, F, C, D>>,
+    ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         let partial = right_proof.is_none();
-        let (right_is_leaf, right_proof) = right_proof.unwrap_or((left_is_leaf, left_proof));
+        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
+            (R::VALUE, &right_proof.proof)
+        } else {
+            (L::VALUE, &left_proof.proof)
+        };
         self.unbounded.set_witness(
             &mut inputs,
-            left_is_leaf,
-            left_proof,
+            L::VALUE,
+            &left_proof.proof,
             right_is_leaf,
             right_proof,
         );
         self.events.set_witness(&mut inputs, partial, merge);
-        self.circuit.prove(inputs)
+        let proof = self.circuit.prove(inputs)?;
+        Ok(BranchProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    pub fn verify(&self, proof: BranchProof<F, C, D>) -> Result<()> {
+        self.circuit.verify(proof.proof)
     }
 }
 
@@ -185,50 +259,53 @@ pub mod test {
         BranchCircuit::new(&CONFIG, &merge::BRANCH, &LEAF)
     }
 
-    fn assert_value(proof: &ProofWithPublicInputs<F, C, D>, event_hash: Option<HashOut<F>>) {
+    fn assert_proof<T>(proof: &Proof<T, F, C, D>, event_hash: Option<HashOut<F>>) {
         let indices = &LEAF.events.indices;
         assert_eq!(*indices, BRANCH.events.indices);
 
-        let p_present = indices.hash_present.get_field(&proof.public_inputs);
+        let p_present = proof.events_present();
         assert_eq!(p_present, event_hash.is_some());
-        let p_hash = indices.hash.get_field(&proof.public_inputs);
+        let p_hash = proof.events();
         assert_eq!(p_hash, event_hash.unwrap_or_default());
     }
 
-    #[tested_fixture::tested_fixture(pub T0_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
-    fn verify_t0_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+    #[tested_fixture::tested_fixture(pub T0_LEAF_PROOF: LeafProof<F, C, D>)]
+    fn verify_t0_leaf() -> Result<LeafProof<F, C, D>> {
         let proof = LEAF.prove(&BRANCH, &verify_program::T0_BRANCH_PROOF)?;
-        assert_value(&proof, Some(*T0_HASH));
-        LEAF.circuit.verify(proof.clone())?;
+        assert_proof(&proof, Some(*T0_HASH));
+        LEAF.verify(proof.clone())?;
         Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(pub T1_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
-    fn verify_t1_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+    #[tested_fixture::tested_fixture(pub T1_LEAF_PROOF: LeafProof<F, C, D>)]
+    fn verify_t1_leaf() -> Result<LeafProof<F, C, D>> {
         let proof = LEAF.prove(&BRANCH, &verify_program::T1_BRANCH_PROOF)?;
-        assert_value(&proof, Some(*T1_HASH));
-        LEAF.circuit.verify(proof.clone())?;
+        assert_proof(&proof, Some(*T1_HASH));
+        LEAF.verify(proof.clone())?;
         Ok(proof)
     }
 
-    #[tested_fixture::tested_fixture(pub BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
-    fn verify_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+    #[tested_fixture::tested_fixture(pub BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_branch() -> Result<BranchProof<F, C, D>> {
         let proof = BRANCH.prove(
             &merge::T0_T1_BRANCH_PROOF,
-            true,
             &T0_LEAF_PROOF,
-            Some((true, &T1_LEAF_PROOF)),
+            Some(&T1_LEAF_PROOF),
         )?;
-        assert_value(&proof, Some(*T0_T1_HASH));
-        BRANCH.circuit.verify(proof.clone())?;
+        assert_proof(&proof, Some(*T0_T1_HASH));
+        BRANCH.verify(proof.clone())?;
         Ok(proof)
     }
 
     #[test]
     fn verify_partial_branch() -> Result<()> {
-        let proof = BRANCH.prove(&merge::T1_PARTIAL_BRANCH_PROOF, true, &T1_LEAF_PROOF, None)?;
-        assert_value(&proof, Some(*T1_HASH));
-        BRANCH.circuit.verify(proof.clone())?;
+        let proof = BRANCH.prove(
+            &merge::T1_PARTIAL_BRANCH_PROOF,
+            &T1_LEAF_PROOF,
+            None::<&LeafProof<_, _, D>>,
+        )?;
+        assert_proof(&proof, Some(*T1_HASH));
+        BRANCH.verify(proof.clone())?;
         Ok(())
     }
 }

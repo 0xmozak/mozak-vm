@@ -12,7 +12,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::{Branch, Leaf, Proof};
+use super::{Branch, Leaf};
 use crate::subcircuits::{bounded, summarized, unpruned, verify_address};
 use crate::{at_least_one_true, hashes_equal};
 
@@ -25,11 +25,13 @@ pub struct Indices {
     pub address: verify_address::PublicIndices,
 }
 
-pub type LeafProof<F, C, const D: usize> = Proof<Leaf, Indices, F, C, D>;
+pub type Proof<T, F, C, const D: usize> = super::Proof<T, Indices, F, C, D>;
 
-pub type BranchProof<F, C, const D: usize> = Proof<Branch, Indices, F, C, D>;
+pub type LeafProof<F, C, const D: usize> = Proof<Leaf, F, C, D>;
 
-impl<T, F, C, const D: usize> Proof<T, Indices, F, C, D>
+pub type BranchProof<F, C, const D: usize> = Proof<Branch, F, C, D>;
+
+impl<T, F, C, const D: usize> Proof<T, F, C, D>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -340,8 +342,8 @@ where
 
     pub fn prove<T>(
         &self,
-        left_proof: &Proof<T, Indices, F, C, D>,
-        right_proof: &Proof<T, Indices, F, C, D>,
+        left_proof: &Proof<T, F, C, D>,
+        right_proof: &Proof<T, F, C, D>,
     ) -> Result<BranchProof<F, C, D>>
     where
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
@@ -452,7 +454,7 @@ pub mod test {
     fn build_branch_3() -> BranchCircuit<F, C, D> { BranchCircuit::from_branch(&CONFIG, &BRANCH_2) }
 
     fn assert_proof<T>(
-        proof: &Proof<T, Indices, F, C, D>,
+        proof: &Proof<T, F, C, D>,
         old_state: HashOut<F>,
         new_state: HashOut<F>,
         summary_address: Option<(HashOut<F>, u64)>,

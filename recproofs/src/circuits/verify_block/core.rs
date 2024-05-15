@@ -304,12 +304,12 @@ impl<const D: usize> TxVerifierSubCircuit<D> {
     pub fn set_witness<F, C>(
         &self,
         inputs: &mut PartialWitness<F>,
-        tx_proof: &ProofWithPublicInputs<F, C, D>,
+        tx_proof: &verify_tx::BranchProof<F, C, D>,
     ) where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
-        inputs.set_proof_with_pis_target(&self.targets.proof, tx_proof);
+        inputs.set_proof_with_pis_target(&self.targets.proof, &tx_proof.proof);
     }
 }
 
@@ -382,12 +382,12 @@ impl<const D: usize> MatchDeltaVerifierSubCircuit<D> {
     pub fn set_witness<F, C>(
         &self,
         inputs: &mut PartialWitness<F>,
-        match_proof: &ProofWithPublicInputs<F, C, D>,
+        match_proof: &match_delta::BranchProof<F, C, D>,
     ) where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
-        inputs.set_proof_with_pis_target(&self.targets.proof, match_proof);
+        inputs.set_proof_with_pis_target(&self.targets.proof, &match_proof.proof);
     }
 }
 
