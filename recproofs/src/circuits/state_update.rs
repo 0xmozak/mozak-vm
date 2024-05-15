@@ -35,28 +35,24 @@ where
     C: GenericConfig<D, F = F>,
 {
     pub fn summary_present(&self) -> bool {
-        !self
-            .indices
+        self.indices
             .summarized
             .summary_hash_present
-            .get_any(&self.proof.public_inputs)
-            .is_zero()
+            .get_field(&self.proof.public_inputs)
     }
 
     pub fn summary(&self) -> HashOut<F> {
         self.indices
             .summarized
             .summary_hash
-            .get_any(&self.proof.public_inputs)
-            .into()
+            .get_field(&self.proof.public_inputs)
     }
 
     pub fn old(&self) -> HashOut<F> {
         self.indices
             .old
             .unpruned_hash
-            .get_any(&self.proof.public_inputs)
-            .into()
+            .get_field(&self.proof.public_inputs)
     }
 
     #[allow(clippy::new_ret_no_self)]
@@ -64,8 +60,7 @@ where
         self.indices
             .new
             .unpruned_hash
-            .get_any(&self.proof.public_inputs)
-            .into()
+            .get_field(&self.proof.public_inputs)
     }
 
     pub fn address_present(&self) -> bool {
@@ -73,15 +68,14 @@ where
             .indices
             .address
             .node_present
-            .get_any(&self.proof.public_inputs)
-            .is_zero()
+            .get_field(&self.proof.public_inputs)
     }
 
     pub fn address(&self) -> u64 {
         self.indices
             .address
             .node_address
-            .get(&self.proof.public_inputs)
+            .get_field(&self.proof.public_inputs)
             .to_canonical_u64()
     }
 }

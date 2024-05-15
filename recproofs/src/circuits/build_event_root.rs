@@ -315,7 +315,7 @@ pub mod test {
     fn get_owner(proof: &ProofWithPublicInputs<F, C, D>) -> [F; 4] {
         let indices = &LEAF.event_owner.indices;
         assert_eq!(*indices, BRANCH.event_owner.indices);
-        indices.values.get_any(&proof.public_inputs)
+        indices.values.get_field(&proof.public_inputs)
     }
 
     fn assert_value(
@@ -326,13 +326,13 @@ pub mod test {
     ) {
         let indices = &LEAF.hash.indices;
         assert_eq!(*indices, BRANCH.hash.indices);
-        let p_hash = indices.unpruned_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_hash, hash.elements);
+        let p_hash = indices.unpruned_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash);
 
         let indices = &LEAF.vm_hash.indices;
         assert_eq!(*indices, BRANCH.vm_hash.indices);
-        let p_vm_hash = indices.unpruned_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_vm_hash, vm_hash.elements);
+        let p_vm_hash = indices.unpruned_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_vm_hash, vm_hash);
 
         let p_owner = get_owner(proof);
         assert_eq!(p_owner, owner);

@@ -104,7 +104,7 @@ where
                 .event_hash
                 .indices
                 .unpruned_hash
-                .get(&targets.accumulate_event.public_inputs);
+                .get_target(&targets.accumulate_event.public_inputs);
             builder.connect_hashes(event_hash_targets.inputs.unpruned_hash, acc_event_hash);
         }
         // address
@@ -113,7 +113,7 @@ where
                 .partial_state
                 .indices
                 .address
-                .get(&targets.accumulate_event.public_inputs);
+                .get_target(&targets.accumulate_event.public_inputs);
             builder.connect(compare_delta_targets.address, acc_addr);
         }
         // flags
@@ -121,7 +121,7 @@ where
             .partial_state
             .indices
             .object_flags
-            .get(&targets.accumulate_event.public_inputs);
+            .get_target(&targets.accumulate_event.public_inputs);
         builder.connect(compare_delta_targets.object_flags, acc_flags);
         let acc_flags = SplitFlags::split(&mut builder, acc_flags);
         let has_owner = builder.is_nonzero(acc_flags.owner);
@@ -131,7 +131,7 @@ where
                 .partial_state
                 .indices
                 .old_owner
-                .get(&targets.accumulate_event.public_inputs);
+                .get_target(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
                 compare_delta_targets.old_owner,
@@ -145,7 +145,7 @@ where
                 .partial_state
                 .indices
                 .new_owner
-                .get(&targets.accumulate_event.public_inputs);
+                .get_target(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
                 compare_delta_targets.new_owner,
@@ -159,7 +159,7 @@ where
                 .partial_state
                 .indices
                 .old_data
-                .get(&targets.accumulate_event.public_inputs);
+                .get_target(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
                 compare_delta_targets.old_data,
@@ -173,7 +173,7 @@ where
                 .partial_state
                 .indices
                 .new_data
-                .get(&targets.accumulate_event.public_inputs);
+                .get_target(&targets.accumulate_event.public_inputs);
             maybe_connect(
                 &mut builder,
                 compare_delta_targets.new_data,
@@ -187,7 +187,7 @@ where
                 .partial_state
                 .indices
                 .credit_delta
-                .get(&targets.accumulate_event.public_inputs);
+                .get_target(&targets.accumulate_event.public_inputs);
             let calc_credit_delta = builder.sub(
                 compare_delta_targets.new_credits,
                 compare_delta_targets.old_credits,
@@ -405,7 +405,7 @@ pub mod test {
             indices, &BRANCH.block_height.indices,
             "LEAF and BRANCH indicies didn't match"
         );
-        let p_event_hash = indices.values.get_any(&proof.public_inputs);
+        let p_event_hash = indices.values.get_field(&proof.public_inputs);
         assert_eq!(
             p_event_hash,
             [F::from_canonical_u64(block_height)],
@@ -417,16 +417,16 @@ pub mod test {
             indices, &BRANCH.event_hash.indices,
             "LEAF and BRANCH indicies didn't match"
         );
-        let p_event_hash = indices.unpruned_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_event_hash, event_hash.elements, "event hash didn't match");
+        let p_event_hash = indices.unpruned_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_event_hash, event_hash, "event hash didn't match");
 
         let indices = &LEAF.state_hash.indices;
         assert_eq!(
             indices, &BRANCH.state_hash.indices,
             "LEAF and BRANCH indicies didn't match"
         );
-        let p_state_hash = indices.unpruned_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_state_hash, state_hash.elements, "state hash didn't match");
+        let p_state_hash = indices.unpruned_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_state_hash, state_hash, "state hash didn't match");
     }
 
     #[tested_fixture::tested_fixture(A_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]

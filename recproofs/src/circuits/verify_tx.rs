@@ -169,7 +169,6 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use plonky2::field::types::Field;
     use plonky2::hash::hash_types::HashOut;
 
     use super::*;
@@ -190,10 +189,10 @@ pub mod test {
         let indices = &LEAF.events.indices;
         assert_eq!(*indices, BRANCH.events.indices);
 
-        let p_present = indices.hash_present.get_any(&proof.public_inputs);
-        assert_eq!(p_present, F::from_bool(event_hash.is_some()));
-        let p_hash = indices.hash.get_any(&proof.public_inputs);
-        assert_eq!(p_hash, event_hash.unwrap_or_default().elements);
+        let p_present = indices.hash_present.get_field(&proof.public_inputs);
+        assert_eq!(p_present, event_hash.is_some());
+        let p_hash = indices.hash.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, event_hash.unwrap_or_default());
     }
 
     #[tested_fixture::tested_fixture(pub T0_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]

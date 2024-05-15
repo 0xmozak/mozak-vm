@@ -167,7 +167,6 @@ where
 #[cfg(test)]
 pub mod test {
     use anyhow::Ok;
-    use plonky2::field::types::Field;
 
     pub use super::BranchCircuit;
     use super::*;
@@ -182,11 +181,11 @@ pub mod test {
     fn assert_leaf(proof: &ProofWithPublicInputs<F, C, D>, merged: Option<HashOut<F>>) {
         let indices = &LEAF.merge.indices;
 
-        let p_present = indices.merged_present.get_any(&proof.public_inputs);
-        assert_eq!(p_present, F::from_bool(merged.is_some()));
+        let p_present = indices.merged_present.get_field(&proof.public_inputs);
+        assert_eq!(p_present, merged.is_some());
 
-        let p_merged = indices.merged_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_merged, merged.unwrap_or_default().elements);
+        let p_merged = indices.merged_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_merged, merged.unwrap_or_default());
     }
 
     fn assert_branch(
@@ -197,23 +196,23 @@ pub mod test {
     ) {
         let indices = &BRANCH.merge.indices;
 
-        let p_a_present = indices.a_present.get_any(&proof.public_inputs);
-        assert_eq!(p_a_present, F::from_bool(a_hash.is_some()));
+        let p_a_present = indices.a_present.get_field(&proof.public_inputs);
+        assert_eq!(p_a_present, a_hash.is_some());
 
-        let p_a_hash = indices.a_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_a_hash, a_hash.unwrap_or_default().elements);
+        let p_a_hash = indices.a_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_a_hash, a_hash.unwrap_or_default());
 
-        let p_b_present = indices.b_present.get_any(&proof.public_inputs);
-        assert_eq!(p_b_present, F::from_bool(b_hash.is_some()));
+        let p_b_present = indices.b_present.get_field(&proof.public_inputs);
+        assert_eq!(p_b_present, b_hash.is_some());
 
-        let p_b_hash = indices.b_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_b_hash, b_hash.unwrap_or_default().elements);
+        let p_b_hash = indices.b_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_b_hash, b_hash.unwrap_or_default());
 
-        let p_merged_present = indices.merged_present.get_any(&proof.public_inputs);
-        assert_eq!(p_merged_present, F::from_bool(merged.is_some()));
+        let p_merged_present = indices.merged_present.get_field(&proof.public_inputs);
+        assert_eq!(p_merged_present, merged.is_some());
 
-        let p_merged = indices.merged_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_merged, merged.unwrap_or_default().elements);
+        let p_merged = indices.merged_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_merged, merged.unwrap_or_default());
     }
 
     #[tested_fixture::tested_fixture(pub LEAF)]

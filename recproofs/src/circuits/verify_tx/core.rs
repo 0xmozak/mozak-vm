@@ -44,25 +44,25 @@ impl<const D: usize> ProgramSetVerifierTargets<D> {
             .events
             .indices
             .hash_present
-            .get(&program_set_proof.public_inputs);
+            .get_target(&program_set_proof.public_inputs);
         let event_root = program
             .events
             .indices
             .hash
-            .get(&program_set_proof.public_inputs);
+            .get_target(&program_set_proof.public_inputs);
 
         let cast_root = program
             .cast_root
             .indices
             .values
-            .get(&program_set_proof.public_inputs);
+            .get_target(&program_set_proof.public_inputs);
         let program_ids = program
             .program_id
             .indices
             .unpruned_hash
-            .get_any(&program_set_proof.public_inputs);
+            .get_target(&program_set_proof.public_inputs);
 
-        connect_arrays(builder, cast_root, program_ids);
+        connect_arrays(builder, cast_root, program_ids.elements);
 
         Self {
             program_set_proof,

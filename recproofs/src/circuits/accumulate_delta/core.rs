@@ -394,13 +394,13 @@ impl SubCircuitInputs {
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
     ) -> SubCircuitInputs {
-        let address = indices.address.get(&proof.public_inputs);
-        let object_flags = indices.object_flags.get(&proof.public_inputs);
-        let old_owner = indices.old_owner.get(&proof.public_inputs);
-        let new_owner = indices.new_owner.get(&proof.public_inputs);
-        let old_data = indices.old_data.get(&proof.public_inputs);
-        let new_data = indices.new_data.get(&proof.public_inputs);
-        let credit_delta = indices.credit_delta.get(&proof.public_inputs);
+        let address = indices.address.get_target(&proof.public_inputs);
+        let object_flags = indices.object_flags.get_target(&proof.public_inputs);
+        let old_owner = indices.old_owner.get_target(&proof.public_inputs);
+        let new_owner = indices.new_owner.get_target(&proof.public_inputs);
+        let old_data = indices.old_data.get_target(&proof.public_inputs);
+        let new_data = indices.new_data.get_target(&proof.public_inputs);
+        let credit_delta = indices.credit_delta.get_target(&proof.public_inputs);
 
         SubCircuitInputs {
             address,
@@ -632,12 +632,24 @@ impl BranchSubCircuit {
     ) {
         let targets = &self.targets.inputs;
         let indices = &self.indices;
-        witness.set_target(targets.object_flags, indices.object_flags.get(left_inputs));
-        witness.set_target_arr(&targets.old_owner, &indices.old_owner.get_any(left_inputs));
-        witness.set_target_arr(&targets.new_owner, &indices.new_owner.get_any(left_inputs));
-        witness.set_target_arr(&targets.old_data, &indices.old_data.get_any(left_inputs));
-        witness.set_target_arr(&targets.new_data, &indices.new_data.get_any(left_inputs));
-        witness.set_target(targets.credit_delta, indices.credit_delta.get(left_inputs));
+        witness.set_target(
+            targets.object_flags,
+            indices.object_flags.get_field(left_inputs),
+        );
+        witness.set_target_arr(
+            &targets.old_owner,
+            &indices.old_owner.get_field(left_inputs),
+        );
+        witness.set_target_arr(
+            &targets.new_owner,
+            &indices.new_owner.get_field(left_inputs),
+        );
+        witness.set_target_arr(&targets.old_data, &indices.old_data.get_field(left_inputs));
+        witness.set_target_arr(&targets.new_data, &indices.new_data.get_field(left_inputs));
+        witness.set_target(
+            targets.credit_delta,
+            indices.credit_delta.get_field(left_inputs),
+        );
         witness.set_bool_target(self.targets.partial, true);
     }
 
@@ -653,8 +665,14 @@ impl BranchSubCircuit {
         // Address can be derived, so we can skip it
 
         // Handle flags
-        let left_flags = indices.object_flags.get(left_inputs).to_canonical_u64();
-        let right_flags = indices.object_flags.get(right_inputs).to_canonical_u64();
+        let left_flags = indices
+            .object_flags
+            .get_field(left_inputs)
+            .to_canonical_u64();
+        let right_flags = indices
+            .object_flags
+            .get_field(right_inputs)
+            .to_canonical_u64();
         witness.set_target(
             targets.object_flags,
             F::from_canonical_u64(left_flags | right_flags),
@@ -677,7 +695,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| indices.old_owner.get_any(inputs),
+            |inputs| indices.old_owner.get_field(inputs),
             old_owner,
         );
         let new_owner = merge_branch_helper(
@@ -685,7 +703,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| indices.new_owner.get_any(inputs),
+            |inputs| indices.new_owner.get_field(inputs),
             new_owner,
         );
         let old_data = merge_branch_helper(
@@ -693,7 +711,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| indices.old_data.get_any(inputs),
+            |inputs| indices.old_data.get_field(inputs),
             old_data,
         );
         let new_data = merge_branch_helper(
@@ -701,7 +719,7 @@ impl BranchSubCircuit {
             left_flags,
             right_inputs,
             right_flags,
-            |inputs| indices.new_data.get_any(inputs),
+            |inputs| indices.new_data.get_field(inputs),
             new_data,
         );
 
@@ -712,8 +730,8 @@ impl BranchSubCircuit {
         witness.set_target_arr(&targets.new_data, &new_data);
 
         // Handle the credits
-        let left_credits = indices.credit_delta.get(left_inputs);
-        let right_credits = indices.credit_delta.get(right_inputs);
+        let left_credits = indices.credit_delta.get_field(left_inputs);
+        let right_credits = indices.credit_delta.get_field(right_inputs);
         let credits = left_credits + right_credits;
         witness.set_target(targets.credit_delta, credits);
 
@@ -905,19 +923,19 @@ mod test {
         credit_delta: impl Into<Option<F>>,
     ) {
         let indices = &LEAF.state_from_events.indices;
-        let p_address = indices.address.get(&proof.public_inputs);
+        let p_address = indices.address.get_field(&proof.public_inputs);
         assert_eq!(p_address, F::from_canonical_u64(address));
-        let p_flags = indices.object_flags.get(&proof.public_inputs);
+        let p_flags = indices.object_flags.get_field(&proof.public_inputs);
         assert_eq!(p_flags, F::from_canonical_u8(flags.into().bits()));
-        let p_old_owner = indices.old_owner.get_any(&proof.public_inputs);
+        let p_old_owner = indices.old_owner.get_field(&proof.public_inputs);
         assert_eq!(p_old_owner, old_owner.into().unwrap_or_default());
-        let p_new_owner = indices.new_owner.get_any(&proof.public_inputs);
+        let p_new_owner = indices.new_owner.get_field(&proof.public_inputs);
         assert_eq!(p_new_owner, new_owner.into().unwrap_or_default());
-        let p_old_data = indices.old_data.get_any(&proof.public_inputs);
+        let p_old_data = indices.old_data.get_field(&proof.public_inputs);
         assert_eq!(p_old_data, old_data.into().unwrap_or_default());
-        let p_new_data = indices.new_data.get_any(&proof.public_inputs);
+        let p_new_data = indices.new_data.get_field(&proof.public_inputs);
         assert_eq!(p_new_data, new_data.into().unwrap_or_default());
-        let p_credit_delta = indices.credit_delta.get(&proof.public_inputs);
+        let p_credit_delta = indices.credit_delta.get_field(&proof.public_inputs);
         assert_eq!(p_credit_delta, credit_delta.into().unwrap_or_default());
     }
 

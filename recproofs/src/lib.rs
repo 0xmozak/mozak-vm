@@ -6,9 +6,7 @@ use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::gates::noop::NoopGate;
-use plonky2::hash::hash_types::{
-    HashOut, HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS,
-};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, MerkleCapTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -431,17 +429,17 @@ where
 fn hash_or_forward<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     left_present: BoolTarget,
-    left: [Target; NUM_HASH_OUT_ELTS],
+    left: HashOutTarget,
     right_present: BoolTarget,
-    right: [Target; NUM_HASH_OUT_ELTS],
+    right: HashOutTarget,
 ) -> HashOutTarget
 where
     F: RichField + Extendable<D>, {
     let both_present = builder.and(left_present, right_present);
+    let (left, right) = (left.elements, right.elements);
 
     // Construct the hash of [left, right]
-    let hash_both =
-        builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(left.into_iter().chain(right).collect());
+    let hash_both = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(chain!(left, right).collect());
 
     // Construct the forwarding "hash".
     let hash_absent = left
