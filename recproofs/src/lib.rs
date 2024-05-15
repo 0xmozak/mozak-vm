@@ -198,21 +198,21 @@ impl<F: RichField> Event<F> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct Object<F> {
     /// Constraint-Owner is the only program which can mutate the fields of this
     /// object
-    constraint_owner: [F; 4],
+    pub constraint_owner: [F; 4],
 
     /// The block number at which this was last updated
-    last_updated: F,
+    pub last_updated: F,
 
     /// Running credits for execution and paying rent
-    credits: F,
+    pub credits: F,
 
     /// Serialized data object understandable and affectable by
     /// `constraint_owner`
-    data: [F; 4],
+    pub data: [F; 4],
 }
 
 impl<F: Field + RichField> Object<F> {
