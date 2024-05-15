@@ -64,8 +64,7 @@ where
     }
 
     pub fn address_present(&self) -> bool {
-        !self
-            .indices
+        self.indices
             .address
             .node_present
             .get_field(&self.proof.public_inputs)
