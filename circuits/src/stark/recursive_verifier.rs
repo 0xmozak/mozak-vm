@@ -656,19 +656,23 @@ mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_sdk::core::constants::DIGEST_BYTES;
     use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
 
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
+    use crate::stark::batch_prover::batch_prove;
+    use crate::stark::batch_verifier::batch_verify_proof;
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
     use crate::stark::prover::prove;
     use crate::stark::recursive_verifier::{
         recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
         verify_recursive_vm_proof, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
         VM_RECURSION_CONFIG, VM_RECURSION_THRESHOLD_DEGREE_BITS,
     };
+    use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
 
@@ -676,10 +680,6 @@ mod tests {
 
     #[test]
     fn recursive_verify_mozak_starks() -> Result<()> {
-        use plonky2::field::types::Field;
-
-        use crate::stark::verifier::verify_proof;
-
         let stark = S::default();
         let config = StarkConfig::standard_fast_config();
         let (program, record) = code::execute(
@@ -735,6 +735,68 @@ mod tests {
         );
 
         mozak_stark_circuit.circuit.verify(recursive_proof)
+    }
+
+    #[test]
+    fn recursive_verify_batch_starks() -> Result<()> {
+        let stark = S::default();
+        let config = StarkConfig::standard_fast_config();
+        let (program, record) = code::execute(
+            [Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, 100), (7, 200)],
+        );
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
+
+        let mozak_proof = batch_prove::<F, C, D>(
+            &program,
+            &record,
+            &stark,
+            &PUBLIC_TABLE_KINDS,
+            &config,
+            public_inputs,
+            &mut TimingTree::default(),
+        )?;
+        batch_verify_proof(&stark, &PUBLIC_TABLE_KINDS, mozak_proof.clone(), &config)?;
+
+        // let circuit_config = CircuitConfig::standard_recursion_config();
+        // let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+        //     &stark,
+        //     &mozak_proof.degree_bits(&config),
+        //     &circuit_config,
+        //     &config,
+        // );
+        //
+        // let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
+        // let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
+        //     recursive_proof.public_inputs.as_slice().try_into().unwrap();
+        // let expected_event_commitment_tape = [F::ZERO; DIGEST_BYTES];
+        // let expected_castlist_commitment_tape = [F::ZERO; DIGEST_BYTES];
+        // let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
+        //     &public_input_slice.into();
+        // assert_eq!(
+        //     recursive_proof_public_inputs.event_commitment_tape,
+        // expected_event_commitment_tape,     "Could not find
+        // expected_event_commitment_tape in recursive proof's public inputs" );
+        // assert_eq!(
+        //     recursive_proof_public_inputs.castlist_commitment_tape,
+        //     expected_castlist_commitment_tape,
+        //     "Could not find expected_castlist_commitment_tape in recursive proof's
+        // public inputs" );
+        //
+        // mozak_stark_circuit.circuit.verify(recursive_proof)
+
+        Ok(())
     }
 
     #[test]
