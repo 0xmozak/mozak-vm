@@ -96,8 +96,8 @@ impl<const V: usize> SubCircuitInputs<V> {
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
     ) -> BranchTargets<V> {
-        let l_values = indices.values.get(&left_proof.public_inputs);
-        let r_values = indices.values.get(&right_proof.public_inputs);
+        let l_values = indices.values.get_target(&left_proof.public_inputs);
+        let r_values = indices.values.get_target(&right_proof.public_inputs);
 
         // Connect all the values
         for (v, (l, r)) in zip(self.values, zip(l_values, r_values)) {

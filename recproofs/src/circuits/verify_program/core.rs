@@ -12,7 +12,7 @@ use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
 use crate::circuits::build_event_root;
-use crate::indices::{ArrayTargetIndex, BoolTargetIndex, HashTargetIndex, TargetIndex};
+use crate::indices::{ArrayTargetIndex, BoolTargetIndex, HashOutTargetIndex, TargetIndex};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct ProgramPublicIndices {
@@ -23,13 +23,13 @@ pub struct ProgramPublicIndices {
     pub events_present: BoolTargetIndex,
 
     /// The indices of each of the elements of event root
-    pub event_root: HashTargetIndex,
+    pub event_root: HashOutTargetIndex,
 
     /// The indices of each of the elements of cast list
     pub call_list: ArrayTargetIndex<TargetIndex, 4>,
 
     /// The indices of each of the elements of cast root
-    pub cast_root: HashTargetIndex,
+    pub cast_root: HashOutTargetIndex,
 }
 
 pub struct ProgramVerifierTargets<const D: usize> {
@@ -90,19 +90,19 @@ impl<const D: usize> ProgramVerifierTargets<D> {
 
         let program_id = progam_circuit_indices
             .program_hash
-            .get(&program_proof.public_inputs);
+            .get_target(&program_proof.public_inputs);
         let events_present = progam_circuit_indices
             .events_present
-            .get(&program_proof.public_inputs);
+            .get_target(&program_proof.public_inputs);
         let event_root = progam_circuit_indices
             .event_root
-            .get(&program_proof.public_inputs);
+            .get_target(&program_proof.public_inputs);
         let call_list = progam_circuit_indices
             .call_list
-            .get(&program_proof.public_inputs);
+            .get_target(&program_proof.public_inputs);
         let cast_root = progam_circuit_indices
             .cast_root
-            .get(&program_proof.public_inputs);
+            .get_target(&program_proof.public_inputs);
 
         Self {
             program_verifier,
@@ -177,17 +177,17 @@ impl<const D: usize> EventRootVerifierTargets<D> {
             .event_owner
             .indices
             .values
-            .get(&event_root_proof.public_inputs);
+            .get_target(&event_root_proof.public_inputs);
         let event_root = event_root_circuit
             .hash
             .indices
             .unpruned_hash
-            .get(&event_root_proof.public_inputs);
+            .get_target(&event_root_proof.public_inputs);
         let vm_event_root = event_root_circuit
             .vm_hash
             .indices
             .unpruned_hash
-            .get(&event_root_proof.public_inputs);
+            .get_target(&event_root_proof.public_inputs);
 
         Self {
             event_root_proof,

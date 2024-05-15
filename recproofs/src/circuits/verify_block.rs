@@ -137,13 +137,13 @@ pub mod test {
     ) {
         let indices = &CIRCUIT.block.indices;
 
-        let p_base_root = indices.base_state_root.get_any(&proof.public_inputs);
-        assert_eq!(p_base_root, base_root.elements);
+        let p_base_root = indices.base_state_root.get_field(&proof.public_inputs);
+        assert_eq!(p_base_root, base_root);
 
-        let p_root = indices.state_root.get_any(&proof.public_inputs);
-        assert_eq!(p_root, root.elements);
+        let p_root = indices.state_root.get_field(&proof.public_inputs);
+        assert_eq!(p_root, root);
 
-        let p_block_height = indices.block_height.get(&proof.public_inputs);
+        let p_block_height = indices.block_height.get_field(&proof.public_inputs);
         assert_eq!(p_block_height, F::from_noncanonical_i64(block_height));
     }
 

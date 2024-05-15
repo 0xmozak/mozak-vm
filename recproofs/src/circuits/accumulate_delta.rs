@@ -231,26 +231,26 @@ pub mod test {
         let indices = &LEAF.partial_state.indices;
         assert_eq!(*indices, BRANCH.partial_state.indices);
 
-        let p_address = indices.address.get(&proof.public_inputs);
+        let p_address = indices.address.get_field(&proof.public_inputs);
         assert_eq!(p_address, F::from_canonical_u64(address));
-        let p_flags = indices.object_flags.get(&proof.public_inputs);
+        let p_flags = indices.object_flags.get_field(&proof.public_inputs);
         assert_eq!(p_flags, F::from_canonical_u8(flags.into().bits()));
-        let p_old_owner = indices.old_owner.get_any(&proof.public_inputs);
+        let p_old_owner = indices.old_owner.get_field(&proof.public_inputs);
         assert_eq!(p_old_owner, old_owner.into().unwrap_or_default());
-        let p_new_owner = indices.new_owner.get_any(&proof.public_inputs);
+        let p_new_owner = indices.new_owner.get_field(&proof.public_inputs);
         assert_eq!(p_new_owner, new_owner.into().unwrap_or_default());
-        let p_old_data = indices.old_data.get_any(&proof.public_inputs);
+        let p_old_data = indices.old_data.get_field(&proof.public_inputs);
         assert_eq!(p_old_data, old_data.into().unwrap_or_default());
-        let p_new_data = indices.new_data.get_any(&proof.public_inputs);
+        let p_new_data = indices.new_data.get_field(&proof.public_inputs);
         assert_eq!(p_new_data, new_data.into().unwrap_or_default());
-        let p_credit_delta = indices.credit_delta.get(&proof.public_inputs);
+        let p_credit_delta = indices.credit_delta.get_field(&proof.public_inputs);
         assert_eq!(p_credit_delta, credit_delta.into().unwrap_or_default());
 
         let indices = &LEAF.event_hash.indices;
         assert_eq!(*indices, BRANCH.event_hash.indices);
 
-        let p_event_hash = indices.unpruned_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_event_hash, event_hash.elements);
+        let p_event_hash = indices.unpruned_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_event_hash, event_hash);
     }
 
     #[tested_fixture::tested_fixture(T0_PM_C_CREDIT_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]

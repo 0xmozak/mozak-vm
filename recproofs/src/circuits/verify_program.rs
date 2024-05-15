@@ -300,7 +300,6 @@ where
 #[cfg(test)]
 pub mod test {
     use once_cell::sync::Lazy;
-    use plonky2::field::types::Field;
     use plonky2::gates::noop::NoopGate;
     use plonky2::hash::hash_types::HashOutTarget;
     use plonky2::iop::target::{BoolTarget, Target};
@@ -314,7 +313,7 @@ pub mod test {
         CALL_LISTS, CAST_PM_P0, CAST_PM_P1, CAST_ROOT, CAST_T0, CAST_T1, PROGRAM_HASHES, T0_HASH,
         T0_PM_P0_HASH, T1_B_HASH, T1_HASH, T1_P2_HASH,
     };
-    use crate::indices::{ArrayTargetIndex, BoolTargetIndex, HashTargetIndex};
+    use crate::indices::{ArrayTargetIndex, BoolTargetIndex, HashOutTargetIndex};
     use crate::test_utils::{C, CONFIG, D, F, NON_ZERO_VALUES, ZERO_VAL};
 
     pub struct DummyCircuit {
@@ -388,9 +387,9 @@ pub mod test {
             ProgramPublicIndices {
                 program_hash: ArrayTargetIndex::new(public_inputs, &self.program_hash),
                 events_present: BoolTargetIndex::new(public_inputs, self.events_present),
-                event_root: HashTargetIndex::new(public_inputs, self.event_root),
+                event_root: HashOutTargetIndex::new(public_inputs, self.event_root),
                 call_list: ArrayTargetIndex::new(public_inputs, &self.call_list),
-                cast_root: HashTargetIndex::new(public_inputs, self.cast_root),
+                cast_root: HashOutTargetIndex::new(public_inputs, self.cast_root),
             }
         }
 
@@ -454,15 +453,15 @@ pub mod test {
         let indices = &LEAF.events.indices;
         assert_eq!(*indices, BRANCH.events.indices);
 
-        let p_present = indices.hash_present.get_any(&proof.public_inputs);
-        assert_eq!(p_present, F::from_bool(event_hash.is_some()));
-        let p_hash = indices.hash.get_any(&proof.public_inputs);
-        assert_eq!(p_hash, event_hash.unwrap_or_default().elements);
+        let p_present = indices.hash_present.get_field(&proof.public_inputs);
+        assert_eq!(p_present, event_hash.is_some());
+        let p_hash = indices.hash.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, event_hash.unwrap_or_default());
 
         let indices = &LEAF.program_id.indices;
         assert_eq!(*indices, BRANCH.program_id.indices);
-        let p_pid = indices.unpruned_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_pid, pid);
+        let p_pid = indices.unpruned_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_pid.elements, pid);
     }
 
     #[allow(clippy::type_complexity)]

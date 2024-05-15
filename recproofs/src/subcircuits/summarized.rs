@@ -9,13 +9,13 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::indices::{BoolTargetIndex, HashTargetIndex};
+use crate::indices::{BoolTargetIndex, HashOutTargetIndex};
 use crate::{at_least_one_true, hash_is_zero, hash_or_forward};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
     pub summary_hash_present: BoolTargetIndex,
-    pub summary_hash: HashTargetIndex,
+    pub summary_hash: HashOutTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -74,7 +74,7 @@ impl LeafTargets {
                 public_inputs,
                 self.inputs.summary_hash_present,
             ),
-            summary_hash: HashTargetIndex::new(public_inputs, self.inputs.summary_hash),
+            summary_hash: HashOutTargetIndex::new(public_inputs, self.inputs.summary_hash),
         };
         LeafSubCircuit {
             targets: self,
@@ -126,8 +126,10 @@ impl SubCircuitInputs {
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
     ) -> SubCircuitInputs {
-        let summary_hash_present = indices.summary_hash_present.get(&proof.public_inputs);
-        let summary_hash = indices.summary_hash.get(&proof.public_inputs);
+        let summary_hash_present = indices
+            .summary_hash_present
+            .get_target(&proof.public_inputs);
+        let summary_hash = indices.summary_hash.get_target(&proof.public_inputs);
 
         SubCircuitInputs {
             summary_hash_present,
@@ -147,9 +149,9 @@ impl SubCircuitInputs {
         let right = Self::direction_from_node(right_proof, indices);
 
         let l_present = left.summary_hash_present;
-        let l_hash = left.summary_hash.elements;
+        let l_hash = left.summary_hash;
         let r_present = right.summary_hash_present;
-        let r_hash = right.summary_hash.elements;
+        let r_hash = right.summary_hash;
 
         // Construct the forwarding "hash".
         let summary_hash_calc = hash_or_forward(builder, l_present, l_hash, r_present, r_hash);
@@ -182,7 +184,7 @@ impl BranchTargets {
                 public_inputs,
                 self.inputs.summary_hash_present,
             ),
-            summary_hash: HashTargetIndex::new(public_inputs, self.inputs.summary_hash),
+            summary_hash: HashOutTargetIndex::new(public_inputs, self.inputs.summary_hash),
         };
         debug_assert_eq!(indices, *child);
 
@@ -215,7 +217,6 @@ mod test {
     use anyhow::Result;
     use array_util::ArrayExt;
     use itertools::chain;
-    use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
@@ -370,11 +371,11 @@ mod test {
     fn assert_value(proof: &ProofWithPublicInputs<F, C, D>, hash: Option<HashOut<F>>) {
         let indices = &LEAF.summarized.indices;
 
-        let p_present = indices.summary_hash_present.get_any(&proof.public_inputs);
-        assert_eq!(p_present, F::from_bool(hash.is_some()));
+        let p_present = indices.summary_hash_present.get_field(&proof.public_inputs);
+        assert_eq!(p_present, hash.is_some());
 
-        let p_merged = indices.summary_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_merged, hash.unwrap_or_default().elements);
+        let p_merged = indices.summary_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_merged, hash.unwrap_or_default());
     }
 
     #[tested_fixture::tested_fixture(EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]

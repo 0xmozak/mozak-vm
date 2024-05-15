@@ -11,7 +11,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
-use crate::indices::{BoolTargetIndex, HashTargetIndex};
+use crate::indices::{BoolTargetIndex, HashOutTargetIndex};
 use crate::{false_if, zero_hash_if};
 
 /// The indices of the public inputs of this subcircuit in any
@@ -22,7 +22,7 @@ pub struct PublicIndices {
     pub hash_present: BoolTargetIndex,
 
     /// The indices of each of the elements of the hash
-    pub hash: HashTargetIndex,
+    pub hash: HashOutTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -69,7 +69,7 @@ impl LeafTargets {
         // Find the indices
         let indices = PublicIndices {
             hash_present: BoolTargetIndex::new(public_inputs, self.inputs.hash_present),
-            hash: HashTargetIndex::new(public_inputs, self.inputs.hash),
+            hash: HashOutTargetIndex::new(public_inputs, self.inputs.hash),
         };
         LeafSubCircuit {
             targets: self,
@@ -119,8 +119,8 @@ impl SubCircuitInputs {
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
     ) -> SubCircuitInputs {
-        let hash_present = indices.hash_present.get(&proof.public_inputs);
-        let hash = indices.hash.get(&proof.public_inputs);
+        let hash_present = indices.hash_present.get_target(&proof.public_inputs);
+        let hash = indices.hash.get_target(&proof.public_inputs);
 
         SubCircuitInputs { hash_present, hash }
     }
@@ -148,23 +148,27 @@ impl SubCircuitInputs {
         let verifier = builder.constant_verifier_data(&circuit.verifier_only);
         builder.verify_proof::<C>(&proof, &verifier, &circuit.common);
 
-        let a_present = mc.merge.indices.a_present.get_any(&proof.public_inputs);
-        let b_present = mc.merge.indices.b_present.get_any(&proof.public_inputs);
+        let a_present = mc.merge.indices.a_present.get_target(&proof.public_inputs);
+        let b_present = mc.merge.indices.b_present.get_target(&proof.public_inputs);
         let merged_present = mc
             .merge
             .indices
             .merged_present
-            .get_any(&proof.public_inputs);
-        let a_hash = mc.merge.indices.a_hash.get(&proof.public_inputs);
-        let b_hash = mc.merge.indices.b_hash.get(&proof.public_inputs);
-        let merged_hash = mc.merge.indices.merged_hash.get(&proof.public_inputs);
+            .get_target(&proof.public_inputs);
+        let a_hash = mc.merge.indices.a_hash.get_target(&proof.public_inputs);
+        let b_hash = mc.merge.indices.b_hash.get_target(&proof.public_inputs);
+        let merged_hash = mc
+            .merge
+            .indices
+            .merged_hash
+            .get_target(&proof.public_inputs);
 
         let b_present_calc = false_if(builder, partial, right.hash_present);
         let b_hash_calc = zero_hash_if(builder, partial, right.hash);
 
-        builder.connect(a_present, left.hash_present.target);
-        builder.connect(b_present, b_present_calc.target);
-        builder.connect(merged_present, self.hash_present.target);
+        builder.connect(a_present.target, left.hash_present.target);
+        builder.connect(b_present.target, b_present_calc.target);
+        builder.connect(merged_present.target, self.hash_present.target);
         builder.connect_hashes(a_hash, left.hash);
         builder.connect_hashes(b_hash, b_hash_calc);
         builder.connect_hashes(merged_hash, self.hash);
@@ -189,7 +193,7 @@ impl<const D: usize> BranchTargets<D> {
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit<D> {
         let indices = PublicIndices {
             hash_present: BoolTargetIndex::new(public_inputs, self.inputs.hash_present),
-            hash: HashTargetIndex::new(public_inputs, self.inputs.hash),
+            hash: HashOutTargetIndex::new(public_inputs, self.inputs.hash),
         };
         debug_assert_eq!(indices, *child);
 
@@ -235,7 +239,6 @@ impl<const D: usize> BranchSubCircuit<D> {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 
     use super::*;
@@ -400,21 +403,21 @@ mod test {
     fn assert_leaf(proof: &ProofWithPublicInputs<F, C, D>, hash: Option<HashOut<F>>) {
         let indices = &LEAF.merge.indices;
 
-        let p_hash = indices.hash_present.get_any(&proof.public_inputs);
-        assert_eq!(p_hash, F::from_bool(hash.is_some()));
+        let p_hash = indices.hash_present.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash.is_some());
 
-        let p_hash = indices.hash.get_any(&proof.public_inputs);
-        assert_eq!(p_hash, hash.unwrap_or_default().elements);
+        let p_hash = indices.hash.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash.unwrap_or_default());
     }
 
     fn assert_branch(proof: &ProofWithPublicInputs<F, C, D>, hash: Option<HashOut<F>>) {
         let indices = &LEAF.merge.indices;
 
-        let p_hash = indices.hash_present.get_any(&proof.public_inputs);
-        assert_eq!(p_hash, F::from_bool(hash.is_some()));
+        let p_hash = indices.hash_present.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash.is_some());
 
-        let p_hash = indices.hash.get_any(&proof.public_inputs);
-        assert_eq!(p_hash, hash.unwrap_or_default().elements);
+        let p_hash = indices.hash.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash.unwrap_or_default());
     }
 
     #[tested_fixture::tested_fixture(EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
