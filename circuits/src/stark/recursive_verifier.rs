@@ -35,6 +35,7 @@ use crate::cross_table_lookup::{
 use crate::public_sub_table::{
     public_sub_table_values_and_reduced_targets, PublicSubTable, PublicSubTableValuesTarget,
 };
+use crate::stark::batch_prover::sort_degree_bits;
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
 use crate::stark::poly::eval_vanishing_poly_circuit;
@@ -145,6 +146,141 @@ where
         self.circuit.prove(inputs)
     }
 }
+
+// #[must_use]
+// #[allow(clippy::too_many_lines)]
+// pub fn recursive_batch_stark_circuit<
+//     F: RichField + Extendable<D>,
+//     C: GenericConfig<D, F = F>,
+//     const D: usize,
+// >(
+//     mozak_stark: &MozakStark<F, D>,
+//     degree_bits: &TableKindArray<usize>,
+//     public_table_kinds: &[TableKind],
+//     circuit_config: &CircuitConfig,
+//     inner_config: &StarkConfig,
+// ) -> MozakStarkVerifierCircuit<F, C, D>
+//     where
+//         C::Hasher: AlgebraicHasher<F>, {
+//     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+//
+//     let sorted_degree_bits = sort_degree_bits(public_table_kinds,
+// &degree_bits);
+//
+//     let mut challenger = RecursiveChallenger::<F, C::Hasher, D>::new(&mut
+// builder);
+//
+//     let stark_proof_with_pis_target = all_starks!(mozak_stark, |stark, kind|
+// {         let num_ctl_zs = CrossTableLookup::num_ctl_zs(
+//             &mozak_stark.cross_table_lookups,
+//             kind,
+//             inner_config.num_challenges,
+//         );
+//         let num_make_row_public_zs = PublicSubTable::num_zs(
+//             &mozak_stark.public_sub_tables,
+//             kind,
+//             inner_config.num_challenges,
+//         );
+//         add_virtual_stark_proof_with_pis(
+//             &mut builder,
+//             stark,
+//             inner_config,
+//             degree_bits[kind],
+//             num_ctl_zs + num_make_row_public_zs,
+//         )
+//     });
+//
+//     for pi in &stark_proof_with_pis_target {
+//         challenger.observe_cap(&pi.proof.trace_cap);
+//     }
+//
+//     let ctl_challenges = get_grand_product_challenge_set_target(
+//         &mut builder,
+//         &mut challenger,
+//         inner_config.num_challenges,
+//     );
+//
+//     let (public_sub_table_values_targets, reduced_public_sub_table_targets) =
+//         public_sub_table_values_and_reduced_targets(
+//             &mut builder,
+//             &mozak_stark.public_sub_tables,
+//             &ctl_challenges,
+//         );
+//
+//     verify_cross_table_lookups_and_public_sub_table_circuit(
+//         &mut builder,
+//         &mozak_stark.cross_table_lookups,
+//         &mozak_stark.public_sub_tables,
+//         &reduced_public_sub_table_targets,
+//         &stark_proof_with_pis_target
+//             .clone()
+//             .map(|p| p.proof.openings.ctl_zs_last),
+//         inner_config,
+//     );
+//
+//     let state = challenger.compact(&mut builder);
+//     let targets = all_starks!(mozak_stark, |stark, kind| {
+//         let ctl_vars = CtlCheckVarsTarget::from_proof(
+//             kind,
+//             &stark_proof_with_pis_target[kind].proof,
+//             &mozak_stark.cross_table_lookups,
+//             &mozak_stark.public_sub_tables,
+//             &ctl_challenges,
+//         );
+//
+//         let mut challenger = RecursiveChallenger::from_state(state);
+//         let challenges_target = stark_proof_with_pis_target[kind]
+//             .proof
+//             .get_challenges::<F, C>(&mut builder, &mut challenger,
+// inner_config);
+//
+//         verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
+//             &mut builder,
+//             stark,
+//             &stark_proof_with_pis_target[kind],
+//             &challenges_target,
+//             &ctl_vars,
+//             inner_config,
+//         );
+//
+//         StarkVerifierTargets {
+//             stark_proof_with_pis_target:
+// stark_proof_with_pis_target[kind].clone(),             zero_target:
+// builder.zero(),             _f: PhantomData,
+//         }
+//     });
+//
+//     // Register the public tables as public inputs.
+//     for kind in PUBLIC_TABLE_KINDS {
+//         builder.register_public_inputs(
+//             &targets[kind]
+//                 .stark_proof_with_pis_target
+//                 .proof
+//                 .trace_cap
+//                 .0
+//                 .iter()
+//                 .flat_map(|h| h.elements)
+//                 .collect::<Vec<_>>(),
+//         );
+//     }
+//     all_kind!(|kind| {
+//         builder.register_public_inputs(
+//             &public_sub_table_values_targets[kind]
+//                 .clone()
+//                 .into_iter()
+//                 .flatten()
+//                 .flatten()
+//                 .collect_vec(),
+//         );
+//     });
+//
+//     let circuit = builder.build();
+//     MozakStarkVerifierCircuit {
+//         circuit,
+//         targets,
+//         public_sub_table_values_targets,
+//     }
+// }
 
 #[must_use]
 #[allow(clippy::too_many_lines)]
@@ -375,7 +511,11 @@ fn verify_stark_proof_with_challenges_circuit<
             .to_fri_openings(zero),
         &challenges.fri_challenges,
         &merkle_caps,
-        &proof_with_public_inputs.proof.opening_proof,
+        &proof_with_public_inputs
+            .proof
+            .opening_proof
+            .as_ref()
+            .expect("Expected opening_proof to be Some"),
         &inner_config.fri_params(degree_bits),
     );
 }
@@ -442,7 +582,7 @@ pub fn add_virtual_stark_proof<F: RichField + Extendable<D>, S: Stark<F, D>, con
         ctl_zs_cap,
         quotient_polys_cap: builder.add_virtual_cap(cap_height),
         openings: add_virtual_stark_opening_set::<F, S, D>(builder, stark, num_ctl_zs, config),
-        opening_proof: builder.add_virtual_fri_proof(&num_leaves_per_oracle, &fri_params),
+        opening_proof: Some(builder.add_virtual_fri_proof(&num_leaves_per_oracle, &fri_params)),
     }
 }
 
@@ -483,7 +623,9 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
 
     witness.set_cap_target(&proof_target.ctl_zs_cap, &proof.ctl_zs_cap);
 
-    set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
+    proof_target.opening_proof.as_ref().map(|opening_proof| {
+        set_fri_proof_target(witness, opening_proof, &proof.opening_proof);
+    });
 }
 
 // Generates `CircuitData` usable for recursion.
@@ -769,10 +911,11 @@ mod tests {
         )?;
         batch_verify_proof(&stark, &PUBLIC_TABLE_KINDS, mozak_proof.clone(), &config)?;
 
-        // let circuit_config = CircuitConfig::standard_recursion_config();
-        // let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        // let mozak_stark_circuit = recursive_batch_stark_circuit::<F, C, D>(
         //     &stark,
-        //     &mozak_proof.degree_bits(&config),
+        //     &mozak_proof.degree_bits,
+        //     &PUBLIC_TABLE_KINDS,
         //     &circuit_config,
         //     &config,
         // );

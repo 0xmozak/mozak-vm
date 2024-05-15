@@ -111,14 +111,18 @@ pub struct StarkProofTarget<const D: usize> {
     pub ctl_zs_cap: MerkleCapTarget,
     pub quotient_polys_cap: MerkleCapTarget,
     pub openings: StarkOpeningSetTarget<D>,
-    pub opening_proof: FriProofTarget<D>,
+    pub opening_proof: Option<FriProofTarget<D>>,
 }
 
 impl<const D: usize> StarkProofTarget<D> {
     #[must_use]
     /// Recover the length of the trace from a STARK proof and a STARK config.
     pub fn recover_degree_bits(&self, config: &StarkConfig) -> usize {
-        let initial_merkle_proof = &self.opening_proof.query_round_proofs[0]
+        let initial_merkle_proof = &self
+            .opening_proof
+            .as_ref()
+            .expect("Expected opening_proof to be Some")
+            .query_round_proofs[0]
             .initial_trees_proof
             .evals_proofs[0]
             .1;
@@ -141,14 +145,17 @@ impl<const D: usize> StarkProofTarget<D> {
             quotient_polys_cap,
             openings,
             opening_proof:
-                FriProofTarget {
+                Some(FriProofTarget {
                     commit_phase_merkle_caps,
                     final_poly,
                     pow_witness,
                     ..
-                },
+                }),
             ..
-        } = &self;
+        } = &self
+        else {
+            panic!("Expected opening_proof to be Some");
+        };
 
         let num_challenges = config.num_challenges;
 
