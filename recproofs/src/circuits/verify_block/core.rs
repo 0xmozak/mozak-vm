@@ -450,12 +450,12 @@ impl<const D: usize> StateUpdateVerifierSubCircuit<D> {
     pub fn set_witness<F, C>(
         &self,
         inputs: &mut PartialWitness<F>,
-        match_proof: &ProofWithPublicInputs<F, C, D>,
+        update_proof: &state_update::BranchProof<F, C, D>,
     ) where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
-        inputs.set_proof_with_pis_target(&self.targets.proof, match_proof);
+        inputs.set_proof_with_pis_target(&self.targets.proof, &update_proof.proof);
     }
 }
 

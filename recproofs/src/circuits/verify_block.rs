@@ -96,7 +96,7 @@ where
         &self,
         tx_proof: &ProofWithPublicInputs<F, C, D>,
         match_proof: &ProofWithPublicInputs<F, C, D>,
-        state_proof: &ProofWithPublicInputs<F, C, D>,
+        state_proof: &state_update::BranchProof<F, C, D>,
         prev_proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
