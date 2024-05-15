@@ -243,8 +243,6 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use plonky2::hash::hash_types::HashOut;
-
     use super::*;
     use crate::circuits::merge::test as merge;
     use crate::circuits::test_data::{T0_HASH, T0_T1_HASH, T1_HASH};

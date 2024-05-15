@@ -320,9 +320,6 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use enumflags2::BitFlags;
-    use plonky2::hash::hash_types::HashOut;
-
     use super::*;
     use crate::circuits::test_data::{
         ADDRESS_A, ADDRESS_B, ADDRESS_C, ADDRESS_D, EVENT_T0_P0_A_CREDIT, EVENT_T0_P0_A_WRITE,
@@ -334,7 +331,6 @@ pub mod test {
         T1_P1_HASH, T1_P2_D_HASH, T1_PM_HASH,
     };
     use crate::test_utils::{C, CONFIG, D, F};
-    use crate::EventFlags;
 
     #[tested_fixture::tested_fixture(pub LEAF)]
     fn build_leaf() -> LeafCircuit<F, C, D> { LeafCircuit::new(&CONFIG) }

@@ -473,7 +473,6 @@ where
 #[cfg(test)]
 pub mod test {
     use plonky2::field::types::PrimeField64;
-    use plonky2::hash::hash_types::HashOut;
 
     use super::*;
     use crate::circuits::accumulate_delta::test as acc;
