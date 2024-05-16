@@ -24,10 +24,23 @@ where
     pub indices: I,
 }
 
+pub trait IsLeaf {
+    const VALUE: bool;
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct Leaf;
+
+impl IsLeaf for Leaf {
+    const VALUE: bool = true;
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct Branch;
+
+impl IsLeaf for Branch {
+    const VALUE: bool = false;
+}
 
 /// A repository of testing data to allow unit tests to build on one another
 /// and cross-reference by having them all draw from a consistent transaction
