@@ -80,6 +80,10 @@ pub enum InputTapeType {
     PrivateTape,
 }
 
+#[cfg(all(feature = "std", target_os = "mozakvm"))]
+pub use crate::mozakvm::helpers::poseidon2_hash_no_pad;
+#[cfg(all(feature = "std", target_os = "mozakvm"))]
+pub use crate::mozakvm::helpers::poseidon2_hash_with_pad;
 /// Provides the length of tape available to read
 #[cfg(all(feature = "std", target_os = "mozakvm"))]
 pub use crate::mozakvm::inputtape::input_tape_len;

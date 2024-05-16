@@ -5,13 +5,19 @@ mod core_logic;
 
 use mozak_sdk::common::types::ProgramIdentifier;
 
-use crate::core_logic::{dispatch, BlackBox, MethodArgs, PublicKey, TokenObject};
+use crate::core_logic::{dispatch, BlackBox, MethodArgs, PrivateKey, PublicKey, TokenObject};
 
 fn main() {
     let wallet_program = ProgramIdentifier::new_from_rand_seed(2);
     let remitter_program = ProgramIdentifier::new_from_rand_seed(20);
     let remittee_program = ProgramIdentifier::new_from_rand_seed(21);
-    let public_key = PublicKey::new_from_rand_seed(4);
+    let private_key = PrivateKey::new_from_rand_seed(4);
+    let public_key = PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
+        &private_key.0,
+    ));
+    mozak_sdk::add_identity(wallet_program); // Manual override for `IdentityStack`
+    let _ = mozak_sdk::write(&mozak_sdk::InputTapeType::PrivateTape, &private_key.0[..]);
+    mozak_sdk::rm_identity(); // Manual override for `IdentityStack`
 
     let token_object = TokenObject {
         pub_key: public_key.clone(),

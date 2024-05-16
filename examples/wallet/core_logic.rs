@@ -2,20 +2,26 @@
 #![allow(unused_attributes)]
 extern crate alloc;
 
-use mozak_sdk::common::types::{ProgramIdentifier, StateObject};
+use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier, StateObject};
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize, Serialize};
 
-/// A generic public key used by the wallet.
+/// A generic private key used by the wallet.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
-pub struct PublicKey([u8; 32]);
+pub struct PrivateKey(pub [u8; 32]);
 
-impl From<[u8; 32]> for PublicKey {
-    fn from(value: [u8; 32]) -> Self { PublicKey(value) }
+/// A generic public key. This is derived from the private key by
+/// a poseidon2 hash.
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
+pub struct PublicKey(pub Poseidon2Hash);
+
+impl From<[u8; 32]> for PrivateKey {
+    fn from(value: [u8; 32]) -> Self { PrivateKey(value) }
 }
 
-impl PublicKey {
+impl PrivateKey {
     #[must_use]
     #[cfg(not(target_os = "mozakvm"))]
     /// To be removed later, when we have actual pubkeys
@@ -106,13 +112,28 @@ impl Default for MethodReturns {
 #[allow(clippy::unit_arg)]
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
-        MethodArgs::ApproveSignature(pub_key, black_box) =>
-            MethodReturns::ApproveSignature(approve_signature(pub_key, black_box)),
+        MethodArgs::ApproveSignature(pub_key, black_box) => {
+            approve_signature(pub_key, black_box);
+            MethodReturns::ApproveSignature(())
+        }
     }
 }
 
 // TODO(bing): Read private key from private tape and public key from call tape.
 // hash and compare against public key.
-pub fn approve_signature<T>(_pub_key: PublicKey, _black_box: T) {
-    // Null for now
+pub fn approve_signature<T>(pub_key: PublicKey, _black_box: T) {
+    #[cfg(target_os = "mozakvm")]
+    {
+        let mut private_key_bytes = [0; 32];
+        let _ = mozak_sdk::read(
+            &mozak_sdk::InputTapeType::PrivateTape,
+            &mut private_key_bytes[..],
+        )
+        .unwrap();
+        let private_tape_pub_key = mozak_sdk::poseidon2_hash_no_pad(&private_key_bytes);
+        assert!(private_tape_pub_key == pub_key.0);
+    }
+
+    #[cfg(not(target_os = "mozakvm"))]
+    {}
 }
