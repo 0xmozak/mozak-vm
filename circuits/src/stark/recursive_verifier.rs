@@ -9,6 +9,7 @@ use log::info;
 use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
+use plonky2::fri::proof::FriProofTarget;
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::{MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
@@ -295,6 +296,69 @@ where
         inner_config,
     );
 
+    // Get challenges for public STARKs.
+    let stark_challenges_target = all_kind!(|kind| {
+        if public_table_kinds.contains(&kind) {
+            challenger.compact(&mut builder);
+            Some(
+                stark_proof_with_pis_target[kind]
+                    .proof
+                    .get_challenges::<F, C>(&mut builder, &mut challenger, inner_config),
+            )
+        } else {
+            None
+        }
+    });
+
+    // Get challenges for the batch STARK.
+    let batch_stark_challenges_target = {
+        let StarkProofTarget {
+            ctl_zs_cap,
+            quotient_polys_cap,
+            opening_proof:
+                Some(FriProofTarget {
+                    commit_phase_merkle_caps,
+                    final_poly,
+                    pow_witness,
+                    ..
+                }),
+            ..
+        } = batch_stark_proof_target
+        else {
+            panic!("should not happen")
+        };
+
+        let num_challenges = inner_config.num_challenges;
+
+        challenger.observe_cap(&ctl_zs_cap);
+
+        let stark_alphas = challenger.get_n_challenges(&mut builder, num_challenges);
+
+        challenger.observe_cap(&quotient_polys_cap);
+        let stark_zeta = challenger.get_extension_challenge(&mut builder);
+
+        all_kind!(|kind| if !public_table_kinds.contains(&kind) {
+            challenger.observe_openings(
+                &stark_proof_with_pis_target[kind]
+                    .proof
+                    .openings
+                    .to_fri_openings(builder.zero()),
+            );
+        });
+
+        StarkProofChallengesTarget {
+            stark_alphas,
+            stark_zeta,
+            fri_challenges: challenger.fri_challenges(
+                &mut builder,
+                &commit_phase_merkle_caps,
+                &final_poly,
+                pow_witness,
+                &inner_config.fri_config,
+            ),
+        }
+    };
+
     let table_targets = all_starks!(mozak_stark, |stark, kind| {
         let ctl_vars = CtlCheckVarsTarget::from_proof(
             kind,
@@ -304,17 +368,12 @@ where
             &ctl_challenges,
         );
 
-        challenger.compact(&mut builder);
-        let challenges_target = stark_proof_with_pis_target[kind]
-            .proof
-            .get_challenges::<F, C>(&mut builder, &mut challenger, inner_config);
-
         if public_table_kinds.contains(&kind) {
             verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
                 &mut builder,
                 stark,
                 &stark_proof_with_pis_target[kind],
-                &challenges_target,
+                &stark_challenges_target[kind].as_ref().expect(""),
                 &ctl_vars,
                 inner_config,
             );
@@ -324,7 +383,7 @@ where
                 stark,
                 degree_bits[kind],
                 &stark_proof_with_pis_target[kind],
-                &challenges_target,
+                &batch_stark_challenges_target,
                 &ctl_vars,
                 inner_config,
             );
@@ -360,6 +419,7 @@ where
                 .collect_vec(),
         );
     });
+
     // let circuit = builder.build();
     // MozakStarkVerifierCircuit {
     //     circuit,
