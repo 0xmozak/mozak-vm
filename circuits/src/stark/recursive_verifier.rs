@@ -319,7 +319,15 @@ where
                 inner_config,
             );
         } else {
-            todo!()
+            verify_quotient_polynomials_circuit::<F, C, _, D>(
+                &mut builder,
+                stark,
+                degree_bits[kind],
+                &stark_proof_with_pis_target[kind],
+                &challenges_target,
+                &ctl_vars,
+                inner_config,
+            );
         }
 
         StarkVerifierTargets {
@@ -513,8 +521,7 @@ where
     }
 }
 
-/// Recursively verifies an inner proof.
-fn verify_stark_proof_with_challenges_circuit<
+fn verify_quotient_polynomials_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
@@ -522,13 +529,13 @@ fn verify_stark_proof_with_challenges_circuit<
 >(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,
+    degree_bits: usize,
     proof_with_public_inputs: &StarkProofWithPublicInputsTarget<D>,
     challenges: &StarkProofChallengesTarget<D>,
     ctl_vars: &[CtlCheckVarsTarget<D>],
     inner_config: &StarkConfig,
 ) where
     C::Hasher: AlgebraicHasher<F>, {
-    let zero = builder.zero();
     let one = builder.one_extension();
 
     let StarkOpeningSetTarget {
@@ -536,7 +543,7 @@ fn verify_stark_proof_with_challenges_circuit<
         next_values,
         ctl_zs: _,
         ctl_zs_next: _,
-        ctl_zs_last,
+        ctl_zs_last: _,
         quotient_polys,
     } = &proof_with_public_inputs.proof.openings;
 
@@ -549,9 +556,6 @@ fn verify_stark_proof_with_challenges_circuit<
     let vars =
         S::EvaluationFrameTarget::from_values(local_values, next_values, &converted_public_inputs);
 
-    let degree_bits = proof_with_public_inputs
-        .proof
-        .recover_degree_bits(inner_config);
     let zeta_pow_deg = builder.exp_power_of_2_extension(challenges.stark_zeta, degree_bits);
     let z_h_zeta = builder.sub_extension(zeta_pow_deg, one);
     let (l_0, l_last) =
@@ -586,7 +590,39 @@ fn verify_stark_proof_with_challenges_circuit<
         let computed_vanishing_poly = builder.mul_extension(z_h_zeta, recombined_quotient);
         builder.connect_extension(vanishing_polys_zeta[i], computed_vanishing_poly);
     }
+}
 
+/// Recursively verifies an inner proof.
+fn verify_stark_proof_with_challenges_circuit<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    S: Stark<F, D>,
+    const D: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    stark: &S,
+    proof_with_public_inputs: &StarkProofWithPublicInputsTarget<D>,
+    challenges: &StarkProofChallengesTarget<D>,
+    ctl_vars: &[CtlCheckVarsTarget<D>],
+    inner_config: &StarkConfig,
+) where
+    C::Hasher: AlgebraicHasher<F>, {
+    let zero = builder.zero();
+
+    let degree_bits = proof_with_public_inputs
+        .proof
+        .recover_degree_bits(inner_config);
+    verify_quotient_polynomials_circuit::<F, C, S, D>(
+        builder,
+        stark,
+        degree_bits,
+        proof_with_public_inputs,
+        challenges,
+        ctl_vars,
+        inner_config,
+    );
+
+    let ctl_zs_last = &proof_with_public_inputs.proof.openings.ctl_zs_last;
     let merkle_caps = vec![
         proof_with_public_inputs.proof.trace_cap.clone(),
         proof_with_public_inputs.proof.ctl_zs_cap.clone(),
@@ -1033,13 +1069,13 @@ mod tests {
         )?;
 
         let circuit_config = CircuitConfig::standard_recursion_config();
-        // let mozak_stark_circuit = recursive_batch_stark_circuit::<F, C, D>(
-        //     &stark,
-        //     &degree_bits,
-        //     &PUBLIC_TABLE_KINDS,
-        //     &circuit_config,
-        //     &config,
-        // );
+        let mozak_stark_circuit = recursive_batch_stark_circuit::<F, C, D>(
+            &stark,
+            &degree_bits,
+            &PUBLIC_TABLE_KINDS,
+            &circuit_config,
+            &config,
+        );
 
         // let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
         // let public_input_slice: [F; VM_PUBLIC_INPUT_SIZE] =
