@@ -11,7 +11,7 @@ use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
-use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::challenger::RecursiveChallenger;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
@@ -69,6 +69,18 @@ pub struct VMRecursiveProofPublicInputs<T> {
 
 columns_view_impl!(VMRecursiveProofPublicInputs);
 
+#[derive(Eq, PartialEq, Debug)]
+pub struct MozakProofTarget<F, C, const D: usize>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>, {
+    pub table_targets: TableKindArray<StarkVerifierTargets<F, C, D>>,
+    pub program_rom_trace_cap_target: MerkleCapTarget,
+    pub elf_memory_init_trace_cap_target: MerkleCapTarget,
+    pub public_sub_table_values_targets: TableKindArray<Vec<PublicSubTableValuesTarget>>,
+}
+
 /// Represents a circuit which recursively verifies STARK proofs.
 #[derive(Eq, PartialEq, Debug)]
 pub struct MozakStarkVerifierCircuit<F, C, const D: usize>
@@ -77,8 +89,7 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
-    pub targets: TableKindArray<StarkVerifierTargets<F, C, D>>,
-    pub public_sub_table_values_targets: TableKindArray<Vec<PublicSubTableValuesTarget>>,
+    pub proof: MozakProofTarget<F, C, D>,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -118,11 +129,11 @@ where
         let mut inputs = PartialWitness::new();
 
         all_kind!(|kind| {
-            self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
+            self.proof.table_targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
 
             // set public_sub_table_values targets
             for (public_sub_table_values_target, public_sub_table_values) in zip_eq(
-                &self.public_sub_table_values_targets[kind],
+                &self.proof.public_sub_table_values_targets[kind],
                 &all_proof.public_sub_table_values[kind],
             ) {
                 for (row_target, row) in
@@ -136,10 +147,19 @@ where
         });
 
         // Set public inputs
-        let cpu_target = &self.targets[TableKind::Cpu].stark_proof_with_pis_target;
+        let cpu_target = &self.proof.table_targets[TableKind::Cpu].stark_proof_with_pis_target;
         inputs.set_target_arr(
             cpu_target.public_inputs.as_ref(),
             all_proof.public_inputs.borrow(),
+        );
+
+        inputs.set_cap_target(
+            &self.proof.program_rom_trace_cap_target,
+            &all_proof.program_rom_trace_cap,
+        );
+        inputs.set_cap_target(
+            &self.proof.elf_memory_init_trace_cap_target,
+            &all_proof.elf_memory_init_trace_cap,
         );
 
         self.circuit.prove(inputs)
@@ -213,7 +233,7 @@ where
     );
 
     let state = challenger.compact(&mut builder);
-    let targets = all_starks!(mozak_stark, |stark, kind| {
+    let table_targets = all_starks!(mozak_stark, |stark, kind| {
         let ctl_vars = CtlCheckVarsTarget::from_proof(
             kind,
             &stark_proof_with_pis_target[kind].proof,
@@ -243,10 +263,26 @@ where
         }
     });
 
+    let program_rom_trace_cap_target = builder.add_virtual_cap(inner_config.fri_config.cap_height);
+    let elf_memory_init_trace_cap_target =
+        builder.add_virtual_cap(inner_config.fri_config.cap_height);
+    builder.connect_merkle_caps(
+        &stark_proof_with_pis_target[TableKind::Program]
+            .proof
+            .trace_cap,
+        &program_rom_trace_cap_target,
+    );
+    builder.connect_merkle_caps(
+        &stark_proof_with_pis_target[TableKind::ElfMemoryInit]
+            .proof
+            .trace_cap,
+        &elf_memory_init_trace_cap_target,
+    );
+
     // Register the public tables as public inputs.
     for kind in PUBLIC_TABLE_KINDS {
         builder.register_public_inputs(
-            &targets[kind]
+            &table_targets[kind]
                 .stark_proof_with_pis_target
                 .proof
                 .trace_cap
@@ -270,8 +306,12 @@ where
     let circuit = builder.build();
     MozakStarkVerifierCircuit {
         circuit,
-        targets,
-        public_sub_table_values_targets,
+        proof: MozakProofTarget {
+            table_targets,
+            program_rom_trace_cap_target,
+            elf_memory_init_trace_cap_target,
+            public_sub_table_values_targets,
+        },
     }
 }
 
