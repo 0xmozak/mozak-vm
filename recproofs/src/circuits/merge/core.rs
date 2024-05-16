@@ -13,7 +13,7 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::indices::{BoolTargetIndex, HashTargetIndex};
+use crate::indices::{BoolTargetIndex, HashOutTargetIndex};
 use crate::{at_least_one_true, hash_is_zero, hash_or_forward};
 
 /// The indices of the public inputs of this subcircuit in any
@@ -24,19 +24,19 @@ pub struct PublicIndices {
     pub a_present: BoolTargetIndex,
 
     /// The indices of each of the elements of the a hash
-    pub a_hash: HashTargetIndex,
+    pub a_hash: HashOutTargetIndex,
 
     /// The index for the presence of the b hash
     pub b_present: BoolTargetIndex,
 
     /// The indices of each of the elements of the b hash
-    pub b_hash: HashTargetIndex,
+    pub b_hash: HashOutTargetIndex,
 
     /// The index for the presence of the merged hash
     pub merged_present: BoolTargetIndex,
 
     /// The indices of each of the elements of the merged hash
-    pub merged_hash: HashTargetIndex,
+    pub merged_hash: HashOutTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -107,9 +107,9 @@ impl SubCircuitInputs {
         let merged_hash_calc = hash_or_forward(
             builder,
             self.a_present,
-            self.a_hash.elements,
+            self.a_hash,
             self.b_present,
-            self.b_hash.elements,
+            self.b_hash,
         );
         builder.connect_hashes(self.merged_hash, merged_hash_calc);
 
@@ -131,11 +131,11 @@ impl LeafTargets {
         // Find the indices
         let indices = PublicIndices {
             a_present: BoolTargetIndex::new(public_inputs, self.inputs.a_present),
-            a_hash: HashTargetIndex::new(public_inputs, self.inputs.a_hash),
+            a_hash: HashOutTargetIndex::new(public_inputs, self.inputs.a_hash),
             b_present: BoolTargetIndex::new(public_inputs, self.inputs.b_present),
-            b_hash: HashTargetIndex::new(public_inputs, self.inputs.b_hash),
+            b_hash: HashOutTargetIndex::new(public_inputs, self.inputs.b_hash),
             merged_present: BoolTargetIndex::new(public_inputs, self.inputs.merged_present),
-            merged_hash: HashTargetIndex::new(public_inputs, self.inputs.merged_hash),
+            merged_hash: HashOutTargetIndex::new(public_inputs, self.inputs.merged_hash),
         };
         LeafSubCircuit {
             targets: self,
@@ -195,21 +195,23 @@ impl SubCircuitInputs {
     ) -> BranchTargets
     where
         F: RichField + Extendable<D>, {
-        let left_a_present = indices.a_present.get(&left_proof.public_inputs);
-        let left_b_present = indices.b_present.get(&left_proof.public_inputs);
-        let left_merged_present = indices.merged_present.get(&left_proof.public_inputs);
+        let left_a_present = indices.a_present.get_target(&left_proof.public_inputs);
+        let left_b_present = indices.b_present.get_target(&left_proof.public_inputs);
+        let left_merged_present = indices.merged_present.get_target(&left_proof.public_inputs);
 
-        let left_a = indices.a_hash.get_any(&left_proof.public_inputs);
-        let left_b = indices.b_hash.get_any(&left_proof.public_inputs);
-        let left_merged = indices.merged_hash.get_any(&left_proof.public_inputs);
+        let left_a = indices.a_hash.get_target(&left_proof.public_inputs);
+        let left_b = indices.b_hash.get_target(&left_proof.public_inputs);
+        let left_merged = indices.merged_hash.get_target(&left_proof.public_inputs);
 
-        let right_a_present = indices.a_present.get(&right_proof.public_inputs);
-        let right_b_present = indices.b_present.get(&right_proof.public_inputs);
-        let right_merged_present = indices.merged_present.get(&right_proof.public_inputs);
+        let right_a_present = indices.a_present.get_target(&right_proof.public_inputs);
+        let right_b_present = indices.b_present.get_target(&right_proof.public_inputs);
+        let right_merged_present = indices
+            .merged_present
+            .get_target(&right_proof.public_inputs);
 
-        let right_a = indices.a_hash.get_any(&right_proof.public_inputs);
-        let right_b = indices.b_hash.get_any(&right_proof.public_inputs);
-        let right_merged = indices.merged_hash.get_any(&right_proof.public_inputs);
+        let right_a = indices.a_hash.get_target(&right_proof.public_inputs);
+        let right_b = indices.b_hash.get_target(&right_proof.public_inputs);
+        let right_merged = indices.merged_hash.get_target(&right_proof.public_inputs);
 
         let a_present_calc = builder.or(left_a_present, right_a_present);
         builder.connect(self.a_present.target, a_present_calc.target);
@@ -254,11 +256,11 @@ impl BranchTargets {
         // Find the indices
         let indices = PublicIndices {
             a_present: BoolTargetIndex::new(public_inputs, self.inputs.a_present),
-            a_hash: HashTargetIndex::new(public_inputs, self.inputs.a_hash),
+            a_hash: HashOutTargetIndex::new(public_inputs, self.inputs.a_hash),
             b_present: BoolTargetIndex::new(public_inputs, self.inputs.b_present),
-            b_hash: HashTargetIndex::new(public_inputs, self.inputs.b_hash),
+            b_hash: HashOutTargetIndex::new(public_inputs, self.inputs.b_hash),
             merged_present: BoolTargetIndex::new(public_inputs, self.inputs.merged_present),
-            merged_hash: HashTargetIndex::new(public_inputs, self.inputs.merged_hash),
+            merged_hash: HashOutTargetIndex::new(public_inputs, self.inputs.merged_hash),
         };
         debug_assert_eq!(indices, *child);
 
@@ -301,7 +303,6 @@ impl BranchSubCircuit {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
@@ -471,11 +472,11 @@ mod test {
 
     fn assert_leaf(proof: &ProofWithPublicInputs<F, C, D>, merged: Option<HashOut<F>>) {
         let indices = &LEAF.merge.indices;
-        let p_present = indices.merged_present.get_any(&proof.public_inputs);
-        assert_eq!(p_present, F::from_bool(merged.is_some()));
+        let p_present = indices.merged_present.get_field(&proof.public_inputs);
+        assert_eq!(p_present, merged.is_some());
 
-        let p_merged = indices.merged_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_merged, merged.unwrap_or_default().elements);
+        let p_merged = indices.merged_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_merged, merged.unwrap_or_default());
     }
 
     fn assert_branch(
@@ -487,23 +488,23 @@ mod test {
     ) {
         let indices = &branch.merge.indices;
 
-        let p_a_present = indices.a_present.get_any(&proof.public_inputs);
-        assert_eq!(p_a_present, F::from_bool(a_hash.is_some()));
+        let p_a_present = indices.a_present.get_field(&proof.public_inputs);
+        assert_eq!(p_a_present, a_hash.is_some());
 
-        let p_a_hash = indices.a_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_a_hash, a_hash.unwrap_or_default().elements);
+        let p_a_hash = indices.a_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_a_hash, a_hash.unwrap_or_default());
 
-        let p_b_present = indices.b_present.get_any(&proof.public_inputs);
-        assert_eq!(p_b_present, F::from_bool(b_hash.is_some()));
+        let p_b_present = indices.b_present.get_field(&proof.public_inputs);
+        assert_eq!(p_b_present, b_hash.is_some());
 
-        let p_b_hash = indices.b_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_b_hash, b_hash.unwrap_or_default().elements);
+        let p_b_hash = indices.b_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_b_hash, b_hash.unwrap_or_default());
 
-        let p_merged_present = indices.merged_present.get_any(&proof.public_inputs);
-        assert_eq!(p_merged_present, F::from_bool(merged.is_some()));
+        let p_merged_present = indices.merged_present.get_field(&proof.public_inputs);
+        assert_eq!(p_merged_present, merged.is_some());
 
-        let p_merged = indices.merged_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_merged, merged.unwrap_or_default().elements);
+        let p_merged = indices.merged_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_merged, merged.unwrap_or_default());
     }
 
     #[tested_fixture::tested_fixture(EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]

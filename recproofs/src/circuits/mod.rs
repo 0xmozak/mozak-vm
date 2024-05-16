@@ -1,10 +1,46 @@
+use std::marker::PhantomData;
+
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::proof::ProofWithPublicInputs;
+
 pub mod accumulate_delta;
 pub mod build_event_root;
 pub mod match_delta;
 pub mod merge;
 pub mod state_update;
+pub mod verify_block;
 pub mod verify_program;
 pub mod verify_tx;
+
+#[derive(Clone, Debug)]
+pub struct Proof<T, I, F, C, const D: usize>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
+    pub proof: ProofWithPublicInputs<F, C, D>,
+    pub tag: PhantomData<T>,
+    pub indices: I,
+}
+
+pub trait IsLeaf {
+    const VALUE: bool;
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Leaf;
+
+impl IsLeaf for Leaf {
+    const VALUE: bool = true;
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Branch;
+
+impl IsLeaf for Branch {
+    const VALUE: bool = false;
+}
 
 /// A repository of testing data to allow unit tests to build on one another
 /// and cross-reference by having them all draw from a consistent transaction

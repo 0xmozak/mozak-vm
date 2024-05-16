@@ -1,51 +1,18 @@
+use std::iter::successors;
 use std::mem;
 use std::ops::Add;
 
-use itertools::{chain, Itertools};
-use mozak_recproofs::circuits::state_update;
-use plonky2::field::types::Field;
-use plonky2::hash::poseidon2::Poseidon2Hash;
+use itertools::Itertools;
+use mozak_recproofs::circuits::state_update::{self, BranchProof, LeafProof};
+use plonky2::hash::hash_types::HashOut;
 use plonky2::plonk::circuit_data::CircuitConfig;
-use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
-use plonky2::plonk::proof::ProofWithPublicInputs;
+use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 
 pub const D: usize = 2;
 pub type C = Poseidon2GoldilocksConfig;
 pub type F = <C as GenericConfig<D>>::F;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct ProgramHash(pub [F; 4]);
-
-/// The unique address of this object is an implicit information
-/// contained in the path to reach this object in state tree
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Object {
-    /// Constraint-Owner is the only program which can mutate the fields of this
-    /// object
-    constraint_owner: ProgramHash,
-
-    /// The block number at which this was last updated
-    last_updated: F,
-
-    /// Running credits for execution and paying rent
-    credits: F,
-
-    /// Serialized data object understandable and affectable by
-    /// `constraint_owner`
-    data: [F; 4],
-}
-
-impl Object {
-    fn hash(&self) -> [F; 4] {
-        let inputs = chain!(
-            self.constraint_owner.0,
-            [self.last_updated, self.credits],
-            self.data,
-        )
-        .collect_vec();
-        Poseidon2Hash::hash_no_pad(&inputs).elements
-    }
-}
+type Object = mozak_recproofs::Object<F>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Address(pub u64);
@@ -54,12 +21,6 @@ impl Address {
     fn next(self, height: usize) -> (Option<AddressPath>, Dir) {
         debug_assert!(self.0 <= (1 << height));
         AddressPath { height, addr: self }.next()
-    }
-
-    // Must be kept in sync with `state_update::LeafCircuit::new`
-    fn summary_hash(self, old: [F; 4], new: [F; 4]) -> [F; 4] {
-        let inputs = chain!([F::from_canonical_u64(self.0)], old, new,).collect_vec();
-        Poseidon2Hash::hash_no_pad(&inputs).elements
     }
 }
 
@@ -152,52 +113,35 @@ enum SparseMerkleNode {
 
 struct SparseMerkleBranch {
     height: usize,
-    proof: ProofWithPublicInputs<F, C, D>,
-    old_hash: [F; 4],
-    new_hash: [F; 4],
-    summary_hash: Option<[F; 4]>,
+    proof: BranchProof<F, C, D>,
     left: Option<Box<SparseMerkleNode>>,
     right: Option<Box<SparseMerkleNode>>,
 }
 
 struct SparseMerkleLeaf {
-    proof: ProofWithPublicInputs<F, C, D>,
+    proof: LeafProof<F, C, D>,
     kind: LeafKind,
 }
 
 #[derive(Debug, Copy, Clone)]
 enum LeafKind {
-    DeleteEmptyLeaf {
-        summary_hash: [F; 4],
-    },
-    ReadEmptyLeaf {
-        summary_hash: [F; 4],
-    },
+    DeleteEmptyLeaf,
+    ReadEmptyLeaf,
     BeingCreated {
-        new_hash: [F; 4],
         new_object: Object,
-        summary_hash: [F; 4],
     },
     Unused {
-        old_hash: [F; 4],
         object: Object,
     },
     BeingDeleted {
-        old_hash: [F; 4],
         object: Object,
-        summary_hash: [F; 4],
     },
     BeingRead {
-        old_hash: [F; 4],
         object: Object,
-        summary_hash: [F; 4],
     },
     BeingUpdated {
-        old_hash: [F; 4],
         old_object: Object,
-        new_hash: [F; 4],
         new_object: Object,
-        summary_hash: [F; 4],
     },
 }
 
@@ -219,41 +163,27 @@ impl Add for FinalizeOutcome {
     }
 }
 
-#[allow(clippy::struct_field_names)]
-struct LeafHashes<'a> {
-    old_hash: &'a [F; 4],
-    new_hash: &'a [F; 4],
-    summary_hash: Option<&'a [F; 4]>,
-}
-
-pub fn hash_branch(l: &[F; 4], r: &[F; 4]) -> [F; 4] {
-    Poseidon2Hash::hash_no_pad(&[l[0], l[1], l[2], l[3], r[0], r[1], r[2], r[3]]).elements
-}
-
 pub struct AuxStateData {
     max_tree_depth: usize,
 
-    empty_leaf_hash: [F; 4],
-    empty_branch_hashes: Vec<[F; 4]>,
+    empty_leaf_hash: HashOut<F>,
 
     leaf_circuit: state_update::LeafCircuit<F, C, D>,
     branch_circuits: Vec<state_update::BranchCircuit<F, C, D>>,
 
-    empty_leaf_proof: ProofWithPublicInputs<F, C, D>,
-    empty_branch_proofs: Vec<ProofWithPublicInputs<F, C, D>>,
+    empty_leaf_proof: LeafProof<F, C, D>,
+    empty_branch_proofs: Vec<BranchProof<F, C, D>>,
 }
 
 impl AuxStateData {
+    /// Create the auxillary state data. This includes all the circuits
+    /// and dummy proofs. This only needs to be done once per `State` as
+    /// long as the `AuxStateData` has a sufficiently large depth.
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn new(config: &CircuitConfig, max_tree_depth: usize) -> Self {
-        let empty_leaf_hash = [F::ZERO; 4];
-
-        let mut curr = empty_leaf_hash;
-        let empty_branch_hashes = (0..=max_tree_depth)
-            .map(|_| {
-                curr = hash_branch(&curr, &curr);
-                curr
-            })
-            .collect_vec();
+        let empty_leaf = Object::default();
+        let empty_leaf_hash = empty_leaf.hash();
 
         let leaf_circuit = state_update::LeafCircuit::<F, C, D>::new(config);
         let mut init = state_update::BranchCircuit::<F, C, D>::from_leaf(config, &leaf_circuit);
@@ -265,21 +195,28 @@ impl AuxStateData {
             .collect_vec();
 
         let empty_leaf_proof = leaf_circuit
-            .prove(empty_leaf_hash.into(), empty_leaf_hash.into(), None)
-            .unwrap();
-        let mut init = empty_leaf_proof.clone();
-        let empty_branch_proofs = branch_circuits
-            .iter()
-            .zip(&empty_branch_hashes)
-            .map(|(circuit, hash)| {
-                init = circuit.prove(&init, &init).unwrap();
-                init.clone()
-            })
-            .collect_vec();
+            .prove(empty_leaf_hash, empty_leaf_hash, None)
+            .expect("Failed to construct leaf proof");
+        let empty_branch_proof = branch_circuits[0]
+            .prove(&empty_leaf_proof, &empty_leaf_proof)
+            .expect("Failed to construct branch proof");
+        let empty_branch_proofs = successors(
+            Some((empty_branch_proof, &branch_circuits[1..])),
+            |(proof, circuits)| {
+                circuits.split_first().map(|(circuit, circuits)| {
+                    let proof = circuit
+                        .prove(proof, proof)
+                        .expect("Failed to construct branch proof");
+                    (proof, circuits)
+                })
+            },
+        )
+        .map(|(proof, _)| proof)
+        .collect_vec();
+
         Self {
             max_tree_depth,
             empty_leaf_hash,
-            empty_branch_hashes,
             leaf_circuit,
             branch_circuits,
             empty_leaf_proof,
@@ -289,21 +226,13 @@ impl AuxStateData {
 
     fn apply_operation(&self, root: &mut SparseMerkleBranch, addr: Address, new: Operation) {
         let (path, dir) = addr.next(root.height);
-        let _ = self.apply_operation_helper(
-            root,
-            addr,
-            Some(BranchAddress::root(root.height)),
-            path,
-            dir,
-            new,
-        );
+        let _ = self.apply_operation_helper(root, addr, path, dir, new);
     }
 
     fn apply_operation_helper(
         &self,
         branch: &mut SparseMerkleBranch,
         addr: Address,
-        branch_addr: Option<BranchAddress>,
         path: Option<AddressPath>,
         dir: Dir,
         new: Operation,
@@ -318,7 +247,7 @@ impl AuxStateData {
             recalc = match (path, &mut *child) {
                 (Some(path), SparseMerkleNode::Branch(branch)) => {
                     let (path, dir) = path.next();
-                    self.apply_operation_helper(branch, addr, None, path, dir, new)
+                    self.apply_operation_helper(branch, addr, path, dir, new)
                 }
                 (None, SparseMerkleNode::Leaf(leaf)) => self.apply_operation_leaf(leaf, addr, new),
                 (_, _) => unreachable!("bad address or tree"),
@@ -335,7 +264,7 @@ impl AuxStateData {
         });
 
         if recalc {
-            self.recalc_branch_helper(branch, false, branch_addr);
+            self.recalc_branch_helper(branch);
         }
 
         recalc
@@ -351,8 +280,9 @@ impl AuxStateData {
 
         leaf.kind = match (&leaf.kind, new) {
             // Upgrade unused to Read
-            (&LeafKind::Unused { old_hash, object }, Operation::Read) => {
+            (&LeafKind::Unused { object }, Operation::Read) => {
                 recalc = true;
+                let old_hash = leaf.proof.old();
                 let new_leaf = self.being_read(addr, old_hash, object);
                 leaf.proof = new_leaf.proof;
                 new_leaf.kind
@@ -366,8 +296,8 @@ impl AuxStateData {
             // Double delete and upgrade read to delete
             // are both no-ops
             (
-                k @ (LeafKind::DeleteEmptyLeaf { .. }
-                | LeafKind::ReadEmptyLeaf { .. }
+                k @ (LeafKind::DeleteEmptyLeaf
+                | LeafKind::ReadEmptyLeaf
                 | LeafKind::BeingDeleted { .. }),
                 Operation::Delete,
             ) => {
@@ -375,14 +305,9 @@ impl AuxStateData {
                 *k
             }
             // Upgrade unused/read to Delete
-            (
-                &LeafKind::Unused { old_hash, object }
-                | &LeafKind::BeingRead {
-                    old_hash, object, ..
-                },
-                Operation::Delete,
-            ) => {
+            (&LeafKind::Unused { object } | &LeafKind::BeingRead { object }, Operation::Delete) => {
                 recalc = true;
+                let old_hash = leaf.proof.old();
                 let new_leaf = self.being_deleted(addr, old_hash, object);
                 leaf.proof = new_leaf.proof;
                 new_leaf.kind
@@ -393,7 +318,7 @@ impl AuxStateData {
             }
 
             // Upgrade empty read to create
-            (LeafKind::ReadEmptyLeaf { .. }, Operation::Upsert(object)) => {
+            (LeafKind::ReadEmptyLeaf, Operation::Upsert(object)) => {
                 recalc = true;
                 let new_leaf = self.being_created(addr, object);
                 leaf.proof = new_leaf.proof;
@@ -401,20 +326,18 @@ impl AuxStateData {
             }
             // Upgrade unused/read to update
             (
-                &LeafKind::Unused { old_hash, object }
-                | &LeafKind::BeingRead {
-                    old_hash, object, ..
-                },
+                &LeafKind::Unused { object } | &LeafKind::BeingRead { object },
                 Operation::Upsert(new_object),
             ) => {
                 recalc = true;
+                let old_hash = leaf.proof.old();
                 let new_leaf = self.being_updated(addr, old_hash, object, new_object);
                 leaf.proof = new_leaf.proof;
                 new_leaf.kind
             }
             // Ensure duplicate updates are identical
             (
-                k @ (&LeafKind::BeingCreated { new_object, .. }
+                k @ (&LeafKind::BeingCreated { new_object }
                 | &LeafKind::BeingUpdated { new_object, .. }),
                 Operation::Upsert(object),
             ) => {
@@ -431,78 +354,41 @@ impl AuxStateData {
         recalc
     }
 
-    fn recalc_branch_helper(
-        &self,
-        branch: &mut SparseMerkleBranch,
-        set_old: bool,
-        addr: Option<BranchAddress>,
-    ) {
-        let (empty_hash, empty_proof) = self.get_empty_child_helper(branch.height);
+    fn recalc_branch_helper(&self, branch: &mut SparseMerkleBranch) {
+        use SparseMerkleNode::{Branch, Leaf};
 
-        let ((left_hash, left_proof), (right_hash, right_proof), summary) =
-            match (&branch.left, &branch.right) {
-                (None, None) => ((empty_hash, empty_proof), (empty_hash, empty_proof), None),
-                (None, Some(right)) => (
-                    (empty_hash, empty_proof),
-                    self.get_node_new_helper(right),
-                    self.get_summary_helper(right).copied(),
-                ),
-                (Some(left), None) => (
-                    self.get_node_new_helper(left),
-                    (empty_hash, empty_proof),
-                    self.get_summary_helper(left).copied(),
-                ),
-                (Some(left), Some(right)) => (
-                    self.get_node_new_helper(left),
-                    self.get_node_new_helper(right),
-                    Some(hash_branch(
-                        self.get_summary_helper(left).unwrap(),
-                        self.get_summary_helper(right).unwrap(),
-                    )),
-                ),
-            };
+        let circuit = &self.branch_circuits[branch.height];
+        let empty_leaf = &self.empty_leaf_proof;
+        let empty_branch = branch
+            .height
+            .checked_sub(1)
+            .and_then(|h| self.empty_branch_proofs.get(h));
 
-        branch.new_hash = hash_branch(left_hash, right_hash);
-        if set_old {
-            branch.old_hash = branch.new_hash;
+        let left = branch.left.as_deref();
+        let right = branch.right.as_deref();
+        branch.proof = match (empty_branch, left, right) {
+            // Empty node
+            (None, None, None) => circuit.prove(empty_leaf, empty_leaf),
+            (Some(empty), None, None) => circuit.prove(empty, empty),
+
+            // Right node only
+            (Some(empty), None, Some(Branch(r))) => circuit.prove(empty, &r.proof),
+            (_, None, Some(Leaf(r))) => circuit.prove(empty_leaf, &r.proof),
+
+            // Left node only
+            (Some(empty), Some(Branch(l)), None) => circuit.prove(&l.proof, empty),
+            (_, Some(Leaf(l)), None) => circuit.prove(&l.proof, empty_leaf),
+
+            // Both nodes
+            (_, Some(Branch(l)), Some(Branch(r))) => circuit.prove(&l.proof, &r.proof),
+            (_, Some(Leaf(l)), Some(Leaf(r))) => circuit.prove(&l.proof, &r.proof),
+
+            // Bad cases
+            (None, _, _) => unreachable!("Missing branch circuit for child of {}", branch.height),
+            (Some(_), Some(Branch(_)), Some(Leaf(_)))
+            | (Some(_), Some(Leaf(_)), Some(Branch(_))) => unreachable!("Mismatched node types"),
         }
-        branch.summary_hash = summary;
-        branch.proof = self.branch_circuits[branch.height]
-            .prove(left_proof, right_proof)
-            .unwrap();
-    }
-
-    fn get_node_new_helper<'a>(
-        &'a self,
-        node: &'a SparseMerkleNode,
-    ) -> (&'a [F; 4], &'a ProofWithPublicInputs<F, C, D>) {
-        match node {
-            SparseMerkleNode::Branch(SparseMerkleBranch {
-                proof, new_hash, ..
-            }) => (new_hash, proof),
-            SparseMerkleNode::Leaf(SparseMerkleLeaf { proof, kind }) =>
-                (self.get_leaf_hashes(kind).new_hash, proof),
-        }
-    }
-
-    fn get_summary_helper<'a>(&'a self, node: &'a SparseMerkleNode) -> Option<&'a [F; 4]> {
-        match node {
-            SparseMerkleNode::Branch(SparseMerkleBranch { summary_hash, .. }) =>
-                summary_hash.as_ref(),
-            SparseMerkleNode::Leaf(SparseMerkleLeaf { kind, .. }) =>
-                self.get_leaf_hashes(kind).summary_hash,
-        }
-    }
-
-    fn get_empty_child_helper(&self, height: usize) -> (&[F; 4], &ProofWithPublicInputs<F, C, D>) {
-        if height == 0 {
-            (&self.empty_leaf_hash, &self.empty_leaf_proof)
-        } else {
-            (
-                &self.empty_branch_hashes[height - 1],
-                &self.empty_branch_proofs[height - 1],
-            )
-        }
+        .unwrap();
     }
 
     fn create_branch_helper(
@@ -515,25 +401,11 @@ impl AuxStateData {
         match path {
             None => {
                 let leaf = self.create_leaf_helper(addr, new);
-                let LeafHashes {
-                    new_hash: leaf_new,
-                    summary_hash: leaf_summary,
-                    ..
-                } = self.get_leaf_hashes(&leaf.kind);
-                let leaf_summary = leaf_summary.copied();
-                let ((left_leaf, left_proof), (right_leaf, right_proof)) = if dir == Dir::Left {
-                    (
-                        (leaf_new, &leaf.proof),
-                        (&self.empty_leaf_hash, &self.empty_leaf_proof),
-                    )
+                let (left_proof, right_proof) = if dir == Dir::Left {
+                    (&leaf.proof, &self.empty_leaf_proof)
                 } else {
-                    (
-                        (&self.empty_leaf_hash, &self.empty_leaf_proof),
-                        (leaf_new, &leaf.proof),
-                    )
+                    (&self.empty_leaf_proof, &leaf.proof)
                 };
-                let old_hash = self.empty_branch_hashes[0];
-                let new_hash = hash_branch(left_leaf, right_leaf);
 
                 let proof = self.branch_circuits[0]
                     .prove(left_proof, right_proof)
@@ -549,9 +421,6 @@ impl AuxStateData {
                 SparseMerkleBranch {
                     height: 0,
                     proof,
-                    old_hash,
-                    new_hash,
-                    summary_hash: leaf_summary,
                     left,
                     right,
                 }
@@ -559,23 +428,12 @@ impl AuxStateData {
             Some(path) => {
                 let child = self.create_branch_helper(addr, path, new);
                 let height = child.height + 1;
-                let empty_child_hash = &self.empty_branch_hashes[height - 1];
-                let child_new = &child.new_hash;
-                let child_summary = child.summary_hash;
                 let empty_child_proof = &self.empty_branch_proofs[height - 1];
-                let ((left_child, left_proof), (right_child, right_proof)) = if dir == Dir::Left {
-                    (
-                        (child_new, &child.proof),
-                        (empty_child_hash, empty_child_proof),
-                    )
+                let (left_proof, right_proof) = if dir == Dir::Left {
+                    (&child.proof, empty_child_proof)
                 } else {
-                    (
-                        (empty_child_hash, empty_child_proof),
-                        (child_new, &child.proof),
-                    )
+                    (empty_child_proof, &child.proof)
                 };
-                let old_hash = self.empty_branch_hashes[height];
-                let new_hash = hash_branch(left_child, right_child);
 
                 let proof = self.branch_circuits[height]
                     .prove(left_proof, right_proof)
@@ -591,9 +449,6 @@ impl AuxStateData {
                 SparseMerkleBranch {
                     height,
                     proof,
-                    old_hash,
-                    new_hash,
-                    summary_hash: child_summary,
                     left,
                     right,
                 }
@@ -601,161 +456,85 @@ impl AuxStateData {
         }
     }
 
-    fn get_leaf_hashes<'a>(&'a self, leaf: &'a LeafKind) -> LeafHashes<'a> {
-        match leaf {
-            LeafKind::DeleteEmptyLeaf { summary_hash }
-            | LeafKind::ReadEmptyLeaf { summary_hash } => LeafHashes {
-                old_hash: &self.empty_leaf_hash,
-                new_hash: &self.empty_leaf_hash,
-                summary_hash: Some(summary_hash),
-            },
-            LeafKind::BeingCreated {
-                new_hash,
-                summary_hash,
-                ..
-            } => LeafHashes {
-                old_hash: &self.empty_leaf_hash,
-                new_hash,
-                summary_hash: Some(summary_hash),
-            },
-            LeafKind::Unused { old_hash, .. } => LeafHashes {
-                old_hash,
-                new_hash: old_hash,
-                summary_hash: None,
-            },
-            LeafKind::BeingDeleted {
-                old_hash,
-                summary_hash,
-                ..
-            } => LeafHashes {
-                old_hash,
-                new_hash: &self.empty_leaf_hash,
-                summary_hash: Some(summary_hash),
-            },
-            LeafKind::BeingRead {
-                old_hash,
-                summary_hash,
-                ..
-            } => LeafHashes {
-                old_hash,
-                new_hash: old_hash,
-                summary_hash: Some(summary_hash),
-            },
-            LeafKind::BeingUpdated {
-                old_hash,
-                new_hash,
-                summary_hash,
-                ..
-            } => LeafHashes {
-                old_hash,
-                new_hash,
-                summary_hash: Some(summary_hash),
-            },
-        }
-    }
-
-    fn empty_leaf(&self, addr: Address) -> ([F; 4], ProofWithPublicInputs<F, C, D>) {
-        let summary_hash = addr.summary_hash(self.empty_leaf_hash, self.empty_leaf_hash);
-        let proof = self
-            .leaf_circuit
-            .prove(
-                self.empty_leaf_hash.into(),
-                self.empty_leaf_hash.into(),
-                Some(addr.0),
-            )
-            .unwrap();
-        (summary_hash, proof)
+    fn empty_leaf(&self, addr: Address) -> LeafProof<F, C, D> {
+        self.leaf_circuit
+            .prove(self.empty_leaf_hash, self.empty_leaf_hash, Some(addr.0))
+            .unwrap()
     }
 
     fn read_empty_leaf(&self, addr: Address) -> SparseMerkleLeaf {
-        let (summary_hash, proof) = self.empty_leaf(addr);
         SparseMerkleLeaf {
-            kind: LeafKind::ReadEmptyLeaf { summary_hash },
-            proof,
+            kind: LeafKind::ReadEmptyLeaf,
+            proof: self.empty_leaf(addr),
         }
     }
 
     fn delete_empty_leaf(&self, addr: Address) -> SparseMerkleLeaf {
-        let (summary_hash, proof) = self.empty_leaf(addr);
         SparseMerkleLeaf {
-            kind: LeafKind::DeleteEmptyLeaf { summary_hash },
-            proof,
+            kind: LeafKind::DeleteEmptyLeaf,
+            proof: self.empty_leaf(addr),
         }
     }
 
     fn being_created(&self, addr: Address, new_object: Object) -> SparseMerkleLeaf {
         let new_hash = new_object.hash();
-        let summary_hash = addr.summary_hash(self.empty_leaf_hash, new_hash);
         let proof = self
             .leaf_circuit
-            .prove(self.empty_leaf_hash.into(), new_hash.into(), Some(addr.0))
+            .prove(self.empty_leaf_hash, new_hash, Some(addr.0))
             .unwrap();
         SparseMerkleLeaf {
             proof,
-            kind: LeafKind::BeingCreated {
-                new_hash,
-                new_object,
-                summary_hash,
-            },
+            kind: LeafKind::BeingCreated { new_object },
         }
     }
 
-    fn being_deleted(&self, addr: Address, old_hash: [F; 4], object: Object) -> SparseMerkleLeaf {
+    fn being_deleted(
+        &self,
+        addr: Address,
+        old_hash: HashOut<F>,
+        object: Object,
+    ) -> SparseMerkleLeaf {
         let new_hash = self.empty_leaf_hash;
-        let summary_hash = addr.summary_hash(old_hash, new_hash);
         let proof = self
             .leaf_circuit
-            .prove(old_hash.into(), new_hash.into(), Some(addr.0))
+            .prove(old_hash, new_hash, Some(addr.0))
             .unwrap();
 
         SparseMerkleLeaf {
             proof,
-            kind: LeafKind::BeingDeleted {
-                old_hash,
-                object,
-                summary_hash,
-            },
+            kind: LeafKind::BeingDeleted { object },
         }
     }
 
-    fn being_read(&self, addr: Address, old_hash: [F; 4], object: Object) -> SparseMerkleLeaf {
-        let summary_hash = addr.summary_hash(old_hash, old_hash);
+    fn being_read(&self, addr: Address, old_hash: HashOut<F>, object: Object) -> SparseMerkleLeaf {
         let proof = self
             .leaf_circuit
-            .prove(old_hash.into(), old_hash.into(), Some(addr.0))
+            .prove(old_hash, old_hash, Some(addr.0))
             .unwrap();
 
         SparseMerkleLeaf {
             proof,
-            kind: LeafKind::BeingRead {
-                old_hash,
-                object,
-                summary_hash,
-            },
+            kind: LeafKind::BeingRead { object },
         }
     }
 
     fn being_updated(
         &self,
         addr: Address,
-        old_hash: [F; 4],
+        old_hash: HashOut<F>,
         object: Object,
         new_object: Object,
     ) -> SparseMerkleLeaf {
         let new_hash = new_object.hash();
-        let summary_hash = addr.summary_hash(old_hash, new_hash);
         let proof = self
             .leaf_circuit
-            .prove(old_hash.into(), new_hash.into(), Some(addr.0))
+            .prove(old_hash, new_hash, Some(addr.0))
             .unwrap();
         SparseMerkleLeaf {
             proof,
             kind: LeafKind::BeingUpdated {
-                old_hash,
                 old_object: object,
-                new_hash,
                 new_object,
-                summary_hash,
             },
         }
     }
@@ -808,7 +587,7 @@ impl AuxStateData {
         let outcome = left_outcome + right_outcome;
 
         if let FinalizeOutcome::Recalc = outcome {
-            self.recalc_branch_helper(branch, true, None);
+            self.recalc_branch_helper(branch);
         }
 
         outcome
@@ -821,29 +600,15 @@ impl AuxStateData {
         };
         let (old_hash, object) = match leaf.kind {
             Unused { .. } => return FinalizeOutcome::NoOp,
-            DeleteEmptyLeaf { .. } | ReadEmptyLeaf { .. } | BeingDeleted { .. } =>
-                return FinalizeOutcome::Prune,
-            BeingCreated {
-                new_hash,
-                new_object,
-                ..
-            }
-            | BeingUpdated {
-                new_hash,
-                new_object,
-                ..
-            } => (new_hash, new_object),
-            BeingRead {
-                old_hash, object, ..
-            } => (old_hash, object),
+            DeleteEmptyLeaf | ReadEmptyLeaf | BeingDeleted { .. } => return FinalizeOutcome::Prune,
+            BeingCreated { new_object } | BeingUpdated { new_object, .. } =>
+                (leaf.proof.new(), new_object),
+            BeingRead { object } => (leaf.proof.old(), object),
         };
 
-        leaf.kind = Unused { old_hash, object };
+        leaf.kind = Unused { object };
 
-        leaf.proof = self
-            .leaf_circuit
-            .prove(old_hash.into(), old_hash.into(), None)
-            .unwrap();
+        leaf.proof = self.leaf_circuit.prove(old_hash, old_hash, None).unwrap();
 
         FinalizeOutcome::Recalc
     }
@@ -855,14 +620,17 @@ pub struct State<'a> {
 }
 
 impl<'a> State<'a> {
+    /// Create the empty state data
+    ///
+    /// # Panics
+    ///
+    /// Will panic if `tree_depth` is unsupported by `aux`
+    #[must_use]
     pub fn new(aux: &'a AuxStateData, tree_depth: usize) -> Self {
         assert!(tree_depth <= aux.max_tree_depth);
         let root = SparseMerkleBranch {
             height: tree_depth,
             proof: aux.empty_branch_proofs[tree_depth].clone(),
-            old_hash: aux.empty_branch_hashes[tree_depth],
-            new_hash: aux.empty_branch_hashes[tree_depth],
-            summary_hash: None,
             left: None,
             right: None,
         };
@@ -875,6 +643,7 @@ impl<'a> State<'a> {
 
     pub fn finalize(&mut self) { self.aux.finalize(&mut self.root); }
 
+    #[must_use]
     pub fn get_state(&self, addr: Address) -> (Option<&Object>, Option<&Object>) {
         let (path, dir) = addr.next(self.root.height);
         Self::get_state_helper(&self.root, path, dir)
@@ -896,16 +665,14 @@ impl<'a> State<'a> {
                     Self::get_state_helper(branch, path, dir)
                 }
                 (None, SparseMerkleNode::Leaf(leaf)) => match &leaf.kind {
-                    LeafKind::DeleteEmptyLeaf { .. } | LeafKind::ReadEmptyLeaf { .. } =>
-                        (None, None),
-                    LeafKind::BeingCreated { new_object, .. } => (None, Some(new_object)),
-                    LeafKind::Unused { object, .. } | LeafKind::BeingRead { object, .. } =>
+                    LeafKind::DeleteEmptyLeaf | LeafKind::ReadEmptyLeaf => (None, None),
+                    LeafKind::BeingCreated { new_object } => (None, Some(new_object)),
+                    LeafKind::Unused { object } | LeafKind::BeingRead { object } =>
                         (Some(object), Some(object)),
-                    LeafKind::BeingDeleted { object, .. } => (Some(object), None),
+                    LeafKind::BeingDeleted { object } => (Some(object), None),
                     LeafKind::BeingUpdated {
                         old_object,
                         new_object,
-                        ..
                     } => (Some(old_object), Some(new_object)),
                 },
                 (_, _) => unreachable!("bad address or tree"),
@@ -925,7 +692,7 @@ mod test {
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::Hasher;
 
-    use super::{Address, AuxStateData, Object, Operation, ProgramHash, State, F};
+    use super::{Address, AuxStateData, Object, Operation, State, F};
 
     pub fn hash_str(v: &str) -> HashOut<F> {
         let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
@@ -952,7 +719,7 @@ mod test {
         assert_eq!(after, None);
 
         let obj = Object {
-            constraint_owner: ProgramHash(non_zero_hash_1),
+            constraint_owner: non_zero_hash_1,
             last_updated: F::from_canonical_u64(10),
             credits: F::from_canonical_u64(10000),
             data: non_zero_hash_2,
@@ -981,7 +748,7 @@ mod test {
         assert_eq!(after, None);
 
         let obj = Object {
-            constraint_owner: ProgramHash(non_zero_hash_1),
+            constraint_owner: non_zero_hash_1,
             last_updated: F::from_canonical_u64(10),
             credits: F::from_canonical_u64(10000),
             data: non_zero_hash_2,
@@ -1011,7 +778,7 @@ mod test {
         assert_eq!(after, None);
 
         let obj = Object {
-            constraint_owner: ProgramHash(non_zero_hash_1),
+            constraint_owner: non_zero_hash_1,
             last_updated: F::from_canonical_u64(10),
             credits: F::from_canonical_u64(10000),
             data: non_zero_hash_2,

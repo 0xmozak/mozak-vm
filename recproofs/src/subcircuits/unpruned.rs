@@ -13,7 +13,7 @@ use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::indices::HashTargetIndex;
+use crate::indices::HashOutTargetIndex;
 use crate::{byte_wise_hash, select_hash};
 
 pub trait Extended {
@@ -43,7 +43,7 @@ pub struct BranchTargetsExtension {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
     /// The indices of each of the elements of the unpruned hash
-    pub unpruned_hash: HashTargetIndex,
+    pub unpruned_hash: HashOutTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -87,7 +87,7 @@ impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
-            unpruned_hash: HashTargetIndex::new(public_inputs, self.inputs.unpruned_hash),
+            unpruned_hash: HashOutTargetIndex::new(public_inputs, self.inputs.unpruned_hash),
         };
         LeafSubCircuit {
             targets: self,
@@ -142,17 +142,20 @@ impl SubCircuitInputs {
             CircuitBuilder::hash_n_to_hash_no_pad::<Poseidon2Hash>
         };
 
-        let l_values = indices.unpruned_hash.get_any(&left_proof.public_inputs);
-        let r_values = indices.unpruned_hash.get_any(&right_proof.public_inputs);
+        let l_values = indices.unpruned_hash.get_target(&left_proof.public_inputs);
+        let r_values = indices.unpruned_hash.get_target(&right_proof.public_inputs);
 
         // Hash the left and right together
-        let unpruned_hash_calc = hasher(builder, chain!(l_values, r_values).collect());
+        let unpruned_hash_calc = hasher(
+            builder,
+            chain!(l_values.elements, r_values.elements).collect(),
+        );
 
         let left = SubCircuitInputs {
-            unpruned_hash: HashOutTarget::from(l_values),
+            unpruned_hash: l_values,
         };
         let right = SubCircuitInputs {
-            unpruned_hash: HashOutTarget::from(r_values),
+            unpruned_hash: r_values,
         };
 
         // Apply any extensions
@@ -226,7 +229,7 @@ impl<E: Extended> BranchTargets<E> {
     #[must_use]
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit<E> {
         let indices = PublicIndices {
-            unpruned_hash: HashTargetIndex::new(public_inputs, self.inputs.unpruned_hash),
+            unpruned_hash: HashOutTargetIndex::new(public_inputs, self.inputs.unpruned_hash),
         };
         debug_assert_eq!(indices, *child);
 
@@ -564,8 +567,8 @@ mod test {
 
     fn assert_value(proof: &ProofWithPublicInputs<F, C, D>, hash: HashOut<F>) {
         let indices = &LEAF.unpruned.indices;
-        let p_hash = indices.unpruned_hash.get_any(&proof.public_inputs);
-        assert_eq!(p_hash, hash.elements);
+        let p_hash = indices.unpruned_hash.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash);
     }
 
     fn verify_branch_helper<'a, B: Branch>(
