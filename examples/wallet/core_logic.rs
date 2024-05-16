@@ -121,6 +121,7 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
 
 // TODO(bing): Read private key from private tape and public key from call tape.
 // hash and compare against public key.
+#[allow(unused_variables)]
 pub fn approve_signature<T>(pub_key: PublicKey, _black_box: T) {
     #[cfg(target_os = "mozakvm")]
     {
