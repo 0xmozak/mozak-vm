@@ -78,8 +78,9 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
-    pub targets: TableKindArray<StarkVerifierTargets<F, C, D>>,
+    pub targets: TableKindArray<Option<StarkVerifierTargets<F, C, D>>>,
     pub public_sub_table_values_targets: TableKindArray<Vec<PublicSubTableValuesTarget>>,
+    pub batch_targets: Option<StarkVerifierTargets<F, C, D>>,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -119,7 +120,7 @@ where
         let mut inputs = PartialWitness::new();
 
         all_kind!(|kind| {
-            self.targets[kind].set_targets(&mut inputs, &all_proof.proofs[kind]);
+            self.targets[kind].as_ref().expect("").set_targets(&mut inputs, &all_proof.proofs[kind]);
 
             // set public_sub_table_values targets
             for (public_sub_table_values_target, public_sub_table_values) in zip_eq(
@@ -137,7 +138,7 @@ where
         });
 
         // Set public inputs
-        let cpu_target = &self.targets[TableKind::Cpu].stark_proof_with_pis_target;
+        let cpu_target = &self.targets[TableKind::Cpu].as_ref().expect("").stark_proof_with_pis_target;
         inputs.set_target_arr(
             cpu_target.public_inputs.as_ref(),
             all_proof.public_inputs.borrow(),
@@ -228,19 +229,19 @@ where
     }
     challenger.observe_cap(&batch_stark_proof_target.trace_cap);
 
-    // let ctl_challenges = get_grand_product_challenge_set_target(
-    //     &mut builder,
-    //     &mut challenger,
-    //     inner_config.num_challenges,
-    // );
-    //
+    let ctl_challenges = get_grand_product_challenge_set_target(
+        &mut builder,
+        &mut challenger,
+        inner_config.num_challenges,
+    );
+
     // let (public_sub_table_values_targets, reduced_public_sub_table_targets) =
     //     public_sub_table_values_and_reduced_targets(
     //         &mut builder,
     //         &mozak_stark.public_sub_tables,
     //         &ctl_challenges,
     //     );
-    //
+
     // verify_cross_table_lookups_and_public_sub_table_circuit(
     //     &mut builder,
     //     &mozak_stark.cross_table_lookups,
@@ -251,7 +252,7 @@ where
     //         .map(|p| p.proof.openings.ctl_zs_last),
     //     inner_config,
     // );
-    //
+
     // let state = challenger.compact(&mut builder);
     // let targets = all_starks!(mozak_stark, |stark, kind| {
     //     let ctl_vars = CtlCheckVarsTarget::from_proof(
@@ -265,8 +266,7 @@ where
     //     let mut challenger = RecursiveChallenger::from_state(state);
     //     let challenges_target = stark_proof_with_pis_target[kind]
     //         .proof
-    //         .get_challenges::<F, C>(&mut builder, &mut challenger,
-    // inner_config);
+    //         .get_challenges::<F, C>(&mut builder, &mut challenger, inner_config);
     //
     //     verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
     //         &mut builder,
@@ -278,12 +278,12 @@ where
     //     );
     //
     //     StarkVerifierTargets {
-    //         stark_proof_with_pis_target:
-    // stark_proof_with_pis_target[kind].clone(),         zero_target:
-    // builder.zero(),         _f: PhantomData,
+    //         stark_proof_with_pis_target: stark_proof_with_pis_target[kind].clone(),
+    //         zero_target: builder.zero(),
+    //         _f: PhantomData,
     //     }
     // });
-    //
+
     // // Register the public tables as public inputs.
     // for kind in PUBLIC_TABLE_KINDS {
     //     builder.register_public_inputs(
@@ -407,17 +407,17 @@ where
             inner_config,
         );
 
-        StarkVerifierTargets {
+        Some(StarkVerifierTargets {
             stark_proof_with_pis_target: stark_proof_with_pis_target[kind].clone(),
             zero_target: builder.zero(),
             _f: PhantomData,
-        }
+        })
     });
 
     // Register the public tables as public inputs.
     for kind in PUBLIC_TABLE_KINDS {
         builder.register_public_inputs(
-            &targets[kind]
+            &targets[kind].as_ref().expect("")
                 .stark_proof_with_pis_target
                 .proof
                 .trace_cap
@@ -443,6 +443,7 @@ where
         circuit,
         targets,
         public_sub_table_values_targets,
+        batch_targets: None,
     }
 }
 
