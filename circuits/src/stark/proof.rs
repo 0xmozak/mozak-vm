@@ -375,7 +375,6 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(bound = "")]
 pub struct BatchProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub degree_bits: TableKindArray<usize>,
     pub proofs: TableKindArray<StarkProof<F, C, D>>,
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
     pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,

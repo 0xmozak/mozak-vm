@@ -496,7 +496,7 @@ pub fn prove_and_verify_batch_mozak_stark(
         entry_point: from_u32(program.entry_point),
     };
 
-    let all_proof = batch_prove::<F, C, D>(
+    let (all_proof, degree_bits) = batch_prove::<F, C, D>(
         program,
         record,
         &stark,
@@ -505,7 +505,7 @@ pub fn prove_and_verify_batch_mozak_stark(
         public_inputs,
         &mut TimingTree::default(),
     )?;
-    batch_verify_proof(&stark, &PUBLIC_TABLE_KINDS, all_proof, config)
+    batch_verify_proof(&stark, &PUBLIC_TABLE_KINDS, all_proof, config, &degree_bits)
 }
 
 /// Interpret a u64 as a field element and try to invert it.

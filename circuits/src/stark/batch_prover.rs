@@ -226,7 +226,7 @@ pub fn batch_prove<F, C, const D: usize>(
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
     timing: &mut TimingTree,
-) -> Result<BatchProof<F, C, D>>
+) -> Result<(BatchProof<F, C, D>, TableKindArray<usize>)>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
@@ -349,15 +349,17 @@ where
     if log_enabled!(Debug) {
         timing.print();
     }
-    Ok(BatchProof {
+    Ok((
+        BatchProof {
+            proofs,
+            program_rom_trace_cap,
+            elf_memory_init_trace_cap,
+            public_inputs,
+            public_sub_table_values,
+            batch_stark_proof,
+        },
         degree_bits,
-        proofs,
-        program_rom_trace_cap,
-        elf_memory_init_trace_cap,
-        public_inputs,
-        public_sub_table_values,
-        batch_stark_proof,
-    })
+    ))
 }
 
 /// Given the traces generated from [`generate_traces`] along with their
@@ -805,7 +807,7 @@ mod tests {
             entry_point: from_u32(program.entry_point),
         };
 
-        let all_proof: BatchProof<F, C, D> = batch_prove(
+        let (all_proof, degree_bits) = batch_prove::<F, C, D>(
             &program,
             &record,
             &stark,
@@ -815,6 +817,13 @@ mod tests {
             &mut TimingTree::default(),
         )
         .unwrap();
-        batch_verify_proof(&stark, &PUBLIC_TABLE_KINDS, all_proof, &config).unwrap();
+        batch_verify_proof(
+            &stark,
+            &PUBLIC_TABLE_KINDS,
+            all_proof,
+            &config,
+            &degree_bits,
+        )
+        .unwrap();
     }
 }
