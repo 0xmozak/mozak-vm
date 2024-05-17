@@ -90,21 +90,21 @@ mod tests {
     use plonky2::field::types::Field;
 
     use super::*;
-    use crate::generation::cpu::generate_cpu_trace;
-    use crate::generation::fullword_memory::generate_fullword_memory_trace;
-    use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::io_memory::{
-        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
-        generate_events_commitment_tape_trace, generate_io_memory_private_trace,
-        generate_io_memory_public_trace,
-    };
-    use crate::generation::memory::generate_memory_trace;
-    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-    use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::cpu::generation::generate_cpu_trace;
     use crate::generation::MIN_TRACE_LENGTH;
+    use crate::memory::generation::generate_memory_trace;
+    use crate::memory_fullword::generation::generate_fullword_memory_trace;
+    use crate::memory_halfword::generation::generate_halfword_memory_trace;
+    use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
+    use crate::memoryinit::generation::generate_memory_init_trace;
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::register::generation::{generate_register_init_trace, generate_register_trace};
+    use crate::storage_device::generation::{
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_event_tape_trace, generate_events_commitment_tape_trace,
+        generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
+    };
 
     #[test]
     fn test_generate_trace() {
@@ -130,12 +130,14 @@ mod tests {
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
-        let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
-        let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+        let private_tape_rows = generate_private_tape_trace(&record.executed);
+        let public_tape_rows = generate_public_tape_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
+        let event_tape_rows = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
         let memory_rows = generate_memory_trace::<F>(
@@ -144,11 +146,13 @@ mod tests {
             &memory_zeroinit_rows,
             &halfword_memory,
             &fullword_memory,
-            &io_memory_private_rows,
-            &io_memory_public_rows,
+            &private_tape_rows,
+            &public_tape_rows,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
@@ -156,11 +160,13 @@ mod tests {
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
             &poseidon2_sponge_trace,
-            &io_memory_private_rows,
-            &io_memory_public_rows,
+            &private_tape_rows,
+            &public_tape_rows,
             &call_tape_rows,
+            &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &register_init,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);

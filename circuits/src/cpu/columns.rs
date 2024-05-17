@@ -1,15 +1,17 @@
 use core::ops::{Add, Mul, Sub};
 
+use mozak_runner::instruction::Op;
+
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
-use crate::memory_io::columns::StorageDeviceCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
 use crate::program::columns::ProgramRom;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{CpuTable, TableWithTypedOutput};
+use crate::storage_device::columns::StorageDeviceCtl;
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
@@ -84,6 +86,58 @@ pub struct Instruction<T> {
     pub rd_selected: T,
     /// Special immediate value used for code constants
     pub imm_value: T,
+}
+
+impl From<(u32, mozak_runner::instruction::Instruction)> for Instruction<u32> {
+    fn from((pc, inst): (u32, mozak_runner::instruction::Instruction)) -> Self {
+        let mut cols: Instruction<u32> = Self {
+            pc,
+            imm_value: inst.args.imm,
+            is_op1_signed: matches!(
+                inst.op,
+                Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::MULHSU | Op::BLT | Op::BGE | Op::SRA
+            )
+            .into(),
+            is_op2_signed: matches!(
+                inst.op,
+                Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::BLT | Op::BGE
+            )
+            .into(),
+            is_dst_signed: matches!(inst.op, Op::LB | Op::LH).into(),
+            ..Self::default()
+        };
+        *match inst.op {
+            Op::ADD => &mut cols.ops.add,
+            Op::LBU | Op::LB => &mut cols.ops.lb,
+            Op::LH | Op::LHU => &mut cols.ops.lh,
+            Op::LW => &mut cols.ops.lw,
+            Op::SLL => &mut cols.ops.sll,
+            Op::SLT | Op::SLTU => &mut cols.ops.slt,
+            Op::SB => &mut cols.ops.sb,
+            Op::SH => &mut cols.ops.sh,
+            Op::SW => &mut cols.ops.sw,
+            Op::SRL => &mut cols.ops.srl,
+            Op::SRA => &mut cols.ops.sra,
+            Op::SUB => &mut cols.ops.sub,
+            Op::DIV | Op::DIVU => &mut cols.ops.div,
+            Op::REM | Op::REMU => &mut cols.ops.rem,
+            Op::MUL => &mut cols.ops.mul,
+            Op::MULH | Op::MULHU | Op::MULHSU => &mut cols.ops.mulh,
+            Op::JALR => &mut cols.ops.jalr,
+            Op::BEQ => &mut cols.ops.beq,
+            Op::BNE => &mut cols.ops.bne,
+            Op::BLT | Op::BLTU => &mut cols.ops.blt,
+            Op::BGE | Op::BGEU => &mut cols.ops.bge,
+            Op::ECALL => &mut cols.ops.ecall,
+            Op::XOR => &mut cols.ops.xor,
+            Op::OR => &mut cols.ops.or,
+            Op::AND => &mut cols.ops.and,
+        } = 1;
+        cols.rs1_selected = u32::from(inst.args.rs1);
+        cols.rs2_selected = u32::from(inst.args.rs2);
+        cols.rd_selected = u32::from(inst.args.rd);
+        cols
+    }
 }
 
 make_col_map!(CpuState);
@@ -172,11 +226,13 @@ pub struct CpuState<T> {
     // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
     // filter.
     // TODO: implement the above.
-    pub is_io_store_private: T,
-    pub is_io_store_public: T,
+    pub is_private_tape: T,
+    pub is_public_tape: T,
     pub is_call_tape: T,
+    pub is_event_tape: T,
     pub is_events_commitment_tape: T,
     pub is_cast_list_commitment_tape: T,
+    pub is_self_prog_id_tape: T,
     pub is_halt: T,
     pub is_poseidon2: T,
 }
@@ -316,29 +372,33 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
     )
 }
 
-/// Column containing the data to be matched against IO Memory starks.
+/// Column containing the data to be matched against `StorageDevice` starks.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn lookup_for_io_memory_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
+pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
     CpuTable::new(
         StorageDeviceCtl {
             op: ColumnWithTypedInput::ascending_sum([
-                CPU.is_io_store_private,
-                CPU.is_io_store_public,
+                CPU.is_private_tape,
+                CPU.is_public_tape,
                 CPU.is_call_tape,
+                CPU.is_event_tape,
                 CPU.is_events_commitment_tape,
                 CPU.is_cast_list_commitment_tape,
+                CPU.is_self_prog_id_tape,
             ]),
             clk: CPU.clk,
             addr: CPU.io_addr,
             size: CPU.io_size,
         },
         [
-            CPU.is_io_store_private,
-            CPU.is_io_store_public,
+            CPU.is_private_tape,
+            CPU.is_public_tape,
             CPU.is_call_tape,
+            CPU.is_event_tape,
             CPU.is_events_commitment_tape,
             CPU.is_cast_list_commitment_tape,
+            CPU.is_self_prog_id_tape,
         ]
         .iter()
         .sum(),

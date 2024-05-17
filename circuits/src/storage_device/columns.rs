@@ -1,6 +1,6 @@
 use core::ops::Add;
 
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 use mozak_sdk::core::reg_abi::REG_A1;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -8,7 +8,7 @@ use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{
-    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable,
+    CallTapeTable, CastListCommitmentTapeTable, EventsCommitmentTapeTable, SelfProgIdTapeTable,
     StorageDevicePrivateTable, StorageDevicePublicTable, TableKind, TableWithTypedOutput,
 };
 use crate::tape_commitments::columns::TapeCommitmentCTL;
@@ -19,8 +19,8 @@ use crate::tape_commitments::columns::TapeCommitmentCTL;
 pub struct Ops<T> {
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_memory_store: T,
-    /// Binary filter column to represent a io-read operation.
-    pub is_io_store: T,
+    /// Binary filter column to represent an storage device operation.
+    pub is_storage_device: T,
 }
 
 #[repr(C)]
@@ -34,7 +34,7 @@ pub struct StorageDevice<T> {
     pub size: T,
     /// Value: byte value
     pub value: T,
-    /// Operation: `io_store/load` `io_memory_store/load`
+    /// Operation: one-hot encoded
     pub ops: Ops<T>,
     /// Helper to decrease poly degree
     pub is_lv_and_nv_are_memory_rows: T,
@@ -44,11 +44,11 @@ columns_view_impl!(StorageDevice);
 make_col_map!(StorageDevice);
 
 impl<T: Copy + Add<Output = T>> StorageDevice<T> {
-    pub fn is_executed(&self) -> T { self.ops.is_io_store + self.ops.is_memory_store }
+    pub fn is_executed(&self) -> T { self.ops.is_storage_device + self.ops.is_memory_store }
 }
 
 /// Total number of columns.
-pub const NUM_IO_MEM_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_STORAGE_DEVICE_COLS: usize = StorageDevice::<()>::NUMBER_OF_COLUMNS;
 
 columns_view_impl!(StorageDeviceCtl);
 #[repr(C)]
@@ -74,7 +74,7 @@ pub fn lookup_for_cpu(kind: TableKind, op: i64) -> TableWithTypedOutput<StorageD
         .into_iter()
         .map(Column::from)
         .collect(),
-        filter_column: COL_MAP.ops.is_io_store.into(),
+        filter_column: COL_MAP.ops.is_storage_device.into(),
     }
 }
 
@@ -106,11 +106,12 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
         value: COL_MAP.addr,
     };
     vec![
-        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_io_store),
-        StorageDevicePublicTable::new(data, COL_MAP.ops.is_io_store),
-        CallTapeTable::new(data, COL_MAP.ops.is_io_store),
-        EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
-        CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_io_store),
+        StorageDevicePrivateTable::new(data, COL_MAP.ops.is_storage_device),
+        StorageDevicePublicTable::new(data, COL_MAP.ops.is_storage_device),
+        CallTapeTable::new(data, COL_MAP.ops.is_storage_device),
+        EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_storage_device),
+        CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_storage_device),
+        SelfProgIdTapeTable::new(data, COL_MAP.ops.is_storage_device),
     ]
 }
 
@@ -119,7 +120,7 @@ pub fn event_commitment_lookup_in_tape_commitments(
 ) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
     let data = TapeCommitmentCTL {
         byte: COL_MAP.value,
-        index: i64::try_from(COMMITMENT_SIZE - 1).unwrap() - COL_MAP.size,
+        index: i64::try_from(DIGEST_BYTES - 1).unwrap() - COL_MAP.size,
     };
     EventsCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
 }
@@ -129,7 +130,7 @@ pub fn castlist_commitment_lookup_in_tape_commitments(
 ) -> TableWithTypedOutput<TapeCommitmentCTL<Column>> {
     let data = TapeCommitmentCTL {
         byte: COL_MAP.value,
-        index: i64::try_from(COMMITMENT_SIZE - 1).unwrap() - COL_MAP.size,
+        index: i64::try_from(DIGEST_BYTES - 1).unwrap() - COL_MAP.size,
     };
     CastListCommitmentTapeTable::new(data, COL_MAP.ops.is_memory_store)
 }

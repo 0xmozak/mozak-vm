@@ -1,12 +1,9 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// TODO(bing): `clio` uses an older `windows-sys` vs other dependencies.
-// Remove when `clio` updates, or if `clio` is no longer needed.
-#![allow(clippy::multiple_crate_versions)]
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -14,10 +11,10 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
-use mozak_circuits::generation::io_memory::generate_call_tape_trace;
-use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
+use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
+use mozak_circuits::stark::batch_prover::batch_prove;
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
@@ -27,13 +24,13 @@ use mozak_circuits::stark::recursive_verifier::{
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
+use mozak_circuits::storage_device::generation::generate_call_tape_trace;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{
-    deserialize_system_tape, get_self_prog_id, load_program, tapes_to_runtime_arguments,
+    deserialize_system_tape, get_self_prog_id, load_program, raw_tapes_from_system_tape,
 };
 use mozak_node::types::{Attestation, Transaction};
-use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
@@ -64,7 +61,7 @@ pub struct RunArgs {
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -72,9 +69,11 @@ pub struct ProveArgs {
     elf: Input,
     proof: Output,
     #[arg(long)]
+    batch_proof: Option<Output>,
+    #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
     recursive_proof: Option<Output>,
 }
 
@@ -123,7 +122,7 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             debug!("{program:?}");
         }
         Command::Run(RunArgs {
@@ -131,11 +130,9 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
-                .unwrap_or_default();
-            let program = load_program(elf, &args).unwrap();
-            let state: State<F> = State::new(program.clone(), RawTapes::default());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            let program = load_program(elf).unwrap();
+            let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs {
@@ -143,13 +140,11 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
-                .unwrap_or_default();
+            let program = load_program(elf).unwrap();
 
-            let program = load_program(elf, &args).unwrap();
-            let state = State::new(program.clone(), RawTapes::default());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
 
+            let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
@@ -159,6 +154,7 @@ fn main() -> Result<()> {
             self_prog_id,
             mut proof,
             recursive_proof,
+            batch_proof,
         }) => {
             let args = system_tape
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id.clone()))
@@ -186,6 +182,20 @@ fn main() -> Result<()> {
 
             let serialized = serde_json::to_string(&all_proof).unwrap();
             proof.write_all(serialized.as_bytes())?;
+
+            if let Some(mut batch_proof_output) = batch_proof {
+                let batch_proofs = batch_prove::<F, C, D>(
+                    &program,
+                    &record,
+                    &stark,
+                    &PUBLIC_TABLE_KINDS,
+                    &config,
+                    public_inputs,
+                    &mut TimingTree::default(),
+                )?;
+                let serialized = serde_json::to_string(&batch_proofs).unwrap();
+                batch_proof_output.write_all(serialized.as_bytes())?;
+            }
 
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
@@ -300,14 +310,6 @@ fn main() -> Result<()> {
 
             let ids_and_paths = ids_and_paths_from_cast_list(entrypoint_program_id, &cast_list);
 
-            // This does nothing - we rely entirely on ecalls.
-            // TODO(bing): Refactor `load_program` to not take this as a param, in a
-            // separate PR.
-            let args = tapes_to_runtime_arguments(
-                system_tape_path,
-                Some(format!("{entrypoint_program_id:?}")),
-            );
-
             let mut attestations: Vec<Attestation> = vec![];
             let mut call_tape_hash = None;
 
@@ -315,7 +317,6 @@ fn main() -> Result<()> {
                 let program = load_program(
                     Input::try_from(elf)
                         .unwrap_or_else(|_| panic!("Elf filepath {elf:?} not found")),
-                    &args,
                 )?;
 
                 let raw_call_tape: Vec<u8> =
@@ -419,7 +420,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -436,7 +437,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -459,18 +460,7 @@ fn main() -> Result<()> {
             println!("{self_prog_id:?}");
         }
         Command::Bench(bench) => {
-            /// Times a function and returns the `Duration`.
-            ///
-            /// # Errors
-            ///
-            /// This errors if the given function returns an `Err`.
-            pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
-                let start_time = std::time::Instant::now();
-                func()?;
-                Ok(start_time.elapsed())
-            }
-
-            let time_taken = timeit(&|| bench.run())?.as_secs_f64();
+            let time_taken = bench.bench()?.as_secs_f64();
             println!("{time_taken}");
         }
     }

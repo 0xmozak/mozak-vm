@@ -85,9 +85,10 @@ mod tests {
     use itertools::chain;
     use mozak_runner::code;
     use mozak_runner::decode::ECALL;
-    use mozak_runner::elf::RuntimeArguments;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_sdk::core::ecall::{self, COMMITMENT_SIZE};
+    use mozak_runner::state::RawTapes;
+    use mozak_sdk::core::constants::DIGEST_BYTES;
+    use mozak_sdk::core::ecall::{self};
     use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::CircuitConfig;
@@ -115,8 +116,8 @@ mod tests {
     const CAST_LIST_COMMITMENT_ADDRESS: u32 = 0x100;
     const EVENTS_COMMITMENT_ADDRESS: u32 = 0x200;
 
-    fn io_read_tape_commitments_code() -> Vec<Instruction> {
-        fn io_read_ecall_code(ecall: u32, address: u32, num_bytes_read: usize) -> Vec<Instruction> {
+    fn read_tape_commitments_code() -> Vec<Instruction> {
+        fn read_ecall_code(ecall: u32, address: u32, num_bytes_read: usize) -> Vec<Instruction> {
             vec![
                 Instruction {
                     op: Op::ADD,
@@ -145,15 +146,15 @@ mod tests {
                 ECALL,
             ]
         }
-        let code_ecall_cast_list_commitment_tape = io_read_ecall_code(
+        let code_ecall_cast_list_commitment_tape = read_ecall_code(
             ecall::CAST_LIST_COMMITMENT_TAPE,
             CAST_LIST_COMMITMENT_ADDRESS,
-            COMMITMENT_SIZE,
+            DIGEST_BYTES,
         );
-        let code_ecall_events_commitment_tape = io_read_ecall_code(
+        let code_ecall_events_commitment_tape = read_ecall_code(
             ecall::EVENTS_COMMITMENT_TAPE,
             EVENTS_COMMITMENT_ADDRESS,
-            COMMITMENT_SIZE,
+            DIGEST_BYTES,
         );
         chain!(
             code_ecall_cast_list_commitment_tape,
@@ -166,30 +167,28 @@ mod tests {
     fn test_tape_commitment_stark() -> Result<(), anyhow::Error> {
         let mut rng = rand::thread_rng();
         // generate tapes with random bytes
-        let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let code = io_read_tape_commitments_code();
-        let (program, record) =
-            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
-                events_commitment_tape,
-                cast_list_commitment_tape,
-                ..Default::default()
-            });
+        let cast_list_commitment_tape: [u8; DIGEST_BYTES] = rng.gen();
+        let events_commitment_tape: [u8; DIGEST_BYTES] = rng.gen();
+        let code = read_tape_commitments_code();
+        let (program, record) = code::execute_code_with_ro_memory(code, &[], &[], &[], RawTapes {
+            events_commitment_tape,
+            cast_list_commitment_tape,
+            ..Default::default()
+        });
         TapeCommitmentsStark::prove_and_verify(&program, &record)
     }
     #[test]
     fn test_tape_commitment_mozak_stark() -> Result<(), anyhow::Error> {
         let mut rng = rand::thread_rng();
         // generate tapes with random bytes
-        let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let code = io_read_tape_commitments_code();
-        let (program, record) =
-            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
-                events_commitment_tape,
-                cast_list_commitment_tape,
-                ..Default::default()
-            });
+        let cast_list_commitment_tape: [u8; DIGEST_BYTES] = rng.gen();
+        let events_commitment_tape: [u8; DIGEST_BYTES] = rng.gen();
+        let code = read_tape_commitments_code();
+        let (program, record) = code::execute_code_with_ro_memory(code, &[], &[], &[], RawTapes {
+            events_commitment_tape,
+            cast_list_commitment_tape,
+            ..Default::default()
+        });
         MozakStark::prove_and_verify(&program, &record)
     }
 
@@ -197,15 +196,14 @@ mod tests {
     fn test_tape_commitment_recursive_prover() -> Result<(), anyhow::Error> {
         let mut rng = rand::thread_rng();
         // generate tapes with random bytes
-        let cast_list_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let events_commitment_tape: [u8; COMMITMENT_SIZE] = rng.gen();
-        let code = io_read_tape_commitments_code();
-        let (program, record) =
-            code::execute_code_with_ro_memory(code, &[], &[], &[], RuntimeArguments {
-                events_commitment_tape,
-                cast_list_commitment_tape,
-                ..Default::default()
-            });
+        let cast_list_commitment_tape: [u8; DIGEST_BYTES] = rng.gen();
+        let events_commitment_tape: [u8; DIGEST_BYTES] = rng.gen();
+        let code = read_tape_commitments_code();
+        let (program, record) = code::execute_code_with_ro_memory(code, &[], &[], &[], RawTapes {
+            events_commitment_tape,
+            cast_list_commitment_tape,
+            ..Default::default()
+        });
         let stark = MozakStark::<F, D>::default();
         let config = StarkConfig::standard_fast_config();
         let public_inputs = PublicInputs {

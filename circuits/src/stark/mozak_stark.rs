@@ -23,8 +23,6 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::columns::{StorageDevice, StorageDeviceCtl};
-use crate::memory_io::stark::StorageDeviceStark;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
@@ -53,18 +51,22 @@ use crate::register::zero_read::stark::RegisterZeroReadStark;
 use crate::register::zero_write::columns::RegisterZeroWrite;
 use crate::register::zero_write::stark::RegisterZeroWriteStark;
 use crate::register::RegisterCtl;
+use crate::storage_device::columns::{StorageDevice, StorageDeviceCtl};
+use crate::storage_device::stark::StorageDeviceStark;
 use crate::tape_commitments::columns::{TapeCommitmentCTL, TapeCommitments};
 use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
-    memoryinit, poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities,
-    rangecheck, register, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_zeroinit, memoryinit,
+    poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities, rangecheck,
+    register, storage_device, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = 17;
 const NUM_PUBLIC_SUB_TABLES: usize = 2;
+pub const PUBLIC_TABLE_KINDS: [TableKind; NUM_PUBLIC_SUB_TABLES] =
+    [TableKind::Program, TableKind::ElfMemoryInit];
 
 /// STARK Gadgets of Mozak-VM
 ///
@@ -90,16 +92,6 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     #[StarkSet(stark_kind = "ElfMemoryInit")]
     pub elf_memory_init_stark: MemoryInitStark<F, D>,
-    #[StarkSet(stark_kind = "CallTapeInit")]
-    pub call_tape_init_stark: MemoryInitStark<F, D>,
-    #[StarkSet(stark_kind = "PrivateTapeInit")]
-    pub private_tape_init_stark: MemoryInitStark<F, D>,
-    #[StarkSet(stark_kind = "PublicTapeInit")]
-    pub public_tape_init_stark: MemoryInitStark<F, D>,
-    #[StarkSet(stark_kind = "EventTapeInit")]
-    pub event_tape_init_stark: MemoryInitStark<F, D>,
-    #[StarkSet(stark_kind = "MozakMemoryInit")]
-    pub mozak_memory_init_stark: MemoryInitStark<F, D>,
     // TODO(Bing): find a way to natively constrain zero initializations within
     // the `MemoryStark`, instead of relying on a CTL between this and the
     // `MemoryStark`.
@@ -112,11 +104,13 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "StorageDevicePrivate")]
-    pub io_memory_private_stark: StorageDeviceStark<F, D>,
+    pub private_tape_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "StorageDevicePublic")]
-    pub io_memory_public_stark: StorageDeviceStark<F, D>,
+    pub public_tape_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "CallTape")]
     pub call_tape_stark: StorageDeviceStark<F, D>,
+    #[StarkSet(stark_kind = "EventTape")]
+    pub event_tape_stark: StorageDeviceStark<F, D>,
     // TODO(bing): This is known to be 32-bytes in length. Optimize with
     // a fixed size version of this STARK.
     #[StarkSet(stark_kind = "EventsCommitmentTape")]
@@ -125,6 +119,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     // a fixed size version of this STARK.
     #[StarkSet(stark_kind = "CastListCommitmentTape")]
     pub cast_list_commitment_tape_stark: StorageDeviceStark<F, D>,
+    #[StarkSet(stark_kind = "SelfProgIdTape")]
+    pub self_prog_id_tape_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
@@ -332,7 +328,7 @@ tt_call::tt_call! {
     ~~> mozak_stark_helpers
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Copy, Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(transparent)]
 pub struct TableKindArray<T>(pub [T; TableKind::COUNT]);
 
@@ -407,11 +403,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             program_mult_stark: ProgramMultStark::default(),
             memory_stark: MemoryStark::default(),
             elf_memory_init_stark: MemoryInitStark::default(),
-            call_tape_init_stark: MemoryInitStark::default(),
-            private_tape_init_stark: MemoryInitStark::default(),
-            public_tape_init_stark: MemoryInitStark::default(),
-            event_tape_init_stark: MemoryInitStark::default(),
-            mozak_memory_init_stark: MemoryInitStark::default(),
             memory_zeroinit_stark: MemoryZeroInitStark::default(),
             rangecheck_u8_stark: RangeCheckU8Stark::default(),
             halfword_memory_stark: HalfWordMemoryStark::default(),
@@ -420,11 +411,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             register_stark: RegisterStark::default(),
             register_zero_read_stark: RegisterZeroReadStark::default(),
             register_zero_write_stark: RegisterZeroWriteStark::default(),
-            io_memory_private_stark: StorageDeviceStark::default(),
-            io_memory_public_stark: StorageDeviceStark::default(),
+            private_tape_stark: StorageDeviceStark::default(),
+            public_tape_stark: StorageDeviceStark::default(),
             call_tape_stark: StorageDeviceStark::default(),
+            event_tape_stark: StorageDeviceStark::default(),
             events_commitment_tape_stark: StorageDeviceStark::default(),
             cast_list_commitment_tape_stark: StorageDeviceStark::default(),
+            self_prog_id_tape_stark: StorageDeviceStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
@@ -577,11 +570,6 @@ table_impl!(ProgramTable, TableKind::Program, ProgramRom);
 table_impl!(ProgramMultTable, TableKind::ProgramMult, ProgramMult);
 table_impl!(MemoryTable, TableKind::Memory, Memory);
 table_impl!(ElfMemoryInitTable, TableKind::ElfMemoryInit, MemoryInit);
-table_impl!(CallTapeInitTable, TableKind::CallTapeInit, MemoryInit);
-table_impl!(PrivateTapeInitTable, TableKind::PrivateTapeInit, MemoryInit);
-table_impl!(PublicTapeInitTable, TableKind::PublicTapeInit, MemoryInit);
-table_impl!(EventTapeInitTable, TableKind::EventTapeInit, MemoryInit);
-table_impl!(MozakMemoryInitTable, TableKind::MozakMemoryInit, MemoryInit);
 table_impl!(
     MemoryZeroInitTable,
     TableKind::MemoryZeroInit,
@@ -621,6 +609,7 @@ table_impl!(
     StorageDevice
 );
 table_impl!(CallTapeTable, TableKind::CallTape, StorageDevice);
+table_impl!(EventTapeTable, TableKind::EventTape, StorageDevice);
 table_impl!(
     EventsCommitmentTapeTable,
     TableKind::EventsCommitmentTape,
@@ -629,6 +618,11 @@ table_impl!(
 table_impl!(
     CastListCommitmentTapeTable,
     TableKind::CastListCommitmentTape,
+    StorageDevice
+);
+table_impl!(
+    SelfProgIdTapeTable,
+    TableKind::SelfProgIdTape,
     StorageDevice
 );
 table_impl!(
@@ -698,10 +692,12 @@ impl Lookups for IntoMemoryTable {
                 TableKind::StorageDevicePrivate,
                 TableKind::StorageDevicePublic,
                 TableKind::CallTape,
+                TableKind::EventTape,
                 TableKind::EventsCommitmentTape,
-                TableKind::CastListCommitmentTape
+                TableKind::CastListCommitmentTape,
+                TableKind::SelfProgIdTape,
             ]
-            .map(memory_io::columns::lookup_for_memory),
+            .map(storage_device::columns::lookup_for_memory),
             memory_fullword::columns::lookup_for_memory_limb(),
             memory_halfword::columns::lookup_for_memory_limb(),
             poseidon2_sponge::columns::lookup_for_input_memory(),
@@ -721,11 +717,6 @@ impl Lookups for MemoryInitMemoryTable {
         CrossTableLookupWithTypedOutput::new(
             vec![
                 memoryinit::columns::lookup_for_memory(ElfMemoryInitTable::new),
-                memoryinit::columns::lookup_for_memory(MozakMemoryInitTable::new),
-                memoryinit::columns::lookup_for_memory(CallTapeInitTable::new),
-                memoryinit::columns::lookup_for_memory(PrivateTapeInitTable::new),
-                memoryinit::columns::lookup_for_memory(PublicTapeInitTable::new),
-                memoryinit::columns::lookup_for_memory(EventTapeInitTable::new),
                 memory_zeroinit::columns::lookup_for_memory(),
             ],
             vec![memory::columns::lookup_for_memoryinit()],
@@ -819,7 +810,7 @@ impl Lookups for RegisterLookups {
         CrossTableLookupWithTypedOutput::new(
             chain![
                 crate::cpu::columns::register_looking(),
-                crate::memory_io::columns::register_looking(),
+                crate::storage_device::columns::register_looking(),
                 crate::poseidon2_sponge::columns::register_looking(),
                 vec![crate::register::init::columns::lookup_for_register()],
             ]
@@ -845,14 +836,16 @@ impl Lookups for StorageDeviceToCpuTable {
                     TableKind::StorageDevicePrivate,
                     TableKind::StorageDevicePublic,
                     TableKind::CallTape,
+                    TableKind::EventTape,
                     TableKind::EventsCommitmentTape,
                     TableKind::CastListCommitmentTape,
+                    TableKind::SelfProgIdTape,
                 ],
                 0..
             )
-            .map(|(kind, i)| memory_io::columns::lookup_for_cpu(kind, i))
+            .map(|(kind, i)| storage_device::columns::lookup_for_cpu(kind, i))
             .collect(),
-            vec![cpu::columns::lookup_for_io_memory_tables()],
+            vec![cpu::columns::lookup_for_storage_tables()],
         )
     }
 }
@@ -903,7 +896,7 @@ impl Lookups for EventCommitmentTapeIOLookupTable {
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
-            vec![crate::memory_io::columns::event_commitment_lookup_in_tape_commitments()],
+            vec![crate::storage_device::columns::event_commitment_lookup_in_tape_commitments()],
             vec![crate::tape_commitments::columns::lookup_for_event_tape_commitment()],
         )
     }
@@ -916,7 +909,7 @@ impl Lookups for CastlistCommitmentTapeIOLookupTable {
 
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
-            vec![crate::memory_io::columns::castlist_commitment_lookup_in_tape_commitments()],
+            vec![crate::storage_device::columns::castlist_commitment_lookup_in_tape_commitments()],
             vec![crate::tape_commitments::columns::lookup_for_castlist_commitment()],
         )
     }

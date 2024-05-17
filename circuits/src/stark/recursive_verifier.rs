@@ -6,8 +6,7 @@ use std::marker::PhantomData;
 use anyhow::Result;
 use itertools::{chain, zip_eq, Itertools};
 use log::info;
-use mozak_sdk::common::types::DIGEST_BYTES;
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
@@ -28,7 +27,7 @@ use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_kind, all_starks, TableKindArray};
+use super::mozak_stark::{all_kind, all_starks, TableKindArray, PUBLIC_TABLE_KINDS};
 use crate::columns_view::{columns_view_impl, NumberOfColumns};
 use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
@@ -62,8 +61,8 @@ pub const VM_RECURSION_CONFIG: CircuitConfig = CircuitConfig::standard_recursion
 pub struct VMRecursiveProofPublicInputs<T> {
     pub entry_point: T,
     pub program_hash_as_bytes: [T; DIGEST_BYTES],
-    pub event_commitment_tape: [T; COMMITMENT_SIZE],
-    pub castlist_commitment_tape: [T; COMMITMENT_SIZE],
+    pub event_commitment_tape: [T; DIGEST_BYTES],
+    pub castlist_commitment_tape: [T; DIGEST_BYTES],
 }
 
 columns_view_impl!(VMRecursiveProofPublicInputs);
@@ -211,6 +210,7 @@ where
         inner_config,
     );
 
+    let state = challenger.compact(&mut builder);
     let targets = all_starks!(mozak_stark, |stark, kind| {
         let ctl_vars = CtlCheckVarsTarget::from_proof(
             kind,
@@ -220,6 +220,7 @@ where
             &ctl_challenges,
         );
 
+        let mut challenger = RecursiveChallenger::from_state(state);
         let challenges_target = stark_proof_with_pis_target[kind]
             .proof
             .get_challenges::<F, C>(&mut builder, &mut challenger, inner_config);
@@ -240,11 +241,23 @@ where
         }
     });
 
+    // Register the public tables as public inputs.
+    for kind in PUBLIC_TABLE_KINDS {
+        builder.register_public_inputs(
+            &targets[kind]
+                .stark_proof_with_pis_target
+                .proof
+                .trace_cap
+                .0
+                .iter()
+                .flat_map(|h| h.elements)
+                .collect::<Vec<_>>(),
+        );
+    }
     let program_hash =
         get_program_hash_circuit_bytes::<F, C, D>(&mut builder, &stark_proof_with_pis_target);
 
     builder.register_public_inputs(&program_hash);
-
     all_kind!(|kind| {
         builder.register_public_inputs(
             &public_sub_table_values_targets[kind]
@@ -708,7 +721,7 @@ mod tests {
     use log::info;
     use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+    use mozak_sdk::core::constants::DIGEST_BYTES;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::iop::witness::{PartialWitness, WitnessWrite};
     use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -776,8 +789,8 @@ mod tests {
             recursive_proof.public_inputs.as_slice().try_into().unwrap();
 
         let expected_program_hash = mozak_proof.get_program_hash_bytes();
-        let expected_event_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
-        let expected_castlist_commitment_tape = [F::ZERO; COMMITMENT_SIZE];
+        let expected_event_commitment_tape = [F::ZERO; DIGEST_BYTES];
+        let expected_castlist_commitment_tape = [F::ZERO; DIGEST_BYTES];
         let recursive_proof_public_inputs: &VMRecursiveProofPublicInputs<F> =
             &public_input_slice.into();
         assert_eq!(
