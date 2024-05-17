@@ -4,16 +4,16 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use plonky2::field::extension::Extendable;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
+use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
-/// Compute merkle cap of the trace, and return its hash.
-/// The hash is NOP if number of merkle caps is one.
-pub(crate) fn get_trace_commitment_hash<F, C, const D: usize, Row: IntoIterator<Item = F>>(
+/// Compute merkle cap of the trace
+pub(crate) fn get_trace_merkle_cap<F, C, const D: usize, Row: IntoIterator<Item = F>>(
     trace: Vec<Row>,
     config: &StarkConfig,
-) -> <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::Hash
+) -> MerkleCap<F, C::Hasher>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -29,6 +29,5 @@ where
         &mut TimingTree::default(),
         None,
     );
-    let merkle_cap = trace_commitment.merkle_tree.cap;
-    <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(&merkle_cap.flatten())
+    trace_commitment.merkle_tree.cap
 }

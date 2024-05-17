@@ -9,6 +9,7 @@ use itertools::{izip, Itertools};
 use log::debug;
 use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
+use mozak_circuits::stark::prover::get_program_id;
 use mozak_runner::elf::Program;
 use mozak_runner::state::RawTapes;
 use mozak_sdk::common::merkle::merkleize;
@@ -22,7 +23,7 @@ use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
 use starky::config::StarkConfig;
 
-use crate::trace_utils::get_trace_commitment_hash;
+use crate::trace_utils::{get_trace_commitment_hash, get_trace_merkle_cap};
 
 pub fn load_program(mut elf: Input) -> Result<Program> {
     let mut elf_bytes = Vec::new();
@@ -160,17 +161,7 @@ where
     let elf_memory_init_trace = generate_elf_memory_init_trace::<F>(program);
     let program_rom_trace = generate_program_rom_trace::<F>(program);
 
-    let elf_memory_init_hash =
-        get_trace_commitment_hash::<F, C, D, _>(elf_memory_init_trace, config);
-    let program_hash = get_trace_commitment_hash::<F, C, D, _>(program_rom_trace, config);
-    let hashout = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
-        &itertools::chain!(
-            [entry_point],
-            program_hash.elements,
-            elf_memory_init_hash.elements
-        )
-        .collect_vec(),
-    );
-    let hashout_bytes: [u8; 32] = hashout.to_bytes().try_into().unwrap();
-    ProgramIdentifier(hashout_bytes.into())
+    let elf_memory_init_cap = get_trace_merkle_cap::<F, C, D, _>(elf_memory_init_trace, config);
+    let program_cap = get_trace_merkle_cap::<F, C, D, _>(program_rom_trace, config);
+    get_program_id(entry_point, &program_cap, &elf_memory_init_cap)
 }

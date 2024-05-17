@@ -1,4 +1,5 @@
 use itertools::{chain, Itertools};
+use mozak_sdk::common::types::ProgramIdentifier;
 use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::fri::batch_oracle::BatchFriOracle;
@@ -361,6 +362,7 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
     pub proofs: TableKindArray<StarkProof<F, C, D>>,
     pub public_inputs: PublicInputs<F>,
     pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
+    pub program_id: ProgramIdentifier,
 }
 
 #[allow(clippy::module_name_repetitions)]
@@ -369,10 +371,9 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
 pub struct BatchProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub degree_bits: TableKindArray<usize>,
     pub proofs: TableKindArray<StarkProof<F, C, D>>,
-    pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
-    pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
     pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
+    pub program_id: ProgramIdentifier,
     pub batch_stark_proof: StarkProof<F, C, D>,
 }
 

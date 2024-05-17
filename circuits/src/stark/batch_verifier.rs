@@ -8,7 +8,7 @@ use plonky2::fri::proof::FriProof;
 use plonky2::fri::structure::{FriOpeningBatch, FriOpenings};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{all_kind, all_starks, MozakStark, TableKind, TableKindSetBuilder};
@@ -19,6 +19,7 @@ use crate::stark::batch_prover::{
 };
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::proof::{BatchProof, StarkProof, StarkProofChallenges};
+use crate::stark::prover::get_program_id;
 use crate::stark::verifier::{verify_quotient_polynomials, verify_stark_proof_with_challenges};
 
 #[allow(clippy::too_many_lines)]
@@ -30,7 +31,8 @@ pub fn batch_verify_proof<F, C, const D: usize>(
 ) -> Result<()>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
     debug!("Starting Batch Verify");
 
     let degree_bits = all_proof.degree_bits;
@@ -98,16 +100,6 @@ where
         }
     };
 
-    ensure!(
-        all_proof.proofs[TableKind::Program].trace_cap == all_proof.program_rom_trace_cap,
-        "Mismatch between Program ROM trace caps"
-    );
-
-    ensure!(
-        all_proof.proofs[TableKind::ElfMemoryInit].trace_cap == all_proof.elf_memory_init_trace_cap,
-        "Mismatch between ElfMemoryInit trace caps"
-    );
-
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.proofs,
         &mozak_stark.cross_table_lookups,
@@ -123,6 +115,13 @@ where
         ..Default::default()
     }
     .build();
+
+    let program_id = get_program_id::<F, C, D>(
+        all_proof.public_inputs.entry_point,
+        &all_proof.proofs[TableKind::Program].trace_cap,
+        &all_proof.proofs[TableKind::ElfMemoryInit].trace_cap,
+    );
+    ensure!(program_id == all_proof.program_id);
 
     all_starks!(mozak_stark, |stark, kind| {
         if public_table_kinds.contains(&kind) {
