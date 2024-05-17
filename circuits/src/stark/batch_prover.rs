@@ -15,10 +15,14 @@ use plonky2::field::types::Field;
 use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::FriProof;
-use plonky2::fri::structure::{FriBatchInfo, FriInstanceInfo, FriOracleInfo};
+use plonky2::fri::structure::{
+    FriBatchInfo, FriBatchInfoTarget, FriInstanceInfo, FriInstanceInfoTarget, FriOracleInfo,
+};
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
@@ -168,6 +172,65 @@ pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     res
 }
 
+pub(crate) fn batch_fri_instances_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    mozak_stark: &MozakStark<F, D>,
+    public_table_kinds: &[TableKind],
+    degree_bits: &TableKindArray<usize>,
+    sorted_degree_bits: &[usize],
+    zeta_target: ExtensionTarget<D>,
+    config: &StarkConfig,
+    num_ctl_zs_per_table: &TableKindArray<usize>,
+) -> Vec<FriInstanceInfoTarget<D>> {
+    let fri_instances = all_starks!(
+        mozak_stark,
+        |stark, kind| if public_table_kinds.contains(&kind) {
+            None
+        } else {
+            Some({
+                let g = F::primitive_root_of_unity(degree_bits[kind]);
+                stark.fri_instance_target(
+                    builder,
+                    zeta_target,
+                    g,
+                    0,
+                    0,
+                    config,
+                    Some(&LookupConfig {
+                        degree_bits: degree_bits[kind],
+                        num_zs: num_ctl_zs_per_table[kind],
+                    }),
+                )
+            })
+        }
+    );
+
+    let mut degree_bits_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
+    all_kind!(|kind| {
+        degree_bits_map
+            .entry(degree_bits[kind])
+            .or_default()
+            .push(kind);
+    });
+
+    let fri_instance_groups = sorted_degree_bits
+        .iter()
+        .map(|d| {
+            degree_bits_map[d]
+                .iter()
+                .filter_map(|kind| fri_instances[*kind].as_ref())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let mut polynomial_index_start = [0, 0, 0];
+    let res = fri_instance_groups
+        .iter()
+        .map(|ins| merge_fri_instances_target(ins, &mut polynomial_index_start))
+        .collect::<Vec<_>>();
+    res
+}
+
 // Merge FRI instances by its polynomial degree
 pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     instances: &[&FriInstanceInfo<F, D>],
@@ -189,6 +252,55 @@ pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
             blinding: base_instance.oracles[i].blinding,
         });
         res.batches.push(FriBatchInfo {
+            point: base_instance.batches[i].point,
+            polynomials: vec![],
+        });
+    }
+
+    for ins in instances {
+        assert_eq!(ins.oracles.len(), 3);
+        assert_eq!(ins.batches.len(), 3);
+
+        for i in 0..3 {
+            assert_eq!(res.oracles[i].blinding, ins.oracles[i].blinding);
+            res.oracles[i].num_polys += ins.oracles[i].num_polys;
+
+            assert_eq!(res.batches[i].point, ins.batches[i].point);
+            for poly in ins.batches[i].polynomials.iter().copied() {
+                let mut poly = poly;
+                poly.polynomial_index += polynomial_index_start[poly.oracle_index];
+                res.batches[i].polynomials.push(poly);
+            }
+        }
+
+        for (i, item) in polynomial_index_start.iter_mut().enumerate().take(3) {
+            *item += ins.oracles[i].num_polys;
+        }
+    }
+
+    res
+}
+
+pub(crate) fn merge_fri_instances_target<const D: usize>(
+    instances: &[&FriInstanceInfoTarget<D>],
+    polynomial_index_start: &mut [usize; 3],
+) -> FriInstanceInfoTarget<D> {
+    assert!(!instances.is_empty());
+    let base_instance = &instances[0];
+    assert_eq!(base_instance.oracles.len(), 3);
+    assert_eq!(base_instance.batches.len(), 3);
+
+    let mut res = FriInstanceInfoTarget {
+        oracles: Vec::with_capacity(3),
+        batches: Vec::with_capacity(3),
+    };
+
+    for i in 0..3 {
+        res.oracles.push(FriOracleInfo {
+            num_polys: 0,
+            blinding: base_instance.oracles[i].blinding,
+        });
+        res.batches.push(FriBatchInfoTarget {
             point: base_instance.batches[i].point,
             polynomials: vec![],
         });
