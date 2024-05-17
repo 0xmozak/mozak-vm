@@ -454,7 +454,7 @@ fn main() -> Result<()> {
 
         Command::SelfProgId { elf } => {
             let program = load_program(elf)?;
-            let self_prog_id = get_self_prog_id::<F, C, D>(program, config);
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
             println!("{self_prog_id:?}");
         }
         Command::Bench(bench) => {

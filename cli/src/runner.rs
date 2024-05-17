@@ -148,8 +148,8 @@ pub fn raw_tapes_from_system_tape(sys: Option<Input>, self_prog_id: ProgramIdent
 /// Computes `[ProgramIdentifer]` from hash of entry point and merkle caps
 /// of `ElfMemoryInit` and `ProgramRom` tables.
 pub fn get_self_prog_id<F, C, const D: usize>(
-    program: Program,
-    config: StarkConfig,
+    program: &Program,
+    config: &StarkConfig,
 ) -> ProgramIdentifier
 where
     F: RichField + Extendable<D>,
@@ -157,12 +157,12 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     let entry_point = F::from_canonical_u32(program.entry_point);
 
-    let elf_memory_init_trace = generate_elf_memory_init_trace::<F>(&program);
-    let program_rom_trace = generate_program_rom_trace::<F>(&program);
+    let elf_memory_init_trace = generate_elf_memory_init_trace::<F>(program);
+    let program_rom_trace = generate_program_rom_trace::<F>(program);
 
     let elf_memory_init_hash =
-        get_trace_commitment_hash::<F, C, D, _>(elf_memory_init_trace, &config);
-    let program_hash = get_trace_commitment_hash::<F, C, D, _>(program_rom_trace, &config);
+        get_trace_commitment_hash::<F, C, D, _>(elf_memory_init_trace, config);
+    let program_hash = get_trace_commitment_hash::<F, C, D, _>(program_rom_trace, config);
     let hashout = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
         &itertools::chain!(
             [entry_point],
