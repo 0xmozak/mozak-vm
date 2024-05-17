@@ -29,6 +29,7 @@ use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{deserialize_system_tape, load_program, raw_tapes_from_system_tape};
 use mozak_node::types::{Attestation, Transaction};
+use mozak_prover_sdk::prog_id::ProgId;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
@@ -78,7 +79,9 @@ pub struct ProveArgs {
 #[derive(Clone, Debug, Subcommand)]
 enum Command {
     /// Decode a given ELF and prints the program
-    Decode { elf: Input },
+    Decode {
+        elf: Input,
+    },
     /// Decode and execute a given ELF. Prints the final state of
     /// the registers
     Run(RunArgs),
@@ -87,9 +90,14 @@ enum Command {
     /// Prove the execution of given ELF and write proof to file.
     Prove(ProveArgs),
     /// Verify the given proof from file.
-    Verify { proof: Input },
+    Verify {
+        proof: Input,
+    },
     /// Verify the given recursive proof from file.
-    VerifyRecursiveProof { proof: Input, verifier_key: Input },
+    VerifyRecursiveProof {
+        proof: Input,
+        verifier_key: Input,
+    },
     /// Builds a transaction bundle.
     BundleTransaction {
         /// System tape generated from native execution.
@@ -100,11 +108,18 @@ enum Command {
         bundle: Output,
     },
     /// Compute the Program Rom Hash of the given ELF.
-    ProgramRomHash { elf: Input },
+    ProgramRomHash {
+        elf: Input,
+    },
     /// Compute the Memory Init Hash of the given ELF.
-    MemoryInitHash { elf: Input },
+    MemoryInitHash {
+        elf: Input,
+    },
     /// Bench the function with given parameters
     Bench(BenchArgs),
+    SelfProgId {
+        elf: Input,
+    },
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -434,6 +449,11 @@ fn main() -> Result<()> {
         Command::Bench(bench) => {
             let time_taken = bench.bench()?.as_secs_f64();
             println!("{time_taken}");
+        }
+        Command::SelfProgId { elf } => {
+            let elf_path = elf.path().to_str().unwrap();
+            let prog_id: ProgramIdentifier = ProgId::from_elf(elf_path)?.into();
+            println!("{prog_id:?}");
         }
     }
     Ok(())

@@ -1,14 +1,14 @@
 [
     {
-        "name": "MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538",
+        "name": "MZK-a530e8d822cea8fbb0f0a166c9058befb36af2ad3a17d1b9cbf409962e73a04f",
         "path": "examples/target/riscv32im-mozak-mozakvm-elf/release/tokenbin"
     },
     {
-        "name": "MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb",
+        "name": "MZK-8475b3990f7d99e8380c6597dcf445e42235b9fef6951a91cf546ac9a319a710",
         "path": "examples/target/riscv32im-mozak-mozakvm-elf/release/walletbin"
     },
     {
-        "name": "MZK-5de9bc1bb4cb7a9f9cf991a32230d014b44274ea5464a352f089a8cccc486915",
+        "name": "MZK-96d92ca8abef82f6c8091e76a38607d673fa6ce6f234fdfc8c12d75d04f12644",
         "path": "examples/target/riscv32im-mozak-mozakvm-elf/release/inputtape"
     }
 ]

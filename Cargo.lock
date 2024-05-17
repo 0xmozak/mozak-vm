@@ -931,6 +931,7 @@ dependencies = [
  "mozak-circuits",
  "mozak-examples",
  "mozak-node",
+ "mozak-prover-sdk",
  "mozak-runner",
  "mozak-sdk",
  "plonky2",
@@ -958,6 +959,19 @@ dependencies = [
  "mozak-sdk",
  "plonky2",
  "serde",
+]
+
+[[package]]
+name = "mozak-prover-sdk"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "itertools 0.12.1",
+ "mozak-circuits",
+ "mozak-runner",
+ "mozak-sdk",
+ "plonky2",
+ "starky",
 ]
 
 [[package]]

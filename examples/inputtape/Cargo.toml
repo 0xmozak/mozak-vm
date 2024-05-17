@@ -12,6 +12,9 @@ mozak-sdk = { path = "../../sdk" }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 rkyv_derive = "=0.8.0-alpha.1"
 
+[target.'cfg(not(target_os="mozakvm"))'.dependencies]
+mozak-prover-sdk = { path = "../../prover-sdk" }
+
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"
 
@@ -30,4 +33,4 @@ path = "core_logic.rs"
 
 # The following is read by `run_examples.py`
 [package.metadata.mozak]
-example_program_id = "MZK-5de9bc1bb4cb7a9f9cf991a32230d014b44274ea5464a352f089a8cccc486915"
+example_program_id = "MZK-96d92ca8abef82f6c8091e76a38607d673fa6ce6f234fdfc8c12d75d04f12644"
