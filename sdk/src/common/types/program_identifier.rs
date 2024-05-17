@@ -1,8 +1,4 @@
 use crate::core::constants::DIGEST_BYTES;
-#[cfg(target_os = "mozakvm")]
-use crate::mozakvm::helpers::poseidon2_hash_with_pad;
-#[cfg(not(target_os = "mozakvm"))]
-use crate::native::helpers::poseidon2_hash_with_pad;
 
 #[derive(
     Clone,
@@ -24,23 +20,6 @@ use crate::native::helpers::poseidon2_hash_with_pad;
 pub struct ProgramIdentifier(pub super::Poseidon2Hash);
 
 impl ProgramIdentifier {
-    #[must_use]
-    pub fn new(
-        program_hash: super::Poseidon2Hash,
-        memory_init_hash: super::Poseidon2Hash,
-        entry_point: u32,
-    ) -> Self {
-        let input: Vec<u8> = itertools::chain!(
-            program_hash.inner(),
-            memory_init_hash.inner(),
-            entry_point.to_le_bytes(),
-        )
-        .collect();
-        // would be of length 32 + 32 + 4 = 68. And 68 % 8 !=0
-        // Hence would require padding, before being hashed
-        Self(poseidon2_hash_with_pad(&input))
-    }
-
     #[must_use]
     #[cfg(not(target_os = "mozakvm"))]
     pub fn new_from_rand_seed(seed: u64) -> Self {
