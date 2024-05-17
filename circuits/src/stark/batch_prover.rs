@@ -347,10 +347,10 @@ where
 
     let program_id = get_program_id::<F, C, D>(
         public_inputs.entry_point,
-        &trace_caps[TableKind::Program]
+        trace_caps[TableKind::Program]
             .as_ref()
             .expect("program trace cap not found"),
-        &trace_caps[TableKind::ElfMemoryInit]
+        trace_caps[TableKind::ElfMemoryInit]
             .as_ref()
             .expect("elf memory ini trace cap not found"),
     );
