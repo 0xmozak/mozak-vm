@@ -16,6 +16,13 @@ fn main() {
         &remitter_private_key.0,
     ));
 
+    mozak_sdk::add_identity(remitter_program); // Manual override for `IdentityStack`
+    let _ = mozak_sdk::write(
+        &mozak_sdk::InputTapeType::PrivateTape,
+        &remitter_private_key.0[..],
+    );
+    mozak_sdk::rm_identity(); // Manual override for `IdentityStack`
+
     let remittee_private_key = wallet::PrivateKey::new_from_rand_seed(5);
     let remittee_public_key = wallet::PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
         &remittee_private_key.0,

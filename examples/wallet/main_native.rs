@@ -15,9 +15,6 @@ fn main() {
     let public_key = PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
         &private_key.0,
     ));
-    mozak_sdk::add_identity(wallet_program); // Manual override for `IdentityStack`
-    let _ = mozak_sdk::write(&mozak_sdk::InputTapeType::PrivateTape, &private_key.0[..]);
-    mozak_sdk::rm_identity(); // Manual override for `IdentityStack`
 
     let token_object = TokenObject {
         pub_key: public_key.clone(),
