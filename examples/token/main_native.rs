@@ -38,5 +38,5 @@ fn main() {
         dispatch,
     );
 
-    mozak_sdk::native::dump_proving_files("token");
+    mozak_sdk::native::dump_proving_files();
 }
