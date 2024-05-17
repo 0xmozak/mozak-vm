@@ -27,7 +27,7 @@ use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_kind, all_starks, TableKindArray, PUBLIC_TABLE_KINDS};
+use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::columns_view::{columns_view_impl, NumberOfColumns};
 use crate::cross_table_lookup::{
     verify_cross_table_lookups_and_public_sub_table_circuit, CrossTableLookup, CtlCheckVarsTarget,
@@ -241,19 +241,6 @@ where
         }
     });
 
-    // Register the public tables as public inputs.
-    for kind in PUBLIC_TABLE_KINDS {
-        builder.register_public_inputs(
-            &targets[kind]
-                .stark_proof_with_pis_target
-                .proof
-                .trace_cap
-                .0
-                .iter()
-                .flat_map(|h| h.elements)
-                .collect::<Vec<_>>(),
-        );
-    }
     let program_hash =
         get_program_hash_circuit_bytes::<F, C, D>(&mut builder, &stark_proof_with_pis_target);
 
