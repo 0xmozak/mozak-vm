@@ -18,12 +18,12 @@ use mozak_sdk::common::types::{
 };
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut, Hasher};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
 use starky::config::StarkConfig;
 
-use crate::trace_utils::{get_trace_commitment_hash, get_trace_merkle_cap};
+use crate::trace_utils::get_trace_merkle_cap;
 
 pub fn load_program(mut elf: Input) -> Result<Program> {
     let mut elf_bytes = Vec::new();
@@ -163,5 +163,5 @@ where
 
     let elf_memory_init_cap = get_trace_merkle_cap::<F, C, D, _>(elf_memory_init_trace, config);
     let program_cap = get_trace_merkle_cap::<F, C, D, _>(program_rom_trace, config);
-    get_program_id(entry_point, &program_cap, &elf_memory_init_cap)
+    get_program_id::<F, C, D>(entry_point, &program_cap, &elf_memory_init_cap)
 }

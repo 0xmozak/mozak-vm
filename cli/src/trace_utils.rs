@@ -5,7 +5,7 @@ use plonky2::field::extension::Extendable;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
