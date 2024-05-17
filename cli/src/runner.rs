@@ -5,9 +5,9 @@ use std::io::Read;
 
 use anyhow::Result;
 use clio::Input;
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use log::debug;
-use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
+use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_runner::elf::Program;
 use mozak_runner::state::RawTapes;
@@ -164,37 +164,7 @@ where
         get_trace_commitment_hash::<F, C, D, _>(elf_memory_init_trace, &config);
     let program_hash = get_trace_commitment_hash::<F, C, D, _>(program_rom_trace, &config);
     let hashout = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
-        &chain!(
-            [entry_point],
-            program_hash.elements,
-            elf_memory_init_hash.elements
-        )
-        .collect_vec(),
-    );
-    let hashout_bytes: [u8; 32] = hashout.to_bytes().try_into().unwrap();
-    ProgramIdentifier(hashout_bytes.into())
-}
-
-/// Computes `[ProgramIdentifer]` from hash of entry point and merkle caps
-/// of `ElfMemoryInit` and `ProgramRom` tables.
-pub fn get_self_prog_id<F, C, const D: usize>(
-    program: Program,
-    config: StarkConfig,
-) -> ProgramIdentifier
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    C::Hasher: AlgebraicHasher<F>, {
-    let entry_point = F::from_canonical_u32(program.entry_point);
-
-    let elf_memory_init_trace = generate_elf_memory_init_trace::<F>(&program);
-    let program_rom_trace = generate_program_rom_trace::<F>(&program);
-
-    let elf_memory_init_hash =
-        get_trace_commitment_hash::<F, C, D, _>(elf_memory_init_trace, &config);
-    let program_hash = get_trace_commitment_hash::<F, C, D, _>(program_rom_trace, &config);
-    let hashout = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
-        &chain!(
+        &itertools::chain!(
             [entry_point],
             program_hash.elements,
             elf_memory_init_hash.elements

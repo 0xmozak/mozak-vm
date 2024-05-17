@@ -156,12 +156,10 @@ fn main() -> Result<()> {
             recursive_proof,
             batch_proof,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id.clone()))
-                .unwrap_or_default();
-            let self_program_id: ProgramIdentifier = self_prog_id.unwrap().into();
-            let program = load_program(elf, &args).unwrap();
-            let state = State::new(program.clone(), RawTapes::default());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.clone().into());
+            let self_program_id: ProgramIdentifier = self_prog_id.into();
+            let program = load_program(elf).unwrap();
+            let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -455,7 +453,7 @@ fn main() -> Result<()> {
         }
 
         Command::SelfProgId { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             let self_prog_id = get_self_prog_id::<F, C, D>(program, config);
             println!("{self_prog_id:?}");
         }

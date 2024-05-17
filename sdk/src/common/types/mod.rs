@@ -9,7 +9,7 @@ pub(crate) mod system_tape;
 
 pub use cross_program_call::CrossProgramCall;
 pub use event::{CanonicalEvent, CanonicalOrderedTemporalHints, Event, EventType};
-pub use poseidon2hash::{Poseidon2Hash, DIGEST_BYTES};
+pub use poseidon2hash::Poseidon2Hash;
 pub use program_identifier::ProgramIdentifier;
 pub use raw_message::RawMessage;
 pub use state_address::StateAddress;
