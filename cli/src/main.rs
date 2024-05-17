@@ -207,13 +207,13 @@ fn main() -> Result<()> {
 
                 let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
 
-                let public_inputs_slice: [F; VM_PUBLIC_INPUT_SIZE] = recursive_all_proof
+                let public_inputs_array: [F; VM_PUBLIC_INPUT_SIZE] = recursive_all_proof
                     .public_inputs
                     .clone()
                     .try_into()
                     .unwrap();
 
-                let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_slice.into();
+                let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
                 assert_eq!(
                     public_inputs.program_hash_as_bytes.to_vec(),
                     self_program_id
