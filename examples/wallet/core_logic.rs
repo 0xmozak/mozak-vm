@@ -112,10 +112,8 @@ impl Default for MethodReturns {
 #[allow(clippy::unit_arg)]
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
-        MethodArgs::ApproveSignature(pub_key, black_box) => {
-            approve_signature(pub_key, black_box);
-            MethodReturns::ApproveSignature(())
-        }
+        MethodArgs::ApproveSignature(pub_key, black_box) =>
+            MethodReturns::ApproveSignature(approve_signature(pub_key, black_box)),
     }
 }
 
