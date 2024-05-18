@@ -952,6 +952,8 @@ version = "0.1.0"
 name = "mozak-node"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "hashbrown 0.14.5",
  "itertools 0.12.1",
  "mozak-circuits",
  "mozak-recproofs",
@@ -1001,6 +1003,7 @@ dependencies = [
 name = "mozak-sdk"
 version = "0.2.0"
 dependencies = [
+ "array-util",
  "hex",
  "itertools 0.12.1",
  "once_cell",

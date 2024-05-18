@@ -6,11 +6,8 @@ use itertools::Itertools;
 use mozak_recproofs::circuits::state_update::{self, BranchProof, LeafProof};
 use plonky2::hash::hash_types::HashOut;
 use plonky2::plonk::circuit_data::CircuitConfig;
-use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 
-pub const D: usize = 2;
-pub type C = Poseidon2GoldilocksConfig;
-pub type F = <C as GenericConfig<D>>::F;
+use crate::{C, D, F};
 
 type Object = mozak_recproofs::Object<F>;
 
@@ -177,8 +174,8 @@ pub struct AuxStateData {
 
 impl AuxStateData {
     /// Create the auxillary state data. This includes all the circuits
-    /// and dummy proofs. This only needs to be done once per `State` as
-    /// long as the `AuxStateData` has a sufficiently large depth.
+    /// and dummy proofs. This only needs to be done once, as multiple `State`s
+    /// can use the same `AuxStateData` as long as it has sufficient max depth.
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn new(config: &CircuitConfig, max_tree_depth: usize) -> Self {

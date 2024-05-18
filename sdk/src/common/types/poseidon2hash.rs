@@ -46,6 +46,12 @@ impl Poseidon2Hash {
     #[must_use]
     pub fn inner(&self) -> [u8; DIGEST_BYTES] { self.0 }
 
+    pub fn to_u64s(&self) -> [u64; 4] {
+        let mut bytes = [[0; 8]; DIGEST_BYTES / 8];
+        array_util::flatten_mut(&mut bytes).copy_from_slice(&self.0);
+        bytes.map(u64::from_le_bytes)
+    }
+
     #[must_use]
     #[cfg(not(target_os = "mozakvm"))]
     pub fn new_from_rand_seed(seed: u64) -> Self {
