@@ -9,7 +9,9 @@ use log::info;
 use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
+use plonky2::fri::batch_verifier::verify_batch_fri_proof;
 use plonky2::fri::proof::FriProofTarget;
+use plonky2::fri::structure::{FriOpeningBatch, FriOpeningBatchTarget, FriOpenings, FriOpeningsTarget};
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::{MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
@@ -36,7 +38,7 @@ use crate::cross_table_lookup::{
 use crate::public_sub_table::{
     public_sub_table_values_and_reduced_targets, PublicSubTable, PublicSubTableValuesTarget,
 };
-use crate::stark::batch_prover::{batch_reduction_arity_bits, sort_degree_bits};
+use crate::stark::batch_prover::{batch_fri_instances, batch_fri_instances_target, batch_reduction_arity_bits, sort_degree_bits};
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
 use crate::stark::poly::eval_vanishing_poly_circuit;
@@ -77,11 +79,11 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
-    pub table_targets: TableKindArray<Option<StarkVerifierTargets<F, C, D>>>,
+    pub table_targets: TableKindArray<StarkVerifierTargets<F, C, D>>,
     pub program_rom_trace_cap_target: MerkleCapTarget,
     pub elf_memory_init_trace_cap_target: MerkleCapTarget,
     pub public_sub_table_values_targets: TableKindArray<Vec<PublicSubTableValuesTarget>>,
-    pub batch_targets: Option<StarkVerifierTargets<F, C, D>>,
+    pub batch_stark_proof_target: Option<StarkProofTarget<D>>,
 }
 
 /// Represents a circuit which recursively verifies STARK proofs.
@@ -133,8 +135,6 @@ where
 
         all_kind!(|kind| {
             self.proof.table_targets[kind]
-                .as_ref()
-                .expect("")
                 .set_targets(&mut inputs, &all_proof.proofs[kind]);
 
             // set public_sub_table_values targets
@@ -154,8 +154,6 @@ where
 
         // Set public inputs
         let cpu_target = &self.proof.table_targets[TableKind::Cpu]
-            .as_ref()
-            .expect("")
             .stark_proof_with_pis_target;
         inputs.set_target_arr(
             cpu_target.public_inputs.as_ref(),
@@ -193,8 +191,7 @@ pub fn recursive_batch_stark_circuit<
     public_table_kinds: &[TableKind],
     circuit_config: &CircuitConfig,
     inner_config: &StarkConfig,
-)
-// -> MozakStarkVerifierCircuit<F, C, D>
+) -> MozakStarkVerifierCircuit<F, C, D>
 where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
@@ -313,13 +310,13 @@ where
     // Get challenges for the batch STARK.
     let batch_stark_challenges_target = {
         let StarkProofTarget {
-            ctl_zs_cap,
-            quotient_polys_cap,
+            ref ctl_zs_cap,
+            ref quotient_polys_cap,
             opening_proof:
                 Some(FriProofTarget {
-                    commit_phase_merkle_caps,
-                    final_poly,
-                    pow_witness,
+                    ref commit_phase_merkle_caps,
+                    ref final_poly,
+                    ref pow_witness,
                     ..
                 }),
             ..
@@ -353,7 +350,7 @@ where
                 &mut builder,
                 &commit_phase_merkle_caps,
                 &final_poly,
-                pow_witness,
+                *pow_witness,
                 &inner_config.fri_config,
             ),
         }
@@ -420,12 +417,67 @@ where
         );
     });
 
-    // let circuit = builder.build();
-    // MozakStarkVerifierCircuit {
-    //     circuit,
-    //     targets,
-    //     public_sub_table_values_targets,
-    // }
+    let num_ctl_zs_per_table = all_kind!(|kind| stark_proof_with_pis_target[kind].proof.openings.ctl_zs_last.len());
+    let fri_instances_target = batch_fri_instances_target(
+        &mut builder,
+        mozak_stark,
+        public_table_kinds,
+        &degree_bits,
+        &sorted_degree_bits,
+        batch_stark_challenges_target.stark_zeta,
+        inner_config,
+        &num_ctl_zs_per_table,
+    );
+    let proof = batch_stark_proof_target.opening_proof.as_ref().expect("batch proof not found");
+    let init_merkle_caps = [
+        batch_stark_proof_target.trace_cap.clone(),
+        batch_stark_proof_target.ctl_zs_cap.clone(),
+        batch_stark_proof_target.quotient_polys_cap.clone(),
+    ];
+
+    let batch_count = 3;
+    let empty_fri_opening_target = FriOpeningsTarget {
+        batches: (0..batch_count)
+            .map(|_| FriOpeningBatchTarget { values: vec![] })
+            .collect(),
+    };
+    let mut fri_openings_target = vec![empty_fri_opening_target; sorted_degree_bits.len()];
+
+    for (i, d) in sorted_degree_bits.iter().enumerate() {
+        all_kind!(
+            |kind| if degree_bits[kind] == *d && !public_table_kinds.contains(&kind) {
+                let openings = stark_proof_with_pis_target[kind].proof.openings.to_fri_openings(builder.zero());
+                assert!(openings.batches.len() == batch_count);
+                for j in 0..batch_count {
+                    fri_openings_target[i].batches[j]
+                        .values
+                        .extend(openings.batches[j].values.clone());
+                }
+            }
+        );
+    }
+
+    builder.verify_batch_fri_proof::<C>(
+        &sorted_degree_bits,
+        &fri_instances_target,
+        &fri_openings_target,
+        &batch_stark_challenges_target.fri_challenges,
+        &init_merkle_caps,
+        &proof,
+        &fri_params,
+    );
+
+    let circuit = builder.build();
+    MozakStarkVerifierCircuit {
+        circuit,
+        proof: MozakProofTarget {
+            table_targets,
+            program_rom_trace_cap_target,
+            elf_memory_init_trace_cap_target,
+            public_sub_table_values_targets,
+            batch_stark_proof_target: Some(batch_stark_proof_target.clone()),
+        },
+    }
 }
 
 #[must_use]
@@ -535,19 +587,17 @@ where
             inner_config,
         );
 
-        Some(StarkVerifierTargets {
+        StarkVerifierTargets {
             stark_proof_with_pis_target: stark_proof_with_pis_target[kind].clone(),
             zero_target: builder.zero(),
             _f: PhantomData,
-        })
+        }
     });
 
     // Register the public tables as public inputs.
     for kind in PUBLIC_TABLE_KINDS {
         builder.register_public_inputs(
             &table_targets[kind]
-                .as_ref()
-                .expect("")
                 .stark_proof_with_pis_target
                 .proof
                 .trace_cap
@@ -576,7 +626,7 @@ where
             program_rom_trace_cap_target,
             elf_memory_init_trace_cap_target,
             public_sub_table_values_targets,
-            batch_targets: None,
+            batch_stark_proof_target: None,
         },
     }
 }
