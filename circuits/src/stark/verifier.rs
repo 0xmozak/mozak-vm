@@ -14,7 +14,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindSetBuilder};
+use super::mozak_stark::{all_starks, MozakStark, TableKindSetBuilder};
 use super::proof::AllProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
 use crate::public_sub_table::reduce_public_sub_tables_values;
@@ -36,16 +36,6 @@ where
         stark_challenges,
         ctl_challenges,
     } = all_proof.get_challenges(config);
-
-    ensure!(
-        all_proof.proofs[TableKind::Program].trace_cap == all_proof.program_rom_trace_cap,
-        "Mismatch between Program ROM trace caps"
-    );
-
-    ensure!(
-        all_proof.proofs[TableKind::ElfMemoryInit].trace_cap == all_proof.elf_memory_init_trace_cap,
-        "Mismatch between ElfMemoryInit trace caps"
-    );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.proofs,

@@ -8,7 +8,7 @@ use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::REG_A0;
 use plonky2::hash::hash_types::RichField;
 
-use super::MIN_TRACE_LENGTH;
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;

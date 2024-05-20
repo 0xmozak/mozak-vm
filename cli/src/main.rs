@@ -11,22 +11,25 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
-use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
-use mozak_circuits::generation::storage_device::generate_call_tape_trace;
+use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
+use mozak_circuits::stark::batch_prover::batch_prove;
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
     circuit_data_for_recursion, recursive_mozak_stark_circuit,
-    shrink_to_target_degree_bits_circuit, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
-    VM_RECURSION_THRESHOLD_DEGREE_BITS,
+    shrink_to_target_degree_bits_circuit, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
+    VM_RECURSION_CONFIG, VM_RECURSION_THRESHOLD_DEGREE_BITS,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
+use mozak_circuits::storage_device::generation::generate_call_tape_trace;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_cli::runner::{deserialize_system_tape, load_program, raw_tapes_from_system_tape};
+use mozak_cli::runner::{
+    deserialize_system_tape, get_self_prog_id, load_program, raw_tapes_from_system_tape,
+};
 use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
@@ -58,7 +61,7 @@ pub struct RunArgs {
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -66,9 +69,11 @@ pub struct ProveArgs {
     elf: Input,
     proof: Output,
     #[arg(long)]
+    batch_proof: Option<Output>,
+    #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
     recursive_proof: Option<Output>,
 }
 
@@ -100,6 +105,8 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
+    /// Compute the Self Program Id of the given ELF,
+    SelfProgId { elf: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -123,7 +130,7 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
             let program = load_program(elf).unwrap();
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
@@ -135,7 +142,7 @@ fn main() -> Result<()> {
         }) => {
             let program = load_program(elf).unwrap();
 
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
@@ -147,10 +154,11 @@ fn main() -> Result<()> {
             self_prog_id,
             mut proof,
             recursive_proof,
+            batch_proof,
         }) => {
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.clone().into());
+            let self_program_id: ProgramIdentifier = self_prog_id.into();
             let program = load_program(elf).unwrap();
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.unwrap().into());
-
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             let stark = if cli.debug {
@@ -173,6 +181,20 @@ fn main() -> Result<()> {
             let serialized = serde_json::to_string(&all_proof).unwrap();
             proof.write_all(serialized.as_bytes())?;
 
+            if let Some(mut batch_proof_output) = batch_proof {
+                let batch_proofs = batch_prove::<F, C, D>(
+                    &program,
+                    &record,
+                    &stark,
+                    &PUBLIC_TABLE_KINDS,
+                    &config,
+                    public_inputs,
+                    &mut TimingTree::default(),
+                )?;
+                let serialized = serde_json::to_string(&batch_proofs).unwrap();
+                batch_proof_output.write_all(serialized.as_bytes())?;
+            }
+
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
                 let degree_bits = all_proof.degree_bits(&config);
@@ -184,6 +206,22 @@ fn main() -> Result<()> {
                 );
 
                 let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
+
+                let public_inputs_array: [F; VM_PUBLIC_INPUT_SIZE] = recursive_all_proof
+                    .public_inputs
+                    .clone()
+                    .try_into()
+                    .unwrap();
+
+                let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
+                assert_eq!(
+                    public_inputs.program_hash_as_bytes.to_vec(),
+                    self_program_id
+                        .inner()
+                        .into_iter()
+                        .map(F::from_canonical_u8)
+                        .collect_vec()
+                );
 
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
                     &recursive_circuit.circuit,
@@ -412,6 +450,12 @@ fn main() -> Result<()> {
             );
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
+        }
+
+        Command::SelfProgId { elf } => {
+            let program = load_program(elf)?;
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            println!("{self_prog_id:?}");
         }
         Command::Bench(bench) => {
             let time_taken = bench.bench()?.as_secs_f64();

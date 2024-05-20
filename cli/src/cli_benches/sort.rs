@@ -6,7 +6,9 @@ use mozak_circuits::stark::recursive_verifier::{
     recursive_mozak_stark_circuit, MozakStarkVerifierCircuit,
 };
 use mozak_circuits::stark::verifier::verify_proof;
-use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F};
+use mozak_circuits::test_utils::{
+    prove_and_verify_batch_mozak_stark, prove_and_verify_mozak_stark, C, D, F,
+};
 use mozak_examples::MOZAK_SORT_ELF;
 use mozak_runner::elf::Program;
 use mozak_runner::state::{RawTapes, State};
@@ -74,6 +76,11 @@ pub fn sort_recursive_execute(
     mozak_stark_circuit.circuit.verify(recursive_proof)
 }
 
+pub fn batch_starks_sort_execute(result: Result<(Program, ExecutionRecord<F>)>) -> Result<()> {
+    let (program, record) = result?;
+    prove_and_verify_batch_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+}
+
 pub(crate) struct SortBench;
 
 impl Bench for SortBench {
@@ -95,11 +102,28 @@ impl Bench for SortBenchRecursive {
 
     fn execute(&self, prepared: Self::Prepared) -> Result<()> { sort_recursive_execute(prepared) }
 }
+
+pub(crate) struct BatchStarksSortBench;
+
+impl Bench for BatchStarksSortBench {
+    type Args = u32;
+    type Prepared = Result<(Program, ExecutionRecord<F>)>;
+
+    fn prepare(&self, args: &Self::Args) -> Self::Prepared { sort_prepare(*args) }
+
+    fn execute(&self, prepared: Self::Prepared) -> Result<()> {
+        batch_starks_sort_execute(prepared)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
 
-    use super::{sort_execute, sort_prepare, sort_recursive_execute, sort_recursive_prepare};
+    use super::{
+        batch_starks_sort_execute, sort_execute, sort_prepare, sort_recursive_execute,
+        sort_recursive_prepare,
+    };
 
     #[test]
     fn test_sort_bench() -> Result<()> {
@@ -110,5 +134,11 @@ mod tests {
     fn test_recursive_sort_bench() -> Result<()> {
         let n = 10;
         sort_recursive_execute(sort_recursive_prepare(n))
+    }
+
+    #[test]
+    fn test_batch_starks_sort_bench() -> Result<()> {
+        let n = 10;
+        batch_starks_sort_execute(sort_prepare(n))
     }
 }
