@@ -171,8 +171,8 @@ where
 
     pub fn prove(
         &self,
-        event: Event<F>,
         branch: &BranchCircuit<F, C, D>,
+        event: Event<F>,
     ) -> Result<LeafProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
@@ -193,10 +193,10 @@ where
 
     pub fn prove_unsafe(
         &self,
+        branch: &BranchCircuit<F, C, D>,
         event: Event<F>,
         hash: Option<HashOut<F>>,
         vm_hash: Option<HashOut<F>>,
-        branch: &BranchCircuit<F, C, D>,
     ) -> Result<LeafProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
@@ -316,21 +316,39 @@ where
     pub fn prove<L: IsLeaf, R: IsLeaf>(
         &self,
         left_proof: &Proof<L, F, C, D>,
-        right_proof: Option<&Proof<R, F, C, D>>,
+        right_proof: &Proof<R, F, C, D>,
     ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        let partial = right_proof.is_none();
-        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
-            (R::VALUE, &right_proof.proof)
-        } else {
-            (L::VALUE, &left_proof.proof)
-        };
+        let partial = false;
         self.unbounded.set_witness(
             &mut inputs,
             L::VALUE,
             &left_proof.proof,
-            right_is_leaf,
-            right_proof,
+            R::VALUE,
+            &right_proof.proof,
+        );
+        self.hash.set_witness(&mut inputs, partial);
+        self.vm_hash.set_witness(&mut inputs, partial);
+        let proof = self.circuit.prove(inputs)?;
+        Ok(BranchProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    pub fn prove_one<L: IsLeaf>(
+        &self,
+        left_proof: &Proof<L, F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        let mut inputs = PartialWitness::new();
+        let partial = true;
+        self.unbounded.set_witness(
+            &mut inputs,
+            L::VALUE,
+            &left_proof.proof,
+            L::VALUE,
+            &left_proof.proof,
         );
         self.hash.set_witness(&mut inputs, partial);
         self.vm_hash.set_witness(&mut inputs, partial);
@@ -427,7 +445,7 @@ pub mod test {
     }
 
     fn test_leaf(event: Event<F>) -> Result<LeafProof<F, C, D>> {
-        let proof = LEAF.prove(event, &BRANCH)?;
+        let proof = LEAF.prove(&BRANCH, event)?;
         assert_proof(&proof, event.hash(), event.byte_wise_hash(), event.owner);
         LEAF.verify(proof.clone())?;
         Ok(proof)
@@ -444,7 +462,7 @@ pub mod test {
             "Test bug: tried to combine different event owners"
         );
 
-        let proof = BRANCH.prove(left, Some(right))?;
+        let proof = BRANCH.prove(left, right)?;
         let hash = hash_branch(&left.hash(), &right.hash());
         let vm_hash = hash_branch_bytes(&left.vm_hash(), &right.vm_hash());
         assert_proof(&proof, hash, vm_hash, left.event_owner());
@@ -464,7 +482,7 @@ pub mod test {
             "Test bug: tried to combine different event owners"
         );
 
-        let proof = BRANCH.prove(left, Some(right))?;
+        let proof = BRANCH.prove(left, right)?;
         let hash = hash_branch(&left.hash(), &right.hash());
         let vm_hash = hash_branch_bytes(&left.vm_hash(), &right.vm_hash());
         assert_proof(&proof, hash, vm_hash, left.event_owner());
@@ -565,7 +583,7 @@ pub mod test {
         .expect("shouldn't fail");
 
         // Fail to prove with mismatched hashes
-        LEAF.prove_unsafe(read_1, Some(read_0_hash), Some(read_0_byte_hash), &BRANCH)
+        LEAF.prove_unsafe(&BRANCH, read_1, Some(read_0_hash), Some(read_0_byte_hash))
             .unwrap();
     }
 
@@ -599,10 +617,10 @@ pub mod test {
                 let read_1_byte_hash = read_1.byte_wise_hash();
 
                 // Read zero
-                let read_proof_1 = LEAF.prove(read_0, &BRANCH).unwrap();
+                let read_proof_1 = LEAF.prove(&BRANCH, read_0).unwrap();
                 LEAF.verify(read_proof_1.clone()).unwrap();
 
-                let read_proof_2 = LEAF.prove(read_1, &BRANCH).unwrap();
+                let read_proof_2 = LEAF.prove(&BRANCH, read_1).unwrap();
                 LEAF.verify(read_proof_2.clone()).unwrap();
 
                 // Combine reads
