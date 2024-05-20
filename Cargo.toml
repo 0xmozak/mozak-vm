@@ -36,7 +36,6 @@ lto = "thin"
 opt-level = 2
 
 [profile.dev.package.mozak-cli]
-# Set the default for dependencies in Development mode.
 opt-level = 1
 
 [profile.dev.package."*"]
