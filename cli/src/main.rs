@@ -60,8 +60,11 @@ pub struct RunArgs {
     elf: Input,
     #[arg(long)]
     system_tape: Option<Input>,
+<<<<<<< HEAD
     #[arg(long)]
     self_prog_id: Option<String>,
+=======
+>>>>>>> 9ce5f1aaa (remove self-prog-id from cli commands and run_examples.py)
 }
 
 #[derive(Clone, Debug, Args)]
@@ -70,8 +73,11 @@ pub struct ProveArgs {
     proof: Output,
     #[arg(long)]
     system_tape: Option<Input>,
+<<<<<<< HEAD
     #[arg(long)]
     self_prog_id: Option<String>,
+=======
+>>>>>>> 9ce5f1aaa (remove self-prog-id from cli commands and run_examples.py)
     recursive_proof: Option<Output>,
 }
 
@@ -123,6 +129,7 @@ fn main() -> Result<()> {
             let program = load_program(elf, &RuntimeArguments::default())?;
             debug!("{program:?}");
         }
+<<<<<<< HEAD
         Command::Run(RunArgs {
             elf,
             system_tape,
@@ -146,6 +153,20 @@ fn main() -> Result<()> {
 
             let program = load_program(elf, &args).unwrap();
             let state = State::new(program.clone(), RawTapes::default());
+=======
+        Command::Run(RunArgs { elf, system_tape }) => {
+            let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            let state: State<F> = State::new(program.clone(), raw_tapes);
+            step(&program, state)?;
+        }
+        Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
+            let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
+>>>>>>> 9ce5f1aaa (remove self-prog-id from cli commands and run_examples.py)
 
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -153,15 +174,21 @@ fn main() -> Result<()> {
         Command::Prove(ProveArgs {
             elf,
             system_tape,
-            self_prog_id,
             mut proof,
             recursive_proof,
         }) => {
+<<<<<<< HEAD
             let args = system_tape
                 .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
                 .unwrap_or_default();
             let program = load_program(elf, &args).unwrap();
             let state = State::new(program.clone(), RawTapes::default());
+=======
+            let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.clone());
+            let state = State::new(program.clone(), raw_tapes);
+>>>>>>> 9ce5f1aaa (remove self-prog-id from cli commands and run_examples.py)
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -195,6 +222,25 @@ fn main() -> Result<()> {
 
                 let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
 
+<<<<<<< HEAD
+=======
+                let public_inputs_array: [F; VM_PUBLIC_INPUT_SIZE] = recursive_all_proof
+                    .public_inputs
+                    .clone()
+                    .try_into()
+                    .unwrap();
+
+                let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
+                assert_eq!(
+                    public_inputs.program_hash_as_bytes.to_vec(),
+                    self_prog_id
+                        .inner()
+                        .into_iter()
+                        .map(F::from_canonical_u8)
+                        .collect_vec()
+                );
+
+>>>>>>> 9ce5f1aaa (remove self-prog-id from cli commands and run_examples.py)
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
                     &recursive_circuit.circuit,
                     &VM_RECURSION_CONFIG,
