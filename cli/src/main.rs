@@ -124,14 +124,14 @@ fn main() -> Result<()> {
         Command::Run(RunArgs { elf, system_tape }) => {
             let program = load_program(elf).unwrap();
             let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
             let program = load_program(elf).unwrap();
             let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
