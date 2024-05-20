@@ -1,4 +1,3 @@
-#![feature(restricted_std)]
 #![allow(unused_attributes)]
 mod core_logic;
 
@@ -7,7 +6,8 @@ use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier};
 use crate::core_logic::{dispatch, MethodArgs};
 
 fn main() {
-    let token_program = ProgramIdentifier::new_from_rand_seed(3);
+    let token_program: ProgramIdentifier =
+        std::fs::read_to_string("self_prog_id.txt").unwrap().into();
 
     let buf1 = Poseidon2Hash::new_from_rand_seed(2).inner();
     let buf2 = buf1.iter().map(|x| x.wrapping_add(1)).collect::<Vec<u8>>();

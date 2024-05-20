@@ -36,3 +36,6 @@ riscv-testdata/testdata/*.i
 # Temporary scripts
 *tmp.sh
 examples/*/out/
+
+# self program ids
+*self_prog_id.txt
