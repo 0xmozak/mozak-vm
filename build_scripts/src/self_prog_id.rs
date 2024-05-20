@@ -18,10 +18,10 @@ pub fn dump_self_prog_id(out_elf_name: &str) {
     let out_elf_path_str = out_elf_path.to_str().unwrap();
     let cli_dir = cargo_manifest_dir_path.join("../cli");
 
-    let args = vec!["self-prog-id", out_elf_path_str];
+    let args = vec!["run", "--release", "--", "self-prog-id", out_elf_path_str];
 
     // execute the cli command `self-prog-id` on the ELF
-    let output = Command::new("./../target/release/mozak-cli")
+    let output = Command::new("cargo")
         .args(args)
         .current_dir(cli_dir)
         .env_clear()
