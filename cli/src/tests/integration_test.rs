@@ -1,7 +1,6 @@
 use std::fs;
 use std::process::Command;
 
-use mozak_sdk::common::types::ProgramIdentifier;
 use tempfile::TempDir;
 
 #[test]
@@ -20,6 +19,14 @@ fn test_prove_and_verify_recursive_proof_command() {
 
     // Create mock IO tape files
     fs::write(system_tape, b"").expect("Failed to create system tape file");
+
+    // Get self_prog_id
+    let output = Command::new("cargo")
+        .args(["run", "--", "self-prog-id", elf_file])
+        .output()
+        .expect("Failed to execute self-prog-id command");
+    let mut self_prog_id = String::from_utf8(output.stdout).unwrap();
+    self_prog_id = self_prog_id.trim().to_string();
 
     // Execute the `prove` command
     let output = Command::new("cargo")

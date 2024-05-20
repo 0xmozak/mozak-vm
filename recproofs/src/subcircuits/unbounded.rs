@@ -3,11 +3,9 @@
 //! These subcircuits are fully-recursive, meaning only one `BranchCircuit` can
 //! handle generating proofs for any level regardless of depth.
 
-use std::iter::zip;
-
 use plonky2::field::extension::Extendable;
 use plonky2::gates::noop::NoopGate;
-use plonky2::hash::hash_types::{MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -15,7 +13,8 @@ use plonky2::plonk::circuit_data::{CircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
-use crate::{circuit_data_for_recursion, find_hash, select_verifier};
+use crate::indices::VerifierCircuitTargetIndex;
+use crate::{circuit_data_for_recursion, select_verifier};
 
 /// Plonky2's recursion threshold is 2^12 gates. We use a slightly relaxed
 /// threshold here to support the case that two proofs are verified in the same
@@ -24,50 +23,7 @@ const RECPROOF_RECURSION_THRESHOLD_DEGREE_BITS: usize = 13;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {
-    /// A digest of the "circuit" (i.e. the instance, minus public inputs),
-    /// which can be used to seed Fiat-Shamir.
-    pub circuit_digest: [usize; NUM_HASH_OUT_ELTS],
-    /// A commitment to each constant polynomial and each permutation
-    /// polynomial.
-    pub constants_sigmas_cap: Vec<[usize; NUM_HASH_OUT_ELTS]>,
-}
-
-impl PublicIndices {
-    /// Extract `circuit_digest` from an array of public inputs.
-    pub fn get_circuit_digest<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
-        self.circuit_digest.map(|i| public_inputs[i])
-    }
-
-    /// Insert `circuit_digest` into an array of public inputs.
-    pub fn set_circuit_digest<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
-        for (i, v) in v.into_iter().enumerate() {
-            public_inputs[self.circuit_digest[i]] = v;
-        }
-    }
-
-    /// Extract `constants_sigmas_cap` from an array of public inputs.
-    pub fn get_constants_sigmas_cap<T: Copy>(
-        &self,
-        public_inputs: &[T],
-    ) -> Vec<[T; NUM_HASH_OUT_ELTS]> {
-        self.constants_sigmas_cap
-            .iter()
-            .map(|v| v.map(|i| public_inputs[i]))
-            .collect()
-    }
-
-    /// Insert `constants_sigmas_cap` into an array of public inputs.
-    pub fn set_constants_sigmas_cap<T>(
-        &self,
-        public_inputs: &mut [T],
-        vs: Vec<[T; NUM_HASH_OUT_ELTS]>,
-    ) {
-        for (i, v) in vs.into_iter().enumerate() {
-            for (i, v) in zip(self.constants_sigmas_cap[i], v) {
-                public_inputs[i] = v;
-            }
-        }
-    }
+    pub verifier: VerifierCircuitTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -131,15 +87,7 @@ impl LeafTargets {
     #[must_use]
     pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
-            circuit_digest: find_hash(public_inputs, self.inputs.verifier.circuit_digest),
-            constants_sigmas_cap: self
-                .inputs
-                .verifier
-                .constants_sigmas_cap
-                .0
-                .iter()
-                .map(|v| find_hash(public_inputs, *v))
-                .collect(),
+            verifier: VerifierCircuitTargetIndex::new(public_inputs, &self.inputs.verifier),
         };
         LeafSubCircuit {
             targets: self,
@@ -200,32 +148,8 @@ impl SubCircuitInputs {
 
         // Connect previous verifier data to current one. This guarantees that every
         // proof in the cycle uses the same verifier data.
-        let left_verifier = VerifierCircuitTarget {
-            circuit_digest: leaf
-                .indices
-                .get_circuit_digest(&left_proof.public_inputs)
-                .into(),
-            constants_sigmas_cap: MerkleCapTarget(
-                leaf.indices
-                    .get_constants_sigmas_cap(&left_proof.public_inputs)
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
-            ),
-        };
-        let right_verifier = VerifierCircuitTarget {
-            circuit_digest: leaf
-                .indices
-                .get_circuit_digest(&right_proof.public_inputs)
-                .into(),
-            constants_sigmas_cap: MerkleCapTarget(
-                leaf.indices
-                    .get_constants_sigmas_cap(&right_proof.public_inputs)
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
-            ),
-        };
+        let left_verifier = leaf.indices.verifier.get_target(&left_proof.public_inputs);
+        let right_verifier = leaf.indices.verifier.get_target(&right_proof.public_inputs);
         builder.connect_verifier_data(&self.verifier, &left_verifier);
         builder.connect_verifier_data(&self.verifier, &right_verifier);
 
@@ -267,15 +191,7 @@ impl<const D: usize> BranchTargets<D> {
     pub fn build(self, leaf: &LeafSubCircuit, public_inputs: &[Target]) -> BranchSubCircuit<D> {
         // Find the indices
         let indices = PublicIndices {
-            circuit_digest: find_hash(public_inputs, self.inputs.verifier.circuit_digest),
-            constants_sigmas_cap: self
-                .inputs
-                .verifier
-                .constants_sigmas_cap
-                .0
-                .iter()
-                .map(|v| find_hash(public_inputs, *v))
-                .collect(),
+            verifier: VerifierCircuitTargetIndex::new(public_inputs, &self.inputs.verifier),
         };
         debug_assert_eq!(indices, leaf.indices);
 
@@ -321,7 +237,6 @@ impl<const D: usize> BranchSubCircuit<D> {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use lazy_static::lazy_static;
     use plonky2::plonk::circuit_data::CircuitConfig;
 
     use super::*;
@@ -395,31 +310,32 @@ mod test {
         }
     }
 
-    lazy_static! {
-        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
-        static ref BRANCH: DummyBranchCircuit = DummyBranchCircuit::new(&CONFIG, &LEAF);
-    }
+    #[tested_fixture::tested_fixture(LEAF)]
+    fn build_leaf() -> DummyLeafCircuit { DummyLeafCircuit::new(&CONFIG) }
 
-    #[test]
-    fn verify_leaf() -> Result<()> {
+    #[tested_fixture::tested_fixture(BRANCH)]
+    fn build_branch() -> DummyBranchCircuit { DummyBranchCircuit::new(&CONFIG, &LEAF) }
+
+    #[tested_fixture::tested_fixture(LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(&BRANCH)?;
-        LEAF.circuit.verify(proof)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        Ok(())
+    #[tested_fixture::tested_fixture(BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH.prove(true, &LEAF_PROOF, true, &LEAF_PROOF)?;
+        BRANCH.circuit.verify(proof.clone())?;
+        Ok(proof)
     }
 
     #[test]
-    fn verify_branch() -> Result<()> {
-        let leaf_proof = LEAF.prove(&BRANCH)?;
-        LEAF.circuit.verify(leaf_proof.clone())?;
-
-        let branch_proof_1 = BRANCH.prove(true, &leaf_proof, true, &leaf_proof)?;
-        BRANCH.circuit.verify(branch_proof_1.clone())?;
-
-        let branch_proof_2 = BRANCH.prove(true, &leaf_proof, false, &branch_proof_1)?;
+    fn verify_double_branch() -> Result<()> {
+        let branch_proof_2 = BRANCH.prove(true, &LEAF_PROOF, false, &BRANCH_PROOF)?;
         BRANCH.circuit.verify(branch_proof_2.clone())?;
 
-        let branch_proof_3 = BRANCH.prove(false, &branch_proof_1, false, &branch_proof_2)?;
+        let branch_proof_3 = BRANCH.prove(false, &BRANCH_PROOF, false, &branch_proof_2)?;
         BRANCH.circuit.verify(branch_proof_3)?;
 
         Ok(())

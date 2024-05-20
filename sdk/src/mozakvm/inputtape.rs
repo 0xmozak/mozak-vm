@@ -1,11 +1,19 @@
-use super::helpers::owned_buffer;
-use super::linker_symbols::{_mozak_private_io_tape, _mozak_public_io_tape};
-use crate::mozakvm::helpers::get_owned_buffer;
+use core::ops::{Deref, DerefMut};
+
+use crate::core::ecall;
 
 #[derive(Default, Clone)]
-pub struct RandomAccessPreinitMemTape {
-    pub tape: Box<[u8]>,
+pub struct RandomAccessEcallTape {
+    pub ecall_id: u32,
     pub read_offset: usize,
+    /// This holds the max readable bytes from the tape
+    /// TODO: Populate this via `SIZE_HINT` ecall
+    pub size_hint: usize,
+    /// `internal_buf` contains already read bytes
+    /// via ecalls but which can be referenced again
+    /// due to access to `std::io::Seek`.
+    #[cfg(feature = "stdread")]
+    pub internal_buf: Vec<u8>,
 }
 
 /// Implementing `std::io::Read` allows seekability later as
@@ -13,44 +21,78 @@ pub struct RandomAccessPreinitMemTape {
 /// copies of relevant data asked is returned back to the caller.
 /// This suffers from spent cpu cycles in `memcpy`.
 #[cfg(feature = "stdread")]
-impl std::io::Read for RandomAccessPreinitMemTape {
+impl std::io::Read for RandomAccessEcallTape {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let (mut read_bytes, remaining_buf) = (buf.len(), self.tape.len() - self.read_offset);
-        // In case we don't have enough bytes to read
-        if read_bytes > remaining_buf {
-            read_bytes = remaining_buf;
+        // While we want the whole buffer to be filled, it may
+        // not be possible due to us reaching the end of tape
+        // at times. Hence `required_bytes` encodes the desired
+        // request, while `serviced_bytes` encode the actual
+        // serviced len.
+        let required_bytes = buf.len();
+        let mut serviced_bytes = required_bytes;
+        if (self.read_offset + required_bytes) > self.size_hint {
+            serviced_bytes = self.size_hint - self.read_offset;
         }
 
-        buf[..read_bytes]
-            .clone_from_slice(&self.tape[self.read_offset..(self.read_offset + read_bytes)]);
+        // In cases where `Seek` was used, we may be reading from
+        // `internal_buf` as we may have previously "consumed" those
+        // bytes already from the `ECALL` mechanism.
+        let mut populatable_from_internal_buf = self.internal_buf.len() - self.read_offset;
+        if serviced_bytes < populatable_from_internal_buf {
+            populatable_from_internal_buf = serviced_bytes;
+        }
 
-        self.read_offset += read_bytes;
+        // These are the actual bytes we get from doing an `ECALL`
+        let remaining_from_ecall = serviced_bytes - populatable_from_internal_buf;
 
-        Ok(read_bytes)
+        // Populate partial buf from `internal_buf`
+        buf[..populatable_from_internal_buf].clone_from_slice(
+            &self.internal_buf
+                [self.read_offset..(self.read_offset + populatable_from_internal_buf)],
+        );
+
+        let old_len = self.internal_buf.len();
+        self.internal_buf.resize(old_len + remaining_from_ecall, 0);
+
+        // TODO: maybe move out this function into `ecall.rs` somehow?
+        unsafe {
+            core::arch::asm!(
+                "ecall",
+                in ("a0") self.ecall_id,
+                in ("a1") self.internal_buf.as_mut_ptr().add(old_len),
+                in ("a2") remaining_from_ecall,
+            );
+        };
+
+        // Populate partial buf from newly fetched bytes via `ECALL`
+        buf[populatable_from_internal_buf..].clone_from_slice(&self.internal_buf[old_len..]);
+        self.read_offset += serviced_bytes;
+
+        Ok(serviced_bytes)
     }
 }
 
 #[cfg(feature = "stdread")]
-impl std::io::Seek for RandomAccessPreinitMemTape {
+impl std::io::Seek for RandomAccessEcallTape {
     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
         match pos {
             std::io::SeekFrom::Start(x) =>
-                if x >= self.tape.len().try_into().unwrap() {
-                    self.read_offset = self.tape.len() - 1;
+                if x >= self.size_hint.try_into().unwrap() {
+                    self.read_offset = self.size_hint - 1;
                 } else {
                     self.read_offset = usize::try_from(x).unwrap();
                 },
             std::io::SeekFrom::End(x) =>
-                if x >= self.tape.len().try_into().unwrap() {
+                if x >= self.size_hint.try_into().unwrap() {
                     self.read_offset = 0;
                 } else {
-                    self.read_offset = self.tape.len() - usize::try_from(x).unwrap() - 1;
+                    self.read_offset = self.size_hint - usize::try_from(x).unwrap() - 1;
                 },
             std::io::SeekFrom::Current(x) => {
                 if x + i64::try_from(self.read_offset).unwrap()
-                    >= self.tape.len().try_into().unwrap()
+                    >= self.size_hint.try_into().unwrap()
                 {
-                    self.read_offset = self.tape.len() - 1;
+                    self.read_offset = self.size_hint - 1;
                 } else {
                     self.read_offset += usize::try_from(x).unwrap();
                 }
@@ -60,134 +102,80 @@ impl std::io::Seek for RandomAccessPreinitMemTape {
     }
 }
 
-impl RandomAccessPreinitMemTape {
-    /// Returns the "safe" readable length of the tape,
-    /// reading outside which may result in accessing
-    /// garbage values. `len` reduces after elements are
-    /// accessed in case the tape  is "consuming" i.e.
-    /// tape is accessed without feature `stdread` enabled.
-    /// If `stdread` is enabled, `std::io::Seek` is
-    /// implemented for the tape and length of tape never
-    /// reduces.
-    #[allow(dead_code)]
-    pub fn len(&self) -> usize { self.tape.len() }
-
-    /// Provides the read offset in tape which can be
-    /// changed via `std::io::Seek` implementation on
-    /// a tape with feature `stdread`. In case this feature
-    /// is not enabled, this function always returns `0`
-    /// and the tape elements when accessed are "consumed".
-    #[allow(dead_code)]
-    pub fn read_ptr(&self) -> usize { self.read_offset }
-}
-
-/// Not implementing `std::io::Read` allows for consumption of
-/// data slices from the Tape, albeit linearly. This still leaves
-/// room for seekability (in principle), but any seek is only
-/// allowed on currently owned data elements
-/// (a.k.a. ahead from current `read_offset` ).
-/// When that happens, slice uptil that point will be thrown away.
-#[cfg(not(feature = "stdread"))]
-impl RandomAccessPreinitMemTape {
-    /// consumes the underlying buffer upto a maximum length
-    /// `max_readlen` and returns an owned slice.
-    fn read(&mut self, max_readlen: usize) -> Box<[u8]> {
-        let (mut read_bytes, remaining_buf) = (buf.len(), self.tape.len());
-        // In case we don't have enough bytes to read
-        if read_bytes > remaining_buf {
-            read_bytes = remaining_buf;
-        }
-        self.read_offset += read_bytes;
-
-        let read_ptr = self.tape.as_ptr();
-
-        self.tape = unsafe {
-            let mem_slice = slice_from_raw_parts::<u8>(
-                read_ptr.add(read_bytes),
-                (self.tape.len() - read_bytes),
-            );
-            Box::from_raw(mem_slice as *mut [u8])
-        };
-        unsafe {
-            let mem_slice = slice_from_raw_parts::<u8>(read_ptr, read_bytes);
-            Box::from_raw(mem_slice as *mut [u8])
-        }
-    }
-}
-
-#[derive(Default, Clone)]
-pub struct RandomAccessEcallTape {
-    pub ecall_id: u32,
-    pub read_offset: usize,
-}
-
-#[cfg(feature = "preinitmem_inputtape")]
-type FreeformTape = RandomAccessPreinitMemTape;
-#[cfg(not(feature = "preinitmem_inputtape"))]
-type FreeformTape = RandomAccessEcallTape;
+#[derive(Clone)]
+pub struct PrivateInputTape(RandomAccessEcallTape);
 
 #[derive(Clone)]
-pub struct PrivateInputTape(FreeformTape);
-
-#[derive(Clone)]
-pub struct PublicInputTape(FreeformTape);
+pub struct PublicInputTape(RandomAccessEcallTape);
 
 impl Default for PrivateInputTape {
     fn default() -> Self {
-        #[cfg(feature = "preinitmem_inputtape")]
-        {
-            Self(FreeformTape {
-                tape: get_owned_buffer!(_mozak_private_io_tape),
-                read_offset: 0,
-            })
-        }
-        #[cfg(not(feature = "preinitmem_inputtape"))]
-        {
-            // TODO: Implement this when we want to revert back to
-            // ecall based systems. Unimplemented for now.
-            unimplemented!()
-        }
+        Self(RandomAccessEcallTape {
+            ecall_id: ecall::PRIVATE_TAPE,
+            read_offset: 0,
+            size_hint: 0,
+            internal_buf: vec![],
+        })
+    }
+}
+
+impl PrivateInputTape {
+    /// Creates a new `PrivateInputTape` with a given `size_hint`.
+    pub fn with_size_hint(size_hint: usize) -> Self {
+        Self(RandomAccessEcallTape {
+            ecall_id: ecall::PRIVATE_TAPE,
+            read_offset: 0,
+            size_hint,
+            internal_buf: vec![],
+        })
     }
 }
 
 impl Default for PublicInputTape {
     fn default() -> Self {
-        #[cfg(feature = "preinitmem_inputtape")]
-        {
-            Self(FreeformTape {
-                tape: get_owned_buffer!(_mozak_public_io_tape),
-                read_offset: 0,
-            })
-        }
-        #[cfg(not(feature = "preinitmem_inputtape"))]
-        {
-            // TODO: Implement this when we want to revert back to
-            // ecall based systems. Unimplemented for now.
-            unimplemented!()
-        }
+        Self(RandomAccessEcallTape {
+            ecall_id: ecall::PUBLIC_TAPE,
+            read_offset: 0,
+            size_hint: 0,
+            internal_buf: vec![],
+        })
     }
 }
 
-#[cfg(feature = "stdread")]
-impl std::io::Read for PrivateInputTape {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> { self.0.read(buf) }
-}
-
-#[cfg(feature = "stdread")]
-impl std::io::Read for PublicInputTape {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> { self.0.read(buf) }
-}
-
-impl PrivateInputTape {
-    pub fn len(&self) -> usize { self.0.len() }
-
-    pub fn read_ptr(&self) -> usize { self.0.read_ptr() }
-}
-
 impl PublicInputTape {
-    pub fn len(&self) -> usize { self.0.len() }
+    /// Creates a new `PublicInputTape` with a given `size_hint`.
+    pub fn with_size_hint(size_hint: usize) -> Self {
+        Self(RandomAccessEcallTape {
+            ecall_id: ecall::PUBLIC_TAPE,
+            read_offset: 0,
+            size_hint,
+            internal_buf: vec![],
+        })
+    }
+}
 
-    pub fn read_ptr(&self) -> usize { self.0.read_ptr() }
+impl Deref for PrivateInputTape {
+    type Target = RandomAccessEcallTape;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl DerefMut for PrivateInputTape {
+    fn deref_mut(&mut self) -> &mut RandomAccessEcallTape { &mut self.0 }
+}
+
+impl Deref for PublicInputTape {
+    type Target = RandomAccessEcallTape;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl DerefMut for PublicInputTape {
+    fn deref_mut(&mut self) -> &mut RandomAccessEcallTape { &mut self.0 }
+}
+
+impl RandomAccessEcallTape {
+    pub(crate) fn len(&self) -> usize { self.size_hint }
 }
 
 /// Provides the length of tape available to read

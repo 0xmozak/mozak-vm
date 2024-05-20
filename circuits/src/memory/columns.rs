@@ -1,28 +1,26 @@
 use core::ops::Add;
 
-use plonky2::field::extension::Extendable;
+use itertools::izip;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
-use crate::memory_io::columns::InputOutputMemory;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::rangecheck::columns::RangeCheckCtl;
 use crate::stark::mozak_stark::{MemoryTable, TableWithTypedOutput};
+use crate::storage_device::columns::StorageDevice;
 
 /// Represents a row of the memory trace that is transformed from read-only,
 /// read-write, halfword and fullword memories
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Memory<T> {
     /// Indicates if a the memory address is writable.
     pub is_writable: T,
@@ -58,9 +56,9 @@ impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
     fn from(row: &MemoryInit<F>) -> Self {
         row.filter.is_one().then(|| Memory {
             is_writable: row.is_writable,
-            addr: row.element.address,
+            addr: row.address,
             is_init: F::ONE,
-            value: row.element.value,
+            value: row.value,
             clk: F::ONE,
             ..Default::default()
         })
@@ -85,11 +83,11 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
         if (val.ops.is_load + val.ops.is_store).is_zero() {
             vec![]
         } else {
-            (0..2)
-                .map(|i| Memory {
+            izip!(val.addrs, val.limbs)
+                .map(|(addr, value)| Memory {
                     clk: val.clk,
-                    addr: val.addrs[i],
-                    value: val.limbs[i],
+                    addr,
+                    value,
                     is_store: val.ops.is_store,
                     is_load: val.ops.is_load,
                     ..Default::default()
@@ -104,11 +102,11 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
         if (val.ops.is_load + val.ops.is_store).is_zero() {
             vec![]
         } else {
-            (0..4)
-                .map(|i| Memory {
+            izip!(val.addrs, val.limbs)
+                .map(|(addr, value)| Memory {
                     clk: val.clk,
-                    addr: val.addrs[i],
-                    value: val.limbs[i],
+                    addr,
+                    value,
                     is_store: val.ops.is_store,
                     is_load: val.ops.is_load,
                     ..Default::default()
@@ -160,8 +158,8 @@ impl<F: RichField> From<&Poseidon2OutputBytes<F>> for Vec<Memory<F>> {
     }
 }
 
-impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
-    fn from(val: &InputOutputMemory<F>) -> Self {
+impl<F: RichField> From<&StorageDevice<F>> for Option<Memory<F>> {
+    fn from(val: &StorageDevice<F>) -> Self {
         (val.ops.is_memory_store).is_one().then(|| Memory {
             clk: val.clk,
             addr: val.addr,
@@ -174,14 +172,6 @@ impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
 
 impl<T: Copy + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T { self.is_store + self.is_load + self.is_init }
-}
-
-pub fn is_executed_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    values: &Memory<ExtensionTarget<D>>,
-) -> ExtensionTarget<D> {
-    let tmp = builder.add_extension(values.is_store, values.is_load);
-    builder.add_extension(tmp, values.is_init)
 }
 
 #[must_use]
@@ -216,7 +206,7 @@ pub fn rangecheck_u8_looking() -> Vec<TableWithTypedOutput<RangeCheckCtl<Column>
 
 columns_view_impl!(MemoryCtl);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct MemoryCtl<T> {
     pub clk: T,
     pub is_store: T,

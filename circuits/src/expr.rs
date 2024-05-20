@@ -1,7 +1,6 @@
-use std::marker::PhantomData;
 use std::panic::Location;
 
-use derive_more::Display;
+pub use expr::PureEvaluator;
 use expr::{BinOp, Cached, Evaluator, Expr, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -50,34 +49,22 @@ where
     }
 }
 
-#[derive(Default)]
-struct PackedFieldEvaluator<'a, P, const D: usize, const D2: usize> {
-    _marker: PhantomData<&'a P>,
-}
-
-impl<'a, F, FE, P, const D: usize, const D2: usize> Evaluator<'a, P>
-    for PackedFieldEvaluator<'a, P, D, D2>
+#[must_use]
+pub fn packed_field_evaluator<F, FE, P, const D: usize, const D2: usize>() -> PureEvaluator<P>
 where
     F: RichField,
     F: Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
-    P: PackedField<Scalar = FE>,
-{
-    fn bin_op(&mut self, op: BinOp, left: P, right: P) -> P {
-        match op {
-            BinOp::Add => left + right,
-            BinOp::Mul => left * right,
-            BinOp::Sub => left - right,
-        }
+    P: PackedField<Scalar = FE>, {
+    fn convert<F, FE, P, const D: usize, const D2: usize>(value: i64) -> P
+    where
+        F: RichField,
+        F: Extendable<D>,
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>, {
+        P::from(FE::from_noncanonical_i64(value))
     }
-
-    fn una_op(&mut self, op: UnaOp, expr: P) -> P {
-        match op {
-            UnaOp::Neg => -expr,
-        }
-    }
-
-    fn constant(&mut self, value: i64) -> P { P::from(FE::from_noncanonical_i64(value)) }
+    PureEvaluator(convert)
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -99,7 +86,7 @@ impl<E> Constraint<E> {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Debug, Display)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Debug)]
 enum ConstraintType {
     FirstRow,
     #[default]
@@ -181,7 +168,7 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     F: Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    let mut evaluator = Cached::from(PackedFieldEvaluator::default());
+    let mut evaluator = Cached::from(packed_field_evaluator());
     let evaluated = cb
         .constraints
         .into_iter()

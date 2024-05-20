@@ -4,7 +4,6 @@
 #![feature(trait_alias)]
 #![feature(raw_ref_op)]
 #![feature(stmt_expr_attributes)]
-#![feature(slice_ptr_len)]
 #![deny(warnings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
@@ -93,14 +92,14 @@ pub use crate::mozakvm::inputtape::read;
 /// CAUTION: Manual function for `IdentityStack`, misuse may lead
 /// to system tape generation failure.
 #[cfg(all(feature = "std", not(target_os = "mozakvm")))]
-pub use crate::native::helpers::add_identity;
+pub use crate::native::identity::add_identity;
 /// Manually remove a `ProgramIdentifier` from `IdentityStack`.
 /// Useful when one want to escape automatic management of `IdentityStack`
 /// via cross-program-calls sends (ideally temporarily).
 /// CAUTION: Manual function for `IdentityStack`, misuse may lead
 /// to system tape generation failure.
 #[cfg(all(feature = "std", not(target_os = "mozakvm")))]
-pub use crate::native::helpers::rm_identity;
+pub use crate::native::identity::rm_identity;
 /// Writes raw bytes to an input tape. Infallible
 #[cfg(all(feature = "std", not(target_os = "mozakvm")))]
 pub use crate::native::inputtape::write;

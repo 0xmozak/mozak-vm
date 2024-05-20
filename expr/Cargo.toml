@@ -10,5 +10,5 @@ repository = "https://github.com/0xmozak/mozak-vm"
 version = "0.1.0"
 
 [dependencies]
-bumpalo = "3.14"
+bumpalo = "3.16"
 starky = { workspace = true, default-features = false, features = ["std"] }

@@ -317,7 +317,7 @@ pub fn step<F: RichField>(
         {
             let count: u32 = count.try_into().unwrap();
             let percentage = 100_f64 * f64::from(count) / f64::from(total);
-            println!("{percentage:6.2?}%\t{count:10} {op}");
+            println!("{percentage:6.2?}%\t{count:10} {op:?}");
         }
     }
     Ok(ExecutionRecord::<F> {
@@ -1045,7 +1045,7 @@ mod tests {
         fn rem_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in i32_extra(), rs2_value in i32_extra()) {
             prop_assume!(rs1 != rs2);
             prop_assume!(rs2_value != 0);
-            prop_assume!(rs1_value != i32::min_value() && rs2_value != -1);
+            prop_assume!(rs1_value != i32::MIN && rs2_value != -1);
             let rem = rs1_value % rs2_value;
             let e = simple_test_code(
                 [Instruction::new(

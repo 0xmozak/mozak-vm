@@ -4,22 +4,25 @@ use enumflags2::{bitflags, BitFlags};
 use iter_fixed::IntoIteratorFixed;
 use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
+use plonky2::field::types::Field;
 use plonky2::gates::noop::NoopGate;
-use plonky2::hash::hash_types::{
-    HashOut, HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS,
-};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, MerkleCapTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
+use plonky2::plonk::circuit_data::{
+    CircuitConfig, CircuitData, CommonCircuitData, VerifierCircuitTarget,
+};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 
 pub mod circuits;
+pub mod indices;
 pub mod subcircuits;
 
 #[cfg(any(feature = "test", test))]
 pub mod test_utils {
     use itertools::{chain, Itertools};
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::{HashOut, RichField};
     use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -39,9 +42,45 @@ pub mod test_utils {
 
     pub const CONFIG: CircuitConfig = fast_test_circuit_config();
 
+    pub const ZERO_VAL: [F; 4] = [F::ZERO; 4];
+    pub const ZERO_HASH: HashOut<F> = HashOut { elements: ZERO_VAL };
+
+    pub const NON_ZERO_VALUES: [[F; 4]; 5] = [
+        make_fs([
+            83744944,
+            825537977472684,
+            7104047534646208046,
+            6842590694912932,
+        ]),
+        make_fs([
+            2550604009,
+            2770167113900984,
+            8824012858361603563,
+            7076601047101,
+        ]),
+        make_fs([
+            28347913151557,
+            4857242454150695950,
+            829533116861727855,
+            8890750,
+        ]),
+        make_fs([
+            0,
+            6548586327886593615,
+            3381827968230301952,
+            3530185296899577362,
+        ]),
+        make_fs([0, 0, 1, 0]),
+    ];
+    pub const NON_ZERO_HASHES: [HashOut<F>; 4] = make_hashes(NON_ZERO_VALUES);
+
     pub fn hash_str(v: &str) -> HashOut<F> {
         let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
         Poseidon2Hash::hash_no_pad(&v)
+    }
+
+    pub fn hash_val_bytes<F: RichField>(left: [F; 4], right: [F; 4]) -> [F; 4] {
+        hash_branch_bytes(&HashOut { elements: left }, &HashOut { elements: right }).elements
     }
 
     pub fn hash_branch<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
@@ -61,9 +100,29 @@ pub mod test_utils {
     pub const D: usize = 2;
     pub type C = Poseidon2GoldilocksConfig;
     pub type F = <C as GenericConfig<D>>::F;
+    pub const fn make_f(v: u64) -> F { GoldilocksField(v) }
+
+    pub const fn make_fs<const N: usize>(vs: [u64; N]) -> [F; N] {
+        let mut f = [F::ZERO; N];
+        let mut i = 0;
+        while i < N {
+            f[i] = GoldilocksField(vs[i]);
+            i += 1;
+        }
+        f
+    }
+    pub const fn make_hashes<const N: usize, const M: usize>(vs: [[F; 4]; N]) -> [HashOut<F>; M] {
+        let mut out = [HashOut::ZERO; M];
+        let mut i = 0;
+        while i < M {
+            out[i].elements = vs[i];
+            i += 1;
+        }
+        out
+    }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum EventType {
     Write = 0,
     Ensure = 1,
@@ -98,7 +157,7 @@ impl EventFlags {
     fn index(self) -> usize { (self as u8).trailing_zeros() as usize }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Event<F> {
     owner: [F; 4],
     ty: EventType,
@@ -115,6 +174,13 @@ impl<F: RichField> Event<F> {
         )
     }
 
+    pub fn vm_bytes(self) -> impl Iterator<Item = F> {
+        chain!(
+            [self.ty as u64, self.address].map(F::from_canonical_u64),
+            self.value
+        )
+    }
+
     pub fn hash(self) -> HashOut<F> {
         let bytes = self.bytes().collect_vec();
         Poseidon2Hash::hash_no_pad(&bytes)
@@ -122,11 +188,87 @@ impl<F: RichField> Event<F> {
 
     pub fn byte_wise_hash(self) -> HashOut<F> {
         let bytes = self
-            .bytes()
+            .vm_bytes()
             .flat_map(|v| v.to_canonical_u64().to_le_bytes())
             .map(|v| F::from_canonical_u8(v))
             .collect_vec();
         Poseidon2Hash::hash_no_pad(&bytes)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+pub struct Object<F> {
+    /// Constraint-Owner is the only program which can mutate the fields of this
+    /// object
+    pub constraint_owner: [F; 4],
+
+    /// The block number at which this was last updated
+    pub last_updated: F,
+
+    /// Running credits for execution and paying rent
+    pub credits: F,
+
+    /// Serialized data object understandable and affectable by
+    /// `constraint_owner`
+    pub data: [F; 4],
+}
+
+impl<F: Field + RichField> Object<F> {
+    pub fn hash(&self) -> HashOut<F> {
+        let inputs = chain!(
+            self.constraint_owner,
+            [self.last_updated, self.credits],
+            self.data,
+        )
+        .collect_vec();
+        Poseidon2Hash::hash_no_pad(&inputs)
+    }
+}
+
+pub fn summarize<F: Field + RichField>(
+    address: u64,
+    old: HashOut<F>,
+    new: HashOut<F>,
+) -> HashOut<F> {
+    let inputs = chain!([F::from_canonical_u64(address)], old.elements, new.elements).collect_vec();
+    Poseidon2Hash::hash_no_pad(&inputs)
+}
+
+/// Computes `if b { false } else { t }`
+pub(crate) fn false_if<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    b: BoolTarget,
+    t: BoolTarget,
+) -> BoolTarget
+where
+    F: RichField + Extendable<D>, {
+    BoolTarget::new_unsafe(zero_if(builder, b, t.target))
+}
+
+/// Computes `if b { zero } else { t }`
+pub(crate) fn zero_if<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    b: BoolTarget,
+    t: Target,
+) -> Target
+where
+    F: RichField + Extendable<D>, {
+    // (1-b) * t
+    // t - b*t
+    // -1*b*t + 1*t
+    builder.arithmetic(F::NEG_ONE, F::ONE, b.target, t, t)
+}
+
+/// Computes `if b { zero } else { t }`
+pub(crate) fn zero_hash_if<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    b: BoolTarget,
+    t: HashOutTarget,
+) -> HashOutTarget
+where
+    F: RichField + Extendable<D>, {
+    HashOutTarget {
+        elements: t.elements.map(|t| zero_if(builder, b, t)),
     }
 }
 
@@ -184,7 +326,7 @@ where
 }
 
 /// Reduce a hash-sized group of booleans by `&&`ing them together
-fn and_helper<F, const D: usize>(
+pub fn and_helper<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     bools: [BoolTarget; 4],
 ) -> BoolTarget
@@ -198,7 +340,7 @@ where
 }
 
 /// Reduce a hash-sized group of booleans by `||`ing them together
-fn or_helper<F, const D: usize>(
+pub fn or_helper<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     bools: [BoolTarget; 4],
 ) -> BoolTarget
@@ -212,7 +354,7 @@ where
 }
 
 /// Computes `a == b`.
-fn are_equal<F, const D: usize>(
+pub fn are_equal<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     a: [Target; 4],
     b: [Target; 4],
@@ -228,7 +370,7 @@ where
 }
 
 /// Computes `h0 == h1`.
-fn hashes_equal<F, const D: usize>(
+pub fn hashes_equal<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     h0: HashOutTarget,
     h1: HashOutTarget,
@@ -239,7 +381,7 @@ where
 }
 
 /// Computes `h0 != ZERO`.
-fn hash_is_nonzero<F, const D: usize>(
+pub fn hash_is_nonzero<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     h0: impl Into<HashOutTarget>,
 ) -> BoolTarget
@@ -256,7 +398,10 @@ where
 }
 
 /// Computes `a == ZERO`.
-fn are_zero<F, const D: usize>(builder: &mut CircuitBuilder<F, D>, a: [Target; 4]) -> BoolTarget
+pub fn are_zero<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    a: [Target; 4],
+) -> BoolTarget
 where
     F: RichField + Extendable<D>, {
     let zero = a
@@ -284,17 +429,17 @@ where
 fn hash_or_forward<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     left_present: BoolTarget,
-    left: [Target; NUM_HASH_OUT_ELTS],
+    left: HashOutTarget,
     right_present: BoolTarget,
-    right: [Target; NUM_HASH_OUT_ELTS],
+    right: HashOutTarget,
 ) -> HashOutTarget
 where
     F: RichField + Extendable<D>, {
     let both_present = builder.and(left_present, right_present);
+    let (left, right) = (left.elements, right.elements);
 
     // Construct the hash of [left, right]
-    let hash_both =
-        builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(left.into_iter().chain(right).collect());
+    let hash_both = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(chain!(left, right).collect());
 
     // Construct the forwarding "hash".
     let hash_absent = left
@@ -328,31 +473,6 @@ fn at_least_one_true<F, const D: usize>(
     builder.div(total, total);
 }
 
-/// Finds the index of a target `t` in an array. Useful for getting and
-/// labelling the indices for public inputs.
-fn find_target(targets: &[Target], t: Target) -> usize {
-    targets
-        .iter()
-        .position(|&pi| pi == t)
-        .expect("target not found")
-}
-
-/// Finds the index of a boolean target `t` in an array. Useful for getting and
-/// labelling the indices for public inputs.
-fn find_bool(targets: &[Target], t: BoolTarget) -> usize { find_target(targets, t.target) }
-
-/// Finds the indices of targets `ts` in an array. Useful for getting and
-/// labelling the indices for public inputs.
-fn find_targets<const N: usize>(targets: &[Target], ts: [Target; N]) -> [usize; N] {
-    ts.map(|t| find_target(targets, t))
-}
-
-/// Finds the indices of the target elements of `ts` in an array. Useful for
-/// getting and labelling the indices for public inputs.
-fn find_hash(targets: &[Target], ts: HashOutTarget) -> [usize; NUM_HASH_OUT_ELTS] {
-    find_targets(targets, ts.elements)
-}
-
 /// Connects `x` to `v` if `maybe_v` is true
 fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -364,6 +484,18 @@ fn maybe_connect<F: RichField + Extendable<D>, const D: usize, const N: usize>(
     for (parent, child) in zip(x, v) {
         let child = builder.select(maybe_v, child, parent);
         builder.connect(parent, child);
+    }
+}
+
+/// Connects `x` to `y`
+fn connect_arrays<F: RichField + Extendable<D>, const D: usize, const N: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    x: [Target; N],
+    y: [Target; N],
+) {
+    // Loop over the limbs
+    for (x, y) in zip(x, y) {
+        builder.connect(x, y);
     }
 }
 
@@ -379,12 +511,11 @@ fn hash_event<F: RichField + Extendable<D>, const D: usize>(
 
 fn byte_wise_hash_event<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    owner: [Target; 4],
     ty: Target,
     address: Target,
     value: [Target; 4],
 ) -> HashOutTarget {
-    byte_wise_hash(builder, chain!(owner, [ty, address], value).collect())
+    byte_wise_hash(builder, chain!([ty, address], value).collect())
 }
 
 fn split_bytes<F: RichField + Extendable<D>, const D: usize>(
@@ -456,4 +587,39 @@ where
         builder.add_gate(NoopGate, vec![]);
     }
     builder.build::<C>()
+}
+
+/// Generate a circuit matching a given `CommonCircuitData`.
+#[must_use]
+pub fn dummy_circuit<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>(
+    common_data: &CommonCircuitData<F, D>,
+    register_public_inputs: impl FnOnce(&mut CircuitBuilder<F, D>),
+) -> CircuitData<F, C, D> {
+    let config = common_data.config.clone();
+
+    let mut builder = CircuitBuilder::<F, D>::new(config);
+    // Build up enough wires to cover all our inputs
+    for _ in 0..common_data.num_public_inputs {
+        let _ = builder.add_virtual_target();
+    }
+    register_public_inputs(&mut builder);
+    while builder.num_public_inputs() < common_data.num_public_inputs {
+        builder.add_virtual_public_input();
+    }
+    for gate in &common_data.gates {
+        builder.add_gate_to_gate_set(gate.clone());
+    }
+
+    // We don't want to pad all the way up to 2^target_degree_bits, as the builder
+    // will add a few special gates afterward. So just pad to
+    // 2^(degree - 1) + 1. Then the builder will pad to the next
+    // power of two.
+    let min_gates = (1 << (common_data.degree_bits() - 1)) + 1;
+    while builder.num_gates() < min_gates {
+        builder.add_gate(NoopGate, vec![]);
+    }
+
+    let circuit = builder.build::<C>();
+    assert_eq!(&circuit.common, common_data);
+    circuit
 }

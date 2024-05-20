@@ -1,18 +1,70 @@
 //! Circuits for proving events can be summarized to a commitment.
 
+use std::marker::PhantomData;
+
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierOnlyCircuitData};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
+use super::{Branch, IsLeaf, Leaf};
 use crate::subcircuits::unpruned::PartialAllowed;
 use crate::subcircuits::{propagate, unbounded, unpruned};
 use crate::{byte_wise_hash_event, hash_event, Event};
+
+#[derive(Clone)]
+pub struct Indices {
+    pub unbounded: unbounded::PublicIndices,
+    pub hash: unpruned::PublicIndices,
+    pub vm_hash: unpruned::PublicIndices,
+    pub event_owner: propagate::PublicIndices<4>,
+}
+
+pub type Proof<T, F, C, const D: usize> = super::Proof<T, Indices, F, C, D>;
+
+pub type LeafProof<F, C, const D: usize> = Proof<Leaf, F, C, D>;
+
+pub type BranchProof<F, C, const D: usize> = Proof<Branch, F, C, D>;
+
+impl<T, F, C, const D: usize> Proof<T, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: Hasher<F, Hash = HashOut<F>>,
+{
+    pub fn verifier(&self) -> VerifierOnlyCircuitData<C, D> {
+        self.indices
+            .unbounded
+            .verifier
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn hash(&self) -> HashOut<F> {
+        self.indices
+            .hash
+            .unpruned_hash
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn vm_hash(&self) -> HashOut<F> {
+        self.indices
+            .vm_hash
+            .unpruned_hash
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn event_owner(&self) -> [F; 4] {
+        self.indices
+            .event_owner
+            .values
+            .get_field(&self.proof.public_inputs)
+    }
+}
 
 pub struct LeafTargets {
     /// The event type
@@ -82,7 +134,6 @@ where
         );
         let event_vm_hash = byte_wise_hash_event(
             &mut builder,
-            event_owner_targets.inputs.values,
             targets.event_ty,
             targets.event_address,
             targets.event_value,
@@ -109,15 +160,44 @@ where
         }
     }
 
-    /// `hash` only needs to be provided to check externally, otherwise it will
-    /// be calculated
+    fn indices(&self) -> Indices {
+        Indices {
+            unbounded: self.unbounded.indices.clone(),
+            hash: self.hash.indices,
+            vm_hash: self.vm_hash.indices,
+            event_owner: self.event_owner.indices,
+        }
+    }
+
     pub fn prove(
+        &self,
+        event: Event<F>,
+        branch: &BranchCircuit<F, C, D>,
+    ) -> Result<LeafProof<F, C, D>> {
+        let mut inputs = PartialWitness::new();
+        self.unbounded.set_witness(&mut inputs, &branch.circuit);
+        self.event_owner.set_witness(&mut inputs, event.owner);
+        inputs.set_target(self.targets.event_ty, F::from_canonical_u8(event.ty as u8));
+        inputs.set_target(
+            self.targets.event_address,
+            F::from_canonical_u64(event.address),
+        );
+        inputs.set_target_arr(&self.targets.event_value, &event.value);
+        let proof = self.circuit.prove(inputs)?;
+        Ok(LeafProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    pub fn prove_unsafe(
         &self,
         event: Event<F>,
         hash: Option<HashOut<F>>,
         vm_hash: Option<HashOut<F>>,
         branch: &BranchCircuit<F, C, D>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+    ) -> Result<LeafProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         if let Some(hash) = hash {
@@ -133,7 +213,16 @@ where
             F::from_canonical_u64(event.address),
         );
         inputs.set_target_arr(&self.targets.event_value, &event.value);
-        self.circuit.prove(inputs)
+        let proof = self.circuit.prove(inputs)?;
+        Ok(LeafProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    pub fn verify(&self, proof: LeafProof<F, C, D>) -> Result<()> {
+        self.circuit.verify(proof.proof)
     }
 }
 
@@ -215,25 +304,59 @@ where
         }
     }
 
-    /// `hash` `vm_hash` and `event_owner` only need to be provided to check
-    /// externally, otherwise they will be calculated
-    #[allow(clippy::too_many_arguments)]
-    pub fn prove(
+    fn indices(&self) -> Indices {
+        Indices {
+            unbounded: self.unbounded.indices.clone(),
+            hash: self.hash.indices,
+            vm_hash: self.vm_hash.indices,
+            event_owner: self.event_owner.indices,
+        }
+    }
+
+    pub fn prove<L: IsLeaf, R: IsLeaf>(
         &self,
-        hash: Option<HashOut<F>>,
-        vm_hash: Option<HashOut<F>>,
-        event_owner: Option<[F; 4]>,
-        left_is_leaf: bool,
-        left_proof: &ProofWithPublicInputs<F, C, D>,
-        right_proof: Option<(bool, &ProofWithPublicInputs<F, C, D>)>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        left_proof: &Proof<L, F, C, D>,
+        right_proof: Option<&Proof<R, F, C, D>>,
+    ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         let partial = right_proof.is_none();
         let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
-            right_proof
+            (R::VALUE, &right_proof.proof)
         } else {
-            (left_is_leaf, left_proof)
+            (L::VALUE, &left_proof.proof)
         };
+        self.unbounded.set_witness(
+            &mut inputs,
+            L::VALUE,
+            &left_proof.proof,
+            right_is_leaf,
+            right_proof,
+        );
+        self.hash.set_witness(&mut inputs, partial);
+        self.vm_hash.set_witness(&mut inputs, partial);
+        let proof = self.circuit.prove(inputs)?;
+        Ok(BranchProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    /// `hash` `vm_hash` and `event_owner` only need to be provided to check
+    /// externally, otherwise they will be calculated
+    #[allow(clippy::too_many_arguments)]
+    pub fn prove_unsafe(
+        &self,
+        partial: bool,
+        hash: HashOut<F>,
+        vm_hash: HashOut<F>,
+        event_owner: Option<[F; 4]>,
+        left_is_leaf: bool,
+        left_proof: &ProofWithPublicInputs<F, C, D>,
+        right_is_leaf: bool,
+        right_proof: &ProofWithPublicInputs<F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(
             &mut inputs,
             left_is_leaf,
@@ -241,12 +364,22 @@ where
             right_is_leaf,
             right_proof,
         );
-        self.hash.set_witness(&mut inputs, hash, partial);
-        self.vm_hash.set_witness(&mut inputs, vm_hash, partial);
+        self.hash.set_witness_unsafe(&mut inputs, hash, partial);
+        self.vm_hash
+            .set_witness_unsafe(&mut inputs, vm_hash, partial);
         if let Some(event_owner) = event_owner {
             self.event_owner.set_witness(&mut inputs, event_owner);
         }
-        self.circuit.prove(inputs)
+        let proof = self.circuit.prove(inputs)?;
+        Ok(BranchProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    pub fn verify(&self, proof: BranchProof<F, C, D>) -> Result<()> {
+        self.circuit.verify(proof.proof)
     }
 }
 
@@ -254,185 +387,153 @@ where
 pub mod test {
     use std::panic::catch_unwind;
 
-    use lazy_static::lazy_static;
     use plonky2::field::types::Field;
-    use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
 
+    pub use super::BranchProof;
     use super::*;
+    use crate::circuits::test_data::{
+        EVENT_T0_P0_A_CREDIT, EVENT_T0_P0_A_WRITE, EVENT_T0_P2_A_ENSURE, EVENT_T0_P2_A_READ,
+        EVENT_T0_P2_C_TAKE, EVENT_T0_PM_C_CREDIT, EVENT_T0_PM_C_GIVE, EVENT_T0_PM_C_WRITE,
+        EVENT_T1_P1_B_CREDIT, EVENT_T1_P1_B_GIVE, EVENT_T1_P1_B_WRITE, EVENT_T1_P2_A_READ,
+        EVENT_T1_P2_D_READ, EVENT_T1_PM_B_ENSURE, EVENT_T1_PM_B_TAKE,
+    };
     use crate::test_utils::{hash_branch, hash_branch_bytes, C, CONFIG, D, F};
     use crate::EventType;
 
-    lazy_static! {
-        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(&CONFIG);
-        pub static ref BRANCH: BranchCircuit<F, C, D> = BranchCircuit::new(&CONFIG, &LEAF);
-    }
+    #[tested_fixture::tested_fixture(pub LEAF)]
+    fn build_leaf() -> LeafCircuit<F, C, D> { LeafCircuit::new(&CONFIG) }
 
-    fn assert_hash(h: HashOut<F>, v: [u64; NUM_HASH_OUT_ELTS]) {
-        assert_eq!(h.elements, v.map(F::from_canonical_u64));
-    }
+    #[tested_fixture::tested_fixture(pub BRANCH)]
+    fn build_branch() -> BranchCircuit<F, C, D> { BranchCircuit::new(&CONFIG, &LEAF) }
 
-    #[allow(clippy::unreadable_literal)]
-    fn verify_simple_hashes(
-        read_0_byte_hash: HashOut<F>,
-        write_1_byte_hash: HashOut<F>,
-        write_2_byte_hash: HashOut<F>,
-        branch_1_bytes_hash: HashOut<F>,
-        branch_2_bytes_hash: HashOut<F>,
+    fn assert_proof<T>(
+        proof: &Proof<T, F, C, D>,
+        hash: HashOut<F>,
+        vm_hash: HashOut<F>,
+        owner: [F; 4],
     ) {
-        const READ_0_HASH: [u64; NUM_HASH_OUT_ELTS] = [
-            7272290939186032751,
-            8185818005188304227,
-            17555306369107993266,
-            17187284268557234321,
-        ];
-        const WRITE_1_HASH: [u64; NUM_HASH_OUT_ELTS] = [
-            11469795294276139037,
-            799622748573506082,
-            15272809121316752941,
-            7142640452443475716,
-        ];
-        const WRITE_2_HASH: [u64; NUM_HASH_OUT_ELTS] = [
-            1484423020241144842,
-            17207848040428508675,
-            7995793996020726058,
-            4658801606188332384,
-        ];
-        const BRANCH_1_HASH: [u64; NUM_HASH_OUT_ELTS] = [
-            16758566829994364981,
-            15311795646108582705,
-            12773152691662485878,
-            2551708493265210224,
-        ];
-        const BRANCH_2_HASH: [u64; NUM_HASH_OUT_ELTS] = [
-            8577138257922146843,
-            5112874340235798754,
-            4121828782781403483,
-            12250937462246573507,
-        ];
+        let indices = &LEAF.hash.indices;
+        assert_eq!(*indices, BRANCH.hash.indices);
+        let p_hash = proof.hash();
+        assert_eq!(p_hash, hash);
 
-        assert_hash(read_0_byte_hash, READ_0_HASH);
-        assert_hash(write_1_byte_hash, WRITE_1_HASH);
-        assert_hash(write_2_byte_hash, WRITE_2_HASH);
-        assert_hash(branch_1_bytes_hash, BRANCH_1_HASH);
-        assert_hash(branch_2_bytes_hash, BRANCH_2_HASH);
+        let indices = &LEAF.vm_hash.indices;
+        assert_eq!(*indices, BRANCH.vm_hash.indices);
+        let p_vm_hash = proof.vm_hash();
+        assert_eq!(p_vm_hash, vm_hash);
+
+        let p_owner = proof.event_owner();
+        assert_eq!(p_owner, owner);
     }
 
-    #[test]
-    fn verify_simple() -> Result<()> {
-        let program_hash_1 = [4, 8, 15, 16].map(F::from_canonical_u64);
+    fn test_leaf(event: Event<F>) -> Result<LeafProof<F, C, D>> {
+        let proof = LEAF.prove(event, &BRANCH)?;
+        assert_proof(&proof, event.hash(), event.byte_wise_hash(), event.owner);
+        LEAF.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        let zero_val = [F::ZERO; 4];
-        let non_zero_val_1 = [3, 1, 4, 15].map(F::from_canonical_u64);
-        let non_zero_val_2 = [1, 6, 180, 33].map(F::from_canonical_u64);
-
-        // Duplicate or conflicting events are actually fine as far as this circuit
-        // cares
-        let read_0 = Event {
-            address: 42,
-            owner: program_hash_1,
-            ty: EventType::Read,
-            value: zero_val,
-        };
-        let write_1 = Event {
-            address: 42,
-            owner: program_hash_1,
-            ty: EventType::Write,
-            value: non_zero_val_1,
-        };
-        let write_2 = Event {
-            address: 42,
-            owner: program_hash_1,
-            ty: EventType::Write,
-            value: non_zero_val_2,
-        };
-        let read_0_hash = read_0.hash();
-        let write_1_hash = write_1.hash();
-        let write_2_hash = write_2.hash();
-        let read_0_byte_hash = read_0.byte_wise_hash();
-        let write_1_byte_hash = write_1.byte_wise_hash();
-        let write_2_byte_hash = write_2.byte_wise_hash();
-
-        // Read zero
-        let read_proof = LEAF.prove(read_0, Some(read_0_hash), Some(read_0_byte_hash), &BRANCH)?;
-        LEAF.circuit.verify(read_proof.clone())?;
-
-        // Write pi
-        let write_proof_1 = LEAF.prove(
-            write_1,
-            Some(write_1_hash),
-            Some(write_1_byte_hash),
-            &BRANCH,
-        )?;
-        LEAF.circuit.verify(write_proof_1.clone())?;
-
-        // Write phi
-        // This illegal at the protocol level as a double write, but legal for this
-        // stage
-        let write_proof_2 = LEAF.prove(
-            write_2,
-            Some(write_2_hash),
-            Some(write_2_byte_hash),
-            &BRANCH,
-        )?;
-        LEAF.circuit.verify(write_proof_2.clone())?;
-
-        let branch_1_hash = hash_branch(&write_1_hash, &write_2_hash);
-        let branch_2_hash = hash_branch(&read_0_hash, &branch_1_hash);
-        let branch_1_bytes_hash = hash_branch_bytes(&write_1_byte_hash, &write_2_byte_hash);
-        let branch_2_bytes_hash = hash_branch_bytes(&read_0_byte_hash, &branch_1_bytes_hash);
-
-        // Combine writes
-        let branch_proof_1 = BRANCH.prove(
-            Some(branch_1_hash),
-            Some(branch_1_bytes_hash),
-            Some(program_hash_1),
-            true,
-            &write_proof_1,
-            Some((true, &write_proof_2)),
-        )?;
-        BRANCH.circuit.verify(branch_proof_1.clone())?;
-
-        // Combine with reads
-        let branch_proof_2 = BRANCH.prove(
-            Some(branch_2_hash),
-            Some(branch_2_bytes_hash),
-            Some(program_hash_1),
-            true,
-            &read_proof,
-            Some((false, &branch_proof_1)),
-        )?;
-        BRANCH.circuit.verify(branch_proof_2.clone())?;
-
-        verify_simple_hashes(
-            read_0_byte_hash,
-            write_1_byte_hash,
-            write_2_byte_hash,
-            branch_1_bytes_hash,
-            branch_2_bytes_hash,
+    #[allow(clippy::type_complexity)]
+    fn test_branch_0(
+        left: &LeafProof<F, C, D>,
+        right: &LeafProof<F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        assert_eq!(
+            left.event_owner(),
+            right.event_owner(),
+            "Test bug: tried to combine different event owners"
         );
 
-        // Single-sided proof
-        let branch_proof_1 = BRANCH.prove(
-            Some(write_1_hash),
-            Some(write_1_byte_hash),
-            Some(program_hash_1),
-            true,
-            &write_proof_1,
-            None,
-        )?;
-        BRANCH.circuit.verify(branch_proof_1.clone())?;
+        let proof = BRANCH.prove(left, Some(right))?;
+        let hash = hash_branch(&left.hash(), &right.hash());
+        let vm_hash = hash_branch_bytes(&left.vm_hash(), &right.vm_hash());
+        assert_proof(&proof, hash, vm_hash, left.event_owner());
+        BRANCH.verify(proof.clone())?;
 
-        let branch_proof_3 = BRANCH.prove(
-            Some(branch_2_hash),
-            Some(branch_2_bytes_hash),
-            Some(program_hash_1),
-            false,
-            &branch_proof_2,
-            None,
-        )?;
-        BRANCH.circuit.verify(branch_proof_3)?;
+        Ok(proof)
+    }
 
-        Ok(())
+    #[allow(clippy::type_complexity)]
+    fn test_branch_1(
+        left: &BranchProof<F, C, D>,
+        right: &LeafProof<F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        assert_eq!(
+            left.event_owner(),
+            right.event_owner(),
+            "Test bug: tried to combine different event owners"
+        );
+
+        let proof = BRANCH.prove(left, Some(right))?;
+        let hash = hash_branch(&left.hash(), &right.hash());
+        let vm_hash = hash_branch_bytes(&left.vm_hash(), &right.vm_hash());
+        assert_proof(&proof, hash, vm_hash, left.event_owner());
+        BRANCH.verify(proof.clone())?;
+
+        Ok(proof)
+    }
+
+    macro_rules! make_leaf_tests {
+        ($($($name:ident | $proof:ident = $event:ident),+ $(,)?)?) => {$($(
+    #[tested_fixture::tested_fixture($proof: LeafProof<F, C, D>)]
+    fn $name() -> Result<LeafProof<F, C, D>> {
+        test_leaf($event)
+    }
+        )+)?};
+    }
+
+    make_leaf_tests! {
+        verify_t0_pm_c_credit_leaf | T0_PM_C_CREDIT_LEAF_PROOF = EVENT_T0_PM_C_CREDIT,
+        verify_t0_pm_c_give_leaf | T0_PM_C_GIVE_LEAF_PROOF = EVENT_T0_PM_C_GIVE,
+        verify_t0_pm_c_write_leaf | T0_PM_C_WRITE_LEAF_PROOF = EVENT_T0_PM_C_WRITE,
+        verify_t0_p0_a_write_leaf | T0_P0_A_WRITE_LEAF_PROOF = EVENT_T0_P0_A_WRITE,
+        verify_t0_p0_a_credit_leaf | T0_P0_A_CREDIT_LEAF_PROOF = EVENT_T0_P0_A_CREDIT,
+        verify_t0_p2_a_read_leaf | T0_P2_A_READ_LEAF_PROOF = EVENT_T0_P2_A_READ,
+        verify_t0_p2_a_ensure_leaf | T0_P2_A_ENSURE_LEAF_PROOF = EVENT_T0_P2_A_ENSURE,
+        verify_t0_p2_c_take_leaf | T0_P2_C_TAKE_LEAF_PROOF = EVENT_T0_P2_C_TAKE,
+        verify_t1_pm_b_take_leaf | T1_PM_B_TAKE_LEAF_PROOF = EVENT_T1_PM_B_TAKE,
+        verify_t1_pm_b_ensure_leaf | T1_PM_B_ENSURE_LEAF_PROOF = EVENT_T1_PM_B_ENSURE,
+        verify_t1_p1_b_write_leaf | T1_P1_B_WRITE_LEAF_PROOF = EVENT_T1_P1_B_WRITE,
+        verify_t1_p1_b_give_leaf | T1_P1_B_GIVE_LEAF_PROOF = EVENT_T1_P1_B_GIVE,
+        verify_t1_p1_b_credit_leaf | T1_P1_B_CREDIT_LEAF_PROOF = EVENT_T1_P1_B_CREDIT,
+        verify_t1_p2_a_read_leaf | T1_P2_A_READ_LEAF_PROOF = EVENT_T1_P2_A_READ,
+        verify_t1_p2_d_read_leaf | T1_P2_D_READ_LEAF_PROOF = EVENT_T1_P2_D_READ,
+    }
+
+    #[tested_fixture::tested_fixture(pub T0_PM_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t0_pm_branch() -> Result<BranchProof<F, C, D>> {
+        let proof = test_branch_0(&T0_PM_C_CREDIT_LEAF_PROOF, &T0_PM_C_GIVE_LEAF_PROOF)?;
+
+        test_branch_1(&proof, &T0_PM_C_WRITE_LEAF_PROOF)
+    }
+
+    #[tested_fixture::tested_fixture(pub T0_P0_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t0_p0_branch() -> Result<BranchProof<F, C, D>> {
+        test_branch_0(&T0_P0_A_WRITE_LEAF_PROOF, &T0_P0_A_CREDIT_LEAF_PROOF)
+    }
+
+    #[tested_fixture::tested_fixture(pub T0_P2_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t0_p2_branch() -> Result<BranchProof<F, C, D>> {
+        let proof = test_branch_0(&T0_P2_A_READ_LEAF_PROOF, &T0_P2_A_ENSURE_LEAF_PROOF)?;
+
+        test_branch_1(&proof, &T0_P2_C_TAKE_LEAF_PROOF)
+    }
+
+    #[tested_fixture::tested_fixture(pub T1_PM_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t1_pm_branch() -> Result<BranchProof<F, C, D>> {
+        test_branch_0(&T1_PM_B_TAKE_LEAF_PROOF, &T1_PM_B_ENSURE_LEAF_PROOF)
+    }
+
+    #[tested_fixture::tested_fixture(pub T1_P1_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t1_p1_branch() -> Result<BranchProof<F, C, D>> {
+        let proof = test_branch_0(&T1_P1_B_WRITE_LEAF_PROOF, &T1_P1_B_GIVE_LEAF_PROOF)?;
+
+        test_branch_1(&proof, &T1_P1_B_CREDIT_LEAF_PROOF)
+    }
+
+    #[tested_fixture::tested_fixture(pub T1_P2_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t1_p2_branch() -> Result<BranchProof<F, C, D>> {
+        test_branch_0(&T1_P2_A_READ_LEAF_PROOF, &T1_P2_D_READ_LEAF_PROOF)
     }
 
     #[test]
@@ -464,7 +565,7 @@ pub mod test {
         .expect("shouldn't fail");
 
         // Fail to prove with mismatched hashes
-        LEAF.prove(read_1, Some(read_0_hash), Some(read_0_byte_hash), &BRANCH)
+        LEAF.prove_unsafe(read_1, Some(read_0_hash), Some(read_0_byte_hash), &BRANCH)
             .unwrap();
     }
 
@@ -498,15 +599,11 @@ pub mod test {
                 let read_1_byte_hash = read_1.byte_wise_hash();
 
                 // Read zero
-                let read_proof_1 = LEAF
-                    .prove(read_0, Some(read_0_hash), Some(read_0_byte_hash), &BRANCH)
-                    .unwrap();
-                LEAF.circuit.verify(read_proof_1.clone()).unwrap();
+                let read_proof_1 = LEAF.prove(read_0, &BRANCH).unwrap();
+                LEAF.verify(read_proof_1.clone()).unwrap();
 
-                let read_proof_2 = LEAF
-                    .prove(read_1, Some(read_1_hash), Some(read_1_byte_hash), &BRANCH)
-                    .unwrap();
-                LEAF.circuit.verify(read_proof_2.clone()).unwrap();
+                let read_proof_2 = LEAF.prove(read_1, &BRANCH).unwrap();
+                LEAF.verify(read_proof_2.clone()).unwrap();
 
                 // Combine reads
                 let branch_1_hash = hash_branch(&read_0_hash, &read_1_hash);
@@ -524,13 +621,15 @@ pub mod test {
         // Fail to prove with mismatched program hashes between branches
         // This tree requires all events are from the same program
         BRANCH
-            .prove(
-                Some(branch_1_hash),
-                Some(branch_1_bytes_hash),
+            .prove_unsafe(
+                true,
+                branch_1_hash,
+                branch_1_bytes_hash,
                 Some(program_hash_1),
                 true,
-                &read_proof_1,
-                Some((true, &read_proof_2)),
+                &read_proof_1.proof,
+                true,
+                &read_proof_2.proof,
             )
             .unwrap();
     }

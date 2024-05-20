@@ -21,26 +21,26 @@ members = [ "build_scripts",
   "cli",
   "examples-builder",
   "expr",
-  "node-cli",
   "node",
   "recproofs",
-  "rpc",
   "runner",
   "signatures",
-  "state",
   "wasm-demo",
 ]
 resolver = "2"
-
-[profile.dev.package."*"]
-# Set the default for dependencies in Development mode.
-opt-level = 3
 
 [profile.dev]
 lto = "thin"
 # We are running our tests with optimizations turned on to make them faster.
 # Please turn optimizations off, when you want accurate stack traces for debugging.
 opt-level = 2
+
+[profile.dev.package."*"]
+# Set the default for dependencies in Development mode.
+opt-level = 3
+
+[profile.dev.package.mozak-cli]
+opt-level = 1
 
 [profile.release]
 lto = "fat"
@@ -50,13 +50,16 @@ lto = "thin"
 opt-level = 3
 
 [workspace.dependencies]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }
-plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }
-starky = { git = "https://github.com/0xmozak/plonky2.git", default-features = false }
+plonky2 = { version = "0", default-features = false }
+plonky2_maybe_rayon = { version = "0", default-features = false }
+starky = { version = "0", default-features = false }
 
 plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
 
+criterion = { version = "0.5", default-features = false, features = ["html_reports", "plotters", "cargo_bench_support"] }
+
 [patch.crates-io]
+clio = { git = "https://github.com/0xmozak/clio.git" }
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
 starky = { git = "https://github.com/0xmozak/plonky2.git" }

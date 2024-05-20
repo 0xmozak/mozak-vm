@@ -58,7 +58,8 @@
 //! builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
 //! means split into multiple constraints.
 
-use core::iter::Sum;
+pub mod ops;
+
 use core::ops::{Add, Mul, Neg, Sub};
 use std::collections::HashMap;
 
@@ -126,45 +127,6 @@ impl<'a, V> Expr<'a, V> {
             .rev()
             .fold(Expr::from(0), |acc, term| acc * base + term)
     }
-}
-
-macro_rules! instances {
-    ($op: ident, $fun: ident) => {
-        impl<'a, V> $op<Self> for Expr<'a, V> {
-            type Output = Self;
-
-            fn $fun(self, rhs: Self) -> Self::Output { Self::bin_op(BinOp::$op, self, rhs) }
-        }
-        impl<'a, V> $op<i64> for Expr<'a, V> {
-            type Output = Expr<'a, V>;
-
-            fn $fun(self, rhs: i64) -> Self::Output {
-                Self::bin_op(BinOp::$op, self, Expr::from(rhs))
-            }
-        }
-
-        impl<'a, V> $op<Expr<'a, V>> for i64 {
-            type Output = Expr<'a, V>;
-
-            fn $fun(self, rhs: Expr<'a, V>) -> Self::Output {
-                Self::Output::bin_op(BinOp::$op, Expr::from(self), rhs)
-            }
-        }
-    };
-}
-
-instances!(Add, add);
-instances!(Sub, sub);
-instances!(Mul, mul);
-
-impl<'a, V> Neg for Expr<'a, V> {
-    type Output = Expr<'a, V>;
-
-    fn neg(self) -> Self::Output { Self::una_op(UnaOp::Neg, self) }
-}
-
-impl<'a, V> Sum for Expr<'a, V> {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self { iter.fold(Expr::from(0), Add::add) }
 }
 
 /// Expression Builder.  Contains a [`Bump`] memory arena that will allocate and
@@ -350,12 +312,11 @@ where
 }
 
 /// Default evaluator for pure values.
-#[derive(Default)]
-pub struct PureEvaluator {}
+pub struct PureEvaluator<P>(pub fn(i64) -> P);
 
-impl<'a, V> Evaluator<'a, V> for PureEvaluator
+impl<'a, V> Evaluator<'a, V> for PureEvaluator<V>
 where
-    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V>,
 {
     fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
         match op {
@@ -371,7 +332,14 @@ where
         }
     }
 
-    fn constant(&mut self, value: i64) -> V { value.into() }
+    fn constant(&mut self, value: i64) -> V { (self.0)(value) }
+}
+
+impl<V> Default for PureEvaluator<V>
+where
+    V: Copy + Add<Output = V> + Neg<Output = V> + Mul<Output = V> + Sub<Output = V> + From<i64>,
+{
+    fn default() -> Self { Self(V::from) }
 }
 
 #[derive(Default)]
@@ -413,13 +381,57 @@ where
             .or_insert_with(|| self.evaluator.constant(k))
     }
 
+    // NOTE: We disable clippy warning about map entry becasue it is impossible
+    // to implement the following function using entry(k).or_insert_with, due to
+    // the closue argument to or_insert_with needing to mutably borrow self for
+    // expr_tree, which would be already mutably borrowed by
+    // self.value_cache.entry.
+    #[allow(clippy::map_entry)]
     fn compound_expr(&mut self, expr: CompoundExpr<'a, V>) -> V {
         let expr_tree = expr.0;
+        let k = expr_tree as *const ExprTree<'_, V>;
 
-        *self
-            .value_cache
-            .entry(expr_tree as *const ExprTree<'_, V>)
-            .or_insert_with(|| self.evaluator.expr_tree(expr_tree))
+        if !self.value_cache.contains_key(&k) {
+            let v = self.expr_tree(expr_tree);
+            self.value_cache.insert(k, v);
+        }
+
+        *self.value_cache.get(&k).unwrap()
+    }
+}
+
+#[derive(Default)]
+pub struct Counting<E> {
+    count: u64,
+    evaluator: E,
+}
+
+impl<E> Counting<E> {
+    fn inc(&mut self) { self.count += 1; }
+
+    pub fn count(&self) -> u64 { self.count }
+
+    pub fn reset(&mut self) { self.count = 0; }
+}
+
+impl<'a, V, E> Evaluator<'a, V> for Counting<E>
+where
+    E: Evaluator<'a, V>,
+    V: Copy,
+{
+    fn bin_op(&mut self, op: BinOp, left: V, right: V) -> V {
+        self.inc();
+        self.evaluator.bin_op(op, left, right)
+    }
+
+    fn una_op(&mut self, op: UnaOp, expr: V) -> V {
+        self.inc();
+        self.evaluator.una_op(op, expr)
+    }
+
+    fn constant(&mut self, value: i64) -> V {
+        self.inc();
+        self.evaluator.constant(value)
     }
 }
 
@@ -439,6 +451,24 @@ mod tests {
         assert_eq!(p.eval(a + b), 12);
         assert_eq!(p.eval(a - b), 2);
         assert_eq!(p.eval(a * b), 35);
+    }
+
+    #[test]
+    fn it_works_assign() {
+        let expr = ExprBuilder::default();
+
+        let a = expr.lit(7i64);
+        let b = expr.lit(5i64);
+        let mut c = expr.lit(0i64);
+
+        let mut p = PureEvaluator::default();
+
+        c += a + b;
+        assert_eq!(p.eval(c), 12);
+        c -= b;
+        assert_eq!(p.eval(c), 7);
+        c *= b;
+        assert_eq!(p.eval(c), 35);
     }
 
     #[test]
@@ -481,5 +511,43 @@ mod tests {
         assert_eq!(p.eval(a + b * c), 22);
         assert_eq!(p.eval(a - b * c), -8);
         assert_eq!(p.eval(a * b * c), 105);
+    }
+
+    #[test]
+    fn count_depth() {
+        let eb = ExprBuilder::default();
+
+        let mut c = Counting::<PureEvaluator<_>>::default();
+        let mut one = eb.lit(1i64);
+
+        assert_eq!(c.eval(one), 1);
+        assert_eq!(c.count(), 0);
+        c.reset();
+
+        for _ in 0..10 {
+            one = one * one;
+        }
+
+        assert_eq!(c.eval(one), 1);
+        assert_eq!(c.count(), 1023);
+        c.reset();
+
+        let mut c = Cached::from(c);
+        assert_eq!(c.eval(one), 1);
+        assert_eq!(c.evaluator.count(), 10);
+    }
+
+    #[test]
+    fn avoids_exponential_blowup() {
+        let eb = ExprBuilder::default();
+        let mut one = eb.lit(1i64);
+        // This should timout most modern machines if executed without caching
+        for _ in 0..64 {
+            one = one * one;
+        }
+
+        let mut p = Cached::<i64, Counting<PureEvaluator<_>>>::default();
+        assert_eq!(p.eval(one), 1);
+        assert_eq!(p.evaluator.count(), 64);
     }
 }

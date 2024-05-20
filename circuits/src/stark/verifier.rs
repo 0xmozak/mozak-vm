@@ -14,7 +14,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindSetBuilder};
+use super::mozak_stark::{all_starks, MozakStark, TableKindSetBuilder};
 use super::proof::AllProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
 use crate::public_sub_table::reduce_public_sub_tables_values;
@@ -37,16 +37,6 @@ where
         ctl_challenges,
     } = all_proof.get_challenges(config);
 
-    ensure!(
-        all_proof.proofs[TableKind::Program].trace_cap == all_proof.program_rom_trace_cap,
-        "Mismatch between Program ROM trace caps"
-    );
-
-    ensure!(
-        all_proof.proofs[TableKind::ElfMemoryInit].trace_cap == all_proof.elf_memory_init_trace_cap,
-        "Mismatch between ElfMemoryInit trace caps"
-    );
-
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.proofs,
         &mozak_stark.cross_table_lookups,
@@ -58,10 +48,11 @@ where
         reduce_public_sub_tables_values(&all_proof.public_sub_table_values, &ctl_challenges);
 
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: all_proof.public_inputs.borrow(),
+        cpu_skeleton_stark: all_proof.public_inputs.borrow(),
         ..Default::default()
     }
     .build();
+
     all_starks!(mozak_stark, |stark, kind| {
         verify_stark_proof_with_challenges(
             stark,
@@ -82,28 +73,27 @@ where
     Ok(())
 }
 
-pub(crate) fn verify_stark_proof_with_challenges<
+pub(crate) fn verify_quotient_polynomials<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
     const D: usize,
 >(
     stark: &S,
+    degree_bits: usize,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
     public_inputs: &[F],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
-    config: &StarkConfig,
 ) -> Result<()>
 where
 {
-    validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let StarkOpeningSet {
         local_values,
         next_values,
         ctl_zs: _,
         ctl_zs_next: _,
-        ctl_zs_last,
+        ctl_zs_last: _,
         quotient_polys,
     } = &proof.openings;
 
@@ -116,7 +106,6 @@ where
             .collect_vec(),
     );
 
-    let degree_bits = proof.recover_degree_bits(config);
     let (l_0, l_last) = eval_l_0_and_l_last(degree_bits, challenges.stark_zeta);
     let last = F::primitive_root_of_unity(degree_bits).inverse();
     let z_last = challenges.stark_zeta - last.into();
@@ -159,15 +148,46 @@ where
         );
     }
 
+    // Make sure that we do not use Starky's lookups.
+    assert!(!stark.requires_ctls());
+    assert!(!stark.uses_lookups());
+
+    Ok(())
+}
+
+pub(crate) fn verify_stark_proof_with_challenges<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    S: Stark<F, D>,
+    const D: usize,
+>(
+    stark: &S,
+    proof: &StarkProof<F, C, D>,
+    challenges: &StarkProofChallenges<F, D>,
+    public_inputs: &[F],
+    ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
+    config: &StarkConfig,
+) -> Result<()>
+where
+{
+    validate_proof_shape(stark, proof, config, ctl_vars.len())?;
+    let degree_bits = proof.recover_degree_bits(config);
+    verify_quotient_polynomials(
+        stark,
+        degree_bits,
+        proof,
+        challenges,
+        public_inputs,
+        ctl_vars,
+    )?;
+
+    let ctl_zs_last = &proof.openings.ctl_zs_last;
     let merkle_caps = vec![
         proof.trace_cap.clone(),
         proof.ctl_zs_cap.clone(),
         proof.quotient_polys_cap.clone(),
     ];
 
-    // Make sure that we do not use Starky's lookups.
-    assert!(!stark.requires_ctls());
-    assert!(!stark.uses_lookups());
     verify_fri_proof::<F, C, D>(
         &stark.fri_instance(
             challenges.stark_zeta,

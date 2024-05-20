@@ -1,7 +1,7 @@
 use core::ops::Neg;
 
 use anyhow::{ensure, Result};
-use itertools::{chain, iproduct, izip, zip_eq};
+use itertools::{chain, iproduct, izip, zip_eq, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -11,6 +11,8 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
+#[allow(clippy::wildcard_imports)]
+use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
@@ -21,7 +23,7 @@ pub use crate::linear_combination::Column;
 use crate::linear_combination::ColumnSparse;
 pub use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::public_sub_table::PublicSubTable;
-use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray, TableWithTypedOutput};
+use crate::stark::mozak_stark::{all_kind, TableKind, TableKindArray, TableWithTypedOutput};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProof, StarkProofTarget};
 
@@ -31,7 +33,7 @@ pub enum LookupError {
     InconsistentTableRows,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct CtlData<F: Field> {
     pub(crate) zs_columns: Vec<CtlZData<F>>,
 }
@@ -53,7 +55,7 @@ impl<F: Field> CtlData<F> {
 }
 
 /// Cross-table lookup data associated with one Z(x) polynomial.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct CtlZData<F: Field> {
     pub(crate) z: PolynomialValues<F>,
     pub(crate) challenge: GrandProductChallenge<F>,
@@ -152,46 +154,33 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     cross_table_lookups: &[CrossTableLookup],
     ctl_challenges: &GrandProductChallengeSet<F>,
 ) -> TableKindArray<CtlData<F>> {
-    let mut ctl_data_per_table = all_kind!(|_kind| CtlData::default());
-    for &challenge in &ctl_challenges.challenges {
-        for CrossTableLookup { looking_tables } in cross_table_lookups {
-            log::debug!(
-                "Processing CTL for {:?}",
-                looking_tables
-                    .iter()
-                    .map(|table| table.kind)
-                    .collect::<Vec<_>>()
-            );
-
-            let make_z = |table: &Table| {
-                partial_sums(
-                    &trace_poly_values[table.kind],
-                    &table.columns,
-                    &table.filter_column,
-                    challenge,
-                )
-            };
-            let zs_looking = looking_tables.iter().map(make_z);
-
-            debug_assert_eq!(
-                zs_looking
-                    .clone()
-                    .map(|z| *z.values.last().unwrap())
-                    .sum::<F>(),
-                F::ZERO
-            );
-
-            for (table, z) in izip!(looking_tables, zs_looking) {
-                ctl_data_per_table[table.kind].zs_columns.push(CtlZData {
-                    z,
-                    challenge,
-                    columns: table.columns.clone(),
-                    filter_column: table.filter_column.clone(),
-                });
-            }
-        }
-    }
-    ctl_data_per_table
+    let mut tables = iproduct!(
+        &ctl_challenges.challenges,
+        cross_table_lookups
+            .iter()
+            .flat_map(|CrossTableLookup { looking_tables }| looking_tables)
+    )
+    .collect::<Vec<_>>()
+    .into_par_iter()
+    .map(|(&challenge, table)| {
+        (table.kind, CtlZData {
+            z: partial_sums(
+                &trace_poly_values[table.kind],
+                &table.columns,
+                &table.filter_column,
+                challenge,
+            ),
+            challenge,
+            columns: table.columns.clone(),
+            filter_column: table.filter_column.clone(),
+        })
+    })
+    .collect::<Vec<_>>()
+    .into_iter()
+    .into_group_map();
+    all_kind!(|kind| CtlData {
+        zs_columns: tables.remove(&kind).unwrap(),
+    })
 }
 
 /// Treat CTL and the challenge as a single entity.
@@ -484,7 +473,6 @@ pub mod ctl_utils {
     use std::collections::BTreeMap;
 
     use anyhow::Result;
-    use derive_more::{Deref, DerefMut};
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::hash::hash_types::RichField;
@@ -493,8 +481,17 @@ pub mod ctl_utils {
     use crate::linear_combination::ColumnSparse;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
-    #[derive(Clone, Debug, Default, Deref, DerefMut)]
+    #[derive(Clone, Debug, Default)]
     struct MultiSet<F>(pub BTreeMap<Vec<u64>, Vec<(TableKind, F)>>);
+
+    impl<F: RichField> std::ops::Deref for MultiSet<F> {
+        type Target = BTreeMap<Vec<u64>, Vec<(TableKind, F)>>;
+
+        fn deref(&self) -> &Self::Target { &self.0 }
+    }
+    impl<F: RichField> std::ops::DerefMut for MultiSet<F> {
+        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+    }
 
     impl<F: RichField> MultiSet<F> {
         fn process_row(

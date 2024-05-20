@@ -6,7 +6,7 @@ use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::{REG_A0, REG_A1, REG_A2};
 use plonky2::hash::hash_types::RichField;
 
-use crate::state::{read_bytes, Aux, IoEntry, IoOpcode, State};
+use crate::state::{read_bytes, Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 
 impl<F: RichField> State<F> {
     fn ecall_halt(self) -> (Aux<F>, Self) {
@@ -25,39 +25,48 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    fn ecall_io_read(mut self, op: IoOpcode) -> (Aux<F>, Self) {
+    fn ecall_read(mut self, op: StorageDeviceOpcode) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requested = self.get_register_value(REG_A2);
-        log::trace!("ECALL {}", op);
+        log::trace!("ECALL {:?}", op);
 
         let data = match op {
-            IoOpcode::StorePublic => read_bytes(
+            StorageDeviceOpcode::StorePublic => read_bytes(
                 &self.public_tape.data,
                 &mut self.public_tape.read_index,
                 num_bytes_requested as usize,
             ),
-            IoOpcode::StorePrivate => read_bytes(
+            StorageDeviceOpcode::StorePrivate => read_bytes(
                 &self.private_tape.data,
                 &mut self.private_tape.read_index,
                 num_bytes_requested as usize,
             ),
-            IoOpcode::StoreCallTape => read_bytes(
+            StorageDeviceOpcode::StoreCallTape => read_bytes(
                 &self.call_tape.data,
                 &mut self.call_tape.read_index,
                 num_bytes_requested as usize,
             ),
-            IoOpcode::StoreEventsCommitmentTape => read_bytes(
-                &*self.events_commitment_tape,
+            StorageDeviceOpcode::StoreEventTape => read_bytes(
+                &self.event_tape.data,
+                &mut self.event_tape.read_index,
+                num_bytes_requested as usize,
+            ),
+            StorageDeviceOpcode::StoreEventsCommitmentTape => read_bytes(
+                &self.events_commitment_tape.0,
                 &mut 0,
                 num_bytes_requested as usize,
             ),
-            IoOpcode::StoreCastListCommitmentTape => read_bytes(
-                &*self.cast_list_commitment_tape,
+            StorageDeviceOpcode::StoreCastListCommitmentTape => read_bytes(
+                &self.cast_list_commitment_tape.0,
                 &mut 0,
                 num_bytes_requested as usize,
             ),
-
-            IoOpcode::None => panic!(),
+            StorageDeviceOpcode::StoreSelfProgIdTape => read_bytes(
+                &self.self_prog_id_tape,
+                &mut 0,
+                num_bytes_requested as usize,
+            ),
+            StorageDeviceOpcode::None => panic!(),
         };
         let data_len = u32::try_from(data.len()).expect("cannot fit data.len() into u32");
         let mem_addresses_used: Vec<u32> = (0..data_len)
@@ -67,7 +76,7 @@ impl<F: RichField> State<F> {
             Aux {
                 dst_val: data_len,
                 mem_addresses_used,
-                io: Some(IoEntry {
+                storage_device_entry: Some(StorageDeviceEntry {
                     addr: buffer_start,
                     op,
                     data: data.clone(),
@@ -130,13 +139,15 @@ impl<F: RichField> State<F> {
         );
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
-            ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
-            ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
-            ecall::IO_READ_CALL_TAPE => self.ecall_io_read(IoOpcode::StoreCallTape),
+            ecall::PRIVATE_TAPE => self.ecall_read(StorageDeviceOpcode::StorePrivate),
+            ecall::PUBLIC_TAPE => self.ecall_read(StorageDeviceOpcode::StorePublic),
+            ecall::CALL_TAPE => self.ecall_read(StorageDeviceOpcode::StoreCallTape),
+            ecall::EVENT_TAPE => self.ecall_read(StorageDeviceOpcode::StoreEventTape),
             ecall::EVENTS_COMMITMENT_TAPE =>
-                self.ecall_io_read(IoOpcode::StoreEventsCommitmentTape),
+                self.ecall_read(StorageDeviceOpcode::StoreEventsCommitmentTape),
             ecall::CAST_LIST_COMMITMENT_TAPE =>
-                self.ecall_io_read(IoOpcode::StoreCastListCommitmentTape),
+                self.ecall_read(StorageDeviceOpcode::StoreCastListCommitmentTape),
+            ecall::SELF_PROG_ID_TAPE => self.ecall_read(StorageDeviceOpcode::StoreSelfProgIdTape),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             ecall::VM_TRACE_LOG => self.ecall_trace_log(),

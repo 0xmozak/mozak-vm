@@ -1,23 +1,31 @@
-version: "3.4"
 name: mozak
 services:
   runner:
+    restart: always
     image: 0xmozak/github-runner:latest
     deploy:
       replicas: ${MOZAK_RUNNER_REPLICAS:-3}
       resources:
         # Default to no limits.
         limits:
-          cpus: ${MOZAK_RUNNER_CPU_LIMIT:-}
+          cpus: ${MOZAK_RUNNER_CPU_LIMIT:-0}
           memory: ${MOZAK_RUNNER_MEMORY_LIMIT:-0}
     # Ensure nix daemon is working before starting build agents
     depends_on:
       nix:
         condition: service_healthy
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"
-      - "${MOZAK_RUNNER_CACHE:-/tmp/github-runner-mozak/cache}:/opt/hostedtoolcache"
-      - "nix-store:/nix"
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: ${MOZAK_RUNNER_CACHE:-/tmp/github-runner-mozak/cache}
+        target: /opt/hostedtoolcache
+        bind:
+          create_host_path: true
+      - type: volume
+        source: nix-store
+        target: /nix
 
     environment:
       ACCESS_TOKEN: ${ACCESS_TOKEN}
@@ -30,6 +38,7 @@ services:
     labels:
       net.unraid.docker.icon: "https://i.ibb.co/0FpLxW7/logo.png"
   nix:
+    restart: always
     image: 0xmozak/github-runner:latest
     volumes:
       - "nix-store:/nix"

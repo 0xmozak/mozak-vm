@@ -3,7 +3,6 @@ use core::ops::Add;
 use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::generation::instruction::ascending_sum;
 use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::rangecheck::columns::RangeCheckCtl;
@@ -12,7 +11,7 @@ use crate::stark::mozak_stark::{RegisterTable, TableWithTypedOutput};
 
 columns_view_impl!(Ops);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Ops<T> {
     /// Binary filter column that marks a row as the initialization of
     /// a register.
@@ -37,9 +36,6 @@ impl<F: RichField> From<F> for Ops<F> {
 }
 
 impl<F: RichField> Ops<F> {
-    #[must_use]
-    pub fn to_field(self) -> F { ascending_sum(self) }
-
     #[must_use]
     pub fn init() -> Self {
         Self {
@@ -69,7 +65,7 @@ columns_view_impl!(Register);
 make_col_map!(Register);
 /// [`Design doc for RegisterSTARK`](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc)
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Register<T> {
     /// The register 'address' that indexes into 1 of our 32 registers.
     /// Should only take values 0-31, so this column should be a running sum
@@ -119,6 +115,7 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
             addr: COL_MAP.addr,
             value: COL_MAP.value,
         },
+        // TODO: We can probably do the register init in the same lookup?
         COL_MAP.ops.is_read + COL_MAP.ops.is_write + COL_MAP.ops.is_init,
     )
 }

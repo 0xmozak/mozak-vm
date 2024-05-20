@@ -1,5 +1,7 @@
 use itertools::{chain, Itertools};
+use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::{FriChallenges, FriChallengesTarget, FriProof, FriProofTarget};
 use plonky2::fri::structure::{
@@ -11,13 +13,13 @@ use plonky2::iop::challenger::{Challenger, RecursiveChallenger};
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut, Hasher};
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
-use super::mozak_stark::{all_kind, PublicInputs, TableKindArray};
+use super::mozak_stark::{all_kind, PublicInputs, TableKind, TableKindArray};
 use crate::public_sub_table::PublicSubTableValues;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
@@ -251,6 +253,44 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn batch_new<C: GenericConfig<D, F = F>>(
+        zeta: F::Extension,
+        g: F,
+        poly_start: [usize; 3],
+        poly_count: [usize; 3],
+        trace_commitment: &BatchFriOracle<F, C, D>,
+        ctl_zs_commitment: &BatchFriOracle<F, C, D>,
+        quotient_commitment: &BatchFriOracle<F, C, D>,
+        degree_bits: usize,
+    ) -> Self {
+        let eval_commitment = |z: F::Extension, c: &BatchFriOracle<F, C, D>, index| {
+            c.polynomials[poly_start[index]..poly_start[index] + poly_count[index]]
+                .par_iter()
+                .map(|p| p.to_extension().eval(z))
+                .collect::<Vec<_>>()
+        };
+        let eval_commitment_base = |z: F, c: &BatchFriOracle<F, C, D>, index| {
+            c.polynomials[poly_start[index]..poly_start[index] + poly_count[index]]
+                .par_iter()
+                .map(|p| p.eval(z))
+                .collect::<Vec<_>>()
+        };
+        let zeta_next = zeta.scalar_mul(g);
+        Self {
+            local_values: eval_commitment(zeta, trace_commitment, 0),
+            next_values: eval_commitment(zeta_next, trace_commitment, 0),
+            ctl_zs: eval_commitment(zeta, ctl_zs_commitment, 1),
+            ctl_zs_next: eval_commitment(zeta_next, ctl_zs_commitment, 1),
+            ctl_zs_last: eval_commitment_base(
+                F::primitive_root_of_unity(degree_bits).inverse(),
+                ctl_zs_commitment,
+                1,
+            ),
+            quotient_polys: eval_commitment(zeta, quotient_commitment, 2),
+        }
+    }
+
     pub(crate) fn to_fri_openings(&self) -> FriOpenings<F, D> {
         let zeta_batch = FriOpeningBatch {
             values: chain!(&self.local_values, &self.ctl_zs, &self.quotient_polys)
@@ -262,7 +302,6 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
                 .copied()
                 .collect_vec(),
         };
-        debug_assert!(!self.ctl_zs_last.is_empty());
         let ctl_last_batch = FriOpeningBatch {
             values: self
                 .ctl_zs_last
@@ -320,10 +359,21 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub proofs: TableKindArray<StarkProof<F, C, D>>,
+    pub public_inputs: PublicInputs<F>,
+    pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(bound = "")]
+pub struct BatchProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
+    pub degree_bits: TableKindArray<usize>,
+    pub proofs: TableKindArray<StarkProof<F, C, D>>,
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
     pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
     pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
+    pub batch_stark_proof: StarkProof<F, C, D>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
@@ -343,11 +393,11 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         // TODO: Observe public values.
 
         let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
+        challenger.compact();
 
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
-                challenger.compact();
-                self.proofs[kind].get_challenges(&mut challenger, config)
+                self.proofs[kind].get_challenges(&mut challenger.clone(), config)
             }),
             ctl_challenges,
         }
@@ -358,5 +408,40 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     /// [`TableKind`](crate::cross_table_lookup::TableKind).
     pub(crate) fn all_ctl_zs_last(self) -> TableKindArray<Vec<F>> {
         self.proofs.map(|p| p.openings.ctl_zs_last)
+    }
+
+    /// Flat hash of trace cap of given table
+    fn hash_trace_cap(
+        &self,
+        table: TableKind,
+    ) -> <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::Hash {
+        <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
+            &self.proofs[table]
+                .trace_cap
+                .0
+                .iter()
+                .flat_map(GenericHashOut::to_vec)
+                .collect_vec(),
+        )
+    }
+
+    /// Return flat hash of:
+    /// 1. `entry_point` (1 F element)
+    /// 2. Hash of program rom trace cap (4 F elements)
+    /// 3. Hash of elf memory init trace cap (4 F elements)
+    pub fn get_program_hash_bytes(&self) -> [F; DIGEST_BYTES] {
+        let entry_point = self.public_inputs.entry_point;
+        let program_rom_trace_cap_hash = self.hash_trace_cap(TableKind::Program);
+        let elf_memory_init_trace_cap_hash = self.hash_trace_cap(TableKind::ElfMemoryInit);
+        let program_hash = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
+            &chain!(
+                [entry_point],
+                program_rom_trace_cap_hash.elements,
+                elf_memory_init_trace_cap_hash.elements,
+            )
+            .collect_vec(),
+        );
+        let program_hash_bytes: [u8; DIGEST_BYTES] = program_hash.to_bytes().try_into().unwrap();
+        program_hash_bytes.map(F::from_canonical_u8)
     }
 }

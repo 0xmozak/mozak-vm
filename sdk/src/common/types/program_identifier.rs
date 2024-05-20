@@ -1,8 +1,4 @@
-use super::poseidon2hash::DIGEST_BYTES;
-#[cfg(target_os = "mozakvm")]
-use crate::mozakvm::helpers::poseidon2_hash_with_pad;
-#[cfg(not(target_os = "mozakvm"))]
-use crate::native::helpers::poseidon2_hash_with_pad;
+use crate::core::constants::DIGEST_BYTES;
 
 #[derive(
     Clone,
@@ -24,23 +20,6 @@ use crate::native::helpers::poseidon2_hash_with_pad;
 pub struct ProgramIdentifier(pub super::Poseidon2Hash);
 
 impl ProgramIdentifier {
-    #[must_use]
-    pub fn new(
-        program_rom_hash: super::Poseidon2Hash,
-        memory_init_hash: super::Poseidon2Hash,
-        entry_point: u32,
-    ) -> Self {
-        let input: Vec<u8> = itertools::chain!(
-            program_rom_hash.inner(),
-            memory_init_hash.inner(),
-            entry_point.to_le_bytes(),
-        )
-        .collect();
-        // would be of length 32 + 32 + 4 = 68. And 68 % 8 !=0
-        // Hence would require padding, before being hashed
-        Self(poseidon2_hash_with_pad(&input))
-    }
-
     #[must_use]
     #[cfg(not(target_os = "mozakvm"))]
     pub fn new_from_rand_seed(seed: u64) -> Self {
@@ -71,6 +50,11 @@ impl ProgramIdentifier {
         le_bytes_array[0..DIGEST_BYTES].copy_from_slice(&self.0.inner());
         le_bytes_array
     }
+
+    #[must_use]
+    /// Checks if `self` is the null program, i.e. the program with ID
+    /// `MZK-000000000000000000000000000000000000000000000000000000000000000`
+    pub fn is_null_program(&self) -> bool { self == &Self::default() }
 }
 
 #[cfg(not(target_os = "mozakvm"))]

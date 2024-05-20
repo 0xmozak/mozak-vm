@@ -84,18 +84,18 @@ This would build ELF executables under `target/riscv32im-mozak-mozakvm-elf/debug
 change the following to actual files after iotapes are added to examples
 -->
 
-use `mozak-cli`'s run command to execute generated ELF, where `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>` are files containing the private and public inputs of the program.
+use `mozak-cli`'s run command to execute generated ELF, where `<PRIVATE_TAPE>` and `<PUBLIC_TAPE>` are files containing the private and public inputs of the program.
 
 ```rust
-mozak-cli run target/riscv32im-mozak-mozakvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC>
+mozak-cli run target/riscv32im-mozak-mozakvm-elf/release/<ELF_NAME> <PRIVATE_TAPE> <PUBLIC_TAPE>
 ```
 
-For this fibonnacci example, both `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>` are empty files.
+For this fibonnacci example, both `<PRIVATE_TAPE>` and `<PUBLIC_TAPE>` are empty files.
 
 To prove the execution of the program, run:
 
 ```rust
-mozak-cli prove target/riscv32im-mozak-mozakvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC> <PROOF>
+mozak-cli prove target/riscv32im-mozak-mozakvm-elf/release/<ELF_NAME> <PRIVATE_TAPE> <PUBLIC_TAPE> <PROOF>
 ```
 
 where `<PROOF>` is the path to the proof file

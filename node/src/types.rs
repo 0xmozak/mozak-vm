@@ -8,22 +8,13 @@ use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::plonk::config::GenericConfig;
 use serde::{Deserialize, Serialize};
 
-/// Attestation provided opaquely.
+/// An attestion to the correct execution of a `MozakVM` program, denoted by its
+/// [`ProgramIdentifier`](mozak_sdk::coretypes::ProgramIdentifier).
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(bound = "")]
-pub struct OpaqueAttestation<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    const D: usize,
-> {
-    /// Hash of the private inputs in the execution of a `MozakVM` program.
-    pub private_tape_hash: MerkleCap<F, C::Hasher>,
-}
-
-/// Attestation provided in the clear.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound = "")]
-pub struct TransparentAttestation {
+pub struct Attestation {
+    /// The ID of the program that this attestation is associated with.
+    pub id: ProgramIdentifier,
     // TODO(bing): Attest to its commitment
     /// Public inputs to the execution of a `MozakVM` program, provided in the
     /// clear.
@@ -32,17 +23,6 @@ pub struct TransparentAttestation {
     /// Events emitted during the execution of a `MozakVM` program, provided in
     /// the clear.
     pub event_tape: OrderedEvents,
-}
-
-/// An attestion to the correct execution of a `MozakVM` program, denoted by its
-/// [`ProgramIdentifier`](mozak_sdk::coretypes::ProgramIdentifier).
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(bound = "")]
-pub struct Attestation<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    /// The ID of the program that this attestation is associated with.
-    pub id: ProgramIdentifier,
-    pub opaque: OpaqueAttestation<F, C, D>,
-    pub transparent: TransparentAttestation,
 }
 
 /// The transaction sent across to sequencer
@@ -58,5 +38,5 @@ pub struct Transaction<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>,
     pub call_tape_hash: MerkleCap<F, C::Hasher>,
     /// The list of attestation(s) of the correct execution of the program(s)
     /// involved in this `Transaction`.
-    pub constituent_zs: Vec<Attestation<F, C, D>>,
+    pub constituent_zs: Vec<Attestation>,
 }

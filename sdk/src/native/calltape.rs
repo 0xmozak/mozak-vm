@@ -6,7 +6,7 @@ use rkyv::Deserialize;
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
 use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};
-use crate::native::helpers::IdentityStack;
+use crate::native::identity::IdentityStack;
 
 /// Represents the `CallTape` under native execution
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
