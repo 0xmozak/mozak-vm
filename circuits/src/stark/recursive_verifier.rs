@@ -9,11 +9,8 @@ use log::info;
 use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
-use plonky2::fri::batch_verifier::verify_batch_fri_proof;
 use plonky2::fri::proof::FriProofTarget;
-use plonky2::fri::structure::{
-    FriOpeningBatch, FriOpeningBatchTarget, FriOpenings, FriOpeningsTarget,
-};
+use plonky2::fri::structure::{FriOpeningBatchTarget, FriOpeningsTarget};
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::{MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
@@ -41,7 +38,7 @@ use crate::public_sub_table::{
     public_sub_table_values_and_reduced_targets, PublicSubTable, PublicSubTableValuesTarget,
 };
 use crate::stark::batch_prover::{
-    batch_fri_instances, batch_fri_instances_target, batch_reduction_arity_bits, sort_degree_bits,
+    batch_fri_instances_target, batch_reduction_arity_bits, sort_degree_bits,
 };
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::get_grand_product_challenge_set_target;
@@ -475,7 +472,6 @@ where
                 &stark_proof_with_pis_target[kind],
                 &batch_stark_challenges_target,
                 &ctl_vars,
-                inner_config,
             );
         }
 
@@ -746,7 +742,6 @@ fn verify_quotient_polynomials_circuit<
     proof_with_public_inputs: &StarkProofWithPublicInputsTarget<D>,
     challenges: &StarkProofChallengesTarget<D>,
     ctl_vars: &[CtlCheckVarsTarget<D>],
-    inner_config: &StarkConfig,
 ) where
     C::Hasher: AlgebraicHasher<F>, {
     let one = builder.one_extension();
@@ -832,7 +827,6 @@ fn verify_stark_proof_with_challenges_circuit<
         proof_with_public_inputs,
         challenges,
         ctl_vars,
-        inner_config,
     );
 
     let ctl_zs_last = &proof_with_public_inputs.proof.openings.ctl_zs_last;
@@ -1299,14 +1293,12 @@ mod tests {
             &public_input_slice.into();
         assert_eq!(
             recursive_proof_public_inputs.event_commitment_tape, expected_event_commitment_tape,
-            "Could not find
-        expected_event_commitment_tape in recursive proof's public inputs"
+            "Could not find expected_event_commitment_tape in recursive proof's public inputs"
         );
         assert_eq!(
             recursive_proof_public_inputs.castlist_commitment_tape,
             expected_castlist_commitment_tape,
-            "Could not find expected_castlist_commitment_tape in recursive proof's
-        public inputs"
+            "Could not find expected_castlist_commitment_tape in recursive proof's public inputs"
         );
 
         mozak_stark_circuit.circuit.verify(recursive_proof)
