@@ -1,6 +1,7 @@
 use expr::{Evaluator, ExprBuilder};
 use itertools::Itertools;
 use log::debug;
+
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 use mozak_runner::vm::{ExecutionRecord, Row};
@@ -8,12 +9,12 @@ use mozak_sdk::core::ecall;
 use mozak_sdk::core::reg_abi::REG_A0;
 use plonky2::hash::hash_types::RichField;
 
-use crate::generation::MIN_TRACE_LENGTH;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
 use crate::cpu_skeleton::columns::CpuSkeleton;
 use crate::expr::PureEvaluator;
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
 use crate::utils::{from_u32, sign_extend};

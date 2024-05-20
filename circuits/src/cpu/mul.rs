@@ -109,7 +109,6 @@ mod tests {
 
     use crate::cpu::generation::generate_cpu_trace;
     use crate::cpu::stark::CpuStark;
-    // use crate::generation::cpu::generate_cpu_trace;
     use crate::stark::mozak_stark::MozakStark;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify, C, D, F};

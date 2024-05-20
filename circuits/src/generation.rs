@@ -4,8 +4,8 @@
 use std::borrow::Borrow;
 use std::fmt::{Debug, Display};
 
-use log::debug;
 use itertools::{izip, Itertools};
+use log::debug;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -20,14 +20,14 @@ use starky::stark::Stark;
 
 use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::columns_view::HasNamedColumns;
-use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
-use crate::ops;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
+use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
 use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
 use crate::memoryinit::generation::{generate_elf_memory_init_trace, generate_memory_init_trace};
+use crate::ops;
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
