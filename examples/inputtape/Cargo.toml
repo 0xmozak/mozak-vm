@@ -13,7 +13,7 @@ rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["poin
 rkyv_derive = "=0.8.0-alpha.1"
 
 [target.'cfg(not(target_os="mozakvm"))'.build-dependencies]
-build_scripts = { path = "../../build_scripts"}
+build_scripts = { path = "../../build_scripts" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"
