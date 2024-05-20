@@ -150,6 +150,7 @@ where
             &self.stark_proof_with_pis_target.proof,
             proof,
             zero,
+            true,
         );
     }
 }
@@ -256,6 +257,7 @@ where
             &self.proof.batch_stark_proof_target,
             &all_proof.batch_stark_proof,
             self.zero_target,
+            false,
         );
 
         self.circuit.prove(inputs)
@@ -310,9 +312,12 @@ where
             kind,
             inner_config.num_challenges,
         );
-        num_leaves_per_oracle[0] += get_num_columns(stark);
-        num_leaves_per_oracle[1] += num_ctl_zs + num_make_row_public_zs;
-        num_leaves_per_oracle[2] += stark.quotient_degree_factor() * inner_config.num_challenges;
+        if !public_table_kinds.contains(&kind) {
+            num_leaves_per_oracle[0] += get_num_columns(stark);
+            num_leaves_per_oracle[1] += num_ctl_zs + num_make_row_public_zs;
+            num_leaves_per_oracle[2] +=
+                stark.quotient_degree_factor() * inner_config.num_challenges;
+        }
         add_virtual_stark_proof_with_pis(
             &mut builder,
             stark,
@@ -966,6 +971,7 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     proof_target: &StarkProofTarget<D>,
     proof: &StarkProof<F, C, D>,
     zero: Target,
+    set_fri_openings: bool,
 ) where
     F: RichField + Extendable<D>,
     C::Hasher: AlgebraicHasher<F>,
@@ -973,16 +979,18 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     witness.set_cap_target(&proof_target.trace_cap, &proof.trace_cap);
     witness.set_cap_target(&proof_target.quotient_polys_cap, &proof.quotient_polys_cap);
 
-    witness.set_fri_openings(
-        &proof_target.openings.to_fri_openings(zero),
-        &proof.openings.to_fri_openings(),
-    );
+    if set_fri_openings {
+        witness.set_fri_openings(
+            &proof_target.openings.to_fri_openings(zero),
+            &proof.openings.to_fri_openings(),
+        );
+    }
 
     witness.set_cap_target(&proof_target.ctl_zs_cap, &proof.ctl_zs_cap);
 
-    proof_target.opening_proof.as_ref().map(|opening_proof| {
-        set_fri_proof_target(witness, opening_proof, &proof.opening_proof);
-    });
+    if let Some(opening_proof_target) = &proof_target.opening_proof {
+        set_fri_proof_target(witness, opening_proof_target, &proof.opening_proof);
+    }
 }
 
 // Generates `CircuitData` usable for recursion.
