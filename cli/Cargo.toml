@@ -47,5 +47,5 @@ mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
 
 [features]
-default = ["parallel"]
+default = []
 parallel = ["plonky2/parallel", "starky/parallel", "mozak-circuits/parallel", "criterion/rayon"]
