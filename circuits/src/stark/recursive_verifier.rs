@@ -475,19 +475,10 @@ where
         }
     });
 
-    // Register the public tables as public inputs.
-    for kind in PUBLIC_TABLE_KINDS {
-        builder.register_public_inputs(
-            &table_targets[kind]
-                .stark_proof_with_pis_target
-                .proof
-                .trace_cap
-                .0
-                .iter()
-                .flat_map(|h| h.elements)
-                .collect::<Vec<_>>(),
-        );
-    }
+    let program_hash =
+        get_program_hash_circuit_bytes::<F, C, D>(&mut builder, &stark_proof_with_pis_target);
+
+    builder.register_public_inputs(&program_hash);
     all_kind!(|kind| {
         builder.register_public_inputs(
             &public_sub_table_values_targets[kind]
