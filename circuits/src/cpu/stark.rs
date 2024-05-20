@@ -11,12 +11,11 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
-use super::columns::{CpuState, Instruction};
-use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
+use super::columns::{CpuState, OpSelectors};
+use super::{bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
-use crate::stark::mozak_stark::PublicInputs;
 
 /// A Gadget for CPU Instructions
 ///
@@ -33,45 +32,22 @@ impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
 
 /// Ensure that if opcode is straight line, then program counter is incremented
 /// by 4.
-fn pc_ticks_up<'a, P: Copy>(
-    lv: &CpuState<Expr<'a, P>>,
-    nv: &CpuState<Expr<'a, P>>,
-    cb: &mut ConstraintBuilder<Expr<'a, P>>,
-) {
-    cb.transition(lv.inst.ops.is_straightline() * (nv.inst.pc - (lv.inst.pc + 4)));
+fn pc_ticks_up<'a, P: Copy>(lv: &CpuState<Expr<'a, P>>, cb: &mut ConstraintBuilder<Expr<'a, P>>) {
+    cb.transition(lv.inst.ops.is_straightline() * (lv.new_pc - (lv.inst.pc + 4)));
 }
 
 /// Enforce that selectors of opcode are one-hot encoded.
 /// Ie exactly one of them should be 1, and all others 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
-fn one_hots<'a, P: Copy>(
-    inst: &'a Instruction<Expr<'a, P>>,
-    cb: &mut ConstraintBuilder<Expr<'a, P>>,
-) {
-    one_hot(inst.ops, cb);
-}
-
-fn one_hot<'a, P: Copy, Selectors: Copy + IntoIterator<Item = Expr<'a, P>>>(
-    selectors: Selectors,
+fn binary_selectors<'a, P: Copy>(
+    ops: &'a OpSelectors<Expr<'a, P>>,
     cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     // selectors have value 0 or 1.
-    selectors.into_iter().for_each(|s| cb.always(s.is_binary()));
+    ops.into_iter().for_each(|s| cb.always(s.is_binary()));
 
-    // Only one selector enabled.
-    let sum_s_op: Expr<'a, P> = selectors.into_iter().sum();
-    cb.always(1 - sum_s_op);
-}
-
-/// Ensure clock is ticking up, iff CPU is still running.
-fn clock_ticks<'a, P: Copy>(
-    lv: &CpuState<Expr<'a, P>>,
-    nv: &CpuState<Expr<'a, P>>,
-    cb: &mut ConstraintBuilder<Expr<'a, P>>,
-) {
-    let clock_diff = nv.clk - lv.clk;
-    cb.transition(clock_diff.is_binary());
-    cb.transition(clock_diff - lv.is_running);
+    // Only at most one selector enabled.
+    cb.always(ops.is_running().is_binary());
 }
 
 /// Constraints for values in op2, which is the sum of the value of the second
@@ -99,45 +75,35 @@ fn populate_op2_value<'a, P: Copy>(
 }
 
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
-// Public inputs: [PC of the first row]
-const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &'a StarkFrameTyped<CpuState<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>,
+fn generate_constraints<'a, T: Copy, U>(
+    vars: &'a StarkFrameTyped<CpuState<Expr<'a, T>>, Vec<U>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = &vars.local_values;
-    let nv = &vars.next_values;
-    let public_inputs = vars.public_inputs;
     let mut constraints = ConstraintBuilder::default();
 
-    constraints.first_row(lv.inst.pc - public_inputs.entry_point);
-    clock_ticks(lv, nv, &mut constraints);
-    pc_ticks_up(lv, nv, &mut constraints);
+    pc_ticks_up(lv, &mut constraints);
 
-    one_hots(&lv.inst, &mut constraints);
+    binary_selectors(&lv.inst.ops, &mut constraints);
 
     // Registers
     populate_op2_value(lv, &mut constraints);
 
-    add::constraints(lv, &mut constraints);
+    // ADD is now handled by its own table.
+    constraints.always(lv.inst.ops.add);
     sub::constraints(lv, &mut constraints);
     bitwise::constraints(lv, &mut constraints);
     branches::comparison_constraints(lv, &mut constraints);
-    branches::constraints(lv, nv, &mut constraints);
+    branches::constraints(lv, &mut constraints);
     memory::constraints(lv, &mut constraints);
     signed_comparison::signed_constraints(lv, &mut constraints);
     signed_comparison::slt_constraints(lv, &mut constraints);
     shift::constraints(lv, &mut constraints);
     div::constraints(lv, &mut constraints);
     mul::constraints(lv, &mut constraints);
-    jalr::constraints(lv, nv, &mut constraints);
-    ecall::constraints(lv, nv, &mut constraints);
-
-    // Clock starts at 2. This is to differentiate
-    // execution clocks (2 and above) from
-    // clk values `0` and `1` which are reserved for
-    // elf initialisation and zero initialisation respectively.
-    constraints.first_row(2 - lv.clk);
+    jalr::constraints(lv, &mut constraints);
+    ecall::constraints(lv, &mut constraints);
 
     constraints
 }
