@@ -680,7 +680,7 @@ where
         builder,
         &proofs_target[TableKind::ElfMemoryInit].proof.trace_cap,
     );
-    let entry_point = proofs_target[TableKind::Cpu].public_inputs.clone();
+    let entry_point = proofs_target[TableKind::CpuSkeleton].public_inputs.clone();
     let program_hash = builder.hash_pad::<C::InnerHasher>(
         chain!(
             entry_point,
