@@ -7,14 +7,23 @@ use anyhow::Result;
 use clio::Input;
 use itertools::{izip, Itertools};
 use log::debug;
+use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
+use mozak_circuits::program::generation::generate_program_rom_trace;
+use mozak_circuits::stark::prover::get_program_id;
 use mozak_runner::elf::Program;
 use mozak_runner::state::RawTapes;
 use mozak_sdk::common::merkle::merkleize;
 use mozak_sdk::common::types::{
     CanonicalOrderedTemporalHints, Poseidon2Hash, ProgramIdentifier, SystemTape,
 };
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::ser::AllocSerializer;
+use starky::config::StarkConfig;
+
+use crate::trace_utils::get_trace_merkle_cap;
 
 pub fn load_program(mut elf: Input) -> Result<Program> {
     let mut elf_bytes = Vec::new();
@@ -135,4 +144,24 @@ pub fn raw_tapes_from_system_tape(sys: Option<Input>, self_prog_id: ProgramIdent
             cast_list_commitment_tape,
         }
     }
+}
+
+/// Computes `[ProgramIdentifer]` from hash of entry point and merkle caps
+/// of `ElfMemoryInit` and `ProgramRom` tables.
+pub fn get_self_prog_id<F, C, const D: usize>(
+    program: &Program,
+    config: &StarkConfig,
+) -> ProgramIdentifier
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>, {
+    let entry_point = F::from_canonical_u32(program.entry_point);
+
+    let elf_memory_init_trace = generate_elf_memory_init_trace::<F>(program);
+    let program_rom_trace = generate_program_rom_trace::<F>(program);
+
+    let elf_memory_init_cap = get_trace_merkle_cap::<F, C, D, _>(elf_memory_init_trace, config);
+    let program_cap = get_trace_merkle_cap::<F, C, D, _>(program_rom_trace, config);
+    get_program_id::<F, C, D>(entry_point, &program_cap, &elf_memory_init_cap)
 }

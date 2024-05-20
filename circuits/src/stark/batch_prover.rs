@@ -23,7 +23,7 @@ use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -41,7 +41,7 @@ use crate::public_sub_table::public_sub_table_data_and_values;
 use crate::stark::mozak_stark::{all_kind, all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
-use crate::stark::prover::prove_single_table;
+use crate::stark::prover::{get_program_id, prove_single_table};
 
 #[derive(Debug)]
 pub struct BatchFriOracleIndices {
@@ -341,9 +341,10 @@ pub fn batch_prove<F, C, const D: usize>(
 ) -> Result<(BatchProof<F, C, D>, TableKindArray<usize>)>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
     debug!("Starting Prove");
-    let traces_poly_values = generate_traces(program, record);
+    let traces_poly_values = generate_traces(program, record, timing);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);
@@ -456,18 +457,25 @@ where
         timing,
     )?;
 
-    let program_rom_trace_cap = trace_caps[TableKind::Program].clone().unwrap();
-    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone().unwrap();
+    let program_id = get_program_id::<F, C, D>(
+        public_inputs.entry_point,
+        trace_caps[TableKind::Program]
+            .as_ref()
+            .expect("program trace cap not found"),
+        trace_caps[TableKind::ElfMemoryInit]
+            .as_ref()
+            .expect("elf memory ini trace cap not found"),
+    );
+
     if log_enabled!(Debug) {
         timing.print();
     }
     Ok((
         BatchProof {
             proofs,
-            program_rom_trace_cap,
-            elf_memory_init_trace_cap,
             public_inputs,
             public_sub_table_values,
+            program_id,
             batch_stark_proof,
         },
         degree_bits,
@@ -501,9 +509,10 @@ where
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
-    let cpu_stark = [public_inputs.entry_point];
+    // TODO(Matthias): Unify everything in this function with the non-batch version.
+    let cpu_skeleton_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: &cpu_stark,
+        cpu_skeleton_stark: &cpu_skeleton_stark,
         ..Default::default()
     }
     .build();

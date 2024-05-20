@@ -19,15 +19,17 @@ use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
     circuit_data_for_recursion, recursive_mozak_stark_circuit,
-    shrink_to_target_degree_bits_circuit, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
-    VM_RECURSION_THRESHOLD_DEGREE_BITS,
+    shrink_to_target_degree_bits_circuit, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
+    VM_RECURSION_CONFIG, VM_RECURSION_THRESHOLD_DEGREE_BITS,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::storage_device::generation::generate_call_tape_trace;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_cli::runner::{deserialize_system_tape, load_program, raw_tapes_from_system_tape};
+use mozak_cli::runner::{
+    deserialize_system_tape, get_self_prog_id, load_program, raw_tapes_from_system_tape,
+};
 use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
@@ -103,6 +105,8 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
+    /// Compute the Self Program Id of the given ELF,
+    SelfProgId { elf: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -152,9 +156,9 @@ fn main() -> Result<()> {
             recursive_proof,
             batch_proof,
         }) => {
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.clone().into());
+            let self_program_id: ProgramIdentifier = self_prog_id.into();
             let program = load_program(elf).unwrap();
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
-
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             let stark = if cli.debug {
@@ -202,6 +206,22 @@ fn main() -> Result<()> {
                 );
 
                 let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
+
+                let public_inputs_array: [F; VM_PUBLIC_INPUT_SIZE] = recursive_all_proof
+                    .public_inputs
+                    .clone()
+                    .try_into()
+                    .unwrap();
+
+                let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
+                assert_eq!(
+                    public_inputs.program_hash_as_bytes.to_vec(),
+                    self_program_id
+                        .inner()
+                        .into_iter()
+                        .map(F::from_canonical_u8)
+                        .collect_vec()
+                );
 
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
                     &recursive_circuit.circuit,
@@ -430,6 +450,12 @@ fn main() -> Result<()> {
             );
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
+        }
+
+        Command::SelfProgId { elf } => {
+            let program = load_program(elf)?;
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            println!("{self_prog_id:?}");
         }
         Command::Bench(bench) => {
             let time_taken = bench.bench()?.as_secs_f64();
