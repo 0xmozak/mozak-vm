@@ -48,10 +48,11 @@ where
         reduce_public_sub_tables_values(&all_proof.public_sub_table_values, &ctl_challenges);
 
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: all_proof.public_inputs.borrow(),
+        cpu_skeleton_stark: all_proof.public_inputs.borrow(),
         ..Default::default()
     }
     .build();
+
     all_starks!(mozak_stark, |stark, kind| {
         verify_stark_proof_with_challenges(
             stark,

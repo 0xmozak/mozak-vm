@@ -5,12 +5,14 @@ use std::borrow::Borrow;
 use std::fmt::{Debug, Display};
 
 use itertools::{izip, Itertools};
+use log::debug;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
+use plonky2::util::timing::TimingTree;
 use plonky2::util::transpose;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
@@ -19,11 +21,13 @@ use starky::stark::Stark;
 use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
+use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
 use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
 use crate::memoryinit::generation::{generate_elf_memory_init_trace, generate_memory_init_trace};
+use crate::ops;
 use crate::poseidon2::generation::generate_poseidon2_trace;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
@@ -56,12 +60,17 @@ pub const MIN_TRACE_LENGTH: usize = 8;
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
     record: &ExecutionRecord<F>,
+    _timing: &mut TimingTree,
 ) -> TableKindArray<Vec<PolynomialValues<F>>> {
+    debug!("Starting Trace Generation");
     let cpu_rows = generate_cpu_trace::<F>(record);
+    let skeleton_rows = generate_cpu_skeleton_trace(record);
+    let add_rows = ops::add::generate(record);
+    let blt_taken_rows = ops::blt_taken::generate(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
-    let program_mult_rows = generate_program_mult_trace(&cpu_rows, &program_rows);
+    let program_mult_rows = generate_program_mult_trace(&skeleton_rows, &program_rows);
 
     let memory_init = generate_memory_init_trace(program);
     let elf_memory_init_rows = generate_elf_memory_init_trace(program);
@@ -102,6 +111,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let (register_zero_read_rows, register_zero_write_rows, register_rows) =
         generate_register_trace(
             &cpu_rows,
+            &add_rows,
+            &blt_taken_rows,
             &poseiden2_sponge_rows,
             &private_tape_rows,
             &public_tape_rows,
@@ -113,10 +124,18 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
             &register_init_rows,
         );
     // Generate rows for the looking values with their multiplicities.
-    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+    let rangecheck_rows = generate_rangecheck_trace::<F>(
+        &cpu_rows,
+        &add_rows,
+        &blt_taken_rows,
+        &memory_rows,
+        &register_rows,
+    );
     // Generate a trace of values containing 0..u8::MAX, with multiplicities to be
     // looked.
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
+    let add_trace = ops::add::generate(record);
+    let blt_trace = ops::blt_taken::generate(record);
     let tape_commitments_rows = generate_tape_commitments_trace(record);
 
     TableKindSetBuilder {
@@ -146,6 +165,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
         poseidon2_output_bytes_stark: trace_rows_to_poly_values(poseidon2_output_bytes_rows),
+        cpu_skeleton_stark: trace_rows_to_poly_values(skeleton_rows),
+        add_stark: trace_rows_to_poly_values(add_trace),
+        blt_taken_stark: trace_rows_to_poly_values(blt_trace),
         tape_commitments_stark: trace_rows_to_poly_values(tape_commitments_rows),
     }
     .build()
@@ -181,7 +203,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     public_inputs: &PublicInputs<F>,
 ) {
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: public_inputs.borrow(),
+        cpu_skeleton_stark: public_inputs.borrow(),
         ..Default::default()
     }
     .build();

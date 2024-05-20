@@ -1,9 +1,11 @@
+use core::iter::Sum;
 use core::ops::{Add, Mul, Sub};
 
 use mozak_runner::instruction::Op;
 
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
+use crate::cpu_skeleton::columns::CpuSkeletonCtl;
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
@@ -147,11 +149,8 @@ columns_view_impl!(CpuState);
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct CpuState<T> {
     pub clk: T,
+    pub new_pc: T,
     pub inst: Instruction<T>,
-
-    // Represents the end of the program. Also used as the filter column for cross checking Program
-    // ROM instructions.
-    pub is_running: T,
 
     pub op1_value: T,
     pub op2_value_raw: T,
@@ -240,8 +239,10 @@ pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
 impl<T> CpuState<T>
 where
-    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
+    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T> + Sum,
 {
+    pub fn is_running(&self) -> T { self.inst.ops.is_running() }
+
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
@@ -260,10 +261,12 @@ where
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-impl<P: Copy + Add<Output = P>> OpSelectors<P>
+impl<P> OpSelectors<P>
 where
-    i64: Sub<P, Output = P>,
+    P: Copy + Add<Output = P> + Sum<P> + Sub<Output = P> + Sum,
 {
+    pub fn is_running(self) -> P { self.into_iter().sum() }
+
     // List of opcodes that manipulated the program counter, instead of
     // straight line incrementing it.
     // Note: ecall is only 'jumping' in the sense that a 'halt'
@@ -273,7 +276,7 @@ where
     }
 
     /// List of opcodes that only bump the program counter.
-    pub fn is_straightline(&self) -> P { 1 - self.is_jumping() }
+    pub fn is_straightline(self) -> P { self.is_running() - self.is_jumping() }
 
     /// List of opcodes that work with memory.
     pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
@@ -456,7 +459,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
                 1 << 5,
             ),
         },
-        ColumnWithTypedInput::constant(1),
+        CPU.is_running(),
     )
 }
 
@@ -478,7 +481,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rs1_selected,
                 value: CPU.op1_value,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
         CpuTable::new(
             RegisterCtl {
@@ -487,7 +490,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rs2_selected,
                 value: CPU.op2_value_raw,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
         CpuTable::new(
             RegisterCtl {
@@ -496,7 +499,20 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rd_selected,
                 value: CPU.dst_value,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
     ]
+}
+
+#[must_use]
+pub fn lookup_for_skeleton() -> TableWithTypedOutput<CpuSkeletonCtl<Column>> {
+    CpuTable::new(
+        CpuSkeletonCtl {
+            clk: CPU.clk,
+            pc: CPU.inst.pc,
+            new_pc: CPU.new_pc,
+            will_halt: CPU.is_halt,
+        },
+        CPU.is_running(),
+    )
 }
