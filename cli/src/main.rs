@@ -157,7 +157,7 @@ fn main() -> Result<()> {
         Command::Run(RunArgs { elf, system_tape }) => {
             let program = load_program(elf).unwrap();
             let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
@@ -186,7 +186,7 @@ fn main() -> Result<()> {
 =======
             let program = load_program(elf).unwrap();
             let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.clone());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state = State::new(program.clone(), raw_tapes);
 >>>>>>> 9ce5f1aaa (remove self-prog-id from cli commands and run_examples.py)
             let record = step(&program, state)?;

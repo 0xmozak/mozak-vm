@@ -1,6 +1,10 @@
 [package]
-name = "build_scripts"
-version = "0.1.0"
+categories = ["cryptography"]
+description = "Build scripts for mozak examples"
 edition = "2021"
-
-[dependencies]
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "build_scripts"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
