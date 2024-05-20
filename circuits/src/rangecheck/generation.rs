@@ -103,6 +103,7 @@ mod tests {
     use crate::memory_halfword::generation::generate_halfword_memory_trace;
     use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
     use crate::memoryinit::generation::generate_memory_init_trace;
+    use crate::ops::{self, blt_taken};
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::register::generation::{generate_register_init_trace, generate_register_trace};
@@ -111,7 +112,6 @@ mod tests {
         generate_event_tape_trace, generate_events_commitment_tape_trace,
         generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
     };
-    use crate::ops::{self, blt_taken};
 
     #[test]
     fn test_generate_trace() {

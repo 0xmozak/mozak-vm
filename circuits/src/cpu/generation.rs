@@ -1,7 +1,6 @@
 use expr::{Evaluator, ExprBuilder};
 use itertools::Itertools;
 use log::debug;
-
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 use mozak_runner::vm::{ExecutionRecord, Row};
