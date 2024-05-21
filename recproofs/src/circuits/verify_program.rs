@@ -107,7 +107,7 @@ where
     pub program_verifier: core::ProgramVerifierSubCircuit<D>,
 
     /// The event root verifier
-    pub event_verifier: core::EventRootVerifierSubCircuit<D>,
+    pub event_verifier: core::EventRootVerifierSubCircuit<C, D>,
 
     pub circuit: CircuitData<F, C, D>,
 }
@@ -161,6 +161,10 @@ where
         builder.connect(
             events_targets.inputs.hash_present.target,
             program_verifier_targets.events_present.target,
+        );
+        builder.connect(
+            events_targets.inputs.hash_present.target,
+            event_verifier_targets.events_present.target,
         );
         builder.connect_hashes(
             program_verifier_targets.event_root,
@@ -219,14 +223,14 @@ where
         branch: &BranchCircuit<F, C, D>,
         program_verifier: &VerifierOnlyCircuitData<C, D>,
         program_proof: &ProofWithPublicInputs<F, C, D>,
-        event_root_proof: &build_event_root::BranchProof<F, C, D>,
+        event_root_proof: Result<&build_event_root::BranchProof<F, C, D>, [F; 4]>,
     ) -> Result<LeafProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.program_verifier
             .set_witness(&mut inputs, program_verifier, program_proof);
         self.event_verifier
-            .set_witness(&mut inputs, &event_root_proof.proof);
+            .set_witness(&mut inputs, event_root_proof.map(|p| &p.proof));
         let proof = self.circuit.prove(inputs)?;
         Ok(LeafProof {
             proof,
@@ -592,7 +596,7 @@ pub mod test {
             &BRANCH,
             &program_verifier.circuit.verifier_only,
             &program_proof,
-            event_proof,
+            Ok(event_proof),
         )?;
         assert_proof(&proof, Some(hash), program.program_hash_val);
         LEAF.verify(proof.clone())?;
@@ -639,6 +643,27 @@ pub mod test {
             NON_ZERO_VALUES[0],
             CAST_ROOT[0],
         )
+    }
+
+    #[tested_fixture::tested_fixture(PM_EMPTY_EVENT_LEAF_PROOF: LeafProof<F, C, D>)]
+    fn verify_empty_leaf() -> Result<LeafProof<F, C, D>> {
+        let program_proof = PROGRAM_M
+            .prove(None, NON_ZERO_VALUES[0], CAST_ROOT[0])
+            .expect("shouldn't fail");
+        PROGRAM_M
+            .circuit
+            .verify(program_proof.clone())
+            .expect("shouldn't fail");
+
+        let proof = LEAF.prove(
+            &BRANCH,
+            &PROGRAM_M.circuit.verifier_only,
+            &program_proof,
+            Err(PROGRAM_M.program_hash_val),
+        )?;
+        assert_proof(&proof, None, PROGRAM_M.program_hash_val);
+        LEAF.verify(proof.clone())?;
+        Ok(proof)
     }
 
     #[test]
