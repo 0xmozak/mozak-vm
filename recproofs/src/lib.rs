@@ -159,10 +159,10 @@ impl EventFlags {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Event<F> {
-    owner: [F; 4],
-    ty: EventType,
-    address: u64,
-    value: [F; 4],
+    pub owner: [F; 4],
+    pub ty: EventType,
+    pub address: u64,
+    pub value: [F; 4],
 }
 
 impl<F: RichField> Event<F> {
@@ -591,13 +591,13 @@ where
 
 /// Generate a circuit matching a given `CommonCircuitData`.
 #[must_use]
-pub fn dummy_circuit<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>(
-    common_data: &CommonCircuitData<F, D>,
-    register_public_inputs: impl FnOnce(&mut CircuitBuilder<F, D>),
-) -> CircuitData<F, C, D> {
+pub fn dummy_circuit<C: GenericConfig<D>, const D: usize>(
+    common_data: &CommonCircuitData<C::F, D>,
+    register_public_inputs: impl FnOnce(&mut CircuitBuilder<C::F, D>),
+) -> CircuitData<C::F, C, D> {
     let config = common_data.config.clone();
 
-    let mut builder = CircuitBuilder::<F, D>::new(config);
+    let mut builder = CircuitBuilder::<C::F, D>::new(config);
     // Build up enough wires to cover all our inputs
     for _ in 0..common_data.num_public_inputs {
         let _ = builder.add_virtual_target();
