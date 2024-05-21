@@ -112,7 +112,7 @@ impl SubCircuitInputs {
         )
         .common;
 
-        let dummy = dummy_circuit::<_, C, D>(&common, |builder| self.register_inputs(builder));
+        let dummy = dummy_circuit::<C, D>(&common, |builder| self.register_inputs(builder));
 
         let prev_proof = builder.add_virtual_proof_with_pis(&common);
 

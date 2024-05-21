@@ -27,7 +27,7 @@ clap-verbosity-flag = "2.2"
 clap_derive = "4.5"
 clio = { version = "0.3", features = ["clap-parse"] }
 env_logger = "0.11"
-itertools = "0.12"
+itertools = "0.13"
 log = "0.4"
 mozak-examples = { path = "../examples-builder", features = ["mozak-sort"], optional = true}
 plonky2 = { workspace = true, default-features = false }
