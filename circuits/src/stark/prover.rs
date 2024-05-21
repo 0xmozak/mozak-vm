@@ -24,9 +24,7 @@ use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{
-    all_starks_par, MozakStark, TableKind, TableKindArray, TableKindSetBuilder,
-};
+use super::mozak_stark::{all_starks_par, MozakStark, TableKindArray, TableKindSetBuilder};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -170,15 +168,11 @@ where
         )?
     );
 
-    let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
-    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
     if log_enabled!(Debug) {
         timing.print();
     }
     Ok(AllProof {
         proofs,
-        program_rom_trace_cap,
-        elf_memory_init_trace_cap,
         public_inputs,
         public_sub_table_values,
     })

@@ -124,8 +124,8 @@ impl SubCircuitInputs {
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
     ) -> SubCircuitInputs {
-        let node_present = indices.node_present.get(&proof.public_inputs);
-        let node_address = indices.node_address.get(&proof.public_inputs);
+        let node_present = indices.node_present.get_target(&proof.public_inputs);
+        let node_address = indices.node_address.get_target(&proof.public_inputs);
 
         SubCircuitInputs {
             node_present,

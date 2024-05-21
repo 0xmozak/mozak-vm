@@ -3,6 +3,7 @@ pub mod branches;
 pub mod columns;
 pub mod div;
 pub mod ecall;
+pub mod generation;
 pub mod jalr;
 pub mod memory;
 pub mod mul;

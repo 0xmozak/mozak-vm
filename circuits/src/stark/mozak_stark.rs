@@ -77,6 +77,9 @@ use crate::{
 
 const NUM_CROSS_TABLE_LOOKUP: usize = 17;
 const NUM_PUBLIC_SUB_TABLES: usize = 2;
+const NUM_PUBLIC_TABLES: usize = 2;
+pub const PUBLIC_TABLE_KINDS: [TableKind; NUM_PUBLIC_TABLES] =
+    [TableKind::Program, TableKind::ElfMemoryInit];
 
 /// STARK Gadgets of Mozak-VM
 ///

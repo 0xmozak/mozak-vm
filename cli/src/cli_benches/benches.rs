@@ -7,7 +7,7 @@ use super::memory::MemoryBench;
 use super::nop::NopBench;
 use super::omni::OmniBench;
 use super::poseidon2::Poseidon2Bench;
-use super::sort::{SortBench, SortBenchRecursive};
+use super::sort::{BatchStarksSortBench, SortBench, SortBenchRecursive};
 use super::xor::XorBench;
 
 #[derive(Debug, Args_, Clone)]
@@ -62,6 +62,9 @@ pub enum BenchFunction {
     SortBenchRecursive {
         n: u32,
     },
+    BatchStarksSortBench {
+        n: u32,
+    },
 }
 
 impl BenchArgs {
@@ -74,6 +77,7 @@ impl BenchArgs {
             BenchFunction::SortBench { n } => SortBench.bench(n),
             BenchFunction::SortBenchRecursive { n } => SortBenchRecursive.bench(n),
             BenchFunction::MemoryBench { iterations } => MemoryBench.bench(iterations),
+            BenchFunction::BatchStarksSortBench { n } => BatchStarksSortBench.bench(n),
         }
     }
 }
