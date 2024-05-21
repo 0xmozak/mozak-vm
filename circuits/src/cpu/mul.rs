@@ -95,9 +95,6 @@ pub(crate) fn constraints<'a, P: Copy>(
 
 #[cfg(test)]
 mod tests {
-
-    use std::borrow::Borrow;
-
     use anyhow::Result;
     use mozak_runner::code;
     use mozak_runner::instruction::{Args, Instruction, Op};
@@ -112,10 +109,9 @@ mod tests {
 
     use crate::cpu::generation::generate_cpu_trace;
     use crate::cpu::stark::CpuStark;
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
+    use crate::stark::mozak_stark::MozakStark;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{fast_test_config, ProveAndVerify, C, D, F};
-    use crate::utils::from_u32;
     #[allow(clippy::cast_sign_loss)]
     #[test]
     fn prove_mulhsu_example() {
@@ -123,7 +119,7 @@ mod tests {
         let config = fast_test_config();
         let a = -2_147_451_028_i32;
         let b = 2_147_483_648_u32;
-        let (program, record) = code::execute(
+        let (_program, record) = code::execute(
             [Instruction {
                 op: Op::MULHSU,
                 args: Args {
@@ -146,20 +142,11 @@ mod tests {
             trace_rows_to_poly_values(cpu_trace)
         );
         let stark = S::default();
-        let public_inputs = PublicInputs {
-            entry_point: from_u32(program.entry_point),
-        };
 
         let proof = timed!(
             timing,
             "cpu proof",
-            prove_table::<F, C, S, D>(
-                stark,
-                &config,
-                trace_poly_values,
-                public_inputs.borrow(),
-                &mut timing,
-            )
+            prove_table::<F, C, S, D>(stark, &config, trace_poly_values, &[], &mut timing,)
         );
         let proof = proof.unwrap();
         let verification_res = timed!(

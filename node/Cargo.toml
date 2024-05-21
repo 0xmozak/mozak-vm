@@ -15,7 +15,7 @@ repository = "https://github.com/0xmozak/mozak-node"
 [dependencies]
 anyhow = "1.0.83"
 hashbrown = "0.14.5"
-itertools = "0.12"
+itertools = "0.13"
 mozak-recproofs = { path = '../recproofs' }
 mozak-sdk = { path = '../sdk' }
 plonky2 = { workspace = true, default-features = false }

@@ -1,4 +1,3 @@
-#![feature(restricted_std)]
 #![allow(unused_attributes)]
 
 mod core_logic;
@@ -30,5 +29,5 @@ fn main() {
         dispatch,
     );
 
-    mozak_sdk::native::dump_proving_files("wallet");
+    mozak_sdk::native::dump_proving_files();
 }

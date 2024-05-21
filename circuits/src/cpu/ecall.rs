@@ -2,7 +2,6 @@
 //! 'ECALL'.
 
 use expr::Expr;
-use itertools::izip;
 use mozak_sdk::core::ecall;
 
 use super::columns::CpuState;
@@ -10,7 +9,6 @@ use crate::expr::ConstraintBuilder;
 
 pub(crate) fn constraints<'a, P: Copy>(
     lv: &CpuState<Expr<'a, P>>,
-    nv: &CpuState<Expr<'a, P>>,
     cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     // ECALL is used for HALT, PRIVATE_TAPE/PUBLIC_TAPE or POSEIDON2 system
@@ -36,41 +34,9 @@ pub(crate) fn constraints<'a, P: Copy>(
                 + lv.is_self_prog_id_tape
                 + lv.is_poseidon2),
     );
-    halt_constraints(lv, nv, cb);
+    cb.always(lv.is_halt * (lv.op1_value - i64::from(ecall::HALT)));
     storage_device_constraints(lv, cb);
     poseidon2_constraints(lv, cb);
-}
-
-pub(crate) fn halt_constraints<'a, P: Copy>(
-    lv: &CpuState<Expr<'a, P>>,
-    nv: &CpuState<Expr<'a, P>>,
-    cb: &mut ConstraintBuilder<Expr<'a, P>>,
-) {
-    // Thus we can equate ecall with halt in the next row.
-    // Crucially, this prevents a malicious prover from just halting the program
-    // anywhere else.
-    // Enable only for halt !!!
-    cb.transition(lv.is_halt * (lv.inst.ops.ecall + nv.is_running - 1));
-    cb.always(lv.is_halt * (lv.op1_value - i64::from(ecall::HALT)));
-
-    // We also need to make sure that the program counter is not changed by the
-    // 'halt' system call.
-    // Enable only for halt !!!
-    cb.transition(lv.is_halt * (lv.inst.ops.ecall * (nv.inst.pc - lv.inst.pc)));
-
-    let is_halted = 1 - lv.is_running;
-    cb.always(lv.is_running.is_binary());
-
-    // TODO: change this when we support segmented proving.
-    // Last row must be 'halted', ie no longer is_running.
-    cb.last_row(lv.is_running);
-
-    // Once we stop running, no subsequent row starts running again:
-    cb.transition(is_halted * (nv.is_running - lv.is_running));
-    // Halted means that nothing changes anymore:
-    for (&lv_entry, &nv_entry) in izip!(lv, nv) {
-        cb.transition(is_halted * (lv_entry - nv_entry));
-    }
 }
 
 pub(crate) fn storage_device_constraints<'a, P: Copy>(
