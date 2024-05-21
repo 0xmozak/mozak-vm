@@ -5,14 +5,14 @@ use enumflags2::BitFlags;
 use itertools::chain;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
-use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use crate::{are_equal, are_zero, select_hash, EventFlags};
+use crate::{are_equal, are_zero, zero_if, EventFlags};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct PublicIndices {}
@@ -74,9 +74,6 @@ impl SubCircuitInputs {
     where
         F: RichField + Extendable<D>, {
         let one = builder.one();
-        let zero_hash = HashOutTarget {
-            elements: [builder.zero(); NUM_HASH_OUT_ELTS],
-        };
 
         let block_height = builder.add_virtual_target();
         let address = builder.add_virtual_target();
@@ -120,19 +117,18 @@ impl SubCircuitInputs {
         builder.connect(is_owner_change, give_owner_flag.target); // Mode based on flags
 
         // Use block_height for any writes
-        let updated = builder.or(is_creation, write_flag);
+        let updated = builder.or(give_owner_flag, write_flag);
         let updated = builder.or(updated, credits_updated);
         let new_last_updated = builder.select(updated, block_height, last_updated);
+        let new_last_updated = zero_if(builder, is_deletion, new_last_updated);
 
         // Build the old hash
         let old_hash = chain!(old_owner, [last_updated, old_credits], old_data).collect();
         let old_hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(old_hash);
-        let old_hash = select_hash(builder, is_creation, zero_hash, old_hash);
 
         // Build the new hash
         let new_hash = chain!(new_owner, [new_last_updated, new_credits], new_data).collect();
         let new_hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(new_hash);
-        let new_hash = select_hash(builder, is_deletion, zero_hash, new_hash);
 
         // Build the state summary hash
         let state_hash = chain!([address], old_hash.elements, new_hash.elements).collect();

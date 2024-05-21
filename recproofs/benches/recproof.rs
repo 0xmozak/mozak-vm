@@ -123,23 +123,17 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
 
     // Leaf proofs
     let zero_proof = leaf_circuit.prove(zero_hash, zero_hash, None).unwrap();
-    leaf_circuit.circuit.verify(zero_proof.clone()).unwrap();
+    leaf_circuit.verify(zero_proof.clone()).unwrap();
 
     let proof_0_to_1_id_3 = leaf_circuit
         .prove(zero_hash, non_zero_hash_1, Some(3))
         .unwrap();
-    leaf_circuit
-        .circuit
-        .verify(proof_0_to_1_id_3.clone())
-        .unwrap();
+    leaf_circuit.verify(proof_0_to_1_id_3.clone()).unwrap();
 
     let proof_0_to_1_id_4 = leaf_circuit
         .prove(zero_hash, non_zero_hash_1, Some(4))
         .unwrap();
-    leaf_circuit
-        .circuit
-        .verify(proof_0_to_1_id_4.clone())
-        .unwrap();
+    leaf_circuit.verify(proof_0_to_1_id_4.clone()).unwrap();
 
     // Branch proofs
     let branch_00_and_01_proof = branch_circuit_1
@@ -159,12 +153,7 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
         })
     });
     group.bench_function("recproof_leaf_verify", |b| {
-        b.iter(|| {
-            leaf_circuit
-                .circuit
-                .verify(proof_0_to_1_id_3.clone())
-                .unwrap()
-        })
+        b.iter(|| leaf_circuit.verify(proof_0_to_1_id_3.clone()).unwrap())
     });
 
     group.bench_function("recproof_branch_prove_1", |b| {
@@ -177,7 +166,6 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
     group.bench_function("recproof_branch_verify", |b| {
         b.iter(|| {
             branch_circuit_1
-                .circuit
                 .verify(branch_00_and_01_proof.clone())
                 .unwrap()
         })

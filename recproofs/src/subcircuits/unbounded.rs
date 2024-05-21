@@ -148,8 +148,8 @@ impl SubCircuitInputs {
 
         // Connect previous verifier data to current one. This guarantees that every
         // proof in the cycle uses the same verifier data.
-        let left_verifier = leaf.indices.verifier.get(&left_proof.public_inputs);
-        let right_verifier = leaf.indices.verifier.get(&right_proof.public_inputs);
+        let left_verifier = leaf.indices.verifier.get_target(&left_proof.public_inputs);
+        let right_verifier = leaf.indices.verifier.get_target(&right_proof.public_inputs);
         builder.connect_verifier_data(&self.verifier, &left_verifier);
         builder.connect_verifier_data(&self.verifier, &right_verifier);
 

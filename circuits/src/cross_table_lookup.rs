@@ -473,7 +473,6 @@ pub mod ctl_utils {
     use std::collections::BTreeMap;
 
     use anyhow::Result;
-    use derive_more::{Deref, DerefMut};
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::hash::hash_types::RichField;
@@ -482,8 +481,17 @@ pub mod ctl_utils {
     use crate::linear_combination::ColumnSparse;
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
-    #[derive(Clone, Debug, Default, Deref, DerefMut)]
+    #[derive(Clone, Debug, Default)]
     struct MultiSet<F>(pub BTreeMap<Vec<u64>, Vec<(TableKind, F)>>);
+
+    impl<F: RichField> std::ops::Deref for MultiSet<F> {
+        type Target = BTreeMap<Vec<u64>, Vec<(TableKind, F)>>;
+
+        fn deref(&self) -> &Self::Target { &self.0 }
+    }
+    impl<F: RichField> std::ops::DerefMut for MultiSet<F> {
+        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+    }
 
     impl<F: RichField> MultiSet<F> {
         fn process_row(

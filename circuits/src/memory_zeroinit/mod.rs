@@ -7,4 +7,5 @@
 //! Note that this is different from the `MemoryInit` STARK table, which
 //! references the memory initialized from the static ELF.
 pub mod columns;
+pub mod generation;
 pub mod stark;
