@@ -236,7 +236,7 @@ where
             all_proof.public_inputs.borrow(),
         );
 
-        let program_id_elements = all_proof.program_id.0.0.map(F::from_canonical_u8);
+        let program_id_elements = all_proof.program_id.0 .0.map(F::from_canonical_u8);
         inputs.set_target_arr(self.proof.program_id.as_ref(), &program_id_elements);
 
         set_stark_proof_with_pis_target(

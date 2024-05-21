@@ -282,7 +282,11 @@ pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
             }
         }
 
-        for (i, item) in polynomial_index_start.iter_mut().enumerate().take(ORACLE_COUNT) {
+        for (i, item) in polynomial_index_start
+            .iter_mut()
+            .enumerate()
+            .take(ORACLE_COUNT)
+        {
             *item += ins.oracles[i].num_polys;
         }
     }
@@ -335,7 +339,11 @@ pub(crate) fn merge_fri_instances_target<const D: usize>(
             }
         }
 
-        for (i, item) in polynomial_index_start.iter_mut().enumerate().take(ORACLE_COUNT) {
+        for (i, item) in polynomial_index_start
+            .iter_mut()
+            .enumerate()
+            .take(ORACLE_COUNT)
+        {
             *item += ins.oracles[i].num_polys;
         }
     }
