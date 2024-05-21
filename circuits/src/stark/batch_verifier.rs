@@ -11,7 +11,9 @@ use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use starky::config::StarkConfig;
 
-use super::mozak_stark::{all_kind, all_starks, MozakStark, TableKind, TableKindSetBuilder};
+use super::mozak_stark::{
+    all_kind, all_starks, MozakStark, TableKind, TableKindArray, TableKindSetBuilder,
+};
 use crate::cross_table_lookup::{verify_cross_table_lookups_and_public_sub_tables, CtlCheckVars};
 use crate::public_sub_table::reduce_public_sub_tables_values;
 use crate::stark::batch_prover::{
@@ -28,6 +30,7 @@ pub fn batch_verify_proof<F, C, const D: usize>(
     public_table_kinds: &[TableKind],
     all_proof: BatchProof<F, C, D>,
     config: &StarkConfig,
+    degree_bits: &TableKindArray<usize>,
 ) -> Result<()>
 where
     F: RichField + Extendable<D>,
@@ -35,8 +38,7 @@ where
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
     debug!("Starting Batch Verify");
 
-    let degree_bits = all_proof.degree_bits;
-    let sorted_degree_bits = sort_degree_bits(public_table_kinds, &degree_bits);
+    let sorted_degree_bits = sort_degree_bits(public_table_kinds, degree_bits);
 
     let mut challenger = Challenger::<F, C::Hasher>::new();
 
@@ -165,7 +167,7 @@ where
     let fri_instances = batch_fri_instances(
         mozak_stark,
         public_table_kinds,
-        &degree_bits,
+        degree_bits,
         &sorted_degree_bits,
         batch_stark_challenges.stark_zeta,
         config,
