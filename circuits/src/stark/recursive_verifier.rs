@@ -13,7 +13,7 @@ use plonky2::fri::proof::FriProofTarget;
 use plonky2::fri::structure::{FriOpeningBatchTarget, FriOpeningsTarget};
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::noop::NoopGate;
-use plonky2::hash::hash_types::{HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{HashOutTarget, MerkleCapTarget, RichField};
 use plonky2::iop::challenger::RecursiveChallenger;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
@@ -183,14 +183,15 @@ where
         });
 
         // Set public inputs
-        let cpu_skeleton_target = &self.proof.table_targets[TableKind::CpuSkeleton].stark_proof_with_pis_target;
+        let cpu_skeleton_target =
+            &self.proof.table_targets[TableKind::CpuSkeleton].stark_proof_with_pis_target;
         inputs.set_target_arr(
             cpu_skeleton_target.public_inputs.as_ref(),
             all_proof.public_inputs.borrow(),
         );
 
         let program_id_elements = all_proof.program_id.0 .0.map(F::from_canonical_u8);
-        inputs.set_target_arr(self.program_id.as_ref(), &program_id_elements);
+        inputs.set_target_arr(self.proof.program_id.as_ref(), &program_id_elements);
 
         self.circuit.prove(inputs)
     }
@@ -228,20 +229,16 @@ where
         });
 
         // Set public inputs
-        let cpu_target = &self.proof.table_targets[TableKind::Cpu].stark_proof_with_pis_target;
+        let cpu_skeleton_target =
+            &self.proof.table_targets[TableKind::CpuSkeleton].stark_proof_with_pis_target;
         inputs.set_target_arr(
-            cpu_target.public_inputs.as_ref(),
+            cpu_skeleton_target.public_inputs.as_ref(),
             all_proof.public_inputs.borrow(),
         );
 
-        inputs.set_cap_target(
-            &self.proof.program_rom_trace_cap_target,
-            &all_proof.program_rom_trace_cap,
-        );
-        inputs.set_cap_target(
-            &self.proof.elf_memory_init_trace_cap_target,
-            &all_proof.elf_memory_init_trace_cap,
-        );
+        let program_id_elements = all_proof.program_id.0 .0.map(F::from_canonical_u8);
+        inputs.set_target_arr(self.proof.program_id.as_ref(), &program_id_elements);
+
         set_stark_proof_with_pis_target(
             &mut inputs,
             &self.proof.batch_stark_proof_target,
@@ -478,6 +475,13 @@ where
 
     let program_hash =
         get_program_hash_circuit_bytes::<F, C, D>(&mut builder, &stark_proof_with_pis_target);
+    let program_id: [Target; DIGEST_BYTES] = builder
+        .add_virtual_targets(DIGEST_BYTES)
+        .try_into()
+        .expect("Expected a slice with exactly DIGEST_BYTES elements");
+    for i in 0..DIGEST_BYTES {
+        builder.connect(program_hash[i], program_id[i]);
+    }
 
     builder.register_public_inputs(&program_hash);
     all_kind!(|kind| {
@@ -556,8 +560,7 @@ where
         circuit,
         proof: MozakBatchProofTarget {
             table_targets,
-            program_rom_trace_cap_target,
-            elf_memory_init_trace_cap_target,
+            program_id,
             public_sub_table_values_targets,
             batch_stark_proof_target,
         },

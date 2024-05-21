@@ -452,3 +452,40 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         program_hash_bytes.map(F::from_canonical_u8)
     }
 }
+
+impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> BatchProof<F, C, D> {
+    /// Flat hash of trace cap of given table
+    fn hash_trace_cap(
+        &self,
+        table: TableKind,
+    ) -> <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::Hash {
+        <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
+            &self.proofs[table]
+                .trace_cap
+                .0
+                .iter()
+                .flat_map(GenericHashOut::to_vec)
+                .collect_vec(),
+        )
+    }
+
+    /// Return flat hash of:
+    /// 1. `entry_point` (1 F element)
+    /// 2. Hash of program rom trace cap (4 F elements)
+    /// 3. Hash of elf memory init trace cap (4 F elements)
+    pub fn get_program_hash_bytes(&self) -> [F; DIGEST_BYTES] {
+        let entry_point = self.public_inputs.entry_point;
+        let program_rom_trace_cap_hash = self.hash_trace_cap(TableKind::Program);
+        let elf_memory_init_trace_cap_hash = self.hash_trace_cap(TableKind::ElfMemoryInit);
+        let program_hash = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
+            &chain!(
+                [entry_point],
+                program_rom_trace_cap_hash.elements,
+                elf_memory_init_trace_cap_hash.elements,
+            )
+            .collect_vec(),
+        );
+        let program_hash_bytes: [u8; DIGEST_BYTES] = program_hash.to_bytes().try_into().unwrap();
+        program_hash_bytes.map(F::from_canonical_u8)
+    }
+}
