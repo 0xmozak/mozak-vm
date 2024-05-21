@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use anyhow::Result;
 use itertools::izip;
 use mozak_runner::code;
@@ -35,6 +33,7 @@ use crate::memory_halfword::generation::generate_halfword_memory_trace;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
 use crate::memoryinit::generation::generate_memory_init_trace;
+use crate::ops;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
 use crate::rangecheck::generation::generate_rangecheck_trace;
@@ -123,21 +122,18 @@ pub trait ProveAndVerify {
 }
 
 impl ProveAndVerify for CpuStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = CpuStark<F, D>;
 
         let config = fast_test_config();
 
         let stark = S::default();
         let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(record));
-        let public_inputs: PublicInputs<F> = PublicInputs {
-            entry_point: from_u32(program.entry_point),
-        };
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            public_inputs.borrow(),
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -153,6 +149,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
+        let add_trace = ops::add::generate(record);
+        let blt_trace = ops::blt_taken::generate(record);
 
         let memory_init = generate_memory_init_trace(program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, program);
@@ -188,6 +186,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let register_init = generate_register_init_trace(record);
         let (_, _, register_trace) = generate_register_trace(
             &cpu_trace,
+            &add_trace,
+            &blt_trace,
             &poseidon2_sponge_trace,
             &private_tape,
             &public_tape,
@@ -200,6 +200,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         );
         let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
             &cpu_trace,
+            &add_trace,
+            &blt_trace,
             &memory_trace,
             &register_trace,
         ));
@@ -394,6 +396,8 @@ impl ProveAndVerify for RegisterStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
+        let add_trace = ops::add::generate(record);
+        let blt_trace = ops::blt_taken::generate(record);
         let private_tape = generate_private_tape_trace(&record.executed);
         let public_tape = generate_public_tape_trace(&record.executed);
         let call_tape = generate_call_tape_trace(&record.executed);
@@ -407,6 +411,8 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let register_init = generate_register_init_trace(record);
         let (_, _, trace) = generate_register_trace(
             &cpu_trace,
+            &add_trace,
+            &blt_trace,
             &poseidon2_sponge_rows,
             &private_tape,
             &public_tape,

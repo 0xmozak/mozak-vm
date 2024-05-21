@@ -55,7 +55,12 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     debug!("Starting Prove");
-    let traces_poly_values = timed!(timing, "Generate traces", generate_traces(program, record));
+    let traces_poly_values = timed!(
+        timing,
+        "Generate traces",
+        generate_traces(program, record, timing)
+    );
+    debug!("Done with Trace Generation");
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         timed!(
             timing,
@@ -70,7 +75,7 @@ where
     }
     timed!(
         timing,
-        "Prove with traces",
+        "Prove with Traces",
         prove_with_traces(
             mozak_stark,
             config,
@@ -364,9 +369,9 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    let cpu_stark = [public_inputs.entry_point];
+    let cpu_skeleton_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: &cpu_stark,
+        cpu_skeleton_stark: &cpu_skeleton_stark,
         ..Default::default()
     }
     .build();

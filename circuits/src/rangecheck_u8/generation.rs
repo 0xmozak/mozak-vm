@@ -50,6 +50,7 @@ mod tests {
     use crate::memory_halfword::generation::generate_halfword_memory_trace;
     use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
     use crate::memoryinit::generation::generate_memory_init_trace;
+    use crate::ops;
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::rangecheck::generation::generate_rangecheck_trace;
@@ -78,6 +79,8 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
+        let add_rows = ops::add::generate(&record);
+        let blt_rows = ops::blt_taken::generate(&record);
 
         let memory_init = generate_memory_init_trace(&program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
@@ -113,6 +116,8 @@ mod tests {
         let register_init = generate_register_init_trace(&record);
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
+            &add_rows,
+            &blt_rows,
             &poseidon2_sponge_trace,
             &private_tape,
             &public_tape,
@@ -123,8 +128,13 @@ mod tests {
             &self_prog_id_tape_rows,
             &register_init,
         );
-        let rangecheck_rows =
-            generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+        let rangecheck_rows = generate_rangecheck_trace::<F>(
+            &cpu_rows,
+            &add_rows,
+            &blt_rows,
+            &memory_rows,
+            &register_rows,
+        );
 
         let trace = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
 

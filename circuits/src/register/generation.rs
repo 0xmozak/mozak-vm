@@ -5,6 +5,7 @@ use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
+use crate::ops;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::register::general::columns::{Ops, Register};
 use crate::register::init::columns::RegisterInit;
@@ -85,6 +86,8 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
+    add_trace: &[ops::add::columns::Add<F>],
+    blt_trace: &[ops::blt_taken::columns::BltTaken<F>],
     poseidon2_sponge: &[Poseidon2Sponge<F>],
     mem_private: &[StorageDevice<F>],
     mem_public: &[StorageDevice<F>],
@@ -105,6 +108,8 @@ pub fn generate_register_trace<F: RichField>(
         .into_iter()
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::Cpu => extract(cpu_trace, &looking_table),
+            TableKind::Add => extract(add_trace, &looking_table),
+            TableKind::BltTaken => extract(blt_trace, &looking_table),
             TableKind::StorageDevicePrivate => extract(mem_private, &looking_table),
             TableKind::StorageDevicePublic => extract(mem_public, &looking_table),
             TableKind::CallTape => extract(mem_call_tape, &looking_table),
@@ -217,6 +222,8 @@ mod tests {
         let record = setup();
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
+        let add_rows = ops::add::generate(&record);
+        let blt_rows = ops::blt_taken::generate(&record);
         let private_tape = generate_private_tape_trace(&record.executed);
         let public_tape = generate_public_tape_trace(&record.executed);
         let call_tape = generate_call_tape_trace(&record.executed);
@@ -231,6 +238,8 @@ mod tests {
         let register_init = generate_register_init_trace(&record);
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
+            &add_rows,
+            &blt_rows,
             &poseidon2_sponge_trace,
             &private_tape,
             &public_tape,
