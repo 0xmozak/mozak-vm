@@ -315,22 +315,6 @@ where
         )
     });
 
-    let program_rom_trace_cap_target = builder.add_virtual_cap(inner_config.fri_config.cap_height);
-    let elf_memory_init_trace_cap_target =
-        builder.add_virtual_cap(inner_config.fri_config.cap_height);
-    builder.connect_merkle_caps(
-        &stark_proof_with_pis_target[TableKind::Program]
-            .proof
-            .trace_cap,
-        &program_rom_trace_cap_target,
-    );
-    builder.connect_merkle_caps(
-        &stark_proof_with_pis_target[TableKind::ElfMemoryInit]
-            .proof
-            .trace_cap,
-        &elf_memory_init_trace_cap_target,
-    );
-
     let batch_stark_proof_target = StarkProofTarget {
         trace_cap: builder.add_virtual_cap(cap_height),
         ctl_zs_cap: builder.add_virtual_cap(cap_height),
@@ -607,22 +591,6 @@ where
             true,
         )
     });
-
-    let program_rom_trace_cap_target = builder.add_virtual_cap(inner_config.fri_config.cap_height);
-    let elf_memory_init_trace_cap_target =
-        builder.add_virtual_cap(inner_config.fri_config.cap_height);
-    builder.connect_merkle_caps(
-        &stark_proof_with_pis_target[TableKind::Program]
-            .proof
-            .trace_cap,
-        &program_rom_trace_cap_target,
-    );
-    builder.connect_merkle_caps(
-        &stark_proof_with_pis_target[TableKind::ElfMemoryInit]
-            .proof
-            .trace_cap,
-        &elf_memory_init_trace_cap_target,
-    );
 
     for pi in &stark_proof_with_pis_target {
         challenger.observe_cap(&pi.proof.trace_cap);
