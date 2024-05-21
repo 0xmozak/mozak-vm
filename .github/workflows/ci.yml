@@ -70,17 +70,17 @@ jobs:
           nixdo nice cargo --version
           nixdo nice cargo clippy --version
           nixdo nice cargo clippy --locked -- -D warnings
+      
+      - name: cargo-clippy (mozakvm)
+        working-directory: sdk
+        run: |
+          nixdo nice cargo clippy --locked --all-features -- -D warnings
 
       - name: cargo-clippy (native, examples)
         working-directory: examples
         run: |
           ARCH_TRIPLE="$(nixdo rustc --verbose --version | grep host | awk '{ print $2; }')"
           nixdo nice cargo clippy --locked --all-features --target ${ARCH_TRIPLE} -- -D warnings
-
-      - name: cargo-clippy (mozakvm)
-        working-directory: sdk
-        run: |
-          nixdo nice cargo clippy --locked --all-features -- -D warnings
 
       - name: cargo-clippy (native)
         working-directory: sdk
