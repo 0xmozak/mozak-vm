@@ -203,7 +203,7 @@ class ExamplesTester(unittest.TestCase):
 
                     print()
 
-                    system_tape = f"examples/{folder}/out/{folder}.tape.json"
+                    system_tape = f"examples/{folder}/out/tape.json"
 
                     programs_to_run = [
                         (

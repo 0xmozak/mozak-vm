@@ -19,4 +19,4 @@ cd ../wallet && cargo run --release \
 # Run CLI
 cd ../../
 cargo run --bin mozak-cli -- bundle-transaction -vvv \
-    --system-tape examples/token/out/token.tape.json
+    --system-tape examples/token/out/tape.json

@@ -102,9 +102,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.83"
+version = "1.0.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25bdb32cbbdce2b519a9cd7df3a678443100e265d5e25ca763b7572a5104f5f3"
+checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
 
 [[package]]
 name = "array-init"
@@ -792,6 +792,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -835,9 +844,9 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 
 [[package]]
 name = "libmimalloc-sys"
-version = "0.1.37"
+version = "0.1.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81eb4061c0582dedea1cbc7aff2240300dd6982e0239d1c99e65c1dbf4a30ba7"
+checksum = "0e7bb23d733dfcc8af652a78b7bf232f0e967710d044732185e561e47c0336b6"
 dependencies = [
  "cc",
  "libc",
@@ -869,9 +878,9 @@ checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
 
 [[package]]
 name = "mimalloc"
-version = "0.1.41"
+version = "0.1.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f41a2280ded0da56c8cf898babb86e8f10651a34adcfff190ae9a1159c6908d"
+checksum = "e9186d86b79b52f4a77af65604b51225e8db1d6ee7e3f41aec1e40829c71a176"
 dependencies = [
  "libmimalloc-sys",
 ]
@@ -888,7 +897,7 @@ dependencies = [
  "expr",
  "hex",
  "im",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "mozak-circuits-derive",
  "mozak-runner",
@@ -926,9 +935,8 @@ dependencies = [
  "clap-verbosity-flag",
  "clap_derive",
  "clio",
- "criterion",
  "env_logger",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "mozak-circuits",
  "mozak-examples",
@@ -954,7 +962,7 @@ version = "0.1.0"
 name = "mozak-node"
 version = "0.1.0"
 dependencies = [
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "mozak-circuits",
  "mozak-recproofs",
  "mozak-sdk",
@@ -971,7 +979,7 @@ dependencies = [
  "criterion",
  "enumflags2",
  "iter_fixed",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "once_cell",
  "plonky2",
  "tested-fixture",
@@ -987,7 +995,7 @@ dependencies = [
  "elf",
  "env_logger",
  "im",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "mimalloc",
  "mozak-examples",
@@ -1612,7 +1620,7 @@ dependencies = [
  "criterion",
  "env_logger",
  "hex",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "num",
  "plonky2",
@@ -1763,18 +1771,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.60"
+version = "1.0.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "579e9083ca58dd9dcf91a9923bb9054071b9ebbd800b342194c9feb0ee89fc18"
+checksum = "c546c80d6be4bc6a00c0f01730c08df82eaa7a7a61f11d656526506112cc1709"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.60"
+version = "1.0.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2470041c06ec3ac1ab38d0356a6119054dedaea53e12fbefc0de730a1c08524"
+checksum = "46c3384250002a6d5af4d114f2845d37b57521033f30d5c3f46c4d70e1197533"
 dependencies = [
  "proc-macro2",
  "quote",

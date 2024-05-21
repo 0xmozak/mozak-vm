@@ -27,7 +27,7 @@ clap-verbosity-flag = "2.2"
 clap_derive = "4.5"
 clio = { version = "0.3", features = ["clap-parse"] }
 env_logger = "0.11"
-itertools = "0.12"
+itertools = "0.13"
 log = "0.4"
 mozak-examples = { path = "../examples-builder", features = ["mozak-sort"] }
 plonky2 = { workspace = true, default-features = false }
@@ -40,12 +40,10 @@ starky = { workspace = true, default-features = false }
 tempfile = "3"
 
 [dev-dependencies]
-# Only as a workaround to be able to control criterion's rayon feature and optional dependency.
-criterion = { workspace = true, default-features = false }
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
 
 [features]
 default = []
-parallel = ["plonky2/parallel", "starky/parallel", "mozak-circuits/parallel", "criterion/rayon"]
+parallel = ["plonky2/parallel", "starky/parallel", "mozak-circuits/parallel"]
