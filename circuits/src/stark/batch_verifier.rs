@@ -167,7 +167,7 @@ where
     let fri_instances = batch_fri_instances(
         mozak_stark,
         public_table_kinds,
-        &degree_bits,
+        degree_bits,
         &sorted_degree_bits,
         batch_stark_challenges.stark_zeta,
         config,

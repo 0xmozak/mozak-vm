@@ -172,6 +172,7 @@ pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     res
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn batch_fri_instances_target<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     mozak_stark: &MozakStark<F, D>,

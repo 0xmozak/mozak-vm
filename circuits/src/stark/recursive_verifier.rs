@@ -277,7 +277,7 @@ where
     let zero_target = builder.zero();
     let rate_bits = inner_config.fri_config.rate_bits;
     let cap_height = inner_config.fri_config.cap_height;
-    let sorted_degree_bits = sort_degree_bits(public_table_kinds, &degree_bits);
+    let sorted_degree_bits = sort_degree_bits(public_table_kinds, degree_bits);
     let fri_params = {
         let mut p = inner_config.fri_params(sorted_degree_bits[0]);
         p.reduction_arity_bits =
@@ -409,11 +409,11 @@ where
 
         let num_challenges = inner_config.num_challenges;
 
-        challenger.observe_cap(&ctl_zs_cap);
+        challenger.observe_cap(ctl_zs_cap);
 
         let stark_alphas = challenger.get_n_challenges(&mut builder, num_challenges);
 
-        challenger.observe_cap(&quotient_polys_cap);
+        challenger.observe_cap(quotient_polys_cap);
         let stark_zeta = challenger.get_extension_challenge(&mut builder);
 
         all_kind!(|kind| if !public_table_kinds.contains(&kind) {
@@ -430,8 +430,8 @@ where
             stark_zeta,
             fri_challenges: challenger.fri_challenges(
                 &mut builder,
-                &commit_phase_merkle_caps,
-                &final_poly,
+                commit_phase_merkle_caps,
+                final_poly,
                 *pow_witness,
                 &inner_config.fri_config,
             ),
@@ -452,7 +452,7 @@ where
                 &mut builder,
                 stark,
                 &stark_proof_with_pis_target[kind],
-                &stark_challenges_target[kind].as_ref().expect(""),
+                stark_challenges_target[kind].as_ref().expect(""),
                 &ctl_vars,
                 inner_config,
             );
@@ -504,7 +504,7 @@ where
         &mut builder,
         mozak_stark,
         public_table_kinds,
-        &degree_bits,
+        degree_bits,
         &sorted_degree_bits,
         batch_stark_challenges_target.stark_zeta,
         inner_config,
@@ -551,7 +551,7 @@ where
         &fri_openings_target,
         &batch_stark_challenges_target.fri_challenges,
         &init_merkle_caps,
-        &proof,
+        proof,
         &fri_params,
     );
 
@@ -842,7 +842,7 @@ fn verify_stark_proof_with_challenges_circuit<
             .to_fri_openings(zero),
         &challenges.fri_challenges,
         &merkle_caps,
-        &proof_with_public_inputs
+        proof_with_public_inputs
             .proof
             .opening_proof
             .as_ref()
