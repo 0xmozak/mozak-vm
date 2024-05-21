@@ -792,6 +792,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -888,7 +897,7 @@ dependencies = [
  "expr",
  "hex",
  "im",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "mozak-circuits-derive",
  "mozak-runner",
@@ -928,7 +937,7 @@ dependencies = [
  "clio",
  "criterion",
  "env_logger",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "mozak-circuits",
  "mozak-examples",
@@ -954,7 +963,7 @@ version = "0.1.0"
 name = "mozak-node"
 version = "0.1.0"
 dependencies = [
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "mozak-circuits",
  "mozak-recproofs",
  "mozak-sdk",
@@ -971,7 +980,7 @@ dependencies = [
  "criterion",
  "enumflags2",
  "iter_fixed",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "once_cell",
  "plonky2",
  "tested-fixture",
@@ -987,7 +996,7 @@ dependencies = [
  "elf",
  "env_logger",
  "im",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "mimalloc",
  "mozak-examples",
@@ -1612,7 +1621,7 @@ dependencies = [
  "criterion",
  "env_logger",
  "hex",
- "itertools 0.12.1",
+ "itertools 0.13.0",
  "log",
  "num",
  "plonky2",
