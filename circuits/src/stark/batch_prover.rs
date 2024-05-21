@@ -43,6 +43,9 @@ use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::prover::{get_program_id, prove_single_table};
 
+const ORACLE_COUNT: usize = 3;
+const BATCH_COUNT: usize = 3;
+
 #[derive(Debug)]
 pub struct BatchFriOracleIndices {
     poly_count: TableKindArray<usize>,
@@ -206,6 +209,7 @@ pub(crate) fn batch_fri_instances_target<F: RichField + Extendable<D>, const D: 
         }
     );
 
+    // Map degree bits to a vector of TableKind values
     let mut degree_bits_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
     all_kind!(|kind| {
         degree_bits_map
@@ -235,23 +239,25 @@ pub(crate) fn batch_fri_instances_target<F: RichField + Extendable<D>, const D: 
 // Merge FRI instances by its polynomial degree
 pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     instances: &[&FriInstanceInfo<F, D>],
-    polynomial_index_start: &mut [usize; 3],
+    polynomial_index_start: &mut [usize; ORACLE_COUNT],
 ) -> FriInstanceInfo<F, D> {
     assert!(!instances.is_empty());
     let base_instance = &instances[0];
-    assert_eq!(base_instance.oracles.len(), 3);
-    assert_eq!(base_instance.batches.len(), 3);
+    assert_eq!(base_instance.oracles.len(), ORACLE_COUNT);
+    assert_eq!(base_instance.batches.len(), BATCH_COUNT);
 
     let mut res = FriInstanceInfo {
-        oracles: Vec::with_capacity(3),
-        batches: Vec::with_capacity(3),
+        oracles: Vec::with_capacity(ORACLE_COUNT),
+        batches: Vec::with_capacity(BATCH_COUNT),
     };
 
-    for i in 0..3 {
+    for i in 0..ORACLE_COUNT {
         res.oracles.push(FriOracleInfo {
             num_polys: 0,
             blinding: base_instance.oracles[i].blinding,
         });
+    }
+    for i in 0..BATCH_COUNT {
         res.batches.push(FriBatchInfo {
             point: base_instance.batches[i].point,
             polynomials: vec![],
@@ -259,13 +265,15 @@ pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     }
 
     for ins in instances {
-        assert_eq!(ins.oracles.len(), 3);
-        assert_eq!(ins.batches.len(), 3);
+        assert_eq!(ins.oracles.len(), ORACLE_COUNT);
+        assert_eq!(ins.batches.len(), BATCH_COUNT);
 
-        for i in 0..3 {
+        for i in 0..ORACLE_COUNT {
             assert_eq!(res.oracles[i].blinding, ins.oracles[i].blinding);
             res.oracles[i].num_polys += ins.oracles[i].num_polys;
+        }
 
+        for i in 0..BATCH_COUNT {
             assert_eq!(res.batches[i].point, ins.batches[i].point);
             for poly in ins.batches[i].polynomials.iter().copied() {
                 let mut poly = poly;
@@ -274,7 +282,7 @@ pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
             }
         }
 
-        for (i, item) in polynomial_index_start.iter_mut().enumerate().take(3) {
+        for (i, item) in polynomial_index_start.iter_mut().enumerate().take(ORACLE_COUNT) {
             *item += ins.oracles[i].num_polys;
         }
     }
@@ -284,23 +292,25 @@ pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
 
 pub(crate) fn merge_fri_instances_target<const D: usize>(
     instances: &[&FriInstanceInfoTarget<D>],
-    polynomial_index_start: &mut [usize; 3],
+    polynomial_index_start: &mut [usize; ORACLE_COUNT],
 ) -> FriInstanceInfoTarget<D> {
     assert!(!instances.is_empty());
     let base_instance = &instances[0];
-    assert_eq!(base_instance.oracles.len(), 3);
-    assert_eq!(base_instance.batches.len(), 3);
+    assert_eq!(base_instance.oracles.len(), ORACLE_COUNT);
+    assert_eq!(base_instance.batches.len(), BATCH_COUNT);
 
     let mut res = FriInstanceInfoTarget {
-        oracles: Vec::with_capacity(3),
-        batches: Vec::with_capacity(3),
+        oracles: Vec::with_capacity(ORACLE_COUNT),
+        batches: Vec::with_capacity(BATCH_COUNT),
     };
 
-    for i in 0..3 {
+    for i in 0..ORACLE_COUNT {
         res.oracles.push(FriOracleInfo {
             num_polys: 0,
             blinding: base_instance.oracles[i].blinding,
         });
+    }
+    for i in 0..BATCH_COUNT {
         res.batches.push(FriBatchInfoTarget {
             point: base_instance.batches[i].point,
             polynomials: vec![],
@@ -308,13 +318,15 @@ pub(crate) fn merge_fri_instances_target<const D: usize>(
     }
 
     for ins in instances {
-        assert_eq!(ins.oracles.len(), 3);
-        assert_eq!(ins.batches.len(), 3);
+        assert_eq!(ins.oracles.len(), ORACLE_COUNT);
+        assert_eq!(ins.batches.len(), BATCH_COUNT);
 
-        for i in 0..3 {
+        for i in 0..ORACLE_COUNT {
             assert_eq!(res.oracles[i].blinding, ins.oracles[i].blinding);
             res.oracles[i].num_polys += ins.oracles[i].num_polys;
+        }
 
+        for i in 0..BATCH_COUNT {
             assert_eq!(res.batches[i].point, ins.batches[i].point);
             for poly in ins.batches[i].polynomials.iter().copied() {
                 let mut poly = poly;
@@ -323,7 +335,7 @@ pub(crate) fn merge_fri_instances_target<const D: usize>(
             }
         }
 
-        for (i, item) in polynomial_index_start.iter_mut().enumerate().take(3) {
+        for (i, item) in polynomial_index_start.iter_mut().enumerate().take(ORACLE_COUNT) {
             *item += ins.oracles[i].num_polys;
         }
     }
