@@ -935,7 +935,6 @@ dependencies = [
  "clap-verbosity-flag",
  "clap_derive",
  "clio",
- "criterion",
  "env_logger",
  "itertools 0.13.0",
  "log",
@@ -1132,7 +1131,7 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 [[package]]
 name = "plonky2"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
+source = "git+https://github.com/0xmozak/plonky2.git#75e686f907c85a1f4c429dad4528112cc6a11f2c"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1170,7 +1169,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.2.2"
-source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
+source = "git+https://github.com/0xmozak/plonky2.git#75e686f907c85a1f4c429dad4528112cc6a11f2c"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
@@ -1185,7 +1184,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
+source = "git+https://github.com/0xmozak/plonky2.git#75e686f907c85a1f4c429dad4528112cc6a11f2c"
 dependencies = [
  "rayon",
 ]
@@ -1193,7 +1192,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
+source = "git+https://github.com/0xmozak/plonky2.git#75e686f907c85a1f4c429dad4528112cc6a11f2c"
 
 [[package]]
 name = "plotters"
@@ -1664,7 +1663,7 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.4.0"
-source = "git+https://github.com/0xmozak/plonky2.git#13cb36256626f53134758894897010c1506acd80"
+source = "git+https://github.com/0xmozak/plonky2.git#75e686f907c85a1f4c429dad4528112cc6a11f2c"
 dependencies = [
  "ahash",
  "anyhow",
