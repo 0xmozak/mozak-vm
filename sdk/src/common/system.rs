@@ -3,7 +3,7 @@ use once_cell::unsync::Lazy;
 use {
     crate::common::merkle::merkleize,
     crate::common::types::{
-        CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
+        CanonicallyOrderedEventsWithTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
     },
     crate::core::constants::DIGEST_BYTES,
     crate::core::ecall::{
@@ -128,7 +128,7 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
 #[cfg(target_os = "mozakvm")]
 /// Populates a `MozakVM` [`EventTapeType`] via ECALLs.
 ///
-/// At this point, the vector of [`CanonicalOrderedTemporalHints`] are still
+/// At this point, the vector of [`CanonicallyOrderedEventsWithTemporalHints`] are still
 /// rkyv-serialized, and must be deserialized at the point of consumption.
 fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     let mut len_bytes = [0; 4];
@@ -138,7 +138,7 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     event_tape_read(buf.as_mut_ptr(), len);
 
     let canonical_ordered_temporal_hints = unsafe {
-        rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(&*slice_from_raw_parts(
+        rkyv::access_unchecked::<Vec<CanonicallyOrderedEventsWithTemporalHints>>(&*slice_from_raw_parts(
             buf.as_ptr(),
             len,
         ))
@@ -174,7 +174,7 @@ pub fn ensure_clean_shutdown() {
         let mut claimed_commitment_ev: [u8; 32] = [0; 32];
         crate::core::ecall::events_commitment_tape_read(claimed_commitment_ev.as_mut_ptr());
 
-        let canonical_event_temporal_hints: Vec<CanonicalOrderedTemporalHints> = SYSTEM_TAPE
+        let canonical_event_temporal_hints: Vec<CanonicallyOrderedEventsWithTemporalHints> = SYSTEM_TAPE
             .event_tape
             .reader
             .unwrap()

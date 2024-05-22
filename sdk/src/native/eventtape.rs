@@ -6,7 +6,7 @@ use itertools::Itertools;
 
 use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{
-    CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
+    CanonicalEvent, CanonicallyOrderedEventsWithTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
 };
 use crate::native::identity::IdentityStack;
 
@@ -78,7 +78,7 @@ impl OrderedEvents {
     /// Temporal Hints:  [   3,          1,           0,           2]
     #[allow(dead_code)]
     #[must_use]
-    pub fn get_canonical_order_temporal_hints(&self) -> Vec<CanonicalOrderedTemporalHints> {
+    pub fn get_canonical_order_temporal_hints(&self) -> Vec<CanonicallyOrderedEventsWithTemporalHints> {
         fn reverse_ordering(original_ordering: &[u32]) -> Vec<u32> {
             let mut reversed_ordering = vec![0; original_ordering.len()];
 
@@ -103,8 +103,8 @@ impl OrderedEvents {
         canonical_ordering
             .into_iter()
             .zip(reversed_indices)
-            .map(|((canonical_event, _), idx)| CanonicalOrderedTemporalHints(canonical_event, idx))
-            .collect::<Vec<CanonicalOrderedTemporalHints>>()
+            .map(|((canonical_event, _), idx)| CanonicallyOrderedEventsWithTemporalHints(canonical_event, idx))
+            .collect::<Vec<CanonicallyOrderedEventsWithTemporalHints>>()
     }
 
     #[must_use]
@@ -201,7 +201,7 @@ mod tests {
 
         assert_eq!(ordered_events.get_canonical_order_temporal_hints(), 
             expected_canonical_order.into_iter().zip(expected_temporal_hints.into_iter())
-            .map(|(ce, idx)| CanonicalOrderedTemporalHints(ce, idx))
-            .collect::<Vec<CanonicalOrderedTemporalHints>>()); 
+            .map(|(ce, idx)| CanonicallyOrderedEventsWithTemporalHints(ce, idx))
+            .collect::<Vec<CanonicallyOrderedEventsWithTemporalHints>>()); 
     }
 }

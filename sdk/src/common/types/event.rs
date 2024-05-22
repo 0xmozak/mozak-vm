@@ -117,4 +117,4 @@ impl CanonicalEvent {
     not(target_os = "mozakvm"),
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
-pub struct CanonicalOrderedTemporalHints(pub CanonicalEvent, pub u32);
+pub struct CanonicallyOrderedEventsWithTemporalHints(pub CanonicalEvent, pub u32);

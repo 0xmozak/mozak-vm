@@ -14,7 +14,7 @@ use mozak_runner::elf::Program;
 use mozak_runner::state::RawTapes;
 use mozak_sdk::common::merkle::merkleize;
 use mozak_sdk::common::types::{
-    CanonicalOrderedTemporalHints, Poseidon2Hash, ProgramIdentifier, SystemTape,
+    CanonicallyOrderedEventsWithTemporalHints, Poseidon2Hash, ProgramIdentifier, SystemTape,
 };
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -80,7 +80,7 @@ pub fn raw_tapes_from_system_tape(sys: Option<Input>, self_prog_id: ProgramIdent
         .into_iter()
         .collect_vec();
 
-    let canonical_order_temporal_hints: Vec<CanonicalOrderedTemporalHints> = sys
+    let canonical_order_temporal_hints: Vec<CanonicallyOrderedEventsWithTemporalHints> = sys
         .event_tape
         .writer
         .get(&self_prog_id)

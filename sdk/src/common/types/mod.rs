@@ -8,7 +8,7 @@ pub(crate) mod state_object;
 pub(crate) mod system_tape;
 
 pub use cross_program_call::CrossProgramCall;
-pub use event::{CanonicalEvent, CanonicalOrderedTemporalHints, Event, EventType};
+pub use event::{CanonicalEvent, CanonicallyOrderedEventsWithTemporalHints, Event, EventType};
 pub use poseidon2hash::Poseidon2Hash;
 pub use program_identifier::ProgramIdentifier;
 pub use raw_message::RawMessage;
