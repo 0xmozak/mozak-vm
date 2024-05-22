@@ -183,7 +183,8 @@ mod tests {
     use anyhow::Result;
 
     use super::{
-        batch_starks_sort_execute, sort_execute, sort_prepare, sort_recursive_execute,
+        batch_starks_sort_execute, batch_starks_sort_recursive_execute,
+        batch_starks_sort_recursive_prepare, sort_execute, sort_prepare, sort_recursive_execute,
         sort_recursive_prepare,
     };
 
@@ -208,6 +209,6 @@ mod tests {
     #[test]
     fn test_batch_stark_recursive_sort_bench() -> Result<()> {
         let n = 10;
-        sort_recursive_execute(sort_recursive_prepare(n))
+        batch_starks_sort_recursive_execute(batch_starks_sort_recursive_prepare(n))
     }
 }
