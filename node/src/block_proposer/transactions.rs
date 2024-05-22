@@ -19,6 +19,7 @@ use plonky2::plonk::config::{GenericHashOut, Hasher};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::{AddressPath, BranchAddress, Dir};
+use crate::block_proposer::BranchAddressComparison;
 use crate::{C, D, F};
 
 type EventLeafCircuit = build_event_root::LeafCircuit<F, C, D>;
@@ -254,14 +255,23 @@ impl AuxTransactionData {
                     event: l_event,
                 },
                 EventNode::Branch {
-                    address,
+                    address: r_address,
                     hash: r_hash,
                     left: r_child_left,
                     right: r_child_right,
                 },
             ) => {
+                use BranchAddressComparison::*;
+                match BranchAddress::base(l_event.address).compare(&r_address) {
+                    // Right should be above us
+                    Equal | LeftSibling | RightSibling | LeftChild | RightChild => unreachable!(),
+                    LeftParent => return self.merge_events(Some(left), Some(*r_child_left)),
+                    RightParent => return self.merge_events(Some(left), Some(*r_child_right)),
+                    RightCousin => todo!("merge proof with left-right"),
+                    LeftCousin => todo!("merge proof with right-left"),
+                }
             },
-            _ => todo!(),
+            _ => todo!("match the other leaf/branch pairings"),
         }
 
         todo!()
