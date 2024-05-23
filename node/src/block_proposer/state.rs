@@ -18,7 +18,6 @@ pub enum Operation {
     Read,
     Delete,
 }
-
 #[allow(clippy::large_enum_variant)]
 enum SparseMerkleNode {
     Branch(SparseMerkleBranch),

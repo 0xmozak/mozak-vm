@@ -677,9 +677,10 @@ impl<'a> TransactionAccumulator<'a> {
                 v.insert(OngoingTx { nodes })
             }
             Entry::Occupied(mut o) => {
+                let bits = usize::BITS - cast_list.len().leading_zeros();
                 self.aux.insert_program(
                     &mut o.get_mut().nodes,
-                    AddressPath::path(call_index, cast_list.len().ilog2() as usize),
+                    AddressPath::path(call_index, bits as usize),
                     event_tree,
                     proof,
                 )?;

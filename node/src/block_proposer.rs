@@ -16,7 +16,7 @@ pub struct Address(pub u64);
 
 impl Address {
     fn next(self, height: usize) -> (Option<AddressPath>, Dir) {
-        debug_assert!(self.0 < (1 << height));
+        debug_assert!(self.0 < (1 << (height + 1)));
         AddressPath {
             height,
             addr: self.0,
@@ -29,6 +29,11 @@ impl Address {
 /// tree towards a leaf.
 #[derive(Debug, Clone, Copy)]
 struct AddressPath<T = u64> {
+    /// One less than the number of bits remaining in `addr`
+    ///
+    /// So `height == 0` means 1 bit remaining, `1` means 2 bits remaining.
+    ///
+    /// This means that `1 << height` will mask off the MSB.
     height: usize,
     addr: T,
 }
@@ -44,8 +49,11 @@ where
         + Sub<T, Output = T>
         + BitAndAssign,
 {
-    fn path(addr: T, height: usize) -> Option<Self> {
-        (height == 0).then_some(Self { height, addr })
+    fn path(addr: T, bits: usize) -> Option<Self> {
+        (bits == 0).then_some(Self {
+            height: bits - 1,
+            addr,
+        })
     }
 
     fn next(mut self) -> (Option<Self>, Dir) {
@@ -53,16 +61,16 @@ where
         let one = T::from(true);
 
         // look at the MSB for the current direction
-        let bit = one << (self.height - 1);
+        let msb_mask = one << self.height;
 
-        let dir = if self.addr & bit == zero {
+        let dir = if self.addr & msb_mask == zero {
             Dir::Left
         } else {
             Dir::Right
         };
 
         // Pop the MSB
-        self.addr &= bit - one;
+        self.addr &= msb_mask - one;
 
         if self.height == 0 {
             debug_assert_eq!(self.addr, zero);
@@ -187,7 +195,7 @@ impl BranchAddress {
         }
 
         let addr = Address(child.addr.0 & ((1 << delta) - 1));
-        match (addr.next(delta).1, lhs_is_parent) {
+        match (addr.next(delta - 1).1, lhs_is_parent) {
             (Dir::Left, true) => BranchAddressComparison::LeftChild,
             (Dir::Right, true) => BranchAddressComparison::RightChild,
             (Dir::Left, false) => BranchAddressComparison::LeftParent,
