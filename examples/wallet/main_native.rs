@@ -10,8 +10,8 @@
 //! hash to obtain a public key. We write this private key to our private tape.
 //!
 //! During guest execution:
-//! We read this private key and use a poseidon2 ecall to help us prove that we
-//! know the pre-image.
+//! We read this private key from the private tape and use a poseidon2 ecall to
+//! help us prove that we know the pre-image.
 
 // TODO(bing): We may use our `signatures` crate in future as an optimization,
 // once we link it to our SDK.
