@@ -7,10 +7,9 @@ use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[cfg(not(target_os = "mozakvm"))]
-{
 pub const REMITTER_WALLET_SEED: u64 = 2;
+#[cfg(not(target_os = "mozakvm"))]
 pub const REMITTEE_WALLET_SEED: u64 = 3;
-}
 
 /// A generic private key used by the wallet.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
