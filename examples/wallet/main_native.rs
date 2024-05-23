@@ -1,3 +1,20 @@
+//! We approve signatures by asserting the following equality:
+//!
+//! hash(private_key) == public_key
+//!
+//! Where `hash` can be any hard to invert function (in this case it's the
+//! poseidon2 hash).
+//!
+//! During native execution:
+//! We randomly generate a private key, which we then
+//! hash to obtain a public key. We write this private key to our private tape.
+//!
+//! During guest execution:
+//! We read this private key and use a poseidon2 ecall to help us prove that we
+//! know the pre-image.
+
+// TODO(bing): We may use our `signatures` crate in future as an optimization,
+// once we link it to our SDK.
 #![allow(unused_attributes)]
 
 mod core_logic;
