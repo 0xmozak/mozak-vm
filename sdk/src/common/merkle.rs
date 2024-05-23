@@ -36,7 +36,7 @@ fn merkleize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
                     &g.iter().flat_map(Poseidon2Hash::inner).collect::<Vec<u8>>(),
                 ),
                 #[cfg(not(target_os = "mozakvm"))]
-                g => crate::native::helpers::poseidon2_hash_no_pad(
+                g => crate::native::poseidon::poseidon2_hash_no_pad(
                     &g.iter().flat_map(Poseidon2Hash::inner).collect::<Vec<u8>>(),
                 ),
             })
@@ -52,7 +52,7 @@ mod tests {
     use crate::common::merkle::merkleize;
     use crate::common::types::Poseidon2Hash;
     use crate::core::constants::DIGEST_BYTES;
-    use crate::native::helpers::poseidon2_hash_no_pad;
+    use crate::native::poseidon::poseidon2_hash_no_pad;
 
     #[test]
     #[rustfmt::skip] 
