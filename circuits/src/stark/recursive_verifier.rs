@@ -19,7 +19,9 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
+use plonky2::plonk::circuit_data::{
+    CircuitConfig, CircuitData, CommonCircuitData, VerifierCircuitTarget, VerifierOnlyCircuitData,
+};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::reducing::ReducingFactorTarget;
@@ -48,8 +50,9 @@ use crate::stark::proof::{
     StarkProofTarget, StarkProofWithPublicInputsTarget,
 };
 
-/// Plonky2's recursion threshold is 2^12 gates.
-pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 12;
+/// Plonky2's recursion threshold is 2^12 gates, but we need some extra gates
+/// for public inputs.
+pub const VM_RECURSION_THRESHOLD_DEGREE_BITS: usize = 13;
 /// Public inputs (number of Goldilocks elements) using
 /// `standard_recursion_config`:
 ///   `entry_point`: 1
@@ -1000,13 +1003,14 @@ where
     C::Hasher: AlgebraicHasher<F>,
 {
     pub fn new(
-        circuit: &CircuitData<F, C, D>,
+        verifier_only: &VerifierOnlyCircuitData<C, D>,
+        common: &CommonCircuitData<F, D>,
         config: CircuitConfig,
     ) -> PlonkWrapperCircuit<F, C, D> {
         let mut builder = CircuitBuilder::new(config);
-        let proof_with_pis_target = builder.add_virtual_proof_with_pis(&circuit.common);
-        let last_vk = builder.constant_verifier_data(&circuit.verifier_only);
-        builder.verify_proof::<C>(&proof_with_pis_target, &last_vk, &circuit.common);
+        let proof_with_pis_target = builder.add_virtual_proof_with_pis(common);
+        let last_vk = builder.constant_verifier_data(verifier_only);
+        builder.verify_proof::<C>(&proof_with_pis_target, &last_vk, common);
         builder.register_public_inputs(&proof_with_pis_target.public_inputs); // carry PIs forward
         let circuit = builder.build::<C>();
         PlonkWrapperCircuit {
@@ -1031,30 +1035,31 @@ pub fn shrink_to_target_degree_bits_circuit<
     C: GenericConfig<D, F = F>,
     const D: usize,
 >(
-    circuit: &CircuitData<F, C, D>,
+    verifier_only: &VerifierOnlyCircuitData<C, D>,
+    common: &CommonCircuitData<F, D>,
     shrink_config: &CircuitConfig,
     target_degree_bits: usize,
     proof: &ProofWithPublicInputs<F, C, D>,
 ) -> Result<(PlonkWrapperCircuit<F, C, D>, ProofWithPublicInputs<F, C, D>)>
 where
     C::Hasher: AlgebraicHasher<F>, {
-    let mut last_degree_bits = circuit.common.degree_bits();
+    let mut last_degree_bits = common.degree_bits();
     assert!(last_degree_bits >= target_degree_bits);
 
-    let mut shrink_circuit = PlonkWrapperCircuit::new(circuit, shrink_config.clone());
+    let mut shrink_circuit = PlonkWrapperCircuit::new(verifier_only, common, shrink_config.clone());
     let mut shrunk_proof = shrink_circuit.prove(proof)?;
     let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
     info!("shrinking circuit from degree bits {last_degree_bits} to {shrunk_degree_bits}",);
     last_degree_bits = shrunk_degree_bits;
 
     while last_degree_bits > target_degree_bits {
-        shrink_circuit = PlonkWrapperCircuit::new(&shrink_circuit.circuit, shrink_config.clone());
+        shrink_circuit = PlonkWrapperCircuit::new(verifier_only, common, shrink_config.clone());
         let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
+        info!("shrinking circuit from degree bits {last_degree_bits} to {shrunk_degree_bits}",);
         assert!(
             shrunk_degree_bits < last_degree_bits,
-            "shrink failed at degree bits: {last_degree_bits}",
+            "shrink failed at degree bits: {last_degree_bits} to {shrunk_degree_bits}",
         );
-        info!("shrinking circuit from degree bits {last_degree_bits} to {shrunk_degree_bits}",);
         last_degree_bits = shrunk_degree_bits;
         shrunk_proof = shrink_circuit.prove(&shrunk_proof)?;
     }
@@ -1424,13 +1429,15 @@ mod tests {
 
         let target_degree_bits = VM_RECURSION_THRESHOLD_DEGREE_BITS;
         let (final_circuit0, final_proof0) = shrink_to_target_degree_bits_circuit(
-            &recursion_circuit0.circuit,
+            &recursion_circuit0.circuit.verifier_only,
+            &recursion_circuit0.circuit.common,
             &VM_RECURSION_CONFIG,
             target_degree_bits,
             &recursion_proof0,
         )?;
         let (final_circuit1, final_proof1) = shrink_to_target_degree_bits_circuit(
-            &recursion_circuit1.circuit,
+            &recursion_circuit1.circuit.verifier_only,
+            &recursion_circuit1.circuit.common,
             &VM_RECURSION_CONFIG,
             target_degree_bits,
             &recursion_proof1,
