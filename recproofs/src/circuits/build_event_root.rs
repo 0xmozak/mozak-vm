@@ -313,13 +313,13 @@ where
         }
     }
 
-    pub fn prove<L: IsLeaf, R: IsLeaf>(
+    fn prove_helper<L: IsLeaf, R: IsLeaf>(
         &self,
         left_proof: &Proof<L, F, C, D>,
         right_proof: &Proof<R, F, C, D>,
+        partial: bool,
     ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        let partial = false;
         self.unbounded.set_witness(
             &mut inputs,
             L::VALUE,
@@ -337,27 +337,19 @@ where
         })
     }
 
+    pub fn prove<L: IsLeaf, R: IsLeaf>(
+        &self,
+        left_proof: &Proof<L, F, C, D>,
+        right_proof: &Proof<R, F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        self.prove_helper(left_proof, right_proof, false)
+    }
+
     pub fn prove_one<L: IsLeaf>(
         &self,
         left_proof: &Proof<L, F, C, D>,
     ) -> Result<BranchProof<F, C, D>> {
-        let mut inputs = PartialWitness::new();
-        let partial = true;
-        self.unbounded.set_witness(
-            &mut inputs,
-            L::VALUE,
-            &left_proof.proof,
-            L::VALUE,
-            &left_proof.proof,
-        );
-        self.hash.set_witness(&mut inputs, partial);
-        self.vm_hash.set_witness(&mut inputs, partial);
-        let proof = self.circuit.prove(inputs)?;
-        Ok(BranchProof {
-            proof,
-            tag: PhantomData,
-            indices: self.indices(),
-        })
+        self.prove_helper(left_proof, left_proof, true)
     }
 
     /// `hash` `vm_hash` and `event_owner` only need to be provided to check

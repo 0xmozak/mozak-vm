@@ -207,25 +207,20 @@ where
         }
     }
 
-    pub fn prove<L: IsLeaf, R: IsLeaf>(
+    fn prove_helper<L: IsLeaf, R: IsLeaf>(
         &self,
         merge: &merge::BranchProof<F, C, D>,
         left_proof: &Proof<L, F, C, D>,
-        right_proof: Option<&Proof<R, F, C, D>>,
+        right_proof: &Proof<R, F, C, D>,
+        partial: bool,
     ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        let partial = right_proof.is_none();
-        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
-            (R::VALUE, &right_proof.proof)
-        } else {
-            (L::VALUE, &left_proof.proof)
-        };
         self.unbounded.set_witness(
             &mut inputs,
             L::VALUE,
             &left_proof.proof,
-            right_is_leaf,
-            right_proof,
+            R::VALUE,
+            &right_proof.proof,
         );
         self.events.set_witness(&mut inputs, partial, merge);
         let proof = self.circuit.prove(inputs)?;
@@ -234,6 +229,23 @@ where
             tag: PhantomData,
             indices: self.indices(),
         })
+    }
+
+    pub fn prove<L: IsLeaf, R: IsLeaf>(
+        &self,
+        merge: &merge::BranchProof<F, C, D>,
+        left_proof: &Proof<L, F, C, D>,
+        right_proof: &Proof<R, F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        self.prove_helper(merge, left_proof, right_proof, false)
+    }
+
+    pub fn prove_one<L: IsLeaf>(
+        &self,
+        merge: &merge::BranchProof<F, C, D>,
+        left_proof: &Proof<L, F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        self.prove_helper(merge, left_proof, left_proof, true)
     }
 
     pub fn verify(&self, proof: BranchProof<F, C, D>) -> Result<()> {
@@ -285,11 +297,7 @@ pub mod test {
 
     #[tested_fixture::tested_fixture(pub BRANCH_PROOF: BranchProof<F, C, D>)]
     fn verify_branch() -> Result<BranchProof<F, C, D>> {
-        let proof = BRANCH.prove(
-            &merge::T0_T1_BRANCH_PROOF,
-            &T0_LEAF_PROOF,
-            Some(&T1_LEAF_PROOF),
-        )?;
+        let proof = BRANCH.prove(&merge::T0_T1_BRANCH_PROOF, &T0_LEAF_PROOF, &T1_LEAF_PROOF)?;
         assert_proof(&proof, Some(*T0_T1_HASH));
         BRANCH.verify(proof.clone())?;
         Ok(proof)
@@ -297,11 +305,7 @@ pub mod test {
 
     #[test]
     fn verify_partial_branch() -> Result<()> {
-        let proof = BRANCH.prove(
-            &merge::T1_PARTIAL_BRANCH_PROOF,
-            &T1_LEAF_PROOF,
-            None::<&LeafProof<_, _, D>>,
-        )?;
+        let proof = BRANCH.prove_one(&merge::T1_PARTIAL_BRANCH_PROOF, &T1_LEAF_PROOF)?;
         assert_proof(&proof, Some(*T1_HASH));
         BRANCH.verify(proof.clone())?;
         Ok(())

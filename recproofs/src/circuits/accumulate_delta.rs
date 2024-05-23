@@ -275,24 +275,19 @@ where
         }
     }
 
-    pub fn prove<L: IsLeaf, R: IsLeaf>(
+    fn prove_helper<L: IsLeaf, R: IsLeaf>(
         &self,
         left_proof: &Proof<L, F, C, D>,
-        right_proof: Option<&Proof<R, F, C, D>>,
+        right_proof: &Proof<R, F, C, D>,
+        partial: bool,
     ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        let partial = right_proof.is_none();
-        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
-            (R::VALUE, &right_proof.proof)
-        } else {
-            (L::VALUE, &left_proof.proof)
-        };
         self.unbounded.set_witness(
             &mut inputs,
             L::VALUE,
             &left_proof.proof,
-            right_is_leaf,
-            right_proof,
+            R::VALUE,
+            &right_proof.proof,
         );
         self.event_hash.set_witness(&mut inputs, partial);
         if partial {
@@ -302,7 +297,7 @@ where
             self.partial_state.set_witness_from_proofs(
                 &mut inputs,
                 &left_proof.proof.public_inputs,
-                &right_proof.public_inputs,
+                &right_proof.proof.public_inputs,
             );
         }
         let proof = self.circuit.prove(inputs)?;
@@ -311,6 +306,21 @@ where
             tag: PhantomData,
             indices: self.indices(),
         })
+    }
+
+    pub fn prove<L: IsLeaf, R: IsLeaf>(
+        &self,
+        left_proof: &Proof<L, F, C, D>,
+        right_proof: &Proof<R, F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        self.prove_helper(left_proof, right_proof, false)
+    }
+
+    pub fn prove_one<L: IsLeaf>(
+        &self,
+        left_proof: &Proof<L, F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        self.prove_helper(left_proof, left_proof, true)
     }
 
     pub fn verify(&self, proof: BranchProof<F, C, D>) -> Result<()> {
@@ -668,7 +678,7 @@ pub mod test {
         let address = address as u64;
         let credit_delta = -EVENT_T0_P0_A_CREDIT.value[0];
 
-        let p0_proof = BRANCH.prove(&T0_P0_A_WRITE_LEAF_PROOF, Some(&T0_P0_A_CREDIT_LEAF_PROOF))?;
+        let p0_proof = BRANCH.prove(&T0_P0_A_WRITE_LEAF_PROOF, &T0_P0_A_CREDIT_LEAF_PROOF)?;
         assert_proof(
             &p0_proof,
             *T0_P0_HASH,
@@ -682,7 +692,7 @@ pub mod test {
         );
         BRANCH.verify(p0_proof.clone())?;
 
-        let p2_proof = BRANCH.prove(&T0_P2_A_READ_LEAF_PROOF, Some(&T0_P2_A_ENSURE_LEAF_PROOF))?;
+        let p2_proof = BRANCH.prove(&T0_P2_A_READ_LEAF_PROOF, &T0_P2_A_ENSURE_LEAF_PROOF)?;
         assert_proof(
             &p2_proof,
             *T0_P2_A_HASH,
@@ -696,7 +706,7 @@ pub mod test {
         );
         BRANCH.verify(p2_proof.clone())?;
 
-        let t0_proof = BRANCH.prove(&p0_proof, Some(&p2_proof))?;
+        let t0_proof = BRANCH.prove(&p0_proof, &p2_proof)?;
         assert_proof(
             &t0_proof,
             *T0_A_HASH,
@@ -710,7 +720,7 @@ pub mod test {
         );
         BRANCH.verify(t0_proof.clone())?;
 
-        let root_proof = BRANCH.prove(&t0_proof, Some(&T1_P2_A_READ_LEAF_PROOF))?;
+        let root_proof = BRANCH.prove(&t0_proof, &T1_P2_A_READ_LEAF_PROOF)?;
         assert_proof(
             &root_proof,
             *T0_T1_A_HASH,
@@ -735,7 +745,7 @@ pub mod test {
         let address = address as u64;
         let credit_delta = -EVENT_T1_P1_B_CREDIT.value[0];
 
-        let pm_proof = BRANCH.prove(&T1_PM_B_TAKE_LEAF_PROOF, Some(&T1_PM_B_ENSURE_LEAF_PROOF))?;
+        let pm_proof = BRANCH.prove(&T1_PM_B_TAKE_LEAF_PROOF, &T1_PM_B_ENSURE_LEAF_PROOF)?;
         assert_proof(
             &pm_proof,
             *T1_PM_HASH,
@@ -749,7 +759,7 @@ pub mod test {
         );
         BRANCH.verify(pm_proof.clone())?;
 
-        let p1_proof_1 = BRANCH.prove(&T1_P1_B_WRITE_LEAF_PROOF, Some(&T1_P1_B_GIVE_LEAF_PROOF))?;
+        let p1_proof_1 = BRANCH.prove(&T1_P1_B_WRITE_LEAF_PROOF, &T1_P1_B_GIVE_LEAF_PROOF)?;
         assert_proof(
             &p1_proof_1,
             *T1_P1_B_WRITE_GIVE_HASH,
@@ -763,7 +773,7 @@ pub mod test {
         );
         BRANCH.verify(p1_proof_1.clone())?;
 
-        let p1_proof_2 = BRANCH.prove(&p1_proof_1, Some(&T1_P1_B_CREDIT_LEAF_PROOF))?;
+        let p1_proof_2 = BRANCH.prove(&p1_proof_1, &T1_P1_B_CREDIT_LEAF_PROOF)?;
         assert_proof(
             &p1_proof_2,
             *T1_P1_HASH,
@@ -777,7 +787,7 @@ pub mod test {
         );
         BRANCH.verify(p1_proof_2.clone())?;
 
-        let root_proof = BRANCH.prove(&pm_proof, Some(&p1_proof_2))?;
+        let root_proof = BRANCH.prove(&pm_proof, &p1_proof_2)?;
         assert_proof(
             &root_proof,
             *T1_B_HASH,
@@ -805,8 +815,7 @@ pub mod test {
         let address = address as u64;
         let credit_delta = EVENT_T0_PM_C_CREDIT.value[0];
 
-        let pm_proof_1 =
-            BRANCH.prove(&T0_PM_C_CREDIT_LEAF_PROOF, Some(&T0_PM_C_GIVE_LEAF_PROOF))?;
+        let pm_proof_1 = BRANCH.prove(&T0_PM_C_CREDIT_LEAF_PROOF, &T0_PM_C_GIVE_LEAF_PROOF)?;
         assert_proof(
             &pm_proof_1,
             *T0_PM_C_CREDIT_GIVE_HASH,
@@ -820,7 +829,7 @@ pub mod test {
         );
         BRANCH.verify(pm_proof_1.clone())?;
 
-        let pm_proof_2 = BRANCH.prove(&pm_proof_1, Some(&T0_PM_C_WRITE_LEAF_PROOF))?;
+        let pm_proof_2 = BRANCH.prove(&pm_proof_1, &T0_PM_C_WRITE_LEAF_PROOF)?;
         assert_proof(
             &pm_proof_2,
             *T0_PM_HASH,
@@ -834,7 +843,7 @@ pub mod test {
         );
         BRANCH.verify(pm_proof_2.clone())?;
 
-        let root_proof = BRANCH.prove(&pm_proof_2, Some(&T0_P2_C_TAKE_LEAF_PROOF))?;
+        let root_proof = BRANCH.prove(&pm_proof_2, &T0_P2_C_TAKE_LEAF_PROOF)?;
         assert_proof(
             &root_proof,
             *T0_C_HASH,
@@ -857,7 +866,7 @@ pub mod test {
         let old = &STATE_0[address];
         let address = address as u64;
 
-        let proof = BRANCH.prove(&T1_P2_D_READ_LEAF_PROOF, None::<&LeafProof<_, _, D>>)?;
+        let proof = BRANCH.prove_one(&T1_P2_D_READ_LEAF_PROOF)?;
         assert_proof(
             &proof,
             *T1_P2_D_HASH,

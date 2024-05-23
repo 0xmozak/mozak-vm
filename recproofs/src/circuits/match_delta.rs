@@ -436,24 +436,19 @@ where
         }
     }
 
-    pub fn prove<L: IsLeaf, R: IsLeaf>(
+    fn prove_helper<L: IsLeaf, R: IsLeaf>(
         &self,
         left_proof: &Proof<L, F, C, D>,
-        right_proof: Option<&Proof<R, F, C, D>>,
+        right_proof: &Proof<R, F, C, D>,
+        partial: bool,
     ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        let partial = right_proof.is_none();
-        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
-            (R::VALUE, &right_proof.proof)
-        } else {
-            (L::VALUE, &left_proof.proof)
-        };
         self.unbounded.set_witness(
             &mut inputs,
             L::VALUE,
             &left_proof.proof,
-            right_is_leaf,
-            right_proof,
+            R::VALUE,
+            &right_proof.proof,
         );
         self.event_hash.set_witness(&mut inputs, partial);
         self.state_hash.set_witness(&mut inputs, partial);
@@ -463,6 +458,21 @@ where
             tag: PhantomData,
             indices: self.indices(),
         })
+    }
+
+    pub fn prove<L: IsLeaf, R: IsLeaf>(
+        &self,
+        left_proof: &Proof<L, F, C, D>,
+        right_proof: &Proof<R, F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        self.prove_helper(left_proof, right_proof, false)
+    }
+
+    pub fn prove_one<L: IsLeaf>(
+        &self,
+        left_proof: &Proof<L, F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        self.prove_helper(left_proof, left_proof, true)
     }
 
     pub fn verify(&self, proof: BranchProof<F, C, D>) -> Result<()> {
@@ -603,7 +613,7 @@ pub mod test {
 
     #[tested_fixture::tested_fixture(BC_BRANCH_PROOF: BranchProof<F, C, D>)]
     fn verify_bc_branch() -> Result<BranchProof<F, C, D>> {
-        let proof = BRANCH.prove(*B_LEAF_PROOF, Some(*C_LEAF_PROOF))?;
+        let proof = BRANCH.prove(*B_LEAF_PROOF, *C_LEAF_PROOF)?;
         assert_proof(&proof, 1, *T0_T1_BC_HASH, *ADDRESS_BC_SUMMARY_HASH);
         BRANCH.verify(proof.clone())?;
         Ok(proof)
@@ -611,7 +621,7 @@ pub mod test {
 
     #[tested_fixture::tested_fixture(BCD_BRANCH_PROOF: BranchProof<F, C, D>)]
     fn verify_bcd_branch() -> Result<BranchProof<F, C, D>> {
-        let proof = BRANCH.prove(*BC_BRANCH_PROOF, Some(*D_LEAF_PROOF))?;
+        let proof = BRANCH.prove(*BC_BRANCH_PROOF, *D_LEAF_PROOF)?;
         assert_proof(&proof, 1, *T0_T1_BCD_HASH, *ADDRESS_BCD_SUMMARY_HASH);
         BRANCH.verify(proof.clone())?;
         Ok(proof)
@@ -619,9 +629,17 @@ pub mod test {
 
     #[tested_fixture::tested_fixture(pub BRANCH_PROOF: BranchProof<F, C, D>)]
     fn verify_branch_abcd() -> Result<BranchProof<F, C, D>> {
-        let proof = BRANCH.prove(*A_LEAF_PROOF, Some(*BCD_BRANCH_PROOF))?;
+        let proof = BRANCH.prove(*A_LEAF_PROOF, *BCD_BRANCH_PROOF)?;
         assert_proof(&proof, 1, *T0_T1_HASH, *ROOT_SUMMARY_HASH);
         BRANCH.verify(proof.clone())?;
         Ok(proof)
+    }
+
+    #[test]
+    fn verify_branch_one_abcd() -> Result<()> {
+        let proof = BRANCH.prove_one(*BRANCH_PROOF)?;
+        assert_proof(&proof, 1, *T0_T1_HASH, *ROOT_SUMMARY_HASH);
+        BRANCH.verify(proof)?;
+        Ok(())
     }
 }
