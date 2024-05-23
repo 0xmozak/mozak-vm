@@ -10,7 +10,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierOnlyCircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 
-use super::{merge, verify_program, Branch, IsLeaf, Leaf};
+use super::{merge, verify_program, Branch, Leaf};
 use crate::subcircuits::unbounded;
 
 pub mod core;
@@ -26,6 +26,8 @@ pub type Proof<T, F, C, const D: usize> = super::Proof<T, Indices, F, C, D>;
 pub type LeafProof<F, C, const D: usize> = Proof<Leaf, F, C, D>;
 
 pub type BranchProof<F, C, const D: usize> = Proof<Branch, F, C, D>;
+
+pub type LeafOrBranchRef<'a, F, C, const D: usize> = super::LeafOrBranchRef<'a, Indices, F, C, D>;
 
 impl<T, F, C, const D: usize> Proof<T, F, C, D>
 where
@@ -207,20 +209,20 @@ where
         }
     }
 
-    fn prove_helper<L: IsLeaf, R: IsLeaf>(
+    fn prove_helper(
         &self,
         merge: &merge::BranchProof<F, C, D>,
-        left_proof: &Proof<L, F, C, D>,
-        right_proof: &Proof<R, F, C, D>,
+        left_proof: LeafOrBranchRef<'_, F, C, D>,
+        right_proof: LeafOrBranchRef<'_, F, C, D>,
         partial: bool,
     ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(
             &mut inputs,
-            L::VALUE,
-            &left_proof.proof,
-            R::VALUE,
-            &right_proof.proof,
+            left_proof.is_leaf(),
+            left_proof.proof(),
+            right_proof.is_leaf(),
+            right_proof.proof(),
         );
         self.events.set_witness(&mut inputs, partial, merge);
         let proof = self.circuit.prove(inputs)?;
@@ -231,20 +233,25 @@ where
         })
     }
 
-    pub fn prove<L: IsLeaf, R: IsLeaf>(
+    pub fn prove<'a>(
         &self,
         merge: &merge::BranchProof<F, C, D>,
-        left_proof: &Proof<L, F, C, D>,
-        right_proof: &Proof<R, F, C, D>,
-    ) -> Result<BranchProof<F, C, D>> {
-        self.prove_helper(merge, left_proof, right_proof, false)
+        left_proof: impl Into<LeafOrBranchRef<'a, F, C, D>>,
+        right_proof: impl Into<LeafOrBranchRef<'a, F, C, D>>,
+    ) -> Result<BranchProof<F, C, D>>
+    where
+        C: 'a, {
+        self.prove_helper(merge, left_proof.into(), right_proof.into(), false)
     }
 
-    pub fn prove_one<L: IsLeaf>(
+    pub fn prove_one<'a>(
         &self,
         merge: &merge::BranchProof<F, C, D>,
-        left_proof: &Proof<L, F, C, D>,
-    ) -> Result<BranchProof<F, C, D>> {
+        left_proof: impl Into<LeafOrBranchRef<'a, F, C, D>>,
+    ) -> Result<BranchProof<F, C, D>>
+    where
+        C: 'a, {
+        let left_proof = left_proof.into();
         self.prove_helper(merge, left_proof, left_proof, true)
     }
 
@@ -297,7 +304,7 @@ pub mod test {
 
     #[tested_fixture::tested_fixture(pub BRANCH_PROOF: BranchProof<F, C, D>)]
     fn verify_branch() -> Result<BranchProof<F, C, D>> {
-        let proof = BRANCH.prove(&merge::T0_T1_BRANCH_PROOF, &T0_LEAF_PROOF, &T1_LEAF_PROOF)?;
+        let proof = BRANCH.prove(&merge::T0_T1_BRANCH_PROOF, *T0_LEAF_PROOF, *T1_LEAF_PROOF)?;
         assert_proof(&proof, Some(*T0_T1_HASH));
         BRANCH.verify(proof.clone())?;
         Ok(proof)
@@ -305,7 +312,7 @@ pub mod test {
 
     #[test]
     fn verify_partial_branch() -> Result<()> {
-        let proof = BRANCH.prove_one(&merge::T1_PARTIAL_BRANCH_PROOF, &T1_LEAF_PROOF)?;
+        let proof = BRANCH.prove_one(&merge::T1_PARTIAL_BRANCH_PROOF, *T1_LEAF_PROOF)?;
         assert_proof(&proof, Some(*T1_HASH));
         BRANCH.verify(proof.clone())?;
         Ok(())
