@@ -6,6 +6,12 @@ use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier, StateObject};
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize, Serialize};
 
+#[cfg(not(target_os = "mozakvm"))]
+{
+pub const REMITTER_WALLET_SEED: u64 = 2;
+pub const REMITTEE_WALLET_SEED: u64 = 3;
+}
+
 /// A generic private key used by the wallet.
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
@@ -132,5 +138,11 @@ pub fn approve_signature<T>(pub_key: PublicKey, _black_box: T) {
     }
 
     #[cfg(not(target_os = "mozakvm"))]
-    {}
+    {
+        let remitter_private_key = PrivateKey::new_from_rand_seed(REMITTER_WALLET_SEED);
+        let _ = mozak_sdk::write(
+            &mozak_sdk::InputTapeType::PrivateTape,
+            &remitter_private_key.0[..],
+        );
+    }
 }

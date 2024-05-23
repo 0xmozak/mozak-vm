@@ -3,26 +3,19 @@ mod core_logic;
 use mozak_sdk::common::types::{ProgramIdentifier, StateAddress, StateObject};
 use rkyv::rancor::Panic;
 use token::{dispatch, MethodArgs};
-
 fn main() {
-    let token_program = ProgramIdentifier::new_from_rand_seed(1);
+    let token_program =
+        ProgramIdentifier::new_from_rand_seed(crate::core_logic::TOKEN_PROGRAM_SEED);
 
     // We assume both wallet are the same program for now
-    let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
-    let remittee_program = ProgramIdentifier::new_from_rand_seed(3);
-    let remitter_private_key = wallet::PrivateKey::new_from_rand_seed(4);
+    let remitter_program = ProgramIdentifier::new_from_rand_seed(wallet::REMITTER_WALLET_SEED);
+    let remittee_program = ProgramIdentifier::new_from_rand_seed(wallet::REMITTEE_WALLET_SEED);
+    let remitter_private_key = wallet::PrivateKey::new_from_rand_seed(wallet::REMITTER_WALLET_SEED);
     let remitter_public_key = wallet::PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
         &remitter_private_key.0,
     ));
 
-    mozak_sdk::add_identity(remitter_program); // Manual override for `IdentityStack`
-    let _ = mozak_sdk::write(
-        &mozak_sdk::InputTapeType::PrivateTape,
-        &remitter_private_key.0[..],
-    );
-    mozak_sdk::rm_identity(); // Manual override for `IdentityStack`
-
-    let remittee_private_key = wallet::PrivateKey::new_from_rand_seed(5);
+    let remittee_private_key = wallet::PrivateKey::new_from_rand_seed(wallet::REMITTEE_WALLET_SEED);
     let remittee_public_key = wallet::PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
         &remittee_private_key.0,
     ));

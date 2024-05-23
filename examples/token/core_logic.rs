@@ -5,6 +5,9 @@ use mozak_sdk::common::types::{Event, EventType, ProgramIdentifier, StateObject}
 use rkyv::rancor::Panic;
 use rkyv::{Archive, Deserialize, Serialize};
 
+#[cfg(not(target_os = "mozakvm"))]
+pub const TOKEN_PROGRAM_SEED: u64 = 1;
+
 #[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {

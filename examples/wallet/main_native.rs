@@ -21,22 +21,21 @@ mod core_logic;
 
 use mozak_sdk::common::types::ProgramIdentifier;
 
-use crate::core_logic::{dispatch, BlackBox, MethodArgs, PrivateKey, PublicKey, TokenObject};
+use crate::core_logic::{
+    dispatch, BlackBox, MethodArgs, PrivateKey, PublicKey, TokenObject, REMITTEE_WALLET_SEED,
+    REMITTER_WALLET_SEED,
+};
 
 fn main() {
-    let wallet_program = ProgramIdentifier::new_from_rand_seed(1);
-    let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
-    let remittee_program = ProgramIdentifier::new_from_rand_seed(3);
-    let private_key = PrivateKey::new_from_rand_seed(4);
-    let public_key = PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
-        &private_key.0,
+    let remitter_program = ProgramIdentifier::new_from_rand_seed(REMITTER_WALLET_SEED);
+    let remittee_program = ProgramIdentifier::new_from_rand_seed(REMITTEE_WALLET_SEED);
+    let remitter_private_key = PrivateKey::new_from_rand_seed(REMITTER_WALLET_SEED);
+    let remitter_public_key = PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
+        &remitter_private_key.0,
     ));
-    mozak_sdk::add_identity(remitter_program); // Manual override for `IdentityStack`
-    let _ = mozak_sdk::write(&mozak_sdk::InputTapeType::PrivateTape, &private_key.0[..]);
-    mozak_sdk::rm_identity(); // Manual override for `IdentityStack`
 
     let token_object = TokenObject {
-        pub_key: public_key.clone(),
+        pub_key: remitter_public_key.clone(),
         amount: 10.into(),
     };
 
@@ -47,8 +46,8 @@ fn main() {
     };
 
     mozak_sdk::call_send(
-        wallet_program,
-        MethodArgs::ApproveSignature(public_key, black_box.clone()),
+        remitter_program,
+        MethodArgs::ApproveSignature(remitter_public_key, black_box.clone()),
         dispatch,
     );
 
