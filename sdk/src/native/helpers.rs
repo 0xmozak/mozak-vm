@@ -67,20 +67,18 @@ fn write_to_file(file_path: &str, content: &[u8]) {
 /// formed of tape on disk, `.tape.debug` will be used for
 /// debug tape on disk.
 #[allow(dead_code)]
-pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
+pub fn dump_system_tape(is_debug_tape_required: bool) {
+    fs::create_dir_all("out").unwrap();
     let tape_clone = unsafe {
         crate::common::system::SYSTEM_TAPE.clone() // .clone() removes `Lazy{}`
     };
 
     if is_debug_tape_required {
-        write_to_file(
-            &(file_template.to_string() + ".tape_debug"),
-            &format!("{tape_clone:#?}").into_bytes(),
-        );
+        write_to_file("out/tape.debug", &format!("{tape_clone:#?}").into_bytes());
     }
 
     write_to_file(
-        &(file_template.to_string() + ".tape.json"),
+        "out/tape.json",
         &serde_json::to_string_pretty(&tape_clone)
             .unwrap()
             .into_bytes(),
@@ -95,8 +93,4 @@ pub fn dump_system_tape(file_template: &str, is_debug_tape_required: bool) {
 /// user must be cautious to not move at least the system tape, as the system
 /// tape is used by the CLI in proving and in transaction bundling, and the SDK
 /// makes some assumptions about where to find the ELF for proving.
-pub fn dump_proving_files(file_template: &str) {
-    fs::create_dir_all("out").unwrap();
-    let sys_tape_path = format!("out/{file_template}");
-    dump_system_tape(&sys_tape_path, true);
-}
+pub fn dump_proving_files() { dump_system_tape(true); }

@@ -8,14 +8,16 @@ use log::Level::Debug;
 use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
+use mozak_sdk::common::types::ProgramIdentifier;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
+use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut, Hasher};
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -24,7 +26,9 @@ use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_starks_par, MozakStark, TableKindArray, TableKindSetBuilder};
+use super::mozak_stark::{
+    all_starks_par, MozakStark, TableKind, TableKindArray, TableKindSetBuilder,
+};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -53,9 +57,15 @@ pub fn prove<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
     debug!("Starting Prove");
-    let traces_poly_values = timed!(timing, "Generate traces", generate_traces(program, record));
+    let traces_poly_values = timed!(
+        timing,
+        "Generate traces",
+        generate_traces(program, record, timing)
+    );
+    debug!("Done with Trace Generation");
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         timed!(
             timing,
@@ -70,7 +80,7 @@ where
     }
     timed!(
         timing,
-        "Prove with traces",
+        "Prove with Traces",
         prove_with_traces(
             mozak_stark,
             config,
@@ -94,7 +104,8 @@ pub fn prove_with_traces<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -163,14 +174,44 @@ where
         )?
     );
 
+    let program_id = get_program_id::<F, C, D>(
+        public_inputs.entry_point,
+        &trace_caps[TableKind::Program],
+        &trace_caps[TableKind::ElfMemoryInit],
+    );
+
     if log_enabled!(Debug) {
         timing.print();
     }
+
     Ok(AllProof {
         proofs,
         public_inputs,
         public_sub_table_values,
+        program_id,
     })
+}
+
+pub fn get_program_id<F, C, const D: usize>(
+    entry_point: F,
+    program_trace_cap: &MerkleCap<F, C::Hasher>,
+    elf_memory_init_trace_cap: &MerkleCap<F, C::Hasher>,
+) -> ProgramIdentifier
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
+    let hash_pad_func = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad;
+    let hashout = hash_pad_func(
+        &itertools::chain!(
+            [entry_point],
+            hash_pad_func(&program_trace_cap.flatten()).elements,
+            hash_pad_func(&elf_memory_init_trace_cap.flatten()).elements,
+        )
+        .collect_vec(),
+    );
+    let hashout_bytes: [u8; 32] = hashout.to_bytes().try_into().unwrap();
+    ProgramIdentifier(hashout_bytes.into())
 }
 
 /// Compute proof for a single STARK table, with lookup data.
@@ -364,9 +405,9 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    let cpu_stark = [public_inputs.entry_point];
+    let cpu_skeleton_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: &cpu_stark,
+        cpu_skeleton_stark: &cpu_skeleton_stark,
         ..Default::default()
     }
     .build();

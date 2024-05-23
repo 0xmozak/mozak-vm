@@ -1,4 +1,3 @@
-#![feature(restricted_std)]
 #![allow(unused_attributes)]
 mod core_logic;
 use mozak_sdk::common::types::{ProgramIdentifier, StateAddress, StateObject};
@@ -52,5 +51,5 @@ fn main() {
         dispatch,
     );
 
-    mozak_sdk::native::dump_proving_files("token");
+    mozak_sdk::native::dump_proving_files();
 }

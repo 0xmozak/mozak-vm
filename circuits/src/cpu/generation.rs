@@ -1,5 +1,6 @@
 use expr::{Evaluator, ExprBuilder};
-use itertools::{chain, Itertools};
+use itertools::Itertools;
+use log::debug;
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, State, StorageDeviceEntry, StorageDeviceOpcode};
 use mozak_runner::vm::{ExecutionRecord, Row};
@@ -10,18 +11,37 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuState;
+use crate::cpu_skeleton::columns::CpuSkeleton;
 use crate::expr::PureEvaluator;
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::program::columns::ProgramRom;
 use crate::program_multiplicities::columns::ProgramMult;
-use crate::utils::{from_u32, pad_trace_with_last, sign_extend};
+use crate::utils::{from_u32, sign_extend};
 use crate::xor::columns::XorView;
 
 #[must_use]
+pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
+    let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
+    let padding = CpuState {
+        product_high_limb_inv_helper: F::from_canonical_u32(u32::MAX).inverse(),
+        quotient_value: F::from_canonical_u32(u32::MAX),
+        ..Default::default()
+    };
+
+    trace.resize(len, padding);
+    trace
+}
+
+#[must_use]
 pub fn generate_program_mult_trace<F: RichField>(
-    trace: &[CpuState<F>],
+    skeleton: &[CpuSkeleton<F>],
     program_rom: &[ProgramRom<F>],
 ) -> Vec<ProgramMult<F>> {
-    let mut counts = trace.iter().map(|row| row.inst.pc).counts();
+    let mut counts = skeleton
+        .iter()
+        .filter(|row| row.is_running.is_nonzero())
+        .map(|row| row.pc)
+        .counts();
     program_rom
         .iter()
         .map(|&inst| ProgramMult {
@@ -35,46 +55,52 @@ pub fn generate_program_mult_trace<F: RichField>(
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
 pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
+    debug!("Starting CPU Trace Generation");
     let mut trace: Vec<CpuState<F>> = vec![];
-    let ExecutionRecord {
-        executed,
-        last_state,
-    } = record;
-    let last_row = &[Row {
-        state: last_state.clone(),
-        // `Aux` has auxiliary information about an executed CPU cycle.
-        // The last state is the final state after the last execution.  Thus naturally it has no
-        // associated auxiliary execution information. We use a dummy aux to make the row
-        // generation work, but we could refactor to make this unnecessary.
-        ..executed.last().unwrap().clone()
-    }];
 
-    let default_entry = StorageDeviceEntry::default();
+    let default_io_entry = StorageDeviceEntry::default();
     for Row {
         state,
         instruction,
         aux,
-    } in chain![executed, last_row]
+    } in &record.executed
     {
-        let inst = *instruction;
-        let io = aux.storage_device_entry.as_ref().unwrap_or(&default_entry);
+        let inst = instruction;
+        let io = aux
+            .storage_device_entry
+            .as_ref()
+            .unwrap_or(&default_io_entry);
+        // Skip instruction handled by their own tables.
+        // TODO: refactor, so we don't repeat logic.
+        {
+            if let Op::ADD = inst.op {
+                continue;
+            }
+
+            let op1_value = state.get_register_value(inst.args.rs1);
+            let op2_value = state.get_register_value(inst.args.rs2);
+            if op1_value < op2_value && Op::BLTU == inst.op {
+                continue;
+            }
+        }
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
-            inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
+            new_pc: F::from_canonical_u32(aux.new_pc),
+            inst: cpu_cols::Instruction::from((state.get_pc(), *inst)).map(from_u32),
             op1_value: from_u32(aux.op1),
             op2_value_raw: from_u32(aux.op2_raw),
             op2_value: from_u32(aux.op2),
+            // This seems reasonable-ish, but it's also suspicious?
+            // It seems too simple.
             op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
                 + from_u32(inst.args.imm),
-            // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
-            is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
             bitshift: Bitshift::from(0).map(F::from_canonical_u32),
-            xor: generate_xor_row(&inst, state),
+            xor: generate_xor_row(inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
@@ -117,15 +143,16 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);
-        generate_div_row(&mut row, &inst, aux);
+        generate_div_row(&mut row, inst, aux);
         operands_sign_handling(&mut row, aux);
-        memory_sign_handling(&mut row, &inst, aux);
+        memory_sign_handling(&mut row, inst, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
 
     log::trace!("trace {:?}", trace);
-    pad_trace_with_last(trace)
+
+    pad_trace(trace)
 }
 
 /// This is a wrapper to make the Expr mechanics work directly with a Field.
