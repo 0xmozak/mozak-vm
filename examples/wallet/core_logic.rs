@@ -132,13 +132,17 @@ pub fn approve_signature<T>(pub_key: PublicKey, _black_box: T) {
             &mut private_key_bytes[..],
         )
         .unwrap();
-        let private_tape_pub_key = mozak_sdk::poseidon2_hash_no_pad(&private_key_bytes);
+        let private_tape_pub_key =
+            mozak_sdk::mozakvm::helpers::poseidon2_hash_no_pad(&private_key_bytes);
         assert!(private_tape_pub_key == pub_key.0);
     }
 
     #[cfg(not(target_os = "mozakvm"))]
     {
         let remitter_private_key = PrivateKey::new_from_rand_seed(REMITTER_WALLET_SEED);
+        let remitter_public_key =
+            mozak_sdk::native::helpers::poseidon2_hash_no_pad(&remitter_private_key.0);
+        assert!(remitter_public_key == pub_key.0);
         let _ = mozak_sdk::write(
             &mozak_sdk::InputTapeType::PrivateTape,
             &remitter_private_key.0[..],
