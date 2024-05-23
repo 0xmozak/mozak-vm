@@ -32,7 +32,7 @@ fn merkleize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
             .map(|g| match g {
                 [remainder] => *remainder,
                 #[cfg(target_os = "mozakvm")]
-                g => crate::mozakvm::helpers::poseidon2_hash_no_pad(
+                g => crate::mozakvm::poseidon::poseidon2_hash_no_pad(
                     &g.iter().flat_map(Poseidon2Hash::inner).collect::<Vec<u8>>(),
                 ),
                 #[cfg(not(target_os = "mozakvm"))]

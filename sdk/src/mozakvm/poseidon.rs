@@ -1,3 +1,4 @@
+#![allow(clippy::module_name_repetitions)]
 // This file contains code snippets used in mozakvm execution
 
 use crate::common::types::Poseidon2Hash;

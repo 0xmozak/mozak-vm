@@ -1,5 +1,5 @@
 #[cfg(target_os = "mozakvm")]
-use crate::mozakvm::helpers::poseidon2_hash_no_pad;
+use crate::mozakvm::poseidon::poseidon2_hash_no_pad;
 #[cfg(not(target_os = "mozakvm"))]
 use crate::native::helpers::poseidon2_hash_no_pad;
 #[derive(
@@ -84,7 +84,7 @@ impl CanonicalEvent {
             Self {
                 address: value.object.address,
                 type_: value.type_,
-                value: crate::mozakvm::helpers::poseidon2_hash_with_pad(&value.object.data),
+                value: crate::mozakvm::poseidon::poseidon2_hash_with_pad(&value.object.data),
             }
         }
     }
