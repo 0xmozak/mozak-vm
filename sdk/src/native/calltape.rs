@@ -1,11 +1,15 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::io::Read;
+use sha3::{Digest, Sha3_256};
 use std::rc::Rc;
 
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::Deserialize;
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
-use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage};
+use crate::common::types::role::CanonicallyOrderedRoleIDsWithTemporalHints;
+use crate::common::types::{CrossProgramCall, ProgramIdentifier, RawMessage, Role, RoleIdentifier};
 use crate::native::identity::IdentityStack;
 
 /// Represents the `CallTape` under native execution
@@ -13,6 +17,13 @@ use crate::native::identity::IdentityStack;
 pub struct CallTape {
     #[serde(skip)]
     pub(crate) identity_stack: Rc<RefCell<IdentityStack>>,
+
+    #[serde(skip)]
+    pub next_available_role_id: RoleIdentifier,
+    #[serde(skip)]
+    pub role_map: HashMap<Vec<u8>, RoleIdentifier>,
+
+    pub castlist: Vec<CanonicallyOrderedRoleIDsWithTemporalHints>,
     #[serde(rename = "global_calltape")]
     pub writer: Vec<CrossProgramCall>,
 }
@@ -32,7 +43,7 @@ impl SelfIdentify for CallTape {
 impl Call for CallTape {
     fn send<A, R>(
         &mut self,
-        recipient_program: ProgramIdentifier,
+        recipient: RoleIdentifier,
         argument: A,
         resolver: impl Fn(A) -> R,
     ) -> R
@@ -44,7 +55,7 @@ impl Call for CallTape {
         // Create a skeletal `CrossProgramCall` to be resolved via "resolver"
         let msg = CrossProgramCall {
             caller: self.get_self_identity(),
-            callee: recipient_program,
+            callee: recipient,
             argument: rkyv::to_bytes::<_, 256, _>(&argument).unwrap().into(),
             return_: RawMessage::default(), // Unfilled: we have to still resolve it
         };
@@ -67,13 +78,51 @@ impl Call for CallTape {
         resolved_value
     }
 
-    fn receive<A, R>(&mut self) -> Option<(ProgramIdentifier, A, R)>
+    fn receive<A, R>(&mut self) -> Option<(RoleIdentifier, A, R)>
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
         <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
         <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
         unimplemented!()
+    }
+}
+
+impl CallTape {
+    /// Gets a roleID determined fully by `(Prog, instance)` tuple. It is
+    /// guaranteed that any call wih same `(Prog, instance)` tuple during one
+    /// native context will always return the same `RoleIdentifier` within that
+    /// context. Useful when different programs need to call the same role.
+    pub fn get_deterministic_role_id<T: AsRef<[u8]>>(&mut self, prog: ProgramIdentifier, instance: T) -> RoleIdentifier {
+        // Get the hash of `(Prog, instance)`, look into `self.role_map`. If found,
+        // return that role ID, else create a new one!
+        let mut hasher = Sha3_256::new();
+        hasher.update(prog.0.inner());
+        hasher.update(instance);
+        let hash: Vec<u8> = hasher.finalize().bytes()
+            .into_iter()
+            .map(|x| x.unwrap_or_default())
+            .collect();
+
+        if let Some(role_id) = self.role_map.get(&hash) {
+            return *role_id
+        };
+
+        // if not already found in role map
+        let new_role_id = self.next_available_role_id;
+        self.next_available_role_id += 1;
+
+        self.role_map.insert(hash, new_role_id);
+        new_role_id
+    }
+
+    /// Gets a fresh & unique roleID referencible only by the `RoleIdentifier`
+    pub fn get_unique_role_id(&mut self, prog: ProgramIdentifier) -> RoleIdentifier {
+        let new_role_id = self.next_available_role_id;
+        self.next_available_role_id += 1;
+
+        self.role_map.insert(hash, new_role_id);
+        new_role_id
     }
 }
 

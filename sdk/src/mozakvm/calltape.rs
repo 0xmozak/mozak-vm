@@ -2,7 +2,7 @@ use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
-use crate::common::types::{CrossProgramCall, ProgramIdentifier};
+use crate::common::types::{CrossProgramCall, ProgramIdentifier, RoleIdentifier};
 
 /// Represents the `CallTape` under `mozak-vm`
 #[derive(Default, Clone)]
@@ -29,7 +29,7 @@ impl SelfIdentify for CallTape {
 impl Call for CallTape {
     fn send<A, R>(
         &mut self,
-        recipient_program: ProgramIdentifier,
+        recipient: RoleIdentifier,
         argument: A,
         _resolver: impl Fn(A) -> R,
     ) -> R
@@ -48,8 +48,8 @@ impl Call for CallTape {
 
         // Ensure fields are correctly populated for caller and callee
         assert!(cpcmsg.caller == self.get_self_identity());
-        assert!(cpcmsg.callee == recipient_program);
-        assert!(self.is_casted_actor(&recipient_program));
+        assert!(cpcmsg.callee == recipient);
+        assert!(self.is_casted_actor(&recipient));
 
         // Deserialize the `arguments` seen on the tape, and assert
         let zcd_args = unsafe { rkyv::access_unchecked::<A>(&cpcmsg.argument.0[..]) };
@@ -76,7 +76,7 @@ impl Call for CallTape {
     }
 
     #[allow(clippy::similar_names)]
-    fn receive<A, R>(&mut self) -> Option<(ProgramIdentifier, A, R)>
+    fn receive<A, R>(&mut self) -> Option<(RoleIdentifier, A, R)>
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
@@ -96,7 +96,7 @@ impl Call for CallTape {
             // Well, once we are sure that we were not the caller, we can
             // either be a callee in which case we process and send information
             // back or we continue searching.
-            let callee: ProgramIdentifier = zcd_cpcmsg
+            let callee: RoleIdentifier = zcd_cpcmsg
                 .callee
                 .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
                 .unwrap();
@@ -105,7 +105,7 @@ impl Call for CallTape {
                 // First, ensure that we are not the caller, no-one can call
                 // themselves. (Even if they can w.r.t. self-calling extension,
                 // the `caller` field would remain distinct)
-                let caller: ProgramIdentifier = zcd_cpcmsg
+                let caller: RoleIdentifier = zcd_cpcmsg
                     .caller
                     .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
                     .unwrap();

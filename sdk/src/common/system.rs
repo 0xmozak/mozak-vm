@@ -3,7 +3,8 @@ use once_cell::unsync::Lazy;
 use {
     crate::common::merkle::merkleize,
     crate::common::types::{
-        CanonicallyOrderedEventsWithTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
+        CanonicallyOrderedEventsWithTemporalHints, CrossProgramCall, Poseidon2Hash,
+        ProgramIdentifier,
     },
     crate::core::constants::DIGEST_BYTES,
     crate::core::ecall::{
@@ -96,6 +97,8 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 /// and must be deserialized at the point of consumption. Only the `callee`s are
 /// deserialized for persistence of the `cast_list`.
 fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
+    use super::types::RoleIdentifier;
+
     let mut len_bytes = [0; 4];
     call_tape_read(len_bytes.as_mut_ptr(), 4);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
@@ -106,7 +109,7 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
         rkyv::access_unchecked::<Vec<CrossProgramCall>>(&*slice_from_raw_parts(buf.as_ptr(), len))
     };
 
-    let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
+    let cast_list: Vec<RoleIdentifier> = archived_cpc_messages
         .iter()
         .map(|m| {
             m.callee
@@ -128,8 +131,9 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
 #[cfg(target_os = "mozakvm")]
 /// Populates a `MozakVM` [`EventTapeType`] via ECALLs.
 ///
-/// At this point, the vector of [`CanonicallyOrderedEventsWithTemporalHints`] are still
-/// rkyv-serialized, and must be deserialized at the point of consumption.
+/// At this point, the vector of [`CanonicallyOrderedEventsWithTemporalHints`]
+/// are still rkyv-serialized, and must be deserialized at the point of
+/// consumption.
 fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     let mut len_bytes = [0; 4];
     event_tape_read(len_bytes.as_mut_ptr(), 4);
@@ -138,10 +142,9 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     event_tape_read(buf.as_mut_ptr(), len);
 
     let canonical_ordered_temporal_hints = unsafe {
-        rkyv::access_unchecked::<Vec<CanonicallyOrderedEventsWithTemporalHints>>(&*slice_from_raw_parts(
-            buf.as_ptr(),
-            len,
-        ))
+        rkyv::access_unchecked::<Vec<CanonicallyOrderedEventsWithTemporalHints>>(
+            &*slice_from_raw_parts(buf.as_ptr(), len),
+        )
     };
 
     EventTapeType {
@@ -174,12 +177,13 @@ pub fn ensure_clean_shutdown() {
         let mut claimed_commitment_ev: [u8; 32] = [0; 32];
         crate::core::ecall::events_commitment_tape_read(claimed_commitment_ev.as_mut_ptr());
 
-        let canonical_event_temporal_hints: Vec<CanonicallyOrderedEventsWithTemporalHints> = SYSTEM_TAPE
-            .event_tape
-            .reader
-            .unwrap()
-            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
-            .unwrap();
+        let canonical_event_temporal_hints: Vec<CanonicallyOrderedEventsWithTemporalHints> =
+            SYSTEM_TAPE
+                .event_tape
+                .reader
+                .unwrap()
+                .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+                .unwrap();
         let calculated_commitment_ev = merkleize(
             canonical_event_temporal_hints
                 .iter()

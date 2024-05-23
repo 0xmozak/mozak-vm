@@ -42,7 +42,7 @@ pub fn event_emit(event: crate::common::types::Event) {
 /// return the same message. Panics on call-tape non-abidance.
 #[cfg(feature = "std")]
 #[must_use]
-pub fn call_receive<A, R>() -> Option<(crate::common::types::ProgramIdentifier, A, R)>
+pub fn call_receive<A, R>() -> Option<(crate::common::types::RoleIdentifier, A, R)>
 where
     A: crate::common::traits::CallArgument + PartialEq,
     R: crate::common::traits::CallReturn,
@@ -58,7 +58,7 @@ where
 #[cfg(feature = "std")]
 #[allow(clippy::similar_names)]
 pub fn call_send<A, R>(
-    recipient_program: crate::common::types::ProgramIdentifier,
+    recipient: crate::common::types::RoleIdentifier,
     argument: A,
     resolver: impl Fn(A) -> R,
 ) -> R
@@ -71,7 +71,7 @@ where
     unsafe {
         crate::common::system::SYSTEM_TAPE
             .call_tape
-            .send(recipient_program, argument, resolver)
+            .send(recipient, argument, resolver)
     }
 }
 

@@ -4,6 +4,7 @@ use rkyv::ser::{AllocSerializer, Composite};
 use rkyv::util::AlignedVec;
 use rkyv::{Archive, Deserialize, Serialize};
 
+use super::types::RoleIdentifier;
 use crate::common::types::{Event, ProgramIdentifier};
 
 pub trait RkyvSerializable = rkyv::Serialize<
@@ -28,7 +29,7 @@ pub trait Call: SelfIdentify {
     /// deserialization. This func never serializes in `mozakvm`.
     fn send<A, R>(
         &mut self,
-        recipient_program: ProgramIdentifier,
+        recipient: RoleIdentifier,
         argument: A,
         resolver: impl Fn(A) -> R,
     ) -> R
@@ -45,7 +46,7 @@ pub trait Call: SelfIdentify {
     /// the result that they want us to ensure is correct.
     /// Under the hood, wherever required, it uses `rkyv` for
     /// deserialization. This func never serializes in `mozakvm`.
-    fn receive<A, R>(&mut self) -> Option<(ProgramIdentifier, A, R)>
+    fn receive<A, R>(&mut self) -> Option<(RoleIdentifier, A, R)>
     where
         A: CallArgument + PartialEq,
         R: CallReturn,

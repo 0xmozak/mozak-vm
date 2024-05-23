@@ -6,7 +6,8 @@ use itertools::Itertools;
 
 use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{
-    CanonicalEvent, CanonicallyOrderedEventsWithTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
+    CanonicalEvent, CanonicallyOrderedEventsWithTemporalHints, Event, Poseidon2Hash,
+    ProgramIdentifier,
 };
 use crate::native::identity::IdentityStack;
 
@@ -78,7 +79,9 @@ impl OrderedEvents {
     /// Temporal Hints:  [   3,          1,           0,           2]
     #[allow(dead_code)]
     #[must_use]
-    pub fn get_canonical_order_temporal_hints(&self) -> Vec<CanonicallyOrderedEventsWithTemporalHints> {
+    pub fn get_canonical_order_temporal_hints(
+        &self,
+    ) -> Vec<CanonicallyOrderedEventsWithTemporalHints> {
         fn reverse_ordering(original_ordering: &[u32]) -> Vec<u32> {
             let mut reversed_ordering = vec![0; original_ordering.len()];
 
@@ -103,7 +106,9 @@ impl OrderedEvents {
         canonical_ordering
             .into_iter()
             .zip(reversed_indices)
-            .map(|((canonical_event, _), idx)| CanonicallyOrderedEventsWithTemporalHints(canonical_event, idx))
+            .map(|((canonical_event, _), idx)| {
+                CanonicallyOrderedEventsWithTemporalHints(canonical_event, idx)
+            })
             .collect::<Vec<CanonicallyOrderedEventsWithTemporalHints>>()
     }
 
