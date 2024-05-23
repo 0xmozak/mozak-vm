@@ -968,8 +968,10 @@ dependencies = [
  "mozak-circuits",
  "mozak-recproofs",
  "mozak-sdk",
+ "once_cell",
  "plonky2",
  "serde",
+ "tested-fixture",
 ]
 
 [[package]]

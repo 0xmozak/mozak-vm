@@ -20,7 +20,7 @@ use crate::subcircuits::{propagate, unbounded, unpruned};
 
 pub mod core;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Indices {
     pub unbounded: unbounded::PublicIndices,
     pub program_id: unpruned::PublicIndices,
@@ -381,21 +381,39 @@ where
         &self,
         merge: &merge::BranchProof<F, C, D>,
         left_proof: &Proof<L, F, C, D>,
-        right_proof: Option<&Proof<R, F, C, D>>,
+        right_proof: &Proof<R, F, C, D>,
     ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        let partial = right_proof.is_none();
-        let (right_is_leaf, right_proof) = if let Some(right_proof) = right_proof {
-            (R::VALUE, &right_proof.proof)
-        } else {
-            (L::VALUE, &left_proof.proof)
-        };
+        let partial = false;
         self.unbounded.set_witness(
             &mut inputs,
             L::VALUE,
             &left_proof.proof,
-            right_is_leaf,
-            right_proof,
+            R::VALUE,
+            &right_proof.proof,
+        );
+        self.events.set_witness(&mut inputs, partial, merge);
+        let proof = self.circuit.prove(inputs)?;
+        Ok(BranchProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    pub fn prove_one<L: IsLeaf>(
+        &self,
+        merge: &merge::BranchProof<F, C, D>,
+        left_proof: &Proof<L, F, C, D>,
+    ) -> Result<BranchProof<F, C, D>> {
+        let mut inputs = PartialWitness::new();
+        let partial = true;
+        self.unbounded.set_witness(
+            &mut inputs,
+            L::VALUE,
+            &left_proof.proof,
+            L::VALUE,
+            &left_proof.proof,
         );
         self.events.set_witness(&mut inputs, partial, merge);
         let proof = self.circuit.prove(inputs)?;
@@ -523,32 +541,24 @@ pub mod test {
     }
 
     pub static PROGRAM_M: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, None));
-    pub static PROGRAM_M_INDICES: Lazy<ProgramPublicIndices> =
-        Lazy::new(|| PROGRAM_M.get_indices());
     pub static PROGRAM_0: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 0));
-    pub static PROGRAM_0_INDICES: Lazy<ProgramPublicIndices> =
-        Lazy::new(|| PROGRAM_0.get_indices());
     pub static PROGRAM_1: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 1));
-    pub static PROGRAM_1_INDICES: Lazy<ProgramPublicIndices> =
-        Lazy::new(|| PROGRAM_1.get_indices());
     pub static PROGRAM_2: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 2));
-    pub static PROGRAM_2_INDICES: Lazy<ProgramPublicIndices> =
-        Lazy::new(|| PROGRAM_2.get_indices());
 
     #[tested_fixture::tested_fixture(pub LEAF)]
     fn build_leaf() -> LeafCircuit<F, C, D> {
-        assert_eq!(*PROGRAM_M_INDICES, *PROGRAM_0_INDICES);
-        assert_eq!(*PROGRAM_M_INDICES, *PROGRAM_1_INDICES);
-        assert_eq!(*PROGRAM_M_INDICES, *PROGRAM_2_INDICES);
+        let program_m_indices = PROGRAM_M.get_indices();
+        assert_eq!(program_m_indices, PROGRAM_0.get_indices());
+        assert_eq!(program_m_indices, PROGRAM_1.get_indices());
+        assert_eq!(program_m_indices, PROGRAM_2.get_indices());
 
-        assert_eq!(PROGRAM_M.circuit.common, PROGRAM_0.circuit.common);
         assert_eq!(PROGRAM_M.circuit.common, PROGRAM_0.circuit.common);
         assert_eq!(PROGRAM_M.circuit.common, PROGRAM_1.circuit.common);
         assert_eq!(PROGRAM_M.circuit.common, PROGRAM_2.circuit.common);
 
         LeafCircuit::new(
             &CONFIG,
-            &PROGRAM_M_INDICES,
+            &program_m_indices,
             &PROGRAM_M.circuit.common,
             &build_event_root::BRANCH,
         )
@@ -777,7 +787,7 @@ pub mod test {
         let proof = BRANCH.prove(
             *merge::T0_PM_P0_BRANCH_PROOF,
             *T0_PM_LEAF_PROOF,
-            Some(*T0_P0_LEAF_PROOF),
+            *T0_P0_LEAF_PROOF,
         )?;
         assert_proof(&proof, Some(*T0_PM_P0_HASH), *CAST_PM_P0);
         BRANCH.verify(proof.clone())?;
@@ -789,7 +799,7 @@ pub mod test {
         let proof = BRANCH.prove(
             *merge::T0_BRANCH_PROOF,
             *T0_PM_P0_BRANCH_PROOF,
-            Some(*T0_P2_LEAF_PROOF),
+            *T0_P2_LEAF_PROOF,
         )?;
         assert_proof(&proof, Some(*T0_HASH), *CAST_T0);
         BRANCH.verify(proof.clone())?;
@@ -801,7 +811,7 @@ pub mod test {
         let proof = BRANCH.prove(
             *merge::T1_PM_P1_BRANCH_PROOF,
             *T1_PM_LEAF_PROOF,
-            Some(*T1_P1_LEAF_PROOF),
+            *T1_P1_LEAF_PROOF,
         )?;
         assert_proof(&proof, Some(*T1_B_HASH), *CAST_PM_P1);
         BRANCH.verify(proof.clone())?;
@@ -813,7 +823,7 @@ pub mod test {
         let proof = BRANCH.prove(
             *merge::T1_BRANCH_PROOF,
             &T1_PM_P1_BRANCH_PROOF,
-            Some(*T1_P2_LEAF_PROOF),
+            *T1_P2_LEAF_PROOF,
         )?;
         assert_proof(&proof, Some(*T1_HASH), *CAST_T1);
         BRANCH.verify(proof.clone())?;
@@ -822,11 +832,7 @@ pub mod test {
 
     #[test]
     fn verify_partial_branch_1() -> Result<()> {
-        let proof = BRANCH.prove(
-            *merge::T1_P2_PARTIAL_BRANCH_PROOF,
-            *T1_P2_LEAF_PROOF,
-            None::<&LeafProof<_, _, D>>,
-        )?;
+        let proof = BRANCH.prove_one(*merge::T1_P2_PARTIAL_BRANCH_PROOF, *T1_P2_LEAF_PROOF)?;
         assert_proof(&proof, Some(*T1_P2_HASH), PROGRAM_HASHES[2]);
         BRANCH.verify(proof)?;
         Ok(())
@@ -834,10 +840,9 @@ pub mod test {
 
     #[test]
     fn verify_partial_branch_2() -> Result<()> {
-        let proof = BRANCH.prove(
+        let proof = BRANCH.prove_one(
             *merge::T1_PM_P1_PARTIAL_BRANCH_PROOF,
             &T1_PM_P1_BRANCH_PROOF,
-            None::<&LeafProof<_, _, D>>,
         )?;
         assert_proof(&proof, Some(*T1_B_HASH), *CAST_PM_P1);
         BRANCH.verify(proof)?;
@@ -852,7 +857,7 @@ pub mod test {
                 *merge::T0_PM_P0_BRANCH_PROOF,
                 // Flip the merge to break stuff
                 *T0_P0_LEAF_PROOF,
-                Some(*T0_PM_LEAF_PROOF),
+                *T0_PM_LEAF_PROOF,
             )
             .unwrap();
         BRANCH.verify(proof.clone()).unwrap();
@@ -866,7 +871,7 @@ pub mod test {
                 *merge::T0_BRANCH_PROOF,
                 // Flip the merge to break stuff
                 *T0_P2_LEAF_PROOF,
-                Some(*T0_PM_P0_BRANCH_PROOF),
+                *T0_PM_P0_BRANCH_PROOF,
             )
             .unwrap();
         BRANCH.verify(proof.clone()).unwrap();
@@ -879,7 +884,7 @@ pub mod test {
             .prove(
                 *merge::T0_PM_P0_BRANCH_PROOF,
                 *T0_PM_BAD_CALL_LEAF_PROOF,
-                Some(*T0_P0_LEAF_PROOF),
+                *T0_P0_LEAF_PROOF,
             )
             .unwrap();
         BRANCH.verify(proof.clone()).unwrap();
