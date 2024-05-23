@@ -7,7 +7,8 @@ use mozak_sdk::common::types::ProgramIdentifier;
 use crate::core_logic::{dispatch, BlackBox, MethodArgs, PublicKey, TokenObject};
 
 fn main() {
-    let wallet_program = ProgramIdentifier::new_from_rand_seed(2);
+    let wallet_program: ProgramIdentifier =
+        std::fs::read_to_string("self_prog_id.txt").unwrap().into();
     let remitter_program = ProgramIdentifier::new_from_rand_seed(20);
     let remittee_program = ProgramIdentifier::new_from_rand_seed(21);
     let public_key = PublicKey::new_from_rand_seed(4);

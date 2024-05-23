@@ -28,6 +28,7 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::storage_device::generation::generate_call_tape_trace;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
+#[cfg(feature = "bench")]
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{
     deserialize_system_tape, get_self_prog_id, load_program, raw_tapes_from_system_tape,
@@ -62,8 +63,6 @@ pub struct RunArgs {
     elf: Input,
     #[arg(long)]
     system_tape: Option<Input>,
-    #[arg(long)]
-    self_prog_id: String,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -74,8 +73,6 @@ pub struct ProveArgs {
     batch_proof: Option<Output>,
     #[arg(long)]
     system_tape: Option<Input>,
-    #[arg(long)]
-    self_prog_id: String,
     recursive_proof: Option<Output>,
 }
 
@@ -109,6 +106,7 @@ enum Command {
     MemoryInitHash { elf: Input },
     /// Compute the Self Program Id of the given ELF,
     SelfProgId { elf: Input },
+    #[cfg(feature = "bench")]
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -127,25 +125,17 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run(RunArgs {
-            elf,
-            system_tape,
-            self_prog_id,
-        }) => {
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+        Command::Run(RunArgs { elf, system_tape }) => {
             let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
-        Command::ProveAndVerify(RunArgs {
-            elf,
-            system_tape,
-            self_prog_id,
-        }) => {
+        Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
             let program = load_program(elf).unwrap();
-
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
-
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -153,14 +143,13 @@ fn main() -> Result<()> {
         Command::Prove(ProveArgs {
             elf,
             system_tape,
-            self_prog_id,
             mut proof,
             recursive_proof,
             batch_proof,
         }) => {
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.clone().into());
-            let self_program_id: ProgramIdentifier = self_prog_id.into();
             let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             let stark = if cli.debug {
@@ -245,7 +234,7 @@ fn main() -> Result<()> {
                 let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
                 debug_assert_eq!(
                     public_inputs.program_hash_as_bytes.to_vec(),
-                    self_program_id
+                    self_prog_id
                         .inner()
                         .into_iter()
                         .map(F::from_canonical_u8)
@@ -487,6 +476,7 @@ fn main() -> Result<()> {
             let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
             println!("{self_prog_id:?}");
         }
+        #[cfg(feature = "bench")]
         Command::Bench(bench) => {
             let time_taken = bench.bench()?.as_secs_f64();
             println!("{time_taken}");

@@ -13,6 +13,9 @@ rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["poin
 rkyv_derive = "=0.8.0-alpha.1"
 wallet = { path = "../wallet" }
 
+[build-dependencies]
+build_scripts = { path = "../../build_scripts" }
+
 [target.'cfg(not(target_os="mozakvm"))'.dependencies.hex]
 version = "0.4"
 
@@ -33,4 +36,3 @@ path = "core_logic.rs"
 # The following is read by `run_examples.py`
 [package.metadata.mozak]
 example_dependents = ["wallet"]
-example_program_id = "MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538"

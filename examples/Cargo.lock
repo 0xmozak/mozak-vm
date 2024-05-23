@@ -71,6 +71,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "build_scripts"
+version = "0.1.0"
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -213,6 +217,7 @@ checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
 name = "inputtape"
 version = "0.1.0"
 dependencies = [
+ "build_scripts",
  "hex",
  "mozak-sdk",
  "rkyv",
@@ -713,6 +718,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 name = "token"
 version = "0.1.0"
 dependencies = [
+ "build_scripts",
  "hex",
  "mozak-sdk",
  "rkyv",
@@ -751,6 +757,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "wallet"
 version = "0.1.0"
 dependencies = [
+ "build_scripts",
  "hex",
  "mozak-sdk",
  "rand",

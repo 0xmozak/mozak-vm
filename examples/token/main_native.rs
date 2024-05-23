@@ -5,7 +5,8 @@ use rkyv::rancor::Panic;
 use token::{dispatch, MethodArgs};
 
 fn main() {
-    let token_program = ProgramIdentifier::new_from_rand_seed(1);
+    let token_program: ProgramIdentifier =
+        std::fs::read_to_string("self_prog_id.txt").unwrap().into();
 
     // We assume both wallet are the same program for now
     let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
