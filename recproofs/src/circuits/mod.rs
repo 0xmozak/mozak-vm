@@ -57,6 +57,15 @@ where
     fn from(value: &'a Proof<Leaf, I, F, C, D>) -> Self { Self::Leaf(value) }
 }
 
+impl<'a, I, F, C, const D: usize> From<&'a mut Proof<Leaf, I, F, C, D>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Proof<Leaf, I, F, C, D>) -> Self { Self::Leaf(value) }
+}
+
 impl<'a, I, F, C, const D: usize> From<&'a Proof<Branch, I, F, C, D>>
     for LeafOrBranchRef<'a, I, F, C, D>
 where
@@ -64,6 +73,15 @@ where
     C: GenericConfig<D, F = F>,
 {
     fn from(value: &'a Proof<Branch, I, F, C, D>) -> Self { Self::Branch(value) }
+}
+
+impl<'a, I, F, C, const D: usize> From<&'a mut Proof<Branch, I, F, C, D>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Proof<Branch, I, F, C, D>) -> Self { Self::Branch(value) }
 }
 
 impl<'a, I, F, C, const D: usize>
@@ -74,6 +92,21 @@ where
     C: GenericConfig<D, F = F>,
 {
     fn from(value: &'a Either<Proof<Leaf, I, F, C, D>, Proof<Branch, I, F, C, D>>) -> Self {
+        match value {
+            Either::Left(l) => Self::Leaf(l),
+            Either::Right(b) => Self::Branch(b),
+        }
+    }
+}
+
+impl<'a, I, F, C, const D: usize>
+    From<&'a mut Either<Proof<Leaf, I, F, C, D>, Proof<Branch, I, F, C, D>>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Either<Proof<Leaf, I, F, C, D>, Proof<Branch, I, F, C, D>>) -> Self {
         match value {
             Either::Left(l) => Self::Leaf(l),
             Either::Right(b) => Self::Branch(b),
@@ -104,6 +137,21 @@ where
     C: GenericConfig<D, F = F>,
 {
     fn from(value: &'a Either<Proof<Branch, I, F, C, D>, Proof<Leaf, I, F, C, D>>) -> Self {
+        match value {
+            Either::Left(b) => Self::Branch(b),
+            Either::Right(l) => Self::Leaf(l),
+        }
+    }
+}
+
+impl<'a, I, F, C, const D: usize>
+    From<&'a mut Either<Proof<Branch, I, F, C, D>, Proof<Leaf, I, F, C, D>>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Either<Proof<Branch, I, F, C, D>, Proof<Leaf, I, F, C, D>>) -> Self {
         match value {
             Either::Left(b) => Self::Branch(b),
             Either::Right(l) => Self::Leaf(l),
