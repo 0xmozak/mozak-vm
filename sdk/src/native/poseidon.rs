@@ -1,4 +1,6 @@
-// This file contains code snippets used in native execution
+//! This file contains code snippets used in native execution
+#![allow(clippy::module_name_repetitions)]
+
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
