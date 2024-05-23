@@ -80,16 +80,16 @@ pub enum InputTapeType {
     PrivateTape,
 }
 
-#[cfg(all(feature = "std", target_os = "mozakvm"))]
-pub use crate::mozakvm::helpers::poseidon2_hash_no_pad;
-#[cfg(all(feature = "std", target_os = "mozakvm"))]
-pub use crate::mozakvm::helpers::poseidon2_hash_with_pad;
 /// Provides the length of tape available to read
 #[cfg(all(feature = "std", target_os = "mozakvm"))]
 pub use crate::mozakvm::inputtape::input_tape_len;
 /// Reads utmost given number of raw bytes from an input tape
 #[cfg(all(feature = "std", feature = "stdread", target_os = "mozakvm"))]
 pub use crate::mozakvm::inputtape::read;
+#[cfg(all(feature = "std", target_os = "mozakvm"))]
+pub use crate::mozakvm::poseidon::poseidon2_hash_no_pad;
+#[cfg(all(feature = "std", target_os = "mozakvm"))]
+pub use crate::mozakvm::poseidon::poseidon2_hash_with_pad;
 /// Manually add a `ProgramIdentifier` onto `IdentityStack`. Useful
 /// when one want to escape automatic management of `IdentityStack`
 /// via cross-program-calls sends (ideally temporarily).
