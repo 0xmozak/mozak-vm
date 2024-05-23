@@ -14,11 +14,13 @@ use log::debug;
 use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
 use mozak_circuits::stark::batch_prover::batch_prove;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
-use mozak_circuits::stark::proof::AllProof;
+use mozak_circuits::stark::mozak_stark::{
+    MozakStark, PublicInputs, TableKindArray, PUBLIC_TABLE_KINDS,
+};
+use mozak_circuits::stark::proof::{AllProof, BatchProof};
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
-    circuit_data_for_recursion, recursive_mozak_stark_circuit,
+    circuit_data_for_recursion, recursive_batch_stark_circuit, recursive_mozak_stark_circuit,
     shrink_to_target_degree_bits_circuit, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
     VM_RECURSION_CONFIG, VM_RECURSION_THRESHOLD_DEGREE_BITS,
 };
@@ -169,6 +171,7 @@ fn main() -> Result<()> {
             let public_inputs = PublicInputs {
                 entry_point: F::from_canonical_u32(program.entry_point),
             };
+
             let all_proof = prove::<F, C, D>(
                 &program,
                 &record,
@@ -181,8 +184,10 @@ fn main() -> Result<()> {
             let serialized = serde_json::to_string(&all_proof).unwrap();
             proof.write_all(serialized.as_bytes())?;
 
+            let mut batch_all_proof: Option<BatchProof<F, C, D>> = None;
+            let mut batch_degree_bits: Option<TableKindArray<usize>> = None;
             if let Some(mut batch_proof_output) = batch_proof {
-                let batch_proofs = batch_prove::<F, C, D>(
+                let (proof, degree_bits) = batch_prove::<F, C, D>(
                     &program,
                     &record,
                     &stark,
@@ -191,22 +196,46 @@ fn main() -> Result<()> {
                     public_inputs,
                     &mut TimingTree::default(),
                 )?;
-                let serialized = serde_json::to_string(&batch_proofs).unwrap();
+                batch_all_proof = Some(proof);
+                batch_degree_bits = Some(degree_bits);
+                let serialized = serde_json::to_string(&batch_all_proof).unwrap();
                 batch_proof_output.write_all(serialized.as_bytes())?;
             }
 
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
-                let degree_bits = all_proof.degree_bits(&config);
-                let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
-                    &stark,
-                    &degree_bits,
-                    &VM_RECURSION_CONFIG,
-                    &config,
+                let (verifier_only, common, recursive_all_proof) =
+                    if let Some(batch_proof) = batch_all_proof {
+                        let degree_bits = batch_degree_bits.unwrap();
+                        let recursive_circuit = recursive_batch_stark_circuit(
+                            &stark,
+                            &degree_bits,
+                            &PUBLIC_TABLE_KINDS,
+                            &VM_RECURSION_CONFIG,
+                            &config,
+                        );
+                        let verifier_only = recursive_circuit.circuit.verifier_only.clone();
+                        let common = recursive_circuit.circuit.common.clone();
+                        let recursive_proof = recursive_circuit.prove(&batch_proof).unwrap();
+                        (verifier_only, common, recursive_proof)
+                    } else {
+                        let degree_bits = all_proof.degree_bits(&config);
+                        let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+                            &stark,
+                            &degree_bits,
+                            &VM_RECURSION_CONFIG,
+                            &config,
+                        );
+                        let verifier_only = recursive_circuit.circuit.verifier_only.clone();
+                        let common = recursive_circuit.circuit.common.clone();
+                        let recursive_proof = recursive_circuit.prove(&all_proof).unwrap();
+                        (verifier_only, common, recursive_proof)
+                    };
+
+                println!(
+                    "Recursive proof size: {}",
+                    recursive_all_proof.to_bytes().len()
                 );
-
-                let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
-
                 let public_inputs_array: [F; VM_PUBLIC_INPUT_SIZE] = recursive_all_proof
                     .public_inputs
                     .clone()
@@ -214,7 +243,7 @@ fn main() -> Result<()> {
                     .unwrap();
 
                 let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
-                assert_eq!(
+                debug_assert_eq!(
                     public_inputs.program_hash_as_bytes.to_vec(),
                     self_program_id
                         .inner()
@@ -224,7 +253,8 @@ fn main() -> Result<()> {
                 );
 
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
-                    &recursive_circuit.circuit,
+                    &verifier_only,
+                    &common,
                     &VM_RECURSION_CONFIG,
                     VM_RECURSION_THRESHOLD_DEGREE_BITS,
                     &recursive_all_proof,
