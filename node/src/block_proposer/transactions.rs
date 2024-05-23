@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::convert::Infallible;
+use std::ops::Deref;
 
 use anyhow::{bail, Result};
 use hashbrown::hash_map::Entry;
@@ -233,7 +234,7 @@ impl AuxTransactionData {
             Some((Either::Left(proof), event)) => {
                 let proof = self
                     .merge_branch_circuit
-                    .prove(&proof, &self.empty_merge_leaf)
+                    .prove(&*proof, &self.empty_merge_leaf)
                     .unwrap();
                 (Cow::Owned(proof), Some(event))
             }
@@ -313,13 +314,12 @@ impl AuxTransactionData {
                 LeftParent,
             ) => {
                 let (l_proof, l_event) = self.merge_events(left, *right_child_l);
+                let l_proof = l_proof.as_ref().map_either(Deref::deref, Deref::deref);
                 let r_proof = leaf_circuit
                     .prove(branch_circuit, None, Some(right_child_r.hash()))
                     .unwrap();
-                let proof = match l_proof {
-                    Either::Left(l_proof) => branch_circuit.prove(&l_proof, &r_proof),
-                    Either::Right(l_proof) => branch_circuit.prove(&l_proof, &r_proof),
-                }.unwrap();
+
+                let proof = branch_circuit.prove(l_proof, &r_proof).unwrap();
                 let event = EventNode::Branch {
                     address,
                     hash: proof.merged_hash(),
@@ -339,10 +339,9 @@ impl AuxTransactionData {
                     .prove(branch_circuit, None, Some(right_child_l.hash()))
                     .unwrap();
                 let (r_proof, r_event) = self.merge_events(left, *right_child_r);
-                let proof = match r_proof {
-                    Either::Left(r_proof) => branch_circuit.prove(&l_proof, &r_proof),
-                    Either::Right(r_proof) => branch_circuit.prove(&l_proof, &r_proof),
-                }.unwrap();
+                let r_proof = r_proof.as_ref().map_either(Deref::deref, Deref::deref);
+
+                let proof = branch_circuit.prove(&l_proof, r_proof).unwrap();
                 let event = EventNode::Branch {
                     address,
                     hash: proof.merged_hash(),
@@ -362,13 +361,12 @@ impl AuxTransactionData {
                 LeftChild,
             ) => {
                 let (l_proof, l_event) = self.merge_events(*left_child_l, right);
+                let l_proof = l_proof.as_ref().map_either(Deref::deref, Deref::deref);
                 let r_proof = leaf_circuit
                     .prove(branch_circuit, Some(left_child_r.hash()), None)
                     .unwrap();
-                let proof = match l_proof {
-                    Either::Left(l_proof) => branch_circuit.prove(&l_proof, &r_proof),
-                    Either::Right(l_proof) => branch_circuit.prove(&l_proof, &r_proof),
-                }.unwrap();
+
+                let proof = branch_circuit.prove(l_proof, &r_proof).unwrap();
                 let event = EventNode::Branch {
                     address,
                     hash: proof.merged_hash(),
@@ -388,10 +386,9 @@ impl AuxTransactionData {
                     .prove(branch_circuit, Some(left_child_l.hash()), None)
                     .unwrap();
                 let (r_proof, r_event) = self.merge_events(*left_child_r, right);
-                let proof = match r_proof {
-                    Either::Left(r_proof) => branch_circuit.prove(&l_proof, &r_proof),
-                    Either::Right(r_proof) => branch_circuit.prove(&l_proof, &r_proof),
-                }.unwrap();
+                let r_proof = r_proof.as_ref().map_either(Deref::deref, Deref::deref);
+
+                let proof = branch_circuit.prove(&l_proof, r_proof).unwrap();
                 let event = EventNode::Branch {
                     address,
                     hash: proof.merged_hash(),
@@ -409,13 +406,10 @@ impl AuxTransactionData {
             ) => {
                 let (l_proof, l_event) = self.merge_events(*left_child_l, *right_child_l);
                 let (r_proof, r_event) = self.merge_events(*left_child_r, *right_child_r);
+                let l_proof = l_proof.as_ref().map_either(Deref::deref, Deref::deref);
+                let r_proof = r_proof.as_ref().map_either(Deref::deref, Deref::deref);
 
-                let proof = match (l_proof, r_proof) {
-                    (Either::Left(l), Either::Left(r)) => branch_circuit.prove(&l, &r),
-                    (Either::Left(l), Either::Right(r)) => branch_circuit.prove(&l, &r),
-                    (Either::Right(l), Either::Left(r)) => branch_circuit.prove(&l, &r),
-                    (Either::Right(l), Either::Right(r)) => branch_circuit.prove(&l, &r),
-                }.unwrap();
+                let proof = branch_circuit.prove(l_proof, r_proof).unwrap();
                 let event = EventNode::Branch {
                     address,
                     hash: proof.merged_hash(),
@@ -707,14 +701,14 @@ impl<'a> TransactionAccumulator<'a> {
                 Some(ProcessedTx::Leaf { proof, events }) => {
                     let (merge_proof, events) = self.aux.merge_events_branch(events, new_tx_events);
                     let proof = branch_circuit
-                        .prove(&merge_proof, &proof, Some(&new_tx_proof))
+                        .prove(&merge_proof, &proof, &new_tx_proof)
                         .unwrap();
                     ProcessedTx::Branch { proof, events }
                 }
                 Some(ProcessedTx::Branch { proof, events }) => {
                     let (merge_proof, events) = self.aux.merge_events_branch(events, new_tx_events);
                     let proof = branch_circuit
-                        .prove(&merge_proof, &proof, Some(&new_tx_proof))
+                        .prove(&merge_proof, &proof, &new_tx_proof)
                         .unwrap();
                     ProcessedTx::Branch { proof, events }
                 }
@@ -747,14 +741,14 @@ impl<'a> TransactionAccumulator<'a> {
                 Some(ProcessedTx::Leaf { proof, events }) => {
                     let (merge_proof, events) = self.aux.merge_events_branch(events, new_tx_events);
                     let proof = branch_circuit
-                        .prove(&merge_proof, &proof, Some(&new_tx_proof))
+                        .prove(&merge_proof, &proof, &new_tx_proof)
                         .unwrap();
                     ProcessedTx::Branch { proof, events }
                 }
                 Some(ProcessedTx::Branch { proof, events }) => {
                     let (merge_proof, events) = self.aux.merge_events_branch(events, new_tx_events);
                     let proof = branch_circuit
-                        .prove(&merge_proof, &proof, Some(&new_tx_proof))
+                        .prove(&merge_proof, &proof, &new_tx_proof)
                         .unwrap();
                     ProcessedTx::Branch { proof, events }
                 }
