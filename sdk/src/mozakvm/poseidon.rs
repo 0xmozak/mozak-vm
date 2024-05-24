@@ -7,6 +7,7 @@ use crate::core::constants::{DIGEST_BYTES, RATE};
 /// Hashes the input slice to `Poseidon2Hash` after padding.
 /// We use the well known "Bit padding scheme".
 #[allow(dead_code)]
+#[must_use]
 pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
     let mut padded_input = input.to_vec();
     padded_input.push(1);
@@ -29,6 +30,7 @@ pub fn poseidon2_hash_with_pad(input: &[u8]) -> Poseidon2Hash {
 /// This is intentional since zkvm's proof system
 /// would fail otherwise.
 #[allow(dead_code)]
+#[must_use]
 pub fn poseidon2_hash_no_pad(input: &[u8]) -> Poseidon2Hash {
     assert!(input.len() % RATE == 0);
     let mut output = [0; DIGEST_BYTES];
