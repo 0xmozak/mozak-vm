@@ -28,7 +28,7 @@ fn main() {
     let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
     let remittee_program = ProgramIdentifier::new_from_rand_seed(3);
     let private_key = PrivateKey::new_from_rand_seed(4);
-    let public_key = PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
+    let public_key = PublicKey(mozak_sdk::native::poseidon::poseidon2_hash_no_pad(
         &private_key.0,
     ));
     mozak_sdk::add_identity(remitter_program); // Manual override for `IdentityStack`

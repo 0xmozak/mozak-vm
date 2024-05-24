@@ -11,9 +11,9 @@ fn main() {
     let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
     let remittee_program = ProgramIdentifier::new_from_rand_seed(3);
     let remitter_private_key = wallet::PrivateKey::new_from_rand_seed(4);
-    let remitter_public_key = wallet::PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
-        &remitter_private_key.0,
-    ));
+    let remitter_public_key = wallet::PublicKey(
+        mozak_sdk::native::poseidon::poseidon2_hash_no_pad(&remitter_private_key.0),
+    );
 
     mozak_sdk::add_identity(remitter_program); // Manual override for `IdentityStack`
     let _ = mozak_sdk::write(
@@ -23,9 +23,9 @@ fn main() {
     mozak_sdk::rm_identity(); // Manual override for `IdentityStack`
 
     let remittee_private_key = wallet::PrivateKey::new_from_rand_seed(5);
-    let remittee_public_key = wallet::PublicKey(mozak_sdk::native::helpers::poseidon2_hash_no_pad(
-        &remittee_private_key.0,
-    ));
+    let remittee_public_key = wallet::PublicKey(
+        mozak_sdk::native::poseidon::poseidon2_hash_no_pad(&remittee_private_key.0),
+    );
 
     let token_object = wallet::TokenObject {
         pub_key: remitter_public_key,
