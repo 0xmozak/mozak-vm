@@ -16,7 +16,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierOnlyCircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 
-use super::{Branch, IsLeaf, Leaf};
+use super::{Branch, Leaf};
 use crate::subcircuits::unbounded;
 
 pub mod core;
@@ -33,6 +33,8 @@ pub type Proof<T, F, C, const D: usize> = super::Proof<T, Indices, F, C, D>;
 pub type LeafProof<F, C, const D: usize> = Proof<Leaf, F, C, D>;
 
 pub type BranchProof<F, C, const D: usize> = Proof<Branch, F, C, D>;
+
+pub type LeafOrBranchRef<'a, F, C, const D: usize> = super::LeafOrBranchRef<'a, Indices, F, C, D>;
 
 impl<T, F, C, const D: usize> Proof<T, F, C, D>
 where
@@ -242,18 +244,21 @@ where
         }
     }
 
-    pub fn prove<L: IsLeaf, R: IsLeaf>(
+    pub fn prove<'a>(
         &self,
-        left_proof: &Proof<L, F, C, D>,
-        right_proof: &Proof<R, F, C, D>,
-    ) -> Result<BranchProof<F, C, D>> {
+        left_proof: impl Into<LeafOrBranchRef<'a, F, C, D>>,
+        right_proof: impl Into<LeafOrBranchRef<'a, F, C, D>>,
+    ) -> Result<BranchProof<F, C, D>>
+    where
+        C: 'a, {
+        let (left_proof, right_proof) = (left_proof.into(), right_proof.into());
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(
             &mut inputs,
-            L::VALUE,
-            &left_proof.proof,
-            R::VALUE,
-            &right_proof.proof,
+            left_proof.is_leaf(),
+            left_proof.proof(),
+            right_proof.is_leaf(),
+            right_proof.proof(),
         );
         self.merge.set_witness(&mut inputs);
         let proof = self.circuit.prove(inputs)?;
@@ -697,7 +702,7 @@ pub mod test {
 
     #[tested_fixture::tested_fixture(pub T0_T1_BRANCH_PROOF: BranchProof<F, C, D>)]
     fn verify_t0_t1_branch() -> Result<BranchProof<F, C, D>> {
-        let proof = BRANCH.prove(&T0_T1_A_LEAF_PROOF, *T0_T1_BCD_BRANCH_PROOF)?;
+        let proof = BRANCH.prove(*T0_T1_A_LEAF_PROOF, *T0_T1_BCD_BRANCH_PROOF)?;
         assert_branch(&proof, Some(*T0_HASH), Some(*T1_HASH), Some(*T0_T1_HASH));
         BRANCH.verify(proof.clone())?;
         Ok(proof)
