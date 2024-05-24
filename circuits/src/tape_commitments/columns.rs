@@ -1,4 +1,4 @@
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::linear_combination::Column;
@@ -28,7 +28,7 @@ columns_view_impl!(CommitmentByteWithIndex);
 
 /// We store indices with the byte so that
 /// we can do CTL against corresponding
-/// [`StorageDeviceStark`](crate::memory_io::stark::StorageDeviceStark),
+/// [`StorageDeviceStark`](crate::storage_device::stark::StorageDeviceStark),
 /// stark, while enforcing the original order in which bytes
 /// are to be read.
 #[repr(C)]
@@ -69,7 +69,7 @@ pub fn make_event_commitment_tape_public() -> PublicSubTable {
             vec![TAPE_COMMITMENTS.commitment_byte_row.byte],
             TAPE_COMMITMENTS.is_event_commitment_tape_row,
         ),
-        num_rows: COMMITMENT_SIZE,
+        num_rows: DIGEST_BYTES,
     }
 }
 
@@ -80,6 +80,6 @@ pub fn make_castlist_commitment_tape_public() -> PublicSubTable {
             vec![TAPE_COMMITMENTS.commitment_byte_row.byte],
             TAPE_COMMITMENTS.is_castlist_commitment_tape_row,
         ),
-        num_rows: COMMITMENT_SIZE,
+        num_rows: DIGEST_BYTES,
     }
 }

@@ -32,11 +32,11 @@ fn merkleize_group(mut group: Vec<Poseidon2Hash>) -> Option<Poseidon2Hash> {
             .map(|g| match g {
                 [remainder] => *remainder,
                 #[cfg(target_os = "mozakvm")]
-                g => crate::mozakvm::helpers::poseidon2_hash_no_pad(
+                g => crate::mozakvm::poseidon::poseidon2_hash_no_pad(
                     &g.iter().flat_map(Poseidon2Hash::inner).collect::<Vec<u8>>(),
                 ),
                 #[cfg(not(target_os = "mozakvm"))]
-                g => crate::native::helpers::poseidon2_hash_no_pad(
+                g => crate::native::poseidon::poseidon2_hash_no_pad(
                     &g.iter().flat_map(Poseidon2Hash::inner).collect::<Vec<u8>>(),
                 ),
             })
@@ -51,19 +51,20 @@ mod tests {
 
     use crate::common::merkle::merkleize;
     use crate::common::types::Poseidon2Hash;
-    use crate::native::helpers::poseidon2_hash_no_pad;
+    use crate::core::constants::DIGEST_BYTES;
+    use crate::native::poseidon::poseidon2_hash_no_pad;
 
     #[test]
     #[rustfmt::skip] 
     fn merkleize_test() {
         let hashes_with_addr = vec![
-            (0x010, Poseidon2Hash([1u8; 32])),// ------------|
+            (0x010, Poseidon2Hash([1u8; DIGEST_BYTES])),// ------------|
                                               //             |--h_2---|  
-            (0x011, Poseidon2Hash([2u8; 32])),// ----|       |        |
+            (0x011, Poseidon2Hash([2u8; DIGEST_BYTES])),// ----|       |        |
                                               //     |-h_1---|        |---root
-            (0x011, Poseidon2Hash([3u8; 32])),// ----|                |
+            (0x011, Poseidon2Hash([3u8; DIGEST_BYTES])),// ----|                |
                                               //                      |
-            (0x111, Poseidon2Hash([4u8; 32])),//--------------------- |
+            (0x111, Poseidon2Hash([4u8; DIGEST_BYTES])),//--------------------- |
         ];
         let h_1 = poseidon2_hash_no_pad(
             &chain![

@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
-use derive_more::{Deref, IntoIterator};
 use im::hashmap::HashMap;
 use itertools::{chain, izip};
 use mozak_sdk::core::ecall;
@@ -9,7 +8,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::{decode_instruction, ECALL};
-use crate::elf::{Program, RuntimeArguments};
+use crate::elf::Program;
 use crate::instruction::{Args, DecodingError, Instruction, Op};
 use crate::state::{RawTapes, State};
 use crate::vm::{step, ExecutionRecord};
@@ -17,8 +16,14 @@ use crate::vm::{step, ExecutionRecord};
 /// Executable code of the ELF
 ///
 /// A wrapper of a map from pc to [Instruction]
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
+
+impl std::ops::Deref for Code {
+    type Target = HashMap<u32, Result<Instruction, DecodingError>>;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
 
 impl Code {
     /// Get [Instruction] given `pc`
@@ -62,7 +67,7 @@ pub fn execute_code_with_ro_memory(
     ro_mem: &[(u32, u8)],
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
-    runtime_args: RuntimeArguments,
+    raw_tapes: RawTapes,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     let _ = env_logger::try_init();
     let ro_code = Code(
@@ -86,8 +91,8 @@ pub fn execute_code_with_ro_memory(
         .collect(),
     );
 
-    let program = Program::create(ro_mem, rw_mem, ro_code, &runtime_args);
-    let state0 = State::new(program.clone(), RawTapes::from(runtime_args));
+    let program = Program::create(ro_mem, rw_mem, ro_code);
+    let state0 = State::new(program.clone(), raw_tapes);
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
@@ -101,13 +106,12 @@ pub fn execute_code_with_ro_memory(
 /// Entrypoint for a stream of instructions into the VM.
 ///
 /// Creates a [`Program`] and executes given
-/// [Instruction]s based on empty pre-initialized
-/// [`MozakMemory`](crate::elf::MozakMemory).
+/// [Instruction]s
 #[must_use]
 pub fn execute(
     code: impl IntoIterator<Item = Instruction>,
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    execute_code_with_ro_memory(code, &[], rw_mem, regs, RuntimeArguments::default())
+    execute_code_with_ro_memory(code, &[], rw_mem, regs, RawTapes::default())
 }

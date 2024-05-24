@@ -1,5 +1,8 @@
 use itertools::{chain, Itertools};
+use mozak_sdk::common::types::ProgramIdentifier;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::{FriChallenges, FriChallengesTarget, FriProof, FriProofTarget};
 use plonky2::fri::structure::{
@@ -11,13 +14,13 @@ use plonky2::iop::challenger::{Challenger, RecursiveChallenger};
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut, Hasher};
 #[allow(clippy::wildcard_imports)]
 use plonky2_maybe_rayon::*;
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
-use super::mozak_stark::{all_kind, PublicInputs, TableKindArray};
+use super::mozak_stark::{all_kind, PublicInputs, TableKind, TableKindArray};
 use crate::public_sub_table::PublicSubTableValues;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
@@ -110,14 +113,18 @@ pub struct StarkProofTarget<const D: usize> {
     pub ctl_zs_cap: MerkleCapTarget,
     pub quotient_polys_cap: MerkleCapTarget,
     pub openings: StarkOpeningSetTarget<D>,
-    pub opening_proof: FriProofTarget<D>,
+    pub opening_proof: Option<FriProofTarget<D>>,
 }
 
 impl<const D: usize> StarkProofTarget<D> {
     #[must_use]
     /// Recover the length of the trace from a STARK proof and a STARK config.
     pub fn recover_degree_bits(&self, config: &StarkConfig) -> usize {
-        let initial_merkle_proof = &self.opening_proof.query_round_proofs[0]
+        let initial_merkle_proof = &self
+            .opening_proof
+            .as_ref()
+            .expect("Expected opening_proof to be Some")
+            .query_round_proofs[0]
             .initial_trees_proof
             .evals_proofs[0]
             .1;
@@ -140,14 +147,17 @@ impl<const D: usize> StarkProofTarget<D> {
             quotient_polys_cap,
             openings,
             opening_proof:
-                FriProofTarget {
+                Some(FriProofTarget {
                     commit_phase_merkle_caps,
                     final_poly,
                     pow_witness,
                     ..
-                },
+                }),
             ..
-        } = &self;
+        } = &self
+        else {
+            panic!("Expected opening_proof to be Some");
+        };
 
         let num_challenges = config.num_challenges;
 
@@ -251,6 +261,44 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn batch_new<C: GenericConfig<D, F = F>>(
+        zeta: F::Extension,
+        g: F,
+        poly_start: [usize; 3],
+        poly_count: [usize; 3],
+        trace_commitment: &BatchFriOracle<F, C, D>,
+        ctl_zs_commitment: &BatchFriOracle<F, C, D>,
+        quotient_commitment: &BatchFriOracle<F, C, D>,
+        degree_bits: usize,
+    ) -> Self {
+        let eval_commitment = |z: F::Extension, c: &BatchFriOracle<F, C, D>, index| {
+            c.polynomials[poly_start[index]..poly_start[index] + poly_count[index]]
+                .par_iter()
+                .map(|p| p.to_extension().eval(z))
+                .collect::<Vec<_>>()
+        };
+        let eval_commitment_base = |z: F, c: &BatchFriOracle<F, C, D>, index| {
+            c.polynomials[poly_start[index]..poly_start[index] + poly_count[index]]
+                .par_iter()
+                .map(|p| p.eval(z))
+                .collect::<Vec<_>>()
+        };
+        let zeta_next = zeta.scalar_mul(g);
+        Self {
+            local_values: eval_commitment(zeta, trace_commitment, 0),
+            next_values: eval_commitment(zeta_next, trace_commitment, 0),
+            ctl_zs: eval_commitment(zeta, ctl_zs_commitment, 1),
+            ctl_zs_next: eval_commitment(zeta_next, ctl_zs_commitment, 1),
+            ctl_zs_last: eval_commitment_base(
+                F::primitive_root_of_unity(degree_bits).inverse(),
+                ctl_zs_commitment,
+                1,
+            ),
+            quotient_polys: eval_commitment(zeta, quotient_commitment, 2),
+        }
+    }
+
     pub(crate) fn to_fri_openings(&self) -> FriOpenings<F, D> {
         let zeta_batch = FriOpeningBatch {
             values: chain!(&self.local_values, &self.ctl_zs, &self.quotient_polys)
@@ -262,7 +310,6 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
                 .copied()
                 .collect_vec(),
         };
-        debug_assert!(!self.ctl_zs_last.is_empty());
         let ctl_last_batch = FriOpeningBatch {
             values: self
                 .ctl_zs_last
@@ -320,10 +367,20 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub proofs: TableKindArray<StarkProof<F, C, D>>,
-    pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
-    pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
     pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
+    pub program_id: ProgramIdentifier,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(bound = "")]
+pub struct BatchProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
+    pub proofs: TableKindArray<StarkProof<F, C, D>>,
+    pub public_inputs: PublicInputs<F>,
+    pub public_sub_table_values: TableKindArray<Vec<PublicSubTableValues<F>>>,
+    pub program_id: ProgramIdentifier,
+    pub batch_stark_proof: StarkProof<F, C, D>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
@@ -343,11 +400,11 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         // TODO: Observe public values.
 
         let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
+        challenger.compact();
 
         AllProofChallenges {
             stark_challenges: all_kind!(|kind| {
-                challenger.compact();
-                self.proofs[kind].get_challenges(&mut challenger, config)
+                self.proofs[kind].get_challenges(&mut challenger.clone(), config)
             }),
             ctl_challenges,
         }
@@ -360,3 +417,47 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         self.proofs.map(|p| p.openings.ctl_zs_last)
     }
 }
+
+macro_rules! impl_proof_common {
+    ($struct_name:ident) => {
+        impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
+            $struct_name<F, C, D>
+        {
+            #[allow(dead_code)]
+            pub(crate) fn hash_trace_cap(
+                &self,
+                table: TableKind,
+            ) -> <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::Hash {
+                <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
+                    &self.proofs[table]
+                        .trace_cap
+                        .0
+                        .iter()
+                        .flat_map(GenericHashOut::to_vec)
+                        .collect_vec(),
+                )
+            }
+
+            #[allow(dead_code)]
+            pub(crate) fn get_program_hash_bytes(&self) -> [F; DIGEST_BYTES] {
+                let entry_point = self.public_inputs.entry_point;
+                let program_rom_trace_cap_hash = self.hash_trace_cap(TableKind::Program);
+                let elf_memory_init_trace_cap_hash = self.hash_trace_cap(TableKind::ElfMemoryInit);
+                let program_hash = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad(
+                    &chain!(
+                        [entry_point],
+                        program_rom_trace_cap_hash.elements,
+                        elf_memory_init_trace_cap_hash.elements,
+                    )
+                    .collect_vec(),
+                );
+                let program_hash_bytes: [u8; DIGEST_BYTES] =
+                    program_hash.to_bytes().try_into().unwrap();
+                program_hash_bytes.map(F::from_canonical_u8)
+            }
+        }
+    };
+}
+
+impl_proof_common!(AllProof);
+impl_proof_common!(BatchProof);

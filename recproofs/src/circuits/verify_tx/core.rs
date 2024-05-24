@@ -43,26 +43,26 @@ impl<const D: usize> ProgramSetVerifierTargets<D> {
         let events_present = program
             .events
             .indices
-            .get_hash_present(&program_set_proof.public_inputs);
-        let events_present = BoolTarget::new_unsafe(events_present);
+            .hash_present
+            .get_target(&program_set_proof.public_inputs);
         let event_root = program
             .events
             .indices
-            .get_hash(&program_set_proof.public_inputs);
-        let event_root = HashOutTarget {
-            elements: event_root,
-        };
+            .hash
+            .get_target(&program_set_proof.public_inputs);
 
         let cast_root = program
             .cast_root
             .indices
-            .get_values(&program_set_proof.public_inputs);
+            .values
+            .get_target(&program_set_proof.public_inputs);
         let program_ids = program
             .program_id
             .indices
-            .get_unpruned_hash(&program_set_proof.public_inputs);
+            .unpruned_hash
+            .get_target(&program_set_proof.public_inputs);
 
-        connect_arrays(builder, cast_root, program_ids);
+        connect_arrays(builder, cast_root, program_ids.elements);
 
         Self {
             program_set_proof,

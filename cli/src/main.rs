@@ -1,12 +1,9 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-// TODO(bing): `clio` uses an older `windows-sys` vs other dependencies.
-// Remove when `clio` updates, or if `clio` is no longer needed.
-#![allow(clippy::multiple_crate_versions)]
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -14,24 +11,28 @@ use clap_derive::Args;
 use clio::{Input, Output};
 use itertools::Itertools;
 use log::debug;
-use mozak_circuits::generation::io_memory::generate_call_tape_trace;
-use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
+use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
 use mozak_circuits::program::generation::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
-use mozak_circuits::stark::proof::AllProof;
+use mozak_circuits::stark::batch_prover::batch_prove;
+use mozak_circuits::stark::mozak_stark::{
+    MozakStark, PublicInputs, TableKindArray, PUBLIC_TABLE_KINDS,
+};
+use mozak_circuits::stark::proof::{AllProof, BatchProof};
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
-    circuit_data_for_recursion, recursive_mozak_stark_circuit,
-    shrink_to_target_degree_bits_circuit, VM_PUBLIC_INPUT_SIZE, VM_RECURSION_CONFIG,
-    VM_RECURSION_THRESHOLD_DEGREE_BITS,
+    circuit_data_for_recursion, recursive_batch_stark_circuit, recursive_mozak_stark_circuit,
+    shrink_to_target_degree_bits_circuit, VMRecursiveProofPublicInputs, VM_PUBLIC_INPUT_SIZE,
+    VM_RECURSION_CONFIG, VM_RECURSION_THRESHOLD_DEGREE_BITS,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
+use mozak_circuits::storage_device::generation::generate_call_tape_trace;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_cli::runner::{deserialize_system_tape, load_program, tapes_to_runtime_arguments};
+use mozak_cli::runner::{
+    deserialize_system_tape, get_self_prog_id, load_program, raw_tapes_from_system_tape,
+};
 use mozak_node::types::{Attestation, Transaction};
-use mozak_runner::elf::RuntimeArguments;
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
@@ -62,7 +63,7 @@ pub struct RunArgs {
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -70,9 +71,11 @@ pub struct ProveArgs {
     elf: Input,
     proof: Output,
     #[arg(long)]
+    batch_proof: Option<Output>,
+    #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: Option<String>,
+    self_prog_id: String,
     recursive_proof: Option<Output>,
 }
 
@@ -104,6 +107,8 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
+    /// Compute the Self Program Id of the given ELF,
+    SelfProgId { elf: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -119,7 +124,7 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             debug!("{program:?}");
         }
         Command::Run(RunArgs {
@@ -127,11 +132,9 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
-                .unwrap_or_default();
-            let program = load_program(elf, &args).unwrap();
-            let state: State<F> = State::new(program.clone(), RawTapes::default());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            let program = load_program(elf).unwrap();
+            let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
         Command::ProveAndVerify(RunArgs {
@@ -139,13 +142,11 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id.clone()))
-                .unwrap_or_default();
+            let program = load_program(elf).unwrap();
 
-            let program = load_program(elf, &args).unwrap();
-            let state = State::new(program.clone(), args.into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
 
+            let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
@@ -155,12 +156,12 @@ fn main() -> Result<()> {
             self_prog_id,
             mut proof,
             recursive_proof,
+            batch_proof,
         }) => {
-            let args = system_tape
-                .map(|s| tapes_to_runtime_arguments(s, self_prog_id))
-                .unwrap_or_default();
-            let program = load_program(elf, &args).unwrap();
-            let state = State::new(program.clone(), RawTapes::default());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.clone().into());
+            let self_program_id: ProgramIdentifier = self_prog_id.into();
+            let program = load_program(elf).unwrap();
+            let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -170,6 +171,7 @@ fn main() -> Result<()> {
             let public_inputs = PublicInputs {
                 entry_point: F::from_canonical_u32(program.entry_point),
             };
+
             let all_proof = prove::<F, C, D>(
                 &program,
                 &record,
@@ -182,20 +184,77 @@ fn main() -> Result<()> {
             let serialized = serde_json::to_string(&all_proof).unwrap();
             proof.write_all(serialized.as_bytes())?;
 
+            let mut batch_all_proof: Option<BatchProof<F, C, D>> = None;
+            let mut batch_degree_bits: Option<TableKindArray<usize>> = None;
+            if let Some(mut batch_proof_output) = batch_proof {
+                let (proof, degree_bits) = batch_prove::<F, C, D>(
+                    &program,
+                    &record,
+                    &stark,
+                    &PUBLIC_TABLE_KINDS,
+                    &config,
+                    public_inputs,
+                    &mut TimingTree::default(),
+                )?;
+                batch_all_proof = Some(proof);
+                batch_degree_bits = Some(degree_bits);
+                let serialized = serde_json::to_string(&batch_all_proof).unwrap();
+                batch_proof_output.write_all(serialized.as_bytes())?;
+            }
+
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
-                let degree_bits = all_proof.degree_bits(&config);
-                let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
-                    &stark,
-                    &degree_bits,
-                    &VM_RECURSION_CONFIG,
-                    &config,
+                let (verifier_only, common, recursive_all_proof) =
+                    if let Some(batch_proof) = batch_all_proof {
+                        let degree_bits = batch_degree_bits.unwrap();
+                        let recursive_circuit = recursive_batch_stark_circuit(
+                            &stark,
+                            &degree_bits,
+                            &PUBLIC_TABLE_KINDS,
+                            &VM_RECURSION_CONFIG,
+                            &config,
+                        );
+                        let verifier_only = recursive_circuit.circuit.verifier_only.clone();
+                        let common = recursive_circuit.circuit.common.clone();
+                        let recursive_proof = recursive_circuit.prove(&batch_proof).unwrap();
+                        (verifier_only, common, recursive_proof)
+                    } else {
+                        let degree_bits = all_proof.degree_bits(&config);
+                        let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+                            &stark,
+                            &degree_bits,
+                            &VM_RECURSION_CONFIG,
+                            &config,
+                        );
+                        let verifier_only = recursive_circuit.circuit.verifier_only.clone();
+                        let common = recursive_circuit.circuit.common.clone();
+                        let recursive_proof = recursive_circuit.prove(&all_proof).unwrap();
+                        (verifier_only, common, recursive_proof)
+                    };
+
+                println!(
+                    "Recursive proof size: {}",
+                    recursive_all_proof.to_bytes().len()
+                );
+                let public_inputs_array: [F; VM_PUBLIC_INPUT_SIZE] = recursive_all_proof
+                    .public_inputs
+                    .clone()
+                    .try_into()
+                    .unwrap();
+
+                let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
+                debug_assert_eq!(
+                    public_inputs.program_hash_as_bytes.to_vec(),
+                    self_program_id
+                        .inner()
+                        .into_iter()
+                        .map(F::from_canonical_u8)
+                        .collect_vec()
                 );
 
-                let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
-
                 let (final_circuit, final_proof) = shrink_to_target_degree_bits_circuit(
-                    &recursive_circuit.circuit,
+                    &verifier_only,
+                    &common,
                     &VM_RECURSION_CONFIG,
                     VM_RECURSION_THRESHOLD_DEGREE_BITS,
                     &recursive_all_proof,
@@ -279,14 +338,6 @@ fn main() -> Result<()> {
 
             let ids_and_paths = ids_and_paths_from_cast_list(entrypoint_program_id, &cast_list);
 
-            // This does nothing - we rely entirely on ecalls.
-            // TODO(bing): Refactor `load_program` to not take this as a param, in a
-            // separate PR.
-            let args = tapes_to_runtime_arguments(
-                system_tape_path,
-                Some(format!("{entrypoint_program_id:?}")),
-            );
-
             let mut attestations: Vec<Attestation> = vec![];
             let mut call_tape_hash = None;
 
@@ -294,7 +345,6 @@ fn main() -> Result<()> {
                 let program = load_program(
                     Input::try_from(elf)
                         .unwrap_or_else(|_| panic!("Elf filepath {elf:?} not found")),
-                    &args,
                 )?;
 
                 let raw_call_tape: Vec<u8> =
@@ -398,7 +448,7 @@ fn main() -> Result<()> {
             println!("Recursive VM proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -415,7 +465,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf, &RuntimeArguments::default())?;
+            let program = load_program(elf)?;
             let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -431,19 +481,14 @@ fn main() -> Result<()> {
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
         }
-        Command::Bench(bench) => {
-            /// Times a function and returns the `Duration`.
-            ///
-            /// # Errors
-            ///
-            /// This errors if the given function returns an `Err`.
-            pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
-                let start_time = std::time::Instant::now();
-                func()?;
-                Ok(start_time.elapsed())
-            }
 
-            let time_taken = timeit(&|| bench.run())?.as_secs_f64();
+        Command::SelfProgId { elf } => {
+            let program = load_program(elf)?;
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            println!("{self_prog_id:?}");
+        }
+        Command::Bench(bench) => {
+            let time_taken = bench.bench()?.as_secs_f64();
             println!("{time_taken}");
         }
     }

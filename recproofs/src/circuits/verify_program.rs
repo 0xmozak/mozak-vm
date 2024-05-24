@@ -1,5 +1,7 @@
 //! Circuits for proving events correspond to a program proof
 
+use std::marker::PhantomData;
+
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
@@ -8,14 +10,81 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{
     CircuitConfig, CircuitData, CommonCircuitData, VerifierOnlyCircuitData,
 };
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::{build_event_root, merge};
+use super::{build_event_root, merge, Branch, Leaf};
 use crate::connect_arrays;
+use crate::subcircuits::unpruned::PartialAllowed;
 use crate::subcircuits::{propagate, unbounded, unpruned};
 
 pub mod core;
+
+#[derive(Clone, Debug)]
+pub struct Indices {
+    pub unbounded: unbounded::PublicIndices,
+    pub program_id: unpruned::PublicIndices,
+    pub events: merge::embed::PublicIndices,
+    pub call_list: propagate::PublicIndices<NUM_HASH_OUT_ELTS>,
+    pub cast_root: propagate::PublicIndices<NUM_HASH_OUT_ELTS>,
+}
+
+pub type Proof<T, F, C, const D: usize> = super::Proof<T, Indices, F, C, D>;
+
+pub type LeafProof<F, C, const D: usize> = Proof<Leaf, F, C, D>;
+
+pub type BranchProof<F, C, const D: usize> = Proof<Branch, F, C, D>;
+
+pub type LeafOrBranchRef<'a, F, C, const D: usize> = super::LeafOrBranchRef<'a, Indices, F, C, D>;
+
+impl<T, F, C, const D: usize> Proof<T, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: Hasher<F, Hash = HashOut<F>>,
+{
+    pub fn verifier(&self) -> VerifierOnlyCircuitData<C, D> {
+        self.indices
+            .unbounded
+            .verifier
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn program_id(&self) -> HashOut<F> {
+        self.indices
+            .program_id
+            .unpruned_hash
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn events_present(&self) -> bool {
+        self.indices
+            .events
+            .hash_present
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn events(&self) -> HashOut<F> {
+        self.indices
+            .events
+            .hash
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn call_list(&self) -> [F; NUM_HASH_OUT_ELTS] {
+        self.indices
+            .call_list
+            .values
+            .get_field(&self.proof.public_inputs)
+    }
+
+    pub fn cast_root(&self) -> [F; NUM_HASH_OUT_ELTS] {
+        self.indices
+            .cast_root
+            .values
+            .get_field(&self.proof.public_inputs)
+    }
+}
 
 pub struct LeafCircuit<F, C, const D: usize>
 where
@@ -40,7 +109,7 @@ where
     pub program_verifier: core::ProgramVerifierSubCircuit<D>,
 
     /// The event root verifier
-    pub event_verifier: core::EventRootVerifierSubCircuit<D>,
+    pub event_verifier: core::EventRootVerifierSubCircuit<C, D>,
 
     pub circuit: CircuitData<F, C, D>,
 }
@@ -95,6 +164,10 @@ where
             events_targets.inputs.hash_present.target,
             program_verifier_targets.events_present.target,
         );
+        builder.connect(
+            events_targets.inputs.hash_present.target,
+            event_verifier_targets.events_present.target,
+        );
         builder.connect_hashes(
             program_verifier_targets.event_root,
             event_verifier_targets.vm_event_root,
@@ -137,20 +210,35 @@ where
         }
     }
 
+    fn indices(&self) -> Indices {
+        Indices {
+            unbounded: self.unbounded.indices.clone(),
+            program_id: self.program_id.indices,
+            events: self.events.indices,
+            call_list: self.call_list.indices,
+            cast_root: self.cast_root.indices,
+        }
+    }
+
     pub fn prove(
         &self,
         branch: &BranchCircuit<F, C, D>,
         program_verifier: &VerifierOnlyCircuitData<C, D>,
         program_proof: &ProofWithPublicInputs<F, C, D>,
-        event_root_proof: &ProofWithPublicInputs<F, C, D>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        event_root_proof: Result<&build_event_root::BranchProof<F, C, D>, [F; 4]>,
+    ) -> Result<LeafProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.program_verifier
             .set_witness(&mut inputs, program_verifier, program_proof);
         self.event_verifier
-            .set_witness(&mut inputs, event_root_proof);
-        self.circuit.prove(inputs)
+            .set_witness(&mut inputs, event_root_proof.map(|p| &p.proof));
+        let proof = self.circuit.prove(inputs)?;
+        Ok(LeafProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -163,7 +251,7 @@ where
         event_root: HashOut<F>,
         call_list: [F; 4],
         cast_root: HashOut<F>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+    ) -> Result<LeafProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(&mut inputs, &branch.circuit);
         self.program_verifier
@@ -172,7 +260,16 @@ where
         self.events.set_witness(&mut inputs, Some(event_root));
         self.call_list.set_witness(&mut inputs, call_list);
         self.cast_root.set_witness(&mut inputs, cast_root.elements);
-        self.circuit.prove(inputs)
+        let proof = self.circuit.prove(inputs)?;
+        Ok(LeafProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    pub fn verify(&self, proof: LeafProof<F, C, D>) -> Result<()> {
+        self.circuit.verify(proof.proof)
     }
 }
 
@@ -184,7 +281,7 @@ where
     pub unbounded: unbounded::BranchSubCircuit<D>,
 
     /// The program identifier
-    pub program_id: unpruned::BranchSubCircuit,
+    pub program_id: unpruned::BranchSubCircuit<PartialAllowed>,
 
     // The events list
     pub events: merge::embed::BranchSubCircuit<D>,
@@ -220,7 +317,7 @@ where
 
         let unbounded_targets =
             unbounded_inputs.build_branch(&mut builder, &leaf.unbounded, &leaf.circuit);
-        let program_id_targets = program_id_inputs.build_branch(
+        let program_id_targets = program_id_inputs.build_extended_branch(
             &mut builder,
             &leaf.program_id.indices,
             &unbounded_targets.left_proof,
@@ -247,6 +344,12 @@ where
             &unbounded_targets.right_proof,
         );
 
+        // Connect the partials
+        builder.connect(
+            events_targets.partial.target,
+            program_id_targets.extension.partial.target,
+        );
+
         let circuit = builder.build();
 
         let public_inputs = &circuit.prover_only.public_inputs;
@@ -266,50 +369,90 @@ where
         }
     }
 
-    /// `hash` `vm_hash` and `event_owner` only need to be provided to check
-    /// externally, otherwise they will be calculated
-    pub fn prove(
+    fn indices(&self) -> Indices {
+        Indices {
+            unbounded: self.unbounded.indices.clone(),
+            program_id: self.program_id.indices,
+            events: self.events.indices,
+            call_list: self.call_list.indices,
+            cast_root: self.cast_root.indices,
+        }
+    }
+
+    fn prove_helper(
         &self,
-        merge: &ProofWithPublicInputs<F, C, D>,
-        left_is_leaf: bool,
-        left_proof: &ProofWithPublicInputs<F, C, D>,
-        right_is_leaf: bool,
-        right_proof: &ProofWithPublicInputs<F, C, D>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
+        merge: &merge::BranchProof<F, C, D>,
+        left_proof: LeafOrBranchRef<'_, F, C, D>,
+        right_proof: LeafOrBranchRef<'_, F, C, D>,
+        partial: bool,
+    ) -> Result<BranchProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.unbounded.set_witness(
             &mut inputs,
-            left_is_leaf,
-            left_proof,
-            right_is_leaf,
-            right_proof,
+            left_proof.is_leaf(),
+            left_proof.proof(),
+            right_proof.is_leaf(),
+            right_proof.proof(),
         );
-        self.events.set_witness(&mut inputs, merge);
-        self.circuit.prove(inputs)
+        self.events.set_witness(&mut inputs, partial, merge);
+        let proof = self.circuit.prove(inputs)?;
+        Ok(BranchProof {
+            proof,
+            tag: PhantomData,
+            indices: self.indices(),
+        })
+    }
+
+    pub fn prove<'a>(
+        &self,
+        merge: &merge::BranchProof<F, C, D>,
+        left_proof: impl Into<LeafOrBranchRef<'a, F, C, D>>,
+        right_proof: impl Into<LeafOrBranchRef<'a, F, C, D>>,
+    ) -> Result<BranchProof<F, C, D>>
+    where
+        C: 'a, {
+        self.prove_helper(merge, left_proof.into(), right_proof.into(), false)
+    }
+
+    pub fn prove_one<'a>(
+        &self,
+        merge: &merge::BranchProof<F, C, D>,
+        left_proof: impl Into<LeafOrBranchRef<'a, F, C, D>>,
+    ) -> Result<BranchProof<F, C, D>>
+    where
+        C: 'a, {
+        let left_proof = left_proof.into();
+        self.prove_helper(merge, left_proof, left_proof, true)
+    }
+
+    pub fn verify(&self, proof: BranchProof<F, C, D>) -> Result<()> {
+        self.circuit.verify(proof.proof)
     }
 }
 
 #[cfg(test)]
 pub mod test {
-    use std::panic::catch_unwind;
-
-    use lazy_static::lazy_static;
-    use plonky2::field::types::Field;
+    use once_cell::sync::Lazy;
+    use plonky2::gates::noop::NoopGate;
     use plonky2::hash::hash_types::HashOutTarget;
     use plonky2::iop::target::{BoolTarget, Target};
     use plonky2::iop::witness::WitnessWrite;
 
     use self::core::ProgramPublicIndices;
     use super::*;
-    use crate::circuits::build_event_root::test::{BRANCH as EVENT_BRANCH, LEAF as EVENT_LEAF};
-    use crate::circuits::merge::test::{BRANCH as MERGE_BRANCH, LEAF as MERGE_LEAF};
-    use crate::test_utils::{hash_branch, hash_branch_bytes, make_fs, C, CONFIG, D, F};
-    use crate::{find_bool, find_hash, find_targets, Event, EventType};
+    use crate::circuits::build_event_root::test as build_event_root;
+    use crate::circuits::merge::test as merge;
+    use crate::circuits::test_data::{
+        CALL_LISTS, CAST_PM_P0, CAST_PM_P1, CAST_ROOT, CAST_T0, CAST_T1, PROGRAM_HASHES, T0_HASH,
+        T0_PM_P0_HASH, T1_B_HASH, T1_HASH, T1_P2_HASH,
+    };
+    use crate::indices::{ArrayTargetIndex, BoolTargetIndex, HashOutTargetIndex};
+    use crate::test_utils::{C, CONFIG, D, F, NON_ZERO_VALUES, ZERO_VAL};
 
-    pub struct DummyCircuit<F, C, const D: usize>
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>, {
+    pub struct DummyCircuit {
+        /// The program hash
+        pub program_hash_val: [F; 4],
+
         /// The program hash
         pub program_hash: [Target; 4],
 
@@ -328,35 +471,41 @@ pub mod test {
         pub circuit: CircuitData<F, C, D>,
     }
 
-    impl<F, C, const D: usize> DummyCircuit<F, C, D>
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>,
-    {
+    impl DummyCircuit {
         #[must_use]
-        pub fn new(circuit_config: &CircuitConfig, dummy: bool) -> Self {
+        pub fn new(circuit_config: &CircuitConfig, program_id: impl Into<Option<usize>>) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
             let program_hash = builder.add_virtual_target_arr();
             let events_present = builder.add_virtual_bool_target_safe();
             let event_root = builder.add_virtual_hash();
             let call_list = builder.add_virtual_target_arr();
             let cast_root = builder.add_virtual_hash();
+
             builder.register_public_inputs(&program_hash);
             builder.register_public_input(events_present.target);
             builder.register_public_inputs(&event_root.elements);
             builder.register_public_inputs(&call_list);
             builder.register_public_inputs(&cast_root.elements);
 
-            // Make a dummy to change the circuit
-            if dummy {
-                let dummy = builder.add_virtual_target();
-                let one = builder.one();
-                builder.connect(dummy, one);
+            let program_hash_val = program_id
+                .into()
+                .map_or(ZERO_VAL, |pid| PROGRAM_HASHES[pid]);
+
+            let program_hash_calc = program_hash_val.map(|x| builder.constant(x));
+            for (p, c) in program_hash.into_iter().zip(program_hash_calc) {
+                builder.connect(p, c);
+            }
+
+            // Make sure we have enough gates to match.
+            builder.add_gate(NoopGate, vec![]);
+            while builder.num_gates() < (1 << 3) {
+                builder.add_gate(NoopGate, vec![]);
             }
 
             let circuit = builder.build();
 
             Self {
+                program_hash_val,
                 program_hash,
                 events_present,
                 event_root,
@@ -369,23 +518,21 @@ pub mod test {
         pub fn get_indices(&self) -> ProgramPublicIndices {
             let public_inputs = &self.circuit.prover_only.public_inputs;
             ProgramPublicIndices {
-                program_hash: find_targets(public_inputs, self.program_hash),
-                events_present: find_bool(public_inputs, self.events_present),
-                event_root: find_hash(public_inputs, self.event_root),
-                call_list: find_targets(public_inputs, self.call_list),
-                cast_root: find_hash(public_inputs, self.cast_root),
+                program_hash: ArrayTargetIndex::new(public_inputs, &self.program_hash),
+                events_present: BoolTargetIndex::new(public_inputs, self.events_present),
+                event_root: HashOutTargetIndex::new(public_inputs, self.event_root),
+                call_list: ArrayTargetIndex::new(public_inputs, &self.call_list),
+                cast_root: HashOutTargetIndex::new(public_inputs, self.cast_root),
             }
         }
 
         pub fn prove(
             &self,
-            program_hash: [F; 4],
             event_root: Option<HashOut<F>>,
             call_list: [F; 4],
             cast_root: HashOut<F>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
-            inputs.set_target_arr(&self.program_hash, &program_hash);
             inputs.set_bool_target(self.events_present, event_root.is_some());
             inputs.set_hash_target(self.event_root, event_root.unwrap_or_default());
             inputs.set_target_arr(&self.call_list, &call_list);
@@ -394,481 +541,353 @@ pub mod test {
         }
     }
 
-    lazy_static! {
-        pub static ref PROGRAM_1: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG, false);
-        pub static ref PROGRAM_1_INDICES: ProgramPublicIndices = PROGRAM_1.get_indices();
-        pub static ref PROGRAM_2: DummyCircuit<F, C, D> = DummyCircuit::new(&CONFIG, true);
-        pub static ref PROGRAM_2_INDICES: ProgramPublicIndices = PROGRAM_2.get_indices();
-        pub static ref LEAF: LeafCircuit<F, C, D> = LeafCircuit::new(
+    pub static PROGRAM_M: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, None));
+    pub static PROGRAM_0: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 0));
+    pub static PROGRAM_1: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 1));
+    pub static PROGRAM_2: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 2));
+
+    #[tested_fixture::tested_fixture(pub LEAF)]
+    fn build_leaf() -> LeafCircuit<F, C, D> {
+        let program_m_indices = PROGRAM_M.get_indices();
+        assert_eq!(program_m_indices, PROGRAM_0.get_indices());
+        assert_eq!(program_m_indices, PROGRAM_1.get_indices());
+        assert_eq!(program_m_indices, PROGRAM_2.get_indices());
+
+        assert_eq!(PROGRAM_M.circuit.common, PROGRAM_0.circuit.common);
+        assert_eq!(PROGRAM_M.circuit.common, PROGRAM_1.circuit.common);
+        assert_eq!(PROGRAM_M.circuit.common, PROGRAM_2.circuit.common);
+
+        LeafCircuit::new(
             &CONFIG,
-            &PROGRAM_1_INDICES,
-            &PROGRAM_1.circuit.common,
-            &EVENT_BRANCH
-        );
-        pub static ref BRANCH: BranchCircuit<F, C, D> =
-            BranchCircuit::new(&CONFIG, &MERGE_BRANCH, &LEAF);
+            &program_m_indices,
+            &PROGRAM_M.circuit.common,
+            &build_event_root::BRANCH,
+        )
     }
 
-    fn build_event(e: Event<F>) -> ProofWithPublicInputs<F, C, D> {
-        let proof = EVENT_LEAF
-            .prove(e, Some(e.hash()), Some(e.byte_wise_hash()), &EVENT_BRANCH)
-            .unwrap();
-        EVENT_LEAF.circuit.verify(proof.clone()).unwrap();
-        proof
+    #[tested_fixture::tested_fixture(pub BRANCH)]
+    fn build_branch() -> BranchCircuit<F, C, D> {
+        BranchCircuit::new(&CONFIG, &merge::BRANCH, &LEAF)
     }
 
-    pub struct BuiltEvent {
-        pub proof: ProofWithPublicInputs<F, C, D>,
-        #[allow(dead_code)]
-        pub hash: HashOut<F>,
-        pub vm_hash: HashOut<F>,
+    fn assert_proof<T>(proof: &Proof<T, F, C, D>, event_hash: Option<HashOut<F>>, pid: [F; 4]) {
+        let indices = &LEAF.events.indices;
+        assert_eq!(*indices, BRANCH.events.indices);
+
+        let p_present = proof.events_present();
+        assert_eq!(p_present, event_hash.is_some());
+        let p_hash = proof.events();
+        assert_eq!(p_hash, event_hash.unwrap_or_default());
+
+        let indices = &LEAF.program_id.indices;
+        assert_eq!(*indices, BRANCH.program_id.indices);
+        let p_pid = proof.program_id();
+        assert_eq!(p_pid.elements, pid);
     }
 
-    pub fn build_events(l: Event<F>, r: Event<F>) -> BuiltEvent {
-        let l_proof = build_event(l);
-        let r_proof = build_event(r);
-        let branch_hash = hash_branch(&l.hash(), &r.hash());
-        let branch_bytes_hash = hash_branch_bytes(&l.byte_wise_hash(), &r.byte_wise_hash());
-
-        let branch_proof = EVENT_BRANCH
-            .prove(
-                Some(branch_hash),
-                Some(branch_bytes_hash),
-                Some(l.owner),
-                true,
-                &l_proof,
-                Some((true, &r_proof)),
-            )
-            .unwrap();
-        EVENT_BRANCH.circuit.verify(branch_proof.clone()).unwrap();
-
-        BuiltEvent {
-            proof: branch_proof,
-            hash: branch_hash,
-            vm_hash: branch_bytes_hash,
-        }
-    }
-
-    pub fn make_program(
-        program: &DummyCircuit<F, C, D>,
-        program_hash: [F; 4],
-        event_root: Option<HashOut<F>>,
+    #[allow(clippy::type_complexity)]
+    fn verify_leaf(
+        event_proof: &build_event_root::BranchProof<F, C, D>,
+        hash: HashOut<F>,
+        vm_hash: HashOut<F>,
+        program: &'static DummyCircuit,
+        program_verifier: &DummyCircuit,
         call_list: [F; 4],
         cast_root: HashOut<F>,
-    ) -> ProofWithPublicInputs<F, C, D> {
+    ) -> Result<LeafProof<F, C, D>> {
         let program_proof = program
-            .prove(program_hash, event_root, call_list, cast_root)
-            .unwrap();
-        program.circuit.verify(program_proof.clone()).unwrap();
-        program_proof
-    }
-
-    pub fn merge_hashes(
-        a: Option<HashOut<F>>,
-        b: Option<HashOut<F>>,
-    ) -> ProofWithPublicInputs<F, C, D> {
-        let merged_hash = match (a, b) {
-            (None, None) => None,
-            (None, Some(b)) => Some(b),
-            (Some(a), None) => Some(a),
-            (Some(a), Some(b)) => Some(hash_branch(&a, &b)),
-        };
-        let merge_proof = MERGE_LEAF.prove(&MERGE_BRANCH, a, b, merged_hash).unwrap();
-        MERGE_LEAF.circuit.verify(merge_proof.clone()).unwrap();
-        merge_proof
-    }
-
-    pub fn merge_events(a: Event<F>, b: Event<F>) -> ProofWithPublicInputs<F, C, D> {
-        merge_hashes(Some(a.hash()), Some(b.hash()))
-    }
-
-    pub fn merge_merges(
-        l_leaf: bool,
-        l: &ProofWithPublicInputs<F, C, D>,
-        r_leaf: bool,
-        r: &ProofWithPublicInputs<F, C, D>,
-    ) -> ProofWithPublicInputs<F, C, D> {
-        let merge_proof = MERGE_BRANCH.prove(l_leaf, l, r_leaf, r).unwrap();
-        MERGE_BRANCH.circuit.verify(merge_proof.clone()).unwrap();
-        merge_proof
-    }
-
-    const ZERO_VAL: [F; 4] = [F::ZERO; 4];
-    const PROGRAM_1_HASH: [F; 4] = make_fs([4, 8, 15, 16]);
-    const PROGRAM_2_HASH: [F; 4] = make_fs([2, 3, 4, 2]);
-    const NON_ZERO_VAL_1: [F; 4] = make_fs([3, 1, 4, 15]);
-    const NON_ZERO_VAL_2: [F; 4] = make_fs([1, 6, 180, 33]);
-    const CALL_LIST_1: [F; 4] = make_fs([86, 7, 5, 309]);
-    const CALL_LIST_2: [F; 4] = make_fs([8, 67, 530, 9]);
-
-    // Duplicate or conflicting events are actually fine as far as this circuit
-    // cares
-    const P1_EVENTS: [Event<F>; 2] = [
-        Event {
-            address: 42,
-            owner: PROGRAM_1_HASH,
-            ty: EventType::Read,
-            value: ZERO_VAL,
-        },
-        Event {
-            address: 84,
-            owner: PROGRAM_1_HASH,
-            ty: EventType::Write,
-            value: ZERO_VAL,
-        },
-    ];
-    const P2_EVENTS: [Event<F>; 2] = [
-        Event {
-            address: 42,
-            owner: PROGRAM_2_HASH,
-            ty: EventType::Write,
-            value: NON_ZERO_VAL_2,
-        },
-        Event {
-            address: 84,
-            owner: PROGRAM_2_HASH,
-            ty: EventType::Ensure,
-            value: NON_ZERO_VAL_1,
-        },
-    ];
-
-    lazy_static! {
-        pub static ref P1_BUILT_EVENTS: BuiltEvent = build_events(P1_EVENTS[0], P1_EVENTS[1]);
-        pub static ref P1_EVENTS_HASH: HashOut<F> =
-            hash_branch(&P1_EVENTS[0].hash(), &P1_EVENTS[1].hash());
-        pub static ref P2_BUILT_EVENTS: BuiltEvent = build_events(P2_EVENTS[0], P2_EVENTS[1]);
-        pub static ref P2_EVENTS_HASH: HashOut<F> =
-            hash_branch(&P2_EVENTS[0].hash(), &P2_EVENTS[1].hash());
-    }
-
-    /// Helpers with P1 to the left of P2
-    pub mod p1_p2 {
-        use super::*;
-
-        lazy_static! {
-            pub static ref CAST_ROOT: HashOut<F> =
-                hash_branch_bytes(&PROGRAM_1_HASH.into(), &PROGRAM_2_HASH.into());
-        }
-
-        lazy_static! {
-            pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
-                &PROGRAM_1,
-                PROGRAM_1_HASH,
-                Some(P1_BUILT_EVENTS.vm_hash),
-                CALL_LIST_1,
-                *CAST_ROOT
-            );
-            pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
-                &PROGRAM_2,
-                PROGRAM_2_HASH,
-                Some(P2_BUILT_EVENTS.vm_hash),
-                CALL_LIST_1,
-                *CAST_ROOT
-            );
-            pub static ref PROGRAM_2B_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
-                &PROGRAM_2,
-                PROGRAM_2_HASH,
-                Some(P2_BUILT_EVENTS.vm_hash),
-                CALL_LIST_2,
-                *CAST_ROOT
-            );
-        }
-
-        lazy_static! {
-            pub static ref MERGE_42_HASH: HashOut<F> =
-                hash_branch(&P1_EVENTS[0].hash(), &P2_EVENTS[0].hash());
-            pub static ref MERGE_80_HASH: HashOut<F> =
-                hash_branch(&P1_EVENTS[1].hash(), &P2_EVENTS[1].hash());
-            pub static ref MERGE_HASH: HashOut<F> = hash_branch(&MERGE_42_HASH, &MERGE_80_HASH);
-            pub static ref MERGE_42: ProofWithPublicInputs<F, C, D> =
-                merge_events(P1_EVENTS[0], P2_EVENTS[0]);
-            pub static ref MERGE_80: ProofWithPublicInputs<F, C, D> =
-                merge_events(P1_EVENTS[1], P2_EVENTS[1]);
-            pub static ref MERGE_PROOF: ProofWithPublicInputs<F, C, D> =
-                merge_merges(true, &MERGE_42, true, &MERGE_80);
-        }
-    }
-
-    /// Helpers with P2 to the left of P1
-    pub mod p2_p1 {
-        use super::*;
-
-        lazy_static! {
-            pub static ref CAST_ROOT: HashOut<F> =
-                hash_branch_bytes(&PROGRAM_2_HASH.into(), &PROGRAM_1_HASH.into());
-        }
-
-        lazy_static! {
-            pub static ref PROGRAM_1_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
-                &PROGRAM_1,
-                PROGRAM_1_HASH,
-                Some(P1_BUILT_EVENTS.vm_hash),
-                CALL_LIST_1,
-                *CAST_ROOT
-            );
-            pub static ref PROGRAM_2_PROOF: ProofWithPublicInputs<F, C, D> = make_program(
-                &PROGRAM_2,
-                PROGRAM_2_HASH,
-                Some(P2_BUILT_EVENTS.vm_hash),
-                CALL_LIST_1,
-                *CAST_ROOT
-            );
-        }
-
-        lazy_static! {
-            pub static ref MERGE_42_HASH: HashOut<F> =
-                hash_branch(&P2_EVENTS[0].hash(), &P1_EVENTS[0].hash());
-            pub static ref MERGE_80_HASH: HashOut<F> =
-                hash_branch(&P2_EVENTS[1].hash(), &P1_EVENTS[1].hash());
-            pub static ref MERGE_HASH: HashOut<F> = hash_branch(&MERGE_42_HASH, &MERGE_80_HASH);
-            pub static ref MERGE_42: ProofWithPublicInputs<F, C, D> =
-                merge_events(P2_EVENTS[0], P1_EVENTS[0]);
-            pub static ref MERGE_80: ProofWithPublicInputs<F, C, D> =
-                merge_events(P2_EVENTS[1], P1_EVENTS[1]);
-            pub static ref MERGE_PROOF: ProofWithPublicInputs<F, C, D> =
-                merge_merges(true, &MERGE_42, true, &MERGE_80);
-        }
-    }
-
-    #[test]
-    fn verify_leaf() -> Result<()> {
-        let proof = LEAF.prove(
-            &BRANCH,
-            &PROGRAM_1.circuit.verifier_only,
-            &p1_p2::PROGRAM_1_PROOF,
-            &P1_BUILT_EVENTS.proof,
-        )?;
-        LEAF.circuit.verify(proof)?;
+            .prove(Some(vm_hash), call_list, cast_root)
+            .expect("shouldn't fail");
+        program
+            .circuit
+            .verify(program_proof.clone())
+            .expect("shouldn't fail");
 
         let proof = LEAF.prove(
             &BRANCH,
-            &PROGRAM_2.circuit.verifier_only,
-            &p1_p2::PROGRAM_2_PROOF,
-            &P2_BUILT_EVENTS.proof,
+            &program_verifier.circuit.verifier_only,
+            &program_proof,
+            Ok(event_proof),
         )?;
-        LEAF.circuit.verify(proof)?;
+        assert_proof(&proof, Some(hash), program.program_hash_val);
+        LEAF.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    macro_rules! make_leaf_tests {
+        ($($($name:ident | $proof:ident = ($event:ident, $program:ident, $tx:literal)),+ $(,)?)?) => {$($(
+    #[tested_fixture::tested_fixture($proof: LeafProof<F, C, D>)]
+    fn $name() -> Result<LeafProof<F, C, D>> {
+        let event_proof = *build_event_root::$event;
+        verify_leaf(
+            event_proof,
+            event_proof.hash(),
+            event_proof.vm_hash(),
+            &$program,
+            &$program,
+            CALL_LISTS[$tx],
+            CAST_ROOT[$tx],
+        )
+    }
+        )+)?};
+    }
+
+    make_leaf_tests! {
+        verify_t0_pm_leaf | T0_PM_LEAF_PROOF = (T0_PM_BRANCH_PROOF, PROGRAM_M, 0),
+        verify_t0_p0_leaf | T0_P0_LEAF_PROOF = (T0_P0_BRANCH_PROOF, PROGRAM_0, 0),
+        verify_t0_p2_leaf | T0_P2_LEAF_PROOF = (T0_P2_BRANCH_PROOF, PROGRAM_2, 0),
+
+        verify_t1_pm_leaf | T1_PM_LEAF_PROOF = (T1_PM_BRANCH_PROOF, PROGRAM_M, 1),
+        verify_t1_p1_leaf | T1_P1_LEAF_PROOF = (T1_P1_BRANCH_PROOF, PROGRAM_1, 1),
+        verify_t1_p2_leaf | T1_P2_LEAF_PROOF = (T1_P2_BRANCH_PROOF, PROGRAM_2, 1),
+    }
+
+    #[tested_fixture::tested_fixture(T0_PM_BAD_CALL_LEAF_PROOF: LeafProof<F, C, D>)]
+    fn verify_t0_pm_bad_call_leaf() -> Result<LeafProof<F, C, D>> {
+        let event_proof = *build_event_root::T0_PM_BRANCH_PROOF;
+        verify_leaf(
+            event_proof,
+            event_proof.hash(),
+            event_proof.vm_hash(),
+            &PROGRAM_M,
+            &PROGRAM_M,
+            NON_ZERO_VALUES[0],
+            CAST_ROOT[0],
+        )
+    }
+
+    #[tested_fixture::tested_fixture(PM_EMPTY_EVENT_LEAF_PROOF: LeafProof<F, C, D>)]
+    fn verify_empty_leaf() -> Result<LeafProof<F, C, D>> {
+        let program_proof = PROGRAM_M
+            .prove(None, NON_ZERO_VALUES[0], CAST_ROOT[0])
+            .expect("shouldn't fail");
+        PROGRAM_M
+            .circuit
+            .verify(program_proof.clone())
+            .expect("shouldn't fail");
 
         let proof = LEAF.prove(
             &BRANCH,
-            &PROGRAM_1.circuit.verifier_only,
-            &p2_p1::PROGRAM_1_PROOF,
-            &P1_BUILT_EVENTS.proof,
+            &PROGRAM_M.circuit.verifier_only,
+            &program_proof,
+            Err(PROGRAM_M.program_hash_val),
         )?;
-        LEAF.circuit.verify(proof)?;
-
-        let proof = LEAF.prove(
-            &BRANCH,
-            &PROGRAM_2.circuit.verifier_only,
-            &p2_p1::PROGRAM_2_PROOF,
-            &P2_BUILT_EVENTS.proof,
-        )?;
-        LEAF.circuit.verify(proof)?;
-
-        Ok(())
+        assert_proof(&proof, None, PROGRAM_M.program_hash_val);
+        LEAF.verify(proof.clone())?;
+        Ok(proof)
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_wrong_verifier() {
-        let proof = LEAF
-            .prove(
-                &BRANCH,
-                &PROGRAM_2.circuit.verifier_only,
-                &p1_p2::PROGRAM_1_PROOF,
-                &P2_BUILT_EVENTS.proof,
-            )
-            .unwrap();
-        LEAF.circuit.verify(proof).unwrap();
+        let event_proof = *build_event_root::T0_PM_BRANCH_PROOF;
+
+        verify_leaf(
+            event_proof,
+            event_proof.hash(),
+            event_proof.vm_hash(),
+            &PROGRAM_M,
+            &PROGRAM_0,
+            CALL_LISTS[0],
+            CAST_ROOT[0],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_wrong_proof() {
+        let event_proof = *build_event_root::T0_PM_BRANCH_PROOF;
+
+        verify_leaf(
+            event_proof,
+            event_proof.hash(),
+            event_proof.vm_hash(),
+            &PROGRAM_0,
+            &PROGRAM_M,
+            CALL_LISTS[0],
+            CAST_ROOT[0],
+        )
+        .unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_wrong_events_1() {
-        let proof = LEAF
-            .prove(
-                &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
-                &p1_p2::PROGRAM_1_PROOF,
-                &P2_BUILT_EVENTS.proof,
-            )
-            .unwrap();
-        LEAF.circuit.verify(proof).unwrap();
+        let event_proof = *build_event_root::T0_PM_BRANCH_PROOF;
+        let other_event_proof = *build_event_root::T1_PM_BRANCH_PROOF;
+
+        verify_leaf(
+            event_proof,
+            other_event_proof.hash(),
+            other_event_proof.vm_hash(),
+            &PROGRAM_M,
+            &PROGRAM_M,
+            CALL_LISTS[0],
+            CAST_ROOT[0],
+        )
+        .unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_wrong_events_2() {
-        let proof = LEAF
-            .prove(
-                &BRANCH,
-                &PROGRAM_2.circuit.verifier_only,
-                &p1_p2::PROGRAM_2_PROOF,
-                &P1_BUILT_EVENTS.proof,
-            )
-            .unwrap();
-        LEAF.circuit.verify(proof).unwrap();
+        let event_proof = *build_event_root::T0_PM_BRANCH_PROOF;
+        let other_event_proof = *build_event_root::T0_P2_BRANCH_PROOF;
+
+        verify_leaf(
+            event_proof,
+            other_event_proof.hash(),
+            other_event_proof.vm_hash(),
+            &PROGRAM_M,
+            &PROGRAM_M,
+            CALL_LISTS[0],
+            CAST_ROOT[0],
+        )
+        .unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_leaf_wrong_events_3() {
-        let proof = LEAF
-            .prove(
-                &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
-                &p2_p1::PROGRAM_1_PROOF,
-                &P2_BUILT_EVENTS.proof,
-            )
-            .unwrap();
-        LEAF.circuit.verify(proof).unwrap();
+        let event_proof = *build_event_root::T0_PM_BRANCH_PROOF;
+        let other_event_proof = *build_event_root::T1_PM_BRANCH_PROOF;
+
+        verify_leaf(
+            event_proof,
+            event_proof.hash(),
+            other_event_proof.vm_hash(),
+            &PROGRAM_M,
+            &PROGRAM_M,
+            CALL_LISTS[0],
+            CAST_ROOT[0],
+        )
+        .unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "was set twice with different values")]
+    #[should_panic(expected = "assertion `left == right`")]
     fn bad_leaf_wrong_events_4() {
-        let proof = LEAF
-            .prove(
-                &BRANCH,
-                &PROGRAM_2.circuit.verifier_only,
-                &p2_p1::PROGRAM_2_PROOF,
-                &P1_BUILT_EVENTS.proof,
-            )
-            .unwrap();
-        LEAF.circuit.verify(proof).unwrap();
+        let event_proof = *build_event_root::T0_PM_BRANCH_PROOF;
+        let other_event_proof = *build_event_root::T1_PM_BRANCH_PROOF;
+
+        verify_leaf(
+            event_proof,
+            other_event_proof.hash(),
+            event_proof.vm_hash(),
+            &PROGRAM_M,
+            &PROGRAM_M,
+            CALL_LISTS[0],
+            CAST_ROOT[0],
+        )
+        .unwrap();
+    }
+
+    #[tested_fixture::tested_fixture(T0_PM_P0_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t0_pm_p0_branch() -> Result<BranchProof<F, C, D>> {
+        let proof = BRANCH.prove(
+            *merge::T0_PM_P0_BRANCH_PROOF,
+            *T0_PM_LEAF_PROOF,
+            *T0_P0_LEAF_PROOF,
+        )?;
+        assert_proof(&proof, Some(*T0_PM_P0_HASH), *CAST_PM_P0);
+        BRANCH.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub T0_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t0_branch() -> Result<BranchProof<F, C, D>> {
+        let proof = BRANCH.prove(
+            *merge::T0_BRANCH_PROOF,
+            *T0_PM_P0_BRANCH_PROOF,
+            *T0_P2_LEAF_PROOF,
+        )?;
+        assert_proof(&proof, Some(*T0_HASH), *CAST_T0);
+        BRANCH.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(T1_PM_P1_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t1_pm_p1_branch() -> Result<BranchProof<F, C, D>> {
+        let proof = BRANCH.prove(
+            *merge::T1_PM_P1_BRANCH_PROOF,
+            *T1_PM_LEAF_PROOF,
+            *T1_P1_LEAF_PROOF,
+        )?;
+        assert_proof(&proof, Some(*T1_B_HASH), *CAST_PM_P1);
+        BRANCH.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(pub T1_BRANCH_PROOF: BranchProof<F, C, D>)]
+    fn verify_t1_branch() -> Result<BranchProof<F, C, D>> {
+        let proof = BRANCH.prove(
+            *merge::T1_BRANCH_PROOF,
+            *T1_PM_P1_BRANCH_PROOF,
+            *T1_P2_LEAF_PROOF,
+        )?;
+        assert_proof(&proof, Some(*T1_HASH), *CAST_T1);
+        BRANCH.verify(proof.clone())?;
+        Ok(proof)
     }
 
     #[test]
-    fn verify_branch() -> Result<()> {
-        use p1_p2::{MERGE_PROOF, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
+    fn verify_partial_branch_1() -> Result<()> {
+        let proof = BRANCH.prove_one(*merge::T1_P2_PARTIAL_BRANCH_PROOF, *T1_P2_LEAF_PROOF)?;
+        assert_proof(&proof, Some(*T1_P2_HASH), PROGRAM_HASHES[2]);
+        BRANCH.verify(proof)?;
+        Ok(())
+    }
 
-        let leaf_1_proof = LEAF.prove(
-            &BRANCH,
-            &PROGRAM_1.circuit.verifier_only,
-            &PROGRAM_1_PROOF,
-            &P1_BUILT_EVENTS.proof,
+    #[test]
+    fn verify_partial_branch_2() -> Result<()> {
+        let proof = BRANCH.prove_one(
+            *merge::T1_PM_P1_PARTIAL_BRANCH_PROOF,
+            *T1_PM_P1_BRANCH_PROOF,
         )?;
-        LEAF.circuit.verify(leaf_1_proof.clone())?;
-
-        let leaf_2_proof = LEAF.prove(
-            &BRANCH,
-            &PROGRAM_2.circuit.verifier_only,
-            &PROGRAM_2_PROOF,
-            &P2_BUILT_EVENTS.proof,
-        )?;
-        LEAF.circuit.verify(leaf_2_proof.clone())?;
-
-        let branch_proof = BRANCH.prove(&MERGE_PROOF, true, &leaf_1_proof, true, &leaf_2_proof)?;
-        BRANCH.circuit.verify(branch_proof.clone())?;
-
+        assert_proof(&proof, Some(*T1_B_HASH), *CAST_PM_P1);
+        BRANCH.verify(proof)?;
         Ok(())
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_hash_merge_1() {
-        let (merge_proof, leaf_1_proof, leaf_2_proof) = catch_unwind(|| {
-            use p1_p2::{MERGE_80, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
-            // Flip the merge to break stuff
-            use p2_p1::MERGE_42;
-
-            let merge_proof = merge_merges(true, &MERGE_42, true, &MERGE_80);
-
-            let leaf_1_proof = LEAF.prove(
-                &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
-                &PROGRAM_1_PROOF,
-                &P1_BUILT_EVENTS.proof,
-            )?;
-            LEAF.circuit.verify(leaf_1_proof.clone())?;
-
-            let leaf_2_proof = LEAF.prove(
-                &BRANCH,
-                &PROGRAM_2.circuit.verifier_only,
-                &PROGRAM_2_PROOF,
-                &P2_BUILT_EVENTS.proof,
-            )?;
-            LEAF.circuit.verify(leaf_2_proof.clone())?;
-
-            Result::<_>::Ok((merge_proof, leaf_1_proof, leaf_2_proof))
-        })
-        .expect("shouldn't fail")
-        .unwrap();
-
-        let branch_proof = BRANCH
-            .prove(&merge_proof, true, &leaf_1_proof, true, &leaf_2_proof)
+        let proof = BRANCH
+            .prove(
+                *merge::T0_PM_P0_BRANCH_PROOF,
+                // Flip the merge to break stuff
+                *T0_P0_LEAF_PROOF,
+                *T0_PM_LEAF_PROOF,
+            )
             .unwrap();
-        BRANCH.circuit.verify(branch_proof.clone()).unwrap();
+        BRANCH.verify(proof.clone()).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_hash_merge_2() {
-        let (merge_proof, leaf_1_proof, leaf_2_proof) = catch_unwind(|| {
-            use p1_p2::{MERGE_42, MERGE_80, PROGRAM_1_PROOF, PROGRAM_2_PROOF};
-
-            // Flip the merge of the merge to break stuff
-            let merge_proof = merge_merges(true, &MERGE_80, true, &MERGE_42);
-
-            let leaf_1_proof = LEAF.prove(
-                &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
-                &PROGRAM_1_PROOF,
-                &P1_BUILT_EVENTS.proof,
-            )?;
-            LEAF.circuit.verify(leaf_1_proof.clone())?;
-
-            let leaf_2_proof = LEAF.prove(
-                &BRANCH,
-                &PROGRAM_2.circuit.verifier_only,
-                &PROGRAM_2_PROOF,
-                &P2_BUILT_EVENTS.proof,
-            )?;
-            LEAF.circuit.verify(leaf_2_proof.clone())?;
-
-            Result::<_>::Ok((merge_proof, leaf_1_proof, leaf_2_proof))
-        })
-        .expect("shouldn't fail")
-        .unwrap();
-
-        let branch_proof = BRANCH
-            .prove(&merge_proof, true, &leaf_1_proof, true, &leaf_2_proof)
+        let proof = BRANCH
+            .prove(
+                *merge::T0_BRANCH_PROOF,
+                // Flip the merge to break stuff
+                *T0_P2_LEAF_PROOF,
+                *T0_PM_P0_BRANCH_PROOF,
+            )
             .unwrap();
-        BRANCH.circuit.verify(branch_proof.clone()).unwrap();
+        BRANCH.verify(proof.clone()).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_call_list() {
-        let (merge_proof, leaf_1_proof, leaf_2_proof) = catch_unwind(|| {
-            // `PROGRAM_2B_PROOF` uses a different call list
-            use p1_p2::{MERGE_42, MERGE_80, PROGRAM_1_PROOF, PROGRAM_2B_PROOF};
-
-            let merge_proof = merge_merges(true, &MERGE_42, true, &MERGE_80);
-
-            let leaf_1_proof = LEAF.prove(
-                &BRANCH,
-                &PROGRAM_1.circuit.verifier_only,
-                &PROGRAM_1_PROOF,
-                &P1_BUILT_EVENTS.proof,
-            )?;
-            LEAF.circuit.verify(leaf_1_proof.clone())?;
-
-            let leaf_2_proof = LEAF.prove(
-                &BRANCH,
-                &PROGRAM_2.circuit.verifier_only,
-                &PROGRAM_2B_PROOF,
-                &P2_BUILT_EVENTS.proof,
-            )?;
-            LEAF.circuit.verify(leaf_2_proof.clone())?;
-
-            Result::<_>::Ok((merge_proof, leaf_1_proof, leaf_2_proof))
-        })
-        .expect("shouldn't fail")
-        .unwrap();
-
-        let branch_proof = BRANCH
-            .prove(&merge_proof, true, &leaf_1_proof, true, &leaf_2_proof)
+        let proof = BRANCH
+            .prove(
+                *merge::T0_PM_P0_BRANCH_PROOF,
+                *T0_PM_BAD_CALL_LEAF_PROOF,
+                *T0_P0_LEAF_PROOF,
+            )
             .unwrap();
-        BRANCH.circuit.verify(branch_proof.clone()).unwrap();
+        BRANCH.verify(proof.clone()).unwrap();
     }
 }

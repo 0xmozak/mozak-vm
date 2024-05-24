@@ -4,6 +4,15 @@ pub mod ecall;
 pub mod env;
 pub mod reg_abi;
 
+pub mod constants {
+    /// The size of a `Poseidon2Hash` digest in bytes.
+    pub const DIGEST_BYTES: usize = 32;
+
+    /// `RATE` of `Poseidon2Permutation` we use
+    #[allow(dead_code)]
+    pub const RATE: usize = 8;
+}
+
 #[macro_export]
 macro_rules! entry {
     ($path:path) => {

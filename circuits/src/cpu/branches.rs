@@ -47,7 +47,6 @@ pub(crate) fn comparison_constraints<'a, P: Copy>(
 /// Constraints for conditional branch operations
 pub(crate) fn constraints<'a, P: Copy>(
     lv: &CpuState<Expr<'a, P>>,
-    nv: &CpuState<Expr<'a, P>>,
     cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     let ops = &lv.inst.ops;
@@ -56,7 +55,7 @@ pub(crate) fn constraints<'a, P: Copy>(
 
     let bumped_pc = lv.inst.pc + 4;
     let branched_pc = lv.inst.imm_value;
-    let next_pc = nv.inst.pc;
+    let next_pc = lv.new_pc;
 
     let lt = lv.less_than;
 

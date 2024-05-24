@@ -29,3 +29,8 @@ opt-level = 3
 # opt-level = 0
 panic = "abort"
 # debug = true
+
+[patch.crates-io]
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
+starky = { git = "https://github.com/0xmozak/plonky2.git" }
