@@ -153,7 +153,6 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
 }
 
 #[cfg(target_os = "mozakvm")]
-#[allow(dead_code)]
 pub fn ensure_clean_shutdown() {
     // Ensure we have read the whole tape
 
