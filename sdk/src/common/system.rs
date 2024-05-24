@@ -1,4 +1,6 @@
 use once_cell::unsync::Lazy;
+use rkyv::rancor::{Panic, Strategy};
+use rkyv::Deserialize;
 #[cfg(target_os = "mozakvm")]
 use {
     crate::common::merkle::merkleize,
@@ -10,8 +12,6 @@ use {
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
     core::ptr::slice_from_raw_parts,
-    rkyv::rancor::{Panic, Strategy},
-    rkyv::Deserialize,
     std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
@@ -149,6 +149,52 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
         reader: Some(canonical_ordered_temporal_hints),
         seen: vec![false; canonical_ordered_temporal_hints.len()],
         index: 0,
+    }
+}
+
+/// Emit an event from `mozak_vm` to provide receipts of
+/// `reads` and state updates including `create` and `delete`.
+/// Panics on event-tape non-abidance.
+pub fn event_emit(event: crate::common::types::Event) {
+    use crate::common::traits::EventEmit;
+    unsafe {
+        crate::common::system::SYSTEM_TAPE.event_tape.emit(event);
+    }
+}
+
+/// Receive one message from mailbox targetted to us and its index
+/// "consume" such message. Subsequent reads will never
+/// return the same message. Panics on call-tape non-abidance.
+#[must_use]
+pub fn call_receive<A, R>() -> Option<(crate::common::types::ProgramIdentifier, A, R)>
+where
+    A: crate::common::traits::CallArgument + PartialEq,
+    R: crate::common::traits::CallReturn,
+    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    use crate::common::traits::Call;
+    unsafe { crate::common::system::SYSTEM_TAPE.call_tape.receive() }
+}
+
+/// Send one message from mailbox targetted to some third-party
+/// resulting in such messages finding itself in their mailbox
+/// Panics on call-tape non-abidance.
+#[allow(clippy::similar_names)]
+pub fn call_send<A, R>(
+    recipient_program: crate::common::types::ProgramIdentifier,
+    argument: A,
+    resolver: impl Fn(A) -> R,
+) -> R
+where
+    A: crate::common::traits::CallArgument + PartialEq,
+    R: crate::common::traits::CallReturn,
+    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    use crate::common::traits::Call;
+    unsafe {
+        crate::common::system::SYSTEM_TAPE
+            .call_tape
+            .send(recipient_program, argument, resolver)
     }
 }
 
