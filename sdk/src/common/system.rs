@@ -4,9 +4,7 @@ use rkyv::Deserialize;
 #[cfg(target_os = "mozakvm")]
 use {
     crate::common::merkle::merkleize,
-    crate::common::types::{
-        CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
-    },
+    crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash},
     crate::core::constants::DIGEST_BYTES,
     crate::core::ecall::{
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
@@ -17,8 +15,10 @@ use {
 #[cfg(not(target_os = "mozakvm"))]
 use {core::cell::RefCell, std::rc::Rc};
 
+use crate::common::traits::{Call, CallArgument, CallReturn, EventEmit};
 use crate::common::types::{
-    CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
+    CallTapeType, Event, EventTapeType, PrivateInputTapeType, ProgramIdentifier,
+    PublicInputTapeType, SystemTape,
 };
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
@@ -155,10 +155,9 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
 /// Emit an event from `mozak_vm` to provide receipts of
 /// `reads` and state updates including `create` and `delete`.
 /// Panics on event-tape non-abidance.
-pub fn event_emit(event: crate::common::types::Event) {
-    use crate::common::traits::EventEmit;
+pub fn event_emit(event: Event) {
     unsafe {
-        crate::common::system::SYSTEM_TAPE.event_tape.emit(event);
+        SYSTEM_TAPE.event_tape.emit(event);
     }
 }
 
@@ -166,14 +165,13 @@ pub fn event_emit(event: crate::common::types::Event) {
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
 #[must_use]
-pub fn call_receive<A, R>() -> Option<(crate::common::types::ProgramIdentifier, A, R)>
+pub fn call_receive<A, R>() -> Option<(ProgramIdentifier, A, R)>
 where
-    A: crate::common::traits::CallArgument + PartialEq,
-    R: crate::common::traits::CallReturn,
+    A: CallArgument + PartialEq,
+    R: CallReturn,
     <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
     <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
-    use crate::common::traits::Call;
-    unsafe { crate::common::system::SYSTEM_TAPE.call_tape.receive() }
+    unsafe { SYSTEM_TAPE.call_tape.receive() }
 }
 
 /// Send one message from mailbox targetted to some third-party
@@ -181,18 +179,17 @@ where
 /// Panics on call-tape non-abidance.
 #[allow(clippy::similar_names)]
 pub fn call_send<A, R>(
-    recipient_program: crate::common::types::ProgramIdentifier,
+    recipient_program: ProgramIdentifier,
     argument: A,
     resolver: impl Fn(A) -> R,
 ) -> R
 where
-    A: crate::common::traits::CallArgument + PartialEq,
-    R: crate::common::traits::CallReturn,
+    A: CallArgument + PartialEq,
+    R: CallReturn,
     <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
     <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
-    use crate::common::traits::Call;
     unsafe {
-        crate::common::system::SYSTEM_TAPE
+        SYSTEM_TAPE
             .call_tape
             .send(recipient_program, argument, resolver)
     }
