@@ -50,11 +50,14 @@ where
         + BitAndAssign,
 {
     fn path(addr: T, bits: usize) -> Option<Self> {
-        (bits == 0).then_some(Self {
+        (bits != 0).then_some(Self {
             height: bits - 1,
             addr,
         })
     }
+
+    /// Returns `true` if all remaining directions are `Dir::Left`
+    fn is_zero(self) -> bool { self.addr == T::from(false) }
 
     fn next(mut self) -> (Option<Self>, Dir) {
         let zero = T::from(false);

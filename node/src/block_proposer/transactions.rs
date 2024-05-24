@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::convert::Infallible;
 use std::ops::Deref;
 
 use anyhow::{bail, Result};
@@ -10,13 +9,14 @@ use itertools::{merge_join_by, Either, EitherOrBoth, Itertools};
 use mozak_recproofs::circuits::verify_program::core::ProgramPublicIndices;
 use mozak_recproofs::circuits::{build_event_root, merge, verify_program, verify_tx};
 use mozak_recproofs::{Event, EventType as ProofEventType};
-use mozak_sdk::common::types::{CanonicalEvent, EventType as SdkEventType, ProgramIdentifier};
-use mozak_sdk::core::constants::DIGEST_BYTES;
+use mozak_sdk::common::types::{
+    CanonicalEvent, EventType as SdkEventType, Poseidon2Hash, ProgramIdentifier,
+};
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::HashOut;
-use plonky2::hash::poseidon2::Poseidon2Hash;
+use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
 use plonky2::plonk::circuit_data::{CircuitConfig, CommonCircuitData, VerifierOnlyCircuitData};
-use plonky2::plonk::config::{GenericHashOut, Hasher};
+use plonky2::plonk::config::Hasher;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::{AddressPath, BranchAddress, Dir};
@@ -136,7 +136,10 @@ impl AuxTransactionData {
     ) -> Result<Option<OngoingTxNode>> {
         let program_branch = &self.program_branch_circuit;
         let new_node = match (node, call_address) {
-            (OngoingTxNode::UnprocessedBranch { left, right }, Some(call_address)) => {
+            (
+                OngoingTxNode::Unprocessed(UnprocessedTxNode::Branch { left, right }),
+                Some(call_address),
+            ) => {
                 let (call_address, next_node) = match call_address.next() {
                     (call_address, Dir::Left) => (call_address, left.as_mut()),
                     (call_address, Dir::Right) => (call_address, right.as_mut()),
@@ -144,29 +147,41 @@ impl AuxTransactionData {
                 self.insert_program(next_node, call_address, events, proof)?;
 
                 match (left.as_mut(), right.as_mut()) {
-                    (
-                        OngoingTxNode::ProcessedLeaf {
-                            events: l_events,
-                            proof: l_proof,
-                        },
-                        OngoingTxNode::ProcessedLeaf {
-                            events: r_events,
-                            proof: r_proof,
-                        },
-                    ) => {
+                    (OngoingTxNode::Processed(l), OngoingTxNode::Processed(r)) => {
                         let (merge, events) =
-                            self.merge_events_branch(l_events.take(), r_events.take());
-                        let proof = program_branch.prove(&merge, l_proof, r_proof)?;
-                        Some(OngoingTxNode::ProcessedBranch { events, proof })
+                            self.merge_events_branch(l.take_events(), r.take_events());
+                        let proof = program_branch.prove(&merge, l.proof(), r.proof())?;
+                        Some(OngoingTxNode::Processed(ProcessedTxNode::Branch {
+                            events,
+                            proof,
+                        }))
                     }
                     _ => None,
                 }
             }
-            (OngoingTxNode::UnprocessedLeaf(_pid), None) => Some(OngoingTxNode::ProcessedLeaf {
-                events,
-                proof: proof()?,
-            }),
-            _ => todo!(),
+
+            (OngoingTxNode::Unprocessed(UnprocessedTxNode::Leaf(_pid)), None) =>
+                Some(OngoingTxNode::Processed(ProcessedTxNode::Leaf {
+                    events,
+                    proof: proof()?,
+                })),
+            (OngoingTxNode::Unprocessed(UnprocessedTxNode::Leaf(_)), Some(call_address))
+                if call_address.is_zero() =>
+                Some(OngoingTxNode::Processed(ProcessedTxNode::Leaf {
+                    events,
+                    proof: proof()?,
+                })),
+
+            (OngoingTxNode::Processed(_), _) => bail!("duplicate proof detected"),
+
+            (OngoingTxNode::Unprocessed(UnprocessedTxNode::Branch { .. }), None) => {
+                println!("mango");
+                unreachable!()
+            }
+            (OngoingTxNode::Unprocessed(UnprocessedTxNode::Leaf(_)), Some(_)) => {
+                println!("apple");
+                unreachable!()
+            }
         };
 
         Ok(new_node)
@@ -183,7 +198,10 @@ impl AuxTransactionData {
             .unwrap();
 
         let hash = proof.merged_hash();
-        debug_assert_eq!(hash, Poseidon2Hash::two_to_one(left.hash(), right.hash()));
+        debug_assert_eq!(
+            hash,
+            Plonky2Poseidon2Hash::two_to_one(left.hash(), right.hash())
+        );
 
         let event = EventNode::Branch {
             address,
@@ -213,7 +231,10 @@ impl AuxTransactionData {
             .unwrap();
         let proof = branch_circuit.prove(&r_proof, &l_proof).unwrap();
         let hash = proof.merged_hash();
-        debug_assert_eq!(hash, Poseidon2Hash::two_to_one(right.hash(), left.hash()));
+        debug_assert_eq!(
+            hash,
+            Plonky2Poseidon2Hash::two_to_one(right.hash(), left.hash())
+        );
         let event = EventNode::Branch {
             address,
             hash,
@@ -470,19 +491,45 @@ impl EventNode {
 
 #[derive(Debug)]
 enum OngoingTxNode {
-    UnprocessedBranch {
-        left: Box<OngoingTxNode>,
-        right: Box<OngoingTxNode>,
-    },
-    ProcessedBranch {
+    Processed(ProcessedTxNode),
+    Unprocessed(UnprocessedTxNode),
+}
+
+#[derive(Debug)]
+enum ProcessedTxNode {
+    Branch {
         events: Option<EventNode>,
         proof: ProgramBranchProof,
     },
-    ProcessedLeaf {
+    Leaf {
         events: Option<EventNode>,
         proof: ProgramLeafProof,
     },
-    UnprocessedLeaf(ProgramIdentifier),
+}
+
+impl ProcessedTxNode {
+    fn take_events(&mut self) -> Option<EventNode> {
+        match self {
+            Self::Branch { events, .. } | Self::Leaf { events, .. } => events,
+        }
+        .take()
+    }
+
+    fn proof(&self) -> Either<&ProgramLeafProof, &ProgramBranchProof> {
+        match self {
+            Self::Branch { proof, .. } => Either::Right(proof),
+            Self::Leaf { proof, .. } => Either::Left(proof),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum UnprocessedTxNode {
+    Branch {
+        left: Box<OngoingTxNode>,
+        right: Box<OngoingTxNode>,
+    },
+    Leaf(ProgramIdentifier),
 }
 
 enum ProcessedTx {
@@ -531,15 +578,18 @@ impl<'a> TransactionAccumulator<'a> {
     #[allow(clippy::too_many_lines)]
     pub fn ingest_program(
         &mut self,
-        id: ProgramIdentifier,
+        cast_index: usize,
         program_verifier: &VerifierOnlyCircuitData<C, D>,
         program_proof: &ProofWithPublicInputs<F, C, D>,
-        cast_list: Vec<ProgramIdentifier>,
+        cast_list: &[ProgramIdentifier],
         events: &[CanonicalEvent],
         call_tape: [F; 4],
     ) -> Result<(OngoingTxKey, bool)> {
-        let Some(call_index) = cast_list.iter().position(|&r| r == id) else {
-            bail!("id {id:?} was not in cast list");
+        let Some(id) = cast_list.get(cast_index) else {
+            bail!(
+                "id {cast_index} was not in cast list (len={})",
+                cast_list.len()
+            );
         };
 
         let events = events.iter().map(|e| Event {
@@ -559,13 +609,13 @@ impl<'a> TransactionAccumulator<'a> {
             })
             .collect();
         let event_tree = reduce_tree_by_address(event_tree, BranchAddress::parent, |a, l, r| {
-            Ok::<_, Infallible>(EventNode::Branch {
+            EventNode::Branch {
                 address: *a,
-                hash: Poseidon2Hash::two_to_one(l.hash(), r.hash()),
+                hash: Plonky2Poseidon2Hash::two_to_one(l.hash(), r.hash()),
                 left: Box::new(l),
                 right: Box::new(r),
-            })
-        })?;
+            }
+        });
         let event_tree = event_tree.map(|x| x.1);
 
         // Delay the proof calculation
@@ -573,24 +623,16 @@ impl<'a> TransactionAccumulator<'a> {
             let event_branch = &self.aux.event_branch_circuit;
             let events = events
                 .map(|e| {
-                    let proof = self.aux.event_leaf_circuit.prove(event_branch, e)?;
-                    Ok::<_, anyhow::Error>((e.address, Either::Left(proof)))
+                    let proof = self.aux.event_leaf_circuit.prove(event_branch, e).unwrap();
+                    (e.address, Either::Left(proof))
                 })
-                .try_collect()?;
+                .collect();
 
             let event_root_proof = reduce_tree_by_address(
                 events,
                 |address| address / 2,
-                |_, l, r| {
-                    match (l, r) {
-                        (Either::Left(l), Either::Left(r)) => event_branch.prove(&l, &r),
-                        (Either::Left(l), Either::Right(r)) => event_branch.prove(&l, &r),
-                        (Either::Right(l), Either::Left(r)) => event_branch.prove(&l, &r),
-                        (Either::Right(l), Either::Right(r)) => event_branch.prove(&l, &r),
-                    }
-                    .map(Either::Right)
-                },
-            )?;
+                |_, l, r| Either::Right(event_branch.prove(&l, &r).unwrap()),
+            );
             let event_root_proof = event_root_proof.map(|x| x.1);
 
             let storage;
@@ -611,23 +653,15 @@ impl<'a> TransactionAccumulator<'a> {
             )
         };
 
-        let cast = cast_list.iter().map(ProgramIdentifier::inner);
         let cast_root = reduce_tree(
-            cast,
-            |x| HashOut::from_bytes(&x),
-            |x| x.to_bytes().try_into().unwrap(),
-            |l, r| {
-                const SIZE: usize = DIGEST_BYTES * 2;
-                let mut chain = [0; SIZE];
-                chain[0..SIZE].copy_from_slice(&l);
-                chain[SIZE..].copy_from_slice(&r);
-                let chain = chain.map(F::from_canonical_u8);
-
-                Poseidon2Hash::hash_no_pad(&chain)
-            },
+            cast_list.iter().map(|p| p.0),
+            |x| x,
+            |x| x,
+            Poseidon2Hash::two_to_one,
         )
         .unwrap()
-        .elements;
+        .to_u64s()
+        .map(F::from_canonical_u64);
 
         let key = OngoingTxKey {
             cast_root,
@@ -638,15 +672,17 @@ impl<'a> TransactionAccumulator<'a> {
                 let proof = proof()?;
                 let cast_list = merge_join_by(
                     cast_list
-                        .into_iter()
-                        .map(OngoingTxNode::UnprocessedLeaf)
+                        .iter()
+                        .copied()
+                        .map(UnprocessedTxNode::Leaf)
+                        .map(OngoingTxNode::Unprocessed)
                         .enumerate(),
-                    [(0, OngoingTxNode::ProcessedLeaf {
+                    [(OngoingTxNode::Processed(ProcessedTxNode::Leaf {
                         events: event_tree,
                         proof,
-                    })],
+                    }))],
                     |(i, _), _| {
-                        if *i == call_index {
+                        if *i == cast_index {
                             Ordering::Equal
                         } else {
                             Ordering::Less
@@ -655,7 +691,7 @@ impl<'a> TransactionAccumulator<'a> {
                 )
                 .map(|v| match v {
                     EitherOrBoth::Left(v) => v.1,
-                    EitherOrBoth::Both(_, v) => v.1,
+                    EitherOrBoth::Both(_, v) => v,
                     EitherOrBoth::Right(_) => unreachable!(),
                 });
 
@@ -663,10 +699,11 @@ impl<'a> TransactionAccumulator<'a> {
                     cast_list.map(Box::new),
                     |x| *x,
                     Box::new,
-                    |left, right| OngoingTxNode::UnprocessedBranch { left, right },
+                    |left, right| {
+                        OngoingTxNode::Unprocessed(UnprocessedTxNode::Branch { left, right })
+                    },
                 )
                 .unwrap();
-                println!("todo remove {nodes:?}");
 
                 v.insert(OngoingTx { nodes })
             }
@@ -674,7 +711,7 @@ impl<'a> TransactionAccumulator<'a> {
                 let bits = usize::BITS - cast_list.len().leading_zeros();
                 self.aux.insert_program(
                     &mut o.get_mut().nodes,
-                    AddressPath::path(call_index, bits as usize),
+                    AddressPath::path(cast_index, bits as usize),
                     event_tree,
                     proof,
                 )?;
@@ -682,55 +719,27 @@ impl<'a> TransactionAccumulator<'a> {
             }
         };
 
-        let completed = if let OngoingTxNode::ProcessedBranch { .. } = &tx_entry.get().nodes {
+        let completed = if let OngoingTxNode::Processed(_) = &tx_entry.get().nodes {
             let leaf_circuit = &self.aux.tx_leaf_circuit;
             let branch_circuit = &self.aux.tx_branch_circuit;
             let tx = tx_entry.remove();
-            let OngoingTxNode::ProcessedBranch { events, proof } = tx.nodes else {
+
+            let OngoingTxNode::Processed(node) = tx.nodes else {
                 unreachable!()
             };
-
-            let new_tx_events = events;
-            let new_tx_proof = leaf_circuit.prove(branch_circuit, &proof).unwrap();
-
-            self.processed_txs = Some(match self.processed_txs.take() {
-                None => ProcessedTx::Leaf {
-                    proof: new_tx_proof,
-                    events: new_tx_events,
-                },
-                Some(ProcessedTx::Leaf { proof, events }) => {
-                    let (merge_proof, events) = self.aux.merge_events_branch(events, new_tx_events);
-                    let proof = branch_circuit
-                        .prove(&merge_proof, &proof, &new_tx_proof)
+            let (new_tx_events, proof) = match node {
+                ProcessedTxNode::Branch { events, proof } => (events, proof),
+                ProcessedTxNode::Leaf { events, proof } => {
+                    let (merge_proof, events) = self.aux.merge_events_branch(events, None);
+                    let proof = self
+                        .aux
+                        .program_branch_circuit
+                        .prove_one(&merge_proof, &proof)
                         .unwrap();
-                    ProcessedTx::Branch { proof, events }
+                    (events, proof)
                 }
-                Some(ProcessedTx::Branch { proof, events }) => {
-                    let (merge_proof, events) = self.aux.merge_events_branch(events, new_tx_events);
-                    let proof = branch_circuit
-                        .prove(&merge_proof, &proof, &new_tx_proof)
-                        .unwrap();
-                    ProcessedTx::Branch { proof, events }
-                }
-            });
-
-            true
-        } else if let OngoingTxNode::ProcessedLeaf { .. } = &tx_entry.get().nodes {
-            let leaf_circuit = &self.aux.tx_leaf_circuit;
-            let branch_circuit = &self.aux.tx_branch_circuit;
-            let tx = tx_entry.remove();
-            let OngoingTxNode::ProcessedLeaf { events, proof } = tx.nodes else {
-                unreachable!()
             };
 
-            let (merge_proof, events) = self.aux.merge_events_branch(events, None);
-            let proof = self
-                .aux
-                .program_branch_circuit
-                .prove_one(&merge_proof, &proof)
-                .unwrap();
-
-            let new_tx_events = events;
             let new_tx_proof = leaf_circuit.prove(branch_circuit, &proof).unwrap();
 
             self.processed_txs = Some(match self.processed_txs.take() {
@@ -761,33 +770,83 @@ impl<'a> TransactionAccumulator<'a> {
 
         Ok((key, completed))
     }
+
+    /// Finalizes the accumlated transaction, clearing it out.
+    ///
+    /// Unfinished transactions remain in progress and can be completed through
+    /// further proof ingestion.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there is no completed transaction
+    ///
+    /// # Panics
+    ///
+    /// Panics if the circuit logic has a bug.
+    pub fn finalize(&mut self) -> Result<TxBranchProof> {
+        let (tx_proof, events) = match self.processed_txs.take() {
+            None => bail!("No transactions"),
+            Some(ProcessedTx::Branch { proof, .. }) => return Ok(proof),
+            Some(ProcessedTx::Leaf { proof, events }) => (proof, events),
+        };
+
+        let merge_leaf_circuit = &self.aux.merge_leaf_circuit;
+        let merge_branch_circuit = &self.aux.merge_branch_circuit;
+        let storage;
+        let merge_proof = if let Some(events) = events {
+            let merge_proof = merge_leaf_circuit
+                .prove(merge_branch_circuit, Some(events.hash()), None)
+                .unwrap();
+            storage = merge_branch_circuit
+                .prove(&merge_proof, &self.aux.empty_merge_leaf)
+                .unwrap();
+            &storage
+        } else {
+            &self.aux.empty_merge_branch
+        };
+
+        Ok(self
+            .aux
+            .tx_branch_circuit
+            .prove_one(merge_proof, &tx_proof)
+            .unwrap())
+    }
 }
 
 /// Reduces a tree by merging all the items, grouped by their address,
 /// then reducing their addresses
-///
-/// # Errors
-///
-/// Short circuits from any merge errors.
 #[allow(clippy::missing_panics_doc)]
-pub fn reduce_tree_by_address<A: Clone + PartialEq, T, E>(
+pub fn reduce_tree_by_address<A: Clone + PartialEq, T>(
     mut iter: Vec<(A, T)>,
     mut addr_inc: impl FnMut(A) -> A,
-    mut merge: impl FnMut(&A, T, T) -> Result<T, E>,
-) -> Result<Option<(A, T)>, E> {
+    mut merge: impl FnMut(&A, T, T) -> T,
+) -> Option<(A, T)> {
     while iter.len() > 1 {
-        iter = iter
-            .into_iter()
-            .chunk_by(|e| e.0.clone())
+        iter = reduce_tree_by_address_step(iter, &mut addr_inc, &mut merge).collect();
+    }
+    iter.pop()
+}
+
+/// Reduces a tree by merging all the items, grouped by their address,
+/// then reducing their addresses
+#[allow(clippy::missing_panics_doc)]
+pub fn reduce_tree_by_address_step<A: Clone + PartialEq, T>(
+    iter: impl IntoIterator<Item = (A, T)>,
+    mut addr_inc: impl FnMut(A) -> A,
+    mut merge: impl FnMut(&A, T, T) -> T,
+) -> impl Iterator<Item = (A, T)> {
+    let chunks = iter.into_iter().chunk_by(|e| e.0.clone());
+
+    std::iter::from_fn(move || {
+        chunks
             .into_iter()
             .map(|(address, ts)| {
-                let ts = ts.map(|x| Ok(x.1));
-                let t = reduce_tree(ts, |x| x, |x| x, |l, r| merge(&address, l?, r?)).unwrap()?;
-                Ok((addr_inc(address), t))
+                let ts = ts.map(|x| x.1);
+                let t = reduce_tree(ts, |x| x, |x| x, |l, r| merge(&address, l, r)).unwrap();
+                (addr_inc(address), t)
             })
-            .try_collect()?;
-    }
-    Ok(iter.pop())
+            .next()
+    })
 }
 
 /// Reduces a tree by merging all the items
@@ -839,6 +898,7 @@ mod test {
     use mozak_recproofs::indices::{ArrayTargetIndex, BoolTargetIndex, HashOutTargetIndex};
     use mozak_recproofs::test_utils::make_fs;
     use once_cell::sync::Lazy;
+    use plonky2::field::types::PrimeField64;
     use plonky2::gates::noop::NoopGate;
     use plonky2::hash::hash_types::HashOutTarget;
     use plonky2::iop::target::{BoolTarget, Target};
@@ -953,12 +1013,12 @@ mod test {
         }
     }
 
-    pub static PROGRAM_M: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, None));
+    pub static PROGRAM_M: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 0));
     pub static PROGRAM_0: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 0));
     pub static PROGRAM_1: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 1));
     pub static PROGRAM_2: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 2));
 
-    #[tested_fixture::tested_fixture(pub AUX)]
+    #[tested_fixture::tested_fixture(AUX)]
     fn build_aux() -> AuxTransactionData {
         let program_m_indices = PROGRAM_M.get_indices();
         assert_eq!(program_m_indices, PROGRAM_0.get_indices());
@@ -973,23 +1033,97 @@ mod test {
     }
 
     #[test]
-    fn simple() {
+    fn empty_proof() {
         let mut txs = TransactionAccumulator::new(*AUX);
         let call_tape = make_fs([86, 7, 5, 309]);
         let proof = PROGRAM_M
             .prove(None, call_tape, PROGRAM_M.program_hash_val.into())
             .unwrap();
-        let pid = ProgramIdentifier::default();
+        let pid = ProgramIdentifier(
+            PROGRAM_M
+                .program_hash_val
+                .map(|x| x.to_canonical_u64())
+                .into(),
+        );
         let (_k, complete) = txs
             .ingest_program(
-                pid,
+                0,
                 &PROGRAM_M.circuit.verifier_only,
                 &proof,
-                vec![pid],
+                &[pid],
                 &[],
                 call_tape,
             )
             .unwrap();
         assert!(complete);
+
+        let tx_proof = txs.finalize();
+        assert!(tx_proof.is_ok());
+    }
+
+    #[test]
+    fn empty_proofs() {
+        let mut txs = TransactionAccumulator::new(*AUX);
+        let call_tape = make_fs([86, 7, 5, 309]);
+
+        let cast = [&*PROGRAM_M, &*PROGRAM_1, &*PROGRAM_2];
+        let cast_ids = cast
+            .map(|p| ProgramIdentifier(p.program_hash_val.map(|x| x.to_canonical_u64()).into()));
+        let cast_root = HashOut::from(
+            reduce_tree(
+                cast_ids.iter().map(|p| p.0),
+                |x| x,
+                |x| x,
+                Poseidon2Hash::two_to_one,
+            )
+            .unwrap()
+            .to_u64s()
+            .map(F::from_canonical_u64),
+        );
+
+        let proofs = cast.map(|p| p.prove(None, call_tape, cast_root).unwrap());
+
+        let (key_m, complete) = txs
+            .ingest_program(
+                0,
+                &cast[0].circuit.verifier_only,
+                &proofs[0],
+                &cast_ids,
+                &[],
+                call_tape,
+            )
+            .unwrap();
+        assert!(!complete);
+        assert!(txs.finalize().is_err());
+
+        let (key_1, complete) = txs
+            .ingest_program(
+                1,
+                &cast[1].circuit.verifier_only,
+                &proofs[1],
+                &cast_ids,
+                &[],
+                call_tape,
+            )
+            .unwrap();
+        assert!(!complete);
+        assert_eq!(key_m, key_1);
+        assert!(txs.finalize().is_err());
+
+        let (key_2, complete) = txs
+            .ingest_program(
+                2,
+                &cast[2].circuit.verifier_only,
+                &proofs[2],
+                &cast_ids,
+                &[],
+                call_tape,
+            )
+            .unwrap();
+        assert!(complete);
+        assert_eq!(key_m, key_2);
+
+        let tx_proof = txs.finalize();
+        assert!(tx_proof.is_ok());
     }
 }
