@@ -7,15 +7,15 @@
   "executables": true,
   "features": "+m",
   "is-builtin": false,
-  "linker": "rust-lld",
   "linker-flavor": "ld.lld",
+  "linker": "rust-lld",
   "llvm-target": "riscv32",
+  "main-needs-argc-argv": false,
   "max-atomic-width": 32,
   "os": "mozakvm",
   "panic-strategy": "abort",
   "relocation-model": "static",
   "singlethread": true,
   "target-pointer-width": "32",
-  "vendor": "mozak",
-  "main-needs-argc-argv": false
+  "vendor": "mozak"
 }

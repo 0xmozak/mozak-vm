@@ -16,8 +16,8 @@ macro_rules! entry {
             #[no_mangle]
             fn bespoke_entrypoint() {
                 super::MOZAK_ENTRY();
-                #[cfg(feature = "std")]
-                mozak_sdk::common::system::ensure_clean_shutdown();
+                // #[cfg(feature = "std")]
+                // mozak_sdk::common::system::ensure_clean_shutdown();
             }
         }
     };
@@ -34,7 +34,7 @@ unsafe extern "C" fn __start() {
         }
         bespoke_entrypoint()
     }
-    env::finalize();
+    // env::finalize();
 }
 
 // The stack grows downwards (towards lower addresses) and the stack pointer
@@ -69,9 +69,9 @@ mod handlers {
     use crate::core::ecall;
 
     #[panic_handler]
-    fn panic_fault(panic_info: &PanicInfo) -> ! {
-        let msg = rust_alloc::format!("{panic_info}");
-        ecall::panic(msg.as_ptr(), msg.len());
+    fn panic_fault(_panic_info: &PanicInfo) -> ! {
+        // let msg = rust_alloc::format!("{panic_info}");
+        // ecall::panic(msg.as_ptr(), msg.len());
         unreachable!();
     }
 }

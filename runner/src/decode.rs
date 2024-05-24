@@ -237,15 +237,15 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingErr
             // For RISC-V this would be EBREAK,
             // but so far we implemented it as a no-op.
             (0x0, 0x1) => nop,
-            // For RISC-V this would be (Op::CSRRW, itype),
-            // but so far we implemented it as a no-op.
-            (0x1, _) => nop,
-            // For RISC-V this would be (Op::CSRRS, itype),
-            // but so far we implemented it as a no-op.
-            (0x2, _) => nop,
-            // For RISC-V this would be (Op::CSRRWI, itype),
-            // but so far we implemented it as a no-op.
-            (0x5, _) => nop,
+            // // For RISC-V this would be (Op::CSRRW, itype),
+            // // but so far we implemented it as a no-op.
+            // (0x1, _) => nop,
+            // // For RISC-V this would be (Op::CSRRS, itype),
+            // // but so far we implemented it as a no-op.
+            // (0x2, _) => nop,
+            // // For RISC-V this would be (Op::CSRRWI, itype),
+            // // but so far we implemented it as a no-op.
+            // (0x5, _) => nop,
             _ => return default(),
         },
         // For RISC-V its JAL, but we handle it as JALR.

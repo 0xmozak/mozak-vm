@@ -19,8 +19,13 @@ members = [
 ]
 resolver = "2"
 
+[profile.dev]
+panic = "abort"
+
 [profile.release]
 codegen-units = 1
 lto = "fat"
 opt-level = 3
+# opt-level = 0
 panic = "abort"
+# debug = true

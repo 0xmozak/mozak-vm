@@ -3,5 +3,5 @@ build-std = ["alloc", "core", "compiler_builtins", "std", "panic_abort", "proc_m
 build-std-features = ["compiler-builtins-mem"]
 
 [build]
-rustflags = ["-C", "passes=loweratomic"]
+rustflags = ["-C", "passes=loweratomic", "-Ztrap-unreachable=no"]
 target = "../buildtarget/riscv32im-mozak-mozakvm-elf.json"
