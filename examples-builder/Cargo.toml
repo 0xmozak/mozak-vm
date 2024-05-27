@@ -10,9 +10,11 @@ repository = "https://github.com/0xmozak/mozak-vm"
 version = "0.1.0"
 
 [features]
+bss-tester = []
 empty = []
 fibonacci = []
 inputtape = []
+inputtapebin = []
 memory-access = []
 min-max = []
 mozak-sort = []
@@ -21,4 +23,7 @@ rkyv-serialization = []
 sha2 = []
 static-mem-access = []
 token = []
+# Not sure whether token, tokenbin, wallet and walletbin should all be here, or whether we forget cleaning them up in recent renames?
+tokenbin = []
 wallet = []
+walletbin = []

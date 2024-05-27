@@ -20,7 +20,8 @@ pub mod core;
 #[cfg(feature = "std")]
 pub mod common;
 
-#[cfg(all(feature = "std", target_os = "mozakvm"))]
+// #[cfg(all(feature = "std", target_os = "mozakvm"))]
+#[cfg(all(feature = "std", target_os = "zkvm"))]
 pub mod mozakvm;
 
 #[cfg(all(feature = "std", not(target_os = "mozakvm")))]

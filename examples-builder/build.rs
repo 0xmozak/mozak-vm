@@ -47,35 +47,28 @@ const CRATES: &[Crate] = &[
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
 fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str, uses_std: bool) {
-    // Use a dummy array for clippy, since not building the elf is faster than
-    // building the elf
-    if cfg!(feature = "cargo-clippy") {
-        writeln!(dest, r#"pub const {glob_name}: &[u8] = &[];"#)
+    let args = if uses_std {
+        vec!["build", "--release", "--features=std"]
     } else {
-        let args = if uses_std {
-            vec!["build", "--release", "--features=std"]
-        } else {
-            vec!["build", "--release"]
-        };
-        let output = Command::new("cargo")
-            .args(args)
-            .current_dir(crate_path)
-            .env_clear()
-            .envs(std::env::vars().filter(|x| !x.0.starts_with("CARGO_")))
-            .output()
-            .expect("cargo command failed to run");
-        if !output.status.success() {
-            io::stdout().write_all(&output.stdout).unwrap();
-            io::stderr().write_all(&output.stderr).unwrap();
-            panic!("cargo build {crate_path} failed.");
-        }
-        writeln!(
-            dest,
-            r#"pub const {glob_name}: &[u8] =
-                   include_bytes!(r"{CARGO_MANIFEST_DIR}/{elf_path}");"#
-        )
+        vec!["build", "--release"]
+    };
+    let output = Command::new("cargo")
+        .args(args)
+        .current_dir(crate_path)
+        .env_clear()
+        .envs(std::env::vars().filter(|x| !x.0.starts_with("CARGO_")))
+        .output()
+        .expect("cargo command failed to run");
+    if !output.status.success() {
+        io::stdout().write_all(&output.stdout).unwrap();
+        io::stderr().write_all(&output.stderr).unwrap();
+        panic!("cargo build {crate_path} failed.");
     }
-    .expect("failed to write vars.rs");
+    writeln!(
+        dest,
+        r#"pub const {glob_name}: &[u8] =
+                include_bytes!(r"{CARGO_MANIFEST_DIR}/{elf_path}");"#
+    ).expect("failed to write vars.rs");
 
     println!("cargo:rerun-if-changed={crate_path}");
     println!("cargo:rerun-if-changed={elf_path}");
