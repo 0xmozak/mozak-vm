@@ -1,0 +1,13 @@
+[package]
+edition = "2021"
+name = "bss-tester-mozakvm"
+version = "0.1.0"
+
+[dependencies]
+mozak-sdk = { path = "../../../sdk", default-features = false }
+
+[[bin]]
+name = "bss-tester"
+path = "main.rs"
+
+[build]
