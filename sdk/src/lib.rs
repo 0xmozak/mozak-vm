@@ -5,6 +5,7 @@
 #![feature(raw_ref_op)]
 #![feature(stmt_expr_attributes)]
 #![deny(warnings)]
+#![allow(unexpected_cfgs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
 
