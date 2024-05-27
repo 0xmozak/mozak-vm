@@ -68,7 +68,8 @@ fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str,
         dest,
         r#"pub const {glob_name}: &[u8] =
                 include_bytes!(r"{CARGO_MANIFEST_DIR}/{elf_path}");"#
-    ).expect("failed to write vars.rs");
+    )
+    .expect("failed to write vars.rs");
 
     println!("cargo:rerun-if-changed={crate_path}");
     println!("cargo:rerun-if-changed={elf_path}");

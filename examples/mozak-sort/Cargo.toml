@@ -7,6 +7,9 @@ version = "0.1.0"
 mozak-sdk = { path = "../../sdk", default-features = false }
 rand = { version = "0.8", default-features = false, features = ["alloc", "small_rng"] }
 
+[features]
+std = []
+
 [[bin]]
 name = "mozak-sort"
 path = "main.rs"
