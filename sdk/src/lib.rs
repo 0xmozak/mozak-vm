@@ -8,17 +8,15 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
 
-#[cfg(feature = "std")]
-use rkyv::rancor::{Panic, Strategy};
-#[cfg(feature = "std")]
-use rkyv::Deserialize;
-
 extern crate alloc as rust_alloc;
 
 pub mod core;
 
 #[cfg(feature = "std")]
 pub mod common;
+
+#[cfg(feature = "std")]
+pub use crate::common::system::{call_receive, call_send, event_emit};
 
 #[cfg(all(feature = "std", target_os = "mozakvm"))]
 pub mod mozakvm;
@@ -107,3 +105,8 @@ pub use crate::native::identity::rm_identity;
 /// Writes raw bytes to an input tape. Infallible
 #[cfg(all(feature = "std", not(target_os = "mozakvm")))]
 pub use crate::native::inputtape::write;
+
+pub enum InputTapeType {
+    PublicTape,
+    PrivateTape,
+}

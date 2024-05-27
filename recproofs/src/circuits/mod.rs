@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use itertools::Either;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::GenericConfig;
@@ -22,6 +23,182 @@ where
     pub proof: ProofWithPublicInputs<F, C, D>,
     pub tag: PhantomData<T>,
     pub indices: I,
+}
+
+pub enum LeafOrBranchRef<'a, I, F, C, const D: usize>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
+    Leaf(&'a Proof<Leaf, I, F, C, D>),
+    Branch(&'a Proof<Branch, I, F, C, D>),
+}
+
+impl<'a, I, F, C, const D: usize> Clone for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn clone(&self) -> Self { *self }
+}
+
+impl<'a, I, F, C, const D: usize> Copy for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+}
+
+impl<'a, I, F, C, const D: usize> From<&'a Proof<Leaf, I, F, C, D>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a Proof<Leaf, I, F, C, D>) -> Self { Self::Leaf(value) }
+}
+
+impl<'a, I, F, C, const D: usize> From<&'a mut Proof<Leaf, I, F, C, D>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Proof<Leaf, I, F, C, D>) -> Self { Self::Leaf(value) }
+}
+
+impl<'a, I, F, C, const D: usize> From<&'a Proof<Branch, I, F, C, D>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a Proof<Branch, I, F, C, D>) -> Self { Self::Branch(value) }
+}
+
+impl<'a, I, F, C, const D: usize> From<&'a mut Proof<Branch, I, F, C, D>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Proof<Branch, I, F, C, D>) -> Self { Self::Branch(value) }
+}
+
+impl<'a, I, F, C, const D: usize>
+    From<&'a Either<Proof<Leaf, I, F, C, D>, Proof<Branch, I, F, C, D>>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a Either<Proof<Leaf, I, F, C, D>, Proof<Branch, I, F, C, D>>) -> Self {
+        match value {
+            Either::Left(l) => Self::Leaf(l),
+            Either::Right(b) => Self::Branch(b),
+        }
+    }
+}
+
+impl<'a, I, F, C, const D: usize>
+    From<&'a mut Either<Proof<Leaf, I, F, C, D>, Proof<Branch, I, F, C, D>>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Either<Proof<Leaf, I, F, C, D>, Proof<Branch, I, F, C, D>>) -> Self {
+        match value {
+            Either::Left(l) => Self::Leaf(l),
+            Either::Right(b) => Self::Branch(b),
+        }
+    }
+}
+
+impl<'a, I, F, C, const D: usize>
+    From<Either<&'a Proof<Leaf, I, F, C, D>, &'a Proof<Branch, I, F, C, D>>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: Either<&'a Proof<Leaf, I, F, C, D>, &'a Proof<Branch, I, F, C, D>>) -> Self {
+        match value {
+            Either::Left(l) => Self::Leaf(l),
+            Either::Right(b) => Self::Branch(b),
+        }
+    }
+}
+
+impl<'a, I, F, C, const D: usize>
+    From<&'a Either<Proof<Branch, I, F, C, D>, Proof<Leaf, I, F, C, D>>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a Either<Proof<Branch, I, F, C, D>, Proof<Leaf, I, F, C, D>>) -> Self {
+        match value {
+            Either::Left(b) => Self::Branch(b),
+            Either::Right(l) => Self::Leaf(l),
+        }
+    }
+}
+
+impl<'a, I, F, C, const D: usize>
+    From<&'a mut Either<Proof<Branch, I, F, C, D>, Proof<Leaf, I, F, C, D>>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Either<Proof<Branch, I, F, C, D>, Proof<Leaf, I, F, C, D>>) -> Self {
+        match value {
+            Either::Left(b) => Self::Branch(b),
+            Either::Right(l) => Self::Leaf(l),
+        }
+    }
+}
+
+impl<'a, I, F, C, const D: usize>
+    From<Either<&'a Proof<Branch, I, F, C, D>, &'a Proof<Leaf, I, F, C, D>>>
+    for LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: Either<&'a Proof<Branch, I, F, C, D>, &'a Proof<Leaf, I, F, C, D>>) -> Self {
+        match value {
+            Either::Left(b) => Self::Branch(b),
+            Either::Right(l) => Self::Leaf(l),
+        }
+    }
+}
+
+impl<'a, I, F, C, const D: usize> LeafOrBranchRef<'a, I, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    pub const fn is_leaf(&self) -> bool {
+        match self {
+            Self::Leaf(_) => Leaf::VALUE,
+            Self::Branch(_) => Branch::VALUE,
+        }
+    }
+
+    pub const fn proof(&self) -> &ProofWithPublicInputs<F, C, D> {
+        match self {
+            Self::Leaf(l) => &l.proof,
+            Self::Branch(b) => &b.proof,
+        }
+    }
+
+    pub const fn indices(&self) -> &I {
+        match self {
+            Self::Leaf(l) => &l.indices,
+            Self::Branch(b) => &b.indices,
+        }
+    }
 }
 
 pub trait IsLeaf {
