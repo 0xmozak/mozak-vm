@@ -89,11 +89,15 @@ impl CallTape {
     /// guaranteed that any call wih same `(Prog, instance)` tuple during one
     /// native context will always return the same `RoleIdentifier` within that
     /// context. Useful when different programs need to call the same role.
-    pub fn get_deterministic_role_id(&mut self, prog: ProgramIdentifier, instance: String) -> RoleIdentifier {
+    pub fn get_deterministic_role_id(
+        &mut self,
+        prog: ProgramIdentifier,
+        instance: String,
+    ) -> RoleIdentifier {
         let identifier = (prog, instance);
 
         if let Some(role_id) = self.lookup_role_map.get(&identifier) {
-            return *role_id
+            return *role_id;
         };
 
         // if not already found in role map

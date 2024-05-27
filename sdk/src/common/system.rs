@@ -5,20 +5,22 @@ use rkyv::Deserialize;
 use {
     crate::common::merkle::merkleize,
     crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash},
-    crate::core::constants::DIGEST_BYTES,
+    // crate::core::constants::DIGEST_BYTES,
     crate::core::ecall::{
-        call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
+        call_tape_read,
+        event_tape_read,
+        // ioread_private, ioread_public, self_prog_id_tape_read,
     },
     core::ptr::slice_from_raw_parts,
-    std::collections::BTreeSet,
+    // std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
 use {core::cell::RefCell, std::rc::Rc};
 
 use crate::common::traits::{Call, EventEmit};
 use crate::common::types::{
-    CallTapeType, Event, EventTapeType, PrivateInputTapeType,
-    PublicInputTapeType, SystemTape,
+    CallTapeType, Event, EventTapeType, PrivateInputTapeType, PublicInputTapeType, RoleIdentifier,
+    SystemTape,
 };
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
@@ -63,39 +65,47 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // pre-populated data elements
     #[cfg(target_os = "mozakvm")]
     {
-        let mut self_prog_id_bytes = [0; DIGEST_BYTES];
-        self_prog_id_tape_read(self_prog_id_bytes.as_mut_ptr());
-        let self_prog_id = ProgramIdentifier(Poseidon2Hash::from(self_prog_id_bytes));
+        type _x = PrivateInputTapeType;
+        type _y = PublicInputTapeType;
+        // TODO: Fix
+        // let mut self_prog_id_bytes = [0; DIGEST_BYTES];
+        // self_prog_id_tape_read(self_prog_id_bytes.as_mut_ptr()); // Implement
+        // self_role_id_tape_read let self_prog_id =
+        // ProgramIdentifier(Poseidon2Hash::from(self_prog_id_bytes));
 
-        let call_tape = populate_call_tape(self_prog_id);
-        let event_tape = populate_event_tape(self_prog_id);
+        // let call_tape = populate_call_tape(self_prog_id);
+        // let event_tape = populate_event_tape(self_prog_id);
 
-        let mut size_hint_bytes = [0; 4];
+        // let mut size_hint_bytes = [0; 4];
 
-        ioread_public(size_hint_bytes.as_mut_ptr(), 4);
-        let size_hint: usize = u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
-        let public_input_tape = PublicInputTapeType::with_size_hint(size_hint);
+        // ioread_public(size_hint_bytes.as_mut_ptr(), 4);
+        // let size_hint: usize =
+        // u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
+        // let public_input_tape = PublicInputTapeType::with_size_hint(size_hint);
 
-        ioread_private(size_hint_bytes.as_mut_ptr(), 4);
-        let size_hint: usize = u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
-        let private_input_tape = PrivateInputTapeType::with_size_hint(size_hint);
+        // ioread_private(size_hint_bytes.as_mut_ptr(), 4);
+        // let size_hint: usize =
+        // u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
+        // let private_input_tape = PrivateInputTapeType::with_size_hint(size_hint);
 
-        SystemTape {
-            private_input_tape,
-            public_input_tape,
-            call_tape,
-            event_tape,
-        }
+        // SystemTape {
+        //     private_input_tape,
+        //     public_input_tape,
+        //     call_tape,
+        //     event_tape,
+        // }
+        SystemTape::default()
     }
 });
 
 #[cfg(target_os = "mozakvm")]
+#[allow(warnings)]
 /// Populates a `MozakVM` [`CallTapeType`] via ECALLs.
 ///
 /// At this point, the [`CrossProgramCall`] messages are still rkyv-serialized,
 /// and must be deserialized at the point of consumption. Only the `callee`s are
 /// deserialized for persistence of the `cast_list`.
-fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
+fn populate_call_tape(self_role_id: RoleIdentifier) -> CallTapeType {
     let mut len_bytes = [0; 4];
     call_tape_read(len_bytes.as_mut_ptr(), 4);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
@@ -106,31 +116,32 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
         rkyv::access_unchecked::<Vec<CrossProgramCall>>(&*slice_from_raw_parts(buf.as_ptr(), len))
     };
 
-    let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
-        .iter()
-        .map(|m| {
-            m.callee
-                .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
-                .unwrap()
-        })
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect();
+    // let cast_list: Vec<RoleIdentifier> = archived_cpc_messages
+    //     .iter()
+    //     .map(|m| {
+    //         m.callee
+    //             .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+    //             .unwrap()
+    //     })
+    //     .collect::<BTreeSet<_>>()
+    //     .into_iter()
+    //     .collect();
 
     CallTapeType {
-        cast_list,
-        self_prog_id,
+        cast_list: Vec::default(),
+        self_role_id,
         reader: Some(archived_cpc_messages),
         index: 0,
     }
 }
 
 #[cfg(target_os = "mozakvm")]
+#[allow(warnings)]
 /// Populates a `MozakVM` [`EventTapeType`] via ECALLs.
 ///
 /// At this point, the vector of [`CanonicalOrderedTemporalHints`] are still
 /// rkyv-serialized, and must be deserialized at the point of consumption.
-fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
+fn populate_event_tape(self_role_id: RoleIdentifier) -> EventTapeType {
     let mut len_bytes = [0; 4];
     event_tape_read(len_bytes.as_mut_ptr(), 4);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
@@ -145,7 +156,7 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     };
 
     EventTapeType {
-        self_prog_id,
+        self_role_id,
         reader: Some(canonical_ordered_temporal_hints),
         seen: vec![false; canonical_ordered_temporal_hints.len()],
         index: 0,
@@ -159,6 +170,28 @@ pub fn event_emit(event: Event) {
     unsafe {
         SYSTEM_TAPE.event_tape.emit(event);
     }
+}
+
+/// Gets a roleID determined fully by `(Prog, instance)` tuple. It is
+/// guaranteed that any call wih same `(Prog, instance)` tuple during one
+/// native context will always return the same `RoleIdentifier` within that
+/// context. Useful when different programs need to call the same role.
+#[cfg(not(target_os = "mozakvm"))]
+pub fn get_deterministic_role_id(
+    prog: crate::common::types::ProgramIdentifier,
+    instance: String,
+) -> RoleIdentifier {
+    unsafe {
+        SYSTEM_TAPE
+            .call_tape
+            .get_deterministic_role_id(prog, instance)
+    }
+}
+
+/// Gets a fresh & unique roleID referencible only by the `RoleIdentifier`
+#[cfg(not(target_os = "mozakvm"))]
+pub fn get_unique_role_id(prog: crate::common::types::ProgramIdentifier) -> RoleIdentifier {
+    unsafe { SYSTEM_TAPE.call_tape.get_unique_role_id(prog) }
 }
 
 /// Receive one message from mailbox targetted to us and its index
