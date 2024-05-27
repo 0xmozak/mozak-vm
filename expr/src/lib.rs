@@ -55,8 +55,8 @@
 //!
 //! - [ ] TODO: support `|` via multiplication.
 //! - [ ] TODO support `&` via distributive law, and integration with constraint
-//! builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
-//! means split into multiple constraints.
+//!   builder. (a & b) | c == (a | c) & (b | c) == [(a | c), (b | c)] where [..]
+//!   means split into multiple constraints.
 
 pub mod ops;
 
