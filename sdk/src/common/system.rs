@@ -1,7 +1,5 @@
 use once_cell::unsync::Lazy;
-use rkyv::bytecheck::CheckBytes;
 use rkyv::rancor::{Failure, Panic, Strategy};
-use rkyv::validation::validators::DefaultValidator;
 use rkyv::Deserialize;
 #[cfg(target_os = "mozakvm")]
 use {
@@ -17,7 +15,9 @@ use {
 #[cfg(not(target_os = "mozakvm"))]
 use {core::cell::RefCell, std::rc::Rc};
 
-use crate::common::traits::{Call, CallArgument, CallReturn, EventEmit};
+use crate::common::traits::{
+    ArchivedCallArgument, ArchivedCallReturn, Call, CallArgument, CallReturn, EventEmit,
+};
 use crate::common::types::{
     CallTapeType, Event, EventTapeType, PrivateInputTapeType, ProgramIdentifier,
     PublicInputTapeType, SystemTape,
@@ -171,10 +171,8 @@ pub fn call_receive<A, R>() -> Option<(ProgramIdentifier, A, R)>
 where
     A: CallArgument + PartialEq,
     R: CallReturn,
-    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-    <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
-    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
-    <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>, {
+    <A as rkyv::Archive>::Archived: ArchivedCallArgument<A>,
+    <R as rkyv::Archive>::Archived: ArchivedCallReturn<R>, {
     unsafe { SYSTEM_TAPE.call_tape.receive() }
 }
 
@@ -190,11 +188,8 @@ pub fn call_send<A, R>(
 where
     A: CallArgument + PartialEq,
     R: CallReturn,
-
-    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-    <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
-    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
-    <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>, {
+    <A as rkyv::Archive>::Archived: ArchivedCallArgument<A>,
+    <R as rkyv::Archive>::Archived: ArchivedCallReturn<R>, {
     unsafe {
         SYSTEM_TAPE
             .call_tape
