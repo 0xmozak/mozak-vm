@@ -35,4 +35,4 @@ riscv-testdata/testdata/*.i
 
 # Temporary scripts
 *tmp.sh
-examples/*/out/
+**/out
