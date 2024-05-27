@@ -1,0 +1,8 @@
+[package]
+name = "inputtape-native"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+inputtape-core-logic = { path = "../core-logic"}
+mozak-sdk = {path = "../../../sdk"}

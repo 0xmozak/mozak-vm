@@ -7,6 +7,6 @@ be documented [here](../../docs/linker-script.md).
 To build for Mozak-VM:
 
 ```sh
-# inside bss-tester/mozakvm directory
+# inside memory-access/mozakvm directory
 cargo build-mozakvm
 ```

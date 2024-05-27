@@ -1,0 +1,7 @@
+[package]
+edition = "2021"
+name = "empty-mozakvm"
+version = "0.1.0"
+
+[dependencies]
+mozak-sdk = { path = "../../../sdk", default-features = false }

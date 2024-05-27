@@ -6,7 +6,7 @@ To run on your system, use the following command (kindly change [target triple](
 
 ```sh
 # from project root
-cargo run --release --features="native" --bin token-native --target aarch64-apple-darwin
+cargo run --release --bin inputtape-native 
 ```
 
 This produces the `SystemTape` in both binary and debug formats.
@@ -16,19 +16,26 @@ This produces the `SystemTape` in both binary and debug formats.
 First, build the mozakvm binary:
 
 ```sh
-# inside examples directory
-cargo build --release --bin tokenbin --features="std"
+# inside inputtape/mozakvm directory
+cargo build-mozakvm --features="std"
 ```
 
-Test the ELF in mozak-vm using the below command. Note that you must run
+To run mozakvm binary inside our runner, use the following command
+
+```sh
+# inside inputtape/mozakvm directory
+cargo run-mozakvm --features="std" -- --self-prog-id MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538
+```
+
+Test producing proof for ELF executions in mozak-vm using the below command. Note that you must run
 the native execution above to produce the system tape prior to running this.
 
 ```sh
 # from project root
 MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
-    examples/target/riscv32im-mozak-mozakvm-elf/release/tokenbin \
-    --system-tape examples/token/out/tape.json \
+    examples/target/riscv32im-mozak-mozakvm-elf/release/token-mozakvm \
+    --system-tape examples/inputtape/native/out/tape.json \
     --self-prog-id \
     MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538;
 ```

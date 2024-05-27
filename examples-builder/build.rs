@@ -17,10 +17,11 @@ macro_rules! ecrate {
     };
     ($name:literal, $file:literal, $glob:literal, $uses_std:expr) => {
         Crate {
-            crate_path: concat!("../examples/", $name),
+            crate_path: concat!("../examples/", $name, "/mozakvm"),
             elf_path: concat!(
                 "../examples/target/riscv32im-mozak-mozakvm-elf/release/",
-                $file
+                $file,
+                "-mozakvm"
             ),
             glob_name: $glob,
             enabled: cfg!(feature = $name),
@@ -40,9 +41,9 @@ const CRATES: &[Crate] = &[
     ecrate!("static-mem-access", "STATIC_MEM_ACCESS_ELF", false),
     ecrate!("empty", "EMPTY_ELF", false),
     ecrate!("mozak-sort", "MOZAK_SORT_ELF", false),
-    ecrate!("tokenbin", "TOKENBIN", false),
-    ecrate!("walletbin", "WALLETBIN", false),
-    ecrate!("inputtapebin", "INPUTTAPEBIN", false),
+    ecrate!("token", "TOKENBIN", false),
+    ecrate!("wallet", "WALLETBIN", false),
+    ecrate!("inputtape", "INPUTTAPEBIN", false),
 ];
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -53,9 +54,9 @@ fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str,
         writeln!(dest, r#"pub const {glob_name}: &[u8] = &[];"#)
     } else {
         let args = if uses_std {
-            vec!["build", "--release", "--features=std"]
+            vec!["build-mozakvm", "--features=std"]
         } else {
-            vec!["build", "--release"]
+            vec!["build-mozakvm"]
         };
         let output = Command::new("cargo")
             .args(args)

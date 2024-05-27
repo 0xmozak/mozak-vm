@@ -1,11 +1,26 @@
-[unstable]
-build-std = ["alloc", "core", "compiler_builtins", "std", "panic_abort", "proc_macro"]
-build-std-features = ["compiler-builtins-mem"]
+# Keeping this for legacy purpose
+# [unstable]
+# build-std = ["alloc", "core", "compiler_builtins", "std", "panic_abort", "proc_macro"]
+# build-std-features = ["compiler-builtins-mem"]
 
-[build]
-rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
-target = "./.cargo/riscv32im-mozak-mozakvm-elf.json"
+# [build]
+# rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
+# target = "./.cargo/riscv32im-mozak-mozakvm-elf.json"
 
+# TODO: run these commands through cli using build scripts maybe?
+[alias]
+build-mozakvm = """
+    build --release \
+          --target ../../../buildtarget/riscv32im-mozak-mozakvm-elf.json \
+          -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
+          -Zbuild-std-features=compiler-builtins-mem
+    """
+run-mozakvm = """
+    run --release \
+          --target ../../../buildtarget/riscv32im-mozak-mozakvm-elf.json \
+          -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
+          -Zbuild-std-features=compiler-builtins-mem \
+    """
 [target.riscv32im-mozak-mozakvm-elf]
-runner = "../target/release/mozak-cli -vvv run"
+runner = "./scripts/run_script.sh"
 rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-mozakvm.ld"]
