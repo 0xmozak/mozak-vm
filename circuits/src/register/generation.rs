@@ -83,10 +83,13 @@ where
 /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
 ///    2.
 #[allow(clippy::type_complexity)]
+// TODO(Matthias): rework the args, perhaps pass table kind with Option or so?
 #[allow(clippy::too_many_arguments)]
 pub fn generate_register_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     add_trace: &[ops::add::columns::Add<F>],
+    store_word_trace: &[ops::sw::columns::StoreWord<F>],
+    load_word_trace: &[ops::lw::columns::LoadWord<F>],
     blt_trace: &[ops::blt_taken::columns::BltTaken<F>],
     poseidon2_sponge: &[Poseidon2Sponge<F>],
     mem_private: &[StorageDevice<F>],
@@ -110,6 +113,8 @@ pub fn generate_register_trace<F: RichField>(
             TableKind::Cpu => extract(cpu_trace, &looking_table),
             TableKind::Add => extract(add_trace, &looking_table),
             TableKind::BltTaken => extract(blt_trace, &looking_table),
+            TableKind::StoreWord => extract(store_word_trace, &looking_table),
+            TableKind::LoadWord => extract(load_word_trace, &looking_table),
             TableKind::StorageDevicePrivate => extract(mem_private, &looking_table),
             TableKind::StorageDevicePublic => extract(mem_public, &looking_table),
             TableKind::CallTape => extract(mem_call_tape, &looking_table),
@@ -223,6 +228,8 @@ mod tests {
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
         let add_rows = ops::add::generate(&record);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
         let blt_rows = ops::blt_taken::generate(&record);
         let private_tape = generate_private_tape_trace(&record.executed);
         let public_tape = generate_public_tape_trace(&record.executed);
@@ -239,6 +246,8 @@ mod tests {
         let (_, _, trace) = generate_register_trace(
             &cpu_rows,
             &add_rows,
+            &store_word_rows,
+            &load_word_rows,
             &blt_rows,
             &poseidon2_sponge_trace,
             &private_tape,

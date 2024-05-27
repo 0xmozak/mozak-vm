@@ -3,6 +3,7 @@ use std::time::Duration;
 use anyhow::Result;
 use clap::{Args as Args_, Subcommand};
 
+use super::memory::MemoryBench;
 use super::nop::NopBench;
 use super::omni::OmniBench;
 use super::poseidon2::Poseidon2Bench;
@@ -41,6 +42,9 @@ pub(crate) trait Bench {
 
 #[derive(PartialEq, Debug, Subcommand, Clone)]
 pub enum BenchFunction {
+    MemoryBench {
+        iterations: u32,
+    },
     XorBench {
         iterations: u32,
     },
@@ -77,6 +81,7 @@ impl BenchArgs {
             BenchFunction::Poseidon2Bench { input_len } => Poseidon2Bench.bench(input_len),
             BenchFunction::SortBench { n } => SortBench.bench(n),
             BenchFunction::SortBenchRecursive { n } => SortBenchRecursive.bench(n),
+            BenchFunction::MemoryBench { iterations } => MemoryBench.bench(iterations),
             BenchFunction::BatchStarksSortBench { n } => BatchStarksSortBench.bench(n),
             BenchFunction::BatchStarksSortBenchRecursive { n } =>
                 BatchStarksSortBenchRecursive.bench(n),

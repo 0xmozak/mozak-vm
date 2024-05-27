@@ -73,7 +73,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         // Skip instruction handled by their own tables.
         // TODO: refactor, so we don't repeat logic.
         {
-            if let Op::ADD = inst.op {
+            if let Op::ADD | Op::SW | Op::LW = inst.op {
                 continue;
             }
 
@@ -150,6 +150,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         trace.push(row);
     }
 
+    dbg!(trace.len());
     log::trace!("trace {:?}", trace);
 
     pad_trace(trace)

@@ -25,8 +25,6 @@ use crate::cross_table_lookup::{
 };
 use crate::memory::columns::{Memory, MemoryCtl};
 use crate::memory::stark::MemoryStark;
-use crate::memory_fullword::columns::FullWordMemory;
-use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
@@ -37,7 +35,10 @@ use crate::ops::add::columns::Add;
 use crate::ops::add::stark::AddStark;
 use crate::ops::blt_taken::columns::BltTaken;
 use crate::ops::blt_taken::stark::BltTakenStark;
-use crate::ops::{add, blt_taken};
+use crate::ops::lw::columns::LoadWord;
+use crate::ops::lw::stark::LoadWordStark;
+use crate::ops::sw::columns::StoreWord;
+use crate::ops::sw::stark::StoreWordStark;
 use crate::poseidon2::columns::{Poseidon2State, Poseidon2StateCtl};
 use crate::poseidon2::stark::Poseidon2_12Stark;
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, Poseidon2OutputBytesCtl};
@@ -69,12 +70,12 @@ use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::xor::columns::{XorColumnsView, XorView};
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, cpu_skeleton, memory, memory_fullword, memory_halfword, memory_zeroinit,
-    memoryinit, ops, poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities,
-    rangecheck, register, storage_device, xor,
+    bitshift, cpu, cpu_skeleton, memory, memory_halfword, memory_zeroinit, memoryinit, ops,
+    poseidon2_output_bytes, poseidon2_sponge, program, program_multiplicities, rangecheck,
+    register, storage_device, xor,
 };
 
-const NUM_CROSS_TABLE_LOOKUP: usize = 18;
+const NUM_CROSS_TABLE_LOOKUP: usize = 17;
 const NUM_PUBLIC_SUB_TABLES: usize = 2;
 const NUM_PUBLIC_TABLES: usize = 2;
 pub const PUBLIC_TABLE_KINDS: [TableKind; NUM_PUBLIC_TABLES] =
@@ -113,8 +114,6 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub rangecheck_u8_stark: RangeCheckU8Stark<F, D>,
     #[StarkSet(stark_kind = "HalfWordMemory")]
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
-    #[StarkSet(stark_kind = "FullWordMemory")]
-    pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "StorageDevicePrivate")]
     pub private_tape_stark: StorageDeviceStark<F, D>,
     #[StarkSet(stark_kind = "StorageDevicePublic")]
@@ -153,6 +152,10 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub add_stark: AddStark<F, D>,
     #[StarkSet(stark_kind = "BltTaken")]
     pub blt_taken_stark: BltTakenStark<F, D>,
+    #[StarkSet(stark_kind = "StoreWord")]
+    pub store_word_stark: StoreWordStark<F, D>,
+    #[StarkSet(stark_kind = "LoadWord")]
+    pub load_word_stark: LoadWordStark<F, D>,
     #[StarkSet(stark_kind = "TapeCommitments")]
     pub tape_commitments_stark: TapeCommitmentsStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup; NUM_CROSS_TABLE_LOOKUP],
@@ -335,7 +338,6 @@ macro_rules! mozak_stark_helpers {
         }
         #[allow(unused_imports)]
         pub(crate) use all_starks_par;
-
     };
 }
 
@@ -429,7 +431,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             memory_zeroinit_stark: MemoryZeroInitStark::default(),
             rangecheck_u8_stark: RangeCheckU8Stark::default(),
             halfword_memory_stark: HalfWordMemoryStark::default(),
-            fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
             register_zero_read_stark: RegisterZeroReadStark::default(),
@@ -447,6 +448,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             cpu_skeleton_stark: CpuSkeletonStark::default(),
             add_stark: AddStark::default(),
             blt_taken_stark: BltTakenStark::default(),
+            store_word_stark: StoreWordStark::default(),
+            load_word_stark: LoadWordStark::default(),
             tape_commitments_stark: TapeCommitmentsStark::default(),
 
             // These tables contain only descriptions of the tables.
@@ -461,7 +464,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 MemoryInitMemoryTable::lookups(),
                 RangeCheckU8LookupTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
-                FullWordMemoryCpuTable::lookups(),
                 RegisterLookups::lookups(),
                 StorageDeviceToCpuTable::lookups(),
                 Poseidon2SpongeCpuTable::lookups(),
@@ -608,11 +610,6 @@ table_impl!(
     TableKind::HalfWordMemory,
     HalfWordMemory
 );
-table_impl!(
-    FullWordMemoryTable,
-    TableKind::FullWordMemory,
-    FullWordMemory
-);
 table_impl!(RegisterInitTable, TableKind::RegisterInit, RegisterInit);
 table_impl!(RegisterTable, TableKind::Register, Register);
 table_impl!(
@@ -671,6 +668,8 @@ table_impl!(
 table_impl!(SkeletonTable, TableKind::CpuSkeleton, CpuSkeleton);
 table_impl!(AddTable, TableKind::Add, Add);
 table_impl!(BltTakenTable, TableKind::BltTaken, BltTaken);
+table_impl!(StoreWordTable, TableKind::StoreWord, StoreWord);
+table_impl!(LoadWordTable, TableKind::LoadWord, LoadWord);
 
 pub trait Lookups {
     type Row: IntoIterator<Item = Column>;
@@ -690,6 +689,8 @@ impl Lookups for CpuToSkeletonTable {
                 cpu::columns::lookup_for_skeleton(),
                 ops::add::columns::lookup_for_skeleton(),
                 ops::blt_taken::columns::lookup_for_skeleton(),
+                ops::sw::columns::lookup_for_skeleton(),
+                ops::lw::columns::lookup_for_skeleton(),
             ],
             vec![cpu_skeleton::columns::lookup_for_cpu()],
         )
@@ -708,6 +709,9 @@ impl Lookups for RangecheckTable {
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
             ops::add::columns::rangecheck_looking(),
+            ops::sw::columns::rangecheck_looking(),
+            // TODO(Matthias):
+            ops::lw::columns::rangecheck_looking(),
             register,
         ]
         .collect();
@@ -746,7 +750,8 @@ impl Lookups for IntoMemoryTable {
                 TableKind::SelfProgIdTape,
             ]
             .map(storage_device::columns::lookup_for_memory),
-            memory_fullword::columns::lookup_for_memory_limb(),
+            ops::sw::columns::lookup_for_memory_limb(),
+            ops::lw::columns::lookup_for_memory_limb(),
             memory_halfword::columns::lookup_for_memory_limb(),
             poseidon2_sponge::columns::lookup_for_input_memory(),
             poseidon2_output_bytes::columns::lookup_for_output_memory(),
@@ -792,8 +797,10 @@ impl Lookups for InnerCpuTable {
     fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
         CrossTableLookupWithTypedOutput::new(
             vec![
-                add::columns::lookup_for_program_rom(),
-                blt_taken::columns::lookup_for_program_rom(),
+                ops::add::columns::lookup_for_program_rom(),
+                ops::blt_taken::columns::lookup_for_program_rom(),
+                ops::sw::columns::lookup_for_program_rom(),
+                ops::lw::columns::lookup_for_program_rom(),
                 cpu::columns::lookup_for_program_rom(),
             ],
             vec![program_multiplicities::columns::lookup_for_cpu()],
@@ -841,19 +848,6 @@ impl Lookups for HalfWordMemoryCpuTable {
     }
 }
 
-pub struct FullWordMemoryCpuTable;
-
-impl Lookups for FullWordMemoryCpuTable {
-    type Row = MemoryCtl<Column>;
-
-    fn lookups_with_typed_output() -> CrossTableLookupWithTypedOutput<Self::Row> {
-        CrossTableLookupWithTypedOutput::new(
-            vec![cpu::columns::lookup_for_fullword_memory()],
-            vec![memory_fullword::columns::lookup_for_cpu()],
-        )
-    }
-}
-
 pub struct RegisterLookups;
 
 impl Lookups for RegisterLookups {
@@ -865,6 +859,8 @@ impl Lookups for RegisterLookups {
                 crate::cpu::columns::register_looking(),
                 ops::add::columns::register_looking(),
                 ops::blt_taken::columns::register_looking(),
+                ops::sw::columns::register_looking(),
+                ops::lw::columns::register_looking(),
                 crate::storage_device::columns::register_looking(),
                 crate::poseidon2_sponge::columns::register_looking(),
                 vec![crate::register::init::columns::lookup_for_register()],

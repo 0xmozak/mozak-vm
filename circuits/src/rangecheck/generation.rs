@@ -7,6 +7,8 @@ use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::ops::add::columns::Add;
 use crate::ops::blt_taken::columns::BltTaken;
+use crate::ops::lw::columns::LoadWord;
+use crate::ops::sw::columns::StoreWord;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::register::general::columns::Register;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
@@ -53,6 +55,8 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     add_trace: &[Add<F>],
     blt_taken_trace: &[BltTaken<F>],
+    store_word_trace: &[StoreWord<F>],
+    load_word_trace: &[LoadWord<F>],
     memory_trace: &[Memory<F>],
     register_trace: &[Register<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
@@ -67,6 +71,8 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                     TableKind::Register => extract_with_mul(register_trace, &looking_table),
                     TableKind::Add => extract_with_mul(add_trace, &looking_table),
                     TableKind::BltTaken => extract_with_mul(blt_taken_trace, &looking_table),
+                    TableKind::StoreWord => extract_with_mul(store_word_trace, &looking_table),
+                    TableKind::LoadWord => extract_with_mul(load_word_trace, &looking_table),
                     // We are trying to build the RangeCheck table, so we have to ignore it here.
                     TableKind::RangeCheck => vec![],
                     other => unimplemented!("Can't range check {other:#?} tables"),
@@ -99,7 +105,6 @@ mod tests {
     use crate::cpu::generation::generate_cpu_trace;
     use crate::generation::MIN_TRACE_LENGTH;
     use crate::memory::generation::generate_memory_trace;
-    use crate::memory_fullword::generation::generate_fullword_memory_trace;
     use crate::memory_halfword::generation::generate_halfword_memory_trace;
     use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
     use crate::memoryinit::generation::generate_memory_init_trace;
@@ -132,13 +137,14 @@ mod tests {
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
         let add_rows = ops::add::generate(&record);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
         let blt_rows = blt_taken::generate(&record);
 
         let memory_init = generate_memory_init_trace(&program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let private_tape_rows = generate_private_tape_trace(&record.executed);
         let public_tape_rows = generate_public_tape_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
@@ -154,7 +160,8 @@ mod tests {
             &memory_init,
             &memory_zeroinit_rows,
             &halfword_memory,
-            &fullword_memory,
+            &store_word_rows,
+            &load_word_rows,
             &private_tape_rows,
             &public_tape_rows,
             &call_tape_rows,
@@ -169,6 +176,8 @@ mod tests {
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
             &add_rows,
+            &store_word_rows,
+            &load_word_rows,
             &blt_rows,
             &poseidon2_sponge_trace,
             &private_tape_rows,
@@ -184,6 +193,8 @@ mod tests {
             &cpu_rows,
             &add_rows,
             &blt_rows,
+            &store_word_rows,
+            &load_word_rows,
             &memory_rows,
             &register_rows,
         );

@@ -7,10 +7,11 @@ use plonky2::hash::poseidon2::Poseidon2Permutation;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
-use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::{MemoryInit, MemoryInitCtl};
+use crate::ops::lw::columns::LoadWord;
+use crate::ops::sw::columns::StoreWord;
 use crate::poseidon2_output_bytes::columns::{Poseidon2OutputBytes, BYTES_COUNT};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::rangecheck::columns::RangeCheckCtl;
@@ -97,18 +98,35 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
     }
 }
 
-impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
-    fn from(val: &FullWordMemory<F>) -> Self {
-        if (val.ops.is_load + val.ops.is_store).is_zero() {
+impl<F: RichField> From<&StoreWord<F>> for Vec<Memory<F>> {
+    fn from(val: &StoreWord<F>) -> Self {
+        if (val.is_running).is_zero() {
             vec![]
         } else {
-            izip!(val.addrs, val.limbs)
-                .map(|(addr, value)| Memory {
+            izip!(0.., val.op1_limbs)
+                .map(|(i, limb)| Memory {
                     clk: val.clk,
-                    addr,
+                    addr: val.address + F::from_canonical_u8(i),
+                    value: limb,
+                    is_store: F::ONE,
+                    ..Default::default()
+                })
+                .collect()
+        }
+    }
+}
+
+impl<F: RichField> From<&LoadWord<F>> for Vec<Memory<F>> {
+    fn from(val: &LoadWord<F>) -> Self {
+        if (val.is_running).is_zero() {
+            vec![]
+        } else {
+            izip!(0.., val.dst_limbs)
+                .map(|(i, value)| Memory {
+                    clk: val.clk,
+                    addr: val.address + F::from_canonical_u8(i),
                     value,
-                    is_store: val.ops.is_store,
-                    is_load: val.ops.is_load,
+                    is_load: F::ONE,
                     ..Default::default()
                 })
                 .collect()
