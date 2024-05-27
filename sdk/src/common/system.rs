@@ -102,9 +102,7 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let mut buf = Vec::with_capacity(len);
     call_tape_read(buf.as_mut_ptr(), len);
 
-    let archived_cpc_messages = unsafe {
-        rkyv::access_unchecked::<Vec<CrossProgramCall>>(&*slice_from_raw_parts(buf.as_ptr(), len))
-    };
+    let archived_cpc_messages = rkyv::access::<Vec<CrossProgramCall>, Panic>(&buf[..]).unwrap();
 
     let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
         .iter()
