@@ -1,6 +1,4 @@
 use once_cell::unsync::Lazy;
-use rkyv::rancor::{Failure, Panic, Strategy};
-use rkyv::Deserialize;
 #[cfg(target_os = "mozakvm")]
 use {
     crate::common::merkle::merkleize,
@@ -10,6 +8,7 @@ use {
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
     core::ptr::slice_from_raw_parts,
+    rkyv::rancor::{Panic, Strategy},
     std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
@@ -141,7 +140,7 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     event_tape_read(buf.as_mut_ptr(), len);
 
     let canonical_ordered_temporal_hints =
-        rkyv::access::<Vec<CanonicalOrderedTemporalHints>, Failure>(unsafe {
+        rkyv::access::<Vec<CanonicalOrderedTemporalHints>, Panic>(unsafe {
             &*slice_from_raw_parts(buf.as_ptr(), len)
         })
         .unwrap();
