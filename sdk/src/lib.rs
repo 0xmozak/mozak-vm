@@ -2,8 +2,6 @@
 #![deny(clippy::cargo)]
 #![allow(clippy::missing_panics_doc)]
 #![feature(trait_alias)]
-#![feature(raw_ref_op)]
-#![feature(stmt_expr_attributes)]
 #![deny(warnings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
