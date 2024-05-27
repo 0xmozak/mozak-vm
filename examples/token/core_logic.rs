@@ -7,6 +7,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
+#[archive(check_bytes)]
 pub enum MethodArgs {
     // Mint,
     // Burn,
@@ -22,6 +23,7 @@ pub enum MethodArgs {
 
 #[derive(Archive, Default, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
+#[archive(check_bytes)]
 pub enum MethodReturns {
     // TODO: Remove later
     #[default]
