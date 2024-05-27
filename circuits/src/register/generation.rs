@@ -78,8 +78,8 @@ where
 /// There are 3 steps:
 /// 1) populate the trace with a similar layout as the
 /// [`RegisterInit` table](crate::registerinit::columns),
-/// 2) go through the program and extract all ops that act on registers,
-/// filling up this table,
+/// 2) go through the program and extract all ops that act on registers, filling
+///    up this table,
 /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
 ///    2.
 #[allow(clippy::type_complexity)]
