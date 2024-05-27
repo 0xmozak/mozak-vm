@@ -97,11 +97,11 @@ impl CallTape {
         };
 
         // if not already found in role map
-        let new_role_id = self.next_available_role_id;
+        let allocated_role = self.next_available_role_id;
         self.next_available_role_id += 1;
 
-        self.lookup_role_map.insert(identifier, new_role_id);
-        new_role_id
+        self.lookup_role_map.insert(identifier, allocated_role);
+        allocated_role
     }
 
     /// Gets a fresh & unique roleID referencible only by the `RoleIdentifier`
