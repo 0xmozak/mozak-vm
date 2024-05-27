@@ -15,9 +15,9 @@ use {
 #[cfg(not(target_os = "mozakvm"))]
 use {core::cell::RefCell, std::rc::Rc};
 
-use crate::common::traits::{Call, CallArgument, CallReturn, EventEmit};
+use crate::common::traits::{Call, EventEmit};
 use crate::common::types::{
-    CallTapeType, Event, EventTapeType, PrivateInputTapeType, ProgramIdentifier,
+    CallTapeType, Event, EventTapeType, PrivateInputTapeType,
     PublicInputTapeType, SystemTape,
 };
 
@@ -165,13 +165,13 @@ pub fn event_emit(event: Event) {
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
 #[must_use]
-pub fn call_receive<A, R>() -> Option<(ProgramIdentifier, A, R)>
+pub fn call_receive<A, R>() -> Option<(crate::common::types::RoleIdentifier, A, R)>
 where
-    A: CallArgument + PartialEq,
-    R: CallReturn,
+    A: crate::common::traits::CallArgument + PartialEq,
+    R: crate::common::traits::CallReturn,
     <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
     <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
-    unsafe { SYSTEM_TAPE.call_tape.receive() }
+    unsafe { crate::common::system::SYSTEM_TAPE.call_tape.receive() }
 }
 
 /// Send one message from mailbox targetted to some third-party
@@ -179,19 +179,19 @@ where
 /// Panics on call-tape non-abidance.
 #[allow(clippy::similar_names)]
 pub fn call_send<A, R>(
-    recipient_program: ProgramIdentifier,
+    recipient: crate::common::types::RoleIdentifier,
     argument: A,
     resolver: impl Fn(A) -> R,
 ) -> R
 where
-    A: CallArgument + PartialEq,
-    R: CallReturn,
+    A: crate::common::traits::CallArgument + PartialEq,
+    R: crate::common::traits::CallReturn,
     <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
     <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
     unsafe {
-        SYSTEM_TAPE
+        crate::common::system::SYSTEM_TAPE
             .call_tape
-            .send(recipient_program, argument, resolver)
+            .send(recipient, argument, resolver)
     }
 }
 

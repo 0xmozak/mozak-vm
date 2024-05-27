@@ -7,8 +7,8 @@
 )]
 #[allow(clippy::pub_underscore_fields)]
 pub struct CrossProgramCall {
-    pub caller: super::ProgramIdentifier,
-    pub callee: super::ProgramIdentifier,
+    pub caller: super::RoleIdentifier,
+    pub callee: super::RoleIdentifier,
     pub argument: super::RawMessage,
     pub return_: super::RawMessage,
 }
