@@ -1,9 +1,9 @@
-use rkyv::bytecheck::CheckBytes;
 use rkyv::rancor::{Failure, Panic, Strategy};
-use rkyv::validation::validators::DefaultValidator;
 use rkyv::{Archive, Deserialize};
 
-use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
+use crate::common::traits::{
+    ArchivedCallArgument, ArchivedCallReturn, Call, CallArgument, CallReturn, SelfIdentify,
+};
 use crate::common::types::{CrossProgramCall, ProgramIdentifier};
 
 /// Represents the `CallTape` under `mozak-vm`
@@ -38,10 +38,9 @@ impl Call for CallTape {
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
-        <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-        <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
-        <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
-        <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>, {
+
+        <A as Archive>::Archived: ArchivedCallArgument<A>,
+        <R as Archive>::Archived: ArchivedCallReturn<R>, {
         // Ensure we aren't validating past the length of the event tape
         assert!(self.index < self.reader.as_ref().unwrap().len());
 
@@ -84,10 +83,8 @@ impl Call for CallTape {
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
-        <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-        <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
-        <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
-        <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>, {
+        <A as Archive>::Archived: ArchivedCallArgument<A>,
+        <R as Archive>::Archived: ArchivedCallReturn<R>, {
         // Loop until we completely traverse the call tape in the
         // worst case. Hopefully, we see a message directed towards us
         // before the end

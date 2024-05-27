@@ -12,6 +12,11 @@ pub trait RkyvSerializable = rkyv::Serialize<
         Strategy<Composite<AlignedVec, AllocationTracker<GlobalAllocator>, Panic>, Panic>,
     > + Serialize<Strategy<AllocSerializer<256>, Panic>>;
 pub trait CallArgument = Sized + RkyvSerializable;
+pub trait ArchivedCallArgument<A> =
+    Deserialize<A, Strategy<(), Panic>> + CheckBytes<Strategy<DefaultValidator, Failure>>;
+pub trait ArchivedCallReturn<R> =
+    Deserialize<R, Strategy<(), Panic>> + CheckBytes<Strategy<DefaultValidator, Failure>>;
+
 pub trait CallReturn = ?Sized + Clone + Default + RkyvSerializable + Archive;
 
 /// A data struct that is aware of it's own ID
@@ -37,10 +42,8 @@ pub trait Call: SelfIdentify {
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
-        <A as Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-        <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
-        <R as Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
-        <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>;
+        <A as Archive>::Archived: ArchivedCallArgument<A>,
+        <R as Archive>::Archived: ArchivedCallReturn<R>;
 
     /// `receive` emulates a function call directed towards the
     /// program, presents back with a three tuple of the form
@@ -53,11 +56,8 @@ pub trait Call: SelfIdentify {
     where
         A: CallArgument + PartialEq,
         R: CallReturn,
-        <A as Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-        <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
-        <R as Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
-        <R as rkyv::Archive>::Archived:
-            CheckBytes<Strategy<DefaultValidator, rkyv::rancor::Failure>>;
+        <A as Archive>::Archived: ArchivedCallArgument<A>,
+        <R as Archive>::Archived: ArchivedCallReturn<R>;
 }
 
 /// `EventEmit` trait provides method `emit` to use the underlying
