@@ -3,21 +3,26 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
-use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use im::HashSet;
 use log::trace;
-use mozak_sdk::core::ecall::COMMITMENT_SIZE;
+use mozak_sdk::core::constants::DIGEST_BYTES;
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 
 use crate::code::Code;
-use crate::elf::{Data, Program, RuntimeArguments};
+use crate::elf::{Data, Program};
 use crate::instruction::{Args, DecodingError, Instruction};
 use crate::poseidon2;
 
-#[derive(Debug, Clone, Deref)]
-pub struct CommitmentTape(pub [u8; COMMITMENT_SIZE]);
+#[derive(Debug, Clone)]
+pub struct CommitmentTape(pub [u8; DIGEST_BYTES]);
+
+impl std::ops::Deref for CommitmentTape {
+    type Target = [u8; DIGEST_BYTES];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
 
 pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let remaining_len = buf.len() - *index;
@@ -69,6 +74,7 @@ pub struct State<F: RichField> {
     pub event_tape: StorageDeviceTape,
     pub events_commitment_tape: CommitmentTape,
     pub cast_list_commitment_tape: CommitmentTape,
+    pub self_prog_id_tape: [u8; DIGEST_BYTES],
     _phantom: PhantomData<F>,
 }
 
@@ -96,9 +102,8 @@ impl StateMemory {
     }
 }
 
-#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StorageDeviceTape {
-    #[deref]
     pub data: Rc<[u8]>,
     pub read_index: usize,
 }
@@ -139,8 +144,9 @@ impl<F: RichField> Default for State<F> {
             public_tape: StorageDeviceTape::default(),
             call_tape: StorageDeviceTape::default(),
             event_tape: StorageDeviceTape::default(),
-            events_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
-            cast_list_commitment_tape: CommitmentTape([0; COMMITMENT_SIZE]),
+            events_commitment_tape: CommitmentTape([0; DIGEST_BYTES]),
+            cast_list_commitment_tape: CommitmentTape([0; DIGEST_BYTES]),
+            self_prog_id_tape: [0; 32],
             _phantom: PhantomData,
         }
     }
@@ -154,28 +160,13 @@ impl<F: RichField> From<Program> for State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            mozak_ro_memory,
         }: Program,
     ) -> Self {
-        let mut state: State<F> = State::default();
-
-        if let Some(ref mrm) = mozak_ro_memory {
-            state.private_tape = StorageDeviceTape::from(mrm.private_tape.data.clone());
-            state.public_tape = StorageDeviceTape::from(mrm.public_tape.data.clone());
-            state.call_tape = StorageDeviceTape::from(mrm.call_tape.data.clone());
-            state.event_tape = StorageDeviceTape::from(mrm.event_tape.data.clone());
-        };
+        let state: State<F> = State::default();
 
         Self {
             pc,
-            memory: StateMemory::new(
-                [
-                    ro_memory,
-                    mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
-                ]
-                .into_iter(),
-                [rw_memory].into_iter(),
-            ),
+            memory: StateMemory::new(once(ro_memory), once(rw_memory)),
             ..state
         }
     }
@@ -187,7 +178,7 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[repr(u8)]
 pub enum StorageDeviceOpcode {
     #[default]
@@ -198,6 +189,7 @@ pub enum StorageDeviceOpcode {
     StoreEventTape,
     StoreEventsCommitmentTape,
     StoreCastListCommitmentTape,
+    StoreSelfProgIdTape,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -230,25 +222,9 @@ pub struct RawTapes {
     pub public_tape: Vec<u8>,
     pub call_tape: Vec<u8>,
     pub event_tape: Vec<u8>,
-    pub events_commitment_tape: [u8; COMMITMENT_SIZE],
-    pub cast_list_commitment_tape: [u8; COMMITMENT_SIZE],
-}
-
-/// Converts pre-init memory compatible [`RuntimeArguments`] into ecall
-/// compatible `RawTapes`.
-///
-/// TODO(bing): Remove when we no longer rely on preinit memory.
-impl From<RuntimeArguments> for RawTapes {
-    fn from(args: RuntimeArguments) -> Self {
-        Self {
-            private_tape: args.private_tape,
-            public_tape: args.public_tape,
-            call_tape: args.call_tape,
-            event_tape: args.event_tape,
-            cast_list_commitment_tape: args.cast_list_commitment_tape,
-            events_commitment_tape: args.events_commitment_tape,
-        }
-    }
+    pub events_commitment_tape: [u8; DIGEST_BYTES],
+    pub cast_list_commitment_tape: [u8; DIGEST_BYTES],
+    pub self_prog_id_tape: [u8; 32],
 }
 
 impl<F: RichField> State<F> {
@@ -262,21 +238,13 @@ impl<F: RichField> State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            mozak_ro_memory,
             ..
         }: Program,
         raw_tapes: RawTapes,
     ) -> Self {
         Self {
             pc,
-            memory: StateMemory::new(
-                [
-                    ro_memory,
-                    mozak_ro_memory.map(HashMap::from).unwrap_or_default(),
-                ]
-                .into_iter(),
-                once(rw_memory),
-            ),
+            memory: StateMemory::new(once(ro_memory), once(rw_memory)),
             private_tape: StorageDeviceTape {
                 data: raw_tapes.private_tape.into(),
                 read_index: 0,
@@ -295,6 +263,7 @@ impl<F: RichField> State<F> {
             },
             cast_list_commitment_tape: CommitmentTape(raw_tapes.cast_list_commitment_tape),
             events_commitment_tape: CommitmentTape(raw_tapes.events_commitment_tape),
+            self_prog_id_tape: raw_tapes.self_prog_id_tape,
             ..Default::default()
         }
     }

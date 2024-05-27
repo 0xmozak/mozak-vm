@@ -8,7 +8,7 @@ use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{
     CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
 };
-use crate::native::helpers::IdentityStack;
+use crate::native::identity::IdentityStack;
 
 /// A list with ordered events according to either time
 /// (temporal) or address & operations (canonical). Intenally

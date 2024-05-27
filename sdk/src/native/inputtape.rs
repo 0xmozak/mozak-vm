@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::common::traits::SelfIdentify;
 use crate::common::types::{ProgramIdentifier, RawMessage};
-use crate::native::helpers::IdentityStack;
+use crate::native::identity::IdentityStack;
 
 /// Represents the `RawTape` under native execution
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]

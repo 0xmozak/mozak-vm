@@ -28,7 +28,7 @@ impl<F: RichField> State<F> {
     fn ecall_read(mut self, op: StorageDeviceOpcode) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requested = self.get_register_value(REG_A2);
-        log::trace!("ECALL {}", op);
+        log::trace!("ECALL {:?}", op);
 
         let data = match op {
             StorageDeviceOpcode::StorePublic => read_bytes(
@@ -52,16 +52,20 @@ impl<F: RichField> State<F> {
                 num_bytes_requested as usize,
             ),
             StorageDeviceOpcode::StoreEventsCommitmentTape => read_bytes(
-                &*self.events_commitment_tape,
+                &self.events_commitment_tape.0,
                 &mut 0,
                 num_bytes_requested as usize,
             ),
             StorageDeviceOpcode::StoreCastListCommitmentTape => read_bytes(
-                &*self.cast_list_commitment_tape,
+                &self.cast_list_commitment_tape.0,
                 &mut 0,
                 num_bytes_requested as usize,
             ),
-
+            StorageDeviceOpcode::StoreSelfProgIdTape => read_bytes(
+                &self.self_prog_id_tape,
+                &mut 0,
+                num_bytes_requested as usize,
+            ),
             StorageDeviceOpcode::None => panic!(),
         };
         let data_len = u32::try_from(data.len()).expect("cannot fit data.len() into u32");
@@ -143,6 +147,7 @@ impl<F: RichField> State<F> {
                 self.ecall_read(StorageDeviceOpcode::StoreEventsCommitmentTape),
             ecall::CAST_LIST_COMMITMENT_TAPE =>
                 self.ecall_read(StorageDeviceOpcode::StoreCastListCommitmentTape),
+            ecall::SELF_PROG_ID_TAPE => self.ecall_read(StorageDeviceOpcode::StoreSelfProgIdTape),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             ecall::VM_TRACE_LOG => self.ecall_trace_log(),

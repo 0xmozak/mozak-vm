@@ -96,8 +96,8 @@ impl<const V: usize> SubCircuitInputs<V> {
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
     ) -> BranchTargets<V> {
-        let l_values = indices.values.get(&left_proof.public_inputs);
-        let r_values = indices.values.get(&right_proof.public_inputs);
+        let l_values = indices.values.get_target(&left_proof.public_inputs);
+        let r_values = indices.values.get_target(&right_proof.public_inputs);
 
         // Connect all the values
         for (v, (l, r)) in zip(self.values, zip(l_values, r_values)) {
@@ -147,18 +147,21 @@ impl<const V: usize> BranchSubCircuit<V> {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use lazy_static::lazy_static;
-    use plonky2::field::types::Field;
+    use array_util::{try_from_fn, ArrayExt};
+    use plonky2::hash::hash_types::HashOut;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
     use crate::subcircuits::bounded;
-    use crate::test_utils::{C, CONFIG, D, F};
+    use crate::test_utils::{self, make_hashes, C, CONFIG, D, F, ZERO_HASH};
+
+    const LEAF_VALUES: usize = 2;
+    const NON_ZERO_VALUES: [HashOut<F>; LEAF_VALUES] = make_hashes(test_utils::NON_ZERO_VALUES);
 
     pub struct DummyLeafCircuit {
         pub bounded: bounded::LeafSubCircuit,
-        pub propagate: LeafSubCircuit<3>,
+        pub propagate: LeafSubCircuit<4>,
         pub circuit: CircuitData<F, C, D>,
     }
 
@@ -186,7 +189,7 @@ mod test {
             }
         }
 
-        pub fn prove(&self, value: [F; 3]) -> Result<ProofWithPublicInputs<F, C, D>> {
+        pub fn prove(&self, value: [F; 4]) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.bounded.set_witness(&mut inputs);
             self.propagate.set_witness(&mut inputs, value);
@@ -196,7 +199,7 @@ mod test {
 
     pub struct DummyBranchCircuit {
         pub bounded: bounded::BranchSubCircuit<D>,
-        pub propagate: BranchSubCircuit<3>,
+        pub propagate: BranchSubCircuit<4>,
         pub circuit: CircuitData<F, C, D>,
     }
 
@@ -204,7 +207,7 @@ mod test {
         #[must_use]
         pub fn new(
             circuit_config: &CircuitConfig,
-            indices: &PublicIndices<3>,
+            indices: &PublicIndices<4>,
             child: &CircuitData<F, C, D>,
         ) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
@@ -245,7 +248,7 @@ mod test {
 
         pub fn prove(
             &self,
-            value: [F; 3],
+            value: [F; 4],
             left_proof: &ProofWithPublicInputs<F, C, D>,
             right_proof: &ProofWithPublicInputs<F, C, D>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
@@ -257,55 +260,109 @@ mod test {
         }
     }
 
-    lazy_static! {
-        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
-        static ref BRANCH_1: DummyBranchCircuit = DummyBranchCircuit::from_leaf(&CONFIG, &LEAF);
-        static ref BRANCH_2: DummyBranchCircuit =
-            DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1);
+    #[tested_fixture::tested_fixture(LEAF)]
+    fn build_leaf() -> DummyLeafCircuit { DummyLeafCircuit::new(&CONFIG) }
+
+    #[tested_fixture::tested_fixture(BRANCH_1)]
+    fn build_branch_1() -> DummyBranchCircuit { DummyBranchCircuit::from_leaf(&CONFIG, &LEAF) }
+
+    #[tested_fixture::tested_fixture(BRANCH_2)]
+    fn build_branch_2() -> DummyBranchCircuit {
+        DummyBranchCircuit::from_branch(&CONFIG, &BRANCH_1)
+    }
+
+    #[tested_fixture::tested_fixture(ZERO_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_zero_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(ZERO_HASH.elements)?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(NON_ZERO_LEAF_PROOFS: [ProofWithPublicInputs<F, C, D>; LEAF_VALUES])]
+    fn verify_leaf() -> Result<[ProofWithPublicInputs<F, C, D>; LEAF_VALUES]> {
+        NON_ZERO_VALUES.try_map_ext(|non_zero_hash| {
+            let proof = LEAF.prove(non_zero_hash.elements)?;
+            LEAF.circuit.verify(proof.clone())?;
+            Ok(proof)
+        })
+    }
+
+    #[tested_fixture::tested_fixture(ZERO_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_zero_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(ZERO_HASH.elements, &ZERO_LEAF_PROOF, &ZERO_LEAF_PROOF)?;
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(NON_ZERO_BRANCH_PROOFS: [ProofWithPublicInputs<F, C, D>; LEAF_VALUES])]
+    fn verify_branch() -> Result<[ProofWithPublicInputs<F, C, D>; LEAF_VALUES]> {
+        try_from_fn(|i| {
+            let proof = BRANCH_1.prove(
+                NON_ZERO_VALUES[i].elements,
+                &NON_ZERO_LEAF_PROOFS[i],
+                &NON_ZERO_LEAF_PROOFS[i],
+            )?;
+            BRANCH_1.circuit.verify(proof.clone())?;
+            Ok(proof)
+        })
     }
 
     #[test]
-    fn verify_leaf() -> Result<()> {
-        let zero = [F::ZERO; 3];
-        let non_zero = [1, 2, 99].map(F::from_canonical_u64);
+    #[should_panic(expected = "assertion `left == right` failed")]
+    fn bad_zero_branch() {
+        let proof = BRANCH_1
+            .prove(
+                NON_ZERO_VALUES[0].elements,
+                &ZERO_LEAF_PROOF,
+                &ZERO_LEAF_PROOF,
+            )
+            .unwrap();
+        BRANCH_1.circuit.verify(proof.clone()).unwrap();
+    }
 
-        let proof = LEAF.prove(zero)?;
-        LEAF.circuit.verify(proof)?;
+    #[test]
+    #[should_panic(expected = "assertion `left == right` failed")]
+    fn bad_non_zero_branch() {
+        let proof = BRANCH_1
+            .prove(
+                ZERO_HASH.elements,
+                &NON_ZERO_LEAF_PROOFS[0],
+                &NON_ZERO_LEAF_PROOFS[0],
+            )
+            .unwrap();
+        BRANCH_1.circuit.verify(proof.clone()).unwrap();
+    }
 
-        let proof = LEAF.prove(non_zero)?;
-        LEAF.circuit.verify(proof)?;
+    #[test]
+    #[should_panic(expected = "assertion `left == right` failed")]
+    fn bad_mismatch_branch() {
+        let proof = BRANCH_1
+            .prove(
+                ZERO_HASH.elements,
+                &ZERO_LEAF_PROOF,
+                &NON_ZERO_LEAF_PROOFS[0],
+            )
+            .unwrap();
+        BRANCH_1.circuit.verify(proof.clone()).unwrap();
+    }
 
+    #[test]
+    fn verify_zero_double_branch() -> Result<()> {
+        let proof = BRANCH_2.prove(ZERO_HASH.elements, &ZERO_BRANCH_PROOF, &ZERO_BRANCH_PROOF)?;
+        BRANCH_2.circuit.verify(proof.clone())?;
         Ok(())
     }
 
     #[test]
-    fn verify_branch() -> Result<()> {
-        let zero = [F::ZERO; 3];
-        let non_zero = [1, 2, 99].map(F::from_canonical_u64);
-
-        // Leaf proofs
-        let zero_proof = LEAF.prove(zero)?;
-        LEAF.circuit.verify(zero_proof.clone())?;
-
-        let non_zero_proof = LEAF.prove(non_zero)?;
-        LEAF.circuit.verify(non_zero_proof.clone())?;
-
-        // Branch proofs
-        let branch_zero_proof = BRANCH_1.prove(zero, &zero_proof, &zero_proof)?;
-        BRANCH_1.circuit.verify(branch_zero_proof.clone())?;
-
-        let branch_non_zero_proof = BRANCH_1.prove(non_zero, &non_zero_proof, &non_zero_proof)?;
-        BRANCH_1.circuit.verify(branch_non_zero_proof.clone())?;
-
-        // Double branch proofs
-        let double_branch_zero_proof =
-            BRANCH_2.prove(zero, &branch_zero_proof, &branch_zero_proof)?;
-        BRANCH_2.circuit.verify(double_branch_zero_proof)?;
-
-        let double_branch_non_zero_proof =
-            BRANCH_2.prove(non_zero, &branch_non_zero_proof, &branch_non_zero_proof)?;
-        BRANCH_2.circuit.verify(double_branch_non_zero_proof)?;
-
+    fn verify_double_branch() -> Result<()> {
+        for i in 0..LEAF_VALUES {
+            let proof = BRANCH_2.prove(
+                NON_ZERO_VALUES[i].elements,
+                &NON_ZERO_BRANCH_PROOFS[i],
+                &NON_ZERO_BRANCH_PROOFS[i],
+            )?;
+            BRANCH_2.circuit.verify(proof.clone())?;
+        }
         Ok(())
     }
 }

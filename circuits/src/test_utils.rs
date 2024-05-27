@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use anyhow::Result;
 use itertools::izip;
 use mozak_runner::code;
@@ -23,23 +21,19 @@ use starky::prover::prove as prove_table;
 use starky::stark::Stark;
 use starky::verifier::verify_stark_proof;
 
+use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::bitshift::stark::BitshiftStark;
+use crate::cpu::generation::generate_cpu_trace;
 use crate::cpu::stark::CpuStark;
-use crate::generation::bitshift::generate_shift_amount_trace;
-use crate::generation::cpu::generate_cpu_trace;
-use crate::generation::fullword_memory::generate_fullword_memory_trace;
-use crate::generation::halfword_memory::generate_halfword_memory_trace;
-use crate::generation::memory::generate_memory_trace;
-use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-use crate::generation::memoryinit::generate_memory_init_trace;
-use crate::generation::storage_device::{
-    generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
-    generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
-};
-use crate::generation::xor::generate_xor_trace;
+use crate::memory::generation::generate_memory_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_fullword::stark::FullWordMemoryStark;
+use crate::memory_halfword::generation::generate_halfword_memory_trace;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
+use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
+use crate::memoryinit::generation::generate_memory_init_trace;
+use crate::ops;
 use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
 use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
 use crate::rangecheck::generation::generate_rangecheck_trace;
@@ -47,14 +41,22 @@ use crate::rangecheck::stark::RangeCheckStark;
 use crate::register::general::stark::RegisterStark;
 use crate::register::generation::{generate_register_init_trace, generate_register_trace};
 use crate::register::init::stark::RegisterInitStark;
-use crate::stark::mozak_stark::{MozakStark, PublicInputs};
+use crate::stark::batch_prover::batch_prove;
+use crate::stark::batch_verifier::batch_verify_proof;
+use crate::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
 use crate::stark::prover::prove;
 use crate::stark::utils::trace_rows_to_poly_values;
 use crate::stark::verifier::verify_proof;
+use crate::storage_device::generation::{
+    generate_call_tape_trace, generate_cast_list_commitment_tape_trace, generate_event_tape_trace,
+    generate_events_commitment_tape_trace, generate_private_tape_trace, generate_public_tape_trace,
+    generate_self_prog_id_tape_trace,
+};
 use crate::storage_device::stark::StorageDeviceStark;
 use crate::tape_commitments::generation::generate_tape_commitments_trace;
 use crate::tape_commitments::stark::TapeCommitmentsStark;
 use crate::utils::from_u32;
+use crate::xor::generation::generate_xor_trace;
 use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
@@ -120,21 +122,18 @@ pub trait ProveAndVerify {
 }
 
 impl ProveAndVerify for CpuStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = CpuStark<F, D>;
 
         let config = fast_test_config();
 
         let stark = S::default();
         let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(record));
-        let public_inputs: PublicInputs<F> = PublicInputs {
-            entry_point: from_u32(program.entry_point),
-        };
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            public_inputs.borrow(),
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -150,6 +149,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
+        let add_trace = ops::add::generate(record);
+        let blt_trace = ops::blt_taken::generate(record);
 
         let memory_init = generate_memory_init_trace(program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, program);
@@ -163,6 +164,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
         let memory_trace = generate_memory_trace::<F>(
@@ -177,12 +179,15 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
         let register_init = generate_register_init_trace(record);
         let (_, _, register_trace) = generate_register_trace(
             &cpu_trace,
+            &add_trace,
+            &blt_trace,
             &poseidon2_sponge_trace,
             &private_tape,
             &public_tape,
@@ -190,10 +195,13 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &register_init,
         );
         let trace_poly_values = trace_rows_to_poly_values(generate_rangecheck_trace(
             &cpu_trace,
+            &add_trace,
+            &blt_trace,
             &memory_trace,
             &register_trace,
         ));
@@ -249,6 +257,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
@@ -263,6 +272,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         ));
@@ -386,6 +396,8 @@ impl ProveAndVerify for RegisterStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
+        let add_trace = ops::add::generate(record);
+        let blt_trace = ops::blt_taken::generate(record);
         let private_tape = generate_private_tape_trace(&record.executed);
         let public_tape = generate_public_tape_trace(&record.executed);
         let call_tape = generate_call_tape_trace(&record.executed);
@@ -393,11 +405,14 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
 
         let register_init = generate_register_init_trace(record);
         let (_, _, trace) = generate_register_trace(
             &cpu_trace,
+            &add_trace,
+            &blt_trace,
             &poseidon2_sponge_rows,
             &private_tape,
             &public_tape,
@@ -405,6 +420,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
             &event_tape,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &register_init,
         );
         let trace_poly_values = trace_rows_to_poly_values(trace);
@@ -474,6 +490,28 @@ pub fn prove_and_verify_mozak_stark(
         &mut TimingTree::default(),
     )?;
     verify_proof(&stark, all_proof, config)
+}
+
+pub fn prove_and_verify_batch_mozak_stark(
+    program: &Program,
+    record: &ExecutionRecord<F>,
+    config: &StarkConfig,
+) -> Result<()> {
+    let stark = MozakStark::default();
+    let public_inputs = PublicInputs {
+        entry_point: from_u32(program.entry_point),
+    };
+
+    let (all_proof, degree_bits) = batch_prove::<F, C, D>(
+        program,
+        record,
+        &stark,
+        &PUBLIC_TABLE_KINDS,
+        config,
+        public_inputs,
+        &mut TimingTree::default(),
+    )?;
+    batch_verify_proof(&stark, &PUBLIC_TABLE_KINDS, all_proof, config, &degree_bits)
 }
 
 /// Interpret a u64 as a field element and try to invert it.

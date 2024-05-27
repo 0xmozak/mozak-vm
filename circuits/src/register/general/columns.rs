@@ -3,7 +3,6 @@ use core::ops::Add;
 use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
-use crate::generation::instruction::ascending_sum;
 use crate::linear_combination::Column;
 use crate::linear_combination_typed::ColumnWithTypedInput;
 use crate::rangecheck::columns::RangeCheckCtl;
@@ -37,9 +36,6 @@ impl<F: RichField> From<F> for Ops<F> {
 }
 
 impl<F: RichField> Ops<F> {
-    #[must_use]
-    pub fn to_field(self) -> F { ascending_sum(self) }
-
     #[must_use]
     pub fn init() -> Self {
         Self {
@@ -119,6 +115,7 @@ pub fn register_looked() -> TableWithTypedOutput<RegisterCtl<Column>> {
             addr: COL_MAP.addr,
             value: COL_MAP.value,
         },
+        // TODO: We can probably do the register init in the same lookup?
         COL_MAP.ops.is_read + COL_MAP.ops.is_write + COL_MAP.ops.is_init,
     )
 }

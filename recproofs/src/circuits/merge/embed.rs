@@ -11,7 +11,8 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
-use crate::indices::{BoolTargetIndex, HashTargetIndex};
+use crate::indices::{BoolTargetIndex, HashOutTargetIndex};
+use crate::{false_if, zero_hash_if};
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
@@ -21,7 +22,7 @@ pub struct PublicIndices {
     pub hash_present: BoolTargetIndex,
 
     /// The indices of each of the elements of the hash
-    pub hash: HashTargetIndex,
+    pub hash: HashOutTargetIndex,
 }
 
 pub struct SubCircuitInputs {
@@ -68,7 +69,7 @@ impl LeafTargets {
         // Find the indices
         let indices = PublicIndices {
             hash_present: BoolTargetIndex::new(public_inputs, self.inputs.hash_present),
-            hash: HashTargetIndex::new(public_inputs, self.inputs.hash),
+            hash: HashOutTargetIndex::new(public_inputs, self.inputs.hash),
         };
         LeafSubCircuit {
             targets: self,
@@ -106,6 +107,9 @@ pub struct BranchTargets<const D: usize> {
     /// The right direction
     pub right: SubCircuitInputs,
 
+    /// Whether or not the right direction is present
+    pub partial: BoolTarget,
+
     /// The proof of event accumulation
     pub proof: ProofWithPublicInputsTarget<D>,
 }
@@ -115,8 +119,8 @@ impl SubCircuitInputs {
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
     ) -> SubCircuitInputs {
-        let hash_present = indices.hash_present.get(&proof.public_inputs);
-        let hash = indices.hash.get(&proof.public_inputs);
+        let hash_present = indices.hash_present.get_target(&proof.public_inputs);
+        let hash = indices.hash.get_target(&proof.public_inputs);
 
         SubCircuitInputs { hash_present, hash }
     }
@@ -134,35 +138,46 @@ impl SubCircuitInputs {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         C::Hasher: AlgebraicHasher<F>, {
+        let _false = builder._false();
         let left = Self::direction_from_node(left_proof, indices);
         let right = Self::direction_from_node(right_proof, indices);
+        let partial = builder.add_virtual_bool_target_safe();
 
         let circuit = &mc.circuit;
         let proof = builder.add_virtual_proof_with_pis(&circuit.common);
         let verifier = builder.constant_verifier_data(&circuit.verifier_only);
         builder.verify_proof::<C>(&proof, &verifier, &circuit.common);
 
-        let a_present = mc.merge.indices.a_present.get_any(&proof.public_inputs);
-        let b_present = mc.merge.indices.b_present.get_any(&proof.public_inputs);
+        let a_present = mc.merge.indices.a_present.get_target(&proof.public_inputs);
+        let b_present = mc.merge.indices.b_present.get_target(&proof.public_inputs);
         let merged_present = mc
             .merge
             .indices
             .merged_present
-            .get_any(&proof.public_inputs);
-        let a_hash = mc.merge.indices.a_hash.get(&proof.public_inputs);
-        let b_hash = mc.merge.indices.b_hash.get(&proof.public_inputs);
-        let merged_hash = mc.merge.indices.merged_hash.get(&proof.public_inputs);
-        builder.connect(a_present, left.hash_present.target);
-        builder.connect(b_present, right.hash_present.target);
-        builder.connect(merged_present, self.hash_present.target);
+            .get_target(&proof.public_inputs);
+        let a_hash = mc.merge.indices.a_hash.get_target(&proof.public_inputs);
+        let b_hash = mc.merge.indices.b_hash.get_target(&proof.public_inputs);
+        let merged_hash = mc
+            .merge
+            .indices
+            .merged_hash
+            .get_target(&proof.public_inputs);
+
+        let b_present_calc = false_if(builder, partial, right.hash_present);
+        let b_hash_calc = zero_hash_if(builder, partial, right.hash);
+
+        builder.connect(a_present.target, left.hash_present.target);
+        builder.connect(b_present.target, b_present_calc.target);
+        builder.connect(merged_present.target, self.hash_present.target);
         builder.connect_hashes(a_hash, left.hash);
-        builder.connect_hashes(b_hash, right.hash);
+        builder.connect_hashes(b_hash, b_hash_calc);
         builder.connect_hashes(merged_hash, self.hash);
 
         BranchTargets {
             inputs: self,
             left,
             right,
+            partial,
             proof,
         }
     }
@@ -178,7 +193,7 @@ impl<const D: usize> BranchTargets<D> {
     pub fn build(self, child: &PublicIndices, public_inputs: &[Target]) -> BranchSubCircuit<D> {
         let indices = PublicIndices {
             hash_present: BoolTargetIndex::new(public_inputs, self.inputs.hash_present),
-            hash: HashTargetIndex::new(public_inputs, self.inputs.hash),
+            hash: HashOutTargetIndex::new(public_inputs, self.inputs.hash),
         };
         debug_assert_eq!(indices, *child);
 
@@ -193,17 +208,20 @@ impl<const D: usize> BranchSubCircuit<D> {
     pub fn set_witness<F, C>(
         &self,
         inputs: &mut PartialWitness<F>,
-        proof: &ProofWithPublicInputs<F, C, D>,
+        partial: bool,
+        proof: &super::BranchProof<F, C, D>,
     ) where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
-        inputs.set_proof_with_pis_target(&self.targets.proof, proof);
+        inputs.set_bool_target(self.targets.partial, partial);
+        inputs.set_proof_with_pis_target(&self.targets.proof, &proof.proof);
     }
 
     pub fn set_witness_unsafe<F, C>(
         &self,
         inputs: &mut PartialWitness<F>,
+        partial: bool,
         proof: &ProofWithPublicInputs<F, C, D>,
         hash_present: bool,
         hash: HashOut<F>,
@@ -211,6 +229,7 @@ impl<const D: usize> BranchSubCircuit<D> {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
+        inputs.set_bool_target(self.targets.partial, partial);
         inputs.set_proof_with_pis_target(&self.targets.proof, proof);
         inputs.set_bool_target(self.targets.inputs.hash_present, hash_present);
         inputs.set_hash_target(self.targets.inputs.hash, hash);
@@ -219,20 +238,13 @@ impl<const D: usize> BranchSubCircuit<D> {
 
 #[cfg(test)]
 mod test {
-    use std::panic::catch_unwind;
-
     use anyhow::Result;
-    use lazy_static::lazy_static;
-    use plonky2::field::types::Field;
-    use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
     use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 
     use super::*;
-    use crate::circuits::merge::{
-        BranchCircuit as MergeBranchCircuit, LeafCircuit as MergeLeafCircuit,
-    };
+    use crate::circuits::merge::test as merge;
     use crate::subcircuits::bounded;
-    use crate::test_utils::{hash_branch, hash_str, C, CONFIG, D, F};
+    use crate::test_utils::{hash_branch, C, CONFIG, D, F, NON_ZERO_HASHES, ZERO_HASH};
 
     pub struct DummyLeafCircuit {
         pub bounded: bounded::LeafSubCircuit,
@@ -294,7 +306,7 @@ mod test {
         #[must_use]
         pub fn new(
             circuit_config: &CircuitConfig,
-            mc: &MergeBranchCircuit<F, C, D>,
+            mc: &merge::BranchCircuit<F, C, D>,
             indices: &PublicIndices,
             child: &CircuitData<F, C, D>,
         ) -> Self {
@@ -327,7 +339,7 @@ mod test {
         #[must_use]
         pub fn from_leaf(
             circuit_config: &CircuitConfig,
-            mc: &MergeBranchCircuit<F, C, D>,
+            mc: &merge::BranchCircuit<F, C, D>,
             leaf: &DummyLeafCircuit,
         ) -> Self {
             Self::new(circuit_config, mc, &leaf.merge.indices, &leaf.circuit)
@@ -336,7 +348,7 @@ mod test {
         #[must_use]
         pub fn from_branch(
             circuit_config: &CircuitConfig,
-            mc: &MergeBranchCircuit<F, C, D>,
+            mc: &merge::BranchCircuit<F, C, D>,
             branch: &Self,
         ) -> Self {
             Self::new(circuit_config, mc, &branch.merge.indices, &branch.circuit)
@@ -344,20 +356,22 @@ mod test {
 
         pub fn prove(
             &self,
-            merged_proof: &ProofWithPublicInputs<F, C, D>,
+            merged_proof: &merge::BranchProof<F, C, D>,
             left_proof: &ProofWithPublicInputs<F, C, D>,
-            right_proof: &ProofWithPublicInputs<F, C, D>,
+            right_proof: Option<&ProofWithPublicInputs<F, C, D>>,
         ) -> Result<ProofWithPublicInputs<F, C, D>> {
             let mut inputs = PartialWitness::new();
             self.bounded
-                .set_witness(&mut inputs, left_proof, right_proof);
-            self.merge.set_witness(&mut inputs, merged_proof);
+                .set_witness(&mut inputs, left_proof, right_proof.unwrap_or(left_proof));
+            self.merge
+                .set_witness(&mut inputs, right_proof.is_none(), merged_proof);
             self.circuit.prove(inputs)
         }
 
         #[allow(clippy::too_many_arguments)]
         pub fn prove_unsafe(
             &self,
+            partial: bool,
             merged_proof: &ProofWithPublicInputs<F, C, D>,
             present: bool,
             hash: HashOut<F>,
@@ -368,270 +382,286 @@ mod test {
             self.bounded
                 .set_witness(&mut inputs, left_proof, right_proof);
             self.merge
-                .set_witness_unsafe(&mut inputs, merged_proof, present, hash);
+                .set_witness_unsafe(&mut inputs, partial, merged_proof, present, hash);
             self.circuit.prove(inputs)
         }
     }
 
-    lazy_static! {
-        static ref MC_LEAF: MergeLeafCircuit<F, C, D> = MergeLeafCircuit::new(&CONFIG);
-        static ref MC_BRANCH: MergeBranchCircuit<F, C, D> =
-            MergeBranchCircuit::new(&CONFIG, &MC_LEAF);
-        static ref LEAF: DummyLeafCircuit = DummyLeafCircuit::new(&CONFIG);
-        static ref BRANCH_1: DummyBranchCircuit =
-            DummyBranchCircuit::from_leaf(&CONFIG, &MC_BRANCH, &LEAF);
-        static ref BRANCH_2: DummyBranchCircuit =
-            DummyBranchCircuit::from_branch(&CONFIG, &MC_BRANCH, &BRANCH_1);
+    #[tested_fixture::tested_fixture(pub LEAF)]
+    fn build_leaf() -> DummyLeafCircuit { DummyLeafCircuit::new(&CONFIG) }
+
+    #[tested_fixture::tested_fixture(pub BRANCH_1)]
+    fn build_branch_1() -> DummyBranchCircuit {
+        DummyBranchCircuit::from_leaf(&CONFIG, &merge::BRANCH, &LEAF)
     }
 
-    #[test]
-    fn verify_leaf() -> Result<()> {
-        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
-        let a_val = hash_str("Value Alpha");
-        let b_val = hash_str("Value Beta");
+    #[tested_fixture::tested_fixture(pub BRANCH_2)]
+    fn build_branch_2() -> DummyBranchCircuit {
+        DummyBranchCircuit::from_branch(&CONFIG, &merge::BRANCH, &BRANCH_1)
+    }
 
+    fn assert_leaf(proof: &ProofWithPublicInputs<F, C, D>, hash: Option<HashOut<F>>) {
+        let indices = &LEAF.merge.indices;
+
+        let p_hash = indices.hash_present.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash.is_some());
+
+        let p_hash = indices.hash.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash.unwrap_or_default());
+    }
+
+    fn assert_branch(proof: &ProofWithPublicInputs<F, C, D>, hash: Option<HashOut<F>>) {
+        let indices = &LEAF.merge.indices;
+
+        let p_hash = indices.hash_present.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash.is_some());
+
+        let p_hash = indices.hash.get_field(&proof.public_inputs);
+        assert_eq!(p_hash, hash.unwrap_or_default());
+    }
+
+    #[tested_fixture::tested_fixture(EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_empty_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
         let proof = LEAF.prove(None)?;
-        LEAF.circuit.verify(proof)?;
+        assert_leaf(&proof, None);
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        let proof = LEAF.prove(Some(zero_hash))?;
-        LEAF.circuit.verify(proof)?;
+    #[tested_fixture::tested_fixture(BAD_EMPTY_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_bad_empty_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        // We allow non-correspondance here
+        let proof = LEAF.prove_unsafe(false, NON_ZERO_HASHES[2])?;
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        let proof = LEAF.prove(Some(a_val))?;
-        LEAF.circuit.verify(proof)?;
+    #[tested_fixture::tested_fixture(ZERO_LEAF_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_zero_leaf() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(Some(ZERO_HASH))?;
+        assert_leaf(&proof, Some(ZERO_HASH));
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
-        let proof = LEAF.prove(Some(b_val))?;
-        LEAF.circuit.verify(proof)?;
+    #[tested_fixture::tested_fixture(NON_ZERO_LEAF_PROOF_1: ProofWithPublicInputs<F, C, D>)]
+    fn verify_non_zero_leaf_1() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(Some(NON_ZERO_HASHES[0]))?;
+        assert_leaf(&proof, Some(NON_ZERO_HASHES[0]));
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
 
+    #[tested_fixture::tested_fixture(NON_ZERO_LEAF_PROOF_2: ProofWithPublicInputs<F, C, D>)]
+    fn verify_non_zero_leaf_2() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = LEAF.prove(Some(NON_ZERO_HASHES[1]))?;
+        assert_leaf(&proof, Some(NON_ZERO_HASHES[1]));
+        LEAF.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(EMPTY_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_empty_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(
+            *merge::EMPTY_BRANCH_PROOF,
+            *EMPTY_LEAF_PROOF,
+            Some(*EMPTY_LEAF_PROOF),
+        )?;
+        assert_branch(&proof, None);
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(EMPTY_PARTIAL_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_empty_partial_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(*merge::EMPTY_BRANCH_PROOF, *EMPTY_LEAF_PROOF, None)?;
+        assert_branch(&proof, None);
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(EMPTY_PARTIAL_BAD_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_empty_partial_bad_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove_unsafe(
+            true,
+            &merge::EMPTY_BRANCH_PROOF.proof,
+            false,
+            ZERO_HASH,
+            *EMPTY_LEAF_PROOF,
+            *BAD_EMPTY_LEAF_PROOF,
+        )?;
+        assert_branch(&proof, None);
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(LEFT_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_left_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(
+            *merge::LEFT_BRANCH_PROOF,
+            *NON_ZERO_LEAF_PROOF_1,
+            Some(*EMPTY_LEAF_PROOF),
+        )?;
+        assert_branch(&proof, Some(NON_ZERO_HASHES[0]));
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(LEFT_PARTIAL_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_left_partial_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(*merge::LEFT_BRANCH_PROOF, *NON_ZERO_LEAF_PROOF_1, None)?;
+        assert_branch(&proof, Some(NON_ZERO_HASHES[0]));
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[tested_fixture::tested_fixture(RIGHT_BRANCH_PROOF: ProofWithPublicInputs<F, C, D>)]
+    fn verify_right_branch() -> Result<ProofWithPublicInputs<F, C, D>> {
+        let proof = BRANCH_1.prove(
+            *merge::RIGHT_BRANCH_PROOF,
+            *EMPTY_LEAF_PROOF,
+            Some(*NON_ZERO_LEAF_PROOF_2),
+        )?;
+        assert_branch(&proof, Some(NON_ZERO_HASHES[1]));
+        BRANCH_1.circuit.verify(proof.clone())?;
+        Ok(proof)
+    }
+
+    #[test]
+    fn verify_both_branch() -> Result<()> {
+        let proof = BRANCH_1.prove(
+            &merge::BOTH_BRANCH_PROOF,
+            *NON_ZERO_LEAF_PROOF_1,
+            Some(*NON_ZERO_LEAF_PROOF_2),
+        )?;
+        assert_branch(
+            &proof,
+            Some(hash_branch(&NON_ZERO_HASHES[0], &NON_ZERO_HASHES[1])),
+        );
+        BRANCH_1.circuit.verify(proof)?;
         Ok(())
     }
 
     #[test]
-    fn verify_branch_empty() -> Result<()> {
-        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
-
-        let empty_merge_leaf = MC_LEAF.prove(&MC_BRANCH, None, None, Some(zero_hash))?;
-        MC_LEAF.circuit.verify(empty_merge_leaf.clone())?;
-
-        let merge_branch = MC_BRANCH.prove(true, &empty_merge_leaf, true, &empty_merge_leaf)?;
-        MC_BRANCH.circuit.verify(merge_branch.clone())?;
-
-        let empty_proof = LEAF.prove(None)?;
-        LEAF.circuit.verify(empty_proof.clone())?;
-
-        let branch_proof = BRANCH_1.prove(&merge_branch, &empty_proof, &empty_proof)?;
-        BRANCH_1.circuit.verify(branch_proof)?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn verify_branch_single() -> Result<()> {
-        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
-        let a_val = hash_str("Value Alpha");
-        let b_val = hash_str("Value Beta");
-
-        let empty_merge_leaf = MC_LEAF.prove(&MC_BRANCH, None, None, Some(zero_hash))?;
-        MC_LEAF.circuit.verify(empty_merge_leaf.clone())?;
-
-        let a_merge_leaf = MC_LEAF.prove(&MC_BRANCH, Some(a_val), None, Some(a_val))?;
-        MC_LEAF.circuit.verify(a_merge_leaf.clone())?;
-
-        let b_merge_leaf = MC_LEAF.prove(&MC_BRANCH, None, Some(b_val), Some(b_val))?;
-        MC_LEAF.circuit.verify(b_merge_leaf.clone())?;
-
-        let merge_branch_a = MC_BRANCH.prove(true, &a_merge_leaf, true, &empty_merge_leaf)?;
-        MC_BRANCH.circuit.verify(merge_branch_a.clone())?;
-
-        let merge_branch_b = MC_BRANCH.prove(true, &empty_merge_leaf, true, &b_merge_leaf)?;
-        MC_BRANCH.circuit.verify(merge_branch_b.clone())?;
-
-        let merge_branch_ab = MC_BRANCH.prove(false, &merge_branch_a, false, &merge_branch_b)?;
-        MC_BRANCH.circuit.verify(merge_branch_b.clone())?;
-
-        let empty_proof = LEAF.prove(None)?;
-        LEAF.circuit.verify(empty_proof.clone())?;
-
-        let a_proof = LEAF.prove(Some(a_val))?;
-        LEAF.circuit.verify(a_proof.clone())?;
-
-        let b_proof = LEAF.prove(Some(b_val))?;
-        LEAF.circuit.verify(b_proof.clone())?;
-
-        let a_branch_proof = BRANCH_1.prove(&merge_branch_a, &a_proof, &empty_proof)?;
-        BRANCH_1.circuit.verify(a_branch_proof.clone())?;
-
-        let b_branch_proof = BRANCH_1.prove(&merge_branch_b, &empty_proof, &b_proof)?;
-        BRANCH_1.circuit.verify(b_branch_proof.clone())?;
-
-        let ab_branch_proof = BRANCH_2.prove(&merge_branch_ab, &a_branch_proof, &b_branch_proof)?;
-        BRANCH_2.circuit.verify(ab_branch_proof.clone())?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn verify_branch_pair() -> Result<()> {
-        let a_val = hash_str("Value Alpha");
-        let b_val = hash_str("Value Beta");
-
-        let a_merge_leaf = MC_LEAF.prove(&MC_BRANCH, Some(a_val), None, Some(a_val))?;
-        MC_LEAF.circuit.verify(a_merge_leaf.clone())?;
-
-        let b_merge_leaf = MC_LEAF.prove(&MC_BRANCH, None, Some(b_val), Some(b_val))?;
-        MC_LEAF.circuit.verify(b_merge_leaf.clone())?;
-
-        let merge_branch = MC_BRANCH.prove(true, &a_merge_leaf, true, &b_merge_leaf)?;
-        MC_BRANCH.circuit.verify(merge_branch.clone())?;
-
-        let a_proof = LEAF.prove(Some(a_val))?;
-        LEAF.circuit.verify(a_proof.clone())?;
-
-        let b_proof = LEAF.prove(Some(b_val))?;
-        LEAF.circuit.verify(b_proof.clone())?;
-
-        let branch_proof = BRANCH_1.prove(&merge_branch, &a_proof, &b_proof)?;
-        BRANCH_1.circuit.verify(branch_proof)?;
-
+    fn verify_both_double_branch() -> Result<()> {
+        let proof = BRANCH_2.prove(
+            &merge::BOTH_BRANCH_PROOF,
+            *LEFT_BRANCH_PROOF,
+            Some(*RIGHT_BRANCH_PROOF),
+        )?;
+        assert_branch(
+            &proof,
+            Some(hash_branch(&NON_ZERO_HASHES[0], &NON_ZERO_HASHES[1])),
+        );
+        BRANCH_2.circuit.verify(proof)?;
         Ok(())
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_empty_1() {
-        let (merge_branch, good_empty_proof, bad_empty_proof) = catch_unwind(|| {
-            let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
-
-            let empty_merge_leaf = MC_LEAF
-                .prove(&MC_BRANCH, None, None, Some(zero_hash))
-                .unwrap();
-            MC_LEAF.circuit.verify(empty_merge_leaf.clone()).unwrap();
-
-            let merge_branch = MC_BRANCH
-                .prove(true, &empty_merge_leaf, true, &empty_merge_leaf)
-                .unwrap();
-            MC_BRANCH.circuit.verify(merge_branch.clone()).unwrap();
-
-            let good_empty_proof = LEAF.prove(None).unwrap();
-            LEAF.circuit.verify(good_empty_proof.clone()).unwrap();
-
-            let bad_empty_proof = LEAF.prove(Some(zero_hash)).unwrap();
-            LEAF.circuit.verify(bad_empty_proof.clone()).unwrap();
-
-            (merge_branch, good_empty_proof, bad_empty_proof)
-        })
-        .expect("shouldn't fail");
-
-        let branch_proof = BRANCH_1
-            .prove(&merge_branch, &good_empty_proof, &bad_empty_proof)
+        let proof = BRANCH_1
+            .prove(
+                *merge::EMPTY_BRANCH_PROOF,
+                *EMPTY_LEAF_PROOF,
+                Some(*ZERO_LEAF_PROOF),
+            )
             .unwrap();
-        BRANCH_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_empty_2() {
-        let (merge_branch, good_empty_proof, bad_empty_proof) = catch_unwind(|| {
-            let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
-            let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
-
-            let empty_merge_leaf = MC_LEAF
-                .prove(&MC_BRANCH, None, None, Some(zero_hash))
-                .unwrap();
-            MC_LEAF.circuit.verify(empty_merge_leaf.clone()).unwrap();
-
-            let merge_branch = MC_BRANCH
-                .prove(true, &empty_merge_leaf, true, &empty_merge_leaf)
-                .unwrap();
-            MC_BRANCH.circuit.verify(merge_branch.clone()).unwrap();
-
-            let good_empty_proof = LEAF.prove(None).unwrap();
-            LEAF.circuit.verify(good_empty_proof.clone()).unwrap();
-
-            let bad_empty_proof = LEAF.prove_unsafe(false, non_zero_hash_1).unwrap();
-            LEAF.circuit.verify(bad_empty_proof.clone()).unwrap();
-
-            (merge_branch, good_empty_proof, bad_empty_proof)
-        })
-        .expect("shouldn't fail");
-
-        let branch_proof = BRANCH_1
-            .prove(&merge_branch, &good_empty_proof, &bad_empty_proof)
+        let proof = BRANCH_1
+            .prove(
+                *merge::EMPTY_BRANCH_PROOF,
+                *EMPTY_LEAF_PROOF,
+                Some(*BAD_EMPTY_LEAF_PROOF),
+            )
             .unwrap();
-        BRANCH_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_empty_3() {
-        let (merge_branch, empty_proof) = catch_unwind(|| {
-            let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
-
-            let empty_merge_leaf = MC_LEAF
-                .prove(&MC_BRANCH, None, None, Some(zero_hash))
-                .unwrap();
-            MC_LEAF.circuit.verify(empty_merge_leaf.clone()).unwrap();
-
-            let bad_empty_merge_leaf = MC_LEAF
-                .prove(&MC_BRANCH, Some(zero_hash), None, Some(zero_hash))
-                .unwrap();
-            MC_LEAF
-                .circuit
-                .verify(bad_empty_merge_leaf.clone())
-                .unwrap();
-
-            let merge_branch = MC_BRANCH
-                .prove(true, &empty_merge_leaf, true, &bad_empty_merge_leaf)
-                .unwrap();
-            MC_BRANCH.circuit.verify(merge_branch.clone()).unwrap();
-
-            let empty_proof = LEAF.prove(None).unwrap();
-            LEAF.circuit.verify(empty_proof.clone()).unwrap();
-
-            (merge_branch, empty_proof)
-        })
-        .expect("shouldn't fail");
-
-        let branch_proof = BRANCH_1
-            .prove(&merge_branch, &empty_proof, &empty_proof)
+        let proof = BRANCH_1
+            .prove(
+                *merge::EMPTY_BRANCH_PROOF,
+                *BAD_EMPTY_LEAF_PROOF,
+                Some(*EMPTY_LEAF_PROOF),
+            )
             .unwrap();
-        BRANCH_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_empty_4() {
+        let proof = BRANCH_1
+            .prove(*merge::EMPTY_BRANCH_PROOF, *BAD_EMPTY_LEAF_PROOF, None)
+            .unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_empty_5() {
+        let proof = BRANCH_1
+            .prove(
+                *merge::LEFT_ZERO_BRANCH_PROOF,
+                *EMPTY_LEAF_PROOF,
+                Some(*EMPTY_LEAF_PROOF),
+            )
+            .unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_branch_empty_6() {
+        let proof = BRANCH_1
+            .prove(
+                *merge::RIGHT_ZERO_BRANCH_PROOF,
+                *EMPTY_LEAF_PROOF,
+                Some(*EMPTY_LEAF_PROOF),
+            )
+            .unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_right_partial_branch_1() {
+        let proof = BRANCH_1
+            .prove(*merge::RIGHT_BRANCH_PROOF, *EMPTY_LEAF_PROOF, None)
+            .unwrap();
+        BRANCH_1.circuit.verify(proof.clone()).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_right_partial_branch_2() {
+        let proof = BRANCH_1
+            .prove(*merge::RIGHT_BRANCH_PROOF, *NON_ZERO_LEAF_PROOF_2, None)
+            .unwrap();
+        BRANCH_1.circuit.verify(proof.clone()).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn bad_branch_pair() {
-        let (merge_branch, ba_hash, a_proof, b_proof) = catch_unwind(|| {
-            let a_val = hash_str("Value Alpha");
-            let b_val = hash_str("Value Beta");
-            let ba_hash = hash_branch(&b_val, &a_val);
-
-            let a_merge_leaf = MC_LEAF
-                .prove(&MC_BRANCH, Some(a_val), None, Some(a_val))
-                .unwrap();
-            MC_LEAF.circuit.verify(a_merge_leaf.clone()).unwrap();
-
-            let b_merge_leaf = MC_LEAF
-                .prove(&MC_BRANCH, None, Some(b_val), Some(b_val))
-                .unwrap();
-            MC_LEAF.circuit.verify(b_merge_leaf.clone()).unwrap();
-
-            let merge_branch = MC_BRANCH
-                .prove(true, &a_merge_leaf, true, &b_merge_leaf)
-                .unwrap();
-            MC_BRANCH.circuit.verify(merge_branch.clone()).unwrap();
-
-            let a_proof = LEAF.prove(Some(a_val)).unwrap();
-            LEAF.circuit.verify(a_proof.clone()).unwrap();
-
-            let b_proof = LEAF.prove(Some(b_val)).unwrap();
-            LEAF.circuit.verify(b_proof.clone()).unwrap();
-            (merge_branch, ba_hash, a_proof, b_proof)
-        })
-        .expect("shouldn't fail");
-
-        let branch_proof = BRANCH_1
-            .prove_unsafe(&merge_branch, true, ba_hash, &a_proof, &b_proof)
+        let proof = BRANCH_1
+            .prove_unsafe(
+                false,
+                &merge::BOTH_BRANCH_PROOF.proof,
+                true,
+                hash_branch(&NON_ZERO_HASHES[1], &NON_ZERO_HASHES[0]),
+                *NON_ZERO_LEAF_PROOF_1,
+                *NON_ZERO_LEAF_PROOF_2,
+            )
             .unwrap();
-        BRANCH_1.circuit.verify(branch_proof).unwrap();
+        BRANCH_1.circuit.verify(proof).unwrap();
     }
 }

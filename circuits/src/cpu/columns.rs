@@ -1,7 +1,11 @@
+use core::iter::Sum;
 use core::ops::{Add, Mul, Sub};
+
+use mozak_runner::instruction::Op;
 
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map};
+use crate::cpu_skeleton::columns::CpuSkeletonCtl;
 use crate::cross_table_lookup::{Column, ColumnWithTypedInput};
 use crate::memory::columns::MemoryCtl;
 use crate::poseidon2_sponge::columns::Poseidon2SpongeCtl;
@@ -86,6 +90,58 @@ pub struct Instruction<T> {
     pub imm_value: T,
 }
 
+impl From<(u32, mozak_runner::instruction::Instruction)> for Instruction<u32> {
+    fn from((pc, inst): (u32, mozak_runner::instruction::Instruction)) -> Self {
+        let mut cols: Instruction<u32> = Self {
+            pc,
+            imm_value: inst.args.imm,
+            is_op1_signed: matches!(
+                inst.op,
+                Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::MULHSU | Op::BLT | Op::BGE | Op::SRA
+            )
+            .into(),
+            is_op2_signed: matches!(
+                inst.op,
+                Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::BLT | Op::BGE
+            )
+            .into(),
+            is_dst_signed: matches!(inst.op, Op::LB | Op::LH).into(),
+            ..Self::default()
+        };
+        *match inst.op {
+            Op::ADD => &mut cols.ops.add,
+            Op::LBU | Op::LB => &mut cols.ops.lb,
+            Op::LH | Op::LHU => &mut cols.ops.lh,
+            Op::LW => &mut cols.ops.lw,
+            Op::SLL => &mut cols.ops.sll,
+            Op::SLT | Op::SLTU => &mut cols.ops.slt,
+            Op::SB => &mut cols.ops.sb,
+            Op::SH => &mut cols.ops.sh,
+            Op::SW => &mut cols.ops.sw,
+            Op::SRL => &mut cols.ops.srl,
+            Op::SRA => &mut cols.ops.sra,
+            Op::SUB => &mut cols.ops.sub,
+            Op::DIV | Op::DIVU => &mut cols.ops.div,
+            Op::REM | Op::REMU => &mut cols.ops.rem,
+            Op::MUL => &mut cols.ops.mul,
+            Op::MULH | Op::MULHU | Op::MULHSU => &mut cols.ops.mulh,
+            Op::JALR => &mut cols.ops.jalr,
+            Op::BEQ => &mut cols.ops.beq,
+            Op::BNE => &mut cols.ops.bne,
+            Op::BLT | Op::BLTU => &mut cols.ops.blt,
+            Op::BGE | Op::BGEU => &mut cols.ops.bge,
+            Op::ECALL => &mut cols.ops.ecall,
+            Op::XOR => &mut cols.ops.xor,
+            Op::OR => &mut cols.ops.or,
+            Op::AND => &mut cols.ops.and,
+        } = 1;
+        cols.rs1_selected = u32::from(inst.args.rs1);
+        cols.rs2_selected = u32::from(inst.args.rs2);
+        cols.rd_selected = u32::from(inst.args.rd);
+        cols
+    }
+}
+
 columns_view_impl!(EcallSelectors);
 /// Internal [`Instruction`] of Stark used for transition constraints
 #[repr(C)]
@@ -105,6 +161,7 @@ pub struct EcallSelectors<T> {
     pub is_cast_list_commitment_tape: T,
     pub is_halt: T,
     pub is_poseidon2: T,
+    pub is_self_prog_id_tape: T,
 }
 
 make_col_map!(CpuState);
@@ -114,11 +171,8 @@ columns_view_impl!(CpuState);
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct CpuState<T> {
     pub clk: T,
+    pub new_pc: T,
     pub inst: Instruction<T>,
-
-    // Represents the end of the program. Also used as the filter column for cross checking Program
-    // ROM instructions.
-    pub is_running: T,
 
     pub op1_value: T,
     pub op2_value_raw: T,
@@ -194,8 +248,10 @@ pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
 impl<T> CpuState<T>
 where
-    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T>,
+    T: Copy + Add<Output = T> + Mul<i64, Output = T> + Sub<Output = T> + Sum,
 {
+    pub fn is_running(&self) -> T { self.inst.ops.is_running() }
+
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
@@ -214,10 +270,12 @@ where
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-impl<P: Copy + Add<Output = P>> OpSelectors<P>
+impl<P> OpSelectors<P>
 where
-    i64: Sub<P, Output = P>,
+    P: Copy + Add<Output = P> + Sum<P> + Sub<Output = P> + Sum,
 {
+    pub fn is_running(self) -> P { self.into_iter().sum() }
+
     // List of opcodes that manipulated the program counter, instead of
     // straight line incrementing it.
     // Note: ecall is only 'jumping' in the sense that a 'halt'
@@ -227,7 +285,7 @@ where
     }
 
     /// List of opcodes that only bump the program counter.
-    pub fn is_straightline(&self) -> P { 1 - self.is_jumping() }
+    pub fn is_straightline(self) -> P { self.is_running() - self.is_jumping() }
 
     /// List of opcodes that work with memory.
     pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
@@ -338,6 +396,7 @@ pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Colu
         ecall.is_event_tape,
         ecall.is_events_commitment_tape,
         ecall.is_cast_list_commitment_tape,
+        ecall.is_self_prog_id_tape,
     ];
     CpuTable::new(
         StorageDeviceCtl {
@@ -401,7 +460,7 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
                 1 << 5,
             ),
         },
-        ColumnWithTypedInput::constant(1),
+        CPU.is_running(),
     )
 }
 
@@ -426,7 +485,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rs1_selected,
                 value: CPU.op1_value,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
         CpuTable::new(
             RegisterCtl {
@@ -435,7 +494,7 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rs2_selected,
                 value: CPU.op2_value_raw,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
         CpuTable::new(
             RegisterCtl {
@@ -444,7 +503,20 @@ pub fn register_looking() -> Vec<TableWithTypedOutput<RegisterCtl<Column>>> {
                 addr: CPU.inst.rd_selected,
                 value: CPU.dst_value,
             },
-            CPU.is_running,
+            CPU.is_running(),
         ),
     ]
+}
+
+#[must_use]
+pub fn lookup_for_skeleton() -> TableWithTypedOutput<CpuSkeletonCtl<Column>> {
+    CpuTable::new(
+        CpuSkeletonCtl {
+            clk: CPU.clk,
+            pc: CPU.inst.pc,
+            new_pc: CPU.new_pc,
+            will_halt: CPU.ecall_selectors.is_halt,
+        },
+        CPU.is_running(),
+    )
 }

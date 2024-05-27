@@ -3,23 +3,27 @@
 use std::collections::HashMap;
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use log::Level::Debug;
-use log::{debug, info, log_enabled};
+use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
-use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
+use plonky2::field::polynomial::PolynomialCoeffs;
 use plonky2::field::types::Field;
 use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::FriProof;
-use plonky2::fri::structure::{FriBatchInfo, FriInstanceInfo, FriOracleInfo};
+use plonky2::fri::structure::{
+    FriBatchInfo, FriBatchInfoTarget, FriInstanceInfo, FriInstanceInfoTarget, FriOracleInfo,
+};
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::GenericConfig;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -37,7 +41,10 @@ use crate::public_sub_table::public_sub_table_data_and_values;
 use crate::stark::mozak_stark::{all_kind, all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
-use crate::stark::prover::prove_single_table;
+use crate::stark::prover::{get_program_id, prove_single_table};
+
+const ORACLE_COUNT: usize = 3;
+const BATCH_COUNT: usize = 3;
 
 #[derive(Debug)]
 pub struct BatchFriOracleIndices {
@@ -81,8 +88,11 @@ impl BatchFriOracleIndices {
             .enumerate()
             .map(|(index, value)| (value, index))
             .collect();
-        let degree_bits_indices = all_kind!(|kind| (!public_table_kinds.contains(&kind))
-            .then_some(degree_bits_index_map[&degree_bits[kind]]));
+        let degree_bits_indices = all_kind!(|kind| if public_table_kinds.contains(&kind) {
+            None
+        } else {
+            Some(degree_bits_index_map[&degree_bits[kind]])
+        });
 
         BatchFriOracleIndices {
             poly_count,
@@ -165,26 +175,89 @@ pub(crate) fn batch_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     res
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn batch_fri_instances_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    mozak_stark: &MozakStark<F, D>,
+    public_table_kinds: &[TableKind],
+    degree_bits: &TableKindArray<usize>,
+    sorted_degree_bits: &[usize],
+    zeta_target: ExtensionTarget<D>,
+    config: &StarkConfig,
+    num_ctl_zs_per_table: &TableKindArray<usize>,
+) -> Vec<FriInstanceInfoTarget<D>> {
+    let fri_instances = all_starks!(
+        mozak_stark,
+        |stark, kind| if public_table_kinds.contains(&kind) {
+            None
+        } else {
+            Some({
+                let g = F::primitive_root_of_unity(degree_bits[kind]);
+                stark.fri_instance_target(
+                    builder,
+                    zeta_target,
+                    g,
+                    0,
+                    0,
+                    config,
+                    Some(&LookupConfig {
+                        degree_bits: degree_bits[kind],
+                        num_zs: num_ctl_zs_per_table[kind],
+                    }),
+                )
+            })
+        }
+    );
+
+    // Map degree bits to a vector of TableKind values
+    let mut degree_bits_map: HashMap<usize, Vec<TableKind>> = HashMap::new();
+    all_kind!(|kind| {
+        degree_bits_map
+            .entry(degree_bits[kind])
+            .or_default()
+            .push(kind);
+    });
+
+    let fri_instance_groups = sorted_degree_bits
+        .iter()
+        .map(|d| {
+            degree_bits_map[d]
+                .iter()
+                .filter_map(|kind| fri_instances[*kind].as_ref())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let mut polynomial_index_start = [0, 0, 0];
+    let res = fri_instance_groups
+        .iter()
+        .map(|ins| merge_fri_instances_target(ins, &mut polynomial_index_start))
+        .collect::<Vec<_>>();
+    res
+}
+
 // Merge FRI instances by its polynomial degree
 pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     instances: &[&FriInstanceInfo<F, D>],
-    polynomial_index_start: &mut [usize; 3],
+    polynomial_index_start: &mut [usize; ORACLE_COUNT],
 ) -> FriInstanceInfo<F, D> {
     assert!(!instances.is_empty());
     let base_instance = &instances[0];
-    assert_eq!(base_instance.oracles.len(), 3);
-    assert_eq!(base_instance.batches.len(), 3);
+    assert_eq!(base_instance.oracles.len(), ORACLE_COUNT);
+    assert_eq!(base_instance.batches.len(), BATCH_COUNT);
 
     let mut res = FriInstanceInfo {
-        oracles: Vec::with_capacity(3),
-        batches: Vec::with_capacity(3),
+        oracles: Vec::with_capacity(ORACLE_COUNT),
+        batches: Vec::with_capacity(BATCH_COUNT),
     };
 
-    for i in 0..3 {
+    for i in 0..ORACLE_COUNT {
         res.oracles.push(FriOracleInfo {
             num_polys: 0,
             blinding: base_instance.oracles[i].blinding,
         });
+    }
+    for i in 0..BATCH_COUNT {
         res.batches.push(FriBatchInfo {
             point: base_instance.batches[i].point,
             polynomials: vec![],
@@ -192,13 +265,15 @@ pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
     }
 
     for ins in instances {
-        assert_eq!(ins.oracles.len(), 3);
-        assert_eq!(ins.batches.len(), 3);
+        assert_eq!(ins.oracles.len(), ORACLE_COUNT);
+        assert_eq!(ins.batches.len(), BATCH_COUNT);
 
-        for i in 0..3 {
+        for i in 0..ORACLE_COUNT {
             assert_eq!(res.oracles[i].blinding, ins.oracles[i].blinding);
             res.oracles[i].num_polys += ins.oracles[i].num_polys;
+        }
 
+        for i in 0..BATCH_COUNT {
             assert_eq!(res.batches[i].point, ins.batches[i].point);
             for poly in ins.batches[i].polynomials.iter().copied() {
                 let mut poly = poly;
@@ -207,7 +282,68 @@ pub(crate) fn merge_fri_instances<F: RichField + Extendable<D>, const D: usize>(
             }
         }
 
-        for (i, item) in polynomial_index_start.iter_mut().enumerate().take(3) {
+        for (i, item) in polynomial_index_start
+            .iter_mut()
+            .enumerate()
+            .take(ORACLE_COUNT)
+        {
+            *item += ins.oracles[i].num_polys;
+        }
+    }
+
+    res
+}
+
+pub(crate) fn merge_fri_instances_target<const D: usize>(
+    instances: &[&FriInstanceInfoTarget<D>],
+    polynomial_index_start: &mut [usize; ORACLE_COUNT],
+) -> FriInstanceInfoTarget<D> {
+    assert!(!instances.is_empty());
+    let base_instance = &instances[0];
+    assert_eq!(base_instance.oracles.len(), ORACLE_COUNT);
+    assert_eq!(base_instance.batches.len(), BATCH_COUNT);
+
+    let mut res = FriInstanceInfoTarget {
+        oracles: Vec::with_capacity(ORACLE_COUNT),
+        batches: Vec::with_capacity(BATCH_COUNT),
+    };
+
+    for i in 0..ORACLE_COUNT {
+        res.oracles.push(FriOracleInfo {
+            num_polys: 0,
+            blinding: base_instance.oracles[i].blinding,
+        });
+    }
+    for i in 0..BATCH_COUNT {
+        res.batches.push(FriBatchInfoTarget {
+            point: base_instance.batches[i].point,
+            polynomials: vec![],
+        });
+    }
+
+    for ins in instances {
+        assert_eq!(ins.oracles.len(), ORACLE_COUNT);
+        assert_eq!(ins.batches.len(), BATCH_COUNT);
+
+        for i in 0..ORACLE_COUNT {
+            assert_eq!(res.oracles[i].blinding, ins.oracles[i].blinding);
+            res.oracles[i].num_polys += ins.oracles[i].num_polys;
+        }
+
+        for i in 0..BATCH_COUNT {
+            assert_eq!(res.batches[i].point, ins.batches[i].point);
+            for poly in ins.batches[i].polynomials.iter().copied() {
+                let mut poly = poly;
+                poly.polynomial_index += polynomial_index_start[poly.oracle_index];
+                res.batches[i].polynomials.push(poly);
+            }
+        }
+
+        for (i, item) in polynomial_index_start
+            .iter_mut()
+            .enumerate()
+            .take(ORACLE_COUNT)
+        {
             *item += ins.oracles[i].num_polys;
         }
     }
@@ -223,12 +359,13 @@ pub fn batch_prove<F, C, const D: usize>(
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
     timing: &mut TimingTree,
-) -> Result<BatchProof<F, C, D>>
+) -> Result<(BatchProof<F, C, D>, TableKindArray<usize>)>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
     debug!("Starting Prove");
-    let traces_poly_values = generate_traces(program, record);
+    let traces_poly_values = generate_traces(program, record, timing);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);
@@ -277,8 +414,8 @@ where
             .clone()
             .with_kind()
             .map(|(trace, table)| {
-                if public_table_kinds.contains(&table) {
-                    Some(timed!(
+                public_table_kinds.contains(&table).then(|| {
+                    timed!(
                         timing,
                         &format!("compute trace commitment for {table:?}"),
                         PolynomialBatch::<F, C, D>::from_values(
@@ -289,10 +426,8 @@ where
                             timing,
                             None,
                         )
-                    ))
-                } else {
-                    None
-                }
+                    )
+                })
             })
     );
 
@@ -334,7 +469,6 @@ where
         public_table_kinds,
         &public_inputs,
         &degree_bits,
-        &traces_poly_values,
         &trace_commitments,
         &trace_indices,
         &batch_trace_commitments,
@@ -344,20 +478,29 @@ where
         timing,
     )?;
 
-    let program_rom_trace_cap = trace_caps[TableKind::Program].clone().unwrap();
-    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone().unwrap();
+    let program_id = get_program_id::<F, C, D>(
+        public_inputs.entry_point,
+        trace_caps[TableKind::Program]
+            .as_ref()
+            .expect("program trace cap not found"),
+        trace_caps[TableKind::ElfMemoryInit]
+            .as_ref()
+            .expect("elf memory ini trace cap not found"),
+    );
+
     if log_enabled!(Debug) {
         timing.print();
     }
-    Ok(BatchProof {
+    Ok((
+        BatchProof {
+            proofs,
+            public_inputs,
+            public_sub_table_values,
+            program_id,
+            batch_stark_proof,
+        },
         degree_bits,
-        proofs,
-        program_rom_trace_cap,
-        elf_memory_init_trace_cap,
-        public_inputs,
-        public_sub_table_values,
-        batch_stark_proof,
-    })
+    ))
 }
 
 /// Given the traces generated from [`generate_traces`] along with their
@@ -373,7 +516,6 @@ pub fn batch_prove_with_commitments<F, C, const D: usize>(
     public_table_kinds: &[TableKind],
     public_inputs: &PublicInputs<F>,
     degree_bits: &TableKindArray<usize>,
-    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<Option<PolynomialBatch<F, C, D>>>,
     trace_indices: &BatchFriOracleIndices,
     batch_trace_commitments: &BatchFriOracle<F, C, D>,
@@ -388,9 +530,10 @@ where
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
-    let cpu_stark = [public_inputs.entry_point];
+    // TODO(Matthias): Unify everything in this function with the non-batch version.
+    let cpu_skeleton_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: &cpu_stark,
+        cpu_skeleton_stark: &cpu_skeleton_stark,
         ..Default::default()
     }
     .build();
@@ -402,7 +545,6 @@ where
         Some(prove_single_table(
             stark,
             config,
-            &traces_poly_values[kind],
             trace_commitment,
             public_inputs[kind],
             &ctl_data_per_table[kind],
@@ -436,11 +578,6 @@ where
 
                 assert!(!z_polys.is_empty());
 
-                info!(
-                    "ctl_data_per_table len {}",
-                    ctl_data_per_table[kind].zs_columns.len()
-                );
-                info!("z_poly len {}", z_polys.len());
                 ctl_zs_poly_count[kind] = z_polys.len();
 
                 z_polys
@@ -716,22 +853,31 @@ pub(crate) fn batch_reduction_arity_bits(
     rate_bits: usize,
     cap_height: usize,
 ) -> Vec<usize> {
-    let mut result = Vec::new();
-    let arity_bits = 3;
-    let mut cur_index = 0;
-    let mut cur_degree_bits = degree_bits[cur_index];
-    while cur_degree_bits + rate_bits >= cap_height + arity_bits {
-        let mut cur_arity_bits = arity_bits;
-        let target_degree_bits = cur_degree_bits - arity_bits;
-        if cur_index < degree_bits.len() - 1 && target_degree_bits < degree_bits[cur_index + 1] {
-            cur_arity_bits = cur_degree_bits - degree_bits[cur_index + 1];
-            cur_index += 1;
-        }
-        result.push(cur_arity_bits);
-        assert!(cur_degree_bits >= cur_arity_bits);
-        cur_degree_bits -= cur_arity_bits;
-    }
-    result
+    let default_arity_bits = 3;
+    let final_poly_bits = 5;
+    let lowest_degree_bits = degree_bits.last().unwrap();
+    assert!(lowest_degree_bits + rate_bits >= cap_height);
+    // First, let's figure out our intermediate degree bits.
+    let intermediate_degree_bits =
+        degree_bits
+            .iter()
+            .tuple_windows()
+            .flat_map(|(&degree_bit, &next_degree_bit)| {
+                (next_degree_bit + 1..=degree_bit)
+                    .rev()
+                    .step_by(default_arity_bits)
+            });
+    // Next, deal with the last part.
+    let last_degree_bits =
+        (lowest_degree_bits + rate_bits).min(cap_height.max(final_poly_bits)) - rate_bits;
+    let final_degree_bits = (last_degree_bits..=*lowest_degree_bits)
+        .rev()
+        .step_by(default_arity_bits);
+    // Finally, the reduction arity bits are just the differences:
+    chain!(intermediate_degree_bits, final_degree_bits)
+        .tuple_windows()
+        .map(|(degree_bit, next_degree_bit)| degree_bit - next_degree_bit)
+        .collect()
 }
 
 #[cfg(test)]
@@ -741,12 +887,40 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
 
-    use crate::stark::batch_prover::batch_prove;
+    use crate::stark::batch_prover::{batch_prove, batch_reduction_arity_bits};
     use crate::stark::batch_verifier::batch_verify_proof;
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
-    use crate::stark::proof::BatchProof;
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs, PUBLIC_TABLE_KINDS};
     use crate::test_utils::fast_test_config;
     use crate::utils::from_u32;
+
+    #[test]
+    fn reduction_arity_bits_in_batch_proving() {
+        let degree_bits = vec![15, 8, 6, 5, 3];
+        let rate_bits = 2;
+        let cap_height = 0;
+        let expected_res = vec![3, 3, 1, 2, 1, 2];
+        assert_eq!(
+            expected_res,
+            batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
+        );
+
+        let rate_bits = 1;
+        let cap_height = 4;
+        let expected_res = vec![3, 3, 1, 2, 1, 2];
+        assert_eq!(
+            expected_res,
+            batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height)
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion failed")]
+    fn bad_reduction_arity_bits_in_batch_proving() {
+        let degree_bits = vec![8, 6, 5, 3];
+        let rate_bits = 2;
+        let cap_height = 6;
+        batch_reduction_arity_bits(&degree_bits, rate_bits, cap_height);
+    }
 
     #[test]
     fn batch_prove_add() {
@@ -774,20 +948,23 @@ mod tests {
             entry_point: from_u32(program.entry_point),
         };
 
-        // We cannot batch prove these tables because trace caps are needed as public
-        // inputs for the following tables.
-        let public_table_kinds = vec![TableKind::Program, TableKind::ElfMemoryInit];
-
-        let all_proof: BatchProof<F, C, D> = batch_prove(
+        let (all_proof, degree_bits) = batch_prove::<F, C, D>(
             &program,
             &record,
             &stark,
-            &public_table_kinds,
+            &PUBLIC_TABLE_KINDS,
             &config,
             public_inputs,
             &mut TimingTree::default(),
         )
         .unwrap();
-        batch_verify_proof(&stark, &public_table_kinds, all_proof, &config).unwrap();
+        batch_verify_proof(
+            &stark,
+            &PUBLIC_TABLE_KINDS,
+            all_proof,
+            &config,
+            &degree_bits,
+        )
+        .unwrap();
     }
 }

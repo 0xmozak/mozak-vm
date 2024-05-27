@@ -160,6 +160,7 @@ pub fn generate_memory_trace<F: RichField>(
     event_tape_rows: &[StorageDevice<F>],
     events_commitment_tape_rows: &[StorageDevice<F>],
     castlist_commitment_tape_rows: &[StorageDevice<F>],
+    self_prog_id_tape_rows: &[StorageDevice<F>],
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
     poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
@@ -178,6 +179,7 @@ pub fn generate_memory_trace<F: RichField>(
         transform_storage(event_tape_rows),
         transform_storage(events_commitment_tape_rows),
         transform_storage(castlist_commitment_tape_rows),
+        transform_storage(self_prog_id_tape_rows),
         transform_poseidon2_sponge(poseidon2_sponge_rows),
         transform_poseidon2_output_bytes(poseidon2_output_bytes_rows,),
     )
@@ -213,21 +215,21 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use super::pad_mem_trace;
-    use crate::generation::fullword_memory::generate_fullword_memory_trace;
-    use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
-    use crate::generation::memoryinit::generate_memory_init_trace;
-    use crate::generation::storage_device::{
-        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
-        generate_event_tape_trace, generate_events_commitment_tape_trace,
-        generate_private_tape_trace, generate_public_tape_trace,
-    };
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::memory_fullword::generation::generate_fullword_memory_trace;
+    use crate::memory_halfword::generation::generate_halfword_memory_trace;
+    use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
+    use crate::memoryinit::generation::generate_memory_init_trace;
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
+    use crate::storage_device::generation::{
+        generate_call_tape_trace, generate_cast_list_commitment_tape_trace,
+        generate_event_tape_trace, generate_events_commitment_tape_trace,
+        generate_private_tape_trace, generate_public_tape_trace, generate_self_prog_id_tape_trace,
+    };
     use crate::test_utils::{fast_test_config, prep_table};
 
     const D: usize = 2;
@@ -288,6 +290,7 @@ mod tests {
         let event_tape_rows = generate_event_tape_trace(&record.executed);
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&record.executed);
         let cast_list_commitment_tape_rows = generate_cast_list_commitment_tape_trace(&record.executed);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&record.executed);
         let poseidon2_sponge_trace = generate_poseidon2_sponge_trace(&record.executed);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_sponge_trace);
 
@@ -303,6 +306,7 @@ mod tests {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_sponge_trace,
             &poseidon2_output_bytes,
         );
@@ -378,6 +382,7 @@ mod tests {
         let events_commitment_tape_rows = generate_events_commitment_tape_trace(&[]);
         let cast_list_commitment_tape_rows =
             generate_cast_list_commitment_tape_trace(&[]);
+        let self_prog_id_tape_rows = generate_self_prog_id_tape_trace(&[]);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&[]);
         let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let trace = super::generate_memory_trace::<F>(
@@ -392,6 +397,7 @@ mod tests {
             &event_tape_rows,
             &events_commitment_tape_rows,
             &cast_list_commitment_tape_rows,
+            &self_prog_id_tape_rows,
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );

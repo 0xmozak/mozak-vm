@@ -12,11 +12,10 @@ version = "0.1.0"
 [dependencies]
 anyhow = { version = "1.0", default-features = false }
 bitfield = "0.15"
-derive_more = { version = "1.0.0-beta.6", features = ["full"] }
 elf = { version = "0.7" }
 env_logger = { version = "0.11" }
 im = "15.1"
-itertools = "0.12"
+itertools = "0.13"
 log = "0.4"
 mozak-sdk = { path = "../sdk" }
 plonky2 = { workspace = true, default-features = false }

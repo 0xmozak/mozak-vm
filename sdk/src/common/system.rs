@@ -1,27 +1,25 @@
-#[cfg(not(target_os = "mozakvm"))]
-use core::cell::RefCell;
-#[cfg(not(target_os = "mozakvm"))]
-use std::rc::Rc;
-
 use once_cell::unsync::Lazy;
-#[cfg(target_os = "mozakvm")]
 use rkyv::rancor::{Panic, Strategy};
-#[cfg(target_os = "mozakvm")]
 use rkyv::Deserialize;
+#[cfg(target_os = "mozakvm")]
+use {
+    crate::common::merkle::merkleize,
+    crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash},
+    crate::core::constants::DIGEST_BYTES,
+    crate::core::ecall::{
+        call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
+    },
+    core::ptr::slice_from_raw_parts,
+    std::collections::BTreeSet,
+};
+#[cfg(not(target_os = "mozakvm"))]
+use {core::cell::RefCell, std::rc::Rc};
 
-use super::types::{
-    CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
+use crate::common::traits::{Call, CallArgument, CallReturn, EventEmit};
+use crate::common::types::{
+    CallTapeType, Event, EventTapeType, PrivateInputTapeType, ProgramIdentifier,
+    PublicInputTapeType, SystemTape,
 };
-#[cfg(target_os = "mozakvm")]
-use crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, ProgramIdentifier};
-#[cfg(target_os = "mozakvm")]
-use crate::common::{merkle::merkleize, types::Poseidon2Hash};
-#[cfg(target_os = "mozakvm")]
-use crate::mozakvm::helpers::{
-    archived_repr, get_rkyv_archived, get_rkyv_deserialized, get_self_prog_id,
-};
-#[cfg(target_os = "mozakvm")]
-use crate::mozakvm::linker_symbols::{_mozak_call_tape, _mozak_cast_list, _mozak_event_tape};
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
 /// all the `IO-Tapes`, `CallTape` and the `EventTape` both in
@@ -35,7 +33,7 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     #[cfg(not(target_os = "mozakvm"))]
     {
         let common_identity_stack = Rc::from(RefCell::new(
-            crate::native::helpers::IdentityStack::default(),
+            crate::native::identity::IdentityStack::default(),
         ));
         SystemTape {
             private_input_tape: PrivateInputTapeType {
@@ -65,26 +63,137 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     // pre-populated data elements
     #[cfg(target_os = "mozakvm")]
     {
-        let events = get_rkyv_archived!(Vec<CanonicalOrderedTemporalHints>, _mozak_event_tape);
+        let mut self_prog_id_bytes = [0; DIGEST_BYTES];
+        self_prog_id_tape_read(self_prog_id_bytes.as_mut_ptr());
+        let self_prog_id = ProgramIdentifier(Poseidon2Hash::from(self_prog_id_bytes));
+
+        let call_tape = populate_call_tape(self_prog_id);
+        let event_tape = populate_event_tape(self_prog_id);
+
+        let mut size_hint_bytes = [0; 4];
+
+        ioread_public(size_hint_bytes.as_mut_ptr(), 4);
+        let size_hint: usize = u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
+        let public_input_tape = PublicInputTapeType::with_size_hint(size_hint);
+
+        ioread_private(size_hint_bytes.as_mut_ptr(), 4);
+        let size_hint: usize = u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
+        let private_input_tape = PrivateInputTapeType::with_size_hint(size_hint);
 
         SystemTape {
-            private_input_tape: PrivateInputTapeType::default(),
-            public_input_tape: PublicInputTapeType::default(),
-            call_tape: CallTapeType {
-                self_prog_id: get_self_prog_id(),
-                cast_list: get_rkyv_deserialized!(Vec<ProgramIdentifier>, _mozak_cast_list),
-                reader: Some(get_rkyv_archived!(Vec<CrossProgramCall>, _mozak_call_tape)),
-                index: 0,
-            },
-            event_tape: EventTapeType {
-                self_prog_id: get_self_prog_id(),
-                reader: Some(events),
-                seen: vec![false; events.len()],
-                index: 0,
-            },
+            private_input_tape,
+            public_input_tape,
+            call_tape,
+            event_tape,
         }
     }
 });
+
+#[cfg(target_os = "mozakvm")]
+/// Populates a `MozakVM` [`CallTapeType`] via ECALLs.
+///
+/// At this point, the [`CrossProgramCall`] messages are still rkyv-serialized,
+/// and must be deserialized at the point of consumption. Only the `callee`s are
+/// deserialized for persistence of the `cast_list`.
+fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
+    let mut len_bytes = [0; 4];
+    call_tape_read(len_bytes.as_mut_ptr(), 4);
+    let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
+    let mut buf = Vec::with_capacity(len);
+    call_tape_read(buf.as_mut_ptr(), len);
+
+    let archived_cpc_messages = unsafe {
+        rkyv::access_unchecked::<Vec<CrossProgramCall>>(&*slice_from_raw_parts(buf.as_ptr(), len))
+    };
+
+    let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
+        .iter()
+        .map(|m| {
+            m.callee
+                .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
+                .unwrap()
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+
+    CallTapeType {
+        cast_list,
+        self_prog_id,
+        reader: Some(archived_cpc_messages),
+        index: 0,
+    }
+}
+
+#[cfg(target_os = "mozakvm")]
+/// Populates a `MozakVM` [`EventTapeType`] via ECALLs.
+///
+/// At this point, the vector of [`CanonicalOrderedTemporalHints`] are still
+/// rkyv-serialized, and must be deserialized at the point of consumption.
+fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
+    let mut len_bytes = [0; 4];
+    event_tape_read(len_bytes.as_mut_ptr(), 4);
+    let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
+    let mut buf = Vec::with_capacity(len);
+    event_tape_read(buf.as_mut_ptr(), len);
+
+    let canonical_ordered_temporal_hints = unsafe {
+        rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(&*slice_from_raw_parts(
+            buf.as_ptr(),
+            len,
+        ))
+    };
+
+    EventTapeType {
+        self_prog_id,
+        reader: Some(canonical_ordered_temporal_hints),
+        seen: vec![false; canonical_ordered_temporal_hints.len()],
+        index: 0,
+    }
+}
+
+/// Emit an event from `mozak_vm` to provide receipts of
+/// `reads` and state updates including `create` and `delete`.
+/// Panics on event-tape non-abidance.
+pub fn event_emit(event: Event) {
+    unsafe {
+        SYSTEM_TAPE.event_tape.emit(event);
+    }
+}
+
+/// Receive one message from mailbox targetted to us and its index
+/// "consume" such message. Subsequent reads will never
+/// return the same message. Panics on call-tape non-abidance.
+#[must_use]
+pub fn call_receive<A, R>() -> Option<(ProgramIdentifier, A, R)>
+where
+    A: CallArgument + PartialEq,
+    R: CallReturn,
+    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    unsafe { SYSTEM_TAPE.call_tape.receive() }
+}
+
+/// Send one message from mailbox targetted to some third-party
+/// resulting in such messages finding itself in their mailbox
+/// Panics on call-tape non-abidance.
+#[allow(clippy::similar_names)]
+pub fn call_send<A, R>(
+    recipient_program: ProgramIdentifier,
+    argument: A,
+    resolver: impl Fn(A) -> R,
+) -> R
+where
+    A: CallArgument + PartialEq,
+    R: CallReturn,
+    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    unsafe {
+        SYSTEM_TAPE
+            .call_tape
+            .send(recipient_program, argument, resolver)
+    }
+}
 
 #[cfg(target_os = "mozakvm")]
 #[allow(dead_code)]
@@ -94,10 +203,14 @@ pub fn ensure_clean_shutdown() {
     use itertools::izip;
     unsafe {
         // Should have read the full call tape
-        assert!(SYSTEM_TAPE.call_tape.index == SYSTEM_TAPE.call_tape.reader.unwrap().len());
+        assert!(
+            SYSTEM_TAPE.call_tape.index == SYSTEM_TAPE.call_tape.reader.as_ref().unwrap().len()
+        );
 
         // Should have read the full event tape
-        assert!(SYSTEM_TAPE.event_tape.index == SYSTEM_TAPE.event_tape.reader.unwrap().len());
+        assert!(
+            SYSTEM_TAPE.event_tape.index == SYSTEM_TAPE.event_tape.reader.as_ref().unwrap().len()
+        );
 
         // Assert that event commitment tape has the same bytes
         // as Event Tape's actual commitment observable to us
@@ -110,7 +223,6 @@ pub fn ensure_clean_shutdown() {
             .unwrap()
             .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
             .unwrap();
-
         let calculated_commitment_ev = merkleize(
             canonical_event_temporal_hints
                 .iter()

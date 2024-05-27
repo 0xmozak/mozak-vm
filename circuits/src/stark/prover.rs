@@ -8,14 +8,16 @@ use log::Level::Debug;
 use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
+use mozak_sdk::common::types::ProgramIdentifier;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
+use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut, Hasher};
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -24,13 +26,15 @@ use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
+use super::mozak_stark::{
+    all_starks_par, MozakStark, TableKind, TableKindArray, TableKindSetBuilder,
+};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::public_sub_table::public_sub_table_data_and_values;
-use crate::stark::mozak_stark::{all_starks, PublicInputs};
+use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 
@@ -53,19 +57,37 @@ pub fn prove<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
     debug!("Starting Prove");
-    let traces_poly_values = generate_traces(program, record);
-    if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
-        debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
-        debug_ctl(&traces_poly_values, mozak_stark);
-    }
-    prove_with_traces(
-        mozak_stark,
-        config,
-        public_inputs,
-        &traces_poly_values,
+    let traces_poly_values = timed!(
         timing,
+        "Generate traces",
+        generate_traces(program, record, timing)
+    );
+    debug!("Done with Trace Generation");
+    if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
+        timed!(
+            timing,
+            "Mozak stark debug",
+            debug_traces(&traces_poly_values, mozak_stark, &public_inputs)
+        );
+        timed!(
+            timing,
+            "Mozak CTL debug",
+            debug_ctl(&traces_poly_values, mozak_stark)
+        );
+    }
+    timed!(
+        timing,
+        "Prove with Traces",
+        prove_with_traces(
+            mozak_stark,
+            config,
+            public_inputs,
+            &traces_poly_values,
+            timing,
+        )
     )
 }
 
@@ -82,7 +104,8 @@ pub fn prove_with_traces<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -90,9 +113,10 @@ where
         timing,
         "Compute trace commitments for each table",
         traces_poly_values
-            .clone()
+            .each_ref()
             .with_kind()
-            .map(|(trace, table)| {
+            .par_map(|(trace, table)| {
+                let mut timing = TimingTree::default();
                 timed!(
                     timing,
                     &format!("compute trace commitment for {table:?}"),
@@ -101,7 +125,7 @@ where
                         rate_bits,
                         false,
                         cap_height,
-                        timing,
+                        &mut timing,
                         None,
                     )
                 )
@@ -142,7 +166,6 @@ where
             mozak_stark,
             config,
             &public_inputs,
-            traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
             &public_sub_table_data_per_table,
@@ -151,18 +174,44 @@ where
         )?
     );
 
-    let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
-    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
+    let program_id = get_program_id::<F, C, D>(
+        public_inputs.entry_point,
+        &trace_caps[TableKind::Program],
+        &trace_caps[TableKind::ElfMemoryInit],
+    );
+
     if log_enabled!(Debug) {
         timing.print();
     }
+
     Ok(AllProof {
         proofs,
-        program_rom_trace_cap,
-        elf_memory_init_trace_cap,
         public_inputs,
         public_sub_table_values,
+        program_id,
     })
+}
+
+pub fn get_program_id<F, C, const D: usize>(
+    entry_point: F,
+    program_trace_cap: &MerkleCap<F, C::Hasher>,
+    elf_memory_init_trace_cap: &MerkleCap<F, C::Hasher>,
+) -> ProgramIdentifier
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>, {
+    let hash_pad_func = <<C as GenericConfig<D>>::InnerHasher as Hasher<F>>::hash_pad;
+    let hashout = hash_pad_func(
+        &itertools::chain!(
+            [entry_point],
+            hash_pad_func(&program_trace_cap.flatten()).elements,
+            hash_pad_func(&elf_memory_init_trace_cap.flatten()).elements,
+        )
+        .collect_vec(),
+    );
+    let hashout_bytes: [u8; 32] = hashout.to_bytes().try_into().unwrap();
+    ProgramIdentifier(hashout_bytes.into())
 }
 
 /// Compute proof for a single STARK table, with lookup data.
@@ -175,7 +224,6 @@ where
 pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,
-    trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
@@ -187,7 +235,7 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D> + Display, {
-    let degree = trace_poly_values[0].len();
+    let degree = trace_commitment.polynomials[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
     let rate_bits = config.fri_config.rate_bits;
@@ -348,35 +396,37 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: &PublicInputs<F>,
-    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     public_sub_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
-    timing: &mut TimingTree,
+    _timing: &mut TimingTree,
 ) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    let cpu_stark = [public_inputs.entry_point];
+    let cpu_skeleton_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
-        cpu_stark: &cpu_stark,
+        cpu_skeleton_stark: &cpu_skeleton_stark,
         ..Default::default()
     }
     .build();
+    challenger.compact();
+    let challenger: &Challenger<F, C::Hasher> = &challenger.clone();
 
-    Ok(all_starks!(mozak_stark, |stark, kind| {
+    Ok(all_starks_par!(mozak_stark, |stark, kind| {
+        let mut timing = TimingTree::default();
         prove_single_table(
             stark,
             config,
-            &traces_poly_values[kind],
             &trace_commitments[kind],
             public_inputs[kind],
             &ctl_data_per_table[kind],
             &public_sub_data_per_table[kind],
-            challenger,
-            timing,
-        )?
+            &mut challenger.clone(),
+            &mut timing,
+        )
+        .unwrap()
     }))
 }
 

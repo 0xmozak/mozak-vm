@@ -1,4 +1,3 @@
-#![feature(restricted_std)]
 #![allow(unused_attributes)]
 mod core_logic;
 use mozak_sdk::common::types::{ProgramIdentifier, StateAddress, StateObject};
@@ -11,11 +10,25 @@ fn main() {
     // We assume both wallet are the same program for now
     let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
     let remittee_program = ProgramIdentifier::new_from_rand_seed(3);
-    let remitter_pub_key = wallet::PublicKey::new_from_rand_seed(4);
-    let remittee_pub_key = wallet::PublicKey::new_from_rand_seed(5);
+    let remitter_private_key = wallet::PrivateKey::new_from_rand_seed(4);
+    let remitter_public_key = wallet::PublicKey(
+        mozak_sdk::native::poseidon::poseidon2_hash_no_pad(&remitter_private_key.0),
+    );
+
+    mozak_sdk::add_identity(remitter_program); // Manual override for `IdentityStack`
+    let _ = mozak_sdk::write(
+        &mozak_sdk::InputTapeType::PrivateTape,
+        &remitter_private_key.0[..],
+    );
+    mozak_sdk::rm_identity(); // Manual override for `IdentityStack`
+
+    let remittee_private_key = wallet::PrivateKey::new_from_rand_seed(5);
+    let remittee_public_key = wallet::PublicKey(
+        mozak_sdk::native::poseidon::poseidon2_hash_no_pad(&remittee_private_key.0),
+    );
 
     let token_object = wallet::TokenObject {
-        pub_key: remitter_pub_key,
+        pub_key: remitter_public_key,
         amount: 100.into(),
     };
 
@@ -33,10 +46,10 @@ fn main() {
             state_object,
             remitter_program,
             remittee_program,
-            remittee_pub_key,
+            remittee_public_key,
         ),
         dispatch,
     );
 
-    mozak_sdk::native::dump_proving_files("token");
+    mozak_sdk::native::dump_proving_files();
 }
