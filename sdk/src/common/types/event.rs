@@ -19,6 +19,7 @@ use crate::native::poseidon::poseidon2_hash_no_pad;
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
 #[allow(clippy::module_name_repetitions)]
+#[archive(check_bytes)]
 #[repr(u8)]
 pub enum EventType {
     Write = 0,
@@ -61,6 +62,7 @@ pub struct Event {
     not(target_os = "mozakvm"),
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
+#[archive(check_bytes)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CanonicalEvent {
     pub address: super::StateAddress,
@@ -117,4 +119,5 @@ impl CanonicalEvent {
     not(target_os = "mozakvm"),
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
+#[archive(check_bytes)]
 pub struct CanonicalOrderedTemporalHints(pub CanonicalEvent, pub u32);

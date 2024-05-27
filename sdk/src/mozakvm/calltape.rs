@@ -1,4 +1,6 @@
-use rkyv::rancor::{Panic, Strategy};
+use rkyv::bytecheck::CheckBytes;
+use rkyv::rancor::{Failure, Panic, Strategy};
+use rkyv::validation::validators::DefaultValidator;
 use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{Call, CallArgument, CallReturn, SelfIdentify};
@@ -37,7 +39,9 @@ impl Call for CallTape {
         A: CallArgument + PartialEq,
         R: CallReturn,
         <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-        <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+        <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
+        <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
+        <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>, {
         // Ensure we aren't validating past the length of the event tape
         assert!(self.index < self.reader.as_ref().unwrap().len());
 
@@ -52,7 +56,7 @@ impl Call for CallTape {
         assert!(self.is_casted_actor(&recipient_program));
 
         // Deserialize the `arguments` seen on the tape, and assert
-        let zcd_args = unsafe { rkyv::access_unchecked::<A>(&cpcmsg.argument.0[..]) };
+        let zcd_args = rkyv::access::<A, Failure>(&cpcmsg.argument.0[..]).unwrap();
         let deserialized_args =
             <<A as Archive>::Archived as Deserialize<A, Strategy<(), Panic>>>::deserialize(
                 zcd_args,
@@ -67,7 +71,7 @@ impl Call for CallTape {
         // Return the claimed return value as seen on the tape
         // It remains that specific program's prerogative to ensure
         // that the return value used here is according to expectation
-        let zcd_ret = unsafe { rkyv::access_unchecked::<R>(&cpcmsg.return_.0[..]) };
+        let zcd_ret = rkyv::access::<R, Failure>(&cpcmsg.return_.0[..]).unwrap();
         <<R as Archive>::Archived as Deserialize<R, Strategy<(), Panic>>>::deserialize(
             zcd_ret,
             Strategy::wrap(&mut ()),
@@ -81,7 +85,9 @@ impl Call for CallTape {
         A: CallArgument + PartialEq,
         R: CallReturn,
         <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-        <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+        <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
+        <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
+        <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>, {
         // Loop until we completely traverse the call tape in the
         // worst case. Hopefully, we see a message directed towards us
         // before the end
@@ -115,11 +121,11 @@ impl Call for CallTape {
                 assert!(self.is_casted_actor(&caller));
 
                 let archived_args =
-                    unsafe { rkyv::access_unchecked::<A>(zcd_cpcmsg.argument.0.as_slice()) };
+                    rkyv::access::<A, Failure>(zcd_cpcmsg.argument.0.as_slice()).unwrap();
                 let args: A = archived_args.deserialize(Strategy::wrap(&mut ())).unwrap();
 
                 let archived_ret =
-                    unsafe { rkyv::access_unchecked::<R>(zcd_cpcmsg.return_.0.as_slice()) };
+                    rkyv::access::<R, Failure>(zcd_cpcmsg.return_.0.as_slice()).unwrap();
                 let ret: R = archived_ret.deserialize(Strategy::wrap(&mut ())).unwrap();
 
                 return Some((caller, args, ret));

@@ -20,6 +20,7 @@ pub const STATE_TREE_DEPTH: usize = 8;
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
+#[archive(check_bytes)]
 pub struct StateAddress(
     #[cfg_attr(not(target_os = "mozakvm"), serde(with = "SerHex::<StrictPfx>"))]
     pub  [u8; STATE_TREE_DEPTH],

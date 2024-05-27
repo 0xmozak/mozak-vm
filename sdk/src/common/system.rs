@@ -1,5 +1,7 @@
 use once_cell::unsync::Lazy;
-use rkyv::rancor::{Panic, Strategy};
+use rkyv::bytecheck::CheckBytes;
+use rkyv::rancor::{Failure, Panic, Strategy};
+use rkyv::validation::validators::DefaultValidator;
 use rkyv::Deserialize;
 #[cfg(target_os = "mozakvm")]
 use {
@@ -102,7 +104,10 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let mut buf = Vec::with_capacity(len);
     call_tape_read(buf.as_mut_ptr(), len);
 
-    let archived_cpc_messages = rkyv::access::<Vec<CrossProgramCall>, Panic>(&buf[..]).unwrap();
+    let archived_cpc_messages = rkyv::access::<Vec<CrossProgramCall>, Panic>(unsafe {
+        &*slice_from_raw_parts(buf.as_ptr(), len)
+    })
+    .unwrap();
 
     let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
         .iter()
@@ -135,12 +140,11 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     let mut buf = Vec::with_capacity(len);
     event_tape_read(buf.as_mut_ptr(), len);
 
-    let canonical_ordered_temporal_hints = unsafe {
-        rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(&*slice_from_raw_parts(
-            buf.as_ptr(),
-            len,
-        ))
-    };
+    let canonical_ordered_temporal_hints =
+        rkyv::access::<Vec<CanonicalOrderedTemporalHints>, Failure>(unsafe {
+            &*slice_from_raw_parts(buf.as_ptr(), len)
+        })
+        .unwrap();
 
     EventTapeType {
         self_prog_id,
@@ -168,7 +172,9 @@ where
     A: CallArgument + PartialEq,
     R: CallReturn,
     <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>, {
     unsafe { SYSTEM_TAPE.call_tape.receive() }
 }
 
@@ -184,8 +190,11 @@ pub fn call_send<A, R>(
 where
     A: CallArgument + PartialEq,
     R: CallReturn,
+
     <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>, {
     unsafe {
         SYSTEM_TAPE
             .call_tape

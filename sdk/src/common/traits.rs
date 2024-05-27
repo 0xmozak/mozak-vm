@@ -1,7 +1,9 @@
-use rkyv::rancor::{Panic, Strategy};
+use rkyv::bytecheck::CheckBytes;
+use rkyv::rancor::{Failure, Panic, Strategy};
 use rkyv::ser::allocator::{AllocationTracker, GlobalAllocator};
 use rkyv::ser::{AllocSerializer, Composite};
 use rkyv::util::AlignedVec;
+use rkyv::validation::validators::DefaultValidator;
 use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::common::types::{Event, ProgramIdentifier};
@@ -36,7 +38,9 @@ pub trait Call: SelfIdentify {
         A: CallArgument + PartialEq,
         R: CallReturn,
         <A as Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-        <R as Archive>::Archived: Deserialize<R, Strategy<(), Panic>>;
+        <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
+        <R as Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
+        <R as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>;
 
     /// `receive` emulates a function call directed towards the
     /// program, presents back with a three tuple of the form
@@ -50,7 +54,10 @@ pub trait Call: SelfIdentify {
         A: CallArgument + PartialEq,
         R: CallReturn,
         <A as Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-        <R as Archive>::Archived: Deserialize<R, Strategy<(), Panic>>;
+        <A as rkyv::Archive>::Archived: CheckBytes<Strategy<DefaultValidator, Failure>>,
+        <R as Archive>::Archived: Deserialize<R, Strategy<(), Panic>>,
+        <R as rkyv::Archive>::Archived:
+            CheckBytes<Strategy<DefaultValidator, rkyv::rancor::Failure>>;
 }
 
 /// `EventEmit` trait provides method `emit` to use the underlying
