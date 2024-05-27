@@ -23,8 +23,7 @@ once_cell = "1"
 tested-fixture = "1"
 
 [features]
-# test = ["plonky2/parallel"]
-test = []
+test = ["plonky2/parallel"]
 
 [[bench]]
 harness = false
