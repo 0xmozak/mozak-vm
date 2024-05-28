@@ -64,6 +64,7 @@ pub struct Event {
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
 #[allow(clippy::module_name_repetitions)]
+#[allow(clippy::unsafe_derive_deserialize)]
 pub struct CanonicalEvent {
     pub address: super::StateAddress,
     pub type_: EventType,
@@ -73,21 +74,15 @@ pub struct CanonicalEvent {
 impl CanonicalEvent {
     #[must_use]
     pub fn from_event(value: &Event) -> Self {
-        #[cfg(not(target_os = "mozakvm"))]
-        {
-            Self {
-                address: value.object.address,
-                type_: value.type_,
-                value: crate::native::poseidon::poseidon2_hash_with_pad(&value.object.data),
-            }
-        }
         #[cfg(target_os = "mozakvm")]
-        {
-            Self {
-                address: value.object.address,
-                type_: value.type_,
-                value: crate::mozakvm::poseidon::poseidon2_hash_with_pad(&value.object.data),
-            }
+        use crate::mozakvm::poseidon::poseidon2_hash_with_pad;
+        #[cfg(not(target_os = "mozakvm"))]
+        use crate::native::poseidon::poseidon2_hash_with_pad;
+
+        Self {
+            address: value.object.address,
+            type_: value.type_,
+            value: poseidon2_hash_with_pad(&value.object.data),
         }
     }
 
