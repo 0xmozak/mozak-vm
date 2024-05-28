@@ -249,7 +249,7 @@ pub fn ensure_clean_shutdown() {
 
         let calculated_commitment_cl = merkleize(
             cast_list
-                .into_iter()
+                .iter()
                 .enumerate()
                 .map(|(idx, x)| (idx as u64, x.0))
                 .collect(),

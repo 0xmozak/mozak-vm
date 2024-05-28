@@ -52,6 +52,7 @@ impl Poseidon2Hash {
         bytes.map(u64::from_le_bytes)
     }
 
+    #[must_use]
     pub fn two_to_one(l: Self, r: Self) -> Self {
         #[cfg(target_os = "mozakvm")]
         use crate::mozakvm::poseidon::poseidon2_hash_no_pad;
