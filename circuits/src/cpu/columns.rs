@@ -388,15 +388,14 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
-    let ecall = &CPU.ecall_selectors;
     let storage = [
-        ecall.is_private_tape,
-        ecall.is_public_tape,
-        ecall.is_call_tape,
-        ecall.is_event_tape,
-        ecall.is_events_commitment_tape,
-        ecall.is_cast_list_commitment_tape,
-        ecall.is_self_prog_id_tape,
+        CPU.ecall_selectors.is_private_tape,
+        CPU.ecall_selectors.is_public_tape,
+        CPU.ecall_selectors.is_call_tape,
+        CPU.ecall_selectors.is_event_tape,
+        CPU.ecall_selectors.is_events_commitment_tape,
+        CPU.ecall_selectors.is_cast_list_commitment_tape,
+        CPU.ecall_selectors.is_self_prog_id_tape,
     ];
     CpuTable::new(
         StorageDeviceCtl {
