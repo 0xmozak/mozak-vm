@@ -10,7 +10,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
-use crate::cpu::columns::CpuState;
+use crate::cpu::columns::{CpuState, EcallSelectors};
 use crate::cpu_skeleton::columns::CpuSkeleton;
 use crate::expr::PureEvaluator;
 use crate::generation::MIN_TRACE_LENGTH;
@@ -103,41 +103,43 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             xor: generate_xor_row(inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
-            is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
-            is_private_tape: F::from_bool(matches!(
-                (inst.op, io.op),
-                (Op::ECALL, StorageDeviceOpcode::StorePrivate)
-            )),
-            is_public_tape: F::from_bool(matches!(
-                (inst.op, io.op),
-                (Op::ECALL, StorageDeviceOpcode::StorePublic)
-            )),
-            is_call_tape: F::from_bool(matches!(
-                (inst.op, io.op),
-                (Op::ECALL, StorageDeviceOpcode::StoreCallTape)
-            )),
-            is_event_tape: F::from_bool(matches!(
-                (inst.op, io.op),
-                (Op::ECALL, StorageDeviceOpcode::StoreEventTape)
-            )),
-            is_events_commitment_tape: F::from_bool(matches!(
-                (inst.op, io.op),
-                (Op::ECALL, StorageDeviceOpcode::StoreEventsCommitmentTape)
-            )),
-            is_cast_list_commitment_tape: F::from_bool(matches!(
-                (inst.op, io.op),
-                (Op::ECALL, StorageDeviceOpcode::StoreCastListCommitmentTape)
-            )),
-            is_self_prog_id_tape: F::from_bool(matches!(
-                (inst.op, io.op),
-                (Op::ECALL, StorageDeviceOpcode::StoreSelfProgIdTape)
-            )),
-            is_halt: F::from_bool(matches!(
-                (inst.op, state.registers[usize::from(REG_A0)]),
-                (Op::ECALL, ecall::HALT)
-            )),
+            ecall_selectors: EcallSelectors {
+                is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
+                is_private_tape: F::from_bool(matches!(
+                    (inst.op, io.op),
+                    (Op::ECALL, StorageDeviceOpcode::StorePrivate)
+                )),
+                is_public_tape: F::from_bool(matches!(
+                    (inst.op, io.op),
+                    (Op::ECALL, StorageDeviceOpcode::StorePublic)
+                )),
+                is_call_tape: F::from_bool(matches!(
+                    (inst.op, io.op),
+                    (Op::ECALL, StorageDeviceOpcode::StoreCallTape)
+                )),
+                is_event_tape: F::from_bool(matches!(
+                    (inst.op, io.op),
+                    (Op::ECALL, StorageDeviceOpcode::StoreEventTape)
+                )),
+                is_events_commitment_tape: F::from_bool(matches!(
+                    (inst.op, io.op),
+                    (Op::ECALL, StorageDeviceOpcode::StoreEventsCommitmentTape)
+                )),
+                is_cast_list_commitment_tape: F::from_bool(matches!(
+                    (inst.op, io.op),
+                    (Op::ECALL, StorageDeviceOpcode::StoreCastListCommitmentTape)
+                )),
+                is_self_prog_id_tape: F::from_bool(matches!(
+                    (inst.op, io.op),
+                    (Op::ECALL, StorageDeviceOpcode::StoreSelfProgIdTape)
+                )),
+                is_halt: F::from_bool(matches!(
+                    (inst.op, state.registers[usize::from(REG_A0)]),
+                    (Op::ECALL, ecall::HALT)
+                )),
+            },
             ..CpuState::default()
         };
 
