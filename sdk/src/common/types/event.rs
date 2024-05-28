@@ -1,3 +1,5 @@
+use crate::common::types::state_address::STATE_TREE_DEPTH;
+use crate::core::constants::DIGEST_BYTES;
 #[cfg(target_os = "mozakvm")]
 use crate::mozakvm::poseidon::poseidon2_hash_no_pad;
 #[cfg(not(target_os = "mozakvm"))]
@@ -91,12 +93,13 @@ impl CanonicalEvent {
 
     #[must_use]
     pub fn canonical_hash(&self) -> super::poseidon2hash::Poseidon2Hash {
-        let data_to_hash: Vec<u8> = itertools::chain!(
+        const U64_LEN: usize = 0u64.to_be_bytes().len();
+        const LEN: usize = U64_LEN + STATE_TREE_DEPTH + DIGEST_BYTES;
+        let data_to_hash: [u8; LEN] = array_concat::concat_arrays!(
             u64::from(self.type_ as u8).to_le_bytes(),
             self.address.inner(),
-            self.value.inner(),
-        )
-        .collect();
+            self.value.inner()
+        );
         poseidon2_hash_no_pad(&data_to_hash)
     }
 }

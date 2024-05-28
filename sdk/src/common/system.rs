@@ -200,7 +200,6 @@ where
 pub fn ensure_clean_shutdown() {
     // Ensure we have read the whole tape
 
-    use itertools::izip;
     unsafe {
         // Should have read the full call tape
         assert!(
@@ -248,8 +247,14 @@ pub fn ensure_clean_shutdown() {
 
         let cast_list = &SYSTEM_TAPE.call_tape.cast_list;
 
-        let calculated_commitment_cl =
-            merkleize(izip!(0.., cast_list).map(|(idx, x)| (idx, x.0)).collect()).0;
+        let calculated_commitment_cl = merkleize(
+            cast_list
+                .into_iter()
+                .enumerate()
+                .map(|(idx, x)| (idx as u64, x.0))
+                .collect(),
+        )
+        .0;
 
         assert!(claimed_commitment_cl == calculated_commitment_cl);
     }
