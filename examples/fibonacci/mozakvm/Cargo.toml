@@ -1,3 +1,4 @@
+[workspace]
 [package]
 edition = "2021"
 name = "fibonacci-mozakvm"

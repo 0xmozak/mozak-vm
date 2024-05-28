@@ -1,12 +1,7 @@
 [workspace]
 members = [
-  "*/native",
-  "*/mozakvm"
+  "*/native"
 ]
-default-members = [
-  "*/native",
-]
-exclude = ["*/mozakvm"]
 
 resolver = "2"
 
