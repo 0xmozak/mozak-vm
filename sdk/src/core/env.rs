@@ -13,14 +13,16 @@ pub fn init() {}
 #[cfg(target_os = "mozakvm")]
 pub fn finalize() {
     unsafe {
-        super::ecall::halt(OUTPUT_BYTES.first().unwrap_or_default());
+        super::ecall::halt(OUTPUT_BYTES.first().copied().unwrap_or_default());
     }
 }
 
 #[allow(dead_code)]
 pub fn write(output_data: &[u8]) {
     #[cfg(target_os = "mozakvm")]
-    OUTPUT_BYTES.extend_from_slice(output_data);
+    unsafe {
+        OUTPUT_BYTES.extend_from_slice(output_data);
+    }
 
     #[cfg(not(target_os = "mozakvm"))]
     core::hint::black_box(output_data);
