@@ -27,7 +27,7 @@ pub(crate) fn storage_device_constraints<'a, P: Copy>(
     lv: &CpuState<Expr<'a, P>>,
     cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
-    let ecalls = lv.ecall_selectors;
+    let ecalls = &lv.ecall_selectors;
     cb.always(ecalls.is_private_tape * (lv.op1_value - i64::from(ecall::PRIVATE_TAPE)));
     cb.always(ecalls.is_public_tape * (lv.op1_value - i64::from(ecall::PUBLIC_TAPE)));
     cb.always(ecalls.is_call_tape * (lv.op1_value - i64::from(ecall::CALL_TAPE)));
