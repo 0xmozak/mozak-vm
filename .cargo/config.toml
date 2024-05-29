@@ -14,24 +14,28 @@ build-mozakvm = """
           -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
           -Zbuild-std-features=compiler-builtins-mem
     """
+check-mozakvm = """
+    check \
+        --target riscv32im-mozak-mozakvm-elf \
+        -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
+        -Zbuild-std-features=compiler-builtins-mem \
+    """
+clippy-mozakvm = """
+    clippy \
+        --target riscv32im-mozak-mozakvm-elf \
+        -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
+        -Zbuild-std-features=compiler-builtins-mem \
+    """
 run-mozakvm = """
     run --release \
           --target riscv32im-mozak-mozakvm-elf \
           -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
           -Zbuild-std-features=compiler-builtins-mem 
     """
-clippy-mozakvm = """
-    clippy --locked --all-features \
-        --target riscv32im-mozak-mozakvm-elf \
-        -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
-        -Zbuild-std-features=compiler-builtins-mem  
-        -- \
-        -D warnings  
-"""
 [target.riscv32im-mozak-mozakvm-elf]
 runner = "examples/scripts/run_script.sh"
 rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
 
 [env]
 # path where riscv32im-mozak-mozakvm-elf.json lies
-RUST_TARGET_PATH = { value = ".cargo/", relative = true,  force = true }
+RUST_TARGET_PATH = { value = ".cargo/", relative = true, force = true }

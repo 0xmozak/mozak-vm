@@ -5,7 +5,7 @@ for example in *; do
         for target in  *; do
             if [ "$target" == "mozakvm" ]; then
                 cd mozakvm;
-                cargo build-mozakvm;
+                $@;
                 cd ..
             fi
         done
