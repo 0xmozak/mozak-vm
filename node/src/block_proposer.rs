@@ -124,16 +124,14 @@ impl BranchAddress {
     /// Find the common ancestor between `self` and `rhs`
     #[must_use]
     pub fn common_ancestor(mut self, mut rhs: Self) -> Self {
-        while self.height > rhs.height {
-            self = self.parent();
-        }
-        while rhs.height > self.height {
-            rhs = rhs.parent();
-        }
-        while self.addr != rhs.addr {
-            self = self.parent();
-            rhs = rhs.parent();
-        }
+        let d1 = self.height.saturating_sub(rhs.height);
+        let d2 = rhs.height.saturating_sub(self.height);
+        self = self.parent(d2);
+        rhs = rhs.parent(d1);
+
+        let ancestor_diff = u64::BITS - (self.addr.0 ^ rhs.addr.0).leading_zeros();
+        self = self.parent(ancestor_diff as usize);
+        debug_assert_eq!(self, rhs.parent(ancestor_diff as usize));
         self
     }
 
@@ -153,12 +151,12 @@ impl BranchAddress {
         }
     }
 
-    /// Move upward, adding a `0|1` bit based on the dir (`Left|Right`).
+    /// Move upward, removing the bottom `n` bits.
     /// If we've reached the bottom, return an `Address` instead
     #[must_use]
-    pub fn parent(mut self) -> Self {
-        self.addr = Address(self.addr.0 >> 1);
-        self.height += 1;
+    pub fn parent(mut self, n: usize) -> Self {
+        self.addr.0 >>= n;
+        self.height += n;
         self
     }
 
@@ -243,6 +241,40 @@ pub enum BranchAddressComparison {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_common_ancestor() {
+        let dirs = [Dir::Left, Dir::Right];
+        let parent = BranchAddress::root(10);
+        let children = dirs.map(|d| parent.child(d).unwrap());
+        let grandchildren = children.map(|c| dirs.map(|d| c.child(d).unwrap()));
+        let great_grandchildren =
+            grandchildren.map(|c| c.map(|c| dirs.map(|d| c.child(d).unwrap())));
+
+        let a = great_grandchildren[0][0][0];
+        let b = great_grandchildren[0][0][0];
+        let c = great_grandchildren[0][0][0];
+        assert_eq!(a.common_ancestor(b), c);
+        assert_eq!(b.common_ancestor(a), c);
+
+        let a = great_grandchildren[0][0][0];
+        let b = great_grandchildren[0][0][1];
+        let c = grandchildren[0][0];
+        assert_eq!(a.common_ancestor(b), c);
+        assert_eq!(b.common_ancestor(a), c);
+
+        let a = great_grandchildren[0][0][0];
+        let b = great_grandchildren[0][1][1];
+        let c = children[0];
+        assert_eq!(a.common_ancestor(b), c);
+        assert_eq!(b.common_ancestor(a), c);
+
+        let a = great_grandchildren[0][0][0];
+        let b = great_grandchildren[1][0][0];
+        let c = parent;
+        assert_eq!(a.common_ancestor(b), c);
+        assert_eq!(b.common_ancestor(a), c);
+    }
 
     #[test]
     fn test_branch_compare() {
