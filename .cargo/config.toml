@@ -46,8 +46,8 @@ panic = "abort"
 
 # profile for mozakvm binaries
 [profile.mozak-release]
-inherits = "release"
 codegen-units = 1
+inherits = "release"
 lto = "fat"
 opt-level = 3
 panic = "abort"
