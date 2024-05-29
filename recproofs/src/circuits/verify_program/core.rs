@@ -192,9 +192,7 @@ impl<C: GenericConfig<D>, const D: usize> EventRootVerifierTargets<C, D> {
                 .inputs
                 .unpruned_hash
                 .elements;
-            builder.register_public_inputs(&zero_circuit_event_owner);
-            builder.register_public_inputs(&hash);
-            builder.register_public_inputs(&vm_hash);
+            builder.register_public_inputs(&circuit.prover_only.public_inputs);
             for v in hash {
                 builder.assert_zero(v);
             }
