@@ -347,13 +347,13 @@ fn main() -> Result<()> {
                         .unwrap_or_else(|_| panic!("Elf filepath {elf:?} not found")),
                 )?;
 
-                let raw_tape =
+                let raw_tapes =
                     raw_tapes_from_system_tape(Some(system_tape_path.clone()), *program_id);
                 if i == 0 {
                     let rate_bits = config.fri_config.rate_bits;
                     let cap_height = config.fri_config.cap_height;
 
-                    let state: State<F> = State::new(program.clone(), raw_tape.clone());
+                    let state: State<F> = State::new(program.clone(), raw_tapes.clone());
                     let record =
                         step(&program, state).expect("Could not step through the given program");
 
