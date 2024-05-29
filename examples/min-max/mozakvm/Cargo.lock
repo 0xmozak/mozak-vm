@@ -28,6 +28,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
 
 [[package]]
+name = "array-concat"
+version = "0.5.2"
+source = "git+https://github.com/Daniel-Aaron-Bloom/array-concat.git#c929d49bc0f3c5f7e25d87fb940ece830e87e8da"
+
+[[package]]
 name = "array-init"
 version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -35,6 +40,21 @@ checksum = "23589ecb866b460d3a0f1278834750268c607e8e28a1b982c907219f3178cd72"
 dependencies = [
  "nodrop",
 ]
+
+[[package]]
+name = "array-util"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e509844de8f09b90a2c3444684a2b6695f4071360e13d2fda0af9f749cc2ed6"
+dependencies = [
+ "arrayvec",
+]
+
+[[package]]
+name = "arrayvec"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 
 [[package]]
 name = "autocfg"
@@ -187,8 +207,9 @@ dependencies = [
 name = "mozak-sdk"
 version = "0.2.0"
 dependencies = [
+ "array-concat",
+ "array-util",
  "hex",
- "itertools",
  "once_cell",
  "plonky2",
  "rand",
@@ -198,7 +219,7 @@ dependencies = [
  "serde",
  "serde-hex",
  "serde_json",
- "slice-group-by",
+ "vec-entries",
 ]
 
 [[package]]
@@ -505,12 +526,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "slice-group-by"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
-
-[[package]]
 name = "smallvec"
 version = "0.6.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -580,6 +595,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "vec-entries"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a2458377b6781101b5bc9f679e49c42b4989ccf3bcc4f7b36adc7e1489fd723"
 
 [[package]]
 name = "version_check"

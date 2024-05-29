@@ -1,5 +1,10 @@
 #!/bin/bash
-current_dir=$(pwd) &&
-cd ../../.. &&
-cargo build --release --bin mozak-cli &&
-./target/release/mozak-cli -vvv run $@
+
+set -euo pipefail
+
+current_dir=$(pwd) 
+cd ../../.. 
+cargo build --bin mozak-cli 
+project_root=$(pwd)
+cd $current_dir
+$project_root/target/debug/mozak-cli -vvv run $@
