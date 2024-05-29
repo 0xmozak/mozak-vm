@@ -656,8 +656,8 @@ pub mod test {
         )
     }
 
-    #[tested_fixture::tested_fixture(PM_EMPTY_EVENT_LEAF_PROOF: LeafProof<F, C, D>)]
-    fn verify_empty_leaf() -> Result<LeafProof<F, C, D>> {
+    #[test]
+    fn verify_empty_leaf_pm() -> Result<()> {
         let program_proof = PROGRAM_M
             .prove(None, NON_ZERO_VALUES[0], CAST_ROOT[0])
             .expect("shouldn't fail");
@@ -673,8 +673,29 @@ pub mod test {
             Err(PROGRAM_M.program_hash_val),
         )?;
         assert_proof(&proof, None, PROGRAM_M.program_hash_val);
-        LEAF.verify(proof.clone())?;
-        Ok(proof)
+        LEAF.verify(proof)?;
+        Ok(())
+    }
+
+    #[test]
+    fn verify_empty_leaf_p0() -> Result<()> {
+        let program_proof = PROGRAM_0
+            .prove(None, NON_ZERO_VALUES[0], CAST_ROOT[0])
+            .expect("shouldn't fail");
+        PROGRAM_0
+            .circuit
+            .verify(program_proof.clone())
+            .expect("shouldn't fail");
+
+        let proof = LEAF.prove(
+            &BRANCH,
+            &PROGRAM_0.circuit.verifier_only,
+            &program_proof,
+            Err(PROGRAM_0.program_hash_val),
+        )?;
+        assert_proof(&proof, None, PROGRAM_0.program_hash_val);
+        LEAF.verify(proof)?;
+        Ok(())
     }
 
     #[test]

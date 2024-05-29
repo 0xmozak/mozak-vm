@@ -2,8 +2,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use itertools::Itertools;
-
 use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{
     CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
@@ -118,7 +116,7 @@ impl OrderedEvents {
                     event.canonical_hash(),
                 )
             })
-            .collect_vec();
+            .collect::<Vec<_>>();
         crate::common::merkle::merkleize(hashes_with_addr)
     }
 }
@@ -199,9 +197,9 @@ mod tests {
 
         let ordered_events = OrderedEvents::new(temporal_order.clone());
 
-        assert_eq!(ordered_events.get_canonical_order_temporal_hints(), 
+        assert_eq!(ordered_events.get_canonical_order_temporal_hints(),
             expected_canonical_order.into_iter().zip(expected_temporal_hints.into_iter())
             .map(|(ce, idx)| CanonicalOrderedTemporalHints(ce, idx))
-            .collect::<Vec<CanonicalOrderedTemporalHints>>()); 
+            .collect::<Vec<CanonicalOrderedTemporalHints>>());
     }
 }
