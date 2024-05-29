@@ -10,14 +10,13 @@ repository = "https://github.com/0xmozak/mozak-node/sdk"
 version = "0.2.0"
 
 [dependencies]
-# TODO(Kapil): Use simpler way to merkleize so that we can `group_by`, and hence the crate
-# as dependency.
+array-concat = { git = "https://github.com/Daniel-Aaron-Bloom/array-concat.git" }
+
 array-util = "1.0.2"
-itertools = { version = "0.12", default-features = false }
 once_cell = { version = "1.19", default-features = false, features = ["race"] }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 rkyv_derive = "=0.8.0-alpha.1"
-slice-group-by = { version = "0.3", default-features = false, features = ["nightly"] }
+vec-entries = "1.0"
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies]
 hex = "0.4"

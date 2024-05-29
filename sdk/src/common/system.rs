@@ -1,24 +1,24 @@
 use once_cell::unsync::Lazy;
+use rkyv::rancor::{Panic, Strategy};
+use rkyv::Deserialize;
 #[cfg(target_os = "mozakvm")]
 use {
     crate::common::merkle::merkleize,
-    crate::common::types::{
-        CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash, ProgramIdentifier,
-    },
+    crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash},
     crate::core::constants::DIGEST_BYTES,
     crate::core::ecall::{
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
     core::ptr::slice_from_raw_parts,
-    rkyv::rancor::{Panic, Strategy},
-    rkyv::Deserialize,
     std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
 use {core::cell::RefCell, std::rc::Rc};
 
+use crate::common::traits::{Call, CallArgument, CallReturn, EventEmit};
 use crate::common::types::{
-    CallTapeType, EventTapeType, PrivateInputTapeType, PublicInputTapeType, SystemTape,
+    CallTapeType, Event, EventTapeType, PrivateInputTapeType, ProgramIdentifier,
+    PublicInputTapeType, SystemTape,
 };
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
@@ -152,12 +152,54 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     }
 }
 
+/// Emit an event from `mozak_vm` to provide receipts of
+/// `reads` and state updates including `create` and `delete`.
+/// Panics on event-tape non-abidance.
+pub fn event_emit(event: Event) {
+    unsafe {
+        SYSTEM_TAPE.event_tape.emit(event);
+    }
+}
+
+/// Receive one message from mailbox targetted to us and its index
+/// "consume" such message. Subsequent reads will never
+/// return the same message. Panics on call-tape non-abidance.
+#[must_use]
+pub fn call_receive<A, R>() -> Option<(ProgramIdentifier, A, R)>
+where
+    A: CallArgument + PartialEq,
+    R: CallReturn,
+    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    unsafe { SYSTEM_TAPE.call_tape.receive() }
+}
+
+/// Send one message from mailbox targetted to some third-party
+/// resulting in such messages finding itself in their mailbox
+/// Panics on call-tape non-abidance.
+#[allow(clippy::similar_names)]
+pub fn call_send<A, R>(
+    recipient_program: ProgramIdentifier,
+    argument: A,
+    resolver: impl Fn(A) -> R,
+) -> R
+where
+    A: CallArgument + PartialEq,
+    R: CallReturn,
+    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
+    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    unsafe {
+        SYSTEM_TAPE
+            .call_tape
+            .send(recipient_program, argument, resolver)
+    }
+}
+
 #[cfg(target_os = "mozakvm")]
 #[allow(dead_code)]
 pub fn ensure_clean_shutdown() {
     // Ensure we have read the whole tape
 
-    use itertools::izip;
     unsafe {
         // Should have read the full call tape
         assert!(
@@ -205,8 +247,14 @@ pub fn ensure_clean_shutdown() {
 
         let cast_list = &SYSTEM_TAPE.call_tape.cast_list;
 
-        let calculated_commitment_cl =
-            merkleize(izip!(0.., cast_list).map(|(idx, x)| (idx, x.0)).collect()).0;
+        let calculated_commitment_cl = merkleize(
+            cast_list
+                .iter()
+                .enumerate()
+                .map(|(idx, x)| (idx as u64, x.0))
+                .collect(),
+        )
+        .0;
 
         assert!(claimed_commitment_cl == calculated_commitment_cl);
     }

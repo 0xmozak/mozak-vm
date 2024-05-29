@@ -1,3 +1,5 @@
+use crate::common::types::state_address::STATE_TREE_DEPTH;
+use crate::core::constants::DIGEST_BYTES;
 #[cfg(target_os = "mozakvm")]
 use crate::mozakvm::poseidon::poseidon2_hash_no_pad;
 #[cfg(not(target_os = "mozakvm"))]
@@ -62,6 +64,7 @@ pub struct Event {
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
 #[allow(clippy::module_name_repetitions)]
+#[allow(clippy::unsafe_derive_deserialize)]
 pub struct CanonicalEvent {
     pub address: super::StateAddress,
     pub type_: EventType,
@@ -71,32 +74,27 @@ pub struct CanonicalEvent {
 impl CanonicalEvent {
     #[must_use]
     pub fn from_event(value: &Event) -> Self {
-        #[cfg(not(target_os = "mozakvm"))]
-        {
-            Self {
-                address: value.object.address,
-                type_: value.type_,
-                value: crate::native::poseidon::poseidon2_hash_with_pad(&value.object.data),
-            }
-        }
         #[cfg(target_os = "mozakvm")]
-        {
-            Self {
-                address: value.object.address,
-                type_: value.type_,
-                value: crate::mozakvm::poseidon::poseidon2_hash_with_pad(&value.object.data),
-            }
+        use crate::mozakvm::poseidon::poseidon2_hash_with_pad;
+        #[cfg(not(target_os = "mozakvm"))]
+        use crate::native::poseidon::poseidon2_hash_with_pad;
+
+        Self {
+            address: value.object.address,
+            type_: value.type_,
+            value: poseidon2_hash_with_pad(&value.object.data),
         }
     }
 
     #[must_use]
     pub fn canonical_hash(&self) -> super::poseidon2hash::Poseidon2Hash {
-        let data_to_hash: Vec<u8> = itertools::chain!(
+        const U64_LEN: usize = 0u64.to_be_bytes().len();
+        const LEN: usize = U64_LEN + STATE_TREE_DEPTH + DIGEST_BYTES;
+        let data_to_hash: [u8; LEN] = array_concat::concat_arrays!(
             u64::from(self.type_ as u8).to_le_bytes(),
             self.address.inner(),
-            self.value.inner(),
-        )
-        .collect();
+            self.value.inner()
+        );
         poseidon2_hash_no_pad(&data_to_hash)
     }
 }
