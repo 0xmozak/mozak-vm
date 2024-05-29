@@ -3,21 +3,20 @@
 
 set -euo pipefail
 
+token_dir=examples/token
+wallet_dir=examples/wallet
+
+root_dir=$(pwd)
 # Run native executions and build mozakvm binaries
-cd examples/token/native && cargo run --release &&
-    # --features="native" \
-    # --bin token-native \
-    # --target "$(rustc --verbose --version | grep host | awk '{ print $2; }')" &&
-    cd ../mozakvm &&
-    cargo build-mozakvm
-cd examples/wallet/native && cargo run --release &&
-    # --features="native" \
-    # --bin token-native \
-    # --target "$(rustc --verbose --version | grep host | awk '{ print $2; }')" &&
-    cd ../mozakvm &&
-    cargo build-mozakvm
+cd "$token_dir/native" && cargo run --release
+cd ../mozakvm && cargo build-mozakvm
+
+cd $root_dir
+
+cd examples/wallet/native && cargo run --release
+cd ../mozakvm && cargo build-mozakvm
 
 # Run CLI
-cd ../../../
+cd $root_dir
 cargo run --bin mozak-cli -- bundle-transaction -vvv \
     --system-tape examples/token/native/out/tape.json
