@@ -120,7 +120,7 @@ class ExamplesTester(unittest.TestCase):
                     )
                 else:
                     prove_and_verify_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv \
-                        examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/release/{example}-mozakvm \
+                        examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm \
                         --self-prog-id {dummy_prog_id}"""
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
@@ -218,7 +218,7 @@ class ExamplesTester(unittest.TestCase):
 
                     programs_to_run = [
                         (
-                            f"examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/release/{example}-mozakvm",
+                            f"examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm",
                             prog_id,
                         )
                     ]
@@ -229,7 +229,7 @@ class ExamplesTester(unittest.TestCase):
                         )["package"]["metadata"]["mozak"]["example_program_id"]
                         programs_to_run.append(
                             (
-                                f"examples/{dependent}/mozakvm/target/riscv32im-mozak-mozakvm-elf/release/{dependent}-mozakvm",
+                                f"examples/{dependent}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{dependent}-mozakvm",
                                 dependent_prog_id,
                             )
                         )

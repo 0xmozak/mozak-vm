@@ -21,7 +21,7 @@ macro_rules! ecrate {
             elf_path: concat!(
                 "../examples/",
                 $name,
-                "/mozakvm/target/riscv32im-mozak-mozakvm-elf/release/",
+                "/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/",
                 $file,
                 "-mozakvm"
             ),

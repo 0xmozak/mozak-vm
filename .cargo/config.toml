@@ -9,7 +9,7 @@
 
 [alias]
 build-mozakvm = """
-    build --release \
+    build --profile mozak-release \
           --target riscv32im-mozak-mozakvm-elf \
           -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
           -Zbuild-std-features=compiler-builtins-mem
@@ -27,7 +27,7 @@ clippy-mozakvm = """
         -Zbuild-std-features=compiler-builtins-mem \
     """
 run-mozakvm = """
-    run --release \
+    run --profile mozak-release \
           --target riscv32im-mozak-mozakvm-elf \
           -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
           -Zbuild-std-features=compiler-builtins-mem 
@@ -39,3 +39,21 @@ rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
 [env]
 # path where riscv32im-mozak-mozakvm-elf.json lies
 RUST_TARGET_PATH = { value = ".cargo/", relative = true, force = true }
+
+[profile.mozak-dev]
+inherits = "dev"
+panic = "abort"
+
+# profile for mozakvm binaries
+[profile.mozak-release]
+inherits = "release"
+codegen-units = 1
+lto = "fat"
+opt-level = 3
+panic = "abort"
+strip = true
+
+# [patch.crates-io]
+# plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
+# plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
+# # starky = { git = "https://github.com/0xmozak/plonky2.git" }
