@@ -10,6 +10,8 @@ repository = "https://github.com/0xmozak/mozak-node/sdk"
 version = "0.2.0"
 
 [dependencies]
+# TODO(Kapil): Use simpler way to merkleize so that we can `group_by`, and hence the crate
+# as dependency.
 array-concat = { git = "https://github.com/Daniel-Aaron-Bloom/array-concat.git" }
 
 array-util = "1.0.2"
