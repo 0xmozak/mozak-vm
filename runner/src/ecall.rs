@@ -29,6 +29,7 @@ impl<F: RichField> State<F> {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requested = self.get_register_value(REG_A2);
         log::trace!("ECALL {:?}", op);
+        println!("ECALL: {:?}", op);
 
         let data = match op {
             StorageDeviceOpcode::StorePublic => read_bytes(

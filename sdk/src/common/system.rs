@@ -1,19 +1,25 @@
+use core::ptr::slice_from_raw_parts;
+
 use once_cell::unsync::Lazy;
+use rkyv::rancor::Panic;
+use rkyv::vec::ArchivedVec;
 #[cfg(target_os = "mozakvm")]
 use {
     crate::common::merkle::merkleize,
-    crate::common::types::{CanonicalOrderedTemporalHints, CrossProgramCall, Poseidon2Hash},
+    crate::common::types::{CanonicalOrderedTemporalHints, Poseidon2Hash},
     crate::core::constants::DIGEST_BYTES,
     crate::core::ecall::{
-        call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
+        call_tape_read, event_tape_read, halt, ioread_private, ioread_public,
+        self_prog_id_tape_read,
     },
-    core::ptr::slice_from_raw_parts,
-    rkyv::rancor::{Panic, Strategy},
+    rkyv::rancor::Strategy,
     std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
 use {core::cell::RefCell, std::rc::Rc};
 
+use super::types::cross_program_call::ArchivedCrossProgramCall;
+use super::types::CrossProgramCall;
 use crate::common::traits::{
     ArchivedCallArgument, ArchivedCallReturn, Call, CallArgument, CallReturn, EventEmit,
 };
@@ -21,6 +27,17 @@ use crate::common::types::{
     CallTapeType, Event, EventTapeType, PrivateInputTapeType, ProgramIdentifier,
     PublicInputTapeType, SystemTape,
 };
+
+pub struct Foo {
+    call_tape: Vec<u8>,
+}
+
+pub(crate) static mut CALL_TAPE_BUF: Lazy<Foo> = Lazy::new(|| Foo {
+    call_tape: Vec::with_capacity(504),
+});
+pub(crate) static mut CALL_TAPE_BUF_2: Lazy<Foo> = Lazy::new(|| Foo {
+    call_tape: Vec::with_capacity(8),
+});
 
 /// `SYSTEM_TAPE` is a global singleton for interacting with
 /// all the `IO-Tapes`, `CallTape` and the `EventTape` both in
@@ -100,14 +117,14 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let mut len_bytes = [0; 4];
     call_tape_read(len_bytes.as_mut_ptr(), 4);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let mut buf = Vec::with_capacity(len);
-    call_tape_read(buf.as_mut_ptr(), len);
+    unsafe { call_tape_read(CALL_TAPE_BUF.call_tape.as_mut_ptr(), len) };
 
-    let archived_cpc_messages = rkyv::access::<Vec<CrossProgramCall>, Panic>(unsafe {
-        &*slice_from_raw_parts(buf.as_ptr(), len)
-    })
-    .unwrap();
+    let archived_cpc_messages =
+        unsafe { rkyv::access::<Vec<CrossProgramCall>, Panic>(&CALL_TAPE_BUF.call_tape) };
 
+    halt(0);
+
+    let archived_cpc_messages = archived_cpc_messages.unwrap();
     let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
         .iter()
         .map(|m| {
@@ -136,14 +153,12 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     let mut len_bytes = [0; 4];
     event_tape_read(len_bytes.as_mut_ptr(), 4);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let mut buf = Vec::with_capacity(len);
-    event_tape_read(buf.as_mut_ptr(), len);
+    unsafe { event_tape_read(CALL_TAPE_BUF_2.call_tape.as_mut_ptr(), len) };
 
-    let canonical_ordered_temporal_hints =
-        rkyv::access::<Vec<CanonicalOrderedTemporalHints>, Panic>(unsafe {
-            &*slice_from_raw_parts(buf.as_ptr(), len)
-        })
-        .unwrap();
+    let canonical_ordered_temporal_hints = unsafe {
+        rkyv::access::<Vec<CanonicalOrderedTemporalHints>, Panic>(&CALL_TAPE_BUF_2.call_tape)
+            .unwrap()
+    };
 
     EventTapeType {
         self_prog_id,

@@ -10,6 +10,7 @@ use serde_hex::{SerHexSeq, StrictPfx};
     derive(serde::Serialize, serde::Deserialize)
 )]
 #[archive(check_bytes)]
+#[archive_attr(derive(Debug))]
 pub struct RawMessage(
     #[cfg_attr(not(target_os = "mozakvm"), serde(with = "SerHexSeq::<StrictPfx>"))] pub Vec<u8>,
 );

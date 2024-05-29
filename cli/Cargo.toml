@@ -17,6 +17,7 @@ clap = { version = "4.5", features = [
   "unicode",
 ] }
 mozak-circuits = { path = "../circuits", features = ["test"] }
+once_cell = { version = "1.19", default-features = false, features = ["race"] }
 mozak-node = { path = "../node", features = ["std"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 mozak-sdk = { path = "../sdk", features = ["std"] }

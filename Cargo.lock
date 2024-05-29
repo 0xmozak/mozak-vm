@@ -971,6 +971,7 @@ dependencies = [
  "mozak-node",
  "mozak-runner",
  "mozak-sdk",
+ "once_cell",
  "plonky2",
  "plonky2_maybe_rayon",
  "proptest",

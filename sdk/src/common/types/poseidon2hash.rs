@@ -21,6 +21,7 @@ use crate::core::constants::DIGEST_BYTES;
     derive(serde::Serialize, serde::Deserialize)
 )]
 #[archive(check_bytes)]
+#[archive_attr(derive(Debug))]
 pub struct Poseidon2Hash(
     #[cfg_attr(not(target_os = "mozakvm"), serde(with = "SerHex::<StrictPfx>"))]
     pub  [u8; DIGEST_BYTES],

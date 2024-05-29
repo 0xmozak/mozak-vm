@@ -2,7 +2,7 @@
 #![deny(clippy::cargo)]
 #![allow(clippy::missing_panics_doc)]
 #![feature(trait_alias)]
-#![deny(warnings)]
+// #![deny(warnings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
 
@@ -22,6 +22,8 @@ pub mod mozakvm;
 #[cfg(all(feature = "std", not(target_os = "mozakvm")))]
 pub mod native;
 
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub use crate::common::types::cross_program_call::ArchivedCrossProgramCall;
 /// Provides the length of tape available to read
 #[cfg(all(feature = "std", target_os = "mozakvm"))]
 pub use crate::mozakvm::inputtape::input_tape_len;

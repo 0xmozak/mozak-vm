@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::ptr::slice_from_raw_parts;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -36,12 +37,24 @@ use mozak_node::types::{Attestation, Transaction};
 use mozak_runner::state::{RawTapes, State};
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
+use mozak_sdk::ArchivedCrossProgramCall;
+use once_cell::unsync::Lazy;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::VerifierOnlyCircuitData;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
+use rkyv::rancor::Panic;
+use rkyv::vec::ArchivedVec;
 use starky::config::StarkConfig;
+
+pub struct Foo {
+    call_tape: Vec<u8>,
+}
+
+pub(crate) static mut CALL_TAPE_BUF: Lazy<Foo> = Lazy::new(|| Foo {
+    call_tape: Vec::new(),
+});
 
 const PROGRAMS_MAP_JSON: &str = "examples/programs_map.json";
 
@@ -142,9 +155,25 @@ fn main() -> Result<()> {
             system_tape,
             self_prog_id,
         }) => {
-            let program = load_program(elf).unwrap();
-
             let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            pub fn deserialize_call_tape<'a>(
+                buf: &'a [u8],
+                len: usize,
+            ) -> &'a ArchivedVec<ArchivedCrossProgramCall> {
+                println!("{:x?}", buf.as_ptr());
+                return rkyv::access::<Vec<CrossProgramCall>, Panic>(&buf).unwrap();
+
+                //    let _archived_cpc_messages =
+                // rkyv::access::<Vec<CrossProgramCall>,
+                // Panic>(unsafe {        &*slice_from_raw_parts(buf.as_ptr(),
+                // len)    })
+                //    .unwrap();
+            }
+            let bar = raw_tapes.clone();
+            let foo = deserialize_call_tape(&bar.call_tape, 504);
+
+            println!("{:?}", foo);
+            let program = load_program(elf).unwrap();
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
