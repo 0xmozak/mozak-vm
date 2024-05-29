@@ -1,12 +1,12 @@
 [workspace]
 [package]
+edition = "2021"
 name = "inputtape-mozakvm"
 version = "0.1.0"
-edition = "2021"
 
 [dependencies]
-inputtape-core-logic = { path = "../core-logic"}
-mozak-sdk = {path = "../../../sdk"}
+inputtape-core-logic = { path = "../core-logic" }
+mozak-sdk = { path = "../../../sdk" }
 
 [features]
 std = []

@@ -1,15 +1,15 @@
 [workspace]
 [package]
+edition = "2021"
 name = "token-mozakvm"
 version = "0.1.0"
-edition = "2021"
 
 [dependencies]
 mozak-sdk = { path = "../../../sdk" }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 rkyv_derive = "=0.8.0-alpha.1"
+token-core-logic = { path = "../core-logic" }
 wallet-core-logic = { path = "../../wallet/core-logic" }
-token-core-logic = { path = "../core-logic"}
 
 [features]
 std = []
