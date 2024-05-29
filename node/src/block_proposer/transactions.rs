@@ -608,14 +608,16 @@ impl<'a> TransactionAccumulator<'a> {
                 })
             })
             .collect();
-        let event_tree = reduce_tree_by_address(event_tree, BranchAddress::parent, |a, l, r| {
-            EventNode::Branch {
+        let event_tree = reduce_tree_by_address(
+            event_tree,
+            |x| x.parent(1),
+            |a, l, r| EventNode::Branch {
                 address: *a,
                 hash: Plonky2Poseidon2Hash::two_to_one(l.hash(), r.hash()),
                 left: Box::new(l),
                 right: Box::new(r),
-            }
-        });
+            },
+        );
         let event_tree = event_tree.map(|x| x.1);
 
         // Delay the proof calculation

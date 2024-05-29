@@ -6,7 +6,7 @@ pub mod state;
 pub mod transactions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Dir {
+pub enum Dir {
     Left,
     Right,
 }
@@ -28,7 +28,7 @@ impl Address {
 /// The remaining bits of an address to be consumed as one traverses down the
 /// tree towards a leaf.
 #[derive(Debug, Clone, Copy)]
-struct AddressPath<T = u64> {
+pub struct AddressPath<T = u64> {
     /// One less than the number of bits remaining in `addr`
     ///
     /// So `height == 0` means 1 bit remaining, `1` means 2 bits remaining.
@@ -49,7 +49,7 @@ where
         + Sub<T, Output = T>
         + BitAndAssign,
 {
-    fn path(addr: T, bits: usize) -> Option<Self> {
+    pub fn path(addr: T, bits: usize) -> Option<Self> {
         (bits != 0).then_some(Self {
             height: bits - 1,
             addr,
@@ -57,9 +57,9 @@ where
     }
 
     /// Returns `true` if all remaining directions are `Dir::Left`
-    fn is_zero(self) -> bool { self.addr == T::from(false) }
+    pub fn is_zero(self) -> bool { self.addr == T::from(false) }
 
-    fn next(mut self) -> (Option<Self>, Dir) {
+    pub fn next(mut self) -> (Option<Self>, Dir) {
         let zero = T::from(false);
         let one = T::from(true);
 
@@ -105,7 +105,8 @@ impl PartialOrd<BranchAddress> for BranchAddress {
 
 impl BranchAddress {
     /// Initialize the `BranchAddress` to the root node
-    fn root(height: usize) -> Self {
+    #[must_use]
+    pub fn root(height: usize) -> Self {
         Self {
             height,
             addr: Address(0),
@@ -113,7 +114,8 @@ impl BranchAddress {
     }
 
     /// Initialize the `BranchAddress` to a leaf node
-    fn base(a: u64) -> Self {
+    #[must_use]
+    pub fn base(a: u64) -> Self {
         BranchAddress {
             height: 0,
             addr: Address(a),
@@ -121,23 +123,25 @@ impl BranchAddress {
     }
 
     /// Find the common ancestor between `self` and `rhs`
-    fn common_ancestor(mut self, mut rhs: Self) -> Self {
-        while self.height > rhs.height {
-            self = self.parent();
-        }
-        while rhs.height > self.height {
-            rhs = rhs.parent();
-        }
-        while self.addr != rhs.addr {
-            self = self.parent();
-            rhs = rhs.parent();
-        }
+    #[must_use]
+    pub fn common_ancestor(mut self, mut rhs: Self) -> Self {
+        let d1 = self.height.saturating_sub(rhs.height);
+        let d2 = rhs.height.saturating_sub(self.height);
+        self = self.parent(d2);
+        rhs = rhs.parent(d1);
+
+        let ancestor_diff = u64::BITS - (self.addr.0 ^ rhs.addr.0).leading_zeros();
+        self = self.parent(ancestor_diff as usize);
+        debug_assert_eq!(self, rhs.parent(ancestor_diff as usize));
         self
     }
 
     /// Move downward, adding a `0|1` bit based on the dir (`Left|Right`).
-    /// If we've reached the bottom, return an `Address` instead
-    fn child(mut self, dir: Dir) -> Result<Self, Address> {
+    ///
+    /// # Errors
+    ///
+    /// If we've reached the bottom, return a `Err(Address)` instead
+    pub fn child(mut self, dir: Dir) -> Result<Self, Address> {
         self.addr.0 <<= 1;
         self.addr.0 |= u64::from(dir == Dir::Right);
         if self.height == 0 {
@@ -148,15 +152,17 @@ impl BranchAddress {
         }
     }
 
-    /// Move upward, adding a `0|1` bit based on the dir (`Left|Right`).
+    /// Move upward, removing the bottom `n` bits.
     /// If we've reached the bottom, return an `Address` instead
-    fn parent(mut self) -> Self {
-        self.addr = Address(self.addr.0 >> 1);
-        self.height += 1;
+    #[must_use]
+    pub fn parent(mut self, n: usize) -> Self {
+        self.addr.0 >>= n;
+        self.height += n;
         self
     }
 
-    fn compare(self, rhs: Self) -> BranchAddressComparison {
+    #[must_use]
+    pub fn compare(self, rhs: Self) -> BranchAddressComparison {
         let (parent, child) = match self.height.cmp(&rhs.height) {
             // LHS and RHS are at the same level
             Ordering::Equal => {
@@ -208,7 +214,7 @@ impl BranchAddress {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BranchAddressComparison {
+pub enum BranchAddressComparison {
     /// The LHS and RHS addresses are the same
     Equal,
 
@@ -236,6 +242,40 @@ enum BranchAddressComparison {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_common_ancestor() {
+        let dirs = [Dir::Left, Dir::Right];
+        let parent = BranchAddress::root(10);
+        let children = dirs.map(|d| parent.child(d).unwrap());
+        let grandchildren = children.map(|c| dirs.map(|d| c.child(d).unwrap()));
+        let great_grandchildren =
+            grandchildren.map(|c| c.map(|c| dirs.map(|d| c.child(d).unwrap())));
+
+        let a = great_grandchildren[0][0][0];
+        let b = great_grandchildren[0][0][0];
+        let c = great_grandchildren[0][0][0];
+        assert_eq!(a.common_ancestor(b), c);
+        assert_eq!(b.common_ancestor(a), c);
+
+        let a = great_grandchildren[0][0][0];
+        let b = great_grandchildren[0][0][1];
+        let c = grandchildren[0][0];
+        assert_eq!(a.common_ancestor(b), c);
+        assert_eq!(b.common_ancestor(a), c);
+
+        let a = great_grandchildren[0][0][0];
+        let b = great_grandchildren[0][1][1];
+        let c = children[0];
+        assert_eq!(a.common_ancestor(b), c);
+        assert_eq!(b.common_ancestor(a), c);
+
+        let a = great_grandchildren[0][0][0];
+        let b = great_grandchildren[1][0][0];
+        let c = parent;
+        assert_eq!(a.common_ancestor(b), c);
+        assert_eq!(b.common_ancestor(a), c);
+    }
 
     #[test]
     fn test_branch_compare() {
