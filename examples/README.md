@@ -11,28 +11,29 @@ Each example has `mozakvm` directory inside, which contains the code for our gue
 We can use following command to build it for `riscv32im-mozak-mozakvm-elf` target.
 
 ```bash
-# inside example/mozakvm
+# inside {example}/mozakvm
 cargo build-mozakvm
 ```
 
-Some examples use `std`:
+By default, our examples are `no_std`. Examples can make use of `std` through feature flag:
 ```bash
-cargo build --release --features=std
+cargo build-mozakvm --features=std
 ```
 
-This would build ELF executables under `target/riscv32im-mozak-mozakvm-elf/release/`.
+This would build ELF executables under `{example}/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm`.
+Note the profile `mozak-release` in above path. Defined in `.cargo/config.toml`. It's intended to build optimized ELF for mozakvm
+targets. The command `build-mozakvm` ensures that this profile is used while building.
 
-For more details, our configuration is found at `.cargo/config.toml` at the root of the `examples` directory.
+For more details, our configuration is found at `.cargo/config.toml` in the root directory
 
 ### Native
 
 To build for native targets, we can `cd` into `native` directory, and use usual rust commands to build
 
 ```bash
+# inside {example}/native
 cargo build --release 
 ```
-
-This would build ELF executables under `target/{{NATIVE_ARCH_TRIPLE}}/release/`.
 
 ## Running ELFs
 
@@ -42,13 +43,14 @@ The RISC-V ELFs can be run with our CLI. Simply use the command `cargo run-mozak
 
 ```bash
 # in example/mozakvm
-cargo run-mozakvm -- --self-prog-id SELF_PROG_ID_HERE
+cargo run-mozakvm -- --self-prog-id SELF_PROG_ID_HERE --system-tape SYSTEM_TAPE_PATH_HERE # system tape path is optional
 ```
 ### Native
 
 Native example can be run as usual with cargo
 
 ```bash
+# in example/native
 cargo run --release
 ```
 
@@ -56,7 +58,7 @@ cargo run --release
 
 ### To dump assembly files
 ```bash
-RUSTFLAGS="--emit asm" cargo +nightly build
+RUSTFLAGS="--emit asm" cargo build-mozakvm
 ```
 After this, `target/riscv32im-risc0-mozakvm-elf/debug/deps/` would contain assembly files with `.s` extension
 
@@ -69,11 +71,11 @@ Once done, this should feature as `riscv64-unknown-elf-objdump` in your `$PATH`.
 
 **Find sections**
 ```bash
-riscv64-unknown-elf-objdump -h target/riscv32im-mozak-mozakvm-elf/debug/<ELF_NAME>
+riscv64-unknown-elf-objdump -h {example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/<ELF_NAME>
 ```
 **Find contents of specific section**
 ```bash
-riscv64-unknown-elf-objdump -d -j .sdata target/riscv32im-mozak-mozakvm-elf/debug/<ELF_NAME>
+riscv64-unknown-elf-objdump -d -j .sdata {example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/<ELF_NAME>
 ```
 
 NOTE: The build config tries to optimize binary size, and location information is removed. Kindly update config if you want location info.
