@@ -10,10 +10,10 @@ wallet_dir="$root_dir/examples/wallet"
 
 # Run native executions and build mozakvm binaries
 cd "$token_dir/native" && cargo run --release
-cd "$token_dir/wallet" && cargo build-mozakvm
+cd "$token_dir/mozakvm" && cargo build-mozakvm
 
 cd "$wallet_dir/native" && cargo run --release
-cd "$wallet_dir/wallet" && cargo build-mozakvm
+cd "$wallet_dir/mozakvm" && cargo build-mozakvm
 
 # Run CLI
 cd $root_dir
