@@ -24,7 +24,7 @@ tmp
 perftool/plots/*.svg
 
 # Generated IOTapes
-*.tape*
+**/out
 
 # Generated transaction bundle
 bundle
@@ -35,4 +35,3 @@ riscv-testdata/testdata/*.i
 
 # Temporary scripts
 *tmp.sh
-**/out

@@ -3,18 +3,17 @@
 
 set -euo pipefail
 
-token_dir=examples/token
-wallet_dir=examples/wallet
-
 root_dir=$(pwd)
+
+token_dir="$root_dir/examples/token"
+wallet_dir="$root_dir/examples/wallet"
+
 # Run native executions and build mozakvm binaries
 cd "$token_dir/native" && cargo run --release
-cd ../mozakvm && cargo build-mozakvm
+cd "$token_dir/wallet" && cargo build-mozakvm
 
-cd $root_dir
-
-cd examples/wallet/native && cargo run --release
-cd ../mozakvm && cargo build-mozakvm
+cd "$wallet_dir/native" && cargo run --release
+cd "$wallet_dir/wallet" && cargo build-mozakvm
 
 # Run CLI
 cd $root_dir

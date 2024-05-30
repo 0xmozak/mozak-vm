@@ -1,4 +1,11 @@
 #!/bin/bash
+
+# Description: This script will run given command for 
+# all mozakvm examples in examples directory. For
+# example, to build all mozakvm examples, run
+#
+# `./scripts/all_mozakvm_examples cargo build-mozakvm`
+
 for example in *; do
     if [ -d "$example" ]; then
         cd $example;

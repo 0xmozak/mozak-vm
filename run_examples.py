@@ -75,16 +75,6 @@ def has_no_native_target(example_dir: str) -> bool:
 class ExamplesTester(unittest.TestCase):
     """Test class for running examples"""
 
-    # def test_workspace_members(self):
-    #     """This test ensures that all the workspace members are accounted
-    #     for and no dangling examples directory exists.
-    #     """
-    #     actual_directories = set(list_mozakvm_cargo_projects("examples"))
-    #     listed_workspace_members = set(
-    #         read_toml_file("examples/Cargo.toml")["workspace"]["members"]
-    #     )
-    #     self.assertEqual(actual_directories, listed_workspace_members)
-
     def test_core_only_examples(self):
         """This test runs examples that depend on just the core
         capabilities of the `sdk` i.e. alloc, heap, panic etc
@@ -141,14 +131,6 @@ class ExamplesTester(unittest.TestCase):
         tape etc
         """
         prove_and_verify_exceptions = {}
-
-        # arch_triple = re.search(
-        #     r"host: (.*)",
-        #     subprocess.check_output(["rustc", "--verbose", "--version"], text=True),
-        # ).group(1)
-        # print(
-        #     f"{Style.BRIGHT}{Fore.GREEN}Detected arch triple for host{Style.RESET_ALL}: {arch_triple}",
-        # )
 
         for example in set(list_cargo_projects("examples")):
             if not has_no_native_target(f"examples/{example}"):
