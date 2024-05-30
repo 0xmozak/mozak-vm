@@ -124,11 +124,13 @@ impl BranchAddress {
     /// Find the common ancestor between `self` and `rhs`
     #[must_use]
     pub fn common_ancestor(mut self, mut rhs: Self) -> Self {
+        // Get both to the same height
         let d1 = self.height.saturating_sub(rhs.height);
         let d2 = rhs.height.saturating_sub(self.height);
         self = self.parent(d2);
         rhs = rhs.parent(d1);
 
+        // Find where the two diverge by XORing and then taking the MSB position
         let ancestor_diff = u64::BITS - (self.addr.0 ^ rhs.addr.0).leading_zeros();
         self = self.parent(ancestor_diff as usize);
         debug_assert_eq!(self, rhs.parent(ancestor_diff as usize));
