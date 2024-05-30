@@ -11,7 +11,7 @@ Building the programs require Rust nightly toolchain. Exploring the generated EL
 ### Mozak ZK-VM
 
 By default, we configure Cargo to build for the mozak-mozakvm, so a plain
-build command uses our custom target and linker script:
+build command uses our custom target.
 
 ```bash
 cargo build --release
