@@ -3,8 +3,13 @@
 #[allow(clippy::borrow_as_ptr)]
 pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
     extern "C" {
-        // This symbol is defined in linker script
-        static _heap_start: u8;
+        // This symbol is defined by the loader and marks the end
+        // of all elf sections, so this is where we start our
+        // heap.
+        //
+        // This is generated automatically by the linker; see
+        // https://lld.llvm.org/ELF/linker_script.html#sections-command
+        static _end: u8;
     }
 
     // Pointer to next heap address to use, or 0 if the heap has not been
@@ -15,7 +20,7 @@ pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
     let mut heap_pos = unsafe { HEAP_POS };
 
     if heap_pos == 0 {
-        heap_pos = unsafe { core::ptr::from_ref::<u8>(&_heap_start).cast::<u8>() as usize };
+        heap_pos = unsafe { core::ptr::from_ref::<u8>(&_end).cast::<u8>() as usize };
     }
 
     let offset = heap_pos & (align - 1);
