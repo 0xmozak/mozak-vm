@@ -16,10 +16,12 @@ use crate::core::constants::DIGEST_BYTES;
     rkyv::Deserialize,
     rkyv::Serialize,
 )]
+#[archive(check_bytes)]
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
+#[archive_attr(derive(Debug))]
 pub struct Poseidon2Hash(
     #[cfg_attr(not(target_os = "mozakvm"), serde(with = "SerHex::<StrictPfx>"))]
     pub  [u8; DIGEST_BYTES],
