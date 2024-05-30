@@ -142,6 +142,28 @@ impl From<(u32, mozak_runner::instruction::Instruction)> for Instruction<u32> {
     }
 }
 
+columns_view_impl!(EcallSelectors);
+/// Internal [`Instruction`] of Stark used for transition constraints
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct EcallSelectors<T> {
+    // We don't need all of these 'is_<some-ecall>' columns.  Because our CPU table (by itself)
+    // doesn't need to be deterministic. We can assert these things in the CTL-ed
+    // ecall-specific tables.
+    // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
+    // filter.
+    // TODO: implement the above.
+    pub is_private_tape: T,
+    pub is_public_tape: T,
+    pub is_call_tape: T,
+    pub is_event_tape: T,
+    pub is_events_commitment_tape: T,
+    pub is_cast_list_commitment_tape: T,
+    pub is_halt: T,
+    pub is_poseidon2: T,
+    pub is_self_prog_id_tape: T,
+}
+
 make_col_map!(CpuState);
 columns_view_impl!(CpuState);
 /// Represents the State of the CPU, which is also a row of the trace
@@ -219,21 +241,8 @@ pub struct CpuState<T> {
     pub mem_addr: T,
     pub io_addr: T,
     pub io_size: T,
-    // We don't need all of these 'is_<some-ecall>' columns.  Because our CPU table (by itself)
-    // doesn't need to be deterministic. We can assert these things in the CTL-ed
-    // ecall-specific tables.
-    // But to make that work, all ecalls need to be looked up; so we can use ops.ecall as the
-    // filter.
-    // TODO: implement the above.
-    pub is_private_tape: T,
-    pub is_public_tape: T,
-    pub is_call_tape: T,
-    pub is_event_tape: T,
-    pub is_events_commitment_tape: T,
-    pub is_cast_list_commitment_tape: T,
-    pub is_self_prog_id_tape: T,
-    pub is_halt: T,
-    pub is_poseidon2: T,
+
+    pub ecall_selectors: EcallSelectors<T>,
 }
 pub(crate) const CPU: &CpuState<ColumnWithTypedInput<CpuState<i64>>> = &COL_MAP;
 
@@ -379,32 +388,23 @@ pub fn lookup_for_fullword_memory() -> TableWithTypedOutput<MemoryCtl<Column>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn lookup_for_storage_tables() -> TableWithTypedOutput<StorageDeviceCtl<Column>> {
+    let storage = [
+        CPU.ecall_selectors.is_private_tape,
+        CPU.ecall_selectors.is_public_tape,
+        CPU.ecall_selectors.is_call_tape,
+        CPU.ecall_selectors.is_event_tape,
+        CPU.ecall_selectors.is_events_commitment_tape,
+        CPU.ecall_selectors.is_cast_list_commitment_tape,
+        CPU.ecall_selectors.is_self_prog_id_tape,
+    ];
     CpuTable::new(
         StorageDeviceCtl {
-            op: ColumnWithTypedInput::ascending_sum([
-                CPU.is_private_tape,
-                CPU.is_public_tape,
-                CPU.is_call_tape,
-                CPU.is_event_tape,
-                CPU.is_events_commitment_tape,
-                CPU.is_cast_list_commitment_tape,
-                CPU.is_self_prog_id_tape,
-            ]),
+            op: ColumnWithTypedInput::ascending_sum(storage),
             clk: CPU.clk,
             addr: CPU.io_addr,
             size: CPU.io_size,
         },
-        [
-            CPU.is_private_tape,
-            CPU.is_public_tape,
-            CPU.is_call_tape,
-            CPU.is_event_tape,
-            CPU.is_events_commitment_tape,
-            CPU.is_cast_list_commitment_tape,
-            CPU.is_self_prog_id_tape,
-        ]
-        .iter()
-        .sum(),
+        storage.iter().sum(),
     )
 }
 
@@ -465,7 +465,10 @@ pub fn lookup_for_program_rom() -> TableWithTypedOutput<ProgramRom<Column>> {
 
 #[must_use]
 pub fn lookup_for_poseidon2_sponge() -> TableWithTypedOutput<Poseidon2SpongeCtl<Column>> {
-    CpuTable::new(Poseidon2SpongeCtl { clk: CPU.clk }, CPU.is_poseidon2)
+    CpuTable::new(
+        Poseidon2SpongeCtl { clk: CPU.clk },
+        CPU.ecall_selectors.is_poseidon2,
+    )
 }
 
 #[must_use]
@@ -511,7 +514,7 @@ pub fn lookup_for_skeleton() -> TableWithTypedOutput<CpuSkeletonCtl<Column>> {
             clk: CPU.clk,
             pc: CPU.inst.pc,
             new_pc: CPU.new_pc,
-            will_halt: CPU.is_halt,
+            will_halt: CPU.ecall_selectors.is_halt,
         },
         CPU.is_running(),
     )
