@@ -619,10 +619,18 @@ mod test {
         CircuitConfig::standard_recursion_config()
     };
 
+    #[tested_fixture::tested_fixture(AUX_0)]
+    fn build_aux_0() -> AuxStateData { AuxStateData::new(&CONFIG, 0) }
+
+    #[tested_fixture::tested_fixture(AUX_8)]
+    fn build_aux_8() -> AuxStateData { AuxStateData::new(&CONFIG, 8) }
+
+    #[tested_fixture::tested_fixture(AUX_63)]
+    fn build_aux_63() -> AuxStateData { AuxStateData::new(&CONFIG, 63) }
+
     #[test]
     fn tiny_tree() {
-        let aux = AuxStateData::new(&CONFIG, 0);
-        let mut state = State::new(&aux, 0);
+        let mut state = State::new(*AUX_0, 0);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
 
@@ -650,8 +658,7 @@ mod test {
 
     #[test]
     fn small_tree() {
-        let aux = AuxStateData::new(&CONFIG, 8);
-        let mut state = State::new(&aux, 8);
+        let mut state = State::new(*AUX_8, 8);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
 
@@ -680,8 +687,7 @@ mod test {
     #[test]
     #[ignore]
     fn big_tree() {
-        let aux = AuxStateData::new(&CONFIG, 63);
-        let mut state = State::new(&aux, 63);
+        let mut state = State::new(*AUX_63, 63);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
 
