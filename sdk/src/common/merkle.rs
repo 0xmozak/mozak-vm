@@ -1,6 +1,9 @@
 use vec_entries::EntriesExt;
 
 use super::types::Poseidon2Hash;
+
+// TODO: Separate native and VM (native should produce hints, VM should read
+// them, see 0xmozak/mozak-vm#1404 for an example of possible hints)
 /// Takes leaves of the form `Poseidon2Hash` and returns the merkle root
 /// of the tree, where nodes are hashed according to common prefix of `addr`:
 /// `u64` field. NOTE: Assumes sorted order wrt `addr`
