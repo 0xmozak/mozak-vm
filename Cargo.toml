@@ -42,9 +42,6 @@ opt-level = 3
 [profile.dev.package.mozak-cli]
 opt-level = 1
 
-[profile.dev.package.mozak-node]
-opt-level = 0
-
 [profile.release]
 lto = "fat"
 
