@@ -1,0 +1,11 @@
+[unstable]
+build-std = ["alloc", "core", "compiler_builtins", "std", "panic_abort", "proc_macro"]
+build-std-features = ["compiler-builtins-mem"]
+
+[build]
+rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
+target = "./.cargo/riscv32im-mozak-mozakvm-elf.json"
+
+[target.riscv32im-mozak-mozakvm-elf]
+runner = "../target/release/mozak-cli -vvv run"
+rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
