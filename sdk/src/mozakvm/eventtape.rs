@@ -3,22 +3,22 @@ use rkyv::{Archive, Deserialize};
 
 use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{
-    CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
+    CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, RoleIdentifier,
 };
 
 /// Represents the `EventTape` under native execution
 #[derive(Default, Clone)]
 pub struct EventTape {
-    pub(crate) self_prog_id: ProgramIdentifier,
+    pub(crate) self_role_id: RoleIdentifier,
     pub(crate) reader: Option<&'static <Vec<CanonicalOrderedTemporalHints> as Archive>::Archived>,
     pub(crate) seen: Vec<bool>,
     pub(crate) index: usize,
 }
 
 impl SelfIdentify for EventTape {
-    fn set_self_identity(&mut self, id: ProgramIdentifier) { self.self_prog_id = id }
+    fn set_self_identity(&mut self, id: RoleIdentifier) { self.self_role_id = id }
 
-    fn get_self_identity(&self) -> ProgramIdentifier { self.self_prog_id }
+    fn get_self_identity(&self) -> RoleIdentifier { self.self_role_id }
 }
 
 impl EventEmit for EventTape {

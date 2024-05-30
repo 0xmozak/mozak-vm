@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::common::traits::{EventEmit, SelfIdentify};
 use crate::common::types::{
-    CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, ProgramIdentifier,
+    CanonicalEvent, CanonicalOrderedTemporalHints, Event, Poseidon2Hash, RoleIdentifier,
 };
 use crate::native::identity::IdentityStack;
 
@@ -131,7 +131,7 @@ pub struct EventTape {
     #[serde(skip)]
     pub(crate) identity_stack: Rc<RefCell<IdentityStack>>,
     #[serde(rename = "individual_event_tapes")]
-    pub writer: HashMap<ProgramIdentifier, OrderedEvents>,
+    pub writer: HashMap<RoleIdentifier, OrderedEvents>,
 }
 
 impl std::fmt::Debug for EventTape {
@@ -139,15 +139,15 @@ impl std::fmt::Debug for EventTape {
 }
 
 impl SelfIdentify for EventTape {
-    fn set_self_identity(&mut self, _id: ProgramIdentifier) { unimplemented!() }
+    fn set_self_identity(&mut self, _id: RoleIdentifier) { unimplemented!() }
 
-    fn get_self_identity(&self) -> ProgramIdentifier { self.identity_stack.borrow().top_identity() }
+    fn get_self_identity(&self) -> RoleIdentifier { self.identity_stack.borrow().top_identity() }
 }
 
 impl EventEmit for EventTape {
     fn emit(&mut self, event: Event) {
         let self_id = self.get_self_identity();
-        assert_ne!(self_id, ProgramIdentifier::default());
+        assert_ne!(self_id, RoleIdentifier::default());
 
         self.writer.entry(self_id).or_default().push_temporal(event);
     }
@@ -166,7 +166,7 @@ mod tests {
             type_: EventType::Read,
             object: StateObject {
                 address: StateAddress([1; STATE_TREE_DEPTH]),
-                constraint_owner: ProgramIdentifier::new_from_rand_seed(2),
+                constraint_owner: RoleIdentifier::new_from_rand_seed(2),
                 data: vec![],
             }
         };
@@ -174,7 +174,7 @@ mod tests {
             type_: EventType::Read,
             object: StateObject {
                 address: StateAddress([2; STATE_TREE_DEPTH]),
-                constraint_owner: ProgramIdentifier::new_from_rand_seed(3),
+                constraint_owner: RoleIdentifier::new_from_rand_seed(3),
                 data: vec![],
             }
         };
@@ -182,7 +182,7 @@ mod tests {
             type_: EventType::Read,
             object: StateObject {
                 address: StateAddress([3; STATE_TREE_DEPTH]),
-                constraint_owner: ProgramIdentifier::new_from_rand_seed(4),
+                constraint_owner: RoleIdentifier::new_from_rand_seed(4),
                 data: vec![],
             }
         };

@@ -15,6 +15,8 @@ pub mod common;
 
 #[cfg(feature = "std")]
 pub use crate::common::system::{call_receive, call_send, event_emit};
+#[cfg(all(feature = "std", not(target_os = "mozakvm")))]
+pub use crate::common::system::{get_deterministic_role_id, get_unique_role_id};
 
 #[cfg(all(feature = "std", target_os = "mozakvm"))]
 pub mod mozakvm;

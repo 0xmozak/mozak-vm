@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::common::traits::SelfIdentify;
-use crate::common::types::{ProgramIdentifier, RawMessage};
+use crate::common::types::{RawMessage, RoleIdentifier};
 use crate::native::identity::IdentityStack;
 
 /// Represents the `RawTape` under native execution
@@ -12,7 +12,7 @@ pub struct RawTape {
     #[serde(skip)]
     pub(crate) identity_stack: Rc<RefCell<IdentityStack>>,
     #[serde(rename = "individual_raw_tapes")]
-    pub writer: HashMap<ProgramIdentifier, RawMessage>,
+    pub writer: HashMap<RoleIdentifier, RawMessage>,
 }
 
 impl std::fmt::Debug for RawTape {
@@ -20,11 +20,11 @@ impl std::fmt::Debug for RawTape {
 }
 
 impl SelfIdentify for RawTape {
-    fn set_self_identity(&mut self, id: ProgramIdentifier) {
+    fn set_self_identity(&mut self, id: RoleIdentifier) {
         self.identity_stack.borrow_mut().add_identity(id);
     }
 
-    fn get_self_identity(&self) -> ProgramIdentifier { self.identity_stack.borrow().top_identity() }
+    fn get_self_identity(&self) -> RoleIdentifier { self.identity_stack.borrow().top_identity() }
 }
 
 /// We have to implement `std::io::Write` in native context
@@ -34,7 +34,7 @@ impl SelfIdentify for RawTape {
 impl std::io::Write for RawTape {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         let self_id = self.get_self_identity();
-        assert_ne!(self_id, ProgramIdentifier::default());
+        assert_ne!(self_id, RoleIdentifier::default());
 
         self.writer.entry(self_id).or_default().0.extend(buf);
 
