@@ -81,6 +81,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
+name = "bytecheck"
+version = "0.8.0-pre6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58167cc4244105c1b50a4d0a9f4672107138def79b73755b74d21c0b807e7755"
+dependencies = [
+ "bytecheck_derive",
+ "ptr_meta",
+ "rancor",
+ "simdutf8",
+]
+
+[[package]]
+name = "bytecheck_derive"
+version = "0.8.0-pre6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41412be9f547e2c7aa8e444c935958d711ec34189b42a24208635cab44c07cd1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -460,6 +483,9 @@ name = "rend"
 version = "0.5.0-pre6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f02fc3227b019649985d2f89e254e345f027cc58af7bbf5faa4f3f7271bc4cc"
+dependencies = [
+ "bytecheck",
+]
 
 [[package]]
 name = "rkyv"
@@ -468,6 +494,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f11954ea56d7bfee4022704c89d997ca15659bff852ab06dbee5cbeffdc723ed"
 dependencies = [
  "bitvec",
+ "bytecheck",
  "hashbrown",
  "ptr_meta",
  "rancor",
