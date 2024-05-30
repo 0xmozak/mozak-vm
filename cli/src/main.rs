@@ -34,7 +34,7 @@ use mozak_cli::runner::{
     deserialize_system_tape, get_self_prog_id, load_program, raw_tapes_from_system_tape,
 };
 use mozak_node::types::{Attestation, Transaction};
-use mozak_runner::state::{RawTapes, State};
+use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use mozak_sdk::common::types::{CrossProgramCall, ProgramIdentifier, SystemTape};
 use mozak_sdk::ArchivedCrossProgramCall;
@@ -376,19 +376,8 @@ fn main() -> Result<()> {
                         .unwrap_or_else(|_| panic!("Elf filepath {elf:?} not found")),
                 )?;
 
-                let raw_call_tape: Vec<u8> =
-                    serde_json::to_vec(&system_tape.call_tape.writer).unwrap();
-                let raw_tapes = RawTapes {
-                    call_tape: raw_call_tape,
-                    private_tape: system_tape
-                        .private_input_tape
-                        .writer
-                        .get(program_id)
-                        .cloned()
-                        .unwrap_or_default()
-                        .to_vec(),
-                    ..Default::default()
-                };
+                let raw_tapes =
+                    raw_tapes_from_system_tape(Some(system_tape_path.clone()), *program_id);
                 if i == 0 {
                     let rate_bits = config.fri_config.rate_bits;
                     let cap_height = config.fri_config.cap_height;

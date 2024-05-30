@@ -10,10 +10,8 @@ repository = "https://github.com/0xmozak/mozak-node/sdk"
 version = "0.2.0"
 
 [dependencies]
-# TODO(Kapil): Use simpler way to merkleize so that we can `group_by`, and hence the crate
-# as dependency.
+# TODO(dbloom): Switch to upstream (inspier/array-concat#2) or move to mozak org
 array-concat = { git = "https://github.com/Daniel-Aaron-Bloom/array-concat.git" }
-
 array-util = "1.0.2"
 once_cell = { version = "1.19", default-features = false, features = ["race"] }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc", "bytecheck"] }
