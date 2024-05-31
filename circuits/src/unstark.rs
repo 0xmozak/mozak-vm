@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use expr::{Expr, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -11,6 +12,17 @@ use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::{columns_view_impl, HasNamedColumns, NumberOfColumns};
+use crate::expr::{ConstraintBuilder, GenerateConstraints};
+
+impl<'a, F, T, U, const D: usize, Columns, const COLUMNS: usize>
+    GenerateConstraints<'a, T, U, Columns, NoColumns<U>> for Unstark<F, { D }, Columns, {COLUMNS} >
+{
+    fn generate_constraints(
+        _vars: &StarkFrameTyped<Columns, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        ConstraintBuilder::default()
+    }
+}
 
 /// Template for a STARK with zero internal constraints. Use this if the STARK
 /// itself does not need any built-in constraints, but rely on cross table
@@ -48,7 +60,7 @@ impl<
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         _vars: &Self::EvaluationFrame<FE, P, D2>,
-        _yield_constr: &mut ConstraintConsumer<P>,
+        _constraint_consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
@@ -58,7 +70,7 @@ impl<
         &self,
         _builder: &mut CircuitBuilder<F, D>,
         _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        _constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
     }
 

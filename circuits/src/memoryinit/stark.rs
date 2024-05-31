@@ -13,7 +13,7 @@ use starky::stark::Stark;
 
 use super::columns::MemoryInit;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::unstark::NoColumns;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
@@ -29,15 +29,20 @@ impl<F, const D: usize> HasNamedColumns for MemoryInitStark<F, D> {
 const COLUMNS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<MemoryInit<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, U, MemoryInit<Expr<'a, T>>, NoColumns<U>>
+    for MemoryInitStark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &StarkFrameTyped<MemoryInit<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    constraints.always(lv.filter.is_binary());
+        constraints.always(lv.filter.is_binary());
 
-    constraints
+        constraints
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryInitStark<F, D> {
@@ -57,7 +62,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryInitSta
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_packed(constraints, consumer);
     }
 
@@ -68,7 +73,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryInitSta
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_ext(constraints, builder, consumer);
     }
 
