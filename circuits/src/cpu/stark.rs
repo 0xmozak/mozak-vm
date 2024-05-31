@@ -79,7 +79,7 @@ const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, T, CpuState<Expr<'a, T>>, NoColumns<U>> for CpuStark<F, { D }>
+    GenerateConstraints<'a, T, CpuState<Expr<'a, T>>, NoColumns<U>> for CpuStark<F, { D }>
 {
     fn generate_constraints(
         vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, NoColumns<U>>,

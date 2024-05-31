@@ -30,7 +30,7 @@ const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, U, Memory<Expr<'a, T>>, NoColumns<U>> for MemoryStark<F, { D }>
+    GenerateConstraints<'a, T, Memory<Expr<'a, T>>, NoColumns<U>> for MemoryStark<F, { D }>
 {
     fn generate_constraints(
         vars: &StarkFrameTyped<Memory<Expr<'a, T>>, NoColumns<U>>,

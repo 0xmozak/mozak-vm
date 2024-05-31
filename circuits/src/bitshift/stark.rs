@@ -31,7 +31,7 @@ const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, T, BitshiftView<Expr<'a, T>>, NoColumns<U>>
+    GenerateConstraints<'a, T, BitshiftView<Expr<'a, T>>, NoColumns<U>>
     for BitshiftStark<F, { D }>
 {
     fn generate_constraints(

@@ -130,7 +130,7 @@ const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 fn from_u64(u: u64) -> i64 { GoldilocksField::from_canonical_u64(u).to_canonical_i64() }
 
 impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, U, Poseidon2State<Expr<'a, T>>, NoColumns<U>>
+    GenerateConstraints<'a, T, Poseidon2State<Expr<'a, T>>, NoColumns<U>>
     for Poseidon2_12Stark<F, { D }>
 {
     // NOTE: This one has extra constraints compared to different implementations of

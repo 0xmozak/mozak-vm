@@ -27,7 +27,7 @@ impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
 }
 
 impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, U, HalfWordMemory<Expr<'a, T>>, NoColumns<U>>
+    GenerateConstraints<'a, T, HalfWordMemory<Expr<'a, T>>, NoColumns<U>>
     for HalfWordMemoryStark<F, { D }>
 {
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing

@@ -31,7 +31,7 @@ const COLUMNS: usize = NUM_HW_MEM_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, U, FullWordMemory<Expr<'a, T>>, NoColumns<U>>
+    GenerateConstraints<'a, T, FullWordMemory<Expr<'a, T>>, NoColumns<U>>
     for FullWordMemoryStark<F, { D }>
 {
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing

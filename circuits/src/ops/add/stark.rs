@@ -30,7 +30,7 @@ const COLUMNS: usize = Add::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, U, Add<Expr<'a, T>>, NoColumns<U>> for AddStark<F, { D }>
+    GenerateConstraints<'a, T, Add<Expr<'a, T>>, NoColumns<U>> for AddStark<F, { D }>
 {
     fn generate_constraints(
         vars: &StarkFrameTyped<Add<Expr<'a, T>>, NoColumns<U>>,

@@ -15,7 +15,7 @@ use crate::columns_view::{columns_view_impl, HasNamedColumns, NumberOfColumns};
 use crate::expr::{ConstraintBuilder, GenerateConstraints};
 
 impl<'a, F, T, U, const D: usize, Columns, const COLUMNS: usize>
-    GenerateConstraints<'a, T, U, Columns, NoColumns<U>>
+    GenerateConstraints<'a, T, Columns, NoColumns<U>>
     for Unstark<F, { D }, Columns, { COLUMNS }>
 {
     fn generate_constraints(

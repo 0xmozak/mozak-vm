@@ -31,7 +31,7 @@ const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
 impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, T, CpuSkeleton<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>
+    GenerateConstraints<'a, T, CpuSkeleton<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>
     for CpuSkeletonStark<F, { D }>
 {
     fn generate_constraints(
