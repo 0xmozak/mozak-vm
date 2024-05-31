@@ -6,6 +6,9 @@ version = "0.1.0"
 [dependencies]
 mozak-sdk = { path = "../../sdk", default-features = false }
 
+[features]
+std = []
+
 [[bin]]
 name = "empty"
 path = "main.rs"

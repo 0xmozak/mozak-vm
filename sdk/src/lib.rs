@@ -3,6 +3,8 @@
 #![allow(clippy::missing_panics_doc)]
 #![feature(trait_alias)]
 #![deny(warnings)]
+// To allow `target_os = "mozakvm"` cfg on native, when the defining json file ain't available.
+#![allow(unexpected_cfgs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
 
