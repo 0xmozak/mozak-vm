@@ -13,7 +13,7 @@ use starky::stark::Stark;
 
 use super::columns::{FIELDS_COUNT, NUM_POSEIDON2_OUTPUT_BYTES_COLS};
 use crate::columns_view::HasNamedColumns;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::unstark::NoColumns;
 
@@ -30,25 +30,30 @@ impl<F, const D: usize> HasNamedColumns for Poseidon2OutputBytesStark<F, D> {
 const COLUMNS: usize = NUM_POSEIDON2_OUTPUT_BYTES_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<Poseidon2OutputBytes<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, Poseidon2OutputBytes<Expr<'a, T>>, NoColumns<U>>
+    for Poseidon2OutputBytesStark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &StarkFrameTyped<Poseidon2OutputBytes<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    constraints.always(lv.is_executed.is_binary());
-    for i in 0..FIELDS_COUNT {
-        let start_index = i * 8;
-        let end_index = i * 8 + 8;
-        constraints.always(
-            Expr::reduce_with_powers::<Vec<Expr<'a, T>>>(
-                lv.output_bytes[start_index..end_index].into(),
-                256,
-            ) - lv.output_fields[i],
-        );
+        constraints.always(lv.is_executed.is_binary());
+        for i in 0..FIELDS_COUNT {
+            let start_index = i * 8;
+            let end_index = i * 8 + 8;
+            constraints.always(
+                Expr::reduce_with_powers::<Vec<Expr<'a, T>>>(
+                    lv.output_bytes[start_index..end_index].into(),
+                    256,
+                ) - lv.output_fields[i],
+            );
+        }
+
+        constraints
     }
-
-    constraints
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2OutputBytesStark<F, D> {
@@ -67,7 +72,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_packed(constraints, consumer);
     }
 
@@ -78,7 +83,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Outp
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_ext(constraints, builder, consumer);
     }
 
