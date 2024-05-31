@@ -18,11 +18,12 @@ from colorama import Fore, Style
 os_environ = os.environ
 
 # Comment the following line if you do not want verbose output
-os_environ['MOZAK_STARK_DEBUG'] = 'true'
+os_environ["MOZAK_STARK_DEBUG"] = "true"
 # Turn the following to `True` if you do not want output capturing
 capture_output = False
 # Running timeout per prove-and-verify (in seconds)
 timeout = 600
+
 
 class ReadTomlError(Exception):
     """Error while reading TOML file."""
@@ -108,7 +109,7 @@ class ExamplesTester(unittest.TestCase):
                         f"{Fore.RED}ZK prove and verify skipping for {Style.BRIGHT}{folder}{Style.NORMAL} as it is marked as an exception{Style.RESET_ALL}"
                     )
                 else:
-                    prove_and_verify_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv \
+                    prove_and_verify_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify -vvv \
                         examples/target/riscv32im-mozak-mozakvm-elf/release/{folder} \
                         --self-prog-id {dummy_prog_id}"""
                     print(
@@ -145,7 +146,9 @@ class ExamplesTester(unittest.TestCase):
                     f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected fully-featured example, building",
                 )
 
-                build_command = f"cargo build --release --bin {folder}bin --features=\"std\""
+                build_command = (
+                    f'cargo build --release --bin {folder}bin --features="std"'
+                )
                 print(
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
@@ -227,7 +230,7 @@ class ExamplesTester(unittest.TestCase):
                         print(
                             f"ZK prove and verify for {Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} requires execution of {elf} with ID: {id_}",
                         )
-                        execution_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape} --self-prog-id {id_}"""
+                        execution_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape} --self-prog-id {id_}"""
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )
