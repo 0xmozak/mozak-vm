@@ -94,6 +94,8 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 /// At this point, the [`CrossProgramCall`] messages are still rkyv-serialized,
 /// and must be deserialized at the point of consumption. Only the `callee`s are
 /// deserialized for persistence of the `cast_list`.
+///
+/// This function deliberately leaks the backing buffer for the storage of the returned call tape.
 fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let mut len_bytes = [0; 4];
     call_tape_read(&mut len_bytes);
@@ -127,6 +129,8 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
 ///
 /// At this point, the vector of [`CanonicalOrderedTemporalHints`] are still
 /// rkyv-serialized, and must be deserialized at the point of consumption.
+/// 
+/// This function deliberately leaks the backing buffer for the storage of the returned event tape.
 fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     let mut len_bytes = [0; 4];
     call_tape_read(&mut len_bytes);
