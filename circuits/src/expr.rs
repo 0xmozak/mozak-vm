@@ -1,7 +1,7 @@
 use std::panic::Location;
 
 pub use expr::PureEvaluator;
-use expr::{BinOp, Cached, Evaluator, Expr, UnaOp};
+use expr::{BinOp, Cached, Evaluator, Expr, StarkFrameTyped, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -191,4 +191,10 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
             ConstraintType::LastRow => ConstraintConsumer::constraint_last_row,
         })(yield_constr, c.term);
     }
+}
+
+pub trait GenerateConstraints<'a, T, U, View, PublicInputs> {
+    fn generate_constraints(
+        vars: &StarkFrameTyped<View, PublicInputs>,
+    ) -> ConstraintBuilder<Expr<'a, T>>;
 }

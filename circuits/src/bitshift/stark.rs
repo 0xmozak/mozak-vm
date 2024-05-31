@@ -13,7 +13,7 @@ use starky::stark::Stark;
 
 use super::columns::BitshiftView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::unstark::NoColumns;
 
 /// Bitshift Trace Constraints
@@ -30,45 +30,50 @@ impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values.executed;
-    let nv = vars.next_values.executed;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, T, BitshiftView<Expr<'a, T>>, NoColumns<U>>
+    for BitshiftStark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values.executed;
+        let nv = vars.next_values.executed;
+        let mut constraints = ConstraintBuilder::default();
 
-    // Constraints on shift amount
-    // They ensure:
-    //  1. Shift amount increases with each row by 0 or 1.
-    // (We allow increases of 0 in order to allow the table to add
-    //  multiple same value rows. This is needed when we have multiple
-    //  `SHL` or `SHR` operations with the same shift amount.)
-    //  2. We have shift amounts starting from 0 to max possible value of 31.
-    // (This is due to RISC-V max shift amount being 31.)
+        // Constraints on shift amount
+        // They ensure:
+        //  1. Shift amount increases with each row by 0 or 1.
+        // (We allow increases of 0 in order to allow the table to add
+        //  multiple same value rows. This is needed when we have multiple
+        //  `SHL` or `SHR` operations with the same shift amount.)
+        //  2. We have shift amounts starting from 0 to max possible value of 31.
+        // (This is due to RISC-V max shift amount being 31.)
 
-    let diff = nv.amount - lv.amount;
-    // Check: initial amount value is set to 0
-    constraints.first_row(lv.amount);
-    // Check: amount value is increased by 1 or kept unchanged
-    constraints.transition(diff * (diff - 1));
-    // Check: last amount value is set to 31
-    constraints.last_row(lv.amount - 31);
+        let diff = nv.amount - lv.amount;
+        // Check: initial amount value is set to 0
+        constraints.first_row(lv.amount);
+        // Check: amount value is increased by 1 or kept unchanged
+        constraints.transition(diff * (diff - 1));
+        // Check: last amount value is set to 31
+        constraints.last_row(lv.amount - 31);
 
-    // Constraints on multiplier
-    // They ensure:
-    //  1. Shift multiplier is multiplied by 2 only if amount increases.
-    //  2. We have shift multiplier from 1 to max possible value of 2^31.
+        // Constraints on multiplier
+        // They ensure:
+        //  1. Shift multiplier is multiplied by 2 only if amount increases.
+        //  2. We have shift multiplier from 1 to max possible value of 2^31.
 
-    // Check: initial multiplier value is set to 1 = 2^0
-    constraints.first_row(lv.multiplier - 1);
-    // Check: multiplier value is doubled if amount is increased
-    constraints.transition(nv.multiplier - (1 + diff) * lv.multiplier);
-    // Check: last multiplier value is set to 2^31
-    // (Note that based on the previous constraint, this is already
-    //  satisfied if the last amount value is 31. We leave it for readability.)
-    constraints.last_row(lv.multiplier - (1 << 31));
+        // Check: initial multiplier value is set to 1 = 2^0
+        constraints.first_row(lv.multiplier - 1);
+        // Check: multiplier value is doubled if amount is increased
+        constraints.transition(nv.multiplier - (1 + diff) * lv.multiplier);
+        // Check: last multiplier value is set to 2^31
+        // (Note that based on the previous constraint, this is already
+        //  satisfied if the last amount value is 31. We leave it for readability.)
+        constraints.last_row(lv.multiplier - (1 << 31));
 
-    constraints
+        constraints
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark<F, D> {
@@ -88,7 +93,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_packed(constraints, constraint_consumer);
     }
 
@@ -101,7 +106,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
 }

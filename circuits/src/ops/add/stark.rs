@@ -13,7 +13,8 @@ use starky::stark::Stark;
 
 use super::columns::Add;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
+use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -28,21 +29,25 @@ impl<F, const D: usize> HasNamedColumns for AddStark<F, D> {
 const COLUMNS: usize = Add::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy, U>(
-    vars: &StarkFrameTyped<Add<Expr<'a, T>>, Vec<U>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, U, Add<Expr<'a, T>>, NoColumns<U>> for AddStark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &StarkFrameTyped<Add<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    let added = lv.op1_value + lv.op2_value + lv.inst.imm_value;
-    let wrapped = added - (1 << 32);
+        let added = lv.op1_value + lv.op2_value + lv.inst.imm_value;
+        let wrapped = added - (1 << 32);
 
-    // Check: the resulting sum is wrapped if necessary.
-    // As the result is range checked, this make the choice deterministic,
-    // even for a malicious prover.
-    constraints.always((lv.dst_value - added) * (lv.dst_value - wrapped));
+        // Check: the resulting sum is wrapped if necessary.
+        // As the result is range checked, this make the choice deterministic,
+        // even for a malicious prover.
+        constraints.always((lv.dst_value - added) * (lv.dst_value - wrapped) + 1);
 
-    constraints
+        constraints
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for AddStark<F, D> {
@@ -63,7 +68,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for AddStark<F, D
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
         let vars = expr_builder.to_typed_starkframe(vars);
-        let constraints = generate_constraints(&vars);
+        let constraints = Self::generate_constraints(&vars);
         build_packed(constraints, constraint_consumer);
     }
 
@@ -74,7 +79,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for AddStark<F, D
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
 
