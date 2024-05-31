@@ -12,7 +12,7 @@ use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::memory::columns::Memory;
 use crate::unstark::NoColumns;
 
@@ -29,56 +29,60 @@ impl<F, const D: usize> HasNamedColumns for MemoryStark<F, D> {
 const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<Memory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let nv = vars.next_values;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, U, Memory<Expr<'a, T>>, NoColumns<U>> for MemoryStark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &StarkFrameTyped<Memory<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let nv = vars.next_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    // Boolean constraints
-    // -------------------
-    // Constrain certain columns of the memory table to be only
-    // boolean values.
-    constraints.always(lv.is_writable.is_binary());
-    constraints.always(lv.is_store.is_binary());
-    constraints.always(lv.is_load.is_binary());
-    constraints.always(lv.is_init.is_binary());
-    constraints.always(lv.is_executed().is_binary());
+        // Boolean constraints
+        // -------------------
+        // Constrain certain columns of the memory table to be only
+        // boolean values.
+        constraints.always(lv.is_writable.is_binary());
+        constraints.always(lv.is_store.is_binary());
+        constraints.always(lv.is_load.is_binary());
+        constraints.always(lv.is_init.is_binary());
+        constraints.always(lv.is_executed().is_binary());
 
-    // Address constraints
-    // -------------------
+        // Address constraints
+        // -------------------
 
-    // We start address at 0 and end at u32::MAX
-    // This saves rangechecking the addresses
-    // themselves, we only rangecheck their difference.
-    constraints.first_row(lv.addr - 0);
-    constraints.last_row(lv.addr - i64::from(u32::MAX));
+        // We start address at 0 and end at u32::MAX
+        // This saves rangechecking the addresses
+        // themselves, we only rangecheck their difference.
+        constraints.first_row(lv.addr - 0);
+        constraints.last_row(lv.addr - i64::from(u32::MAX));
 
-    // Address can only change for init in the new row...
-    constraints.always((1 - nv.is_init) * (nv.addr - lv.addr));
-    // ... and we have a range-check to make sure that addresses go up for each
-    // init.
+        // Address can only change for init in the new row...
+        constraints.always((1 - nv.is_init) * (nv.addr - lv.addr));
+        // ... and we have a range-check to make sure that addresses go up for each
+        // init.
 
-    // Operation constraints
-    // ---------------------
+        // Operation constraints
+        // ---------------------
 
-    // writeable only changes for init:
-    constraints.always((1 - nv.is_init) * (nv.is_writable - lv.is_writable));
+        // writeable only changes for init:
+        constraints.always((1 - nv.is_init) * (nv.is_writable - lv.is_writable));
 
-    // No `SB` operation can be seen if memory address is not marked `writable`
-    constraints.always((1 - lv.is_writable) * lv.is_store);
+        // No `SB` operation can be seen if memory address is not marked `writable`
+        constraints.always((1 - lv.is_writable) * lv.is_store);
 
-    // For all "load" operations, the value cannot change between rows
-    constraints.always(nv.is_load * (nv.value - lv.value));
+        // For all "load" operations, the value cannot change between rows
+        constraints.always(nv.is_load * (nv.value - lv.value));
 
-    // Padding constraints
-    // -------------------
-    // Once we have padding, all subsequent rows are padding; ie not
-    // `is_executed`.
-    constraints.transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
+        // Padding constraints
+        // -------------------
+        // Once we have padding, all subsequent rows are padding; ie not
+        // `is_executed`.
+        constraints.transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
 
-    constraints
+        constraints
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
@@ -98,7 +102,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let vars = eb.to_typed_starkframe(vars);
+        let constraints = Self::generate_constraints(&vars);
         build_packed(constraints, consumer);
     }
 
@@ -111,7 +116,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let vars = eb.to_typed_starkframe(vars);
+        let constraints = Self::generate_constraints(&vars);
         build_ext(constraints, builder, consumer);
     }
 }

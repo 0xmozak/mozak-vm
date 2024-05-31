@@ -13,7 +13,7 @@ use starky::stark::Stark;
 
 use super::columns::CpuSkeleton;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::stark::mozak_stark::PublicInputs;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
@@ -30,42 +30,47 @@ const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<CpuSkeleton<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let nv = vars.next_values;
-    let public_inputs = vars.public_inputs;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, T, CpuSkeleton<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>
+    for CpuSkeletonStark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &StarkFrameTyped<CpuSkeleton<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let nv = vars.next_values;
+        let public_inputs = vars.public_inputs;
+        let mut constraints = ConstraintBuilder::default();
 
-    constraints.first_row(lv.pc - public_inputs.entry_point);
-    // Clock starts at 2. This is to differentiate
-    // execution clocks (2 and above) from
-    // clk values `0` and `1` which are reserved for
-    // elf initialisation and zero initialisation respectively.
-    constraints.first_row(lv.clk - 2);
+        constraints.first_row(lv.pc - public_inputs.entry_point);
+        // Clock starts at 2. This is to differentiate
+        // execution clocks (2 and above) from
+        // clk values `0` and `1` which are reserved for
+        // elf initialisation and zero initialisation respectively.
+        constraints.first_row(lv.clk - 2);
 
-    let clock_diff = nv.clk - lv.clk;
-    constraints.transition(clock_diff.is_binary());
+        let clock_diff = nv.clk - lv.clk;
+        constraints.transition(clock_diff.is_binary());
 
-    // clock only counts up when we are still running.
-    constraints.transition(clock_diff - lv.is_running);
+        // clock only counts up when we are still running.
+        constraints.transition(clock_diff - lv.is_running);
 
-    // We start in running state.
-    constraints.first_row(lv.is_running - 1);
+        // We start in running state.
+        constraints.first_row(lv.is_running - 1);
 
-    // We may transition to a non-running state.
-    constraints.transition(nv.is_running * (nv.is_running - lv.is_running));
+        // We may transition to a non-running state.
+        constraints.transition(nv.is_running * (nv.is_running - lv.is_running));
 
-    // We end in a non-running state.
-    constraints.last_row(lv.is_running);
+        // We end in a non-running state.
+        constraints.last_row(lv.is_running);
 
-    // NOTE: in our old CPU table we had constraints that made sure nothing
-    // changes anymore, once we are halted. We don't need those
-    // anymore: the only thing that can change are memory or registers.  And
-    // our CTLs make sure, that after we are halted, no more memory
-    // or register changes are allowed.
-    constraints
+        // NOTE: in our old CPU table we had constraints that made sure nothing
+        // changes anymore, once we are halted. We don't need those
+        // anymore: the only thing that can change are memory or registers.  And
+        // our CTLs make sure, that after we are halted, no more memory
+        // or register changes are allowed.
+        constraints
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonStark<F, D> {
@@ -86,7 +91,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
         let vars = expr_builder.to_typed_starkframe(vars);
-        let constraints = generate_constraints(&vars);
+        let constraints = Self::generate_constraints(&vars);
         build_packed(constraints, consumer);
     }
 
@@ -97,7 +102,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonSt
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let vars = eb.to_typed_starkframe(vars);
+        let constraints = Self::generate_constraints(&vars);
         build_ext(constraints, builder, consumer);
     }
 
