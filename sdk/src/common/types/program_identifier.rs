@@ -18,7 +18,6 @@ use crate::core::constants::DIGEST_BYTES;
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
-#[archive(check_bytes)]
 #[archive_attr(derive(Debug))]
 pub struct ProgramIdentifier(pub super::Poseidon2Hash);
 
