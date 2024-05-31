@@ -13,23 +13,30 @@ use starky::stark::Stark;
 
 use super::columns::TapeCommitments;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::unstark::NoColumns;
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv: &TapeCommitments<Expr<'a, T>> = &vars.local_values;
-    let mut constraint = ConstraintBuilder::default();
-    constraint.always(lv.is_event_commitment_tape_row.is_binary());
-    constraint.always(lv.is_castlist_commitment_tape_row.is_binary());
-    constraint
-        .always((lv.is_castlist_commitment_tape_row + lv.is_event_commitment_tape_row).is_binary());
-    constraint
-        .always(lv.event_commitment_tape_multiplicity * (1 - lv.is_event_commitment_tape_row));
-    constraint.always(
-        lv.castlist_commitment_tape_multiplicity * (1 - lv.is_castlist_commitment_tape_row),
-    );
-    constraint
+
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, TapeCommitments<Expr<'a, T>>, NoColumns<U>>
+    for TapeCommitmentsStark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv: &TapeCommitments<Expr<'a, T>> = &vars.local_values;
+        let mut constraint = ConstraintBuilder::default();
+        constraint.always(lv.is_event_commitment_tape_row.is_binary());
+        constraint.always(lv.is_castlist_commitment_tape_row.is_binary());
+        constraint.always(
+            (lv.is_castlist_commitment_tape_row + lv.is_event_commitment_tape_row).is_binary(),
+        );
+        constraint
+            .always(lv.event_commitment_tape_multiplicity * (1 - lv.is_event_commitment_tape_row));
+        constraint.always(
+            lv.castlist_commitment_tape_multiplicity * (1 - lv.is_castlist_commitment_tape_row),
+        );
+        constraint
+    }
 }
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -62,7 +69,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for TapeCommitmen
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_packed(constraints, consumer);
     }
 
@@ -75,7 +82,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for TapeCommitmen
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_ext(constraints, builder, consumer);
     }
 }
