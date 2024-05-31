@@ -63,7 +63,7 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     #[cfg(target_os = "mozakvm")]
     {
         let mut self_prog_id_bytes = [0; DIGEST_BYTES];
-        self_prog_id_tape_read(self_prog_id_bytes.as_mut_ptr());
+        self_prog_id_tape_read(&mut self_prog_id_bytes);
         let self_prog_id = ProgramIdentifier(Poseidon2Hash::from(self_prog_id_bytes));
 
         let call_tape = populate_call_tape(self_prog_id);
@@ -71,11 +71,11 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 
         let mut size_hint_bytes = [0; 4];
 
-        ioread_public(size_hint_bytes.as_mut_ptr(), 4);
+        ioread_public(&mut size_hint_bytes);
         let size_hint: usize = u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
         let public_input_tape = PublicInputTapeType::with_size_hint(size_hint);
 
-        ioread_private(size_hint_bytes.as_mut_ptr(), 4);
+        ioread_private(&mut size_hint_bytes);
         let size_hint: usize = u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
         let private_input_tape = PrivateInputTapeType::with_size_hint(size_hint);
 
@@ -213,7 +213,7 @@ pub fn ensure_clean_shutdown() {
         // Assert that event commitment tape has the same bytes
         // as Event Tape's actual commitment observable to us
         let mut claimed_commitment_ev: [u8; 32] = [0; 32];
-        crate::core::ecall::events_commitment_tape_read(claimed_commitment_ev.as_mut_ptr());
+        crate::core::ecall::events_commitment_tape_read(&mut claimed_commitment_ev);
 
         let canonical_event_temporal_hints: Vec<CanonicalOrderedTemporalHints> = SYSTEM_TAPE
             .event_tape
@@ -242,7 +242,7 @@ pub fn ensure_clean_shutdown() {
         // Assert that castlist commitment tape has the same bytes
         // as CastList's actual commitment observable to us
         let mut claimed_commitment_cl: [u8; 32] = [0; 32];
-        crate::core::ecall::cast_list_commitment_tape_read(claimed_commitment_cl.as_mut_ptr());
+        crate::core::ecall::cast_list_commitment_tape_read(&mut claimed_commitment_cl);
 
         let cast_list = &SYSTEM_TAPE.call_tape.cast_list;
 

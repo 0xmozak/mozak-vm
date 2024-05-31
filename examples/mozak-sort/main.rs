@@ -21,7 +21,7 @@ fn sort() {
 
     let n = {
         let mut bytes = [0u8; 4];
-        ioread_public(bytes.as_mut_ptr(), bytes.len());
+        ioread_public(&mut bytes);
         u32::from_le_bytes(bytes)
     };
 
