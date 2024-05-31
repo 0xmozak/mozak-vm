@@ -14,7 +14,7 @@ use starky::stark::Stark;
 
 use super::columns::XorColumnsView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::unstark::NoColumns;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
@@ -30,32 +30,36 @@ impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, XorColumnsView<Expr<'a, T>>, NoColumns<U>> for XorStark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    // We first convert both input and output to bit representation
-    // We then work with the bit representations to check the Xor result.
+        // We first convert both input and output to bit representation
+        // We then work with the bit representations to check the Xor result.
 
-    // Check: bit representation of inputs and output contains either 0 or 1.
-    for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-        constraints.always(bit_value.is_binary());
+        // Check: bit representation of inputs and output contains either 0 or 1.
+        for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+            constraints.always(bit_value.is_binary());
+        }
+
+        // Check: bit representation of inputs and output were generated correctly.
+        for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
+            constraints.always(Expr::reduce_with_powers(opx_limbs, 2) - opx);
+        }
+
+        // Check: output bit representation is Xor of input a and b bit representations
+        for (a, b, out) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+            // Xor behaves like addition in binary field, i.e. addition with wrap-around:
+            constraints.always((a + b - out) * (a + b - 2 - out));
+        }
+
+        constraints
     }
-
-    // Check: bit representation of inputs and output were generated correctly.
-    for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
-        constraints.always(Expr::reduce_with_powers(opx_limbs, 2) - opx);
-    }
-
-    // Check: output bit representation is Xor of input a and b bit representations
-    for (a, b, out) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-        // Xor behaves like addition in binary field, i.e. addition with wrap-around:
-        constraints.always((a + b - out) * (a + b - 2 - out));
-    }
-
-    constraints
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D> {
@@ -75,7 +79,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_packed(constraints, consumer);
     }
 
@@ -88,7 +92,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_ext(constraints, circuit_builder, consumer);
     }
 }
