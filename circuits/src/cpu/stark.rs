@@ -130,8 +130,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        let vars = expr_builder.to_typed_starkframe(vars);
-        let constraints = Self::generate_constraints(&vars);
+        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_packed(constraints, constraint_consumer);
     }
 
@@ -144,8 +143,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let vars = expr_builder.to_typed_starkframe(vars);
-        let constraints = Self::generate_constraints(&vars);
+        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
 }
