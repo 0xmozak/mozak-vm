@@ -25,6 +25,7 @@ pub struct Poseidon2OutputBytesStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2OutputBytesStark<F, D> {
     type Columns = Poseidon2OutputBytes<F>;
+    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = NUM_POSEIDON2_OUTPUT_BYTES_COLS;

@@ -29,6 +29,7 @@ pub struct CpuStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
     type Columns = CpuState<F>;
+    type PublicInputs = NoColumns<F>;
 }
 
 /// Ensure that if opcode is straight line, then program counter is incremented

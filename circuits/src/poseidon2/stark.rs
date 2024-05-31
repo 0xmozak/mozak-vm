@@ -119,6 +119,7 @@ pub struct Poseidon2_12Stark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2_12Stark<F, D> {
     type Columns = Poseidon2State<F>;
+    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = NUM_POSEIDON2_COLS;

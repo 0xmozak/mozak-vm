@@ -24,6 +24,7 @@ pub struct RangeCheckU8Stark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
     type Columns = RangeCheckU8<F>;
+    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = RangeCheckU8::<()>::NUMBER_OF_COLUMNS;

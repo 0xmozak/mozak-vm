@@ -25,6 +25,7 @@ pub struct BitshiftStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
     type Columns = BitshiftView<F>;
+    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;

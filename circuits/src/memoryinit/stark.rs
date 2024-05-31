@@ -24,6 +24,7 @@ pub struct MemoryInitStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for MemoryInitStark<F, D> {
     type Columns = MemoryInit<F>;
+    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;

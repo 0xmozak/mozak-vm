@@ -22,6 +22,7 @@ use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
+use crate::expr::GenerateConstraints;
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
@@ -214,13 +215,17 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 }
 
 pub fn debug_single_trace<
+    'a,
     F: RichField + Extendable<D> + Debug,
     const D: usize,
-    S: Stark<F, D> + Display + HasNamedColumns,
+    S: Stark<F, D>
+        + Display
+        + HasNamedColumns
+        + GenerateConstraints<'a, F, S::Columns, S::PublicInputs>,
 >(
-    stark: &S,
-    trace_rows: &[PolynomialValues<F>],
-    public_inputs: &[F],
+    stark: &'a S,
+    trace_rows: &'a [PolynomialValues<F>],
+    public_inputs: &'a [F],
 ) where
     S::Columns: FromIterator<F> + Debug, {
     transpose_polys::<F, D, S>(trace_rows.to_vec())

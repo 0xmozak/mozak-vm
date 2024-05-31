@@ -24,6 +24,7 @@ pub struct CpuSkeletonStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for CpuSkeletonStark<F, D> {
     type Columns = CpuSkeleton<F>;
+    type PublicInputs = PublicInputs<F>;
 }
 
 const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;

@@ -24,6 +24,7 @@ pub struct RegisterStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for RegisterStark<F, D> {
     type Columns = Register<F>;
+    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;

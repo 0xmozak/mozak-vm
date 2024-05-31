@@ -38,6 +38,7 @@ impl<F, const D: usize, Columns, const COLUMNS: usize> HasNamedColumns
     for Unstark<F, D, Columns, COLUMNS>
 {
     type Columns = Columns;
+    type PublicInputs = NoColumns<F>;
 }
 
 const PUBLIC_INPUTS: usize = 0;

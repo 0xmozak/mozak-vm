@@ -24,6 +24,7 @@ pub struct AddStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for AddStark<F, D> {
     type Columns = Add<F>;
+    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = Add::<()>::NUMBER_OF_COLUMNS;

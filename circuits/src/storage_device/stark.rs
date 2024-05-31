@@ -24,6 +24,7 @@ pub struct StorageDeviceStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for StorageDeviceStark<F, D> {
     type Columns = StorageDevice<F>;
+    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = NUM_STORAGE_DEVICE_COLS;
