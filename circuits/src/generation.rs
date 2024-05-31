@@ -22,7 +22,7 @@ use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
-use crate::expr::GenerateConstraints;
+// use crate::expr::GenerateConstraints;
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
@@ -221,7 +221,7 @@ pub fn debug_single_trace<
     S: Stark<F, D>
         + Display
         + HasNamedColumns
-        + GenerateConstraints<'a, F, S::Columns, S::PublicInputs>,
+        // + GenerateConstraints<'a, F, S::Columns, S::PublicInputs>,
 >(
     stark: &'a S,
     trace_rows: &'a [PolynomialValues<F>],
