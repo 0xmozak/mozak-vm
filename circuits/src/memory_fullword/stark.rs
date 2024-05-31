@@ -13,7 +13,7 @@ use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::memory_fullword::columns::{FullWordMemory, NUM_HW_MEM_COLS};
 use crate::unstark::NoColumns;
 
@@ -30,26 +30,31 @@ impl<F, const D: usize> HasNamedColumns for FullWordMemoryStark<F, D> {
 const COLUMNS: usize = NUM_HW_MEM_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-// Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<FullWordMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, U, FullWordMemory<Expr<'a, T>>, NoColumns<U>>
+    for FullWordMemoryStark<F, { D }>
+{
+    // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
+    fn generate_constraints(
+        vars: &StarkFrameTyped<FullWordMemory<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    constraints.always(lv.ops.is_store.is_binary());
-    constraints.always(lv.ops.is_load.is_binary());
-    constraints.always(lv.is_executed().is_binary());
+        constraints.always(lv.ops.is_store.is_binary());
+        constraints.always(lv.ops.is_load.is_binary());
+        constraints.always(lv.is_executed().is_binary());
 
-    // Check: the resulting sum is wrapped if necessary.
-    // As the result is range checked, this make the choice deterministic,
-    // even for a malicious prover.
-    for (i, addr) in izip!(0.., lv.addrs).skip(1) {
-        let target = lv.addrs[0] + i;
-        constraints.always(lv.is_executed() * (addr - target) * (addr + (1 << 32) - target));
+        // Check: the resulting sum is wrapped if necessary.
+        // As the result is range checked, this make the choice deterministic,
+        // even for a malicious prover.
+        for (i, addr) in izip!(0.., lv.addrs).skip(1) {
+            let target = lv.addrs[0] + i;
+            constraints.always(lv.is_executed() * (addr - target) * (addr + (1 << 32) - target));
+        }
+
+        constraints
     }
-
-    constraints
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemoryStark<F, D> {
@@ -70,7 +75,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemor
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_packed(constraints, consumer);
     }
 
@@ -81,7 +86,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemor
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_ext(constraints, builder, consumer);
     }
 
