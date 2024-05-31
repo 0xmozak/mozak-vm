@@ -35,7 +35,7 @@ impl<'a, F, T: Copy, U, const D: usize>
     for BitshiftStark<F, { D }>
 {
     fn generate_constraints(
-        vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<U>>,
+        vars: &'a StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<U>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values.executed;
         let nv = vars.next_values.executed;
@@ -93,7 +93,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let vars = expr_builder.to_typed_starkframe(vars);
+        let constraints = Self::generate_constraints(&vars);
         build_packed(constraints, constraint_consumer);
     }
 
@@ -106,7 +107,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let vars = expr_builder.to_typed_starkframe(vars);
+        let constraints = Self::generate_constraints(&vars);
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
 }

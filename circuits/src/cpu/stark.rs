@@ -15,7 +15,8 @@ use super::columns::{CpuState, OpSelectors};
 use super::{bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
+use crate::unstark::NoColumns;
 
 /// A Gadget for CPU Instructions
 ///
@@ -77,35 +78,39 @@ fn populate_op2_value<'a, P: Copy>(
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy, U>(
-    vars: &'a StarkFrameTyped<CpuState<Expr<'a, T>>, Vec<U>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = &vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, T, CpuState<Expr<'a, T>>, NoColumns<U>> for CpuStark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &'a StarkFrameTyped<CpuState<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = &vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    pc_ticks_up(lv, &mut constraints);
+        pc_ticks_up(lv, &mut constraints);
 
-    binary_selectors(&lv.inst.ops, &mut constraints);
+        binary_selectors(&lv.inst.ops, &mut constraints);
 
-    // Registers
-    populate_op2_value(lv, &mut constraints);
+        // Registers
+        populate_op2_value(lv, &mut constraints);
 
-    // ADD is now handled by its own table.
-    constraints.always(lv.inst.ops.add);
-    sub::constraints(lv, &mut constraints);
-    bitwise::constraints(lv, &mut constraints);
-    branches::comparison_constraints(lv, &mut constraints);
-    branches::constraints(lv, &mut constraints);
-    memory::constraints(lv, &mut constraints);
-    signed_comparison::signed_constraints(lv, &mut constraints);
-    signed_comparison::slt_constraints(lv, &mut constraints);
-    shift::constraints(lv, &mut constraints);
-    div::constraints(lv, &mut constraints);
-    mul::constraints(lv, &mut constraints);
-    jalr::constraints(lv, &mut constraints);
-    ecall::constraints(lv, &mut constraints);
+        // ADD is now handled by its own table.
+        constraints.always(lv.inst.ops.add);
+        sub::constraints(lv, &mut constraints);
+        bitwise::constraints(lv, &mut constraints);
+        branches::comparison_constraints(lv, &mut constraints);
+        branches::constraints(lv, &mut constraints);
+        memory::constraints(lv, &mut constraints);
+        signed_comparison::signed_constraints(lv, &mut constraints);
+        signed_comparison::slt_constraints(lv, &mut constraints);
+        shift::constraints(lv, &mut constraints);
+        div::constraints(lv, &mut constraints);
+        mul::constraints(lv, &mut constraints);
+        jalr::constraints(lv, &mut constraints);
+        ecall::constraints(lv, &mut constraints);
 
-    constraints
+        constraints
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
@@ -126,7 +131,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
         let vars = expr_builder.to_typed_starkframe(vars);
-        let constraints = generate_constraints(&vars);
+        let constraints = Self::generate_constraints(&vars);
         build_packed(constraints, constraint_consumer);
     }
 
@@ -140,7 +145,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) {
         let expr_builder = ExprBuilder::default();
         let vars = expr_builder.to_typed_starkframe(vars);
-        let constraints = generate_constraints(&vars);
+        let constraints = Self::generate_constraints(&vars);
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
 }

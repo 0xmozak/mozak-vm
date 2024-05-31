@@ -44,7 +44,7 @@ impl<'a, F, T: Copy, U, const D: usize>
         // Check: the resulting sum is wrapped if necessary.
         // As the result is range checked, this make the choice deterministic,
         // even for a malicious prover.
-        constraints.always((lv.dst_value - added) * (lv.dst_value - wrapped) + 1);
+        constraints.always((lv.dst_value - added) * (lv.dst_value - wrapped));
 
         constraints
     }
@@ -79,7 +79,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for AddStark<F, D
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        let vars = expr_builder.to_typed_starkframe(vars);
+        let constraints = Self::generate_constraints(&vars);
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
 
