@@ -147,7 +147,7 @@ class ExamplesTester(unittest.TestCase):
                 )
 
                 build_command = (
-                    f'cargo build --release --bin {folder}bin --features="std"'
+                    f'cargo build --release --bin {folder}bin'
                 )
                 print(
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
