@@ -996,6 +996,7 @@ dependencies = [
  "mozak-sdk",
  "plonky2",
  "serde",
+ "tested-fixture",
 ]
 
 [[package]]

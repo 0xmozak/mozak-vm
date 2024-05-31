@@ -5,11 +5,13 @@ use serde_hex::{SerHexSeq, StrictPfx};
 #[derive(
     Default, Clone, Hash, PartialEq, PartialOrd, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize,
 )]
+#[archive(check_bytes)]
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
 #[archive(check_bytes)]
+#[archive_attr(derive(Debug))]
 pub struct RawMessage(
     #[cfg_attr(not(target_os = "mozakvm"), serde(with = "SerHexSeq::<StrictPfx>"))] pub Vec<u8>,
 );
