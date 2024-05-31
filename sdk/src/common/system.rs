@@ -134,8 +134,6 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
 /// This function deliberately leaks the backing buffer for the storage of the
 /// returned event tape.
 fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
-    use crate::core::ecall::halt;
-    // halt(0);
     let mut len_bytes = [0; 4];
     event_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
@@ -144,7 +142,6 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
 
     let canonical_ordered_temporal_hints =
         unsafe { rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(buf) };
-    halt(0);
     EventTapeType {
         self_prog_id,
         reader: Some(canonical_ordered_temporal_hints),
