@@ -50,9 +50,8 @@ fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str)
     if cfg!(feature = "cargo-clippy") {
         writeln!(dest, r#"pub const {glob_name}: &[u8] = &[];"#)
     } else {
-        let args = vec!["build", "--release"];
         let output = Command::new("cargo")
-            .args(args)
+            .args(["build", "--release"])
             .current_dir(crate_path)
             .env_clear()
             .envs(std::env::vars().filter(|x| !x.0.starts_with("CARGO_")))
