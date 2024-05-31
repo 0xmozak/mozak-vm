@@ -137,7 +137,7 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     use crate::core::ecall::halt;
     // halt(0);
     let mut len_bytes = [0; 4];
-    call_tape_read(&mut len_bytes);
+    event_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
     let buf: &'static mut Vec<u8> = Box::leak(Box::new(Vec::with_capacity(len)));
     event_tape_read(buf);

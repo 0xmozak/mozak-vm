@@ -46,8 +46,8 @@ pub fn generate_storage_trace<F: RichField>(
     step_rows: &[Row<F>],
     which_tape: StorageDeviceOpcode,
 ) -> Vec<StorageDevice<F>> {
-    pad_mem_trace(
-        filter(step_rows, which_tape)
+    pad_mem_trace({
+        let trace = filter(step_rows, which_tape)
             .flat_map(|s| {
                 let StorageDeviceEntry { op, data, addr }: StorageDeviceEntry =
                     s.aux.storage_device_entry.clone().unwrap_or_default();
@@ -83,8 +83,14 @@ pub fn generate_storage_trace<F: RichField>(
                     })
                 )
             })
-            .collect::<Vec<StorageDevice<F>>>(),
-    )
+            .collect::<Vec<StorageDevice<F>>>();
+        if let StorageDeviceOpcode::StoreEventsCommitmentTape | StorageDeviceOpcode::StoreCallTape =
+            which_tape
+        {
+            println!("trace: {trace:?}");
+        }
+        trace
+    })
 }
 
 #[must_use]
