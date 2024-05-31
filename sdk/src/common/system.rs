@@ -9,7 +9,6 @@ use {
     crate::core::ecall::{
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
-    core::ptr::slice_from_raw_parts,
     std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
@@ -130,7 +129,7 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
 /// rkyv-serialized, and must be deserialized at the point of consumption.
 fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     let mut len_bytes = [0; 4];
-    event_tape_read(len_bytes.as_mut_ptr(), 4);
+    call_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
     let buf: &'static mut Vec<u8> = Box::leak(Box::new(Vec::with_capacity(len)));
     event_tape_read(buf);
