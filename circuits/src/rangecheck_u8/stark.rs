@@ -13,7 +13,7 @@ use starky::stark::Stark;
 
 use super::columns::RangeCheckU8;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -29,19 +29,24 @@ impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
 const COLUMNS: usize = RangeCheckU8::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<RangeCheckU8<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let nv = vars.next_values;
-    let mut constraints = ConstraintBuilder::default();
+impl<'a, F, T: Copy, U, const D: usize>
+    GenerateConstraints<'a, T, RangeCheckU8<Expr<'a, T>>, NoColumns<U>>
+    for RangeCheckU8Stark<F, { D }>
+{
+    fn generate_constraints(
+        vars: &StarkFrameTyped<RangeCheckU8<Expr<'a, T>>, NoColumns<U>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let nv = vars.next_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    // Check: the `element`s form a sequence from 0 to 255
-    constraints.first_row(lv.value);
-    constraints.transition(nv.value - lv.value - 1);
-    constraints.last_row(lv.value - i64::from(u8::MAX));
+        // Check: the `element`s form a sequence from 0 to 255
+        constraints.first_row(lv.value);
+        constraints.transition(nv.value - lv.value - 1);
+        constraints.last_row(lv.value - i64::from(u8::MAX));
 
-    constraints
+        constraints
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU8Stark<F, D> {
@@ -61,7 +66,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU8S
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_packed(constraints, consumer);
     }
 
@@ -72,7 +77,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU8S
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
+        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
         build_ext(constraints, builder, consumer);
     }
 
