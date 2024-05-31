@@ -73,13 +73,13 @@ pub fn ioread_public(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 #[cfg(target_os = "mozakvm")]
-pub fn call_tape_read(buf_ptr: *mut u8, buf_len: usize) {
+pub fn call_tape_read(buf: &mut [u8]) {
     unsafe {
         core::arch::asm!(
         "ecall",
         in ("a0") CALL_TAPE,
-        in ("a1") buf_ptr,
-        in ("a2") buf_len,
+        in ("a1") buf.as_mut_ptr(),
+        in ("a2") buf.len(),
         );
     }
 }

@@ -97,13 +97,13 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 /// deserialized for persistence of the `cast_list`.
 fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let mut len_bytes = [0; 4];
-    call_tape_read(len_bytes.as_mut_ptr(), 4);
+    call_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let mut buf = Vec::with_capacity(len);
-    call_tape_read(buf.as_mut_ptr(), len);
+    let buf: &'static mut Vec<u8> = Box::leak(Box::new(Vec::with_capacity(len)));
+    call_tape_read(buf);
 
     let archived_cpc_messages = unsafe {
-        rkyv::access_unchecked::<Vec<CrossProgramCall>>(&*slice_from_raw_parts(buf.as_ptr(), len))
+        rkyv::access_unchecked::<Vec<CrossProgramCall>>(buf)
     };
 
     let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
