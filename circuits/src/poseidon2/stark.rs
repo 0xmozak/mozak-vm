@@ -3,8 +3,9 @@ use std::marker::PhantomData;
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
+use plonky2::field::types::{Field, PrimeField64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::Poseidon2;
 use plonky2::iop::ext_target::ExtensionTarget;
@@ -20,11 +21,8 @@ use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SI
 use crate::unstark::NoColumns;
 
 // degree: 1
-fn add_rc<'a, V, W, const STATE_SIZE: usize>(
-    state: &mut [Expr<'a, V>; STATE_SIZE],
-    r: usize,
-    from_u64: &mut impl FnMut(u64) -> Expr<'a, V>,
-) where
+fn add_rc<V, W, const STATE_SIZE: usize>(state: &mut [Expr<V>; STATE_SIZE], r: usize)
+where
     V: Copy,
     W: Poseidon2, {
     for (i, val) in state.iter_mut().enumerate() {
@@ -103,10 +101,8 @@ where
 }
 
 // degree: 1
-fn matmul_internal12<'a, V, U, const STATE_SIZE: usize>(
-    state: &mut [Expr<'a, V>; STATE_SIZE],
-    from_u64: &mut impl FnMut(u64) -> Expr<'a, V>,
-) where
+fn matmul_internal12<'a, V, U, const STATE_SIZE: usize>(state: &mut [Expr<'a, V>; STATE_SIZE])
+where
     V: Copy,
     U: Poseidon2, {
     let sum = state.iter().sum::<Expr<'a, V>>();
@@ -133,12 +129,13 @@ const PUBLIC_INPUTS: usize = 0;
 // Compile time assertion that STATE_SIZE equals 12
 const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 
+fn from_u64(u: u64) -> i64 { GoldilocksField::from_canonical_u64(u).to_canonical_i64() }
+
 // NOTE: This one has extra constraints compared to different implementations of
 // `generate_constraints` that were have written so far.  It will be something
 // to take into account when providing a more geneeral API to plonky.
 fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     vars: &StarkFrameTyped<Poseidon2State<Expr<'a, V>>, NoColumns<Expr<'a, V>>>,
-    from_u64: &mut impl FnMut(u64) -> Expr<'a, V>,
 ) -> ConstraintBuilder<Expr<'a, V>> {
     let lv = vars.local_values;
     let mut constraints = ConstraintBuilder::default();
@@ -150,7 +147,7 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     matmul_external12(&mut state);
     // first full rounds
     for r in 0..(ROUNDS_F / 2) {
-        add_rc::<V, U, STATE_SIZE>(&mut state, r, from_u64);
+        add_rc::<V, U, STATE_SIZE>(&mut state, r);
         for (i, item) in state.iter_mut().enumerate() {
             sbox_p(
                 item,
@@ -168,7 +165,7 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     for i in 0..ROUNDS_P {
         state[0] += from_u64(<U as Poseidon2>::RC12_MID[i]);
         sbox_p(&mut state[0], &lv.s_box_input_qube_partial_rounds[i]);
-        matmul_internal12::<V, U, STATE_SIZE>(&mut state, from_u64);
+        matmul_internal12::<V, U, STATE_SIZE>(&mut state);
         constraints.always(state[0] - lv.state0_after_partial_rounds[i]);
         state[0] = lv.state0_after_partial_rounds[i];
     }
@@ -182,7 +179,7 @@ fn generate_constraints<'a, V: Copy, U: Poseidon2>(
     // last full rounds
     for i in 0..(ROUNDS_F / 2) {
         let r = (ROUNDS_F / 2) + i;
-        add_rc::<V, U, STATE_SIZE>(&mut state, r, from_u64);
+        add_rc::<V, U, STATE_SIZE>(&mut state, r);
         for (j, item) in state.iter_mut().enumerate() {
             sbox_p(
                 item,
@@ -215,9 +212,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints::<P, F>(&eb.to_typed_starkframe(vars), &mut |u| {
-            eb.lit(P::from(FE::from_basefield(F::from_canonical_u64(u))))
-        });
+        let constraints = generate_constraints::<P, F>(&eb.to_typed_starkframe(vars));
         build_packed(constraints, consumer);
     }
 
@@ -230,10 +225,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let eb = ExprBuilder::default();
-        let constraints = generate_constraints::<ExtensionTarget<D>, F>(
-            &eb.to_typed_starkframe(vars),
-            &mut |u| eb.lit(builder.constant_extension(F::Extension::from_canonical_u64(u))),
-        );
+        let constraints =
+            generate_constraints::<ExtensionTarget<D>, F>(&eb.to_typed_starkframe(vars));
         build_ext(constraints, builder, consumer);
     }
 }
