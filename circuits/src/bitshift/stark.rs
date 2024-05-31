@@ -35,7 +35,7 @@ impl<'a, F, T: Copy, U, const D: usize>
     for BitshiftStark<F, { D }>
 {
     fn generate_constraints(
-        vars: &'a StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<U>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values.executed;
         let nv = vars.next_values.executed;
