@@ -41,7 +41,7 @@ fn pc_ticks_up<'a, P: Copy>(lv: &CpuState<Expr<'a, P>>, cb: &mut ConstraintBuild
 /// Ie exactly one of them should be 1, and all others 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
 fn binary_selectors<'a, P: Copy>(
-    ops: &'a OpSelectors<Expr<'a, P>>,
+    ops: &OpSelectors<Expr<'a, P>>,
     cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     // selectors have value 0 or 1.
@@ -82,7 +82,7 @@ impl<'a, F, T: Copy, U, const D: usize>
     GenerateConstraints<'a, T, T, CpuState<Expr<'a, T>>, NoColumns<U>> for CpuStark<F, { D }>
 {
     fn generate_constraints(
-        vars: &'a StarkFrameTyped<CpuState<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, NoColumns<U>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = &vars.local_values;
         let mut constraints = ConstraintBuilder::default();
