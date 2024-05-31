@@ -218,10 +218,7 @@ pub fn debug_single_trace<
     'a,
     F: RichField + Extendable<D> + Debug,
     const D: usize,
-    S: Stark<F, D>
-        + Display
-        + HasNamedColumns
-        // + GenerateConstraints<'a, F, S::Columns, S::PublicInputs>,
+    S: Stark<F, D> + Display + HasNamedColumns, // + GenerateConstraints<'a, F, S::Columns>,
 >(
     stark: &'a S,
     trace_rows: &'a [PolynomialValues<F>],

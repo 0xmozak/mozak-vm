@@ -47,7 +47,6 @@ pub struct TapeCommitmentsStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for TapeCommitmentsStark<F, D> {
     type Columns = TapeCommitments<F>;
-    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = TapeCommitments::<()>::NUMBER_OF_COLUMNS;

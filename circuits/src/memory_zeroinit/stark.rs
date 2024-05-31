@@ -24,7 +24,6 @@ pub struct MemoryZeroInitStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for MemoryZeroInitStark<F, D> {
     type Columns = MemoryZeroInit<F>;
-    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;

@@ -24,7 +24,6 @@ pub struct MemoryStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for MemoryStark<F, D> {
     type Columns = Memory<F>;
-    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;

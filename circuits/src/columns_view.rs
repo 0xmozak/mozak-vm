@@ -29,7 +29,6 @@ pub(crate) const unsafe fn transmute_ref<T, U>(t: &T) -> &U {
 
 pub trait HasNamedColumns {
     type Columns;
-    type PublicInputs;
 }
 
 pub trait NumberOfColumns {

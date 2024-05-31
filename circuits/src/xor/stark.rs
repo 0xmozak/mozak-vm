@@ -25,7 +25,6 @@ pub struct XorStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
     type Columns = XorColumnsView<F>;
-    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;

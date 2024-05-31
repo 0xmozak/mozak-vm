@@ -25,7 +25,6 @@ pub struct FullWordMemoryStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for FullWordMemoryStark<F, D> {
     type Columns = FullWordMemory<F>;
-    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = NUM_HW_MEM_COLS;

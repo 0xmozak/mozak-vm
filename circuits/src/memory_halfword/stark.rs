@@ -24,7 +24,6 @@ pub struct HalfWordMemoryStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
     type Columns = HalfWordMemory<F>;
-    type PublicInputs = NoColumns<F>;
 }
 
 impl<'a, F, T: Copy, U, const D: usize>

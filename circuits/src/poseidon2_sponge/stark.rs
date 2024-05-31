@@ -27,7 +27,6 @@ pub struct Poseidon2SpongeStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2SpongeStark<F, D> {
     type Columns = Poseidon2Sponge<F>;
-    type PublicInputs = NoColumns<F>;
 }
 
 const COLUMNS: usize = NUM_POSEIDON2_SPONGE_COLS;
