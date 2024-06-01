@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{BitAnd, BitAndAssign, Shl, Sub};
 
+pub mod matches;
 pub mod state;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
