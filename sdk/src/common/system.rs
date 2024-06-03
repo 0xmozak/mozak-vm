@@ -101,7 +101,7 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let mut len_bytes = [0; 4];
     call_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let buf: &'static mut Vec<u8> = Box::leak(Box::new(Vec::with_capacity(len)));
+    let buf: &'static mut Vec<u8> = Box::leak(Box::new(vec![0; len]));
     call_tape_read(buf);
 
     let archived_cpc_messages = unsafe { rkyv::access_unchecked::<Vec<CrossProgramCall>>(buf) };
@@ -137,7 +137,7 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     let mut len_bytes = [0; 4];
     event_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let buf: &'static mut Vec<u8> = Box::leak(Box::new(Vec::with_capacity(len)));
+    let buf: &'static mut Vec<u8> = Box::leak(Box::new(vec![0; len]));
     event_tape_read(buf);
 
     let canonical_ordered_temporal_hints =
