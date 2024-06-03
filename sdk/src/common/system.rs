@@ -9,7 +9,6 @@ use {
     crate::core::ecall::{
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
-    core::ptr::slice_from_raw_parts,
     std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
@@ -64,7 +63,7 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
     #[cfg(target_os = "mozakvm")]
     {
         let mut self_prog_id_bytes = [0; DIGEST_BYTES];
-        self_prog_id_tape_read(self_prog_id_bytes.as_mut_ptr());
+        self_prog_id_tape_read(&mut self_prog_id_bytes);
         let self_prog_id = ProgramIdentifier(Poseidon2Hash::from(self_prog_id_bytes));
 
         let call_tape = populate_call_tape(self_prog_id);
@@ -72,11 +71,11 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 
         let mut size_hint_bytes = [0; 4];
 
-        ioread_public(size_hint_bytes.as_mut_ptr(), 4);
+        ioread_public(&mut size_hint_bytes);
         let size_hint: usize = u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
         let public_input_tape = PublicInputTapeType::with_size_hint(size_hint);
 
-        ioread_private(size_hint_bytes.as_mut_ptr(), 4);
+        ioread_private(&mut size_hint_bytes);
         let size_hint: usize = u32::from_le_bytes(size_hint_bytes).try_into().unwrap();
         let private_input_tape = PrivateInputTapeType::with_size_hint(size_hint);
 
@@ -95,16 +94,17 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 /// At this point, the [`CrossProgramCall`] messages are still rkyv-serialized,
 /// and must be deserialized at the point of consumption. Only the `callee`s are
 /// deserialized for persistence of the `cast_list`.
+///
+/// This function deliberately leaks the backing buffer for the storage of the
+/// returned call tape.
 fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let mut len_bytes = [0; 4];
-    call_tape_read(len_bytes.as_mut_ptr(), 4);
+    call_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let mut buf = Vec::with_capacity(len);
-    call_tape_read(buf.as_mut_ptr(), len);
+    let buf: &'static mut Vec<u8> = Box::leak(Box::new(Vec::with_capacity(len)));
+    call_tape_read(buf);
 
-    let archived_cpc_messages = unsafe {
-        rkyv::access_unchecked::<Vec<CrossProgramCall>>(&*slice_from_raw_parts(buf.as_ptr(), len))
-    };
+    let archived_cpc_messages = unsafe { rkyv::access_unchecked::<Vec<CrossProgramCall>>(buf) };
 
     let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
         .iter()
@@ -130,20 +130,18 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
 ///
 /// At this point, the vector of [`CanonicalOrderedTemporalHints`] are still
 /// rkyv-serialized, and must be deserialized at the point of consumption.
+///
+/// This function deliberately leaks the backing buffer for the storage of the
+/// returned event tape.
 fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     let mut len_bytes = [0; 4];
-    event_tape_read(len_bytes.as_mut_ptr(), 4);
+    event_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let mut buf = Vec::with_capacity(len);
-    event_tape_read(buf.as_mut_ptr(), len);
+    let buf: &'static mut Vec<u8> = Box::leak(Box::new(Vec::with_capacity(len)));
+    event_tape_read(buf);
 
-    let canonical_ordered_temporal_hints = unsafe {
-        rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(&*slice_from_raw_parts(
-            buf.as_ptr(),
-            len,
-        ))
-    };
-
+    let canonical_ordered_temporal_hints =
+        unsafe { rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(buf) };
     EventTapeType {
         self_prog_id,
         reader: Some(canonical_ordered_temporal_hints),
@@ -214,7 +212,7 @@ pub fn ensure_clean_shutdown() {
         // Assert that event commitment tape has the same bytes
         // as Event Tape's actual commitment observable to us
         let mut claimed_commitment_ev: [u8; 32] = [0; 32];
-        crate::core::ecall::events_commitment_tape_read(claimed_commitment_ev.as_mut_ptr());
+        crate::core::ecall::events_commitment_tape_read(&mut claimed_commitment_ev);
 
         let canonical_event_temporal_hints: Vec<CanonicalOrderedTemporalHints> = SYSTEM_TAPE
             .event_tape
@@ -243,7 +241,7 @@ pub fn ensure_clean_shutdown() {
         // Assert that castlist commitment tape has the same bytes
         // as CastList's actual commitment observable to us
         let mut claimed_commitment_cl: [u8; 32] = [0; 32];
-        crate::core::ecall::cast_list_commitment_tape_read(claimed_commitment_cl.as_mut_ptr());
+        crate::core::ecall::cast_list_commitment_tape_read(&mut claimed_commitment_cl);
 
         let cast_list = &SYSTEM_TAPE.call_tape.cast_list;
 

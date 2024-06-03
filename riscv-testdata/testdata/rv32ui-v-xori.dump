@@ -858,48 +858,48 @@ Disassembly of section .text:
 
 80002a90 <userstart>:
 80002a90:	00200193          	li	gp,2
-80002a94:	00ff10b7          	lui	ra,0xff1
-80002a98:	f0008093          	add	ra,ra,-256 # ff0f00 <_start-0x7f00f100>
-80002a9c:	f0f0c713          	xor	a4,ra,-241
+80002a94:	00ff16b7          	lui	a3,0xff1
+80002a98:	f0068693          	add	a3,a3,-256 # ff0f00 <_start-0x7f00f100>
+80002a9c:	f0f6c713          	xor	a4,a3,-241
 80002aa0:	ff00f3b7          	lui	t2,0xff00f
 80002aa4:	00f38393          	add	t2,t2,15 # ff00f00f <freelist_head+0x7f00900b>
 80002aa8:	1c771663          	bne	a4,t2,80002c74 <fail>
 
 80002aac <test_3>:
 80002aac:	00300193          	li	gp,3
-80002ab0:	0ff010b7          	lui	ra,0xff01
-80002ab4:	ff008093          	add	ra,ra,-16 # ff00ff0 <_start-0x700ff010>
-80002ab8:	0f00c713          	xor	a4,ra,240
+80002ab0:	0ff016b7          	lui	a3,0xff01
+80002ab4:	ff068693          	add	a3,a3,-16 # ff00ff0 <_start-0x700ff010>
+80002ab8:	0f06c713          	xor	a4,a3,240
 80002abc:	0ff013b7          	lui	t2,0xff01
 80002ac0:	f0038393          	add	t2,t2,-256 # ff00f00 <_start-0x700ff100>
 80002ac4:	1a771863          	bne	a4,t2,80002c74 <fail>
 
 80002ac8 <test_4>:
 80002ac8:	00400193          	li	gp,4
-80002acc:	00ff10b7          	lui	ra,0xff1
-80002ad0:	8ff08093          	add	ra,ra,-1793 # ff08ff <_start-0x7f00f701>
-80002ad4:	70f0c713          	xor	a4,ra,1807
+80002acc:	00ff16b7          	lui	a3,0xff1
+80002ad0:	8ff68693          	add	a3,a3,-1793 # ff08ff <_start-0x7f00f701>
+80002ad4:	70f6c713          	xor	a4,a3,1807
 80002ad8:	00ff13b7          	lui	t2,0xff1
 80002adc:	ff038393          	add	t2,t2,-16 # ff0ff0 <_start-0x7f00f010>
 80002ae0:	18771a63          	bne	a4,t2,80002c74 <fail>
 
 80002ae4 <test_5>:
 80002ae4:	00500193          	li	gp,5
-80002ae8:	f00ff0b7          	lui	ra,0xf00ff
-80002aec:	00f08093          	add	ra,ra,15 # f00ff00f <freelist_head+0x700f900b>
-80002af0:	0f00c713          	xor	a4,ra,240
+80002ae8:	f00ff6b7          	lui	a3,0xf00ff
+80002aec:	00f68693          	add	a3,a3,15 # f00ff00f <freelist_head+0x700f900b>
+80002af0:	0f06c713          	xor	a4,a3,240
 80002af4:	f00ff3b7          	lui	t2,0xf00ff
 80002af8:	0ff38393          	add	t2,t2,255 # f00ff0ff <freelist_head+0x700f90fb>
 80002afc:	16771c63          	bne	a4,t2,80002c74 <fail>
 
 80002b00 <test_6>:
 80002b00:	00600193          	li	gp,6
-80002b04:	ff00f0b7          	lui	ra,0xff00f
-80002b08:	70008093          	add	ra,ra,1792 # ff00f700 <freelist_head+0x7f0096fc>
-80002b0c:	70f0c093          	xor	ra,ra,1807
+80002b04:	ff00f5b7          	lui	a1,0xff00f
+80002b08:	70058593          	add	a1,a1,1792 # ff00f700 <freelist_head+0x7f0096fc>
+80002b0c:	70f5c593          	xor	a1,a1,1807
 80002b10:	ff00f3b7          	lui	t2,0xff00f
 80002b14:	00f38393          	add	t2,t2,15 # ff00f00f <freelist_head+0x7f00900b>
-80002b18:	14709e63          	bne	ra,t2,80002c74 <fail>
+80002b18:	14759e63          	bne	a1,t2,80002c74 <fail>
 
 80002b1c <test_7>:
 80002b1c:	00700193          	li	gp,7
