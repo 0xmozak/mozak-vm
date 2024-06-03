@@ -115,44 +115,44 @@ Disassembly of section .text.init:
 
 8000018c <test_2>:
 8000018c:	00200193          	li	gp,2
-80000190:	ff0100b7          	lui	ra,0xff010
-80000194:	f0008093          	add	ra,ra,-256 # ff00ff00 <_end+0x7f00df00>
-80000198:	f0f0f713          	and	a4,ra,-241
+80000190:	ff0106b7          	lui	a3,0xff010
+80000194:	f0068693          	add	a3,a3,-256 # ff00ff00 <_end+0x7f00df00>
+80000198:	f0f6f713          	and	a4,a3,-241
 8000019c:	ff0103b7          	lui	t2,0xff010
 800001a0:	f0038393          	add	t2,t2,-256 # ff00ff00 <_end+0x7f00df00>
 800001a4:	1a771463          	bne	a4,t2,8000034c <fail>
 
 800001a8 <test_3>:
 800001a8:	00300193          	li	gp,3
-800001ac:	0ff010b7          	lui	ra,0xff01
-800001b0:	ff008093          	add	ra,ra,-16 # ff00ff0 <_start-0x700ff010>
-800001b4:	0f00f713          	and	a4,ra,240
+800001ac:	0ff016b7          	lui	a3,0xff01
+800001b0:	ff068693          	add	a3,a3,-16 # ff00ff0 <_start-0x700ff010>
+800001b4:	0f06f713          	and	a4,a3,240
 800001b8:	0f000393          	li	t2,240
 800001bc:	18771863          	bne	a4,t2,8000034c <fail>
 
 800001c0 <test_4>:
 800001c0:	00400193          	li	gp,4
-800001c4:	00ff00b7          	lui	ra,0xff0
-800001c8:	0ff08093          	add	ra,ra,255 # ff00ff <_start-0x7f00ff01>
-800001cc:	70f0f713          	and	a4,ra,1807
+800001c4:	00ff06b7          	lui	a3,0xff0
+800001c8:	0ff68693          	add	a3,a3,255 # ff00ff <_start-0x7f00ff01>
+800001cc:	70f6f713          	and	a4,a3,1807
 800001d0:	00f00393          	li	t2,15
 800001d4:	16771c63          	bne	a4,t2,8000034c <fail>
 
 800001d8 <test_5>:
 800001d8:	00500193          	li	gp,5
-800001dc:	f00ff0b7          	lui	ra,0xf00ff
-800001e0:	00f08093          	add	ra,ra,15 # f00ff00f <_end+0x700fd00f>
-800001e4:	0f00f713          	and	a4,ra,240
+800001dc:	f00ff6b7          	lui	a3,0xf00ff
+800001e0:	00f68693          	add	a3,a3,15 # f00ff00f <_end+0x700fd00f>
+800001e4:	0f06f713          	and	a4,a3,240
 800001e8:	00000393          	li	t2,0
 800001ec:	16771063          	bne	a4,t2,8000034c <fail>
 
 800001f0 <test_6>:
 800001f0:	00600193          	li	gp,6
-800001f4:	ff0100b7          	lui	ra,0xff010
-800001f8:	f0008093          	add	ra,ra,-256 # ff00ff00 <_end+0x7f00df00>
-800001fc:	0f00f093          	and	ra,ra,240
+800001f4:	ff0105b7          	lui	a1,0xff010
+800001f8:	f0058593          	add	a1,a1,-256 # ff00ff00 <_end+0x7f00df00>
+800001fc:	0f05f593          	and	a1,a1,240
 80000200:	00000393          	li	t2,0
-80000204:	14709463          	bne	ra,t2,8000034c <fail>
+80000204:	14759463          	bne	a1,t2,8000034c <fail>
 
 80000208 <test_7>:
 80000208:	00700193          	li	gp,7
