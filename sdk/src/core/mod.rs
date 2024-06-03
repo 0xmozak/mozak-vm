@@ -80,7 +80,7 @@ mod handlers {
     #[panic_handler]
     fn panic_fault(panic_info: &PanicInfo) -> ! {
         let msg = rust_alloc::format!("{panic_info}");
-        ecall::panic(msg.as_ptr(), msg.len());
+        ecall::panic(msg.as_str());
         unreachable!();
     }
 }
