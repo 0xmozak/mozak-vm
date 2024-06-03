@@ -26,7 +26,10 @@ macro_rules! entry {
             fn bespoke_entrypoint() {
                 super::MOZAK_ENTRY();
                 #[cfg(feature = "std")]
-                mozak_sdk::common::system::ensure_clean_shutdown();
+                {
+                    assert!(1 == 2);
+                    mozak_sdk::common::system::ensure_clean_shutdown();
+                }
             }
         }
     };
