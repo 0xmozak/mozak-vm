@@ -97,7 +97,7 @@ class ExamplesTester(unittest.TestCase):
 
                 subprocess.run(
                     args=shlex.split(build_command),
-                    cwd="examples",
+                    cwd=f"examples/{folder}",
                     capture_output=capture_output,
                     timeout=timeout,
                     env=os_environ,
@@ -155,7 +155,7 @@ class ExamplesTester(unittest.TestCase):
 
                 subprocess.run(
                     args=shlex.split(build_command),
-                    cwd="examples",
+                    cwd=f"examples/{folder}",
                     capture_output=capture_output,
                     timeout=timeout,
                     env=os_environ,
