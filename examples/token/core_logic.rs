@@ -51,7 +51,7 @@ pub fn transfer(
         object: state_object.clone(),
         type_: EventType::Read,
     };
-    // mozak_sdk::event_emit(read_event);
+    mozak_sdk::event_emit(read_event);
 
     // let mut token_object = wallet::TokenObject::from(state_object.clone());
 
