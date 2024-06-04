@@ -8,6 +8,7 @@ use serde_hex::{SerHexSeq, StrictPfx};
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
+#[archive(check_bytes)]
 pub struct StateObject {
     pub address: super::StateAddress,
     pub constraint_owner: super::ProgramIdentifier,
