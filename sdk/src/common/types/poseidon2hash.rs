@@ -16,11 +16,12 @@ use crate::core::constants::DIGEST_BYTES;
     rkyv::Deserialize,
     rkyv::Serialize,
 )]
+#[archive(check_bytes)]
 #[cfg_attr(
     not(target_os = "mozakvm"),
     derive(serde::Serialize, serde::Deserialize)
 )]
-#[archive(check_bytes)]
+#[archive_attr(derive(Debug))]
 pub struct Poseidon2Hash(
     #[cfg_attr(not(target_os = "mozakvm"), serde(with = "SerHex::<StrictPfx>"))]
     pub  [u8; DIGEST_BYTES],
@@ -46,6 +47,22 @@ impl std::fmt::Debug for Poseidon2Hash {
 impl Poseidon2Hash {
     #[must_use]
     pub fn inner(&self) -> [u8; DIGEST_BYTES] { self.0 }
+
+    pub fn to_u64s(&self) -> [u64; 4] {
+        let mut bytes = [[0; 8]; DIGEST_BYTES / 8];
+        array_util::flatten_mut(&mut bytes).copy_from_slice(&self.0);
+        bytes.map(u64::from_le_bytes)
+    }
+
+    #[must_use]
+    pub fn two_to_one(l: Self, r: Self) -> Self {
+        #[cfg(target_os = "mozakvm")]
+        use crate::mozakvm::poseidon::poseidon2_hash_no_pad;
+        #[cfg(not(target_os = "mozakvm"))]
+        use crate::native::poseidon::poseidon2_hash_no_pad;
+
+        poseidon2_hash_no_pad(array_util::flatten(&[l.0, r.0]))
+    }
 
     #[must_use]
     #[cfg(not(target_os = "mozakvm"))]

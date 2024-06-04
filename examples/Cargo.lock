@@ -28,6 +28,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25bdb32cbbdce2b519a9cd7df3a678443100e265d5e25ca763b7572a5104f5f3"
 
 [[package]]
+name = "array-concat"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68b4d2c47ea522f4135657904891e533727daca3d2d852f29f5e4cc50960c77c"
+
+[[package]]
 name = "array-init"
 version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -35,6 +41,21 @@ checksum = "23589ecb866b460d3a0f1278834750268c607e8e28a1b982c907219f3178cd72"
 dependencies = [
  "nodrop",
 ]
+
+[[package]]
+name = "array-util"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e509844de8f09b90a2c3444684a2b6695f4071360e13d2fda0af9f749cc2ed6"
+dependencies = [
+ "arrayvec",
+]
+
+[[package]]
+name = "arrayvec"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 
 [[package]]
 name = "autocfg"
@@ -75,6 +96,29 @@ name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
+
+[[package]]
+name = "bytecheck"
+version = "0.8.0-pre6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58167cc4244105c1b50a4d0a9f4672107138def79b73755b74d21c0b807e7755"
+dependencies = [
+ "bytecheck_derive",
+ "ptr_meta",
+ "rancor",
+ "simdutf8",
+]
+
+[[package]]
+name = "bytecheck_derive"
+version = "0.8.0-pre6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41412be9f547e2c7aa8e444c935958d711ec34189b42a24208635cab44c07cd1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "cfg-if"
@@ -279,8 +323,9 @@ dependencies = [
 name = "mozak-sdk"
 version = "0.2.0"
 dependencies = [
+ "array-concat",
+ "array-util",
  "hex",
- "itertools",
  "once_cell",
  "plonky2",
  "rand",
@@ -290,7 +335,7 @@ dependencies = [
  "serde",
  "serde-hex",
  "serde_json",
- "slice-group-by",
+ "vec-entries",
 ]
 
 [[package]]
@@ -536,6 +581,9 @@ name = "rend"
 version = "0.5.0-pre6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f02fc3227b019649985d2f89e254e345f027cc58af7bbf5faa4f3f7271bc4cc"
+dependencies = [
+ "bytecheck",
+]
 
 [[package]]
 name = "rkyv"
@@ -544,6 +592,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f11954ea56d7bfee4022704c89d997ca15659bff852ab06dbee5cbeffdc723ed"
 dependencies = [
  "bitvec",
+ "bytecheck",
  "hashbrown",
  "ptr_meta",
  "rancor",
@@ -641,10 +690,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "slice-group-by"
-version = "0.3.1"
+name = "simdutf8"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
+checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
 
 [[package]]
 name = "smallvec"
@@ -740,6 +789,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "vec-entries"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a2458377b6781101b5bc9f679e49c42b4989ccf3bcc4f7b36adc7e1489fd723"
 
 [[package]]
 name = "version_check"

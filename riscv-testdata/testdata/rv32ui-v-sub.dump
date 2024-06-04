@@ -858,148 +858,148 @@ Disassembly of section .text:
 
 80002a90 <userstart>:
 80002a90:	00200193          	li	gp,2
-80002a94:	00000093          	li	ra,0
-80002a98:	00000113          	li	sp,0
-80002a9c:	40208733          	sub	a4,ra,sp
+80002a94:	00000593          	li	a1,0
+80002a98:	00000613          	li	a2,0
+80002a9c:	40c58733          	sub	a4,a1,a2
 80002aa0:	00000393          	li	t2,0
 80002aa4:	4a771663          	bne	a4,t2,80002f50 <fail>
 
 80002aa8 <test_3>:
 80002aa8:	00300193          	li	gp,3
-80002aac:	00100093          	li	ra,1
-80002ab0:	00100113          	li	sp,1
-80002ab4:	40208733          	sub	a4,ra,sp
+80002aac:	00100593          	li	a1,1
+80002ab0:	00100613          	li	a2,1
+80002ab4:	40c58733          	sub	a4,a1,a2
 80002ab8:	00000393          	li	t2,0
 80002abc:	48771a63          	bne	a4,t2,80002f50 <fail>
 
 80002ac0 <test_4>:
 80002ac0:	00400193          	li	gp,4
-80002ac4:	00300093          	li	ra,3
-80002ac8:	00700113          	li	sp,7
-80002acc:	40208733          	sub	a4,ra,sp
+80002ac4:	00300593          	li	a1,3
+80002ac8:	00700613          	li	a2,7
+80002acc:	40c58733          	sub	a4,a1,a2
 80002ad0:	ffc00393          	li	t2,-4
 80002ad4:	46771e63          	bne	a4,t2,80002f50 <fail>
 
 80002ad8 <test_5>:
 80002ad8:	00500193          	li	gp,5
-80002adc:	00000093          	li	ra,0
-80002ae0:	ffff8137          	lui	sp,0xffff8
-80002ae4:	40208733          	sub	a4,ra,sp
+80002adc:	00000593          	li	a1,0
+80002ae0:	ffff8637          	lui	a2,0xffff8
+80002ae4:	40c58733          	sub	a4,a1,a2
 80002ae8:	000083b7          	lui	t2,0x8
 80002aec:	46771263          	bne	a4,t2,80002f50 <fail>
 
 80002af0 <test_6>:
 80002af0:	00600193          	li	gp,6
-80002af4:	800000b7          	lui	ra,0x80000
-80002af8:	00000113          	li	sp,0
-80002afc:	40208733          	sub	a4,ra,sp
+80002af4:	800005b7          	lui	a1,0x80000
+80002af8:	00000613          	li	a2,0
+80002afc:	40c58733          	sub	a4,a1,a2
 80002b00:	800003b7          	lui	t2,0x80000
 80002b04:	44771663          	bne	a4,t2,80002f50 <fail>
 
 80002b08 <test_7>:
 80002b08:	00700193          	li	gp,7
-80002b0c:	800000b7          	lui	ra,0x80000
-80002b10:	ffff8137          	lui	sp,0xffff8
-80002b14:	40208733          	sub	a4,ra,sp
+80002b0c:	800005b7          	lui	a1,0x80000
+80002b10:	ffff8637          	lui	a2,0xffff8
+80002b14:	40c58733          	sub	a4,a1,a2
 80002b18:	800083b7          	lui	t2,0x80008
 80002b1c:	42771a63          	bne	a4,t2,80002f50 <fail>
 
 80002b20 <test_8>:
 80002b20:	00800193          	li	gp,8
-80002b24:	00000093          	li	ra,0
-80002b28:	00008137          	lui	sp,0x8
-80002b2c:	fff10113          	add	sp,sp,-1 # 7fff <_start-0x7fff8001>
-80002b30:	40208733          	sub	a4,ra,sp
+80002b24:	00000593          	li	a1,0
+80002b28:	00008637          	lui	a2,0x8
+80002b2c:	fff60613          	add	a2,a2,-1 # 7fff <_start-0x7fff8001>
+80002b30:	40c58733          	sub	a4,a1,a2
 80002b34:	ffff83b7          	lui	t2,0xffff8
 80002b38:	00138393          	add	t2,t2,1 # ffff8001 <freelist_head+0x7fff0ffd>
 80002b3c:	40771a63          	bne	a4,t2,80002f50 <fail>
 
 80002b40 <test_9>:
 80002b40:	00900193          	li	gp,9
-80002b44:	800000b7          	lui	ra,0x80000
-80002b48:	fff08093          	add	ra,ra,-1 # 7fffffff <_start-0x1>
-80002b4c:	00000113          	li	sp,0
-80002b50:	40208733          	sub	a4,ra,sp
+80002b44:	800005b7          	lui	a1,0x80000
+80002b48:	fff58593          	add	a1,a1,-1 # 7fffffff <_start-0x1>
+80002b4c:	00000613          	li	a2,0
+80002b50:	40c58733          	sub	a4,a1,a2
 80002b54:	800003b7          	lui	t2,0x80000
 80002b58:	fff38393          	add	t2,t2,-1 # 7fffffff <_start-0x1>
 80002b5c:	3e771a63          	bne	a4,t2,80002f50 <fail>
 
 80002b60 <test_10>:
 80002b60:	00a00193          	li	gp,10
-80002b64:	800000b7          	lui	ra,0x80000
-80002b68:	fff08093          	add	ra,ra,-1 # 7fffffff <_start-0x1>
-80002b6c:	00008137          	lui	sp,0x8
-80002b70:	fff10113          	add	sp,sp,-1 # 7fff <_start-0x7fff8001>
-80002b74:	40208733          	sub	a4,ra,sp
+80002b64:	800005b7          	lui	a1,0x80000
+80002b68:	fff58593          	add	a1,a1,-1 # 7fffffff <_start-0x1>
+80002b6c:	00008637          	lui	a2,0x8
+80002b70:	fff60613          	add	a2,a2,-1 # 7fff <_start-0x7fff8001>
+80002b74:	40c58733          	sub	a4,a1,a2
 80002b78:	7fff83b7          	lui	t2,0x7fff8
 80002b7c:	3c771a63          	bne	a4,t2,80002f50 <fail>
 
 80002b80 <test_11>:
 80002b80:	00b00193          	li	gp,11
-80002b84:	800000b7          	lui	ra,0x80000
-80002b88:	00008137          	lui	sp,0x8
-80002b8c:	fff10113          	add	sp,sp,-1 # 7fff <_start-0x7fff8001>
-80002b90:	40208733          	sub	a4,ra,sp
+80002b84:	800005b7          	lui	a1,0x80000
+80002b88:	00008637          	lui	a2,0x8
+80002b8c:	fff60613          	add	a2,a2,-1 # 7fff <_start-0x7fff8001>
+80002b90:	40c58733          	sub	a4,a1,a2
 80002b94:	7fff83b7          	lui	t2,0x7fff8
 80002b98:	00138393          	add	t2,t2,1 # 7fff8001 <_start-0x7fff>
 80002b9c:	3a771a63          	bne	a4,t2,80002f50 <fail>
 
 80002ba0 <test_12>:
 80002ba0:	00c00193          	li	gp,12
-80002ba4:	800000b7          	lui	ra,0x80000
-80002ba8:	fff08093          	add	ra,ra,-1 # 7fffffff <_start-0x1>
-80002bac:	ffff8137          	lui	sp,0xffff8
-80002bb0:	40208733          	sub	a4,ra,sp
+80002ba4:	800005b7          	lui	a1,0x80000
+80002ba8:	fff58593          	add	a1,a1,-1 # 7fffffff <_start-0x1>
+80002bac:	ffff8637          	lui	a2,0xffff8
+80002bb0:	40c58733          	sub	a4,a1,a2
 80002bb4:	800083b7          	lui	t2,0x80008
 80002bb8:	fff38393          	add	t2,t2,-1 # 80007fff <freelist_head+0xffb>
 80002bbc:	38771a63          	bne	a4,t2,80002f50 <fail>
 
 80002bc0 <test_13>:
 80002bc0:	00d00193          	li	gp,13
-80002bc4:	00000093          	li	ra,0
-80002bc8:	fff00113          	li	sp,-1
-80002bcc:	40208733          	sub	a4,ra,sp
+80002bc4:	00000593          	li	a1,0
+80002bc8:	fff00613          	li	a2,-1
+80002bcc:	40c58733          	sub	a4,a1,a2
 80002bd0:	00100393          	li	t2,1
 80002bd4:	36771e63          	bne	a4,t2,80002f50 <fail>
 
 80002bd8 <test_14>:
 80002bd8:	00e00193          	li	gp,14
-80002bdc:	fff00093          	li	ra,-1
-80002be0:	00100113          	li	sp,1
-80002be4:	40208733          	sub	a4,ra,sp
+80002bdc:	fff00593          	li	a1,-1
+80002be0:	00100613          	li	a2,1
+80002be4:	40c58733          	sub	a4,a1,a2
 80002be8:	ffe00393          	li	t2,-2
 80002bec:	36771263          	bne	a4,t2,80002f50 <fail>
 
 80002bf0 <test_15>:
 80002bf0:	00f00193          	li	gp,15
-80002bf4:	fff00093          	li	ra,-1
-80002bf8:	fff00113          	li	sp,-1
-80002bfc:	40208733          	sub	a4,ra,sp
+80002bf4:	fff00593          	li	a1,-1
+80002bf8:	fff00613          	li	a2,-1
+80002bfc:	40c58733          	sub	a4,a1,a2
 80002c00:	00000393          	li	t2,0
 80002c04:	34771663          	bne	a4,t2,80002f50 <fail>
 
 80002c08 <test_16>:
 80002c08:	01000193          	li	gp,16
-80002c0c:	00d00093          	li	ra,13
-80002c10:	00b00113          	li	sp,11
-80002c14:	402080b3          	sub	ra,ra,sp
+80002c0c:	00d00593          	li	a1,13
+80002c10:	00b00613          	li	a2,11
+80002c14:	40c585b3          	sub	a1,a1,a2
 80002c18:	00200393          	li	t2,2
-80002c1c:	32709a63          	bne	ra,t2,80002f50 <fail>
+80002c1c:	32759a63          	bne	a1,t2,80002f50 <fail>
 
 80002c20 <test_17>:
 80002c20:	01100193          	li	gp,17
-80002c24:	00e00093          	li	ra,14
-80002c28:	00b00113          	li	sp,11
-80002c2c:	40208133          	sub	sp,ra,sp
+80002c24:	00e00593          	li	a1,14
+80002c28:	00b00613          	li	a2,11
+80002c2c:	40c58633          	sub	a2,a1,a2
 80002c30:	00300393          	li	t2,3
-80002c34:	30711e63          	bne	sp,t2,80002f50 <fail>
+80002c34:	30761e63          	bne	a2,t2,80002f50 <fail>
 
 80002c38 <test_18>:
 80002c38:	01200193          	li	gp,18
-80002c3c:	00d00093          	li	ra,13
-80002c40:	401080b3          	sub	ra,ra,ra
+80002c3c:	00d00593          	li	a1,13
+80002c40:	40b585b3          	sub	a1,a1,a1
 80002c44:	00000393          	li	t2,0
-80002c48:	30709463          	bne	ra,t2,80002f50 <fail>
+80002c48:	30759463          	bne	a1,t2,80002f50 <fail>
 
 80002c4c <test_19>:
 80002c4c:	01300193          	li	gp,19
