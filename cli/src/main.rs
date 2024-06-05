@@ -134,7 +134,7 @@ fn main() -> Result<()> {
             let elf = File::open(elf_path)?;
             let program = load_program(elf).unwrap();
             let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
@@ -149,7 +149,7 @@ fn main() -> Result<()> {
             let program = load_program(elf).unwrap();
             let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
 
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
