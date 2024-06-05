@@ -18,11 +18,12 @@ from colorama import Fore, Style
 os_environ = os.environ
 
 # Comment the following line if you do not want verbose output
-os_environ['MOZAK_STARK_DEBUG'] = 'true'
+os_environ["MOZAK_STARK_DEBUG"] = "true"
 # Turn the following to `True` if you do not want output capturing
 capture_output = False
 # Running timeout per prove-and-verify (in seconds)
 timeout = 600
+
 
 class ReadTomlError(Exception):
     """Error while reading TOML file."""
@@ -45,7 +46,7 @@ def list_cargo_projects(directory: str):
         return [
             dir
             for dir in os.listdir(directory)
-            if os.path.exists(os.path.join(directory, dir, "Cargo.toml"))
+            if os.path.exists(os.path.join(directory, dir, "mozakvm", "Cargo.toml"))
         ]
     except OSError as e:
         raise OSError(f"Error while listing directory: {e}") from e
@@ -61,18 +62,19 @@ def has_sdk_dependency_beyond_core_features(cargo_file: str) -> bool:
     )
 
 
+def has_no_native_target(example_dir: str) -> bool:
+    """Checks if the example directory doesn't have native directory inside.
+    So we also require that the crate shouldn't have sdk dependency beyond core features
+    """
+    return (
+        "native" not in os.listdir(example_dir) and
+        not has_sdk_dependency_beyond_core_features(f"{example_dir}/mozakvm/Cargo.toml")
+    )
+
+
+
 class ExamplesTester(unittest.TestCase):
     """Test class for running examples"""
-
-    def test_workspace_members(self):
-        """This test ensures that all the workspace members are accounted
-        for and no dangling examples directory exists.
-        """
-        actual_directories = set(list_cargo_projects("examples"))
-        listed_workspace_members = set(
-            read_toml_file("examples/Cargo.toml")["workspace"]["members"]
-        )
-        self.assertEqual(actual_directories, listed_workspace_members)
 
     def test_core_only_examples(self):
         """This test runs examples that depend on just the core
@@ -83,33 +85,33 @@ class ExamplesTester(unittest.TestCase):
             "MZK-0000000000000000000000000000000000000000000000000000000000000001"
         )
 
-        for folder in set(list_cargo_projects("examples")):
-            if not has_sdk_dependency_beyond_core_features(
-                f"examples/{folder}/Cargo.toml"
+        for example in set(list_cargo_projects("examples")):
+            if has_no_native_target(
+                f"examples/{example}"
             ):
                 print(
-                    f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected core-only example"
+                    f"{Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} is detected core-only example"
                 )
 
-                build_command = f"cargo build --release --bin {folder}"
+                build_command = "cargo build-mozakvm"
                 print(f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}")
 
                 subprocess.run(
                     args=shlex.split(build_command),
-                    cwd="examples",
+                    cwd=os.path.join("examples", example, "mozakvm"),
                     capture_output=capture_output,
                     timeout=timeout,
                     env=os_environ,
                     check=True,
                 )
 
-                if folder in prove_and_verify_exceptions:
+                if example in prove_and_verify_exceptions:
                     print(
-                        f"{Fore.RED}ZK prove and verify skipping for {Style.BRIGHT}{folder}{Style.NORMAL} as it is marked as an exception{Style.RESET_ALL}"
+                        f"{Fore.RED}ZK prove and verify skipping for {Style.BRIGHT}{example}{Style.NORMAL} as it is marked as an exception{Style.RESET_ALL}"
                     )
                 else:
-                    prove_and_verify_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv \
-                        examples/target/riscv32im-mozak-mozakvm-elf/release/{folder} \
+                    prove_and_verify_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify -vvv \
+                        examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm \
                         --self-prog-id {dummy_prog_id}"""
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
@@ -131,28 +133,20 @@ class ExamplesTester(unittest.TestCase):
         """
         prove_and_verify_exceptions = {}
 
-        arch_triple = re.search(
-            r"host: (.*)",
-            subprocess.check_output(["rustc", "--verbose", "--version"], text=True),
-        ).group(1)
-        print(
-            f"{Style.BRIGHT}{Fore.GREEN}Detected arch triple for host{Style.RESET_ALL}: {arch_triple}",
-        )
-
-        for folder in set(list_cargo_projects("examples")):
-            if has_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
+        for example in set(list_cargo_projects("examples")):
+            if not has_no_native_target(f"examples/{example}"):
                 print(
-                    f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected fully-featured example, building",
+                    f"{Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} is detected fully-featured example, building",
                 )
 
-                build_command = f"cargo build --release --bin {folder}bin --features=\"std\""
+                build_command = "cargo build-mozakvm --features=\"std\""
                 print(
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
 
                 subprocess.run(
                     args=shlex.split(build_command),
-                    cwd="examples",
+                    cwd=os.path.join("examples", example, "mozakvm"),
                     capture_output=capture_output,
                     timeout=timeout,
                     env=os_environ,
@@ -160,15 +154,15 @@ class ExamplesTester(unittest.TestCase):
                 )
                 print()
 
-        for folder in set(list_cargo_projects("examples")):
-            if has_sdk_dependency_beyond_core_features(f"examples/{folder}/Cargo.toml"):
+        for example in set(list_cargo_projects("examples")):
+            if not has_no_native_target(f"examples/{example}"):
                 print(
-                    f"{Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} is detected fully-featured example, ZK prove and verify",
+                    f"{Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} is detected fully-featured example, ZK prove and verify",
                 )
 
-                if folder in prove_and_verify_exceptions:
+                if example in prove_and_verify_exceptions:
                     print(
-                        f"{Fore.RED}ZK prove and verify skipping for {Style.BRIGHT}{folder}{Style.NORMAL} as it is marked as an exception{Style.RESET_ALL}",
+                        f"{Fore.RED}ZK prove and verify skipping for {Style.BRIGHT}{example}{Style.NORMAL} as it is marked as an exception{Style.RESET_ALL}",
                     )
                 else:
                     # Unlike core-only examples, fully featured examples make use of
@@ -178,7 +172,7 @@ class ExamplesTester(unittest.TestCase):
                     # dependent programs to be tested are supposed to be listed in
                     # `package.metadata.mozak.example_dependents` in respective `Cargo.toml` (the dependent's
                     # `Cargo.toml` is not read for recursive expansion).
-                    extra_info = read_toml_file(f"examples/{folder}/Cargo.toml")[
+                    extra_info = read_toml_file(f"examples/{example}/mozakvm/Cargo.toml")[
                         "package"
                     ]["metadata"]["mozak"]
                     dependents = []
@@ -187,14 +181,14 @@ class ExamplesTester(unittest.TestCase):
                     # We assume this to be different from all dependents
                     prog_id = extra_info["example_program_id"]
 
-                    system_tape_generation_command = f"""cargo run --release --features="native,std" --bin {folder}-native --target {arch_triple}"""
+                    system_tape_generation_command = """cargo run --release"""
                     print(
                         f"System tape generation: {Fore.BLUE}{system_tape_generation_command}{Style.RESET_ALL}",
                     )
 
                     subprocess.run(
                         args=shlex.split(system_tape_generation_command),
-                        cwd=f"examples/{folder}",
+                        cwd=f"examples/{example}/native",
                         capture_output=capture_output,
                         timeout=timeout,
                         env=os_environ,
@@ -203,31 +197,31 @@ class ExamplesTester(unittest.TestCase):
 
                     print()
 
-                    system_tape = f"examples/{folder}/out/tape.json"
+                    system_tape = f"examples/{example}/native/out/tape.json"
 
                     programs_to_run = [
                         (
-                            f"examples/target/riscv32im-mozak-mozakvm-elf/release/{folder}bin",
+                            f"examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm",
                             prog_id,
                         )
                     ]
 
                     for dependent in dependents:
                         dependent_prog_id = read_toml_file(
-                            f"examples/{dependent}/Cargo.toml"
+                            f"examples/{dependent}/mozakvm/Cargo.toml"
                         )["package"]["metadata"]["mozak"]["example_program_id"]
                         programs_to_run.append(
                             (
-                                f"examples/target/riscv32im-mozak-mozakvm-elf/release/{dependent}bin",
+                                f"examples/{dependent}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{dependent}-mozakvm",
                                 dependent_prog_id,
                             )
                         )
 
                     for elf, id_ in programs_to_run:
                         print(
-                            f"ZK prove and verify for {Style.BRIGHT}{Fore.BLUE}{folder}{Style.RESET_ALL} requires execution of {elf} with ID: {id_}",
+                            f"ZK prove and verify for {Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} requires execution of {elf} with ID: {id_}",
                         )
-                        execution_command = f"""cargo run --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape} --self-prog-id {id_}"""
+                        execution_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape} --self-prog-id {id_}"""
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )

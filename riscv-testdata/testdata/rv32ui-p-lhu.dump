@@ -116,9 +116,9 @@ Disassembly of section .text.init:
 8000018c <test_2>:
 8000018c:	00200193          	li	gp,2
 80000190:	0ff00793          	li	a5,255
-80000194:	00002097          	auipc	ra,0x2
-80000198:	e6c08093          	add	ra,ra,-404 # 80002000 <begin_signature>
-8000019c:	0000d703          	lhu	a4,0(ra)
+80000194:	00002117          	auipc	sp,0x2
+80000198:	e6c10113          	add	sp,sp,-404 # 80002000 <begin_signature>
+8000019c:	00015703          	lhu	a4,0(sp)
 800001a0:	0ff00393          	li	t2,255
 800001a4:	2a771063          	bne	a4,t2,80000444 <fail>
 
@@ -126,9 +126,9 @@ Disassembly of section .text.init:
 800001a8:	00300193          	li	gp,3
 800001ac:	000107b7          	lui	a5,0x10
 800001b0:	f0078793          	add	a5,a5,-256 # ff00 <_start-0x7fff0100>
-800001b4:	00002097          	auipc	ra,0x2
-800001b8:	e4c08093          	add	ra,ra,-436 # 80002000 <begin_signature>
-800001bc:	0020d703          	lhu	a4,2(ra)
+800001b4:	00002117          	auipc	sp,0x2
+800001b8:	e4c10113          	add	sp,sp,-436 # 80002000 <begin_signature>
+800001bc:	00215703          	lhu	a4,2(sp)
 800001c0:	000103b7          	lui	t2,0x10
 800001c4:	f0038393          	add	t2,t2,-256 # ff00 <_start-0x7fff0100>
 800001c8:	26771e63          	bne	a4,t2,80000444 <fail>
@@ -137,9 +137,9 @@ Disassembly of section .text.init:
 800001cc:	00400193          	li	gp,4
 800001d0:	000017b7          	lui	a5,0x1
 800001d4:	ff078793          	add	a5,a5,-16 # ff0 <_start-0x7ffff010>
-800001d8:	00002097          	auipc	ra,0x2
-800001dc:	e2808093          	add	ra,ra,-472 # 80002000 <begin_signature>
-800001e0:	0040d703          	lhu	a4,4(ra)
+800001d8:	00002117          	auipc	sp,0x2
+800001dc:	e2810113          	add	sp,sp,-472 # 80002000 <begin_signature>
+800001e0:	00415703          	lhu	a4,4(sp)
 800001e4:	000013b7          	lui	t2,0x1
 800001e8:	ff038393          	add	t2,t2,-16 # ff0 <_start-0x7ffff010>
 800001ec:	24771c63          	bne	a4,t2,80000444 <fail>
@@ -148,9 +148,9 @@ Disassembly of section .text.init:
 800001f0:	00500193          	li	gp,5
 800001f4:	0000f7b7          	lui	a5,0xf
 800001f8:	00f78793          	add	a5,a5,15 # f00f <_start-0x7fff0ff1>
-800001fc:	00002097          	auipc	ra,0x2
-80000200:	e0408093          	add	ra,ra,-508 # 80002000 <begin_signature>
-80000204:	0060d703          	lhu	a4,6(ra)
+800001fc:	00002117          	auipc	sp,0x2
+80000200:	e0410113          	add	sp,sp,-508 # 80002000 <begin_signature>
+80000204:	00615703          	lhu	a4,6(sp)
 80000208:	0000f3b7          	lui	t2,0xf
 8000020c:	00f38393          	add	t2,t2,15 # f00f <_start-0x7fff0ff1>
 80000210:	22771a63          	bne	a4,t2,80000444 <fail>
@@ -158,9 +158,9 @@ Disassembly of section .text.init:
 80000214 <test_6>:
 80000214:	00600193          	li	gp,6
 80000218:	0ff00793          	li	a5,255
-8000021c:	00002097          	auipc	ra,0x2
-80000220:	dea08093          	add	ra,ra,-534 # 80002006 <tdat4>
-80000224:	ffa0d703          	lhu	a4,-6(ra)
+8000021c:	00002117          	auipc	sp,0x2
+80000220:	dea10113          	add	sp,sp,-534 # 80002006 <tdat4>
+80000224:	ffa15703          	lhu	a4,-6(sp)
 80000228:	0ff00393          	li	t2,255
 8000022c:	20771c63          	bne	a4,t2,80000444 <fail>
 
@@ -168,9 +168,9 @@ Disassembly of section .text.init:
 80000230:	00700193          	li	gp,7
 80000234:	000107b7          	lui	a5,0x10
 80000238:	f0078793          	add	a5,a5,-256 # ff00 <_start-0x7fff0100>
-8000023c:	00002097          	auipc	ra,0x2
-80000240:	dca08093          	add	ra,ra,-566 # 80002006 <tdat4>
-80000244:	ffc0d703          	lhu	a4,-4(ra)
+8000023c:	00002117          	auipc	sp,0x2
+80000240:	dca10113          	add	sp,sp,-566 # 80002006 <tdat4>
+80000244:	ffc15703          	lhu	a4,-4(sp)
 80000248:	000103b7          	lui	t2,0x10
 8000024c:	f0038393          	add	t2,t2,-256 # ff00 <_start-0x7fff0100>
 80000250:	1e771a63          	bne	a4,t2,80000444 <fail>
@@ -179,9 +179,9 @@ Disassembly of section .text.init:
 80000254:	00800193          	li	gp,8
 80000258:	000017b7          	lui	a5,0x1
 8000025c:	ff078793          	add	a5,a5,-16 # ff0 <_start-0x7ffff010>
-80000260:	00002097          	auipc	ra,0x2
-80000264:	da608093          	add	ra,ra,-602 # 80002006 <tdat4>
-80000268:	ffe0d703          	lhu	a4,-2(ra)
+80000260:	00002117          	auipc	sp,0x2
+80000264:	da610113          	add	sp,sp,-602 # 80002006 <tdat4>
+80000268:	ffe15703          	lhu	a4,-2(sp)
 8000026c:	000013b7          	lui	t2,0x1
 80000270:	ff038393          	add	t2,t2,-16 # ff0 <_start-0x7ffff010>
 80000274:	1c771863          	bne	a4,t2,80000444 <fail>
@@ -190,9 +190,9 @@ Disassembly of section .text.init:
 80000278:	00900193          	li	gp,9
 8000027c:	0000f7b7          	lui	a5,0xf
 80000280:	00f78793          	add	a5,a5,15 # f00f <_start-0x7fff0ff1>
-80000284:	00002097          	auipc	ra,0x2
-80000288:	d8208093          	add	ra,ra,-638 # 80002006 <tdat4>
-8000028c:	0000d703          	lhu	a4,0(ra)
+80000284:	00002117          	auipc	sp,0x2
+80000288:	d8210113          	add	sp,sp,-638 # 80002006 <tdat4>
+8000028c:	00015703          	lhu	a4,0(sp)
 80000290:	0000f3b7          	lui	t2,0xf
 80000294:	00f38393          	add	t2,t2,15 # f00f <_start-0x7fff0ff1>
 80000298:	1a771663          	bne	a4,t2,80000444 <fail>
@@ -219,9 +219,9 @@ Disassembly of section .text.init:
 800002d8 <test_12>:
 800002d8:	00c00193          	li	gp,12
 800002dc:	00000213          	li	tp,0
-800002e0:	00002097          	auipc	ra,0x2
-800002e4:	d2208093          	add	ra,ra,-734 # 80002002 <tdat2>
-800002e8:	0020d703          	lhu	a4,2(ra)
+800002e0:	00002697          	auipc	a3,0x2
+800002e4:	d2268693          	add	a3,a3,-734 # 80002002 <tdat2>
+800002e8:	0026d703          	lhu	a4,2(a3)
 800002ec:	00070313          	mv	t1,a4
 800002f0:	000013b7          	lui	t2,0x1
 800002f4:	ff038393          	add	t2,t2,-16 # ff0 <_start-0x7ffff010>
@@ -233,9 +233,9 @@ Disassembly of section .text.init:
 80000308 <test_13>:
 80000308:	00d00193          	li	gp,13
 8000030c:	00000213          	li	tp,0
-80000310:	00002097          	auipc	ra,0x2
-80000314:	cf408093          	add	ra,ra,-780 # 80002004 <tdat3>
-80000318:	0020d703          	lhu	a4,2(ra)
+80000310:	00002697          	auipc	a3,0x2
+80000314:	cf468693          	add	a3,a3,-780 # 80002004 <tdat3>
+80000318:	0026d703          	lhu	a4,2(a3)
 8000031c:	00000013          	nop
 80000320:	00070313          	mv	t1,a4
 80000324:	0000f3b7          	lui	t2,0xf
@@ -248,9 +248,9 @@ Disassembly of section .text.init:
 8000033c <test_14>:
 8000033c:	00e00193          	li	gp,14
 80000340:	00000213          	li	tp,0
-80000344:	00002097          	auipc	ra,0x2
-80000348:	cbc08093          	add	ra,ra,-836 # 80002000 <begin_signature>
-8000034c:	0020d703          	lhu	a4,2(ra)
+80000344:	00002697          	auipc	a3,0x2
+80000348:	cbc68693          	add	a3,a3,-836 # 80002000 <begin_signature>
+8000034c:	0026d703          	lhu	a4,2(a3)
 80000350:	00000013          	nop
 80000354:	00000013          	nop
 80000358:	00070313          	mv	t1,a4
@@ -264,9 +264,9 @@ Disassembly of section .text.init:
 80000374 <test_15>:
 80000374:	00f00193          	li	gp,15
 80000378:	00000213          	li	tp,0
-8000037c:	00002097          	auipc	ra,0x2
-80000380:	c8608093          	add	ra,ra,-890 # 80002002 <tdat2>
-80000384:	0020d703          	lhu	a4,2(ra)
+8000037c:	00002697          	auipc	a3,0x2
+80000380:	c8668693          	add	a3,a3,-890 # 80002002 <tdat2>
+80000384:	0026d703          	lhu	a4,2(a3)
 80000388:	000013b7          	lui	t2,0x1
 8000038c:	ff038393          	add	t2,t2,-16 # ff0 <_start-0x7ffff010>
 80000390:	0a771a63          	bne	a4,t2,80000444 <fail>
@@ -277,10 +277,10 @@ Disassembly of section .text.init:
 800003a0 <test_16>:
 800003a0:	01000193          	li	gp,16
 800003a4:	00000213          	li	tp,0
-800003a8:	00002097          	auipc	ra,0x2
-800003ac:	c5c08093          	add	ra,ra,-932 # 80002004 <tdat3>
+800003a8:	00002697          	auipc	a3,0x2
+800003ac:	c5c68693          	add	a3,a3,-932 # 80002004 <tdat3>
 800003b0:	00000013          	nop
-800003b4:	0020d703          	lhu	a4,2(ra)
+800003b4:	0026d703          	lhu	a4,2(a3)
 800003b8:	0000f3b7          	lui	t2,0xf
 800003bc:	00f38393          	add	t2,t2,15 # f00f <_start-0x7fff0ff1>
 800003c0:	08771263          	bne	a4,t2,80000444 <fail>
@@ -291,11 +291,11 @@ Disassembly of section .text.init:
 800003d0 <test_17>:
 800003d0:	01100193          	li	gp,17
 800003d4:	00000213          	li	tp,0
-800003d8:	00002097          	auipc	ra,0x2
-800003dc:	c2808093          	add	ra,ra,-984 # 80002000 <begin_signature>
+800003d8:	00002697          	auipc	a3,0x2
+800003dc:	c2868693          	add	a3,a3,-984 # 80002000 <begin_signature>
 800003e0:	00000013          	nop
 800003e4:	00000013          	nop
-800003e8:	0020d703          	lhu	a4,2(ra)
+800003e8:	0026d703          	lhu	a4,2(a3)
 800003ec:	000103b7          	lui	t2,0x10
 800003f0:	f0038393          	add	t2,t2,-256 # ff00 <_start-0x7fff0100>
 800003f4:	04771863          	bne	a4,t2,80000444 <fail>

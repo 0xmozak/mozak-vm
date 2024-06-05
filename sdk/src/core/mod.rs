@@ -13,6 +13,7 @@ pub mod constants {
     pub const RATE: usize = 8;
 }
 
+#[cfg(feature = "std")]
 #[macro_export]
 macro_rules! entry {
     ($path:path) => {
@@ -25,9 +26,26 @@ macro_rules! entry {
             #[no_mangle]
             fn bespoke_entrypoint() {
                 super::MOZAK_ENTRY();
-                #[cfg(feature = "std")]
-                mozak_sdk::common::system::ensure_clean_shutdown();
+                {
+                    mozak_sdk::common::system::ensure_clean_shutdown();
+                }
             }
+        }
+    };
+}
+
+#[cfg(not(feature = "std"))]
+#[macro_export]
+macro_rules! entry {
+    ($path:path) => {
+        // Type check the given path
+        #[cfg(target_os = "mozakvm")]
+        const MOZAK_ENTRY: fn() = $path;
+
+        #[cfg(target_os = "mozakvm")]
+        mod mozak_generated_main {
+            #[no_mangle]
+            fn bespoke_entrypoint() { super::MOZAK_ENTRY(); }
         }
     };
 }
@@ -80,7 +98,7 @@ mod handlers {
     #[panic_handler]
     fn panic_fault(panic_info: &PanicInfo) -> ! {
         let msg = rust_alloc::format!("{panic_info}");
-        ecall::panic(msg.as_ptr(), msg.len());
+        ecall::panic(msg.as_str());
         unreachable!();
     }
 }
