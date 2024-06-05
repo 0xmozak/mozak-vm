@@ -111,8 +111,8 @@ class ExamplesTester(unittest.TestCase):
                     )
                 else:
                     prove_and_verify_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify -vvv \
-                        examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm \
-                        --self-prog-id {dummy_prog_id}"""
+                        examples/{example} \
+                        """
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
                     )
@@ -146,7 +146,7 @@ class ExamplesTester(unittest.TestCase):
 
                 subprocess.run(
                     args=shlex.split(build_command),
-                    cwd=os.path.join("examples", example, "mozakvm"),
+                    cwd=f"examples/{example}/mozakvm",
                     capture_output=capture_output,
                     timeout=timeout,
                     env=os_environ,
@@ -201,27 +201,20 @@ class ExamplesTester(unittest.TestCase):
 
                     programs_to_run = [
                         (
-                            f"examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm",
-                            prog_id,
+                            example
                         )
                     ]
 
                     for dependent in dependents:
-                        dependent_prog_id = read_toml_file(
-                            f"examples/{dependent}/mozakvm/Cargo.toml"
-                        )["package"]["metadata"]["mozak"]["example_program_id"]
                         programs_to_run.append(
-                            (
-                                f"examples/{dependent}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{dependent}-mozakvm",
-                                dependent_prog_id,
-                            )
+                            dependent
                         )
 
-                    for elf, id_ in programs_to_run:
+                    for program in programs_to_run:
                         print(
-                            f"ZK prove and verify for {Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} requires execution of {elf} with ID: {id_}",
+                            f"ZK prove and verify for {Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} requires execution of {program}",
                         )
-                        execution_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape} --self-prog-id {id_}"""
+                        execution_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify examples/{program} -vvv"""
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )
