@@ -1,4 +1,4 @@
-# Keeping this for legacy purpose
+# Keeping this for legacy purposes - the commands below in `alias` are based off this configuration.
 # [unstable]
 # build-std = ["alloc", "core", "compiler_builtins", "std", "panic_abort", "proc_macro"]
 # build-std-features = ["compiler-builtins-mem"]
