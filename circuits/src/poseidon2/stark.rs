@@ -127,7 +127,7 @@ const PUBLIC_INPUTS: usize = 0;
 // Compile time assertion that STATE_SIZE equals 12
 const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 
-fn from_u64(u: u64) -> i64 { GoldilocksField::from_canonical_u64(u).to_canonical_i64() }
+fn from_u64(u: u64) -> i64 { GoldilocksField::from_noncanonical_u64(u).to_canonical_i64() }
 
 impl<'a, F, T: Copy, U, const D: usize>
     GenerateConstraints<'a, T, Poseidon2State<Expr<'a, T>>, NoColumns<U>>
