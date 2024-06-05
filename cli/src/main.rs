@@ -63,7 +63,7 @@ pub struct RunArgs {
     #[arg(long)]
     system_tape: Option<Input>,
     #[arg(long)]
-    self_prog_id: String,
+    self_prog_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Args)]
