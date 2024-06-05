@@ -192,11 +192,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "inputtape-native"
+name = "inputtape-elf-data"
 version = "0.1.0"
 dependencies = [
  "build-scripts",
+]
+
+[[package]]
+name = "inputtape-native"
+version = "0.1.0"
+dependencies = [
  "inputtape-core-logic",
+ "inputtape-elf-data",
  "mozak-sdk",
 ]
 
@@ -642,6 +649,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "token-elf-data"
+version = "0.1.0"
+dependencies = [
+ "build-scripts",
+]
+
+[[package]]
 name = "token-native"
 version = "0.1.0"
 dependencies = [
@@ -650,7 +664,9 @@ dependencies = [
  "rkyv",
  "rkyv_derive",
  "token-core-logic",
+ "token-elf-data",
  "wallet-core-logic",
+ "wallet-elf-data",
 ]
 
 [[package]]
@@ -693,6 +709,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "wallet-elf-data"
+version = "0.1.0"
+dependencies = [
+ "build-scripts",
+]
+
+[[package]]
 name = "wallet-native"
 version = "0.1.0"
 dependencies = [
@@ -700,6 +723,7 @@ dependencies = [
  "rkyv",
  "rkyv_derive",
  "wallet-core-logic",
+ "wallet-elf-data",
 ]
 
 [[package]]

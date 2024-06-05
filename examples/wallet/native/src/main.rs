@@ -19,9 +19,10 @@
 
 use mozak_sdk::common::types::ProgramIdentifier;
 use wallet_core_logic::{dispatch, BlackBox, MethodArgs, PrivateKey, PublicKey, TokenObject};
+use wallet_elf_data::WALLET_SELF_PROG_ID;
 
 fn main() {
-    let wallet_program = ProgramIdentifier::new_from_rand_seed(1);
+    let wallet_program = ProgramIdentifier::from(WALLET_SELF_PROG_ID.to_string());
     let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
     let remittee_program = ProgramIdentifier::new_from_rand_seed(3);
     let private_key = PrivateKey::new_from_rand_seed(4);

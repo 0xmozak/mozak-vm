@@ -25,7 +25,7 @@ pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
     );
     let cli_dir = Path::new(CARGO_MANIFEST_DIR).join("../cli");
 
-    let output = Command::new("cargo")
+    let mut output = Command::new("cargo")
         .args(vec!["run", "--", "self-prog-id", &target_path_str])
         .current_dir(cli_dir)
         .env_clear()
@@ -38,6 +38,18 @@ pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
         panic!("mozak-cli's command self-prog-id failed");
     }
 
-    let mut self_prog_id_file = File::create("self_prog_id.txt")?;
-    self_prog_id_file.write_all(&output.stdout)
+    // pop off the newline character
+    assert_eq!(10, output.stdout.pop().unwrap());
+    let self_prog_id = String::from_utf8(output.stdout).unwrap();
+    let out_dir = std::env::var_os("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("vars.rs");
+    let mut dest = File::create(dest_path).expect("failed to create vars.rs");
+    writeln!(
+        dest,
+        r#"pub const {}_SELF_PROG_ID: &str =
+               "{self_prog_id}";"#,
+        example.to_ascii_uppercase()
+    )
+    .expect("can't write to vars.rs");
+    Ok(())
 }

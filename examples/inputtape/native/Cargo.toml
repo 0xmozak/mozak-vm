@@ -3,9 +3,7 @@ edition = "2021"
 name = "inputtape-native"
 version = "0.1.0"
 
-[build-dependencies]
-build-scripts = { path = "../../../build-scripts"}
-
 [dependencies]
 inputtape-core-logic = { path = "../core-logic" }
+inputtape-elf-data = { path = "../elf-data"}
 mozak-sdk = { path = "../../../sdk" }
