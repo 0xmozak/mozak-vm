@@ -16,7 +16,7 @@
 
 [workspace]
 exclude = ["sdk"]
-members = [
+members = [ "build-scripts",
   "circuits",
   "cli",
   "examples-builder",
