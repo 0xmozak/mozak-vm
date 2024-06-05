@@ -1,0 +1,13 @@
+[workspace]
+[package]
+edition = "2021"
+name = "static-mem-access-mozakvm"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mozak-sdk = { path = "../../../sdk", default-features = false }
+
+[features]
+std = ["mozak-sdk/std"]

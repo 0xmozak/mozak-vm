@@ -2,11 +2,10 @@
 
 ## Native
 
-To run on your system, use the following command (kindly change [target triple](https://doc.rust-lang.org/cargo/appendix/glossary.html#target) as per your machine's architecture):
-
+To run on your system, use the following command.
 ```sh
-# from project root
-cargo run --release --features="native" --bin wallet-native --target aarch64-apple-darwin
+# in directory native
+cargo run --release
 ```
 
 This produces the `SystemTape` in both binary and debug formats.
@@ -16,19 +15,27 @@ This produces the `SystemTape` in both binary and debug formats.
 First, build the mozakvm binary:
 
 ```sh
-# inside examples directory
-cargo build --release --bin walletbin --features="std"
+# inside wallet/mozakvm directory
+cargo build-mozakvm --features="std"
 ```
 
-Test the ELF in mozak-vm using the below command. Note that you must run
+To run mozakvm binary inside our runner, use the following command
+
+```sh
+# inside wallet/mozakvm directory
+cargo run-mozakvm --features="std" -- --self-prog-id MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb \
+  --system-tape ../native/out/tape.json
+```
+
+Test producing proof for ELF executions in mozak-vm using the below command. Note that you must run
 the native execution above to produce the system tape prior to running this.
 
 ```sh
 # from project root
 MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
-    examples/target/riscv32im-mozak-mozakvm-elf/release/walletbin \
-    --system-tape examples/wallet/out/tape.json \
+    examples/wallet/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/wallet-mozakvm \
+    --system-tape examples/wallet/native/out/wallet.tape.json \
     --self-prog-id \
-    MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538;
+    MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb;
 ```

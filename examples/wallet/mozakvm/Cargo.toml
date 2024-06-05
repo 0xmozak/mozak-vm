@@ -1,0 +1,18 @@
+[workspace]
+[package]
+edition = "2021"
+name = "wallet-mozakvm"
+version = "0.1.0"
+
+[dependencies]
+mozak-sdk = { path = "../../../sdk" }
+rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
+rkyv_derive = "=0.8.0-alpha.1"
+wallet-core-logic = { path = "../core-logic" }
+
+[features]
+std = []
+
+# The following is read by `run_examples.py`
+[package.metadata.mozak]
+example_program_id = "MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb"
