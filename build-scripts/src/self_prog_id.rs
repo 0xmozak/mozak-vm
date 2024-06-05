@@ -20,8 +20,9 @@ pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
     }
 
     // use cli command to dump self_prog_id
-    let target_path_str =
-        format!("../mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}");
+    let target_path_str = format!(
+        "../examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm"
+    );
     let cli_dir = Path::new(CARGO_MANIFEST_DIR).join("../cli");
 
     let output = Command::new("cargo")
@@ -31,7 +32,12 @@ pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
         .envs(std::env::vars().filter(|x| !x.0.starts_with("CARGO_")))
         .output()
         .expect("mozak-cli's command self-prog-id failed");
+    if !output.status.success() {
+        std::io::stdout().write_all(&output.stdout).unwrap();
+        std::io::stderr().write_all(&output.stderr).unwrap();
+        panic!("mozak-cli's command self-prog-id failed");
+    }
 
-    let mut self_prog_id_file = File::create_new("self_prog_id.txt")?;
+    let mut self_prog_id_file = File::create("self_prog_id.txt")?;
     self_prog_id_file.write_all(&output.stdout)
 }

@@ -76,6 +76,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "build-scripts"
+version = "0.1.0"
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -191,6 +195,7 @@ dependencies = [
 name = "inputtape-native"
 version = "0.1.0"
 dependencies = [
+ "build-scripts",
  "inputtape-core-logic",
  "mozak-sdk",
 ]
