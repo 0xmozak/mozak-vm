@@ -1,0 +1,14 @@
+[workspace]
+[package]
+edition = "2021"
+name = "sha2-mozakvm"
+version = "0.1.0"
+
+[dependencies]
+hex-literal = "0.4"
+mozak-sdk = { path = "../../../sdk", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+
+
+[features]
+std = ["mozak-sdk/std"]

@@ -1,0 +1,13 @@
+[package]
+edition = "2021"
+name = "token-core-logic"
+version = "0.1.0"
+
+[dependencies]
+mozak-sdk = { path = "../../../sdk" }
+rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
+rkyv_derive = "=0.8.0-alpha.1"
+wallet-core-logic = { path = "../../wallet/core-logic" }
+
+[target.'cfg(not(target_os="mozakvm"))'.dependencies]
+hex = "0.4"
