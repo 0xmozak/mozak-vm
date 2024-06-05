@@ -2,13 +2,14 @@
 #![deny(clippy::cargo)]
 
 use std::collections::HashMap;
+use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clap_derive::Args;
-use clio::{Input, Output};
+use clio::{ClioPath, Input, Output};
 use itertools::Itertools;
 use log::debug;
 use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
@@ -59,11 +60,7 @@ struct Cli {
 
 #[derive(Clone, Debug, Args)]
 pub struct RunArgs {
-    elf: Input,
-    #[arg(long)]
-    system_tape: Option<Input>,
-    #[arg(long)]
-    self_prog_id: String,
+    example_dir: ClioPath,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -127,22 +124,30 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run(RunArgs {
-            elf,
-            system_tape,
-            self_prog_id,
-        }) => {
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+        Command::Run(RunArgs { example_dir }) => {
+            let example_name = example_dir.file_name().unwrap().to_str().unwrap();
+            let elf_path = example_dir.to_path_buf().join(format!(
+                "mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example_name}-mozakvm"
+            ));
+            let system_tape_path = example_dir.to_path_buf().join("native/out/tape.json");
+            let system_tape = File::open(system_tape_path).ok();
+            let elf = File::open(elf_path)?;
             let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
-        Command::ProveAndVerify(RunArgs {
-            elf,
-            system_tape,
-            self_prog_id,
-        }) => {
+        Command::ProveAndVerify(RunArgs { example_dir }) => {
+            let example_name = example_dir.file_name().unwrap().to_str().unwrap();
+            let elf_path = example_dir.to_path_buf().join(format!(
+                "mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example_name}-mozakvm"
+            ));
+            let system_tape_path = example_dir.to_path_buf().join("native/out/tape.json");
+            let system_tape = File::open(system_tape_path).ok();
+            let elf = File::open(elf_path)?;
             let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
 
             let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
 
