@@ -87,10 +87,3 @@ impl From<String> for ProgramIdentifier {
         ))
     }
 }
-
-#[cfg(not(target_os = "mozakvm"))]
-impl From<Option<String>> for ProgramIdentifier {
-    fn from(value: Option<String>) -> ProgramIdentifier {
-        value.map(ProgramIdentifier::from).unwrap_or_default()
-    }
-}
