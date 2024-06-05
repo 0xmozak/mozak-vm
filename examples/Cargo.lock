@@ -670,13 +670,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a2458377b6781101b5bc9f679e49c42b4989ccf3bcc4f7b36adc7e1489fd723"
 
 [[package]]
-name = "vector-alloc"
-version = "0.1.0"
-dependencies = [
- "mozak-sdk",
-]
-
-[[package]]
 name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
