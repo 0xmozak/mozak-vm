@@ -4,7 +4,7 @@ name = "vector-alloc"
 version = "0.1.0"
 
 [dependencies]
-mozak-sdk = { path = "../../sdk", default-features = false }
+mozak-sdk = { path = "../../sdk" }
 
 [[bin]]
 name = "vector-alloc"

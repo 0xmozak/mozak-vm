@@ -1,12 +1,10 @@
-#![cfg_attr(target_os = "mozakvm", no_main)]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_main]
+#![feature(restricted_std)]
 
-extern crate alloc;
+use core::hint::black_box;
 
-#[cfg(target_os = "mozakvm")]
-use {alloc::vec, alloc::vec::Vec, core::hint::black_box, mozak_sdk::core::ecall::ioread_public};
+use mozak_sdk::core::ecall::ioread_public;
 
-#[cfg(target_os = "mozakvm")]
 fn alloc_me() {
     let n = {
         let mut bytes = [0u8; 4];
