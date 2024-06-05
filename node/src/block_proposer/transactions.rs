@@ -63,7 +63,7 @@ pub struct AuxTransactionData {
 }
 
 impl AuxTransactionData {
-    /// Create the auxillary transaction data. This includes all the circuits
+    /// Create the auxiliary transaction data. This includes all the circuits
     /// and dummy proofs. This only needs to be done once, as multiple
     /// `Transaction`s can use the same `AuxStateData`.
     #[must_use]
@@ -420,6 +420,7 @@ impl AuxTransactionData {
                 (Either::Right(Cow::Owned(proof)), event)
             },
 
+            // LHS-Branch coincides with RHS-Branch
             (
                 EventNode::Branch { left: left_child_l, right: left_child_r, address, .. },
                 EventNode::Branch { left: right_child_l, right: right_child_r, .. },
