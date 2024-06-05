@@ -1,9 +1,9 @@
-#![no_main]
-#![feature(restricted_std)]
+#![cfg_attr(target_os = "mozakvm", no_main)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
-use core::hint::black_box;
+extern crate alloc;
 
-use mozak_sdk::core::ecall::ioread_public;
+use {alloc::vec, alloc::vec::Vec, core::hint::black_box, mozak_sdk::core::ecall::ioread_public};
 
 fn main() {
     let n = {
