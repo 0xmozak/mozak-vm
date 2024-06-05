@@ -29,8 +29,9 @@ checksum = "25bdb32cbbdce2b519a9cd7df3a678443100e265d5e25ca763b7572a5104f5f3"
 
 [[package]]
 name = "array-concat"
-version = "0.5.2"
-source = "git+https://github.com/Daniel-Aaron-Bloom/array-concat.git#c929d49bc0f3c5f7e25d87fb940ece830e87e8da"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68b4d2c47ea522f4135657904891e533727daca3d2d852f29f5e4cc50960c77c"
 
 [[package]]
 name = "array-init"
