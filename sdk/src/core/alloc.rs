@@ -44,6 +44,10 @@ unsafe impl GlobalAlloc for BumpPointerAlloc {
         alloc_aligned(layout.size(), layout.align())
     }
 
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        self.alloc(layout)
+    }
+
     unsafe fn dealloc(&self, _: *mut u8, _: Layout) {
         // BumpPointerAlloc never deallocates memory
     }
