@@ -3,6 +3,7 @@ use std::fmt;
 use std::ops::{BitAnd, BitAndAssign, Shl, Sub};
 
 pub mod state;
+pub mod transactions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dir {
