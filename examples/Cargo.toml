@@ -1,6 +1,7 @@
 [workspace]
 members = [
-  "*/native", "*/elf-data",
+  "*/native",
+  "*/elf-data",
 ]
 
 resolver = "2"
