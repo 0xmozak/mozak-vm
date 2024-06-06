@@ -238,33 +238,135 @@ mod test {
     #[test]
     fn simple() {
         let seed = 42;
-        let mut matches = Matches::new(*AUX);
         let key = OngoingTxKey {
             call_tape: make_fs([86, 7, 5, 309]),
             cast_root: make_fs([314, 15, 2, 9]),
         };
         let id = ProgramIdentifier::new_from_rand_seed(seed);
 
-        let address = StateAddress::new_from_rand_seed(seed);
-        let value = Poseidon2Hash::new_from_rand_seed(seed);
+        let address = StateAddress::new_from_rand_seed(seed + 1);
+        let value = Poseidon2Hash::new_from_rand_seed(seed + 2);
         let events = [CanonicalEvent {
             address,
             type_: EventType::Read,
             value,
         }];
+        let obj = Object {
+            constraint_owner: make_fs([1, 2, 3, 4]),
+            credits: F::from_canonical_u64(100),
+            last_updated: F::from_canonical_u64(4),
+            data: value.to_u64s().map(F::from_noncanonical_u64),
+        };
+
+        let mut matches = Matches::new(*AUX);
         matches.ingest_events(key, &id, &events);
         matches.ready_tx(key).unwrap();
         let proof = matches.finalize(5, |addr| {
             assert_eq!(addr.0, u64::from_le_bytes(address.0));
-            let old = Object {
-                constraint_owner: make_fs([1, 2, 3, 4]),
-                credits: F::from_canonical_u64(100),
-                last_updated: F::from_canonical_u64(4),
-                data: value.to_u64s().map(F::from_noncanonical_u64),
-            };
-            (old, old)
+            (obj, obj)
         });
 
         assert_eq!(proof.block_height(), 5);
+    }
+
+    #[test]
+    fn complex() {
+        let seed = 42;
+        let block_height = 7;
+        let key_1 = OngoingTxKey {
+            call_tape: make_fs([86, 7, 5, 309]),
+            cast_root: make_fs([314, 15, 2, 9]),
+        };
+        let key_2 = OngoingTxKey {
+            call_tape: make_fs([86, 7, 5, 309]),
+            cast_root: make_fs([314, 15, 2, 9]),
+        };
+        let id_m = ProgramIdentifier::default();
+        let id_1_a = ProgramIdentifier::new_from_rand_seed(seed);
+        let id_1_b = ProgramIdentifier::new_from_rand_seed(seed + 1);
+        let id_2 = ProgramIdentifier::new_from_rand_seed(seed + 2);
+
+        let address_1 = StateAddress::new_from_rand_seed(seed + 3);
+        let address_2 = StateAddress::new_from_rand_seed(seed + 4);
+
+        let value_1 = Poseidon2Hash::new_from_rand_seed(seed + 5);
+        let value_2 = Poseidon2Hash::new_from_rand_seed(seed + 6);
+        let value_3 = Poseidon2Hash::new_from_rand_seed(seed + 7);
+
+        let old_obj_1 = Object::default();
+        let new_obj_1 = Object {
+            constraint_owner: id_1_a.0.to_u64s().map(F::from_noncanonical_u64),
+            credits: F::from_canonical_u64(0),
+            last_updated: F::from_canonical_u64(block_height),
+            data: value_1.to_u64s().map(F::from_noncanonical_u64),
+        };
+
+        let old_obj_2 = Object {
+            constraint_owner: id_2.0.to_u64s().map(F::from_noncanonical_u64),
+            credits: F::from_canonical_u64(0),
+            last_updated: F::from_canonical_u64(block_height),
+            data: value_2.to_u64s().map(F::from_noncanonical_u64),
+        };
+        let new_obj_2 = Object {
+            data: value_3.to_u64s().map(F::from_noncanonical_u64),
+            ..old_obj_2
+        };
+
+        let events_1_m = [
+            CanonicalEvent {
+                address: address_1,
+                type_: EventType::GiveOwner,
+                value: id_1_a.0,
+            },
+            CanonicalEvent {
+                address: address_1,
+                type_: EventType::Write,
+                value: value_1,
+            },
+        ];
+        let events_1_a = [
+            CanonicalEvent {
+                address: address_1,
+                type_: EventType::Ensure,
+                value: value_1,
+            },
+            CanonicalEvent {
+                address: address_1,
+                type_: EventType::TakeOwner,
+                value: Poseidon2Hash::default(),
+            },
+        ];
+
+        let events_1_b = [CanonicalEvent {
+            address: address_2,
+            type_: EventType::Read,
+            value: value_2,
+        }];
+
+        let events_2 = [CanonicalEvent {
+            address: address_2,
+            type_: EventType::Write,
+            value: value_3,
+        }];
+
+        let mut matches = Matches::new(*AUX);
+        matches.ingest_events(key_1, &id_1_a, &events_1_a);
+        matches.ingest_events(key_2, &id_2, &events_2);
+        matches.ingest_events(key_1, &id_m, &events_1_m);
+        matches.ready_tx(key_2).unwrap();
+        matches.ingest_events(key_1, &id_1_b, &events_1_b);
+        matches.ready_tx(key_1).unwrap();
+
+        let proof = matches.finalize(block_height, |addr| {
+            if addr.0 == u64::from_le_bytes(address_1.0) {
+                return (old_obj_1, new_obj_1);
+            }
+            if addr.0 == u64::from_le_bytes(address_2.0) {
+                return (old_obj_2, new_obj_2);
+            }
+            unreachable!()
+        });
+
+        assert_eq!(proof.block_height(), block_height);
     }
 }
