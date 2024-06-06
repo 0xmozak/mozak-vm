@@ -6,8 +6,8 @@
 set -euo pipefail
 
 current_dir=$(pwd) 
-cd ../../.. 
-cargo build --bin mozak-cli 
+cd ../../..
+cargo build --bin run-example
 project_root=$(pwd)
 cd $current_dir
-$project_root/target/debug/mozak-cli -vvv run $@
+$project_root/target/debug/run-example -vvv $@
