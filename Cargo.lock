@@ -995,10 +995,13 @@ version = "0.1.0"
 name = "mozak-node"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "hashbrown 0.14.5",
  "itertools 0.13.0",
  "mozak-circuits",
  "mozak-recproofs",
  "mozak-sdk",
+ "once_cell",
  "plonky2",
  "serde",
  "tested-fixture",

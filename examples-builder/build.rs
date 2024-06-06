@@ -44,6 +44,7 @@ const CRATES: &[Crate] = &[
     ecrate!("token", "TOKENBIN"),
     ecrate!("wallet", "WALLETBIN"),
     ecrate!("inputtape", "INPUTTAPEBIN"),
+    ecrate!("vector-alloc", "VECTOR_ALLOC_ELF"),
 ];
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 

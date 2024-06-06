@@ -89,7 +89,7 @@ pub struct AuxStateData {
 }
 
 impl AuxStateData {
-    /// Create the auxillary state data. This includes all the circuits
+    /// Create the auxiliary state data. This includes all the circuits
     /// and dummy proofs. This only needs to be done once, as multiple `State`s
     /// can use the same `AuxStateData` as long as it has sufficient max depth.
     #[must_use]
