@@ -549,8 +549,8 @@ fn convert_event_type(ty: SdkEventType) -> ProofEventType {
         SdkEventType::Write => ProofEventType::Write,
         SdkEventType::Ensure => ProofEventType::Ensure,
         SdkEventType::Read => ProofEventType::Read,
-        SdkEventType::Create => ProofEventType::GiveOwner,
-        SdkEventType::Delete => ProofEventType::TakeOwner,
+        SdkEventType::GiveOwner => ProofEventType::GiveOwner,
+        SdkEventType::TakeOwner => ProofEventType::TakeOwner,
     }
 }
 
