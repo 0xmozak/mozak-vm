@@ -8,10 +8,8 @@ use hashbrown::HashMap;
 use itertools::{merge_join_by, Either, EitherOrBoth};
 use mozak_recproofs::circuits::verify_program::core::ProgramPublicIndices;
 use mozak_recproofs::circuits::{build_event_root, merge, verify_program, verify_tx};
-use mozak_recproofs::{Event, EventType as ProofEventType};
-use mozak_sdk::common::types::{
-    CanonicalEvent, EventType as SdkEventType, Poseidon2Hash, ProgramIdentifier,
-};
+use mozak_recproofs::Event;
+use mozak_sdk::common::types::{CanonicalEvent, Poseidon2Hash, ProgramIdentifier};
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::HashOut;
 use plonky2::hash::poseidon2::Poseidon2Hash as Plonky2Poseidon2Hash;
@@ -19,7 +17,10 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CommonCircuitData, VerifierOnl
 use plonky2::plonk::config::Hasher;
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::{reduce_tree, reduce_tree_by_address, AddressPath, BranchAddress, Dir};
+use super::{
+    convert_event, reduce_tree, reduce_tree_by_address, AddressPath, BranchAddress, Dir,
+    OngoingTxKey,
+};
 use crate::block_proposer::BranchAddressComparison;
 use crate::{C, D, F};
 
@@ -451,12 +452,6 @@ pub struct TransactionAccumulator<'a> {
     processed_txs: Option<ProcessedTx>,
 }
 
-#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct OngoingTxKey {
-    cast_root: [F; 4],
-    call_tape: [F; 4],
-}
-
 struct OngoingTx {
     nodes: OngoingTxNode,
 }
@@ -544,16 +539,6 @@ enum ProcessedTx {
     },
 }
 
-fn convert_event_type(ty: SdkEventType) -> ProofEventType {
-    match ty {
-        SdkEventType::Write => ProofEventType::Write,
-        SdkEventType::Ensure => ProofEventType::Ensure,
-        SdkEventType::Read => ProofEventType::Read,
-        SdkEventType::GiveOwner => ProofEventType::GiveOwner,
-        SdkEventType::TakeOwner => ProofEventType::TakeOwner,
-    }
-}
-
 impl<'a> TransactionAccumulator<'a> {
     /// Create an empty accumulator
     #[must_use]
@@ -593,12 +578,7 @@ impl<'a> TransactionAccumulator<'a> {
             );
         };
 
-        let events = events.iter().map(|e| Event {
-            owner: id.0.to_u64s().map(F::from_noncanonical_u64),
-            ty: convert_event_type(e.type_),
-            address: u64::from_le_bytes(e.address.0),
-            value: e.value.to_u64s().map(F::from_noncanonical_u64),
-        });
+        let events = events.iter().map(|e| convert_event(id, e));
 
         let event_tree = events
             .clone()
