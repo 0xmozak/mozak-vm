@@ -55,7 +55,7 @@ fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str)
         writeln!(dest, r#"pub const {glob_name}: &[u8] = &[];"#)
     } else {
         let output = Command::new("cargo")
-            .args(["build-mozakvm"])
+            .args(["mozakvm-build"])
             .current_dir(crate_path)
             .env_clear()
             .envs(std::env::vars().filter(|x| !x.0.starts_with("CARGO_")))
