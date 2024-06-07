@@ -68,8 +68,8 @@ jobs:
         working-directory: examples
         run: |
           nixdo nice cargo --version
-          nixdo nice cargo clippy-mozakvm --version
-          nixdo nice ./scripts/all_mozakvm_examples cargo clippy-mozakvm --locked --all-features -- -D warnings
+          nixdo nice cargo mozakvm-clippy --version
+          nixdo nice ./scripts/all_mozakvm_examples cargo mozakvm-clippy --locked --all-features -- -D warnings
 
       - name: cargo-clippy (native, examples)
         working-directory: examples
@@ -79,7 +79,7 @@ jobs:
       - name: cargo-clippy (mozakvm)
         working-directory: sdk
         run: |
-          nixdo nice cargo clippy-mozakvm --locked --all-features -- -D warnings
+          nixdo nice cargo mozakvm-clippy --locked --all-features -- -D warnings
 
       - name: cargo-clippy (native)
         working-directory: sdk
@@ -89,7 +89,7 @@ jobs:
       - name: Build (mozakvm)
         working-directory: sdk
         run: |
-          nixdo nice cargo check-mozakvm --locked
+          nixdo nice cargo mozakvm-check --locked
 
       - name: Build (native)
         working-directory: sdk
