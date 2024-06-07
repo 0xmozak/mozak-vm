@@ -10,4 +10,4 @@ cd ../../..
 cargo build --bin run-example
 project_root=$(pwd)
 cd $current_dir
-$project_root/target/debug/run-example -vvv $@
+$project_root/target/debug/run-example $@ -vvv --system-tape ../native/out/tape.json
