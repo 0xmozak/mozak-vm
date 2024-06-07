@@ -105,14 +105,14 @@ where
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct LeafWitnessValue<F> {
-    block_height: u64,
-    last_updated: u64,
-    old_owner: [F; 4],
-    new_owner: [F; 4],
-    old_data: [F; 4],
-    new_data: [F; 4],
-    old_credits: u64,
-    new_credits: u64,
+    pub block_height: u64,
+    pub last_updated: u64,
+    pub old_owner: [F; 4],
+    pub new_owner: [F; 4],
+    pub old_data: [F; 4],
+    pub new_data: [F; 4],
+    pub old_credits: u64,
+    pub new_credits: u64,
 }
 
 impl<F, C, const D: usize> LeafCircuit<F, C, D>
