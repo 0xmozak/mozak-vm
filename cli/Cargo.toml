@@ -1,5 +1,6 @@
 [package]
 categories = ["cryptography"]
+default-run = "mozak-cli"
 description = "MozakVM cli"
 edition = "2021"
 keywords = ["crypto", "zero-knowledge", "vm"]
@@ -8,7 +9,6 @@ name = "mozak-cli"
 readme = "README.md"
 repository = "https://github.com/0xmozak/mozak-vm"
 version = "0.1.0"
-default-run = "mozak-cli"
 
 [dependencies]
 clap = { version = "4.5", features = [
