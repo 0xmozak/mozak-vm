@@ -31,5 +31,5 @@ def dump_programs_map_json(examples: List[str]):
         json.dump(map, file, indent=4)
 
 if __name__ == "__main__":
-    examples = ["token", "wallet", "inputtape"]
+    examples = ["token", "wallet"]
     dump_programs_map_json(examples)
