@@ -35,6 +35,4 @@ MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
     examples/token/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/token-mozakvm \
     --system-tape examples/token/native/out/token.tape.json \
-    --self-prog-id \
-    MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538;
 ```

@@ -35,6 +35,4 @@ MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
     examples/wallet/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/wallet-mozakvm \
     --system-tape examples/wallet/native/out/wallet.tape.json \
-    --self-prog-id \
-    MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb;
 ```
