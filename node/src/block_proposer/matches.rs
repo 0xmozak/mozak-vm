@@ -120,7 +120,7 @@ impl<'a> Matches<'a> {
         }
     }
 
-    /// Indiciates that all events associated with a `key` have been ingested.
+    /// Indicates that all events associated with a `key` have been ingested.
     ///
     /// The proofs associated with `key` will then be merged with other ready
     /// proofs that share the same addresses.
