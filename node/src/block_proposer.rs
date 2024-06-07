@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{BitAnd, BitAndAssign, Shl, Sub};
 
+use itertools::Itertools;
+
 pub mod state;
 pub mod transactions;
 
@@ -239,6 +241,85 @@ pub enum BranchAddressComparison {
     LeftCousin,
     /// The RHS address is a cousin somewhere to the right of the LHS address
     RightCousin,
+}
+
+/// Reduces a tree by merging all the items, grouped by their address,
+/// then reducing their addresses
+#[allow(clippy::missing_panics_doc)]
+pub fn reduce_tree_by_address<A: Clone + PartialEq, T>(
+    mut iter: Vec<(A, T)>,
+    mut addr_inc: impl FnMut(A) -> A,
+    mut merge: impl FnMut(&A, T, T) -> T,
+) -> Option<(A, T)> {
+    while iter.len() > 1 {
+        iter = reduce_tree_by_address_step(iter, &mut addr_inc, &mut merge).collect();
+    }
+    iter.pop()
+}
+
+/// Reduces a tree by merging all the items, grouped by their address,
+/// then reducing their addresses
+#[allow(clippy::missing_panics_doc)]
+pub fn reduce_tree_by_address_step<A: Clone + PartialEq, T>(
+    iter: impl IntoIterator<Item = (A, T)>,
+    mut addr_inc: impl FnMut(A) -> A,
+    mut merge: impl FnMut(&A, T, T) -> T,
+) -> impl Iterator<Item = (A, T)> {
+    let chunks = iter.into_iter().chunk_by(|e| e.0.clone());
+
+    std::iter::from_fn(move || {
+        chunks
+            .into_iter()
+            .map(|(address, ts)| {
+                let ts = ts.map(|x| x.1);
+                let t = reduce_tree(ts, |x| x, |x| x, |l, r| merge(&address, l, r)).unwrap();
+                (addr_inc(address), t)
+            })
+            .next()
+    })
+}
+
+/// Reduces a tree by merging all the items
+#[must_use]
+pub fn reduce_tree<T, R>(
+    iter: impl IntoIterator<Item = T>,
+    make_ret: impl FnOnce(T) -> R,
+    mut make_t: impl FnMut(R) -> T,
+    mut merge: impl FnMut(T, T) -> R,
+) -> Option<R> {
+    let mut i = iter.into_iter();
+
+    let mut stack: Vec<(R, usize)> = Vec::with_capacity(i.size_hint().0.ilog2() as usize + 1);
+    let final_v = loop {
+        let Some(v0) = i.next() else {
+            break None;
+        };
+        let Some(v1) = i.next() else {
+            break Some(v0);
+        };
+        let (mut v, mut c) = (merge(v0, v1), 2);
+
+        while let Some((pv, pc)) = stack.pop() {
+            if pc != c {
+                stack.push((pv, pc));
+                break;
+            }
+            v = merge(make_t(pv), make_t(v));
+            c += pc;
+        }
+        stack.push((v, c));
+    };
+
+    let mut v = match (stack.pop(), final_v) {
+        (None, None) => return None,
+        (Some((pv, _)), None) => pv,
+        (None, Some(v)) => return Some(make_ret(v)),
+        (Some((pv, _)), Some(v)) => merge(make_t(pv), v),
+    };
+    while let Some((pv, _)) = stack.pop() {
+        v = merge(make_t(pv), make_t(v));
+    }
+    Some(v)
 }
 
 #[cfg(test)]
