@@ -1,6 +1,6 @@
 # Guest Programs
 
-*WARNING*: this workspace specifies default cargo target as native, which means that for building mozakvm versions we need to manually specify the system target via `--target` (see below), as well as build std libraries for the platform with `Zbuild-std` unstable feature. But as long as we are using the provided commands `cargo build-mozakvm` and `cargo run-mozakvm`, everything should be taken care of under the hood.
+*WARNING*: this workspace specifies default cargo target as native, which means that for building mozakvm versions we need to manually specify the system target via `--target` (see below), as well as build std libraries for the platform with `Zbuild-std` unstable feature. But as long as we are using the provided commands `cargo mozakvm-build` and `cargo mozakvm-run`, everything should be taken care of under the hood.
 
 Example contains cargo projects which generate ELF compatible with MozakVM. The target ISA is RISC-V with I and M extensions, described best in `.cargo/riscv32im-mozak-mozakvm-elf.json`.
 
@@ -12,17 +12,17 @@ We can use following command to build it for `riscv32im-mozak-mozakvm-elf` targe
 
 ```bash
 # inside {example}/mozakvm
-cargo build-mozakvm
+cargo mozakvm-build
 ```
 
 By default, our examples are `no_std`. Examples can make use of `std` through feature flag:
 ```bash
-cargo build-mozakvm --features=std
+cargo mozakvm-build --features=std
 ```
 
 This would build ELF executables under `{example}/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm`.
 Note the profile `mozak-release` in above path. Defined in `.cargo/config.toml`. It's intended to build optimized ELF for mozakvm
-targets. The command `build-mozakvm` ensures that this profile is used while building.
+targets. The command `mozakvm-build` ensures that this profile is used while building.
 
 For more details, our configuration is found at `.cargo/config.toml` in the root directory
 
@@ -39,11 +39,11 @@ cargo build --release
 
 ### Mozak ZK-VM
 
-The RISC-V ELFs can be run with our CLI. Simply use the command `cargo run-mozakvm`, which invokes the cli command `run` under the hood.
+The RISC-V ELFs can be run with our CLI. Simply use the command `cargo mozakvm-run`, which invokes the cli command `run` under the hood.
 
 ```bash
 # in example/mozakvm
-cargo run-mozakvm -- --self-prog-id SELF_PROG_ID_HERE --system-tape SYSTEM_TAPE_PATH_HERE # system tape path is optional
+cargo mozakvm-run -- --self-prog-id SELF_PROG_ID_HERE --system-tape SYSTEM_TAPE_PATH_HERE # system tape path is optional
 ```
 ### Native
 
@@ -58,7 +58,7 @@ cargo run --release
 
 ### To dump assembly files
 ```bash
-RUSTFLAGS="--emit asm" cargo build-mozakvm
+RUSTFLAGS="--emit asm" cargo mozakvm-build
 ```
 After this, `target/riscv32im-risc0-mozakvm-elf/debug/deps/` would contain assembly files with `.s` extension
 

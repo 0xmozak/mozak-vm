@@ -16,14 +16,14 @@ First, build the mozakvm binary:
 
 ```sh
 # inside inputtape/mozakvm directory
-cargo build-mozakvm --features="std"
+cargo mozakvm-build --features="std"
 ```
 
 To run mozakvm binary inside our runner, use the following command
 
 ```sh
 # inside inputtape/mozakvm directory
-cargo run-mozakvm --features="std" -- --self-prog-id MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538 \
+cargo mozakvm-run --features="std" -- --self-prog-id MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538 \
   --system-tape ../native/out/tape.json
 ```
 
