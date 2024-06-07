@@ -8,7 +8,7 @@ pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
     // build mozakvm binary
     let mozakvm_example_dir = Path::new("../mozakvm");
     let output = Command::new("cargo")
-        .args(["build-mozakvm"])
+        .args(["mozakvm-build"])
         .current_dir(mozakvm_example_dir)
         .env_clear()
         .envs(std::env::vars().filter(|x| !x.0.starts_with("CARGO_")))
@@ -17,7 +17,7 @@ pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
     if !output.status.success() {
         std::io::stdout().write_all(&output.stdout).unwrap();
         std::io::stderr().write_all(&output.stderr).unwrap();
-        panic!("cargo build-mozakvm failed.");
+        panic!("cargo mozakvm-build failed.");
     }
 
     // use cli command to dump self_prog_id
