@@ -3,9 +3,20 @@ use std::fmt;
 use std::ops::{BitAnd, BitAndAssign, Shl, Sub};
 
 use itertools::Itertools;
+use mozak_recproofs::{Event, EventType as ProofEventType};
+use mozak_sdk::common::types::{CanonicalEvent, EventType as SdkEventType, ProgramIdentifier};
+use plonky2::field::types::Field;
+
+use crate::F;
 
 pub mod state;
 pub mod transactions;
+
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug)]
+pub struct OngoingTxKey {
+    cast_root: [F; 4],
+    call_tape: [F; 4],
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dir {
@@ -13,7 +24,7 @@ pub enum Dir {
     Right,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Address(pub u64);
 
 impl Address {
@@ -241,6 +252,29 @@ pub enum BranchAddressComparison {
     LeftCousin,
     /// The RHS address is a cousin somewhere to the right of the LHS address
     RightCousin,
+}
+
+/// Convert the sdk enum to the recproof enum
+#[must_use]
+pub fn convert_event_type(ty: SdkEventType) -> ProofEventType {
+    match ty {
+        SdkEventType::Write => ProofEventType::Write,
+        SdkEventType::Ensure => ProofEventType::Ensure,
+        SdkEventType::Read => ProofEventType::Read,
+        SdkEventType::GiveOwner => ProofEventType::GiveOwner,
+        SdkEventType::TakeOwner => ProofEventType::TakeOwner,
+    }
+}
+
+/// Convert an sdk event to a recproof event
+#[must_use]
+pub fn convert_event(id: &ProgramIdentifier, e: &CanonicalEvent) -> Event<F> {
+    Event {
+        owner: id.0.to_u64s().map(F::from_noncanonical_u64),
+        ty: convert_event_type(e.type_),
+        address: u64::from_le_bytes(e.address.0),
+        value: e.value.to_u64s().map(F::from_noncanonical_u64),
+    }
 }
 
 /// Reduces a tree by merging all the items, grouped by their address,
