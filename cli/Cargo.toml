@@ -29,7 +29,7 @@ clio = { version = "0.3", features = ["clap-parse"] }
 env_logger = "0.11"
 itertools = "0.13"
 log = "0.4"
-mozak-examples = { path = "../examples-builder", features = ["mozak-sort", "vector-alloc"] }
+mozak-examples = { path = "../examples-builder", optional = true}
 plonky2 = { workspace = true, default-features = false }
 plonky2_maybe_rayon = { workspace = true, default-features = false }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
@@ -47,3 +47,4 @@ proptest = "1.4"
 [features]
 default = []
 parallel = ["plonky2/parallel", "starky/parallel", "mozak-circuits/parallel"]
+bench = ["mozak-examples/mozak-sort", "mozak-examples/vector-alloc"] 
