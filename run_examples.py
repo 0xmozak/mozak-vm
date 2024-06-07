@@ -93,7 +93,7 @@ class ExamplesTester(unittest.TestCase):
                     f"{Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} is detected core-only example"
                 )
 
-                build_command = "cargo build-mozakvm"
+                build_command = "cargo mozakvm-build"
                 print(f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}")
 
                 subprocess.run(
@@ -139,7 +139,7 @@ class ExamplesTester(unittest.TestCase):
                     f"{Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} is detected fully-featured example, building",
                 )
 
-                build_command = "cargo build-mozakvm --features=\"std\""
+                build_command = "cargo mozakvm-build --features=\"std\""
                 print(
                     f"Testing build: {Fore.BLUE}{build_command}{Style.RESET_ALL}",
                 )
