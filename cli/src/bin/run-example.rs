@@ -21,6 +21,7 @@ fn main() {
     env_logger::Builder::new()
         .filter_level(args.verbose.log_level_filter())
         .init();
+
     let raw_tapes = raw_tapes_from_system_tape(args.system_tape, args.self_prog_id.into());
     let program = load_program(args.elf).unwrap();
     let state: State<F> = State::new(program.clone(), raw_tapes);
