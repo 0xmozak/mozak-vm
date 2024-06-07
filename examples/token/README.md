@@ -23,8 +23,7 @@ To run mozakvm binary inside our runner, use the following command
 
 ```sh
 # inside token/mozakvm directory
-cargo mozakvm-run --features="std" -- --self-prog-id MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538 \
-  --system-tape ../native/out/tape.json
+cargo mozakvm-run 
 ```
 
 Test producing proof for ELF executions in mozak-vm using the below command. Note that you must run
