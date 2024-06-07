@@ -1,5 +1,6 @@
 [package]
 categories = ["cryptography"]
+default-run = "mozak-cli"
 description = "MozakVM cli"
 edition = "2021"
 keywords = ["crypto", "zero-knowledge", "vm"]
