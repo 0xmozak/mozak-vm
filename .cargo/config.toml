@@ -8,25 +8,25 @@
 # target = "./.cargo/riscv32im-mozak-mozakvm-elf.json"
 
 [alias]
-build-mozakvm = """
+mozakvm-build = """
     build --profile mozak-release \
           --target riscv32im-mozak-mozakvm-elf \
           -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
           -Zbuild-std-features=compiler-builtins-mem
     """
-check-mozakvm = """
+mozakvm-check = """
     check \
         --target riscv32im-mozak-mozakvm-elf \
         -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
         -Zbuild-std-features=compiler-builtins-mem \
     """
-clippy-mozakvm = """
+mozakvm-clippy = """
     clippy \
         --target riscv32im-mozak-mozakvm-elf \
         -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
         -Zbuild-std-features=compiler-builtins-mem \
     """
-run-mozakvm = """
+mozakvm-run = """
     run --profile mozak-release \
           --target riscv32im-mozak-mozakvm-elf \
           -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \

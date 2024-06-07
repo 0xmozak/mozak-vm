@@ -16,14 +16,14 @@ First, build the mozakvm binary:
 
 ```sh
 # inside wallet/mozakvm directory
-cargo build-mozakvm --features="std"
+cargo mozakvm-build --features="std"
 ```
 
 To run mozakvm binary inside our runner, use the following command
 
 ```sh
 # inside wallet/mozakvm directory
-cargo run-mozakvm --features="std" -- --self-prog-id MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb \
+cargo mozakvm-run --features="std" -- --self-prog-id MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb \
   --system-tape ../native/out/tape.json
 ```
 
