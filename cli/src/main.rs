@@ -104,8 +104,6 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
-    /// Compute the Self Program Id of the given ELF,
-    SelfProgId { elf: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -476,11 +474,6 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
 
-        Command::SelfProgId { elf } => {
-            let program = load_program(elf)?;
-            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
-            println!("{self_prog_id:?}");
-        }
         Command::Bench(bench) => {
             let time_taken = bench.bench()?.as_secs_f64();
             println!("{time_taken}");

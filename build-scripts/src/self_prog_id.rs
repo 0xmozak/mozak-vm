@@ -4,6 +4,7 @@ use std::path::Path;
 use std::process::Command;
 pub const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
+    println!("cargo::rerun-if-changed=../mozakvm/main.rs");
     // build mozakvm binary
     let mozakvm_example_dir = Path::new("../mozakvm");
     let output = Command::new("cargo")
@@ -26,7 +27,13 @@ pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
     let cli_dir = Path::new(CARGO_MANIFEST_DIR).join("../cli");
 
     let mut output = Command::new("cargo")
-        .args(vec!["run", "--", "self-prog-id", &target_path_str])
+        .args(vec![
+            "run",
+            "--bin",
+            "dump-self-prog-id",
+            "--",
+            &target_path_str,
+        ])
         .current_dir(cli_dir)
         .env_clear()
         .envs(std::env::vars().filter(|x| !x.0.starts_with("CARGO_")))
@@ -40,6 +47,8 @@ pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
 
     // pop off the newline character
     assert_eq!(10, output.stdout.pop().unwrap());
+
+    // store the self_prog_id in vars.rs
     let self_prog_id = String::from_utf8(output.stdout).unwrap();
     let out_dir = std::env::var_os("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("vars.rs");
