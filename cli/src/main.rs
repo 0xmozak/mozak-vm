@@ -90,7 +90,11 @@ enum Command {
     /// Verify the given proof from file.
     Verify { proof: Input },
     /// Verify the given recursive proof from file.
-    VerifyRecursiveProof { proof: Input, verifier_key: Input },
+    VerifyRecursiveProof {
+        proof: Input,
+        verifier_key: Input,
+        program_id: String,
+    },
     /// Builds a transaction bundle.
     BundleTransaction {
         /// System tape generated from native execution.
@@ -404,6 +408,7 @@ fn main() -> Result<()> {
         Command::VerifyRecursiveProof {
             mut proof,
             mut verifier_key,
+            program_id,
         } => {
             let mut circuit = circuit_data_for_recursion::<F, C, D>(
                 &VM_RECURSION_CONFIG,
@@ -421,6 +426,18 @@ fn main() -> Result<()> {
                 ProofWithPublicInputs::from_bytes(proof_buffer, &circuit.common).map_err(|_| {
                     anyhow::Error::msg("ProofWithPublicInputs deserialization failed.")
                 })?;
+            let public_inputs_array: [F; VM_PUBLIC_INPUT_SIZE] =
+                proof.public_inputs.clone().try_into().unwrap();
+
+            let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
+            assert_eq!(
+                public_inputs.program_hash_as_bytes.to_vec(),
+                ProgramIdentifier::from(program_id)
+                    .inner()
+                    .into_iter()
+                    .map(F::from_canonical_u8)
+                    .collect_vec()
+            );
             println!("Public Inputs: {:?}", proof.public_inputs);
             println!("Verifier Key: {:?}", circuit.verifier_only);
 
