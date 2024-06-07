@@ -8,6 +8,6 @@ set -euo pipefail
 current_dir=$(pwd) 
 project_root=$(git rev-parse --show-toplevel)
 cd $project_root 
-cargo build --bin mozak-cli 
+cargo build --bin run-example 
 cd $current_dir
-$project_root/target/debug/mozak-cli -vvv run $@
+$project_root/target/debug/run-example -vvv $@
