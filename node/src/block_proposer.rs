@@ -9,6 +9,7 @@ use plonky2::field::types::Field;
 
 use crate::F;
 
+pub mod matches;
 pub mod state;
 pub mod transactions;
 
@@ -323,7 +324,13 @@ pub fn reduce_tree<T, R>(
 ) -> Option<R> {
     let mut i = iter.into_iter();
 
-    let mut stack: Vec<(R, usize)> = Vec::with_capacity(i.size_hint().0.ilog2() as usize + 1);
+    let cap = if i.size_hint().0 == 0 {
+        0
+    } else {
+        i.size_hint().0.ilog2() as usize + 1
+    };
+
+    let mut stack: Vec<(R, usize)> = Vec::with_capacity(cap);
     let final_v = loop {
         let Some(v0) = i.next() else {
             break None;
