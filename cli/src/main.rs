@@ -28,6 +28,7 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::storage_device::generation::generate_call_tape_trace;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
+#[cfg(feature = "bench")]
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_cli::runner::{
     deserialize_system_tape, get_self_prog_id, load_program, raw_tapes_from_system_tape,
@@ -105,6 +106,7 @@ enum Command {
     MemoryInitHash { elf: Input },
     /// Compute the Self Program Id of the given ELF,
     SelfProgId { elf: Input },
+    #[cfg(feature = "bench")]
     /// Bench the function with given parameters
     Bench(BenchArgs),
 }
@@ -465,6 +467,7 @@ fn main() -> Result<()> {
             let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
             println!("{self_prog_id:?}");
         }
+        #[cfg(feature = "bench")]
         Command::Bench(bench) => {
             let time_taken = bench.bench()?.as_secs_f64();
             println!("{time_taken}");
