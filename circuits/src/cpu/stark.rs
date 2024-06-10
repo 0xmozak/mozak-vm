@@ -78,9 +78,10 @@ fn populate_op2_value<'a, P: Copy>(
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, CpuState<Expr<'a, T>>> for CpuStark<F, { D }>
+impl<'a, F, T: Copy + 'a, const D: usize>
+    GenerateConstraints<'a, T> for CpuStark<F, { D }>
 {
+    type View<E: 'a> = CpuState<E>;
     type PublicInputs<E: 'a> = NoColumns<E>;
 
     fn generate_constraints(

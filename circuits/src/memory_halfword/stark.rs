@@ -26,10 +26,11 @@ impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
     type Columns = HalfWordMemory<F>;
 }
 
-impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, HalfWordMemory<Expr<'a, T>>>
+impl<'a, F, T: Copy + 'a, const D: usize>
+    GenerateConstraints<'a, T>
     for HalfWordMemoryStark<F, { D }>
 {
+    type View<E: 'a> = HalfWordMemory<E>;
     type PublicInputs<E: 'a> = NoColumns<E>;
 
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing

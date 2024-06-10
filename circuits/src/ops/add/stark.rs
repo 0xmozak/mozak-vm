@@ -29,9 +29,10 @@ impl<F, const D: usize> HasNamedColumns for AddStark<F, D> {
 const COLUMNS: usize = Add::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, const D: usize> GenerateConstraints<'a, T, Add<Expr<'a, T>>>
+impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
     for AddStark<F, { D }>
 {
+    type View<E: 'a> = Add<E>;
     type PublicInputs<E: 'a> = NoColumns<E>;
 
     fn generate_constraints(

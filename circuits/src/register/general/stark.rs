@@ -29,9 +29,10 @@ impl<F, const D: usize> HasNamedColumns for RegisterStark<F, D> {
 const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, Register<Expr<'a, T>>> for RegisterStark<F, { D }>
+impl<'a, F, T: Copy + 'a, const D: usize>
+    GenerateConstraints<'a, T> for RegisterStark<F, { D }>
 {
+    type View<E: 'a> = Register<E>;
     type PublicInputs<E: 'a> = NoColumns<E>;
 
     /// Constraints for the [`RegisterStark`]:

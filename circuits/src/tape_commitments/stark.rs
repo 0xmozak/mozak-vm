@@ -16,10 +16,11 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::unstark::NoColumns;
 
-impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, TapeCommitments<Expr<'a, T>>>
+impl<'a, F, T: Copy + 'a, const D: usize>
+    GenerateConstraints<'a, T>
     for TapeCommitmentsStark<F, { D }>
 {
+    type View<E: 'a> = TapeCommitments<E>;
     type PublicInputs<E: 'a> = NoColumns<E>;
 
     fn generate_constraints(

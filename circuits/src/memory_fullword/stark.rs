@@ -30,10 +30,11 @@ impl<F, const D: usize> HasNamedColumns for FullWordMemoryStark<F, D> {
 const COLUMNS: usize = NUM_HW_MEM_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, FullWordMemory<Expr<'a, T>>>
+impl<'a, F, T: Copy + 'a, const D: usize>
+    GenerateConstraints<'a, T>
     for FullWordMemoryStark<F, { D }>
 {
+    type View<E: 'a> = FullWordMemory<E>;
     type PublicInputs<E: 'a> = NoColumns<E>;
 
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing

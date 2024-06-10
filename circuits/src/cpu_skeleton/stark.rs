@@ -30,10 +30,11 @@ const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
-impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, CpuSkeleton<Expr<'a, T>>>
+impl<'a, F, T: Copy + 'a, const D: usize>
+    GenerateConstraints<'a, T>
     for CpuSkeletonStark<F, { D }>
 {
+    type View<E: 'a> = CpuSkeleton<E>;
     type PublicInputs<E: 'a> = PublicInputs<E>;
 
     fn generate_constraints(
