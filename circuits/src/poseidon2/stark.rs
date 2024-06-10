@@ -130,9 +130,11 @@ const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 fn from_u64(u: u64) -> i64 { GoldilocksField::from_noncanonical_u64(u).to_canonical_i64() }
 
 impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, Poseidon2State<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
+    GenerateConstraints<'a, T, Poseidon2State<Expr<'a, T>>>
     for Poseidon2_12Stark<F, { D }>
 {
+    type PublicInputs<E: 'a> = NoColumns<E>;
+
     // NOTE: This one has extra constraints compared to different implementations of
     // `generate_constraints` that were have written so far.  It will be something
     // to take into account when providing a more geneeral API to plonky.

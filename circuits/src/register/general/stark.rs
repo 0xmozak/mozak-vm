@@ -30,8 +30,10 @@ const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, Register<Expr<'a, T>>, NoColumns<Expr<'a, T>>> for RegisterStark<F, { D }>
+    GenerateConstraints<'a, T, Register<Expr<'a, T>>> for RegisterStark<F, { D }>
 {
+    type PublicInputs<E: 'a> = NoColumns<E>;
+
     /// Constraints for the [`RegisterStark`]:
     ///
     /// 1) `is_init`, `is_read`, `is_write`, and the virtual `is_used` column

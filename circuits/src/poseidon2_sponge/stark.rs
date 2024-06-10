@@ -33,9 +33,11 @@ const COLUMNS: usize = NUM_POSEIDON2_SPONGE_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<'a, F: Poseidon2, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, Poseidon2Sponge<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
+    GenerateConstraints<'a, T, Poseidon2Sponge<Expr<'a, T>>>
     for Poseidon2SpongeStark<F, { D }>
 {
+    type PublicInputs<E: 'a> = NoColumns<E>;
+
     // For design check https://docs.google.com/presentation/d/10Dv00xL3uggWTPc0L91cgu_dWUzhM7l1EQ5uDEI_cjg/edit?usp=sharing
     fn generate_constraints(
         vars: &StarkFrameTyped<Poseidon2Sponge<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,

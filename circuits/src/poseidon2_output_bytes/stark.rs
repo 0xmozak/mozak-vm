@@ -31,9 +31,11 @@ const COLUMNS: usize = NUM_POSEIDON2_OUTPUT_BYTES_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, Poseidon2OutputBytes<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
+    GenerateConstraints<'a, T, Poseidon2OutputBytes<Expr<'a, T>>>
     for Poseidon2OutputBytesStark<F, { D }>
 {
+    type PublicInputs<E: 'a> = NoColumns<E>;
+
     fn generate_constraints(
         vars: &StarkFrameTyped<Poseidon2OutputBytes<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {

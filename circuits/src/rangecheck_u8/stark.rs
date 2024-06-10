@@ -30,9 +30,11 @@ const COLUMNS: usize = RangeCheckU8::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, RangeCheckU8<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
+    GenerateConstraints<'a, T, RangeCheckU8<Expr<'a, T>>>
     for RangeCheckU8Stark<F, { D }>
 {
+    type PublicInputs<E: 'a> = NoColumns<E>;
+
     fn generate_constraints(
         vars: &StarkFrameTyped<RangeCheckU8<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {

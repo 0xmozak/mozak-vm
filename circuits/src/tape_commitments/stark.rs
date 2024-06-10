@@ -17,9 +17,11 @@ use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraint
 use crate::unstark::NoColumns;
 
 impl<'a, F, T: Copy, const D: usize>
-    GenerateConstraints<'a, T, TapeCommitments<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
+    GenerateConstraints<'a, T, TapeCommitments<Expr<'a, T>>>
     for TapeCommitmentsStark<F, { D }>
 {
+    type PublicInputs<E: 'a> = NoColumns<E>;
+
     fn generate_constraints(
         vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {

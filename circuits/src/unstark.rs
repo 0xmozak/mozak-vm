@@ -14,9 +14,11 @@ use starky::stark::Stark;
 use crate::columns_view::{columns_view_impl, HasNamedColumns, NumberOfColumns};
 use crate::expr::{ConstraintBuilder, GenerateConstraints};
 
-impl<'a, F, T, const D: usize, Columns, const COLUMNS: usize>
-    GenerateConstraints<'a, T, Columns, NoColumns<Expr<'a, T>>> for Unstark<F, { D }, Columns, { COLUMNS }>
+impl<'a, F, T: 'a, const D: usize, Columns, const COLUMNS: usize>
+    GenerateConstraints<'a, T, Columns> for Unstark<F, { D }, Columns, { COLUMNS }>
 {
+    type PublicInputs<E: 'a> = NoColumns<E>;
+
     fn generate_constraints(
         _vars: &StarkFrameTyped<Columns, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
