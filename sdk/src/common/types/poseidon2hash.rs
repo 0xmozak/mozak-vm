@@ -46,7 +46,26 @@ impl std::fmt::Debug for Poseidon2Hash {
 
 impl Poseidon2Hash {
     #[must_use]
-    pub fn inner(&self) -> [u8; DIGEST_BYTES] { self.0 }
+    pub const fn from_u64s(v: [u64; 4]) -> Self {
+        let v = [
+            v[0].to_le_bytes(),
+            v[1].to_le_bytes(),
+            v[2].to_le_bytes(),
+            v[3].to_le_bytes(),
+        ];
+        let v = array_util::flatten(&v);
+        let mut r = Self([0; DIGEST_BYTES]);
+
+        let mut i = 0;
+        while i < v.len() {
+            r.0[i] = v[i];
+            i += 1;
+        }
+        r
+    }
+
+    #[must_use]
+    pub const fn inner(&self) -> [u8; DIGEST_BYTES] { self.0 }
 
     pub fn to_u64s(&self) -> [u64; 4] {
         let mut bytes = [[0; 8]; DIGEST_BYTES / 8];

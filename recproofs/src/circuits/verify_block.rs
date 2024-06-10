@@ -3,12 +3,14 @@
 use std::marker::PhantomData;
 
 use anyhow::Result;
+use itertools::Either;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierOnlyCircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
+use plonky2::plonk::proof::ProofWithPublicInputs;
 
 use super::{match_delta, state_update, verify_tx};
 
@@ -42,6 +44,172 @@ pub type Proof<T, F, C, const D: usize> = super::Proof<T, Indices, F, C, D>;
 pub type BaseProof<F, C, const D: usize> = Proof<Base, F, C, D>;
 
 pub type BlockProof<F, C, const D: usize> = Proof<Block, F, C, D>;
+
+pub enum BaseOrBlockRef<'a, F, C, const D: usize>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
+    Base(&'a Proof<Base, F, C, D>),
+    Block(&'a Proof<Block, F, C, D>),
+}
+
+impl<'a, F, C, const D: usize> Clone for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn clone(&self) -> Self { *self }
+}
+
+impl<'a, F, C, const D: usize> Copy for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+}
+
+impl<'a, F, C, const D: usize> From<&'a Proof<Base, F, C, D>> for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a Proof<Base, F, C, D>) -> Self { Self::Base(value) }
+}
+
+impl<'a, F, C, const D: usize> From<&'a mut Proof<Base, F, C, D>> for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Proof<Base, F, C, D>) -> Self { Self::Base(value) }
+}
+
+impl<'a, F, C, const D: usize> From<&'a Proof<Block, F, C, D>> for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a Proof<Block, F, C, D>) -> Self { Self::Block(value) }
+}
+
+impl<'a, F, C, const D: usize> From<&'a mut Proof<Block, F, C, D>> for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Proof<Block, F, C, D>) -> Self { Self::Block(value) }
+}
+
+impl<'a, F, C, const D: usize> From<&'a Either<Proof<Base, F, C, D>, Proof<Block, F, C, D>>>
+    for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a Either<Proof<Base, F, C, D>, Proof<Block, F, C, D>>) -> Self {
+        match value {
+            Either::Left(l) => Self::Base(l),
+            Either::Right(b) => Self::Block(b),
+        }
+    }
+}
+
+impl<'a, F, C, const D: usize> From<&'a mut Either<Proof<Base, F, C, D>, Proof<Block, F, C, D>>>
+    for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Either<Proof<Base, F, C, D>, Proof<Block, F, C, D>>) -> Self {
+        match value {
+            Either::Left(l) => Self::Base(l),
+            Either::Right(b) => Self::Block(b),
+        }
+    }
+}
+
+impl<'a, F, C, const D: usize> From<Either<&'a Proof<Base, F, C, D>, &'a Proof<Block, F, C, D>>>
+    for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: Either<&'a Proof<Base, F, C, D>, &'a Proof<Block, F, C, D>>) -> Self {
+        match value {
+            Either::Left(l) => Self::Base(l),
+            Either::Right(b) => Self::Block(b),
+        }
+    }
+}
+
+impl<'a, F, C, const D: usize> From<&'a Either<Proof<Block, F, C, D>, Proof<Base, F, C, D>>>
+    for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a Either<Proof<Block, F, C, D>, Proof<Base, F, C, D>>) -> Self {
+        match value {
+            Either::Left(b) => Self::Block(b),
+            Either::Right(l) => Self::Base(l),
+        }
+    }
+}
+
+impl<'a, F, C, const D: usize> From<&'a mut Either<Proof<Block, F, C, D>, Proof<Base, F, C, D>>>
+    for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: &'a mut Either<Proof<Block, F, C, D>, Proof<Base, F, C, D>>) -> Self {
+        match value {
+            Either::Left(b) => Self::Block(b),
+            Either::Right(l) => Self::Base(l),
+        }
+    }
+}
+
+impl<'a, F, C, const D: usize> From<Either<&'a Proof<Block, F, C, D>, &'a Proof<Base, F, C, D>>>
+    for BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(value: Either<&'a Proof<Block, F, C, D>, &'a Proof<Base, F, C, D>>) -> Self {
+        match value {
+            Either::Left(b) => Self::Block(b),
+            Either::Right(l) => Self::Base(l),
+        }
+    }
+}
+
+impl<'a, F, C, const D: usize> BaseOrBlockRef<'a, F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    pub const fn is_base(&self) -> bool {
+        match self {
+            Self::Base(_) => Base::VALUE,
+            Self::Block(_) => Block::VALUE,
+        }
+    }
+
+    pub const fn proof(&self) -> &ProofWithPublicInputs<F, C, D> {
+        match self {
+            Self::Base(l) => &l.proof,
+            Self::Block(b) => &b.proof,
+        }
+    }
+
+    pub const fn indices(&self) -> &Indices {
+        match self {
+            Self::Base(l) => &l.indices,
+            Self::Block(b) => &b.indices,
+        }
+    }
+}
 
 impl<T, F, C, const D: usize> Proof<T, F, C, D>
 where
@@ -167,18 +335,18 @@ where
         self.block.verify_base(base_proof.proof)
     }
 
-    pub fn prove<T>(
+    pub fn prove<'a>(
         &self,
         tx_proof: &verify_tx::BranchProof<F, C, D>,
         match_proof: &match_delta::BranchProof<F, C, D>,
         state_proof: &state_update::BranchProof<F, C, D>,
-        prev_proof: &Proof<T, F, C, D>,
+        prev_proof: impl Into<BaseOrBlockRef<'a, F, C, D>>,
     ) -> Result<BlockProof<F, C, D>> {
         let mut inputs = PartialWitness::new();
         self.tx.set_witness(&mut inputs, tx_proof);
         self.match_delta.set_witness(&mut inputs, match_proof);
         self.state_update.set_witness(&mut inputs, state_proof);
-        inputs.set_proof_with_pis_target(&self.block.prev_proof, &prev_proof.proof);
+        inputs.set_proof_with_pis_target(&self.block.prev_proof, prev_proof.into().proof());
         let proof = self.circuit.prove(inputs)?;
         Ok(BlockProof {
             proof,
