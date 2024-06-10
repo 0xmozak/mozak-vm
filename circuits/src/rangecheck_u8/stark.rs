@@ -29,12 +29,12 @@ impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
 const COLUMNS: usize = RangeCheckU8::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, RangeCheckU8<Expr<'a, T>>, NoColumns<U>>
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, RangeCheckU8<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
     for RangeCheckU8Stark<F, { D }>
 {
     fn generate_constraints(
-        vars: &StarkFrameTyped<RangeCheckU8<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<RangeCheckU8<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let nv = vars.next_values;

@@ -78,11 +78,11 @@ fn populate_op2_value<'a, P: Copy>(
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, CpuState<Expr<'a, T>>, NoColumns<U>> for CpuStark<F, { D }>
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, CpuState<Expr<'a, T>>, NoColumns<Expr<'a, T>>> for CpuStark<F, { D }>
 {
     fn generate_constraints(
-        vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = &vars.local_values;
         let mut constraints = ConstraintBuilder::default();

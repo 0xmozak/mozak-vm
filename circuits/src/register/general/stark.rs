@@ -29,8 +29,8 @@ impl<F, const D: usize> HasNamedColumns for RegisterStark<F, D> {
 const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, Register<Expr<'a, T>>, NoColumns<U>> for RegisterStark<F, { D }>
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, Register<Expr<'a, T>>, NoColumns<Expr<'a, T>>> for RegisterStark<F, { D }>
 {
     /// Constraints for the [`RegisterStark`]:
     ///
@@ -48,7 +48,7 @@ impl<'a, F, T: Copy, U, const D: usize>
     /// For more details, refer to the [Notion
     /// document](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2).
     fn generate_constraints(
-        vars: &StarkFrameTyped<Register<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<Register<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let nv = vars.next_values;

@@ -26,13 +26,13 @@ impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
     type Columns = HalfWordMemory<F>;
 }
 
-impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, HalfWordMemory<Expr<'a, T>>, NoColumns<U>>
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, HalfWordMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
     for HalfWordMemoryStark<F, { D }>
 {
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
     fn generate_constraints(
-        vars: &StarkFrameTyped<HalfWordMemory<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<HalfWordMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();

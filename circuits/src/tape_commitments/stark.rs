@@ -16,12 +16,12 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::unstark::NoColumns;
 
-impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, TapeCommitments<Expr<'a, T>>, NoColumns<U>>
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, TapeCommitments<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
     for TapeCommitmentsStark<F, { D }>
 {
     fn generate_constraints(
-        vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv: &TapeCommitments<Expr<'a, T>> = &vars.local_values;
         let mut constraint = ConstraintBuilder::default();

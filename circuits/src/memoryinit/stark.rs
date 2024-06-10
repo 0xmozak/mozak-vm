@@ -29,12 +29,12 @@ impl<F, const D: usize> HasNamedColumns for MemoryInitStark<F, D> {
 const COLUMNS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, MemoryInit<Expr<'a, T>>, NoColumns<U>>
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, MemoryInit<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
     for MemoryInitStark<F, { D }>
 {
     fn generate_constraints(
-        vars: &StarkFrameTyped<MemoryInit<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<MemoryInit<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();

@@ -129,15 +129,15 @@ const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 
 fn from_u64(u: u64) -> i64 { GoldilocksField::from_noncanonical_u64(u).to_canonical_i64() }
 
-impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, Poseidon2State<Expr<'a, T>>, NoColumns<U>>
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, Poseidon2State<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
     for Poseidon2_12Stark<F, { D }>
 {
     // NOTE: This one has extra constraints compared to different implementations of
     // `generate_constraints` that were have written so far.  It will be something
     // to take into account when providing a more geneeral API to plonky.
     fn generate_constraints(
-        vars: &StarkFrameTyped<Poseidon2State<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<Poseidon2State<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();

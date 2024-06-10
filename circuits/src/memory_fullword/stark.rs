@@ -30,13 +30,13 @@ impl<F, const D: usize> HasNamedColumns for FullWordMemoryStark<F, D> {
 const COLUMNS: usize = NUM_HW_MEM_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, FullWordMemory<Expr<'a, T>>, NoColumns<U>>
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, FullWordMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>
     for FullWordMemoryStark<F, { D }>
 {
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
     fn generate_constraints(
-        vars: &StarkFrameTyped<FullWordMemory<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<FullWordMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();

@@ -30,11 +30,11 @@ impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy, U, const D: usize>
-    GenerateConstraints<'a, T, XorColumnsView<Expr<'a, T>>, NoColumns<U>> for XorStark<F, { D }>
+impl<'a, F, T: Copy, const D: usize>
+    GenerateConstraints<'a, T, XorColumnsView<Expr<'a, T>>, NoColumns<Expr<'a, T>>> for XorStark<F, { D }>
 {
     fn generate_constraints(
-        vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, NoColumns<U>>,
+        vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();
