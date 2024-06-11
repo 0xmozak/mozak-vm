@@ -225,6 +225,46 @@ impl ExprBuilder {
                 .collect(),
         }
     }
+
+    pub fn to_typed_starkframe_<'a, T, U, View, PublicInputs>(
+        &'a self,
+        lv: &[T],
+        nv: &[T],
+        pis: &[U],
+        columns: usize,
+        public_inputs: usize,
+    ) -> StarkFrameTyped<View, PublicInputs>
+    where
+        T: Copy + Clone + Default + From<U> + 'a,
+        U: Copy + Clone + Default,
+        // We don't actually need the first constraint, but it's useful to make the compiler yell
+        // at us, if we mix things up. See the TODO about fixing `StarkEvaluationFrame` to
+        // give direct access to its contents.
+        View: FromIterator<Expr<'a, T>>,
+        PublicInputs: FromIterator<Expr<'a, T>>,
+        // TODO: Fix `StarkEvaluationFrame` to give direct access to its contents, no
+        // need for the reference only access.
+
+    {
+        assert_eq!(lv.len(), columns);
+        assert_eq!(nv.len(), columns);
+        assert_eq!(pis.len(), public_inputs);
+
+        StarkFrameTyped {
+            local_values: lv
+                .iter()
+                .map(|&v| self.lit(v))
+                .collect(),
+            next_values: nv
+                .iter()
+                .map(|&v| self.lit(v))
+                .collect(),
+            public_inputs: pis
+                .iter()
+                .map(|&v| self.lit(T::from(v)))
+                .collect(),
+        }
+    }
 }
 
 /// A helper around `StarkFrame` to add types
