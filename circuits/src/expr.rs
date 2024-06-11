@@ -197,15 +197,7 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
         .map(|c| c.map(|constraint| evaluator.eval(constraint)))
         .collect::<Vec<_>>();
 
-    let mozak_stark_debug = std::env::var("MOZAK_STARK_DEBUG").is_ok();
     for c in evaluated {
-        if mozak_stark_debug && !c.term.is_zeros() {
-            log::error!(
-                "ConstraintConsumer - DEBUG trace (non-zero-constraint): {}",
-                c.location
-            );
-        }
-
         (match c.constraint_type {
             ConstraintType::FirstRow => ConstraintConsumer::constraint_first_row,
             ConstraintType::Always => ConstraintConsumer::constraint,
