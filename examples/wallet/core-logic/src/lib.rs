@@ -60,10 +60,7 @@ pub struct TokenObject {
 
 impl From<StateObject> for TokenObject {
     fn from(value: StateObject) -> Self {
-        let archived = rkyv::access::<TokenObject, Failure>(&value.data[..]).unwrap();
-        let token_object: TokenObject = archived
-            .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
-            .unwrap();
+        let token_object = rkyv::from_bytes::<TokenObject, Failure>(&value.data).unwrap();
         token_object
     }
 }

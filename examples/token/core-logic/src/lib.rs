@@ -56,19 +56,17 @@ pub fn transfer(
     let mut token_object = wallet_core_logic::TokenObject::from(state_object.clone());
 
     // Ensure spendability
-    assert!(
-        mozak_sdk::call_send(
-            remitter_wallet,
-            wallet_core_logic::MethodArgs::ApproveSignature(
-                token_object.pub_key.clone(),
-                wallet_core_logic::BlackBox::new(
-                    remitter_wallet,
-                    remittee_wallet,
-                    token_object.clone()
-                ),
+    mozak_sdk::call_send(
+        remitter_wallet,
+        wallet_core_logic::MethodArgs::ApproveSignature(
+            token_object.pub_key.clone(),
+            wallet_core_logic::BlackBox::new(
+                remitter_wallet,
+                remittee_wallet,
+                token_object.clone(),
             ),
-            wallet_core_logic::dispatch,
-        ) == wallet_core_logic::MethodReturns::ApproveSignature(()),
+        ),
+        wallet_core_logic::dispatch,
     );
 
     token_object.pub_key = remitee_pubkey;

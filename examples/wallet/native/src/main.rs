@@ -18,6 +18,8 @@
 #![allow(unused_attributes)]
 
 use mozak_sdk::common::types::ProgramIdentifier;
+use rkyv::rancor::{Failure, Panic, Strategy};
+use rkyv::Deserialize;
 use wallet_core_logic::{dispatch, BlackBox, MethodArgs, PrivateKey, PublicKey, TokenObject};
 
 fn main() {
@@ -42,6 +44,11 @@ fn main() {
         remittee_program,
         token_object,
     };
+    let arg = MethodArgs::ApproveSignature(public_key.clone(), black_box.clone());
+
+    let serialized = rkyv::to_bytes::<_, 256, Panic>(&arg).unwrap();
+    let token_object: TokenObject = rkyv::from_bytes::<TokenObject, Panic>(&serialized).unwrap();
+    println!("{token_object:?}");
 
     mozak_sdk::call_send(
         wallet_program,

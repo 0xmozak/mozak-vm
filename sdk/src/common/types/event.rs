@@ -22,6 +22,7 @@ use crate::native::poseidon::poseidon2_hash_no_pad;
 )]
 #[allow(clippy::module_name_repetitions)]
 #[archive(check_bytes)]
+#[archive_attr(derive(Debug))]
 #[repr(u8)]
 pub enum EventType {
     Write = 0,
@@ -65,6 +66,7 @@ pub struct Event {
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
 #[archive(check_bytes)]
+#[archive_attr(derive(Debug))]
 #[allow(clippy::module_name_repetitions)]
 #[allow(clippy::unsafe_derive_deserialize)]
 pub struct CanonicalEvent {
@@ -118,4 +120,5 @@ impl CanonicalEvent {
     derive(Debug, serde::Serialize, serde::Deserialize)
 )]
 #[archive(check_bytes)]
+#[archive_attr(derive(Debug))]
 pub struct CanonicalOrderedTemporalHints(pub CanonicalEvent, pub u32);

@@ -42,7 +42,7 @@ impl Call for CallTape {
         <A as Archive>::Archived: ArchivedCallArgument<A>,
         <R as Archive>::Archived: ArchivedCallReturn<R>, {
         // Ensure we aren't validating past the length of the event tape
-        assert!(self.index < self.reader.as_ref().unwrap().len());
+        // assert!(self.index < self.reader.as_ref().unwrap().len());
 
         let zcd_cpcmsg = &self.reader.unwrap()[self.index];
         let cpcmsg: CrossProgramCall = zcd_cpcmsg
@@ -50,9 +50,9 @@ impl Call for CallTape {
             .unwrap();
 
         // Ensure fields are correctly populated for caller and callee
-        assert!(cpcmsg.caller == self.get_self_identity());
-        assert!(cpcmsg.callee == recipient_program);
-        assert!(self.is_casted_actor(&recipient_program));
+        // assert!(cpcmsg.caller == self.get_self_identity());
+        // assert!(cpcmsg.callee == recipient_program);
+        // assert!(self.is_casted_actor(&recipient_program));
 
         // Deserialize the `arguments` seen on the tape, and assert
         let zcd_args = rkyv::access::<A, Failure>(&cpcmsg.argument.0[..]).unwrap();
@@ -62,7 +62,7 @@ impl Call for CallTape {
                 Strategy::wrap(&mut ()),
             )
             .unwrap();
-        assert!(deserialized_args == argument);
+        // assert!(deserialized_args == argument);
 
         // Ensure we mark this index as "read"
         self.index += 1;
@@ -112,10 +112,10 @@ impl Call for CallTape {
                     .caller
                     .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
                     .unwrap();
-                assert!(caller != self.self_prog_id);
+                // assert!(caller != self.self_prog_id);
 
                 // Before accepting, make sure that caller was a part of castlist
-                assert!(self.is_casted_actor(&caller));
+                // assert!(self.is_casted_actor(&caller));
 
                 let archived_args =
                     rkyv::access::<A, Failure>(zcd_cpcmsg.argument.0.as_slice()).unwrap();

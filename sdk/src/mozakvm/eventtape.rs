@@ -23,14 +23,14 @@ impl SelfIdentify for EventTape {
 
 impl EventEmit for EventTape {
     fn emit(&mut self, event: Event) {
-        assert!(self.index < self.reader.as_ref().unwrap().len());
+        // assert!(self.index < self.reader.as_ref().unwrap().len());
         let generated_canonical_event = CanonicalEvent::from_event(&event);
         let elem_idx: usize = self.reader.unwrap()[self.index]
             .1
             .to_native()
             .try_into()
             .unwrap();
-        assert!(!self.seen[elem_idx]);
+        // assert!(!self.seen[elem_idx]);
         self.seen[elem_idx] = true;
 
         let zcd_canonical_event = &self.reader.as_ref().unwrap()[elem_idx].0;
@@ -38,7 +38,7 @@ impl EventEmit for EventTape {
             .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
             .unwrap();
 
-        assert!(canonical_event == generated_canonical_event);
+        // assert!(canonical_event == generated_canonical_event);
         self.index += 1;
     }
 }

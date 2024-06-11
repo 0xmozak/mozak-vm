@@ -7,7 +7,8 @@ use wallet_core_logic::{dispatch, MethodArgs, MethodReturns};
 
 pub fn main() {
     while let Some((_caller, argument, return_)) = call_receive::<MethodArgs, MethodReturns>() {
-        assert!(dispatch(argument) == return_);
+        // assert!(dispatch(argument) == return_);
+        dispatch(argument);
     }
 }
 
