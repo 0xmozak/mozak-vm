@@ -4,6 +4,7 @@
 use std::borrow::Borrow;
 use std::fmt::{Debug, Display};
 
+use expr::ExprBuilder;
 use itertools::{izip, Itertools};
 use log::debug;
 use mozak_runner::elf::Program;
@@ -14,15 +15,12 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
 use plonky2::util::timing::TimingTree;
 use plonky2::util::transpose;
-use starky::constraint_consumer::ConstraintConsumer;
-use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
 use crate::bitshift::generation::generate_shift_amount_trace;
-use crate::columns_view::HasNamedColumns;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
-// use crate::expr::GenerateConstraints;
+use crate::expr::{build_debug, GenerateConstraints};
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
@@ -218,29 +216,44 @@ pub fn debug_single_trace<
     'a,
     F: RichField + Extendable<D> + Debug,
     const D: usize,
-    S: Stark<F, D> + Display + HasNamedColumns, // + GenerateConstraints<'a, F, S::Columns>,
+    S: Stark<F, D> + Display,
 >(
     stark: &'a S,
     trace_rows: &'a [PolynomialValues<F>],
     public_inputs: &'a [F],
 ) where
-    S::Columns: FromIterator<F> + Debug, {
+    for <'b> S: GenerateConstraints<'b, F>,
+    {
+        type View<'a, S, F> = <S as GenerateConstraints<'a, F>>::View<F>;
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
         .circular_tuple_windows()
         .for_each(|((lv_row, lv), (nv_row, nv))| {
-            let mut consumer = ConstraintConsumer::new_debug_api(lv_row == 0, nv_row == 0);
-            let vars =
-                StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), public_inputs);
-            stark.eval_packed_generic(&vars, &mut consumer);
-            if consumer.debug_api_has_constraint_failed() {
-                let lv: S::Columns = lv.iter().copied().collect();
-                let nv: S::Columns = nv.iter().copied().collect();
+            let expr_builder = ExprBuilder::default();
+            let vars = &expr_builder.to_typed_starkframe_(lv.as_slice(), nv.as_slice(), public_inputs, S::COLUMNS, S::PUBLIC_INPUTS);
+            let constraints = S::generate_constraints(vars);
+            let evaluated = build_debug(constraints);
+
+            let failed_locations: Vec<&std::panic::Location<'_>>=
+                evaluated.into_iter()
+                    .filter(|c| c.term.is_zeros())
+                    .map(|c| c.location)
+                    .collect();
+
+            let any_failed = !failed_locations.is_empty();
+
+            if any_failed {
+                for loc in failed_locations.into_iter() {
+                    log::error!("debug_single_trace :: (non-zero-constraint): {}", loc)
+                }
+
+                let lv: View<S, F> = lv.iter().copied().collect();
+                let nv: View<S, F> = nv.iter().copied().collect();
                 log::error!("Debug constraints for {stark}");
                 log::error!("lv-row[{lv_row}] - values: {lv:?}");
                 log::error!("nv-row[{nv_row}] - values: {nv:?}");
             }
-            assert!(!consumer.debug_api_has_constraint_failed());
+            assert!(!any_failed);
         });
 }
