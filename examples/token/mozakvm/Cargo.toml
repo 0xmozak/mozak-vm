@@ -17,4 +17,3 @@ std = []
 # The following is read by `run_examples.py`
 [package.metadata.mozak]
 example_dependents = ["wallet"]
-example_program_id = "MZK-63236d3b0bc73b9cb18ab2aacbbcf741b84d0560e00172374ddfcffea7b409cc"

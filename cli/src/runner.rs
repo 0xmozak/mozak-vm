@@ -1,10 +1,8 @@
 //! Utility functions that helps the CLI to interact with the
 //! [Mozak runner crate](mozak_runner).
 use std::collections::BTreeSet;
-use std::io::Read;
 
 use anyhow::Result;
-use clio::Input;
 use itertools::{izip, Itertools};
 use log::debug;
 use mozak_circuits::memoryinit::generation::generate_elf_memory_init_trace;
@@ -25,7 +23,7 @@ use starky::config::StarkConfig;
 
 use crate::trace_utils::get_trace_merkle_cap;
 
-pub fn load_program(mut elf: Input) -> Result<Program> {
+pub fn load_program<F: std::io::Read>(mut elf: F) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
@@ -38,7 +36,7 @@ pub fn load_program(mut elf: Input) -> Result<Program> {
 /// # Errors
 ///
 /// Errors if reading from the binary file fails.
-pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTape> {
+pub fn deserialize_system_tape<F: std::io::Read>(mut bin: F) -> Result<SystemTape> {
     let mut sys_tapes_bytes = Vec::new();
     let bytes_read = bin.read_to_end(&mut sys_tapes_bytes)?;
     debug!("Read {bytes_read} of system tape data.");
@@ -64,7 +62,10 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
     len_prefix_bytes
 }
 
-pub fn raw_tapes_from_system_tape(sys: Option<Input>, self_prog_id: ProgramIdentifier) -> RawTapes {
+pub fn raw_tapes_from_system_tape<F: std::io::Read>(
+    sys: Option<F>,
+    self_prog_id: ProgramIdentifier,
+) -> RawTapes {
     if sys.is_none() {
         return RawTapes::default();
     }

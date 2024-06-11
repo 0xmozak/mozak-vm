@@ -5,4 +5,5 @@ version = "0.1.0"
 
 [dependencies]
 inputtape-core-logic = { path = "../core-logic" }
+inputtape-elf-data = { path = "../elf-data" }
 mozak-sdk = { path = "../../../sdk" }
