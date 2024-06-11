@@ -4,7 +4,9 @@ use std::ops::{BitAnd, BitAndAssign, Shl, Sub};
 
 use itertools::Itertools;
 use mozak_recproofs::{Event, EventType as ProofEventType};
-use mozak_sdk::common::types::{CanonicalEvent, EventType as SdkEventType, ProgramIdentifier};
+use mozak_sdk::common::types::{
+    CanonicalEvent, EventType as SdkEventType, ProgramIdentifier, StateAddress,
+};
 use plonky2::field::types::Field;
 
 use crate::F;
@@ -29,8 +31,15 @@ pub enum Dir {
 pub struct Address(pub u64);
 
 impl Address {
+    #[must_use]
+    pub const fn from_state(v: StateAddress) -> Self { Self(u64::from_le_bytes(v.0)) }
+
+    #[must_use]
+    pub const fn to_state(self) -> StateAddress { StateAddress(self.0.to_le_bytes()) }
+
+    #[must_use]
     fn next(self, height: usize) -> (Option<AddressPath>, Dir) {
-        debug_assert!(self.0 < (1 << (height + 1)));
+        debug_assert!((self.0 as u128) < (1 << (height + 1)));
         AddressPath {
             height,
             addr: self.0,
