@@ -71,8 +71,8 @@ where
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Constraint<E> {
     constraint_type: ConstraintType,
-    location: &'static Location<'static>,
-    term: E,
+    pub location: &'static Location<'static>,
+    pub term: E,
 }
 
 impl<E> Constraint<E> {
