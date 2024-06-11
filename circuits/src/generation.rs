@@ -224,7 +224,7 @@ pub fn debug_single_trace<
 ) where
     for <'b> S: GenerateConstraints<'b, F>,
     {
-        type View<'a, S, F> = <S as GenerateConstraints<'a, F>>::View<F>;
+    type View<'a, S, F> = <S as GenerateConstraints<'a, F>>::View<F>;
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
