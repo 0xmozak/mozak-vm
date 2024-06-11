@@ -194,8 +194,8 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
 }
 
 pub trait GenerateConstraints<'a, T> {
-    type View<E> where E: 'a, T: 'a;
-    type PublicInputs<E> where E: 'a, T: 'a;
+    type View<E>: FromIterator<E> where E: 'a, T: 'a;
+    type PublicInputs<E>: FromIterator<E> where E: 'a, T: 'a;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<Self::View<Expr<'a, T>>, Self::PublicInputs<Expr<'a, T>>>,
