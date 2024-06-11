@@ -237,7 +237,7 @@ pub fn debug_single_trace<
 
             let failed_locations: Vec<&std::panic::Location<'_>>=
                 evaluated.into_iter()
-                    .filter(|c| c.term.is_zeros())
+                    .filter(|c| !c.term.is_zeros())
                     .map(|c| c.location)
                     .collect();
 
