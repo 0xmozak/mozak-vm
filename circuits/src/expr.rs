@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use std::panic::Location;
 
 pub use expr::PureEvaluator;
@@ -160,6 +161,27 @@ pub fn build_ext<F, const D: usize>(
     }
 }
 
+pub fn build_debug<F, FE, P, const D: usize, const D2: usize>(
+    cb: ConstraintBuilder<Expr<'_, P>>
+)
+where
+    F: RichField,
+    F: Extendable<D>,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>, {
+        let mut evaluator = Cached::from(packed_field_evaluator());
+        for constraint in cb.constraints {
+            let evaluated = evaluator.eval(constraint.term);
+
+            if evaluated.is_zeros() {
+                log::error!(
+                "ConstraintConsumer - DEBUG trace (non-zero-constraint): {}",
+                constraint.location
+                )
+            }
+        }
+    }
+
 pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     cb: ConstraintBuilder<Expr<'_, P>>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -193,9 +215,9 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     }
 }
 
-pub trait GenerateConstraints<'a, T> {
-    type View<E>: FromIterator<E> where E: 'a, T: 'a;
-    type PublicInputs<E>: FromIterator<E> where E: 'a, T: 'a;
+pub trait GenerateConstraints<'a, T: Debug> {
+    type View<E>: FromIterator<E> where E: 'a + Debug, T: 'a;
+    type PublicInputs<E>: FromIterator<E> where E: 'a + Debug, T: 'a;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<Self::View<Expr<'a, T>>, Self::PublicInputs<Expr<'a, T>>>,

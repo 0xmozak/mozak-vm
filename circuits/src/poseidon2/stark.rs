@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
@@ -129,12 +130,12 @@ const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 
 fn from_u64(u: u64) -> i64 { GoldilocksField::from_noncanonical_u64(u).to_canonical_i64() }
 
-impl<'a, F, T: Copy + 'a, const D: usize>
+impl<'a, F, T: Copy + Debug + 'a, const D: usize>
     GenerateConstraints<'a, T>
     for Poseidon2_12Stark<F, { D }>
 {
-    type View<E: 'a> = Poseidon2State<E>;
-    type PublicInputs<E: 'a> = NoColumns<E>;
+    type View<E: Debug + 'a> = Poseidon2State<E>;
+    type PublicInputs<E: Debug + 'a> = NoColumns<E>;
 
     // NOTE: This one has extra constraints compared to different implementations of
     // `generate_constraints` that were have written so far.  It will be something

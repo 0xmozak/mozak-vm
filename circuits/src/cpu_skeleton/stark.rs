@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
@@ -30,12 +31,12 @@ const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
-impl<'a, F, T: Copy + 'a, const D: usize>
+impl<'a, F, T: Copy + Debug + 'a, const D: usize>
     GenerateConstraints<'a, T>
     for CpuSkeletonStark<F, { D }>
 {
-    type View<E: 'a> = CpuSkeleton<E>;
-    type PublicInputs<E: 'a> = PublicInputs<E>;
+    type View<E: Debug + 'a> = CpuSkeleton<E>;
+    type PublicInputs<E: Debug + 'a> = PublicInputs<E>;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<CpuSkeleton<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>,

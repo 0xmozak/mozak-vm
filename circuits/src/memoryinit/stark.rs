@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
@@ -29,12 +30,12 @@ impl<F, const D: usize> HasNamedColumns for MemoryInitStark<F, D> {
 const COLUMNS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy + 'a, const D: usize>
+impl<'a, F, T: Copy + Debug + 'a, const D: usize>
     GenerateConstraints<'a, T>
     for MemoryInitStark<F, { D }>
 {
-    type View<E: 'a> = MemoryInit<E>;
-    type PublicInputs<E: 'a> = NoColumns<E>;
+    type View<E: Debug + 'a> = MemoryInit<E>;
+    type PublicInputs<E: Debug + 'a> = NoColumns<E>;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<MemoryInit<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,

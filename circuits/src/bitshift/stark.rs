@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
@@ -30,12 +31,12 @@ impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy + 'a, const D: usize>
+impl<'a, F, T: Copy + Debug + 'a, const D: usize>
     GenerateConstraints<'a, T>
     for BitshiftStark<F, { D }>
 {
-    type View<E: 'a> = BitshiftView<E>;
-    type PublicInputs<E: 'a> = NoColumns<E>;
+    type View<E: Debug + 'a> = BitshiftView<E>;
+    type PublicInputs<E: Debug + 'a> = NoColumns<E>;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,

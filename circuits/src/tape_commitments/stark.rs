@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
@@ -16,12 +17,12 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
 use crate::unstark::NoColumns;
 
-impl<'a, F, T: Copy + 'a, const D: usize>
+impl<'a, F, T: Copy + Debug + 'a, const D: usize>
     GenerateConstraints<'a, T>
     for TapeCommitmentsStark<F, { D }>
 {
-    type View<E: 'a> = TapeCommitments<E>;
-    type PublicInputs<E: 'a> = NoColumns<E>;
+    type View<E: Debug + 'a> = TapeCommitments<E>;
+    type PublicInputs<E: Debug + 'a> = NoColumns<E>;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,

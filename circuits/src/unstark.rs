@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, StarkFrameTyped};
@@ -14,11 +15,11 @@ use starky::stark::Stark;
 use crate::columns_view::{columns_view_impl, HasNamedColumns, NumberOfColumns};
 use crate::expr::{ConstraintBuilder, GenerateConstraints};
 
-impl<'a, F, T: 'a, const D: usize, Columns, const COLUMNS: usize>
+impl<'a, F, T: Debug + 'a, const D: usize, Columns, const COLUMNS: usize>
     GenerateConstraints<'a, T> for Unstark<F, { D }, Columns, { COLUMNS }>
 {
-    type View<E: 'a> = NoColumns<E>;
-    type PublicInputs<E: 'a> = NoColumns<E>;
+    type View<E: Debug + 'a> = NoColumns<E>;
+    type PublicInputs<E: Debug + 'a> = NoColumns<E>;
 
     fn generate_constraints(
         _vars: &StarkFrameTyped<NoColumns<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
