@@ -27,8 +27,8 @@ pub enum EventType {
     Write = 0,
     Ensure,
     Read,
-    Create,
-    Delete,
+    GiveOwner,
+    TakeOwner,
 }
 
 impl Default for EventType {
