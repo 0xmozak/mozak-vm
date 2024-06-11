@@ -17,11 +17,11 @@ use crate::expr::{ConstraintBuilder, GenerateConstraints};
 impl<'a, F, T: 'a, const D: usize, Columns, const COLUMNS: usize>
     GenerateConstraints<'a, T> for Unstark<F, { D }, Columns, { COLUMNS }>
 {
-    type View<E: 'a> = Columns;
+    type View<E: 'a> = NoColumns<E>;
     type PublicInputs<E: 'a> = NoColumns<E>;
 
     fn generate_constraints(
-        _vars: &StarkFrameTyped<Columns, NoColumns<Expr<'a, T>>>,
+        _vars: &StarkFrameTyped<NoColumns<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         ConstraintBuilder::default()
     }
