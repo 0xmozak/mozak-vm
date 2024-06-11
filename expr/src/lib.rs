@@ -204,7 +204,7 @@ impl ExprBuilder {
         // at us, if we mix things up. See the TODO about fixing `StarkEvaluationFrame` to
         // give direct access to its contents.
         View: FromIterator<Expr<'a, T>>,
-        PublicInputs: FromIterator<Expr<'a, U>>, {
+        PublicInputs: FromIterator<Expr<'a, T>>, {
         // TODO: Fix `StarkEvaluationFrame` to give direct access to its contents, no
         // need for the reference only access.
         StarkFrameTyped {
@@ -221,7 +221,7 @@ impl ExprBuilder {
             public_inputs: vars
                 .get_public_inputs()
                 .iter()
-                .map(|&v| self.lit(U::from(v)))
+                .map(|&v| self.lit(T::from(v)))
                 .collect(),
         }
     }
