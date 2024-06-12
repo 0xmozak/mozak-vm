@@ -30,7 +30,7 @@ pub struct AuxMatchesData {
     accumulate_branch_circuit: AccumulateBranchCircuit,
 
     match_leaf_circuit: MatchLeafCircuit,
-    match_branch_circuit: MatchBranchCircuit,
+    pub(super) match_branch_circuit: MatchBranchCircuit,
 }
 
 impl AuxMatchesData {
@@ -212,62 +212,49 @@ impl<'a> Matches<'a> {
 }
 
 #[cfg(test)]
-mod test {
-    use mozak_circuits::test_utils::fast_test_circuit_config;
+pub mod test {
     use mozak_recproofs::test_utils::make_fs;
     use mozak_recproofs::Object;
     use mozak_sdk::common::types::{
         CanonicalEvent, EventType, Poseidon2Hash, ProgramIdentifier, StateAddress,
     };
     use plonky2::field::types::Field;
-    use plonky2::plonk::circuit_data::CircuitConfig;
 
-    use super::{AuxMatchesData, Matches, F};
+    use super::{AuxMatchesData, MatchBranchProof, Matches, F};
+    use crate::block_proposer::test_data::{
+        CONFIG, PROGRAM_0, SIMPLE_ADDRESS, SIMPLE_CALL_TAPE, SIMPLE_CAST_ROOT, SIMPLE_EVENTS,
+        SIMPLE_STATE_1,
+    };
     use crate::block_proposer::OngoingTxKey;
 
-    const FAST_CONFIG: bool = true;
-    const CONFIG: CircuitConfig = if FAST_CONFIG {
-        fast_test_circuit_config()
-    } else {
-        CircuitConfig::standard_recursion_config()
-    };
-
-    #[tested_fixture::tested_fixture(AUX)]
+    #[tested_fixture::tested_fixture(pub AUX)]
     fn build_aux() -> AuxMatchesData { AuxMatchesData::new(&CONFIG) }
 
-    #[test]
-    fn simple() {
-        let seed = 42;
+    fn simple(block_height: u64) -> MatchBranchProof {
         let key = OngoingTxKey {
-            call_tape: make_fs([86, 7, 5, 309]),
-            cast_root: make_fs([314, 15, 2, 9]),
+            call_tape: SIMPLE_CALL_TAPE,
+            cast_root: SIMPLE_CAST_ROOT,
         };
-        let id = ProgramIdentifier::new_from_rand_seed(seed);
-
-        let address = StateAddress::new_from_rand_seed(seed + 1);
-        let value = Poseidon2Hash::new_from_rand_seed(seed + 2);
-        let events = [CanonicalEvent {
-            address,
-            type_: EventType::Read,
-            value,
-        }];
-        let obj = Object {
-            constraint_owner: make_fs([1, 2, 3, 4]),
-            credits: F::from_canonical_u64(100),
-            last_updated: F::from_canonical_u64(4),
-            data: value.to_u64s().map(F::from_noncanonical_u64),
-        };
+        let id = PROGRAM_0.pid();
 
         let mut matches = Matches::new(*AUX);
-        matches.ingest_events(key, &id, &events);
+        matches.ingest_events(key, &id, &SIMPLE_EVENTS);
         matches.ready_tx(key).unwrap();
-        let proof = matches.finalize(5, |addr| {
-            assert_eq!(addr.0, u64::from_le_bytes(address.0));
-            (obj, obj)
+        let proof = matches.finalize(block_height, |addr| {
+            assert_eq!(addr, SIMPLE_ADDRESS);
+            (SIMPLE_STATE_1, SIMPLE_STATE_1)
         });
 
-        assert_eq!(proof.block_height(), 5);
+        assert_eq!(proof.block_height(), block_height);
+
+        proof
     }
+
+    #[tested_fixture::tested_fixture(pub SIMPLE_1)]
+    fn simple_1() -> MatchBranchProof { simple(1) }
+
+    #[tested_fixture::tested_fixture(pub SIMPLE_2)]
+    fn simple_2() -> MatchBranchProof { simple(2) }
 
     #[test]
     fn complex() {

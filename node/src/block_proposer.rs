@@ -11,6 +11,7 @@ use plonky2::field::types::Field;
 
 use crate::F;
 
+pub mod block;
 pub mod matches;
 pub mod state;
 pub mod transactions;
@@ -370,6 +371,168 @@ pub fn reduce_tree<T, R>(
         v = merge(make_t(pv), make_t(v));
     }
     Some(v)
+}
+
+/// A repository of testing data to allow unit tests to build on one another
+/// and cross-reference by having them all draw from a consistent transaction
+#[cfg(test)]
+pub mod test_data {
+    use anyhow::Result;
+    use mozak_circuits::test_utils::fast_test_circuit_config;
+    use mozak_recproofs::circuits::verify_program::core::ProgramPublicIndices;
+    use mozak_recproofs::indices::{ArrayTargetIndex, BoolTargetIndex, HashOutTargetIndex};
+    use mozak_recproofs::test_utils::{make_f, make_fs};
+    use mozak_recproofs::Object;
+    use mozak_sdk::common::types::{CanonicalEvent, EventType, Poseidon2Hash, ProgramIdentifier};
+    use once_cell::sync::Lazy;
+    use plonky2::field::types::PrimeField64;
+    use plonky2::gates::noop::NoopGate;
+    use plonky2::hash::hash_types::{HashOut, HashOutTarget};
+    use plonky2::iop::target::{BoolTarget, Target};
+    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
+    use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+    use plonky2::plonk::proof::ProofWithPublicInputs;
+
+    use super::{Address, Field, StateAddress, F};
+    use crate::{C, D};
+
+    pub struct DummyCircuit {
+        /// The program hash
+        pub program_hash_val: [F; 4],
+
+        /// The program hash
+        pub program_hash: [Target; 4],
+
+        /// The presence flag for the event root
+        pub events_present: BoolTarget,
+
+        /// The event root
+        pub event_root: HashOutTarget,
+
+        /// The call list
+        pub call_list: [Target; 4],
+
+        /// The cast list root
+        pub cast_root: HashOutTarget,
+
+        pub circuit: CircuitData<F, C, D>,
+    }
+
+    pub const ZERO_VAL: [F; 4] = [F::ZERO; 4];
+
+    /// The hashes of the programs used
+    pub const PROGRAM_HASHES: [[u64; 4]; 3] =
+        [[31, 41, 59, 26], [53, 58, 97, 93], [23, 84, 62, 64]];
+
+    impl DummyCircuit {
+        #[must_use]
+        pub fn new(circuit_config: &CircuitConfig, program_id: impl Into<Option<usize>>) -> Self {
+            let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+            let program_hash = builder.add_virtual_target_arr();
+            let events_present = builder.add_virtual_bool_target_safe();
+            let event_root = builder.add_virtual_hash();
+            let call_list = builder.add_virtual_target_arr();
+            let cast_root = builder.add_virtual_hash();
+
+            builder.register_public_inputs(&program_hash);
+            builder.register_public_input(events_present.target);
+            builder.register_public_inputs(&event_root.elements);
+            builder.register_public_inputs(&call_list);
+            builder.register_public_inputs(&cast_root.elements);
+
+            let program_hash_val = program_id
+                .into()
+                .map_or(ZERO_VAL, |pid| make_fs(PROGRAM_HASHES[pid]));
+
+            let program_hash_calc = program_hash_val.map(|x| builder.constant(x));
+            for (p, c) in program_hash.into_iter().zip(program_hash_calc) {
+                builder.connect(p, c);
+            }
+
+            // Make sure we have enough gates to match.
+            builder.add_gate(NoopGate, vec![]);
+            while builder.num_gates() < (1 << 3) {
+                builder.add_gate(NoopGate, vec![]);
+            }
+
+            let circuit = builder.build();
+
+            Self {
+                program_hash_val,
+                program_hash,
+                events_present,
+                event_root,
+                call_list,
+                cast_root,
+                circuit,
+            }
+        }
+
+        #[must_use]
+        pub fn get_indices(&self) -> ProgramPublicIndices {
+            let public_inputs = &self.circuit.prover_only.public_inputs;
+            ProgramPublicIndices {
+                program_hash: ArrayTargetIndex::new(public_inputs, &self.program_hash),
+                events_present: BoolTargetIndex::new(public_inputs, self.events_present),
+                event_root: HashOutTargetIndex::new(public_inputs, self.event_root),
+                call_list: ArrayTargetIndex::new(public_inputs, &self.call_list),
+                cast_root: HashOutTargetIndex::new(public_inputs, self.cast_root),
+            }
+        }
+
+        pub(crate) fn prove(
+            &self,
+            event_root: Option<HashOut<F>>,
+            call_list: [F; 4],
+            cast_root: HashOut<F>,
+        ) -> Result<ProofWithPublicInputs<F, C, D>> {
+            let mut inputs = PartialWitness::new();
+            inputs.set_bool_target(self.events_present, event_root.is_some());
+            inputs.set_hash_target(self.event_root, event_root.unwrap_or_default());
+            inputs.set_target_arr(&self.call_list, &call_list);
+            inputs.set_hash_target(self.cast_root, cast_root);
+            self.circuit.prove(inputs)
+        }
+
+        #[must_use]
+        pub fn pid(&self) -> ProgramIdentifier {
+            ProgramIdentifier(self.program_hash_val.map(|x| x.to_canonical_u64()).into())
+        }
+    }
+
+    #[must_use]
+    pub fn u64_to_state(v: [u64; 4]) -> Poseidon2Hash { Poseidon2Hash::from(v) }
+
+    pub const FAST_CONFIG: bool = true;
+    pub const CONFIG: CircuitConfig = if FAST_CONFIG {
+        fast_test_circuit_config()
+    } else {
+        CircuitConfig::standard_recursion_config()
+    };
+
+    pub static PROGRAM_M: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, None));
+    pub static PROGRAM_0: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 0));
+    pub static PROGRAM_1: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 1));
+    pub static PROGRAM_2: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 2));
+
+    pub const SIMPLE_CALL_TAPE: [F; 4] = make_fs([86, 7, 5, 309]);
+    pub const SIMPLE_CAST_ROOT: [F; 4] = make_fs(PROGRAM_HASHES[0]);
+    pub const SIMPLE_ADDRESS: Address = Address(1);
+    pub const SIMPLE_STATE_ADDRESS: StateAddress = SIMPLE_ADDRESS.to_state();
+    pub const SIMPLE_STATE_1_U64_VALUES: [u64; 4] =
+        [0x56e3_59e4, 0xe32c_0b59, 0xf569_b557, 0xa90d_7240];
+    pub const SIMPLE_STATE_1: Object<F> = Object {
+        constraint_owner: make_fs([1, 2, 3, 4]),
+        credits: make_f(100),
+        last_updated: make_f(0),
+        data: make_fs(SIMPLE_STATE_1_U64_VALUES),
+    };
+    pub const SIMPLE_EVENTS: [CanonicalEvent; 1] = [CanonicalEvent {
+        address: SIMPLE_STATE_ADDRESS,
+        type_: EventType::Read,
+        value: Poseidon2Hash::from_u64s(SIMPLE_STATE_1_U64_VALUES),
+    }];
 }
 
 #[cfg(test)]
