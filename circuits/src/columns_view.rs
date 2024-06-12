@@ -173,7 +173,11 @@ macro_rules! columns_view_impl {
         impl<T: std::fmt::Debug> std::iter::FromIterator<T> for $s<T> {
             fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
                 const LEN: usize = std::mem::size_of::<$s<u8>>();
-                let vec: arrayvec::ArrayVec<T, LEN> = iter.into_iter().collect();
+                let vec: arrayvec::ArrayVec<T, LEN> = if LEN == 0 {
+                    arrayvec::ArrayVec::new()
+                } else {
+                    iter.into_iter().collect()
+                };
                 let array = vec.into_inner().expect("iterator of correct length");
                 Self::from_array(array)
             }
