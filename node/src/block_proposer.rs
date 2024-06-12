@@ -40,7 +40,7 @@ impl Address {
 
     #[must_use]
     fn next(self, height: usize) -> (Option<AddressPath>, Dir) {
-        debug_assert!((self.0 as u128) < (1 << (height + 1)));
+        debug_assert!(u128::from(self.0) < (1 << (height + 1)));
         AddressPath {
             height,
             addr: self.0,
