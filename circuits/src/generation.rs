@@ -20,7 +20,7 @@ use starky::stark::Stark;
 use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
-use crate::expr::{build_debug, GenerateConstraints};
+use crate::expr::{build_debug, GenerateConstraints, ConstraintType};
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
@@ -235,17 +235,30 @@ pub fn debug_single_trace<
             let constraints = S::generate_constraints(vars);
             let evaluated = build_debug(constraints);
 
-            let failed_locations: Vec<&std::panic::Location<'_>>=
-                evaluated.into_iter()
+            // Filter out only applicable constraints
+            let is_first_row = lv_row == 0;
+            let is_last_row = nv_row == 0;
+            let applicable = evaluated.into_iter()
+                .filter( |c|
+                    match c.constraint_type {
+                        ConstraintType::FirstRow => is_first_row,
+                        ConstraintType::Always => true,
+                        ConstraintType::Transition => !is_last_row,
+                        ConstraintType::LastRow => is_last_row,
+                    }
+                );
+
+            // Get failed constraints
+            let failed: Vec<_>=
+                applicable
                     .filter(|c| !c.term.is_zeros())
-                    .map(|c| c.location)
                     .collect();
 
-            let any_failed = !failed_locations.is_empty();
+            let any_failed = !failed.is_empty();
 
             if any_failed {
-                for loc in failed_locations.into_iter() {
-                    log::error!("debug_single_trace :: (non-zero-constraint): {}", loc)
+                for c in failed.into_iter() {
+                    log::error!("debug_single_trace :: non-zero constraint at {} = {}", c.location, c.term)
                 }
 
                 let lv: View<S, F> = lv.iter().copied().collect();
@@ -254,6 +267,7 @@ pub fn debug_single_trace<
                 log::error!("lv-row[{lv_row}] - values: {lv:?}");
                 log::error!("nv-row[{nv_row}] - values: {nv:?}");
             }
+
             assert!(!any_failed);
         });
 }
