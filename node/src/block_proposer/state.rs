@@ -3,7 +3,7 @@ use std::mem;
 use std::ops::Add;
 
 use itertools::Itertools;
-use mozak_recproofs::circuits::state_update::{self, BranchProof, LeafProof};
+use mozak_recproofs::circuits::state_update;
 use plonky2::hash::hash_types::HashOut;
 use plonky2::plonk::circuit_data::CircuitConfig;
 
@@ -11,6 +11,10 @@ use super::{Address, AddressPath, BranchAddress, Dir};
 use crate::{C, D, F};
 
 type Object = mozak_recproofs::Object<F>;
+type LeafProof = state_update::LeafProof<F, C, D>;
+type BranchProof = state_update::BranchProof<F, C, D>;
+type LeafCircuit = state_update::LeafCircuit<F, C, D>;
+type BranchCircuit = state_update::BranchCircuit<F, C, D>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Operation {
@@ -26,13 +30,13 @@ enum SparseMerkleNode {
 
 struct SparseMerkleBranch {
     height: usize,
-    proof: BranchProof<F, C, D>,
+    proof: BranchProof,
     left: Option<Box<SparseMerkleNode>>,
     right: Option<Box<SparseMerkleNode>>,
 }
 
 struct SparseMerkleLeaf {
-    proof: LeafProof<F, C, D>,
+    proof: LeafProof,
     kind: LeafKind,
 }
 
@@ -81,11 +85,11 @@ pub struct AuxStateData {
 
     empty_leaf_hash: HashOut<F>,
 
-    leaf_circuit: state_update::LeafCircuit<F, C, D>,
-    branch_circuits: Vec<state_update::BranchCircuit<F, C, D>>,
+    leaf_circuit: LeafCircuit,
+    pub(super) branch_circuits: Vec<BranchCircuit>,
 
-    empty_leaf_proof: LeafProof<F, C, D>,
-    empty_branch_proofs: Vec<BranchProof<F, C, D>>,
+    empty_leaf_proof: LeafProof,
+    empty_branch_proofs: Vec<BranchProof>,
 }
 
 impl AuxStateData {
@@ -98,11 +102,11 @@ impl AuxStateData {
         let empty_leaf = Object::default();
         let empty_leaf_hash = empty_leaf.hash();
 
-        let leaf_circuit = state_update::LeafCircuit::<F, C, D>::new(config);
-        let mut init = state_update::BranchCircuit::<F, C, D>::from_leaf(config, &leaf_circuit);
+        let leaf_circuit = LeafCircuit::new(config);
+        let mut init = BranchCircuit::from_leaf(config, &leaf_circuit);
         let branch_circuits = (0..=max_tree_depth)
             .map(|_| {
-                let next = state_update::BranchCircuit::<F, C, D>::from_branch(config, &init);
+                let next = BranchCircuit::from_branch(config, &init);
                 mem::replace(&mut init, next)
             })
             .collect_vec();
@@ -369,7 +373,7 @@ impl AuxStateData {
         }
     }
 
-    fn empty_leaf(&self, addr: Address) -> LeafProof<F, C, D> {
+    fn empty_leaf(&self, addr: Address) -> LeafProof {
         self.leaf_circuit
             .prove(self.empty_leaf_hash, self.empty_leaf_hash, Some(addr.0))
             .unwrap()
@@ -597,119 +601,47 @@ impl<'a> State<'a> {
 }
 
 #[cfg(test)]
-mod test {
-    use mozak_circuits::test_utils::fast_test_circuit_config;
-    use plonky2::field::types::Field;
-    use plonky2::hash::hash_types::HashOut;
-    use plonky2::hash::poseidon2::Poseidon2Hash;
-    use plonky2::plonk::circuit_data::CircuitConfig;
-    use plonky2::plonk::config::Hasher;
+pub mod test {
+    use super::{AuxStateData, BranchProof, Operation, State};
+    use crate::block_proposer::test_data::{CONFIG, SIMPLE_ADDRESS, SIMPLE_STATE_1};
 
-    use super::{Address, AuxStateData, Object, Operation, State, F};
-
-    pub fn hash_str(v: &str) -> HashOut<F> {
-        let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
-        Poseidon2Hash::hash_no_pad(&v)
-    }
-
-    const FAST_CONFIG: bool = true;
-    const CONFIG: CircuitConfig = if FAST_CONFIG {
-        fast_test_circuit_config()
-    } else {
-        CircuitConfig::standard_recursion_config()
-    };
-
-    #[tested_fixture::tested_fixture(AUX_0)]
+    #[tested_fixture::tested_fixture(pub AUX_0)]
     fn build_aux_0() -> AuxStateData { AuxStateData::new(&CONFIG, 0) }
 
-    #[tested_fixture::tested_fixture(AUX_8)]
+    #[tested_fixture::tested_fixture(pub AUX_8)]
     fn build_aux_8() -> AuxStateData { AuxStateData::new(&CONFIG, 8) }
 
-    #[tested_fixture::tested_fixture(AUX_63)]
+    #[tested_fixture::tested_fixture(pub AUX_63)]
     fn build_aux_63() -> AuxStateData { AuxStateData::new(&CONFIG, 63) }
 
-    #[test]
-    fn tiny_tree() {
-        let mut state = State::new(*AUX_0, 0);
-        let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
-        let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
+    fn simple(aux: &AuxStateData, v: usize) -> BranchProof {
+        let mut state = State::new(aux, v);
 
-        state.apply_operation(Address(1), Operation::Read);
-        let (before, after) = state.get_state(Address(1));
+        state.apply_operation(SIMPLE_ADDRESS, Operation::Read);
+        let (before, after) = state.get_state(SIMPLE_ADDRESS);
         assert_eq!(before, None);
         assert_eq!(after, None);
 
-        let obj = Object {
-            constraint_owner: non_zero_hash_1,
-            last_updated: F::from_canonical_u64(10),
-            credits: F::from_canonical_u64(10000),
-            data: non_zero_hash_2,
-        };
-        state.apply_operation(Address(1), Operation::Upsert(obj));
-        let (before, after) = state.get_state(Address(1));
+        state.apply_operation(SIMPLE_ADDRESS, Operation::Upsert(SIMPLE_STATE_1));
+        let (before, after) = state.get_state(SIMPLE_ADDRESS);
         assert_eq!(before, None);
-        assert_eq!(after, Some(&obj));
+        assert_eq!(after, Some(&SIMPLE_STATE_1));
 
         state.finalize();
-        let (before, after) = state.get_state(Address(1));
-        assert_eq!(before, Some(&obj));
-        assert_eq!(after, Some(&obj));
+        let (before, after) = state.get_state(SIMPLE_ADDRESS);
+        assert_eq!(before, Some(&SIMPLE_STATE_1));
+        assert_eq!(after, Some(&SIMPLE_STATE_1));
+
+        state.apply_operation(SIMPLE_ADDRESS, Operation::Read);
+        state.root.proof
     }
 
-    #[test]
-    fn small_tree() {
-        let mut state = State::new(*AUX_8, 8);
-        let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
-        let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
+    #[tested_fixture::tested_fixture(pub SIMPLE_0)]
+    fn simple_0() -> BranchProof { simple(*AUX_0, 0) }
 
-        state.apply_operation(Address(42), Operation::Read);
-        let (before, after) = state.get_state(Address(42));
-        assert_eq!(before, None);
-        assert_eq!(after, None);
+    #[tested_fixture::tested_fixture(pub SIMPLE_8)]
+    fn simple_8() -> BranchProof { simple(*AUX_8, 8) }
 
-        let obj = Object {
-            constraint_owner: non_zero_hash_1,
-            last_updated: F::from_canonical_u64(10),
-            credits: F::from_canonical_u64(10000),
-            data: non_zero_hash_2,
-        };
-        state.apply_operation(Address(42), Operation::Upsert(obj));
-        let (before, after) = state.get_state(Address(42));
-        assert_eq!(before, None);
-        assert_eq!(after, Some(&obj));
-
-        state.finalize();
-        let (before, after) = state.get_state(Address(42));
-        assert_eq!(before, Some(&obj));
-        assert_eq!(after, Some(&obj));
-    }
-
-    #[test]
-    #[ignore]
-    fn big_tree() {
-        let mut state = State::new(*AUX_63, 63);
-        let non_zero_hash_1 = hash_str("Non-Zero Hash 1").elements;
-        let non_zero_hash_2 = hash_str("Non-Zero Hash 2").elements;
-
-        state.apply_operation(Address(42 << 7), Operation::Read);
-        let (before, after) = state.get_state(Address(42 << 7));
-        assert_eq!(before, None);
-        assert_eq!(after, None);
-
-        let obj = Object {
-            constraint_owner: non_zero_hash_1,
-            last_updated: F::from_canonical_u64(10),
-            credits: F::from_canonical_u64(10000),
-            data: non_zero_hash_2,
-        };
-        state.apply_operation(Address(42 << 7), Operation::Upsert(obj));
-        let (before, after) = state.get_state(Address(42 << 7));
-        assert_eq!(before, None);
-        assert_eq!(after, Some(&obj));
-
-        state.finalize();
-        let (before, after) = state.get_state(Address(42 << 7));
-        assert_eq!(before, Some(&obj));
-        assert_eq!(after, Some(&obj));
-    }
+    #[tested_fixture::tested_fixture(pub SIMPLE_63)]
+    fn simple_63() -> BranchProof { simple(*AUX_63, 63) }
 }
