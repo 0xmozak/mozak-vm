@@ -70,7 +70,7 @@ where
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Constraint<E> {
-    constraint_type: ConstraintType,
+    pub constraint_type: ConstraintType,
     pub location: &'static Location<'static>,
     pub term: E,
 }
@@ -88,7 +88,7 @@ impl<E> Constraint<E> {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Debug)]
-enum ConstraintType {
+pub enum ConstraintType {
     FirstRow,
     #[default]
     Always,
