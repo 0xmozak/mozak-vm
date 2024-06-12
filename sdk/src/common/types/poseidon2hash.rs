@@ -67,10 +67,16 @@ impl Poseidon2Hash {
     #[must_use]
     pub const fn inner(&self) -> [u8; DIGEST_BYTES] { self.0 }
 
-    pub fn to_u64s(&self) -> [u64; 4] {
-        let mut bytes = [[0; 8]; DIGEST_BYTES / 8];
-        array_util::flatten_mut(&mut bytes).copy_from_slice(&self.0);
-        bytes.map(u64::from_le_bytes)
+    #[must_use]
+    pub const fn to_u64s(&self) -> [u64; 4] {
+        let mut bytes = [0; 4];
+        let chunks = array_util::as_chunks(&self.0).0;
+        let mut i = 0;
+        while i < chunks.len() {
+            bytes[i] = u64::from_le_bytes(chunks[i]);
+            i += 1;
+        }
+        bytes
     }
 
     #[must_use]
