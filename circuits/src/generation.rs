@@ -216,13 +216,13 @@ pub fn debug_single_trace<
     'a,
     F: RichField + Extendable<D> + Debug,
     const D: usize,
-    S: Stark<F, D> + Display,
+    S
 >(
     stark: &'a S,
     trace_rows: &'a [PolynomialValues<F>],
     public_inputs: &'a [F],
 ) where
-    for <'b> S: GenerateConstraints<'b, F>,
+    for <'b> S: Stark<F, D> + Display + GenerateConstraints<'b, F>,
     {
     type View<'a, S, F> = <S as GenerateConstraints<'a, F>>::View<F>;
     transpose_polys::<F, D, S>(trace_rows.to_vec())
@@ -257,8 +257,8 @@ pub fn debug_single_trace<
             let any_failed = !failed.is_empty();
 
             if any_failed {
-                for c in failed.into_iter() {
-                    log::error!("debug_single_trace :: non-zero constraint at {} = {}", c.location, c.term)
+                for c in failed {
+                    log::error!("debug_single_trace :: non-zero constraint at {} = {}", c.location, c.term);
                 }
 
                 let lv: View<S, F> = lv.iter().copied().collect();

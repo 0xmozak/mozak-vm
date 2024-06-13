@@ -161,20 +161,21 @@ pub fn build_ext<F, const D: usize>(
     }
 }
 
+#[must_use]
 pub fn build_debug<F, FE, P, const D: usize, const D2: usize>(
-    cb: ConstraintBuilder<Expr<'_, P>>
+    cb: ConstraintBuilder<Expr<'_, P>>,
 ) -> Vec<Constraint<P>>
 where
     F: RichField,
     F: Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-        let mut evaluator = Cached::from(packed_field_evaluator());
-        cb.constraints
-            .into_iter()
-            .map(|c| c.map(|constraint| evaluator.eval(constraint)))
-            .collect()
-    }
+    let mut evaluator = Cached::from(packed_field_evaluator());
+    cb.constraints
+        .into_iter()
+        .map(|c| c.map(|constraint| evaluator.eval(constraint)))
+        .collect()
+}
 
 pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     cb: ConstraintBuilder<Expr<'_, P>>,
@@ -201,11 +202,22 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     }
 }
 
+type Vars<'a, F, T> = StarkFrameTyped<
+    <F as GenerateConstraints<'a, T>>::View<Expr<'a, T>>,
+    <F as GenerateConstraints<'a, T>>::PublicInputs<Expr<'a, T>>,
+>;
+
 pub trait GenerateConstraints<'a, T: Debug> {
-    type View<E>: Debug + FromIterator<E> where E: 'a + Debug, T: 'a;
-    type PublicInputs<E>: FromIterator<E> where E: 'a + Debug, T: 'a;
+    type View<E>: Debug + FromIterator<E>
+    where
+        E: 'a + Debug,
+        T: 'a;
+    type PublicInputs<E>: FromIterator<E>
+    where
+        E: 'a + Debug,
+        T: 'a;
 
     fn generate_constraints(
-        vars: &StarkFrameTyped<Self::View<Expr<'a, T>>, Self::PublicInputs<Expr<'a, T>>>,
+        vars: &Vars<'a, Self, T>,
     ) -> ConstraintBuilder<Expr<'a, T>>;
 }
