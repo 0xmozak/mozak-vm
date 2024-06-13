@@ -1,8 +1,8 @@
 use core::fmt::Debug;
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use expr::{Expr, StarkFrameTyped};
-use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -15,8 +15,8 @@ use starky::stark::Stark;
 use crate::columns_view::{columns_view_impl, HasNamedColumns, NumberOfColumns};
 use crate::expr::{ConstraintBuilder, GenerateConstraints};
 
-impl<'a, F, T: Debug + 'a, const D: usize, Columns, const COLUMNS: usize> GenerateConstraints<'a, T>
-    for Unstark<F, { D }, Columns, { COLUMNS }>
+impl<'a, F, NAME, T: Debug + 'a, const D: usize, Columns, const COLUMNS: usize>
+    GenerateConstraints<'a, T> for Unstark<F, NAME, { D }, Columns, { COLUMNS }>
 {
     type PublicInputs<E: Debug + 'a> = NoColumns<E>;
     type View<E: Debug + 'a> = NoColumns<E>;
@@ -31,15 +31,24 @@ impl<'a, F, T: Debug + 'a, const D: usize, Columns, const COLUMNS: usize> Genera
 /// Template for a STARK with zero internal constraints. Use this if the STARK
 /// itself does not need any built-in constraints, but rely on cross table
 /// lookups for provability.
-#[derive(Copy, Clone, Default, StarkNameDisplay)]
+#[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
-pub struct Unstark<F, const D: usize, Columns, const COLUMNS: usize> {
+pub struct Unstark<F, NAME, const D: usize, Columns, const COLUMNS: usize> {
     pub _f: PhantomData<F>,
+    pub _name: PhantomData<NAME>,
     pub _d: PhantomData<Columns>,
 }
 
-impl<F, const D: usize, Columns, const COLUMNS: usize> HasNamedColumns
-    for Unstark<F, D, Columns, COLUMNS>
+impl<F, NAME: Default + Debug, const D: usize, Columns, const COLUMNS: usize> Display
+    for Unstark<F, NAME, D, Columns, COLUMNS>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", NAME::default())
+    }
+}
+
+impl<F, NAME, const D: usize, Columns, const COLUMNS: usize> HasNamedColumns
+    for Unstark<F, NAME, D, Columns, COLUMNS>
 {
     type Columns = Columns;
 }
@@ -48,10 +57,11 @@ const PUBLIC_INPUTS: usize = 0;
 
 impl<
         F: RichField + Extendable<D>,
+        NAME: Sync,
         const D: usize,
         Columns: Sync + NumberOfColumns,
         const COLUMNS: usize,
-    > Stark<F, D> for Unstark<F, D, Columns, COLUMNS>
+    > Stark<F, D> for Unstark<F, NAME, D, Columns, COLUMNS>
 {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
@@ -80,6 +90,20 @@ impl<
 
     fn constraint_degree(&self) -> usize { 3 }
 }
+
+// Simple marco to create a type holding the name for the Unstark
+macro_rules! impl_name {
+    ($alias:ident, $name:ident) => {
+        mod name {
+            #[derive(Default, Debug, Clone, Copy)]
+            pub struct $name {}
+        }
+
+        use name::$name as $alias;
+    }
+}
+
+pub(crate) use impl_name;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]

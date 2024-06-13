@@ -1,10 +1,12 @@
 use super::columns::RangeCheckColumnsView;
 use crate::columns_view::NumberOfColumns;
-use crate::unstark::Unstark;
+use crate::unstark::{impl_name, Unstark};
+
+impl_name!(N, RangeCheckStark);
 
 #[allow(clippy::module_name_repetitions)]
 pub type RangeCheckStark<F, const D: usize> =
-    Unstark<F, D, RangeCheckColumnsView<F>, { RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS }>;
+    Unstark<F, N, D, RangeCheckColumnsView<F>, { RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS }>;
 
 #[cfg(test)]
 mod tests {
