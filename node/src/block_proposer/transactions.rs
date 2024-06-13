@@ -57,7 +57,7 @@ pub struct AuxTransactionData {
     program_branch_circuit: ProgramBranchCircuit,
 
     tx_leaf_circuit: TxLeafCircuit,
-    tx_branch_circuit: TxBranchCircuit,
+    pub(super) tx_branch_circuit: TxBranchCircuit,
 
     empty_merge_leaf: MergeLeafProof,
     empty_merge_branch: MergeBranchProof,
@@ -797,132 +797,16 @@ impl<'a> TransactionAccumulator<'a> {
 }
 
 #[cfg(test)]
-mod test {
-    use mozak_circuits::test_utils::fast_test_circuit_config;
-    use mozak_recproofs::indices::{ArrayTargetIndex, BoolTargetIndex, HashOutTargetIndex};
+pub mod test {
     use mozak_recproofs::test_utils::make_fs;
-    use once_cell::sync::Lazy;
-    use plonky2::field::types::PrimeField64;
-    use plonky2::gates::noop::NoopGate;
-    use plonky2::hash::hash_types::HashOutTarget;
-    use plonky2::iop::target::{BoolTarget, Target};
-    use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-    use plonky2::plonk::circuit_builder::CircuitBuilder;
-    use plonky2::plonk::circuit_data::CircuitData;
 
     use super::*;
-
-    const FAST_CONFIG: bool = true;
-    const CONFIG: CircuitConfig = if FAST_CONFIG {
-        fast_test_circuit_config()
-    } else {
-        CircuitConfig::standard_recursion_config()
+    use crate::block_proposer::test_data::{
+        DummyCircuit, CONFIG, PROGRAM_0, PROGRAM_1, PROGRAM_2, PROGRAM_M, SIMPLE_CALL_TAPE,
+        SIMPLE_EVENTS,
     };
 
-    pub struct DummyCircuit {
-        /// The program hash
-        pub program_hash_val: [F; 4],
-
-        /// The program hash
-        pub program_hash: [Target; 4],
-
-        /// The presence flag for the event root
-        pub events_present: BoolTarget,
-
-        /// The event root
-        pub event_root: HashOutTarget,
-
-        /// The call list
-        pub call_list: [Target; 4],
-
-        /// The cast list root
-        pub cast_root: HashOutTarget,
-
-        pub circuit: CircuitData<F, C, D>,
-    }
-
-    pub const ZERO_VAL: [F; 4] = [F::ZERO; 4];
-
-    /// The hashes of the programs used
-    pub const PROGRAM_HASHES: [[u64; 4]; 3] =
-        [[31, 41, 59, 26], [53, 58, 97, 93], [23, 84, 62, 64]];
-
-    impl DummyCircuit {
-        #[must_use]
-        pub fn new(circuit_config: &CircuitConfig, program_id: impl Into<Option<usize>>) -> Self {
-            let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-            let program_hash = builder.add_virtual_target_arr();
-            let events_present = builder.add_virtual_bool_target_safe();
-            let event_root = builder.add_virtual_hash();
-            let call_list = builder.add_virtual_target_arr();
-            let cast_root = builder.add_virtual_hash();
-
-            builder.register_public_inputs(&program_hash);
-            builder.register_public_input(events_present.target);
-            builder.register_public_inputs(&event_root.elements);
-            builder.register_public_inputs(&call_list);
-            builder.register_public_inputs(&cast_root.elements);
-
-            let program_hash_val = program_id
-                .into()
-                .map_or(ZERO_VAL, |pid| make_fs(PROGRAM_HASHES[pid]));
-
-            let program_hash_calc = program_hash_val.map(|x| builder.constant(x));
-            for (p, c) in program_hash.into_iter().zip(program_hash_calc) {
-                builder.connect(p, c);
-            }
-
-            // Make sure we have enough gates to match.
-            builder.add_gate(NoopGate, vec![]);
-            while builder.num_gates() < (1 << 3) {
-                builder.add_gate(NoopGate, vec![]);
-            }
-
-            let circuit = builder.build();
-
-            Self {
-                program_hash_val,
-                program_hash,
-                events_present,
-                event_root,
-                call_list,
-                cast_root,
-                circuit,
-            }
-        }
-
-        pub fn get_indices(&self) -> ProgramPublicIndices {
-            let public_inputs = &self.circuit.prover_only.public_inputs;
-            ProgramPublicIndices {
-                program_hash: ArrayTargetIndex::new(public_inputs, &self.program_hash),
-                events_present: BoolTargetIndex::new(public_inputs, self.events_present),
-                event_root: HashOutTargetIndex::new(public_inputs, self.event_root),
-                call_list: ArrayTargetIndex::new(public_inputs, &self.call_list),
-                cast_root: HashOutTargetIndex::new(public_inputs, self.cast_root),
-            }
-        }
-
-        pub fn prove(
-            &self,
-            event_root: Option<HashOut<F>>,
-            call_list: [F; 4],
-            cast_root: HashOut<F>,
-        ) -> Result<ProofWithPublicInputs<F, C, D>> {
-            let mut inputs = PartialWitness::new();
-            inputs.set_bool_target(self.events_present, event_root.is_some());
-            inputs.set_hash_target(self.event_root, event_root.unwrap_or_default());
-            inputs.set_target_arr(&self.call_list, &call_list);
-            inputs.set_hash_target(self.cast_root, cast_root);
-            self.circuit.prove(inputs)
-        }
-    }
-
-    pub static PROGRAM_M: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 0));
-    pub static PROGRAM_0: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 0));
-    pub static PROGRAM_1: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 1));
-    pub static PROGRAM_2: Lazy<DummyCircuit> = Lazy::new(|| DummyCircuit::new(&CONFIG, 2));
-
-    #[tested_fixture::tested_fixture(AUX)]
+    #[tested_fixture::tested_fixture(pub AUX)]
     fn build_aux() -> AuxTransactionData {
         let program_m_indices = PROGRAM_M.get_indices();
         assert_eq!(program_m_indices, PROGRAM_0.get_indices());
@@ -938,23 +822,18 @@ mod test {
 
     #[test]
     fn empty_proof() {
-        let mut txs = TransactionAccumulator::new(*AUX);
         let call_tape = make_fs([86, 7, 5, 309]);
         let proof = PROGRAM_M
             .prove(None, call_tape, PROGRAM_M.program_hash_val.into())
             .unwrap();
-        let pid = ProgramIdentifier(
-            PROGRAM_M
-                .program_hash_val
-                .map(|x| x.to_canonical_u64())
-                .into(),
-        );
+
+        let mut txs = TransactionAccumulator::new(*AUX);
         let (_k, complete) = txs
             .ingest_program(
                 0,
                 &PROGRAM_M.circuit.verifier_only,
                 &proof,
-                &[pid],
+                &[PROGRAM_M.pid()],
                 &[],
                 call_tape,
             )
@@ -967,12 +846,9 @@ mod test {
 
     #[test]
     fn empty_proofs() {
-        let mut txs = TransactionAccumulator::new(*AUX);
         let call_tape = make_fs([86, 7, 5, 309]);
-
         let cast = [&*PROGRAM_M, &*PROGRAM_1, &*PROGRAM_2];
-        let cast_ids = cast
-            .map(|p| ProgramIdentifier(p.program_hash_val.map(|x| x.to_canonical_u64()).into()));
+        let cast_ids = cast.map(DummyCircuit::pid);
         let cast_root = HashOut::from(
             reduce_tree(
                 cast_ids.iter().map(|p| p.0),
@@ -987,6 +863,7 @@ mod test {
 
         let proofs = cast.map(|p| p.prove(None, call_tape, cast_root).unwrap());
 
+        let mut txs = TransactionAccumulator::new(*AUX);
         let (key_m, complete) = txs
             .ingest_program(
                 0,
@@ -1029,5 +906,46 @@ mod test {
 
         let tx_proof = txs.finalize();
         assert!(tx_proof.is_ok());
+    }
+
+    #[tested_fixture::tested_fixture(pub SIMPLE)]
+    fn simple() -> TxBranchProof {
+        let event_root = HashOut::from(
+            reduce_tree(
+                SIMPLE_EVENTS.iter().map(CanonicalEvent::canonical_hash),
+                |x| x,
+                |x| x,
+                Poseidon2Hash::two_to_one,
+            )
+            .unwrap()
+            .to_u64s()
+            .map(F::from_canonical_u64),
+        );
+
+        let proof = PROGRAM_0
+            .prove(
+                Some(event_root),
+                SIMPLE_CALL_TAPE,
+                PROGRAM_0.program_hash_val.into(),
+            )
+            .unwrap();
+
+        let mut txs = TransactionAccumulator::new(*AUX);
+        let (_k, complete) = txs
+            .ingest_program(
+                0,
+                &PROGRAM_0.circuit.verifier_only,
+                &proof,
+                &[PROGRAM_0.pid()],
+                &SIMPLE_EVENTS,
+                SIMPLE_CALL_TAPE,
+            )
+            .unwrap();
+        assert!(complete);
+
+        let tx_proof = txs.finalize();
+        assert!(tx_proof.is_ok());
+
+        tx_proof.unwrap()
     }
 }
