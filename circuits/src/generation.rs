@@ -20,7 +20,7 @@ use starky::stark::Stark;
 use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
-use crate::expr::{build_debug, GenerateConstraints, ConstraintType};
+use crate::expr::{build_debug, ConstraintType, GenerateConstraints};
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
@@ -212,18 +212,12 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     });
 }
 
-pub fn debug_single_trace<
-    'a,
-    F: RichField + Extendable<D> + Debug,
-    const D: usize,
-    S
->(
+pub fn debug_single_trace<'a, F: RichField + Extendable<D> + Debug, const D: usize, S>(
     stark: &'a S,
     trace_rows: &'a [PolynomialValues<F>],
     public_inputs: &'a [F],
 ) where
-    for <'b> S: Stark<F, D> + Display + GenerateConstraints<'b, F>,
-    {
+    for<'b> S: Stark<F, D> + Display + GenerateConstraints<'b, F>, {
     type View<'a, S, F> = <S as GenerateConstraints<'a, F>>::View<F>;
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
@@ -231,34 +225,38 @@ pub fn debug_single_trace<
         .circular_tuple_windows()
         .for_each(|((lv_row, lv), (nv_row, nv))| {
             let expr_builder = ExprBuilder::default();
-            let vars = &expr_builder.to_typed_starkframe_(lv.as_slice(), nv.as_slice(), public_inputs, S::COLUMNS, S::PUBLIC_INPUTS);
+            let vars = &expr_builder.to_typed_starkframe_(
+                lv.as_slice(),
+                nv.as_slice(),
+                public_inputs,
+                S::COLUMNS,
+                S::PUBLIC_INPUTS,
+            );
             let constraints = S::generate_constraints(vars);
             let evaluated = build_debug(constraints);
 
             // Filter out only applicable constraints
             let is_first_row = lv_row == 0;
             let is_last_row = nv_row == 0;
-            let applicable = evaluated.into_iter()
-                .filter( |c|
-                    match c.constraint_type {
-                        ConstraintType::FirstRow => is_first_row,
-                        ConstraintType::Always => true,
-                        ConstraintType::Transition => !is_last_row,
-                        ConstraintType::LastRow => is_last_row,
-                    }
-                );
+            let applicable = evaluated.into_iter().filter(|c| match c.constraint_type {
+                ConstraintType::FirstRow => is_first_row,
+                ConstraintType::Always => true,
+                ConstraintType::Transition => !is_last_row,
+                ConstraintType::LastRow => is_last_row,
+            });
 
             // Get failed constraints
-            let failed: Vec<_>=
-                applicable
-                    .filter(|c| !c.term.is_zeros())
-                    .collect();
+            let failed: Vec<_> = applicable.filter(|c| !c.term.is_zeros()).collect();
 
             let any_failed = !failed.is_empty();
 
             if any_failed {
                 for c in failed {
-                    log::error!("debug_single_trace :: non-zero constraint at {} = {}", c.location, c.term);
+                    log::error!(
+                        "debug_single_trace :: non-zero constraint at {} = {}",
+                        c.location,
+                        c.term
+                    );
                 }
 
                 let lv: View<S, F> = lv.iter().copied().collect();

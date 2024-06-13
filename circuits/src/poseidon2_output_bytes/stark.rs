@@ -31,12 +31,11 @@ impl<F, const D: usize> HasNamedColumns for Poseidon2OutputBytesStark<F, D> {
 const COLUMNS: usize = NUM_POSEIDON2_OUTPUT_BYTES_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy + Debug + 'a, const D: usize>
-    GenerateConstraints<'a, T>
+impl<'a, F, T: Copy + Debug + 'a, const D: usize> GenerateConstraints<'a, T>
     for Poseidon2OutputBytesStark<F, { D }>
 {
-    type View<E: Debug + 'a> = Poseidon2OutputBytes<E>;
     type PublicInputs<E: Debug + 'a> = NoColumns<E>;
+    type View<E: Debug + 'a> = Poseidon2OutputBytes<E>;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<Poseidon2OutputBytes<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,

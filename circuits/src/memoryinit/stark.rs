@@ -30,12 +30,11 @@ impl<F, const D: usize> HasNamedColumns for MemoryInitStark<F, D> {
 const COLUMNS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy + Debug + 'a, const D: usize>
-    GenerateConstraints<'a, T>
+impl<'a, F, T: Copy + Debug + 'a, const D: usize> GenerateConstraints<'a, T>
     for MemoryInitStark<F, { D }>
 {
-    type View<E: Debug + 'a> = MemoryInit<E>;
     type PublicInputs<E: Debug + 'a> = NoColumns<E>;
+    type View<E: Debug + 'a> = MemoryInit<E>;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<MemoryInit<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,

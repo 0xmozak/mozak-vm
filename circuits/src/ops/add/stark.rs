@@ -33,8 +33,8 @@ const PUBLIC_INPUTS: usize = 0;
 impl<'a, F, T: Copy + Debug + 'a, const D: usize> GenerateConstraints<'a, T>
     for AddStark<F, { D }>
 {
-    type View<E: Debug + 'a> = Add<E>;
     type PublicInputs<E: Debug + 'a> = NoColumns<E>;
+    type View<E: Debug + 'a> = Add<E>;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<Add<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,

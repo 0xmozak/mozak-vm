@@ -217,7 +217,5 @@ pub trait GenerateConstraints<'a, T: Debug> {
         E: 'a + Debug,
         T: 'a;
 
-    fn generate_constraints(
-        vars: &Vars<'a, Self, T>,
-    ) -> ConstraintBuilder<Expr<'a, T>>;
+    fn generate_constraints(vars: &Vars<'a, Self, T>) -> ConstraintBuilder<Expr<'a, T>>;
 }
