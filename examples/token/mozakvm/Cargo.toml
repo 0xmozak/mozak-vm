@@ -6,7 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 mozak-sdk = { path = "../../../sdk" }
-rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
+rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc", "bytecheck"] }
 rkyv_derive = "=0.8.0-alpha.1"
 token-core-logic = { path = "../core-logic" }
 wallet-core-logic = { path = "../../wallet/core-logic" }
@@ -17,4 +17,4 @@ std = []
 # The following is read by `run_examples.py`
 [package.metadata.mozak]
 example_dependents = ["wallet"]
-example_program_id = "MZK-b10da48cea4c09676b8e0efcd806941465060736032bb898420d0863dca72538"
+example_program_id = "MZK-63236d3b0bc73b9cb18ab2aacbbcf741b84d0560e00172374ddfcffea7b409cc"

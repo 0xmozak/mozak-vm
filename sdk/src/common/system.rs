@@ -1,6 +1,4 @@
 use once_cell::unsync::Lazy;
-use rkyv::rancor::{Panic, Strategy};
-use rkyv::Deserialize;
 #[cfg(target_os = "mozakvm")]
 use {
     crate::common::merkle::merkleize,
@@ -9,12 +7,15 @@ use {
     crate::core::ecall::{
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
+    rkyv::rancor::{Panic, Strategy},
     std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
 use {core::cell::RefCell, std::rc::Rc};
 
-use crate::common::traits::{Call, CallArgument, CallReturn, EventEmit};
+use crate::common::traits::{
+    ArchivedCallArgument, ArchivedCallReturn, Call, CallArgument, CallReturn, EventEmit,
+};
 use crate::common::types::{
     CallTapeType, Event, EventTapeType, PrivateInputTapeType, ProgramIdentifier,
     PublicInputTapeType, SystemTape,
@@ -104,7 +105,7 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let buf: &'static mut Vec<u8> = Box::leak(Box::new(vec![0; len]));
     call_tape_read(buf);
 
-    let archived_cpc_messages = unsafe { rkyv::access_unchecked::<Vec<CrossProgramCall>>(buf) };
+    let archived_cpc_messages = rkyv::access::<Vec<CrossProgramCall>, Panic>(buf).unwrap();
 
     let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
         .iter()
@@ -136,12 +137,13 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
 fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     let mut len_bytes = [0; 4];
     event_tape_read(&mut len_bytes);
+
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
     let buf: &'static mut Vec<u8> = Box::leak(Box::new(vec![0; len]));
     event_tape_read(buf);
 
     let canonical_ordered_temporal_hints =
-        unsafe { rkyv::access_unchecked::<Vec<CanonicalOrderedTemporalHints>>(buf) };
+        rkyv::access::<Vec<CanonicalOrderedTemporalHints>, Panic>(buf).unwrap();
     EventTapeType {
         self_prog_id,
         reader: Some(canonical_ordered_temporal_hints),
@@ -167,8 +169,8 @@ pub fn call_receive<A, R>() -> Option<(ProgramIdentifier, A, R)>
 where
     A: CallArgument + PartialEq,
     R: CallReturn,
-    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    <A as rkyv::Archive>::Archived: ArchivedCallArgument<A>,
+    <R as rkyv::Archive>::Archived: ArchivedCallReturn<R>, {
     unsafe { SYSTEM_TAPE.call_tape.receive() }
 }
 
@@ -184,8 +186,8 @@ pub fn call_send<A, R>(
 where
     A: CallArgument + PartialEq,
     R: CallReturn,
-    <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
-    <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
+    <A as rkyv::Archive>::Archived: ArchivedCallArgument<A>,
+    <R as rkyv::Archive>::Archived: ArchivedCallReturn<R>, {
     unsafe {
         SYSTEM_TAPE
             .call_tape
