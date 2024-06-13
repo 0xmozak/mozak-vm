@@ -1,4 +1,3 @@
-use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
@@ -27,11 +26,11 @@ impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
     type Columns = HalfWordMemory<F>;
 }
 
-impl<'a, F, T: Copy + Debug + 'a, const D: usize> GenerateConstraints<'a, T>
+impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
     for HalfWordMemoryStark<F, { D }>
 {
-    type PublicInputs<E: Debug + 'a> = NoColumns<E>;
-    type View<E: Debug + 'a> = HalfWordMemory<E>;
+    type PublicInputs<E: 'a> = NoColumns<E>;
+    type View<E: 'a> = HalfWordMemory<E>;
 
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
     fn generate_constraints(

@@ -202,20 +202,16 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     }
 }
 
-type Vars<'a, F, T> = StarkFrameTyped<
-    <F as GenerateConstraints<'a, T>>::View<Expr<'a, T>>,
-    <F as GenerateConstraints<'a, T>>::PublicInputs<Expr<'a, T>>,
->;
+// Helper Types to Access members of GenerateConstraints
+pub type PublicInputsOf<'a, S, F, T> = <S as GenerateConstraints<'a, F>>::PublicInputs<T>;
+pub type ViewOf<'a, S, F, T> = <S as GenerateConstraints<'a, F>>::View<T>;
 
-pub trait GenerateConstraints<'a, T: Debug> {
-    type View<E>: Debug + FromIterator<E>
-    where
-        E: 'a + Debug,
-        T: 'a;
-    type PublicInputs<E>: FromIterator<E>
-    where
-        E: 'a + Debug,
-        T: 'a;
+type Vars<'a, S, T> =
+    StarkFrameTyped<ViewOf<'a, S, T, Expr<'a, T>>, PublicInputsOf<'a, S, T, Expr<'a, T>>>;
+
+pub trait GenerateConstraints<'a, T: 'a> {
+    type View<E: 'a>;
+    type PublicInputs<E: 'a>;
 
     fn generate_constraints(vars: &Vars<'a, Self, T>) -> ConstraintBuilder<Expr<'a, T>>;
 }

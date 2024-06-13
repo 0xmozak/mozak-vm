@@ -1,4 +1,3 @@
-use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
@@ -30,11 +29,11 @@ impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
 const COLUMNS: usize = RangeCheckU8::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy + Debug + 'a, const D: usize> GenerateConstraints<'a, T>
+impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
     for RangeCheckU8Stark<F, { D }>
 {
-    type PublicInputs<E: Debug + 'a> = NoColumns<E>;
-    type View<E: Debug + 'a> = RangeCheckU8<E>;
+    type PublicInputs<E: 'a> = NoColumns<E>;
+    type View<E: 'a> = RangeCheckU8<E>;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<RangeCheckU8<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,

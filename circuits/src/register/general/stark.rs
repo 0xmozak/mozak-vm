@@ -1,4 +1,3 @@
-use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
@@ -30,11 +29,9 @@ impl<F, const D: usize> HasNamedColumns for RegisterStark<F, D> {
 const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy + Debug + 'a, const D: usize> GenerateConstraints<'a, T>
-    for RegisterStark<F, { D }>
-{
-    type PublicInputs<E: Debug + 'a> = NoColumns<E>;
-    type View<E: Debug + 'a> = Register<E>;
+impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T> for RegisterStark<F, { D }> {
+    type PublicInputs<E: 'a> = NoColumns<E>;
+    type View<E: 'a> = Register<E>;
 
     /// Constraints for the [`RegisterStark`]:
     ///

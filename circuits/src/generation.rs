@@ -4,7 +4,7 @@
 use std::borrow::Borrow;
 use std::fmt::{Debug, Display};
 
-use expr::ExprBuilder;
+use expr::{Expr, ExprBuilder};
 use itertools::{izip, Itertools};
 use log::debug;
 use mozak_runner::elf::Program;
@@ -20,7 +20,7 @@ use starky::stark::Stark;
 use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
-use crate::expr::{build_debug, ConstraintType, GenerateConstraints};
+use crate::expr::{build_debug, ConstraintType, GenerateConstraints, PublicInputsOf, ViewOf};
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
@@ -212,13 +212,16 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     });
 }
 
-pub fn debug_single_trace<'a, F: RichField + Extendable<D> + Debug, const D: usize, S>(
+pub fn debug_single_trace<'a, F: RichField + Extendable<D>, const D: usize, S>(
     stark: &'a S,
     trace_rows: &'a [PolynomialValues<F>],
     public_inputs: &'a [F],
 ) where
-    for<'b> S: Stark<F, D> + Display + GenerateConstraints<'b, F>, {
-    type View<'a, S, F> = <S as GenerateConstraints<'a, F>>::View<F>;
+    for<'b> S: Stark<F, D> + Display + GenerateConstraints<'b, F>,
+    for<'b> PublicInputsOf<'b, S, F, Expr<'b, F>>: FromIterator<Expr<'b, F>>,
+    for<'b> ViewOf<'b, S, F, Expr<'b, F>>: FromIterator<Expr<'b, F>>,
+    for<'b> PublicInputsOf<'b, S, F, F>: Debug + FromIterator<F>,
+    for<'b> ViewOf<'b, S, F, F>: Debug + FromIterator<F>, {
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
@@ -259,8 +262,8 @@ pub fn debug_single_trace<'a, F: RichField + Extendable<D> + Debug, const D: usi
                     );
                 }
 
-                let lv: View<S, F> = lv.iter().copied().collect();
-                let nv: View<S, F> = nv.iter().copied().collect();
+                let lv: ViewOf<S, F, F> = lv.iter().copied().collect();
+                let nv: ViewOf<S, F, F> = nv.iter().copied().collect();
                 log::error!("Debug constraints for {stark}");
                 log::error!("lv-row[{lv_row}] - values: {lv:?}");
                 log::error!("nv-row[{nv_row}] - values: {nv:?}");

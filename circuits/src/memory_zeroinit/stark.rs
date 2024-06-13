@@ -33,8 +33,8 @@ const PUBLIC_INPUTS: usize = 0;
 impl<'a, F, T: Copy + Debug + 'a, const D: usize> GenerateConstraints<'a, T>
     for MemoryZeroInitStark<F, { D }>
 {
-    type PublicInputs<E: Debug + 'a> = NoColumns<E>;
-    type View<E: Debug + 'a> = MemoryZeroInit<E>;
+    type PublicInputs<E: 'a> = NoColumns<E>;
+    type View<E: 'a> = MemoryZeroInit<E>;
 
     fn generate_constraints(
         vars: &StarkFrameTyped<MemoryZeroInit<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
