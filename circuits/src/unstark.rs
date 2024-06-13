@@ -100,7 +100,7 @@ macro_rules! impl_name {
         }
 
         use name::$name as $alias;
-    }
+    };
 }
 
 pub(crate) use impl_name;
