@@ -244,25 +244,15 @@ impl ExprBuilder {
         PublicInputs: FromIterator<Expr<'a, T>>,
         // TODO: Fix `StarkEvaluationFrame` to give direct access to its contents, no
         // need for the reference only access.
-
     {
         assert_eq!(lv.len(), columns);
         assert_eq!(nv.len(), columns);
         assert_eq!(pis.len(), public_inputs);
 
         StarkFrameTyped {
-            local_values: lv
-                .iter()
-                .map(|&v| self.lit(v))
-                .collect(),
-            next_values: nv
-                .iter()
-                .map(|&v| self.lit(v))
-                .collect(),
-            public_inputs: pis
-                .iter()
-                .map(|&v| self.lit(T::from(v)))
-                .collect(),
+            local_values: lv.iter().map(|&v| self.lit(v)).collect(),
+            next_values: nv.iter().map(|&v| self.lit(v)).collect(),
+            public_inputs: pis.iter().map(|&v| self.lit(T::from(v))).collect(),
         }
     }
 }
