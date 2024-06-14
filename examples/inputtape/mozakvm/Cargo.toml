@@ -7,6 +7,8 @@ version = "0.1.0"
 [dependencies]
 inputtape-core-logic = { path = "../core-logic" }
 mozak-sdk = { path = "../../../sdk" }
+rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc", "bytecheck"] }
+rkyv_derive = "=0.8.0-alpha.1"
 
 [features]
 std = []
