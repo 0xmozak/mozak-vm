@@ -73,7 +73,8 @@ impl Call for CallTape {
         R: CallReturn,
         <A as rkyv::Archive>::Archived: Deserialize<A, Strategy<(), Panic>>,
         <R as rkyv::Archive>::Archived: Deserialize<R, Strategy<(), Panic>>, {
-        unimplemented!()
+            return None;
+        // unimplemented!()
     }
 }
 

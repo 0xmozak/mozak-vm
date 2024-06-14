@@ -26,8 +26,9 @@ macro_rules! entry {
             #[no_mangle]
             fn bespoke_entrypoint() {
                 super::MOZAK_ENTRY();
+                return;
                 {
-                    mozak_sdk::common::system::ensure_clean_shutdown();
+                    // mozak_sdk::common::system::ensure_clean_shutdown();
                 }
             }
         }

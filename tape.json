@@ -1,0 +1,64 @@
+{
+  "private_input_tape": {
+    "individual_raw_tapes": {
+      "0x693cc91d88046cae60e4f4b18ebfeb0ac3c05a54935a63ab4a79682a85975fef": "0x22cfaefc92e4edb9b0ae01a63a95df11f1279b7b6bdde4e048f6ece8f8c8f2c2"
+    }
+  },
+  "public_input_tape": {
+    "individual_raw_tapes": {}
+  },
+  "call_tape": {
+    "global_calltape": [
+      {
+        "caller": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "callee": "0x9df0168328ecc6dbbd7301064bf11371d039f29eea72fc50f71c1d01c0bf4ad6",
+        "argument": "0x9b043e5e67a3f026189fe6f49456307f6f1b3331d5ab45da97615b1dd6c6993c6400000000000000000000009df0168328ecc6dbbd7301064bf11371d039f29eea72fc50f71c1d01c0bf4ad622cfaefc92e4edb9acffffff28000000693cc91d88046cae60e4f4b18ebfeb0ac3c05a54935a63ab4a79682a85975fef5de9bc1bb4cb7a9f9cf991a32230d014b44274ea5464a352f089a8cccc48691590101c64e281007990fcae54bcff9db2803641954ba2e611c7a1cdee8be7805d",
+        "return_": "0x00"
+      },
+      {
+        "caller": "0x9df0168328ecc6dbbd7301064bf11371d039f29eea72fc50f71c1d01c0bf4ad6",
+        "callee": "0x693cc91d88046cae60e4f4b18ebfeb0ac3c05a54935a63ab4a79682a85975fef",
+        "argument": "0x009b043e5e67a3f026189fe6f49456307f6f1b3331d5ab45da97615b1dd6c6993c00000000000000693cc91d88046cae60e4f4b18ebfeb0ac3c05a54935a63ab4a79682a85975fef5de9bc1bb4cb7a9f9cf991a32230d014b44274ea5464a352f089a8cccc4869159b043e5e67a3f026189fe6f49456307f6f1b3331d5ab45da97615b1dd6c6993c6400000000000000",
+        "return_": "0x00"
+      }
+    ]
+  },
+  "event_tape": {
+    "individual_event_tapes": {
+      "0x9df0168328ecc6dbbd7301064bf11371d039f29eea72fc50f71c1d01c0bf4ad6": {
+        "temporal_ordering": [
+          [
+            {
+              "object": {
+                "address": "0x22cfaefc92e4edb9",
+                "constraint_owner": "0x9df0168328ecc6dbbd7301064bf11371d039f29eea72fc50f71c1d01c0bf4ad6",
+                "data": "0x9b043e5e67a3f026189fe6f49456307f6f1b3331d5ab45da97615b1dd6c6993c6400000000000000"
+              },
+              "type_": "Read"
+            },
+            {
+              "address": "0x22cfaefc92e4edb9",
+              "type_": "Read",
+              "value": "0xb65fa119471f238c77b14b4bcad50091186cc44099ecdb3cb800e61774bcf92f"
+            }
+          ],
+          [
+            {
+              "object": {
+                "address": "0x22cfaefc92e4edb9",
+                "constraint_owner": "0x9df0168328ecc6dbbd7301064bf11371d039f29eea72fc50f71c1d01c0bf4ad6",
+                "data": "0x90101c64e281007990fcae54bcff9db2803641954ba2e611c7a1cdee8be7805d6400000000000000"
+              },
+              "type_": "Write"
+            },
+            {
+              "address": "0x22cfaefc92e4edb9",
+              "type_": "Write",
+              "value": "0x7c1ce1da840acdd5d92a47c64c9767e126d1d6394ce768c2c4557cc4c3c99771"
+            }
+          ]
+        ]
+      }
+    }
+  }
+}

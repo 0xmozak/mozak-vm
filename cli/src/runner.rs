@@ -44,7 +44,7 @@ pub fn deserialize_system_tape<F: std::io::Read>(mut bin: F) -> Result<SystemTap
     Ok(deserialized)
 }
 
-fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
+fn length_prefixed_bytes(data: Vec<u8>, dbg_string: &str) -> Vec<u8> {
     let data_len = data.len();
     let mut len_prefix_bytes = Vec::with_capacity(data_len + 4);
     len_prefix_bytes.extend_from_slice(
@@ -55,10 +55,16 @@ fn length_prefixed_bytes(data: Vec<u8>, dgb_string: &str) -> Vec<u8> {
     len_prefix_bytes.extend(data);
     debug!(
         "Length-Prefixed {:<15} of byte len: {:>5}, on-mem bytes: {:>5}",
-        dgb_string,
+        dbg_string,
         data_len,
         len_prefix_bytes.len()
     );
+    if dbg_string == "CALL_TAPE" {
+        debug!(
+            "{dbg_string} data: {:?}",
+            String::from_utf8_lossy(&len_prefix_bytes)
+        );
+    }
     len_prefix_bytes
 }
 
@@ -138,6 +144,8 @@ pub fn raw_tapes_from_system_tape<F: std::io::Read>(
                     .0,
                 "PUBLIC_TAPE",
             ),
+            // The runner shouldn't know that the call_tape is in rkyv format.  Because it might not
+            // be, that's up to the SDK of different programs.
             call_tape: serialise(&sys.call_tape.writer, "CALL_TAPE"),
             event_tape: serialise(&canonical_order_temporal_hints, "EVENT_TAPE"),
             self_prog_id_tape: self_prog_id.0 .0,

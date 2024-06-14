@@ -85,6 +85,11 @@ impl Call for CallTape {
         R: CallReturn,
         <A as Archive>::Archived: ArchivedCallArgument<A>,
         <R as Archive>::Archived: ArchivedCallReturn<R>, {
+        use crate::core::ecall::trace;
+        trace("Start of receive");
+        return None;
+        // use crate::core::ecall::halt;
+        // halt(0);
         // Loop until we completely traverse the call tape in the
         // worst case. Hopefully, we see a message directed towards us
         // before the end

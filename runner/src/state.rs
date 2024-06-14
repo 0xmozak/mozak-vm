@@ -253,10 +253,15 @@ impl<F: RichField> State<F> {
                 data: raw_tapes.public_tape.into(),
                 read_index: 0,
             },
-            call_tape: StorageDeviceTape {
+            call_tape: {
+                let call_tape = StorageDeviceTape {
                 data: raw_tapes.call_tape.into(),
                 read_index: 0,
-            },
+            };
+            // println!("call_tape: {:?}", &call_tape);
+            // println!("ascii: {:?}", call_tape.data.());
+            call_tape
+        },
             event_tape: StorageDeviceTape {
                 data: raw_tapes.event_tape.into(),
                 read_index: 0,
