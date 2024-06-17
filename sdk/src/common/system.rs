@@ -99,13 +99,19 @@ pub(crate) static mut SYSTEM_TAPE: Lazy<SystemTape> = Lazy::new(|| {
 /// This function deliberately leaks the backing buffer for the storage of the
 /// returned call tape.
 fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
+    use rkyv::util::AlignedVec;
+
     let mut len_bytes = [0; 4];
     call_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
     let buf: &'static mut Vec<u8> = Box::leak(Box::new(vec![0; len]));
     call_tape_read(buf);
+    let mut aligned_buf = AlignedVec::with_capacity(len);
+    aligned_buf.extend_from_slice(&buf);
+    let aligned_buf_ptr: &'static mut AlignedVec = Box::leak(Box::new(aligned_buf));
 
-    let archived_cpc_messages = rkyv::access::<Vec<CrossProgramCall>, Panic>(buf).unwrap();
+    let archived_cpc_messages =
+        rkyv::access::<Vec<CrossProgramCall>, Panic>(aligned_buf_ptr).unwrap();
 
     let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
         .iter()
