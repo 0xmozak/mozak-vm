@@ -104,14 +104,13 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let mut len_bytes = [0; 4];
     call_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let buf: &'static mut Vec<u8> = Box::leak(Box::new(vec![0; len]));
+    let buf: &'static mut AlignedVec = Box::leak(Box::new(AlignedVec::with_capacity(len)));
+    unsafe {
+        buf.set_len(len);
+    }
     call_tape_read(buf);
-    let mut aligned_buf = AlignedVec::with_capacity(len);
-    aligned_buf.extend_from_slice(&buf);
-    let aligned_buf_ptr: &'static mut AlignedVec = Box::leak(Box::new(aligned_buf));
 
-    let archived_cpc_messages =
-        rkyv::access::<Vec<CrossProgramCall>, Panic>(aligned_buf_ptr).unwrap();
+    let archived_cpc_messages = rkyv::access::<Vec<CrossProgramCall>, Panic>(buf).unwrap();
 
     let cast_list: Vec<ProgramIdentifier> = archived_cpc_messages
         .iter()
