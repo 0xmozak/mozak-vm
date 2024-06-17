@@ -8,6 +8,7 @@ use {
         call_tape_read, event_tape_read, ioread_private, ioread_public, self_prog_id_tape_read,
     },
     rkyv::rancor::{Panic, Strategy},
+    rkyv::util::AlignedVec,
     std::collections::BTreeSet,
 };
 #[cfg(not(target_os = "mozakvm"))]
@@ -102,7 +103,10 @@ fn populate_call_tape(self_prog_id: ProgramIdentifier) -> CallTapeType {
     let mut len_bytes = [0; 4];
     call_tape_read(&mut len_bytes);
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let buf: &'static mut Vec<u8> = Box::leak(Box::new(vec![0; len]));
+    let buf: &'static mut AlignedVec = Box::leak(Box::new(AlignedVec::with_capacity(len)));
+    unsafe {
+        buf.set_len(len);
+    }
     call_tape_read(buf);
 
     let archived_cpc_messages = rkyv::access::<Vec<CrossProgramCall>, Panic>(buf).unwrap();
@@ -139,7 +143,10 @@ fn populate_event_tape(self_prog_id: ProgramIdentifier) -> EventTapeType {
     event_tape_read(&mut len_bytes);
 
     let len: usize = u32::from_le_bytes(len_bytes).try_into().unwrap();
-    let buf: &'static mut Vec<u8> = Box::leak(Box::new(vec![0; len]));
+    let buf: &'static mut AlignedVec = Box::leak(Box::new(AlignedVec::with_capacity(len)));
+    unsafe {
+        buf.set_len(len);
+    }
     event_tape_read(buf);
 
     let canonical_ordered_temporal_hints =
