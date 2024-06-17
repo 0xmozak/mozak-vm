@@ -4,6 +4,7 @@ extern crate alloc;
 
 use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier, StateObject};
 use rkyv::rancor::{Failure, Panic, Strategy};
+use rkyv::util::AlignedVec;
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// A generic private key used by the wallet.
@@ -60,7 +61,9 @@ pub struct TokenObject {
 
 impl From<StateObject> for TokenObject {
     fn from(value: StateObject) -> Self {
-        let archived = rkyv::access::<TokenObject, Failure>(&value.data[..]).unwrap();
+        let mut aligned_data = AlignedVec::with_capacity(value.data.len());
+        aligned_data.extend_from_slice(&value.data);
+        let archived = rkyv::access::<TokenObject, Failure>(&aligned_data).unwrap();
         let token_object: TokenObject = archived
             .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
             .unwrap();
