@@ -1,3 +1,7 @@
+'''
+Python script to dump programs_map.json
+'''
+
 import json
 import shlex
 import subprocess

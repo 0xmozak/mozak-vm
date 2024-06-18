@@ -17,10 +17,10 @@ cd "$wallet_dir/native" && cargo run --release
 cd "$wallet_dir/mozakvm" && cargo mozakvm-build
 
 # dump program ids
-cd $example_dir
+cd "$example_dir"
 python "scripts/update_progams_map.py"
 
 # run CLI
-cd $root_dir
+cd "$root_dir"
 cargo run --bin mozak-cli -- bundle-transaction -vvv \
     --system-tape examples/token/native/out/tape.json
