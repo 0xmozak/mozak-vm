@@ -192,8 +192,7 @@ impl<T, const N: usize> From<ShadowColumns<T, N>> for [T; N] {
 
 impl<'a, T, const N: usize> From<&'a [T]> for &'a ShadowColumns<T, N> {
     fn from(value: &'a [T]) -> Self {
-        let value: &[T; N] =
-            value.try_into().expect("slice of correct length");
+        let value: &[T; N] = value.try_into().expect("slice of correct length");
         ShadowColumns::from_array_ref(value)
     }
 }
@@ -236,9 +235,7 @@ impl<T: std::fmt::Debug, const N: usize> std::iter::FromIterator<T> for ShadowCo
 impl<const N: usize> core::ops::Neg for ShadowColumns<i64, N> {
     type Output = Self;
 
-    fn neg(self) -> Self::Output {
-        self.map(|x| x.checked_neg().expect("negation overflow"))
-    }
+    fn neg(self) -> Self::Output { self.map(|x| x.checked_neg().expect("negation overflow")) }
 }
 
 impl<const N: usize> core::ops::Add<ShadowColumns<i64, N>> for ShadowColumns<i64, N> {
