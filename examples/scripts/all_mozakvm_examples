@@ -6,13 +6,15 @@
 #
 # `./scripts/all_mozakvm_examples cargo mozakvm-build`
 
+set -euo pipefail
+
 for example in *; do
     if [ -d "$example" ]; then
-        cd $example;
+        cd "$example"
         for target in  *; do
             if [ "$target" == "mozakvm" ]; then
                 cd mozakvm;
-                $@;
+                "$@";
                 cd ..
             fi
         done
