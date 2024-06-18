@@ -151,7 +151,7 @@ impl<T, const N: usize> ShadowColumns<T, N> {
         crate::columns_view::ColumnViewImplHider::<Self>::array_ref(self)
     }
 
-    pub fn iter(&self) -> std::slice::Iter<T> { self.array_ref().into_iter() }
+    pub fn iter(&self) -> std::slice::Iter<T> { self.array_ref().iter() }
 
     // At the moment we only use `map` Instruction,
     // so it's dead code for the other callers of `columns_view_impl`.
