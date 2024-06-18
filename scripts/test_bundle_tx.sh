@@ -20,7 +20,7 @@ cd "$wallet_dir/mozakvm" && cargo mozakvm-build
 cd "$example_dir"
 python "scripts/update_progams_map.py"
 
-# run CLI
+# Run CLI
 cd "$root_dir"
 cargo run --bin mozak-cli -- bundle-transaction -vvv \
     --system-tape examples/token/native/out/tape.json
