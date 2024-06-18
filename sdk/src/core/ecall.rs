@@ -148,7 +148,9 @@ pub fn panic(msg: &str) {
 }
 
 #[cfg(target_os = "mozakvm")]
+#[allow(warnings)]
 pub fn trace(msg: &str) {
+    #[cfg(feature = "trace")]
     unsafe {
         core::arch::asm!(
             "ecall",
@@ -157,6 +159,9 @@ pub fn trace(msg: &str) {
             in ("a2") msg.len(),
         );
     }
+    // NOOP when we are not debugging via trace
+    #[cfg(not(feature = "trace"))]
+    {}
 }
 
 #[cfg(target_os = "mozakvm")]

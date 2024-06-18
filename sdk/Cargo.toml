@@ -31,3 +31,4 @@ default = ["std", "stdread"]
 
 std = ["plonky2/std"]
 stdread = []
+trace = []
