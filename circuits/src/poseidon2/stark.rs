@@ -20,6 +20,8 @@ use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraint
 use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 use crate::unstark::NoColumns;
 
+fn from_u64(u: u64) -> i64 { GoldilocksField::from_noncanonical_u64(u).to_canonical_i64() }
+
 // degree: 1
 fn add_rc<T, const STATE_SIZE: usize>(state: &mut [Expr<T>; STATE_SIZE], r: usize)
 where
@@ -126,8 +128,6 @@ const PUBLIC_INPUTS: usize = 0;
 
 // Compile time assertion that STATE_SIZE equals 12
 const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
-
-fn from_u64(u: u64) -> i64 { GoldilocksField::from_noncanonical_u64(u).to_canonical_i64() }
 
 impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
     for Poseidon2_12Stark<F, { D }>
