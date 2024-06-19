@@ -1,7 +1,0 @@
-[unstable]
-build-std = ["alloc", "core", "compiler_builtins", "std", "panic_abort", "proc_macro"]
-build-std-features = ["compiler-builtins-mem"]
-
-[build]
-rustflags = ["-C", "passes=loweratomic"]
-target = "../buildtarget/riscv32im-mozak-mozakvm-elf.json"
