@@ -29,8 +29,7 @@ pub fn main() {
     trace_scope!({
         trace!("Lets decode the bytes to see our message");
         let message = alloc::string::String::from_utf8(message_bytes.to_vec()).unwrap();
-        let message_str = &format!("Here is the message: {}", message);
-        trace!("Here is the message: {message_str}");
+        trace!("Here is the message: {message}");
     });
 }
 
