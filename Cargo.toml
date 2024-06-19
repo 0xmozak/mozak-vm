@@ -15,7 +15,7 @@
 # the part of this workspace
 
 [workspace]
-exclude = ["sdk"]
+exclude = ["sdk", "ws2riscvtest"]
 members = [
   "circuits",
   "cli",
@@ -32,6 +32,7 @@ resolver = "2"
 [profile.dev]
 lto = "thin"
 # We are running our tests with optimizations turned on to make them faster.
+
 # Please turn optimizations off, when you want accurate stack traces for debugging.
 opt-level = 2
 
