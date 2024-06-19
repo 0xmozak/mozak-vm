@@ -3,4 +3,4 @@
 *.tape_bin
 
 # Generated programs map
-*.json
+programs_map.json
