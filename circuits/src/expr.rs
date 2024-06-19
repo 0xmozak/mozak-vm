@@ -213,5 +213,7 @@ pub trait GenerateConstraints<'a, T: 'a> {
     type View<E: 'a>;
     type PublicInputs<E: 'a>;
 
-    fn generate_constraints(vars: &Vars<'a, Self, T>) -> ConstraintBuilder<Expr<'a, T>>;
+    fn generate_constraints(_vars: &Vars<'a, Self, T>) -> ConstraintBuilder<Expr<'a, T>> {
+        ConstraintBuilder::default()
+    }
 }

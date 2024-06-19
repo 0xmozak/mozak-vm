@@ -2,7 +2,6 @@ use core::fmt::Debug;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
-use expr::{Expr, StarkFrameTyped};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -13,19 +12,13 @@ use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{ConstraintBuilder, GenerateConstraints};
+use crate::expr::GenerateConstraints;
 
 impl<'a, F, NAME, T: 'a, const D: usize, Columns, const COLUMNS: usize> GenerateConstraints<'a, T>
     for Unstark<F, NAME, { D }, Columns, { COLUMNS }>
 {
     type PublicInputs<E: 'a> = NoColumns<E>;
     type View<E: 'a> = ShadowColumns<E, { COLUMNS }>;
-
-    fn generate_constraints(
-        _vars: &StarkFrameTyped<ShadowColumns<Expr<'a, T>, { COLUMNS }>, NoColumns<Expr<'a, T>>>,
-    ) -> ConstraintBuilder<Expr<'a, T>> {
-        ConstraintBuilder::default()
-    }
 }
 
 /// Template for a STARK with zero internal constraints. Use this if the STARK
