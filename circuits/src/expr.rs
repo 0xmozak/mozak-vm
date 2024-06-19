@@ -206,7 +206,7 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
 pub type PublicInputsOf<'a, S, F, T> = <S as GenerateConstraints<'a, F>>::PublicInputs<T>;
 pub type ViewOf<'a, S, F, T> = <S as GenerateConstraints<'a, F>>::View<T>;
 
-type Vars<'a, S, T> =
+pub type Vars<'a, S, T> =
     StarkFrameTyped<ViewOf<'a, S, T, Expr<'a, T>>, PublicInputsOf<'a, S, T, Expr<'a, T>>>;
 
 pub trait GenerateConstraints<'a, T: 'a> {
