@@ -16,6 +16,7 @@ use super::{bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison,
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
 use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::unstark::NoColumns;
 
 /// A Gadget for CPU Instructions
 ///
@@ -40,7 +41,7 @@ fn pc_ticks_up<'a, P: Copy>(lv: &CpuState<Expr<'a, P>>, cb: &mut ConstraintBuild
 /// Ie exactly one of them should be 1, and all others 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
 fn binary_selectors<'a, P: Copy>(
-    ops: &'a OpSelectors<Expr<'a, P>>,
+    ops: &OpSelectors<Expr<'a, P>>,
     cb: &mut ConstraintBuilder<Expr<'a, P>>,
 ) {
     // selectors have value 0 or 1.
@@ -77,8 +78,8 @@ fn populate_op2_value<'a, P: Copy>(
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy, U>(
-    vars: &'a StarkFrameTyped<CpuState<Expr<'a, T>>, Vec<U>>,
+fn generate_constraints<'a, T: Copy>(
+    vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
 ) -> ConstraintBuilder<Expr<'a, T>> {
     let lv = &vars.local_values;
     let mut constraints = ConstraintBuilder::default();
@@ -125,8 +126,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let expr_builder = ExprBuilder::default();
-        let vars = expr_builder.to_typed_starkframe(vars);
-        let constraints = generate_constraints(&vars);
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_packed(constraints, constraint_consumer);
     }
 
@@ -139,8 +139,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let expr_builder = ExprBuilder::default();
-        let vars = expr_builder.to_typed_starkframe(vars);
-        let constraints = generate_constraints(&vars);
+        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
 }
