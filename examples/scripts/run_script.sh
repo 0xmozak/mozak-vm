@@ -17,7 +17,7 @@ if [ -d "$native_dir" ]; then
     system_tape_arg="--system-tape $system_tape_path"
     printf "\n Treating as fully featured example\n\n"
 else
-    printf "\n Native folder not found. Treating as standalone example\n\n"
+    printf "\n Native folder not found. Treating as stand-alone example\n\n"
 fi
 
 cd "$project_root"
