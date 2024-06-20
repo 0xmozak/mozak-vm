@@ -4,7 +4,7 @@
 use std::borrow::Borrow;
 use std::fmt::{Debug, Display};
 
-use expr::{Expr, ExprBuilder};
+use expr::{Expr, ExprBuilder, StarkFrameTyped};
 use itertools::{izip, Itertools};
 use log::debug;
 use mozak_runner::elf::Program;
@@ -20,7 +20,7 @@ use starky::stark::Stark;
 use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
-use crate::expr::{build_debug, ConstraintType, GenerateConstraints, PublicInputsOf, ViewOf};
+use crate::expr::{build_debug, ConstraintType, GenerateConstraints, PublicInputsOf, Vars, ViewOf};
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
@@ -228,14 +228,10 @@ pub fn debug_single_trace<'a, F: RichField + Extendable<D>, const D: usize, S>(
         .circular_tuple_windows()
         .for_each(|((lv_row, lv), (nv_row, nv))| {
             let expr_builder = ExprBuilder::default();
-            let vars = &expr_builder.to_typed_starkframe_(
-                lv.as_slice(),
-                nv.as_slice(),
-                public_inputs,
-                S::COLUMNS,
-                S::PUBLIC_INPUTS,
-            );
-            let constraints = S::generate_constraints(vars);
+            let frame: StarkFrameTyped<Vec<F>, Vec<F>> =
+                StarkFrameTyped::from_values(lv, nv, public_inputs);
+            let vars: Vars<S, F> = expr_builder.inject_starkframe(frame);
+            let constraints = S::generate_constraints(&vars);
             let evaluated = build_debug(constraints);
 
             // Filter out only applicable constraints
