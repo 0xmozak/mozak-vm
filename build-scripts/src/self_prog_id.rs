@@ -4,7 +4,8 @@ use std::path::Path;
 use std::process::Command;
 pub const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
-    println!("cargo::rerun-if-changed=../mozakvm/main.rs");
+    println!("cargo::rerun-if-changed=../mozakvm/src");
+    println!("cargo::rerun-if-changed=../core-logic/src");
     // build mozakvm binary
     let mozakvm_example_dir = Path::new("../mozakvm");
     let output = Command::new("cargo")
