@@ -15,16 +15,25 @@ use starky::stark::Stark;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{ConstraintBuilder, GenerateConstraints};
 
-impl<'a, F, NAME, T: 'a, const D: usize, Columns, const COLUMNS: usize> GenerateConstraints<'a, T>
+impl<'a, F: 'a, NAME: 'a, T: 'a + std::fmt::Debug, const D: usize, Columns: 'a, const COLUMNS: usize> GenerateConstraints<'a, T, COLUMNS, PUBLIC_INPUTS>
     for Unstark<F, NAME, { D }, Columns, { COLUMNS }>
 {
-    type PublicInputs<E: 'a> = NoColumns<E>;
-    type View<E: 'a> = ShadowColumns<E, { COLUMNS }>;
+    type PublicInputs<E: 'a + std::fmt::Debug> = NoColumns<E>;
+    type View<E: 'a + std::fmt::Debug> = ShadowColumns<E, { COLUMNS }>;
 
     fn generate_constraints(
+        self,
         _vars: &StarkFrameTyped<ShadowColumns<Expr<'a, T>, { COLUMNS }>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         ConstraintBuilder::default()
+    }
+    
+    fn exists<U: 'a + Default + std::fmt::Debug>(self) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS> {
+        Unstark::<U, NAME, D, Columns, COLUMNS> {
+            _f: PhantomData::<U>::default(),
+            _name: self._name,
+            _d: self._d
+        }
     }
 }
 

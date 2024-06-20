@@ -1,14 +1,17 @@
 use core::fmt::Debug;
+use std::marker::PhantomData;
 use std::panic::Location;
 
 pub use expr::PureEvaluator;
-use expr::{BinOp, Cached, Evaluator, Expr, StarkFrameTyped, UnaOp};
+use expr::{BinOp, Cached, Evaluator, Expr, ExprBuilder, StarkFrameTyped, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::evaluation_frame::StarkFrame;
+use starky::stark::Stark;
 
 struct CircuitBuilderEvaluator<'a, F, const D: usize>
 where
@@ -203,15 +206,67 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
 }
 
 // Helper Types to Access members of GenerateConstraints
-pub type PublicInputsOf<'a, S, F, T> = <S as GenerateConstraints<'a, F>>::PublicInputs<T>;
-pub type ViewOf<'a, S, F, T> = <S as GenerateConstraints<'a, F>>::View<T>;
+pub type PublicInputsOf<'a, S, F, T, const N: usize, const M: usize> = <S as GenerateConstraints<'a, F, N, M>>::PublicInputs<T>;
+pub type ViewOf<'a, S, F, T, const N: usize, const M: usize> = <S as GenerateConstraints<'a, F, N, M>>::View<T>;
 
-pub type Vars<'a, S, T> =
-    StarkFrameTyped<ViewOf<'a, S, T, Expr<'a, T>>, PublicInputsOf<'a, S, T, Expr<'a, T>>>;
+pub type Vars<'a, S, T, const N: usize, const M: usize> =
+    StarkFrameTyped<ViewOf<'a, S, T, Expr<'a, T>, N, M>, PublicInputsOf<'a, S, T, Expr<'a, T>, N, M>>;
 
-pub trait GenerateConstraints<'a, T: 'a> {
-    type View<E: 'a>;
-    type PublicInputs<E: 'a>;
+pub trait GenerateConstraints<'a, T: 'a + std::fmt::Debug, const COLUMNS: usize, const PUBLIC_INPUTS: usize>
+where Self: 'a
+{
+    type View<E: 'a + std::fmt::Debug>: From<[E; COLUMNS]> + FromIterator<E> where Self: 'a;
+    type PublicInputs<E: 'a + std::fmt::Debug>: From<[E; PUBLIC_INPUTS]> + FromIterator<E> where Self: 'a;
 
-    fn generate_constraints(vars: &Vars<'a, Self, T>) -> ConstraintBuilder<Expr<'a, T>>;
+    fn generate_constraints(self, vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>) -> ConstraintBuilder<Expr<'a, T>>;
+
+
+    fn exists<U: 'a + Default + std::fmt::Debug + std::marker::Copy>(self) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS>;
+}
+
+// Note: Not sure if D is needed here
+#[derive(Default)]
+pub struct StarkFrom<G, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> 
+{
+    pub witness: G,
+}
+
+
+impl<G, F, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> Stark<F, D> for StarkFrom<G, D, COLUMNS, PUBLIC_INPUTS>
+where
+    for<'b> G: Sync + GenerateConstraints<'b, F, COLUMNS, PUBLIC_INPUTS> + Copy,
+    F: RichField + Extendable<D>,
+{
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, { COLUMNS }, { PUBLIC_INPUTS }>
+
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget =
+        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, { COLUMNS }, { PUBLIC_INPUTS }>;
+
+    fn eval_packed_generic<FE, P, const D2: usize>(
+        &self,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
+        constraint_consumer: &mut ConstraintConsumer<P>,
+    ) where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>, {
+        let expr_builder = ExprBuilder::default();
+        let constraints = self.witness.exists().generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_packed(constraints, constraint_consumer);
+    }
+
+    fn eval_ext_circuit(
+        &self,
+        circuit_builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
+    ) {
+        let expr_builder = ExprBuilder::default();
+        let constraints = self.witness.exists().generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_ext(constraints, circuit_builder, constraint_consumer);
+    }
+
+    fn constraint_degree(&self) -> usize { 3 }
 }

@@ -203,8 +203,8 @@ impl ExprBuilder {
         // We don't actually need the first constraint, but it's useful to make the compiler yell
         // at us, if we mix things up. See the TODO about fixing `StarkEvaluationFrame` to
         // give direct access to its contents.
-        View: From<[Expr<'a, T>; N]> + FromIterator<Expr<'a, T>>,
-        PublicInputs: From<[Expr<'a, T>; N2]> + FromIterator<Expr<'a, T>>, {
+        View: FromIterator<Expr<'a, T>>,
+        PublicInputs: FromIterator<Expr<'a, T>>, {
         // NOTE: Rust needs to know all the intermediate types
         let frame: StarkFrameTyped<Vec<T>, Vec<U>> = StarkFrameTyped::from(vars);
         let frame: StarkFrameTyped<Vec<T>, Vec<T>> = frame.map_public_inputs(|v| T::from(v));

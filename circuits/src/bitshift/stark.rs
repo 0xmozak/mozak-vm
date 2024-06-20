@@ -13,7 +13,7 @@ use starky::stark::Stark;
 
 use super::columns::BitshiftView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
+use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints, StarkFrom};
 use crate::unstark::NoColumns;
 
 /// Bitshift Trace Constraints
@@ -30,11 +30,12 @@ impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T> for BitshiftStark<F, { D }> {
-    type PublicInputs<E: 'a> = NoColumns<E>;
-    type View<E: 'a> = BitshiftView<E>;
+impl<'a, F: 'a, T: Copy + 'a + std::fmt::Debug, const D: usize> GenerateConstraints<'a, T, { COLUMNS }, { PUBLIC_INPUTS }> for BitshiftStark<F, { D }> {
+    type PublicInputs<E: 'a + std::fmt::Debug> = NoColumns<E>;
+    type View<E: 'a + std::fmt::Debug> = BitshiftView<E>;
 
     fn generate_constraints(
+        self,
         vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values.executed;
@@ -74,6 +75,10 @@ impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T> for Bitshif
 
         constraints
     }
+    
+    fn exists<U: 'a + Default + std::fmt::Debug + std::marker::Copy>(self) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS> {
+        <BitshiftStark::<U, D> as Default>::default()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark<F, D> {
@@ -92,9 +97,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let expr_builder = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_packed(constraints, constraint_consumer);
+            (StarkFrom::<Self, D, COLUMNS, PUBLIC_INPUTS>{ witness: *self }).eval_packed_generic(vars, constraint_consumer)
+
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -105,9 +109,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         vars: &Self::EvaluationFrameTarget,
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let expr_builder = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_ext(constraints, circuit_builder, constraint_consumer);
+        (StarkFrom::<Self, D, COLUMNS, PUBLIC_INPUTS>{ witness: *self }).eval_ext_circuit(circuit_builder, vars, constraint_consumer)
     }
 }
 
