@@ -30,7 +30,9 @@ impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F: 'a, T: Copy + 'a + std::fmt::Debug, const D: usize> GenerateConstraints<'a, T, { COLUMNS }, { PUBLIC_INPUTS }> for BitshiftStark<F, { D }> {
+impl<'a, F: 'a, T: Copy + 'a + std::fmt::Debug, const D: usize>
+    GenerateConstraints<'a, T, { COLUMNS }, { PUBLIC_INPUTS }> for BitshiftStark<F, { D }>
+{
     type PublicInputs<E: 'a + std::fmt::Debug> = NoColumns<E>;
     type View<E: 'a + std::fmt::Debug> = BitshiftView<E>;
 
@@ -75,9 +77,11 @@ impl<'a, F: 'a, T: Copy + 'a + std::fmt::Debug, const D: usize> GenerateConstrai
 
         constraints
     }
-    
-    fn exists<U: 'a + Default + std::fmt::Debug + std::marker::Copy>(self) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS> {
-        <BitshiftStark::<U, D> as Default>::default()
+
+    fn exists<U: 'a + Default + std::fmt::Debug + std::marker::Copy>(
+        self,
+    ) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS> {
+        <BitshiftStark<U, D> as Default>::default()
     }
 }
 
@@ -97,8 +101,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-            (StarkFrom::<Self, D, COLUMNS, PUBLIC_INPUTS>{ witness: *self }).eval_packed_generic(vars, constraint_consumer)
-
+        (StarkFrom::<Self, D, COLUMNS, PUBLIC_INPUTS> { witness: *self })
+            .eval_packed_generic(vars, constraint_consumer)
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -109,7 +113,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         vars: &Self::EvaluationFrameTarget,
         constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        (StarkFrom::<Self, D, COLUMNS, PUBLIC_INPUTS>{ witness: *self }).eval_ext_circuit(circuit_builder, vars, constraint_consumer)
+        (StarkFrom::<Self, D, COLUMNS, PUBLIC_INPUTS> { witness: *self }).eval_ext_circuit(
+            circuit_builder,
+            vars,
+            constraint_consumer,
+        )
     }
 }
 
