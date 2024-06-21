@@ -3,20 +3,12 @@ use std::fmt::Display;
 use std::marker::PhantomData;
 
 use expr::Expr;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{ConstraintBuilder, GenerateConstraints, Vars};
+use crate::columns_view::HasNamedColumns;
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 
-impl<F, NAME, const D: usize, Columns, const COLUMNS: usize>
-    GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for Unstark<F, NAME, { D }, Columns, { COLUMNS }>
+impl<NAME, Columns, const COLUMNS: usize> GenerateConstraints<COLUMNS, PUBLIC_INPUTS>
+    for UnstarkConstraints<NAME, Columns, COLUMNS>
 {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = ShadowColumns<E, { COLUMNS }>;
@@ -29,19 +21,21 @@ impl<F, NAME, const D: usize, Columns, const COLUMNS: usize>
     }
 }
 
-/// Template for a STARK with zero internal constraints. Use this if the STARK
-/// itself does not need any built-in constraints, but rely on cross table
-/// lookups for provability.
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
-pub struct Unstark<F, NAME, const D: usize, Columns, const COLUMNS: usize> {
-    pub _f: PhantomData<F>,
+pub struct UnstarkConstraints<NAME, Columns, const COLUMNS: usize> {
     pub _name: PhantomData<NAME>,
     pub _d: PhantomData<Columns>,
 }
 
-impl<F, NAME: Default + Debug, const D: usize, Columns, const COLUMNS: usize> Display
-    for Unstark<F, NAME, D, Columns, COLUMNS>
+/// Template for a STARK with zero internal constraints. Use this if the STARK
+/// itself does not need any built-in constraints, but rely on cross table
+/// lookups for provability.
+pub type Unstark<F, NAME, const D: usize, Columns, const COLUMNS: usize> =
+    StarkFrom<F, UnstarkConstraints<NAME, Columns, COLUMNS>, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
+
+impl<F, NAME: Default + Debug, const COLUMNS: usize> Display
+    for UnstarkConstraints<F, NAME, COLUMNS>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", NAME::default())
@@ -55,42 +49,6 @@ impl<F, NAME, const D: usize, Columns, const COLUMNS: usize> HasNamedColumns
 }
 
 const PUBLIC_INPUTS: usize = 0;
-
-impl<
-        F: RichField + Extendable<D>,
-        NAME: Sync,
-        const D: usize,
-        Columns: Sync + NumberOfColumns,
-        const COLUMNS: usize,
-    > Stark<F, D> for Unstark<F, NAME, D, Columns, COLUMNS>
-{
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
-        &self,
-        _vars: &Self::EvaluationFrame<FE, P, D2>,
-        _constraint_consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-    }
-
-    fn eval_ext_circuit(
-        &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-    }
-
-    fn constraint_degree(&self) -> usize { 3 }
-}
 
 // Simple marco to create a type holding the name for the Unstark
 macro_rules! impl_name {
