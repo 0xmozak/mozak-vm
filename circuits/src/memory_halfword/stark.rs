@@ -4,9 +4,7 @@ use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use crate::columns_view::HasNamedColumns;
-use crate::expr::{
-   ConstraintBuilder, GenerateConstraints, StarkFrom, Vars,
-};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::memory_halfword::columns::{HalfWordMemory, NUM_HW_MEM_COLS};
 use crate::unstark::NoColumns;
 

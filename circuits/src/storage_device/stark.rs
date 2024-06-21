@@ -12,7 +12,8 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct StorageDeviceConstraints {}
 
-pub type StorageDeviceStark<F, const D: usize> = StarkFrom<F, StorageDeviceConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
+pub type StorageDeviceStark<F, const D: usize> =
+    StarkFrom<F, StorageDeviceConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for StorageDeviceStark<F, D> {
     type Columns = StorageDevice<F>;
@@ -21,9 +22,7 @@ impl<F, const D: usize> HasNamedColumns for StorageDeviceStark<F, D> {
 const COLUMNS: usize = NUM_STORAGE_DEVICE_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl GenerateConstraints<{ COLUMNS }, {PUBLIC_INPUTS}>
-    for StorageDeviceConstraints
-{
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for StorageDeviceConstraints {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = StorageDevice<E>;
 

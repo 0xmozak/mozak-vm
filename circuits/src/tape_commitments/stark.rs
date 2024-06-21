@@ -8,9 +8,7 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
-impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS>
-    for TapeCommitmentsConstraints
-{
+impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for TapeCommitmentsConstraints {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = TapeCommitments<E>;
 
@@ -38,7 +36,8 @@ impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS>
 #[allow(clippy::module_name_repetitions)]
 pub struct TapeCommitmentsConstraints {}
 
-pub type TapeCommitmentsStark<F, const D: usize> = StarkFrom<F, TapeCommitmentsConstraints, {D}, {COLUMNS}, {PUBLIC_INPUTS}>;
+pub type TapeCommitmentsStark<F, const D: usize> =
+    StarkFrom<F, TapeCommitmentsConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for TapeCommitmentsStark<F, D> {
     type Columns = TapeCommitments<F>;

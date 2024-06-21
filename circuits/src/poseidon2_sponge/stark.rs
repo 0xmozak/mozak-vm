@@ -18,7 +18,8 @@ pub struct Poseidon2SpongeConstraints<F> {
     _f: PhantomData<F>,
 }
 
-pub type Poseidon2SpongeStark<F, const D: usize> = StarkFrom<F, Poseidon2SpongeConstraints<F>, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
+pub type Poseidon2SpongeStark<F, const D: usize> =
+    StarkFrom<F, Poseidon2SpongeConstraints<F>, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2SpongeStark<F, D> {
     type Columns = Poseidon2Sponge<F>;
@@ -27,7 +28,7 @@ impl<F, const D: usize> HasNamedColumns for Poseidon2SpongeStark<F, D> {
 const COLUMNS: usize = NUM_POSEIDON2_SPONGE_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<F: Poseidon2> GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS} >
+impl<F: Poseidon2> GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }>
     for Poseidon2SpongeConstraints<F>
 {
     type PublicInputs<E: Debug> = NoColumns<E>;

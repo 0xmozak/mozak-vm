@@ -110,7 +110,7 @@ where
 pub struct Poseidon2_12Constraints {}
 
 pub type Poseidon2_12Stark<F, const D: usize> =
-StarkFrom<F, Poseidon2_12Constraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
+    StarkFrom<F, Poseidon2_12Constraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2_12Stark<F, D> {
     type Columns = Poseidon2State<F>;
@@ -122,9 +122,7 @@ const PUBLIC_INPUTS: usize = 0;
 // Compile time assertion that STATE_SIZE equals 12
 const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 
-impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }>
-for Poseidon2_12Constraints
-{
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for Poseidon2_12Constraints {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = Poseidon2State<E>;
 
@@ -195,7 +193,6 @@ for Poseidon2_12Constraints
         constraints
     }
 }
-
 
 #[cfg(test)]
 mod tests {

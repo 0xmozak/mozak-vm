@@ -13,7 +13,8 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct XorConstraints {}
 
-pub type XorStark<F, const D: usize> = StarkFrom<F, XorConstraints, {D}, {COLUMNS}, {PUBLIC_INPUTS}>;
+pub type XorStark<F, const D: usize> =
+    StarkFrom<F, XorConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
     type Columns = XorColumnsView<F>;
@@ -22,8 +23,7 @@ impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for XorConstraints
-{
+impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for XorConstraints {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = XorColumnsView<E>;
 

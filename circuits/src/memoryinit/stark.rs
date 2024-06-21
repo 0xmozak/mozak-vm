@@ -22,7 +22,7 @@ impl<F, const D: usize> HasNamedColumns for MemoryInitStark<F, D> {
 const COLUMNS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl GenerateConstraints<{ COLUMNS}, { PUBLIC_INPUTS}> for MemoryInitConstraints {
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for MemoryInitConstraints {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = MemoryInit<E>;
 

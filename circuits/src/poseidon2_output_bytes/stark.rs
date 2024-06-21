@@ -13,7 +13,8 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2OutputBytesConstraints {}
 
-pub type Poseidon2OutputBytesStark<F, const D: usize> = StarkFrom<F, Poseidon2OutputBytesConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
+pub type Poseidon2OutputBytesStark<F, const D: usize> =
+    StarkFrom<F, Poseidon2OutputBytesConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2OutputBytesStark<F, D> {
     type Columns = Poseidon2OutputBytes<F>;
@@ -22,9 +23,7 @@ impl<F, const D: usize> HasNamedColumns for Poseidon2OutputBytesStark<F, D> {
 const COLUMNS: usize = NUM_POSEIDON2_OUTPUT_BYTES_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }>
-for Poseidon2OutputBytesConstraints
-{
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for Poseidon2OutputBytesConstraints {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = Poseidon2OutputBytes<E>;
 

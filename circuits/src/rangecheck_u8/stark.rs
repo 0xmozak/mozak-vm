@@ -12,7 +12,8 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckU8Constraints {}
 
-pub type RangeCheckU8Stark<F, const D: usize> = StarkFrom<F, RangeCheckU8Constraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
+pub type RangeCheckU8Stark<F, const D: usize> =
+    StarkFrom<F, RangeCheckU8Constraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
     type Columns = RangeCheckU8<F>;
@@ -21,9 +22,7 @@ impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
 const COLUMNS: usize = RangeCheckU8::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl GenerateConstraints< { COLUMNS }, { PUBLIC_INPUTS }>
-    for RangeCheckU8Constraints
-{
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for RangeCheckU8Constraints {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = RangeCheckU8<E>;
 

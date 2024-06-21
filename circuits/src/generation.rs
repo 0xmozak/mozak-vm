@@ -212,14 +212,20 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     });
 }
 
-pub fn debug_single_trace<'a, F: RichField + Extendable<D>, const D: usize, S, const COLUMNS: usize, const PUBLIC_INPUTS: usize>(
+pub fn debug_single_trace<
+    'a,
+    F: RichField + Extendable<D>,
+    const D: usize,
+    S,
+    const COLUMNS: usize,
+    const PUBLIC_INPUTS: usize,
+>(
     stark: &'a S,
     trace_rows: &'a [PolynomialValues<F>],
     public_inputs: &'a [F],
 ) where
     S: Stark<F, D> + Display + GenerateConstraints<COLUMNS, PUBLIC_INPUTS>,
-    ViewOf<'a, S, F, COLUMNS, PUBLIC_INPUTS>: Debug,
-    {
+    ViewOf<'a, S, F, COLUMNS, PUBLIC_INPUTS>: Debug, {
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()

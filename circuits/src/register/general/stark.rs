@@ -12,7 +12,8 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterConstraints {}
 
-pub type RegisterStark<F, const D: usize> = StarkFrom<F, RegisterConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
+pub type RegisterStark<F, const D: usize> =
+    StarkFrom<F, RegisterConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for RegisterStark<F, D> {
     type Columns = Register<F>;
@@ -21,7 +22,7 @@ impl<F, const D: usize> HasNamedColumns for RegisterStark<F, D> {
 const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl GenerateConstraints<{COLUMNS}, {PUBLIC_INPUTS}> for RegisterConstraints {
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for RegisterConstraints {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = Register<E>;
 
