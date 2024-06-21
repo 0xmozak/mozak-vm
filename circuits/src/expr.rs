@@ -1,5 +1,5 @@
 use core::fmt::Debug;
-use std::marker::Copy;
+use std::marker::{Copy, PhantomData};
 use std::panic::Location;
 
 pub use expr::PureEvaluator;
@@ -230,20 +230,17 @@ where
         self,
         vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>>;
-
-    fn exists<U: 'a + Default + Debug + Copy>(
-        self,
-    ) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS>;
 }
 
 // Note: Not sure if D is needed here
 #[derive(Default)]
-pub struct StarkFrom<G, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> {
+pub struct StarkFrom<F, G, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> {
     pub witness: G,
+    pub _f: PhantomData<F>,
 }
 
 impl<G, F, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> Stark<F, D>
-    for StarkFrom<G, D, COLUMNS, PUBLIC_INPUTS>
+    for StarkFrom<F, G, D, COLUMNS, PUBLIC_INPUTS>
 where
     for<'b> G: Sync + GenerateConstraints<'b, F, COLUMNS, PUBLIC_INPUTS> + Copy,
     F: RichField + Extendable<D>,
@@ -266,7 +263,6 @@ where
         let expr_builder = ExprBuilder::default();
         let constraints = self
             .witness
-            .exists()
             .generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_packed(constraints, constraint_consumer);
     }
@@ -280,7 +276,6 @@ where
         let expr_builder = ExprBuilder::default();
         let constraints = self
             .witness
-            .exists()
             .generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_ext(constraints, circuit_builder, constraint_consumer);
     }

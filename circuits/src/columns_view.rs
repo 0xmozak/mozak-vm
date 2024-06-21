@@ -31,6 +31,10 @@ pub trait HasNamedColumns {
     type Columns;
 }
 
+pub trait HasNamedColumns_ {
+    type Columns<F>;
+}
+
 pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
 }

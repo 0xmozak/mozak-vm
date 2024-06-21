@@ -1,37 +1,28 @@
-use std::marker::PhantomData;
-
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::{Expr, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::BitshiftView;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints, StarkFrom};
+use crate::columns_view::{HasNamedColumns_, NumberOfColumns};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom};
 use crate::unstark::NoColumns;
 
 /// Bitshift Trace Constraints
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct BitshiftStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct BitshiftStark_ {}
 
-impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
-    type Columns = BitshiftView<F>;
+pub type BitshiftStark<F, const D: usize> =
+    StarkFrom<F, BitshiftStark_, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
+
+impl HasNamedColumns_ for BitshiftStark_ {
+    type Columns<F> = BitshiftView<F>;
 }
 
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F: 'a, T: Copy + 'a + std::fmt::Debug, const D: usize>
-    GenerateConstraints<'a, T, { COLUMNS }, { PUBLIC_INPUTS }> for BitshiftStark<F, { D }>
+impl<'a, T: Copy + 'a + std::fmt::Debug> GenerateConstraints<'a, T, { COLUMNS }, { PUBLIC_INPUTS }>
+    for BitshiftStark_
 {
     type PublicInputs<E: 'a + std::fmt::Debug> = NoColumns<E>;
     type View<E: 'a + std::fmt::Debug> = BitshiftView<E>;
@@ -76,48 +67,6 @@ impl<'a, F: 'a, T: Copy + 'a + std::fmt::Debug, const D: usize>
         constraints.last_row(lv.multiplier - (1 << 31));
 
         constraints
-    }
-
-    fn exists<U: 'a + Default + std::fmt::Debug + std::marker::Copy>(
-        self,
-    ) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS> {
-        <BitshiftStark<U, D> as Default>::default()
-    }
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
-        &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        constraint_consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        (StarkFrom::<Self, D, COLUMNS, PUBLIC_INPUTS> { witness: *self })
-            .eval_packed_generic(vars, constraint_consumer)
-    }
-
-    fn constraint_degree(&self) -> usize { 3 }
-
-    fn eval_ext_circuit(
-        &self,
-        circuit_builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        (StarkFrom::<Self, D, COLUMNS, PUBLIC_INPUTS> { witness: *self }).eval_ext_circuit(
-            circuit_builder,
-            vars,
-            constraint_consumer,
-        )
     }
 }
 
