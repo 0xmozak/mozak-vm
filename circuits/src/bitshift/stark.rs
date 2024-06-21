@@ -11,23 +11,23 @@ use crate::unstark::NoColumns;
 /// Bitshift Trace Constraints
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct BitshiftStark_ {}
+pub struct BitshiftConstraints {}
 
 pub type BitshiftStark<F, const D: usize> =
-    StarkFrom<F, BitshiftStark_, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
+    StarkFrom<F, BitshiftConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
-impl HasNamedColumns_ for BitshiftStark_ {
+impl HasNamedColumns_ for BitshiftConstraints {
     type Columns<F> = BitshiftView<F>;
 }
 
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a> GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for BitshiftStark_ {
-    type PublicInputs<E: 'a + std::fmt::Debug> = NoColumns<E>;
-    type View<E: 'a + std::fmt::Debug> = BitshiftView<E>;
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for BitshiftConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = BitshiftView<E>;
 
-    fn generate_constraints<T: 'a + Debug + Copy>(
+    fn generate_constraints<'a, T: Debug + Copy>(
         self,
         vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
