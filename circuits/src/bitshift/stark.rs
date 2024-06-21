@@ -1,3 +1,5 @@
+use core::fmt::Debug;
+
 use expr::{Expr, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 
@@ -21,13 +23,11 @@ impl HasNamedColumns_ for BitshiftStark_ {
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, T: Copy + 'a + std::fmt::Debug> GenerateConstraints<'a, T, { COLUMNS }, { PUBLIC_INPUTS }>
-    for BitshiftStark_
-{
+impl<'a> GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for BitshiftStark_ {
     type PublicInputs<E: 'a + std::fmt::Debug> = NoColumns<E>;
     type View<E: 'a + std::fmt::Debug> = BitshiftView<E>;
 
-    fn generate_constraints(
+    fn generate_constraints<T: 'a + Debug + Copy>(
         self,
         vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
@@ -67,12 +67,6 @@ impl<'a, T: Copy + 'a + std::fmt::Debug> GenerateConstraints<'a, T, { COLUMNS },
         constraints.last_row(lv.multiplier - (1 << 31));
 
         constraints
-    }
-
-    fn exists<U: 'a + Default + std::fmt::Debug + std::marker::Copy>(
-        self,
-    ) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS> {
-        BitshiftStark_ {}
     }
 }
 

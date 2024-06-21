@@ -206,34 +206,22 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
 }
 
 // Helper Types to Access members of GenerateConstraints
-pub type PublicInputsOf<'a, S, F, T, const N: usize, const M: usize> =
-    <S as GenerateConstraints<'a, F, N, M>>::PublicInputs<T>;
-pub type ViewOf<'a, S, F, T, const N: usize, const M: usize> =
-    <S as GenerateConstraints<'a, F, N, M>>::View<T>;
+pub type PublicInputsOf<'a, S, T, const N: usize, const M: usize> =
+    <S as GenerateConstraints<N, M>>::PublicInputs<T>;
+pub type ViewOf<'a, S, T, const N: usize, const M: usize> =
+    <S as GenerateConstraints<N, M>>::View<T>;
 
-pub type Vars<'a, S, T, const N: usize, const M: usize> = StarkFrameTyped<
-    ViewOf<'a, S, T, Expr<'a, T>, N, M>,
-    PublicInputsOf<'a, S, T, Expr<'a, T>, N, M>,
->;
+pub type Vars<'a, S, T, const N: usize, const M: usize> =
+    StarkFrameTyped<ViewOf<'a, S, Expr<'a, T>, N, M>, PublicInputsOf<'a, S, Expr<'a, T>, N, M>>;
 
-pub trait GenerateConstraints<'a, T: 'a + Debug, const COLUMNS: usize, const PUBLIC_INPUTS: usize>
-where
-    Self: 'a, {
-    type View<E: 'a + Debug>: From<[E; COLUMNS]> + FromIterator<E>
-    where
-        Self: 'a;
-    type PublicInputs<E: 'a + Debug>: From<[E; PUBLIC_INPUTS]> + FromIterator<E>
-    where
-        Self: 'a;
+pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> {
+    type View<E: Debug>: From<[E; COLUMNS]> + FromIterator<E>;
+    type PublicInputs<E: Debug>: From<[E; PUBLIC_INPUTS]> + FromIterator<E>;
 
-    fn generate_constraints(
-        self,
-        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
-    ) -> ConstraintBuilder<Expr<'a, T>>;
-
-    fn exists<U: 'a + Default + Debug + Copy>(
-        self,
-    ) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS>;
+    fn generate_constraints<'b, T: Debug>(
+        &self,
+        vars: &Vars<'b, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'b, T>>;
 }
 
 // Note: Not sure if D is needed here
@@ -246,8 +234,8 @@ pub struct StarkFrom<F, G, const D: usize, const COLUMNS: usize, const PUBLIC_IN
 impl<G, F, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> Stark<F, D>
     for StarkFrom<F, G, D, COLUMNS, PUBLIC_INPUTS>
 where
-    for<'b> G: Sync + GenerateConstraints<'b, F, COLUMNS, PUBLIC_INPUTS> + Copy,
-    F: RichField + Extendable<D>,
+    G: Sync + GenerateConstraints<COLUMNS, PUBLIC_INPUTS> + Copy,
+    F: RichField + Extendable<D> + Debug,
 {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, { COLUMNS }, { PUBLIC_INPUTS }>
 
@@ -263,12 +251,11 @@ where
         constraint_consumer: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
+        P: PackedField<Scalar = FE> + Debug + Copy, {
         let expr_builder = ExprBuilder::default();
-        let constraints = self
+        let constraints: G = self
             .witness
-            .exists()
-            .generate_constraints(&expr_builder.to_typed_starkframe(vars));
+            .generate_constraints::<_>(&expr_builder.to_typed_starkframe(vars));
         build_packed(constraints, constraint_consumer);
     }
 
@@ -281,7 +268,6 @@ where
         let expr_builder = ExprBuilder::default();
         let constraints = self
             .witness
-            .exists()
             .generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_ext(constraints, circuit_builder, constraint_consumer);
     }
