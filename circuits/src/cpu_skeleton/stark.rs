@@ -8,6 +8,7 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom};
 use crate::stark::mozak_stark::PublicInputs;
 
+// TODO: fix StarkNameDisplay?
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuSkeletonConstraints {}

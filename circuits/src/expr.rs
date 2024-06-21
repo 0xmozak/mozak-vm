@@ -224,8 +224,7 @@ pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> 
     ) -> ConstraintBuilder<Expr<'a, T>>;
 }
 
-// Note: Not sure if D is needed here
-#[derive(Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct StarkFrom<F, G, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> {
     pub witness: G,
     pub _f: PhantomData<F>,
