@@ -4,7 +4,6 @@ use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::{FIELDS_COUNT, NUM_POSEIDON2_OUTPUT_BYTES_COLS};
-use crate::columns_view::HasNamedColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::unstark::NoColumns;
@@ -15,10 +14,6 @@ pub struct Poseidon2OutputBytesConstraints {}
 
 pub type Poseidon2OutputBytesStark<F, const D: usize> =
     StarkFrom<F, Poseidon2OutputBytesConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
-
-impl<F, const D: usize> HasNamedColumns for Poseidon2OutputBytesStark<F, D> {
-    type Columns = Poseidon2OutputBytes<F>;
-}
 
 const COLUMNS: usize = NUM_POSEIDON2_OUTPUT_BYTES_COLS;
 const PUBLIC_INPUTS: usize = 0;

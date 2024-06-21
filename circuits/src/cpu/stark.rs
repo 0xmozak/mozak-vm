@@ -5,7 +5,7 @@ use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::{CpuState, OpSelectors};
 use super::{bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::cpu::shift;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
@@ -19,10 +19,6 @@ pub struct CpuConstraints {}
 ///
 /// Instructions are either handled directly or through cross table lookup
 pub type CpuStark<F, const D: usize> = StarkFrom<F, CpuConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
-
-impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
-    type Columns = CpuState<F>;
-}
 
 /// Ensure that if opcode is straight line, then program counter is incremented
 /// by 4.

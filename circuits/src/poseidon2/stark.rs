@@ -7,7 +7,6 @@ use plonky2::field::types::{Field, PrimeField64};
 use plonky2::hash::poseidon2::Poseidon2;
 
 use super::columns::Poseidon2State;
-use crate::columns_view::HasNamedColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 use crate::unstark::NoColumns;
@@ -111,10 +110,6 @@ pub struct Poseidon2_12Constraints {}
 
 pub type Poseidon2_12Stark<F, const D: usize> =
     StarkFrom<F, Poseidon2_12Constraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
-
-impl<F, const D: usize> HasNamedColumns for Poseidon2_12Stark<F, D> {
-    type Columns = Poseidon2State<F>;
-}
 
 const COLUMNS: usize = NUM_POSEIDON2_COLS;
 const PUBLIC_INPUTS: usize = 0;

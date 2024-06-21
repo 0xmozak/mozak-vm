@@ -7,7 +7,6 @@ use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::{Poseidon2, Poseidon2Permutation};
 
 use super::columns::NUM_POSEIDON2_SPONGE_COLS;
-use crate::columns_view::HasNamedColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::unstark::NoColumns;
@@ -20,10 +19,6 @@ pub struct Poseidon2SpongeConstraints<F> {
 
 pub type Poseidon2SpongeStark<F, const D: usize> =
     StarkFrom<F, Poseidon2SpongeConstraints<F>, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
-
-impl<F, const D: usize> HasNamedColumns for Poseidon2SpongeStark<F, D> {
-    type Columns = Poseidon2Sponge<F>;
-}
 
 const COLUMNS: usize = NUM_POSEIDON2_SPONGE_COLS;
 const PUBLIC_INPUTS: usize = 0;

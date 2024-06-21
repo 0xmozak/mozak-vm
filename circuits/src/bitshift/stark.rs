@@ -4,7 +4,7 @@ use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::BitshiftView;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
@@ -18,11 +18,6 @@ const PUBLIC_INPUTS: usize = 0;
 
 pub type BitshiftStark<F, const D: usize> =
     StarkFrom<F, BitshiftConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
-
-// TODO: consider folding this into `GenerateConstraints` trait.
-impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
-    type Columns = BitshiftView<F>;
-}
 
 impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for BitshiftConstraints {
     type PublicInputs<E: Debug> = NoColumns<E>;

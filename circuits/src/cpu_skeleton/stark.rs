@@ -4,7 +4,7 @@ use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::CpuSkeleton;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::stark::mozak_stark::PublicInputs;
 
@@ -15,10 +15,6 @@ pub struct CpuSkeletonConstraints {}
 
 pub type CpuSkeletonStark<F, const D: usize> =
     StarkFrom<F, CpuSkeletonConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
-
-impl<F, const D: usize> HasNamedColumns for CpuSkeletonStark<F, D> {
-    type Columns = CpuSkeleton<F>;
-}
 
 const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]

@@ -5,7 +5,7 @@ use itertools::{chain, izip};
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::XorColumnsView;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
@@ -15,10 +15,6 @@ pub struct XorConstraints {}
 
 pub type XorStark<F, const D: usize> =
     StarkFrom<F, XorConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
-
-impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
-    type Columns = XorColumnsView<F>;
-}
 
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;

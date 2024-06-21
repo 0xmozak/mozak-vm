@@ -3,7 +3,6 @@ use core::fmt::Debug;
 use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
-use crate::columns_view::HasNamedColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::memory_halfword::columns::{HalfWordMemory, NUM_HW_MEM_COLS};
 use crate::unstark::NoColumns;
@@ -14,10 +13,6 @@ pub struct HalfWordMemoryConstraints {}
 
 pub type HalfWordMemoryStark<F, const D: usize> =
     StarkFrom<F, HalfWordMemoryConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
-
-impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
-    type Columns = HalfWordMemory<F>;
-}
 
 impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for HalfWordMemoryConstraints {
     type PublicInputs<E: Debug> = NoColumns<E>;

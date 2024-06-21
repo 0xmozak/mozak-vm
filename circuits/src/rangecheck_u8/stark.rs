@@ -4,7 +4,7 @@ use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::RangeCheckU8;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
@@ -14,10 +14,6 @@ pub struct RangeCheckU8Constraints {}
 
 pub type RangeCheckU8Stark<F, const D: usize> =
     StarkFrom<F, RangeCheckU8Constraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
-
-impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
-    type Columns = RangeCheckU8<F>;
-}
 
 const COLUMNS: usize = RangeCheckU8::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;

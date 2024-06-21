@@ -4,7 +4,7 @@ use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::TapeCommitments;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
@@ -38,10 +38,6 @@ pub struct TapeCommitmentsConstraints {}
 
 pub type TapeCommitmentsStark<F, const D: usize> =
     StarkFrom<F, TapeCommitmentsConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
-
-impl<F, const D: usize> HasNamedColumns for TapeCommitmentsStark<F, D> {
-    type Columns = TapeCommitments<F>;
-}
 
 const COLUMNS: usize = TapeCommitments::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;

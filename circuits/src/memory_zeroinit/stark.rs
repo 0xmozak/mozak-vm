@@ -4,7 +4,7 @@ use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::MemoryZeroInit;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
@@ -14,10 +14,6 @@ pub struct MemoryZeroInitConstraints {}
 
 pub type MemoryZeroInitStark<F, const D: usize> =
     StarkFrom<F, MemoryZeroInitConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
-
-impl<F, const D: usize> HasNamedColumns for MemoryZeroInitStark<F, D> {
-    type Columns = MemoryZeroInit<F>;
-}
 
 const COLUMNS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;

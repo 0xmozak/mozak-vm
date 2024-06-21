@@ -4,7 +4,6 @@ use expr::Expr;
 use itertools::izip;
 use mozak_circuits_derive::StarkNameDisplay;
 
-use crate::columns_view::HasNamedColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::memory_fullword::columns::{FullWordMemory, NUM_HW_MEM_COLS};
 use crate::unstark::NoColumns;
@@ -15,10 +14,6 @@ pub struct FullWordMemoryConstraints {}
 
 pub type FullWordMemoryStark<F, const D: usize> =
     StarkFrom<F, FullWordMemoryConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
-
-impl<F, const D: usize> HasNamedColumns for FullWordMemoryStark<F, D> {
-    type Columns = FullWordMemory<F>;
-}
 
 const COLUMNS: usize = NUM_HW_MEM_COLS;
 const PUBLIC_INPUTS: usize = 0;

@@ -3,7 +3,7 @@ use core::fmt::Debug;
 use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::memory::columns::Memory;
 use crate::unstark::NoColumns;
@@ -14,10 +14,6 @@ pub struct MemoryConstraints {}
 
 pub type MemoryStark<F, const D: usize> =
     StarkFrom<F, MemoryConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
-
-impl<F, const D: usize> HasNamedColumns for MemoryStark<F, D> {
-    type Columns = Memory<F>;
-}
 
 const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;

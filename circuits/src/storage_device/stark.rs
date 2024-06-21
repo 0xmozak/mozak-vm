@@ -3,7 +3,6 @@ use core::fmt::Debug;
 use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
-use crate::columns_view::HasNamedColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::storage_device::columns::{StorageDevice, NUM_STORAGE_DEVICE_COLS};
 use crate::unstark::NoColumns;
@@ -14,10 +13,6 @@ pub struct StorageDeviceConstraints {}
 
 pub type StorageDeviceStark<F, const D: usize> =
     StarkFrom<F, StorageDeviceConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
-
-impl<F, const D: usize> HasNamedColumns for StorageDeviceStark<F, D> {
-    type Columns = StorageDevice<F>;
-}
 
 const COLUMNS: usize = NUM_STORAGE_DEVICE_COLS;
 const PUBLIC_INPUTS: usize = 0;

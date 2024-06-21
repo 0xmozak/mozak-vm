@@ -4,7 +4,6 @@ use std::marker::PhantomData;
 
 use expr::Expr;
 
-use crate::columns_view::HasNamedColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 
 impl<NAME, Columns, const COLUMNS: usize> GenerateConstraints<COLUMNS, PUBLIC_INPUTS>
@@ -40,12 +39,6 @@ impl<F, NAME: Default + Debug, const COLUMNS: usize> Display
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", NAME::default())
     }
-}
-
-impl<F, NAME, const D: usize, Columns, const COLUMNS: usize> HasNamedColumns
-    for Unstark<F, NAME, D, Columns, COLUMNS>
-{
-    type Columns = Columns;
 }
 
 const PUBLIC_INPUTS: usize = 0;

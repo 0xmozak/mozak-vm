@@ -4,7 +4,7 @@ use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::Register;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
@@ -14,10 +14,6 @@ pub struct RegisterConstraints {}
 
 pub type RegisterStark<F, const D: usize> =
     StarkFrom<F, RegisterConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
-
-impl<F, const D: usize> HasNamedColumns for RegisterStark<F, D> {
-    type Columns = Register<F>;
-}
 
 const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
