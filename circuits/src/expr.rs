@@ -230,6 +230,10 @@ where
         self,
         vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>>;
+
+    fn exists<U: 'a + Default + Debug + Copy>(
+        self,
+    ) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS>;
 }
 
 // Note: Not sure if D is needed here
@@ -263,6 +267,7 @@ where
         let expr_builder = ExprBuilder::default();
         let constraints = self
             .witness
+            .exists()
             .generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_packed(constraints, constraint_consumer);
     }
@@ -276,6 +281,7 @@ where
         let expr_builder = ExprBuilder::default();
         let constraints = self
             .witness
+            .exists()
             .generate_constraints(&expr_builder.to_typed_starkframe(vars));
         build_ext(constraints, circuit_builder, constraint_consumer);
     }

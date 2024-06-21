@@ -68,6 +68,12 @@ impl<'a, T: Copy + 'a + std::fmt::Debug> GenerateConstraints<'a, T, { COLUMNS },
 
         constraints
     }
+
+    fn exists<U: 'a + Default + std::fmt::Debug + std::marker::Copy>(
+        self,
+    ) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS> {
+        BitshiftStark_ {}
+    }
 }
 
 #[cfg(test)]
