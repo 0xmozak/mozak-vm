@@ -1,6 +1,5 @@
 use core::fmt::Debug;
-use std::fmt::Debug;
-use std::marker::{Copy, PhantomData};
+use std::marker::Copy;
 use std::panic::Location;
 
 pub use expr::PureEvaluator;
@@ -217,12 +216,8 @@ pub type Vars<'a, S, T, const N: usize, const M: usize> = StarkFrameTyped<
     PublicInputsOf<'a, S, T, Expr<'a, T>, N, M>,
 >;
 
-pub trait GenerateConstraints<
-    'a,
-    T: 'a + Debug,
-    const COLUMNS: usize,
-    const PUBLIC_INPUTS: usize,
-> where
+pub trait GenerateConstraints<'a, T: 'a + Debug, const COLUMNS: usize, const PUBLIC_INPUTS: usize>
+where
     Self: 'a, {
     type View<E: 'a + Debug>: From<[E; COLUMNS]> + FromIterator<E>
     where
