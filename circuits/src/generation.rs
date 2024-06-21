@@ -4,7 +4,7 @@
 use std::borrow::Borrow;
 use std::fmt::{Debug, Display};
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::{ExprBuilder, StarkFrameTyped};
 use itertools::{izip, Itertools};
 use log::debug;
 use mozak_runner::elf::Program;
@@ -20,7 +20,7 @@ use starky::stark::Stark;
 use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
-use crate::expr::{build_debug, ConstraintType, GenerateConstraints, PublicInputsOf, Vars, ViewOf};
+use crate::expr::{build_debug, ConstraintType, GenerateConstraints, Vars, ViewOf};
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
@@ -208,20 +208,18 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     .build();
 
     all_starks!(mozak_stark, |stark, kind| {
-        debug_single_trace::<F, D, _>(stark, &traces_poly_values[kind], public_inputs[kind]);
+        debug_single_trace::<F, D, _, _, _>(stark, &traces_poly_values[kind], public_inputs[kind]);
     });
 }
 
-pub fn debug_single_trace<'a, F: RichField + Extendable<D>, const D: usize, S>(
+pub fn debug_single_trace<'a, F: RichField + Extendable<D>, const D: usize, S, const COLUMNS: usize, const PUBLIC_INPUTS: usize>(
     stark: &'a S,
     trace_rows: &'a [PolynomialValues<F>],
     public_inputs: &'a [F],
 ) where
-    for<'b> S: Stark<F, D> + Display + GenerateConstraints<'b, F>,
-    for<'b> PublicInputsOf<'b, S, F, Expr<'b, F>>: FromIterator<Expr<'b, F>>,
-    for<'b> ViewOf<'b, S, F, Expr<'b, F>>: FromIterator<Expr<'b, F>>,
-    for<'b> PublicInputsOf<'b, S, F, F>: Debug + FromIterator<F>,
-    for<'b> ViewOf<'b, S, F, F>: Debug + FromIterator<F>, {
+    S: Stark<F, D> + Display + GenerateConstraints<COLUMNS, PUBLIC_INPUTS>,
+    ViewOf<'a, S, F, COLUMNS, PUBLIC_INPUTS>: Debug,
+    {
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
@@ -230,8 +228,8 @@ pub fn debug_single_trace<'a, F: RichField + Extendable<D>, const D: usize, S>(
             let expr_builder = ExprBuilder::default();
             let frame: StarkFrameTyped<Vec<F>, Vec<F>> =
                 StarkFrameTyped::from_values(lv, nv, public_inputs);
-            let vars: Vars<S, F> = expr_builder.inject_starkframe(frame);
-            let constraints = S::generate_constraints(&vars);
+            let vars: Vars<S, F, COLUMNS, PUBLIC_INPUTS> = expr_builder.inject_starkframe(frame);
+            let constraints = stark.generate_constraints(&vars);
             let evaluated = build_debug(constraints);
 
             // Filter out only applicable constraints
@@ -258,8 +256,8 @@ pub fn debug_single_trace<'a, F: RichField + Extendable<D>, const D: usize, S>(
                     );
                 }
 
-                let lv: ViewOf<S, F, F> = lv.iter().copied().collect();
-                let nv: ViewOf<S, F, F> = nv.iter().copied().collect();
+                let lv: ViewOf<S, F, COLUMNS, PUBLIC_INPUTS> = lv.iter().copied().collect();
+                let nv: ViewOf<S, F, COLUMNS, PUBLIC_INPUTS> = nv.iter().copied().collect();
                 log::error!("Debug constraints for {stark}");
                 log::error!("lv-row[{lv_row}] - values: {lv:?}");
                 log::error!("nv-row[{nv_row}] - values: {nv:?}");

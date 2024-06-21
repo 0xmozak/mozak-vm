@@ -1,29 +1,24 @@
+use core::fmt::Debug;
 use std::marker::PhantomData;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::{Poseidon2, Poseidon2Permutation};
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::NUM_POSEIDON2_SPONGE_COLS;
 use crate::columns_view::HasNamedColumns;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct Poseidon2SpongeStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
+pub struct Poseidon2SpongeConstraints<F> {
+    _f: PhantomData<F>,
 }
+
+pub type Poseidon2SpongeStark<F, const D: usize> = StarkFrom<F, Poseidon2SpongeConstraints<F>, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2SpongeStark<F, D> {
     type Columns = Poseidon2Sponge<F>;
@@ -32,15 +27,16 @@ impl<F, const D: usize> HasNamedColumns for Poseidon2SpongeStark<F, D> {
 const COLUMNS: usize = NUM_POSEIDON2_SPONGE_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F: Poseidon2, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
-    for Poseidon2SpongeStark<F, { D }>
+impl<F: Poseidon2> GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS} >
+    for Poseidon2SpongeConstraints<F>
 {
-    type PublicInputs<E: 'a> = NoColumns<E>;
-    type View<E: 'a> = Poseidon2Sponge<E>;
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = Poseidon2Sponge<E>;
 
     // For design check https://docs.google.com/presentation/d/10Dv00xL3uggWTPc0L91cgu_dWUzhM7l1EQ5uDEI_cjg/edit?usp=sharing
-    fn generate_constraints(
-        vars: &StarkFrameTyped<Poseidon2Sponge<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+    fn generate_constraints<'a, T: Copy + Debug>(
+        &self,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let rate = Poseidon2Permutation::<F>::RATE;
         let state_size = Poseidon2Permutation::<F>::WIDTH;
@@ -106,41 +102,6 @@ impl<'a, F: Poseidon2, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
         }
         constraints
     }
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2SpongeStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
-        &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
-        build_packed(constraints, consumer);
-    }
-
-    #[allow(clippy::similar_names)]
-    fn eval_ext_circuit(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, consumer);
-    }
-
-    fn constraint_degree(&self) -> usize { 3 }
 }
 
 #[cfg(test)]

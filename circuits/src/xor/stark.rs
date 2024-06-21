@@ -1,27 +1,19 @@
-use std::marker::PhantomData;
+use core::fmt::Debug;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use itertools::{chain, izip};
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::XorColumnsView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct XorStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct XorConstraints {}
+
+pub type XorStark<F, const D: usize> = StarkFrom<F, XorConstraints, {D}, {COLUMNS}, {PUBLIC_INPUTS}>;
 
 impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
     type Columns = XorColumnsView<F>;
@@ -30,12 +22,14 @@ impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T> for XorStark<F, { D }> {
-    type PublicInputs<E: 'a> = NoColumns<E>;
-    type View<E: 'a> = XorColumnsView<E>;
+impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for XorConstraints
+{
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = XorColumnsView<E>;
 
-    fn generate_constraints(
-        vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+    fn generate_constraints<'a, T: Copy + Debug>(
+        &self,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();
@@ -60,41 +54,6 @@ impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T> for XorStar
         }
 
         constraints
-    }
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
-        &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let expr_builder = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_packed(constraints, consumer);
-    }
-
-    fn constraint_degree(&self) -> usize { 3 }
-
-    fn eval_ext_circuit(
-        &self,
-        circuit_builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let expr_builder = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_ext(constraints, circuit_builder, consumer);
     }
 }
 

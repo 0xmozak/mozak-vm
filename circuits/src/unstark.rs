@@ -2,7 +2,7 @@ use core::fmt::Debug;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
-use expr::{Expr, StarkFrameTyped};
+use expr::Expr;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -13,37 +13,19 @@ use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{ConstraintBuilder, GenerateConstraints};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, Vars};
 
-impl<
-        'a,
-        F: 'a,
-        NAME: 'a,
-        T: 'a + std::fmt::Debug,
-        const D: usize,
-        Columns: 'a,
-        const COLUMNS: usize,
-    > GenerateConstraints<'a, T, COLUMNS, PUBLIC_INPUTS>
-    for Unstark<F, NAME, { D }, Columns, { COLUMNS }>
+impl<F, NAME, const D: usize, Columns, const COLUMNS: usize>
+    GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for Unstark<F, NAME, { D }, Columns, { COLUMNS }>
 {
-    type PublicInputs<E: 'a + std::fmt::Debug> = NoColumns<E>;
-    type View<E: 'a + std::fmt::Debug> = ShadowColumns<E, { COLUMNS }>;
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = ShadowColumns<E, { COLUMNS }>;
 
-    fn generate_constraints(
-        self,
-        _vars: &StarkFrameTyped<ShadowColumns<Expr<'a, T>, { COLUMNS }>, NoColumns<Expr<'a, T>>>,
+    fn generate_constraints<'a, T: Copy + Debug>(
+        &self,
+        _vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         ConstraintBuilder::default()
-    }
-
-    fn exists<U: 'a + Default + std::fmt::Debug>(
-        self,
-    ) -> impl GenerateConstraints<'a, U, COLUMNS, PUBLIC_INPUTS> {
-        Unstark::<U, NAME, D, Columns, COLUMNS> {
-            _f: PhantomData::<U>::default(),
-            _name: self._name,
-            _d: self._d,
-        }
     }
 }
 

@@ -219,7 +219,7 @@ pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> 
     type View<E: Debug>: From<[E; COLUMNS]> + FromIterator<E>;
     type PublicInputs<E: Debug>: From<[E; PUBLIC_INPUTS]> + FromIterator<E>;
 
-    fn generate_constraints<'a, T: Debug>(
+    fn generate_constraints<'a, T: Copy + Debug>(
         &self,
         vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>>;
@@ -229,6 +229,22 @@ pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> 
 pub struct StarkFrom<F, G, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> {
     pub witness: G,
     pub _f: PhantomData<F>,
+}
+
+// Passthrough to G
+impl<F, G, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for StarkFrom<F, G, D, COLUMNS, PUBLIC_INPUTS>
+where G: GenerateConstraints<COLUMNS, PUBLIC_INPUTS>,
+ {
+    type View<E: Debug> = G::View<E> ;
+
+    type PublicInputs<E: Debug> = G::PublicInputs<E>;
+
+    fn generate_constraints<'a, T: Copy + Debug>(
+        &self,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        self.witness.generate_constraints(vars)
+    }
 }
 
 impl<G: Display, F, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> Display

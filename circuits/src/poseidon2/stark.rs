@@ -1,22 +1,14 @@
-use std::marker::PhantomData;
+use core::fmt::Debug;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::packed::PackedField;
 use plonky2::field::types::{Field, PrimeField64};
-use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::Poseidon2;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::Poseidon2State;
 use crate::columns_view::HasNamedColumns;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 use crate::unstark::NoColumns;
 
@@ -115,9 +107,10 @@ where
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct Poseidon2_12Stark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct Poseidon2_12Constraints {}
+
+pub type Poseidon2_12Stark<F, const D: usize> =
+StarkFrom<F, Poseidon2_12Constraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 impl<F, const D: usize> HasNamedColumns for Poseidon2_12Stark<F, D> {
     type Columns = Poseidon2State<F>;
@@ -129,17 +122,18 @@ const PUBLIC_INPUTS: usize = 0;
 // Compile time assertion that STATE_SIZE equals 12
 const _UNUSED_STATE_SIZE_IS_12: [(); STATE_SIZE - 12] = [];
 
-impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
-    for Poseidon2_12Stark<F, { D }>
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }>
+for Poseidon2_12Constraints
 {
-    type PublicInputs<E: 'a> = NoColumns<E>;
-    type View<E: 'a> = Poseidon2State<E>;
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = Poseidon2State<E>;
 
     // NOTE: This one has extra constraints compared to different implementations of
     // `generate_constraints` that were have written so far.  It will be something
     // to take into account when providing a more geneeral API to plonky.
-    fn generate_constraints(
-        vars: &StarkFrameTyped<Poseidon2State<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+    fn generate_constraints<'a, T: Copy + Debug>(
+        &self,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();
@@ -202,39 +196,6 @@ impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12Stark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-        where
-            FE: FieldExtension<D2, BaseField = F>,
-            P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
-        &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
-        build_packed(constraints, consumer);
-    }
-
-    fn constraint_degree(&self) -> usize { 3 }
-
-    fn eval_ext_circuit(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, consumer);
-    }
-}
 
 #[cfg(test)]
 mod tests {
