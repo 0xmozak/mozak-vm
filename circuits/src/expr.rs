@@ -253,7 +253,7 @@ where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE> + Debug + Copy, {
         let expr_builder = ExprBuilder::default();
-        let constraints: G = self
+        let constraints = self
             .witness
             .generate_constraints::<_>(&expr_builder.to_typed_starkframe(vars));
         build_packed(constraints, constraint_consumer);
