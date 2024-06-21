@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use expr::{Expr, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::{CpuState, OpSelectors};

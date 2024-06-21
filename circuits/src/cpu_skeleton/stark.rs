@@ -1,11 +1,11 @@
 use core::fmt::Debug;
 
-use expr::{Expr, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::CpuSkeleton;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::stark::mozak_stark::PublicInputs;
 
 // TODO: fix StarkNameDisplay?
@@ -30,7 +30,7 @@ impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for CpuSkeletonConstrai
 
     fn generate_constraints<'a, T: Debug + Copy>(
         &self,
-        vars: &StarkFrameTyped<CpuSkeleton<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let nv = vars.next_values;

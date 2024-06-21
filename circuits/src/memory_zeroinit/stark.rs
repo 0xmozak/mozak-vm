@@ -14,14 +14,17 @@ use starky::stark::Stark;
 
 use super::columns::MemoryZeroInit;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
+use crate::expr::{
+    build_ext, build_packed, ConstraintBuilder, GenerateConstraints, StarkFrom, Vars,
+};
 use crate::unstark::NoColumns;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct MemoryZeroInitStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct MemoryZeroInitConstraints {}
+
+pub type MemoryZeroInitStark<F, const D: usize> =
+    StarkFrom<F, MemoryZeroInitConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
 
 impl<F, const D: usize> HasNamedColumns for MemoryZeroInitStark<F, D> {
     type Columns = MemoryZeroInit<F>;
@@ -30,14 +33,13 @@ impl<F, const D: usize> HasNamedColumns for MemoryZeroInitStark<F, D> {
 const COLUMNS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<'a, F, T: Copy + Debug + 'a, const D: usize> GenerateConstraints<'a, T>
-    for MemoryZeroInitStark<F, { D }>
-{
-    type PublicInputs<E: 'a> = NoColumns<E>;
-    type View<E: 'a> = MemoryZeroInit<E>;
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for MemoryZeroInitConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = MemoryZeroInit<E>;
 
-    fn generate_constraints(
-        vars: &StarkFrameTyped<MemoryZeroInit<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+    fn generate_constraints<'a, T: Debug + Copy>(
+        &self,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();
@@ -46,41 +48,6 @@ impl<'a, F, T: Copy + Debug + 'a, const D: usize> GenerateConstraints<'a, T>
 
         constraints
     }
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryZeroInitStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
-        &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
-        build_packed(constraints, consumer);
-    }
-
-    fn eval_ext_circuit(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let constraints = Self::generate_constraints(&eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, consumer);
-    }
-
-    fn constraint_degree(&self) -> usize { 3 }
 }
 
 #[cfg(test)]

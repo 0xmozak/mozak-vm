@@ -1,3 +1,4 @@
+use core::fmt::Debug;
 use std::marker::PhantomData;
 
 use expr::{Expr, ExprBuilder, StarkFrameTyped};
@@ -12,29 +13,31 @@ use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
+use crate::expr::{
+    build_ext, build_packed, ConstraintBuilder, GenerateConstraints, StarkFrom, Vars,
+};
 use crate::memory_halfword::columns::{HalfWordMemory, NUM_HW_MEM_COLS};
 use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct HalfWordMemoryStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct HalfWordMemoryConstraints {}
+
+pub type HalfWordMemoryStark<F, const D: usize> =
+    StarkFrom<F, HalfWordMemoryConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
 
 impl<F, const D: usize> HasNamedColumns for HalfWordMemoryStark<F, D> {
     type Columns = HalfWordMemory<F>;
 }
 
-impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
-    for HalfWordMemoryStark<F, { D }>
-{
-    type PublicInputs<E: 'a> = NoColumns<E>;
-    type View<E: 'a> = HalfWordMemory<E>;
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for HalfWordMemoryConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = HalfWordMemory<E>;
 
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
-    fn generate_constraints(
-        vars: &StarkFrameTyped<HalfWordMemory<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+    fn generate_constraints<'a, T: Debug + Copy>(
+        &self,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();
