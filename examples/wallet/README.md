@@ -23,8 +23,7 @@ To run mozakvm binary inside our runner, use the following command
 
 ```sh
 # inside wallet/mozakvm directory
-cargo mozakvm-run --features="std" -- --self-prog-id MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb \
-  --system-tape ../native/out/tape.json
+cargo mozakvm-run 
 ```
 
 Test producing proof for ELF executions in mozak-vm using the below command. Note that you must run
@@ -36,6 +35,4 @@ MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli -- prove-and-verify -vvv \
     examples/wallet/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/wallet-mozakvm \
     --system-tape examples/wallet/native/out/wallet.tape.json \
-    --self-prog-id \
-    MZK-c51b8a31c98b9fe13065b485c9f8658c194c430843570ccac2720a3b30b47adb;
 ```

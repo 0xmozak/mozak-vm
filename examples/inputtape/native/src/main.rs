@@ -1,10 +1,11 @@
 #![allow(unused_attributes)]
 
 use inputtape_core_logic::{dispatch, MethodArgs};
+use inputtape_elf_data::INPUTTAPE_SELF_PROG_ID;
 use mozak_sdk::common::types::{Poseidon2Hash, ProgramIdentifier};
 
 fn main() {
-    let token_program = ProgramIdentifier::new_from_rand_seed(3);
+    let token_program = ProgramIdentifier::from(INPUTTAPE_SELF_PROG_ID.to_string());
 
     let buf1 = Poseidon2Hash::new_from_rand_seed(2).inner();
     let buf2 = buf1.iter().map(|x| x.wrapping_add(1)).collect::<Vec<u8>>();
