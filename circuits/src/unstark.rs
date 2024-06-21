@@ -2,6 +2,7 @@ use core::fmt::Debug;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
+use expr::{Expr, StarkFrameTyped};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -12,7 +13,7 @@ use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::GenerateConstraints;
+use crate::expr::{ConstraintBuilder, GenerateConstraints};
 
 impl<
         'a,
@@ -27,6 +28,13 @@ impl<
 {
     type PublicInputs<E: 'a + std::fmt::Debug> = NoColumns<E>;
     type View<E: 'a + std::fmt::Debug> = ShadowColumns<E, { COLUMNS }>;
+
+    fn generate_constraints(
+        self,
+        _vars: &StarkFrameTyped<ShadowColumns<Expr<'a, T>, { COLUMNS }>, NoColumns<Expr<'a, T>>>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        ConstraintBuilder::default()
+    }
 
     fn exists<U: 'a + Default + std::fmt::Debug>(
         self,

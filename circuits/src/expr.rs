@@ -234,9 +234,7 @@ pub trait GenerateConstraints<
     fn generate_constraints(
         self,
         vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
-    ) -> ConstraintBuilder<Expr<'a, T>> {
-        ConstraintBuilder::default()
-    }
+    ) -> ConstraintBuilder<Expr<'a, T>>;
 
     fn exists<U: 'a + Default + Debug + Copy>(
         self,
