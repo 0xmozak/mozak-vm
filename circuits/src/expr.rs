@@ -1,4 +1,5 @@
 use core::fmt::Debug;
+use std::fmt::Display;
 use std::marker::{Copy, PhantomData};
 use std::panic::Location;
 
@@ -218,6 +219,8 @@ pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> 
     type View<E: Debug>: From<[E; COLUMNS]> + FromIterator<E>;
     type PublicInputs<E: Debug>: From<[E; PUBLIC_INPUTS]> + FromIterator<E>;
 
+    // TODO: can we do a default Vars?
+
     fn generate_constraints<'a, T: Debug>(
         &self,
         vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
@@ -228,6 +231,12 @@ pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> 
 pub struct StarkFrom<F, G, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> {
     pub witness: G,
     pub _f: PhantomData<F>,
+}
+
+impl<G: Display, F, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> Display
+    for StarkFrom<F, G, D, COLUMNS, PUBLIC_INPUTS>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.witness.fmt(f) }
 }
 
 impl<G, F, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> Stark<F, D>
