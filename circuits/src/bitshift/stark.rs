@@ -4,7 +4,7 @@ use expr::{Expr, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
 
 use super::columns::BitshiftView;
-use crate::columns_view::{HasNamedColumns_, NumberOfColumns};
+use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom};
 use crate::unstark::NoColumns;
 
@@ -13,22 +13,23 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct BitshiftConstraints {}
 
+const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 0;
+
 pub type BitshiftStark<F, const D: usize> =
     StarkFrom<F, BitshiftConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
-impl HasNamedColumns_ for BitshiftConstraints {
-    type Columns<F> = BitshiftView<F>;
+// TODO: consider folding this into `GenerateConstraints` trait.
+impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
+    type Columns = BitshiftView<F>;
 }
-
-const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
-const PUBLIC_INPUTS: usize = 0;
 
 impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for BitshiftConstraints {
     type PublicInputs<E: Debug> = NoColumns<E>;
     type View<E: Debug> = BitshiftView<E>;
 
     fn generate_constraints<'a, T: Debug + Copy>(
-        self,
+        &self,
         vars: &StarkFrameTyped<BitshiftView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values.executed;

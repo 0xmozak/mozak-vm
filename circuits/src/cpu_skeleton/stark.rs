@@ -1,26 +1,19 @@
-use std::marker::PhantomData;
+use core::fmt::Debug;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::{Expr, StarkFrameTyped};
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::CpuSkeleton;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder, GenerateConstraints};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom};
 use crate::stark::mozak_stark::PublicInputs;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct CpuSkeletonStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct CpuSkeletonConstraints {}
+
+pub type CpuSkeletonStark<F, const D: usize> =
+    StarkFrom<F, CpuSkeletonConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
 
 impl<F, const D: usize> HasNamedColumns for CpuSkeletonStark<F, D> {
     type Columns = CpuSkeleton<F>;
@@ -30,13 +23,12 @@ const COLUMNS: usize = CpuSkeleton::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
-impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
-    for CpuSkeletonStark<F, { D }>
-{
-    type PublicInputs<E: 'a> = PublicInputs<E>;
-    type View<E: 'a> = CpuSkeleton<E>;
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for CpuSkeletonConstraints {
+    type PublicInputs<E: Debug> = PublicInputs<E>;
+    type View<E: Debug> = CpuSkeleton<E>;
 
-    fn generate_constraints(
+    fn generate_constraints<'a, T: Debug + Copy>(
+        &self,
         vars: &StarkFrameTyped<CpuSkeleton<Expr<'a, T>>, PublicInputs<Expr<'a, T>>>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
@@ -73,41 +65,4 @@ impl<'a, F, T: Copy + 'a, const D: usize> GenerateConstraints<'a, T>
         // or register changes are allowed.
         constraints
     }
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuSkeletonStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
-        &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let expr_builder = ExprBuilder::default();
-        let vars = expr_builder.to_typed_starkframe(vars);
-        let constraints = Self::generate_constraints(&vars);
-        build_packed(constraints, consumer);
-    }
-
-    fn eval_ext_circuit(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let vars = eb.to_typed_starkframe(vars);
-        let constraints = Self::generate_constraints(&vars);
-        build_ext(constraints, builder, consumer);
-    }
-
-    fn constraint_degree(&self) -> usize { 3 }
 }
