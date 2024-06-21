@@ -7,7 +7,7 @@ use super::columns::{CpuState, OpSelectors};
 use super::{bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
-use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
 // TODO: fix StarkNameDisplay?
@@ -77,7 +77,7 @@ impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for CpuConstraints {
 
     fn generate_constraints<'a, T: Debug + Copy>(
         &self,
-        vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = &vars.local_values;
         let mut constraints = ConstraintBuilder::default();

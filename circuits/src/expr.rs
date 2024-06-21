@@ -219,8 +219,6 @@ pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> 
     type View<E: Debug>: From<[E; COLUMNS]> + FromIterator<E>;
     type PublicInputs<E: Debug>: From<[E; PUBLIC_INPUTS]> + FromIterator<E>;
 
-    // TODO: can we do a default Vars?
-
     fn generate_constraints<'a, T: Debug>(
         &self,
         vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,

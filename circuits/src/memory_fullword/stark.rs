@@ -1,11 +1,11 @@
 use core::fmt::Debug;
 
-use expr::{Expr, StarkFrameTyped};
+use expr::Expr;
 use itertools::izip;
 use mozak_circuits_derive::StarkNameDisplay;
 
 use crate::columns_view::HasNamedColumns;
-use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::memory_fullword::columns::{FullWordMemory, NUM_HW_MEM_COLS};
 use crate::unstark::NoColumns;
 
@@ -30,7 +30,7 @@ impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for FullWordMemoryConst
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
     fn generate_constraints<'a, T: Debug + Copy>(
         &self,
-        vars: &StarkFrameTyped<Self::View<Expr<'a, T>>, Self::PublicInputs<Expr<'a, T>>>,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
     ) -> ConstraintBuilder<Expr<'a, T>> {
         let lv = vars.local_values;
         let mut constraints = ConstraintBuilder::default();
