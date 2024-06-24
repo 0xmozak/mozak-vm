@@ -36,7 +36,5 @@ macro_rules! trace {
 pub fn debug_code_block<F>(code: F)
 where
     F: FnOnce(), {
-    // enable the tracer, effectively enabling the `trace` ecalls,
-    // if any, which are present in `code`
     code();
 }
