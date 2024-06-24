@@ -76,6 +76,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "build-scripts"
+version = "0.1.0"
+
+[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -188,10 +192,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "inputtape-elf-data"
+version = "0.1.0"
+dependencies = [
+ "build-scripts",
+]
+
+[[package]]
 name = "inputtape-native"
 version = "0.1.0"
 dependencies = [
  "inputtape-core-logic",
+ "inputtape-elf-data",
  "mozak-sdk",
 ]
 
@@ -637,6 +649,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "token-elf-data"
+version = "0.1.0"
+dependencies = [
+ "build-scripts",
+]
+
+[[package]]
 name = "token-native"
 version = "0.1.0"
 dependencies = [
@@ -645,7 +664,9 @@ dependencies = [
  "rkyv",
  "rkyv_derive",
  "token-core-logic",
+ "token-elf-data",
  "wallet-core-logic",
+ "wallet-elf-data",
 ]
 
 [[package]]
@@ -688,6 +709,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "wallet-elf-data"
+version = "0.1.0"
+dependencies = [
+ "build-scripts",
+]
+
+[[package]]
 name = "wallet-native"
 version = "0.1.0"
 dependencies = [
@@ -695,6 +723,7 @@ dependencies = [
  "rkyv",
  "rkyv_derive",
  "wallet-core-logic",
+ "wallet-elf-data",
 ]
 
 [[package]]

@@ -81,9 +81,6 @@ class ExamplesTester(unittest.TestCase):
         capabilities of the `sdk` i.e. alloc, heap, panic etc
         """
         prove_and_verify_exceptions = {"panic"}  # TODO: check why `panic` doesn't work
-        dummy_prog_id = (
-            "MZK-0000000000000000000000000000000000000000000000000000000000000001"
-        )
 
         for example in set(list_cargo_projects("examples")):
             if has_no_native_target(
@@ -112,7 +109,7 @@ class ExamplesTester(unittest.TestCase):
                 else:
                     prove_and_verify_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify -vvv \
                         examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm \
-                        --self-prog-id {dummy_prog_id}"""
+                        """
                     print(
                         f"ZK prove and verify: {Fore.BLUE}{prove_and_verify_command}{Style.RESET_ALL}"
                     )
@@ -178,8 +175,6 @@ class ExamplesTester(unittest.TestCase):
                     dependents = []
                     if "example_dependents" in extra_info.keys():
                         dependents = extra_info["example_dependents"]
-                    # We assume this to be different from all dependents
-                    prog_id = extra_info["example_program_id"]
 
                     system_tape_generation_command = """cargo run --release"""
                     print(
@@ -199,29 +194,20 @@ class ExamplesTester(unittest.TestCase):
 
                     system_tape = f"examples/{example}/native/out/tape.json"
 
-                    programs_to_run = [
-                        (
-                            f"examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm",
-                            prog_id,
-                        )
+                    programs_to_run = [    
+                            f"examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm",  
                     ]
 
                     for dependent in dependents:
-                        dependent_prog_id = read_toml_file(
-                            f"examples/{dependent}/mozakvm/Cargo.toml"
-                        )["package"]["metadata"]["mozak"]["example_program_id"]
-                        programs_to_run.append(
-                            (
-                                f"examples/{dependent}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{dependent}-mozakvm",
-                                dependent_prog_id,
-                            )
+                        programs_to_run.append(    
+                                f"examples/{dependent}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{dependent}-mozakvm"
                         )
 
-                    for elf, id_ in programs_to_run:
+                    for elf in programs_to_run:
                         print(
-                            f"ZK prove and verify for {Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} requires execution of {elf} with ID: {id_}",
+                            f"ZK prove and verify for {Style.BRIGHT}{Fore.BLUE}{example}{Style.RESET_ALL} requires execution of {elf} ",
                         )
-                        execution_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape} --self-prog-id {id_}"""
+                        execution_command = f"""cargo run --features=parallel --bin mozak-cli -- prove-and-verify -vvv {elf} --system-tape {system_tape} """
                         print(
                             f"ZK prove and verify (sub-proof): {Fore.BLUE}{execution_command}{Style.RESET_ALL}",
                         )

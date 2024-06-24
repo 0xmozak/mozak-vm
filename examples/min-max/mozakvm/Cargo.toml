@@ -8,4 +8,4 @@ version = "0.1.0"
 mozak-sdk = { path = "../../../sdk", default-features = false }
 
 [features]
-std = ["mozak-sdk/std"]
+std = ["mozak-sdk/default"]
