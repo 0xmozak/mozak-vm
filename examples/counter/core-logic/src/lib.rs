@@ -13,6 +13,7 @@ pub struct Counter(pub u64);
 
 impl<'a> From<&'a StateObject> for &'a ArchivedCounter {
     fn from(object: &'a StateObject) -> Self {
+        // TODO: use `rkyv::access` once it is stable
         unsafe { rkyv::access_unchecked::<Counter>(&object.data) }
     }
 }
