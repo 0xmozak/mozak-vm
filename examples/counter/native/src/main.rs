@@ -1,5 +1,3 @@
-use core::panic;
-
 use counter_core_logic::{dispatch, Counter, MethodArgs};
 use counter_elf_data::COUNTER_SELF_PROG_ID;
 use mozak_sdk::common::types::{ProgramIdentifier, StateAddress, StateObject};
@@ -10,7 +8,7 @@ fn main() {
     let address = StateAddress::new_from_rand_seed(1);
 
     // data below can be retrieved from public orace. Hardcoding it for the moment.
-    let counter = Counter::new(10);
+    let counter = Counter(10);
     let state_object = StateObject {
         address,
         constraint_owner: counter_program,

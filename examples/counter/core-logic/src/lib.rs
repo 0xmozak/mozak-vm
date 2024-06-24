@@ -17,21 +17,6 @@ impl<'a> From<&'a StateObject> for &'a ArchivedCounter {
     }
 }
 
-impl Counter {
-    pub fn new(value: u64) -> Self { Self(value) }
-
-    pub fn inner(&self) -> u64 { self.0 }
-
-    pub fn increase(&mut self) { self.0 += 1; }
-
-    pub fn decrease(&mut self) { self.0 -= 1; }
-}
-
-pub enum CounterMutation {
-    Increase,
-    Decrease,
-}
-
 #[derive(Archive, Deserialize, Serialize, PartialEq, Clone)]
 #[cfg_attr(not(target_os = "mozakvm"), derive(Debug))]
 pub enum MethodArgs {
@@ -53,7 +38,6 @@ impl From<MethodReturns> for StateObject {
         match value {
             MethodReturns::IncreaseCounter(object) => object,
             MethodReturns::DecreaseCounter(object) => object,
-            // investigate better panic errors like assert?
             _ => panic!(),
         }
     }
@@ -63,18 +47,18 @@ impl From<MethodReturns> for StateObject {
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     match args {
         MethodArgs::IncreaseCounter(object) => {
-            let new_object = mutate_counter(object, CounterMutation::Increase);
+            let new_object = mutate_counter(object, 1);
             MethodReturns::IncreaseCounter(new_object)
         }
         MethodArgs::DecreaseCounter(object) => {
-            let new_object = mutate_counter(object, CounterMutation::Decrease);
+            let new_object = mutate_counter(object, -1);
             MethodReturns::DecreaseCounter(new_object)
         }
     }
 }
 
 #[allow(dead_code)]
-pub fn mutate_counter(state_object: StateObject, mutation: CounterMutation) -> StateObject {
+pub fn mutate_counter(state_object: StateObject, delta: i64) -> StateObject {
     let read_event = Event {
         object: state_object.clone(),
         type_: EventType::Read,
@@ -85,10 +69,7 @@ pub fn mutate_counter(state_object: StateObject, mutation: CounterMutation) -> S
         .deserialize(Strategy::<_, Panic>::wrap(&mut ()))
         .unwrap();
     let mut new_counter = counter.clone();
-    match mutation {
-        CounterMutation::Increase => new_counter.increase(),
-        CounterMutation::Decrease => new_counter.decrease(),
-    }
+    new_counter.0 = new_counter.0.checked_add_signed(delta).unwrap();
     let new_state_object = StateObject {
         data: rkyv::to_bytes::<_, 256, Panic>(&new_counter)
             .unwrap()
