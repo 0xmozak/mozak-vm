@@ -3,8 +3,9 @@
 macro_rules! debug_scope {
     ($code: block) => {
         // using this helper function to ensure that
-        // the code block doesn't return anything.
-        mozak_sdk::core::debug_macros::debug_code_block(|| $code);
+        // the code block doesn't mutate or return anything.
+        let closure = || $code;
+        mozak_sdk::core::debug_macros::debug_code_block(closure);
     };
 }
 #[macro_export]
@@ -35,6 +36,6 @@ macro_rules! trace {
 #[cfg(feature = "trace")]
 pub fn debug_code_block<F>(code: F)
 where
-    F: FnOnce(), {
+    F: Fn(), {
     code();
 }
