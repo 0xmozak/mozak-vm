@@ -613,6 +613,8 @@ name = "trace-mozakvm"
 version = "0.1.0"
 dependencies = [
  "mozak-sdk",
+ "rkyv",
+ "rkyv_derive",
 ]
 
 [[package]]

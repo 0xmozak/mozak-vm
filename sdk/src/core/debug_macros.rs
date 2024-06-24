@@ -1,15 +1,15 @@
 #[macro_export]
 #[cfg(feature = "trace")]
-macro_rules! trace_scope {
+macro_rules! debug_scope {
     ($code: block) => {
-        unsafe { mozak_sdk::core::trace::GLOBAL_TRACER.trace(|| $code) };
-        // tracer is disabled at the end of this scope, thus `trace` macro
-        // won't work outside the scope.
+        // using this helper function to ensure that
+        // the code block doesn't return anything.
+        mozak_sdk::core::debug_macros::debug_code_block(|| $code);
     };
 }
 #[macro_export]
 #[cfg(not(feature = "trace"))]
-macro_rules! trace_scope {
+macro_rules! debug_scope {
     ($code: block) => {
         // NOOP when tracing is disabled
     };
@@ -19,7 +19,7 @@ macro_rules! trace_scope {
 #[cfg(feature = "trace")]
 macro_rules! trace {
     ($str: expr) => {
-        let msg = format!($str);
+        let msg = alloc::format!($str);
         unsafe { mozak_sdk::core::ecall::trace(&msg) };
     };
 }
@@ -30,4 +30,13 @@ macro_rules! trace {
     ($msg: expr) => {
         // NOOP when tracing is disabled
     };
+}
+
+#[cfg(feature = "trace")]
+pub fn debug_code_block<F>(code: F)
+where
+    F: FnOnce(), {
+    // enable the tracer, effectively enabling the `trace` ecalls,
+    // if any, which are present in `code`
+    code();
 }

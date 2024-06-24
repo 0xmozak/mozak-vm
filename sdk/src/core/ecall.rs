@@ -150,23 +150,12 @@ pub fn panic(msg: &str) {
 #[cfg(all(target_os = "mozakvm", feature = "trace"))]
 pub fn trace(msg: &str) {
     unsafe {
-        if crate::core::trace::GLOBAL_TRACER.is_enabled() {
-            core::arch::asm!(
-                "ecall",
-                in ("a0") VM_TRACE_LOG,
-                in ("a1") msg.as_ptr(),
-                in ("a2") msg.len(),
-            );
-        } else {
-            let msg =
-                "Warning: Might have attempted to use trace outside trace_scope. Proving this ELF might fail!";
-            core::arch::asm!(
-                "ecall",
-                in ("a0") VM_TRACE_LOG,
-                in ("a1") msg.as_ptr(),
-                in ("a2") msg.len(),
-            );
-        }
+        core::arch::asm!(
+            "ecall",
+            in ("a0") VM_TRACE_LOG,
+            in ("a1") msg.as_ptr(),
+            in ("a2") msg.len(),
+        );
     }
 }
 

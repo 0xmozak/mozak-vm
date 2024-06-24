@@ -13,7 +13,11 @@ version = "0.2.0"
 array-concat = "0.5.3"
 array-util = "1.0.2"
 once_cell = { version = "1.19", default-features = false, features = ["race"] }
-rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc", "bytecheck"] }
+rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = [
+    "pointer_width_32",
+    "alloc",
+    "bytecheck",
+] }
 rkyv_derive = "=0.8.0-alpha.1"
 vec-entries = "1.0"
 

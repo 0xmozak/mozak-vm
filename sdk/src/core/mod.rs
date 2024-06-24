@@ -1,12 +1,10 @@
 #[cfg(target_os = "mozakvm")]
 mod alloc;
+#[cfg(target_os = "mozakvm")]
+pub mod debug_macros;
 pub mod ecall;
 pub mod env;
 pub mod reg_abi;
-#[cfg(all(target_os = "mozakvm", feature = "trace"))]
-pub mod trace;
-#[cfg(target_os = "mozakvm")]
-pub mod trace_macros;
 
 pub mod constants {
     /// The size of a `Poseidon2Hash` digest in bytes.

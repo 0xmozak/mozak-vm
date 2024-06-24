@@ -6,6 +6,12 @@ version = "0.1.0"
 
 [dependencies]
 mozak-sdk = { path = "../../../sdk", default-features = false }
+rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = [
+  "pointer_width_32",
+  "alloc",
+  "bytecheck",
+] }
+rkyv_derive = "=0.8.0-alpha.1"
 
 [features]
 trace = ["mozak-sdk/trace"]
