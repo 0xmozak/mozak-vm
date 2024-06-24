@@ -1,6 +1,8 @@
 #![feature(restricted_std)]
 extern crate alloc;
 
+use core::panic;
+
 use mozak_sdk::common::types::{Event, EventType, StateObject};
 use rkyv::rancor::{Panic, Strategy};
 use rkyv::{Archive, Deserialize, Serialize};
@@ -44,6 +46,17 @@ pub enum MethodReturns {
     Default,
     IncreaseCounter(StateObject),
     DecreaseCounter(StateObject),
+}
+
+impl From<MethodReturns> for StateObject {
+    fn from(value: MethodReturns) -> Self {
+        match value {
+            MethodReturns::IncreaseCounter(object) => object,
+            MethodReturns::DecreaseCounter(object) => object,
+            // investigate better panic errors like assert?
+            _ => panic!(),
+        }
+    }
 }
 
 #[allow(dead_code)]
