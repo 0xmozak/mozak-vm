@@ -147,7 +147,7 @@ pub fn panic(msg: &str) {
     }
 }
 
-#[cfg(target_os = "mozakvm")]
+#[cfg(all(target_os = "mozakvm", feature = "trace"))]
 pub fn trace(msg: &str) {
     unsafe {
         core::arch::asm!(

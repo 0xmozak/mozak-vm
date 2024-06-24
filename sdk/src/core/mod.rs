@@ -1,5 +1,7 @@
 #[cfg(target_os = "mozakvm")]
 mod alloc;
+#[cfg(target_os = "mozakvm")]
+pub mod debug_macros;
 pub mod ecall;
 pub mod env;
 pub mod reg_abi;
