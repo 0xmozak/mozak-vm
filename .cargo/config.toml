@@ -32,7 +32,6 @@ mozakvm-run = """
           -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
           -Zbuild-std-features=compiler-builtins-mem 
     """
-
 [target.riscv32im-mozak-mozakvm-elf]
 runner = "examples/scripts/run_script.sh"
 rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
