@@ -15,10 +15,13 @@ pub mod constants {
     pub const RATE: usize = 8;
 }
 
+/// Wrapper around `std::panic::always_abort`
+///
+/// We need this wrapper here, because we want to spell out
+/// `#![feature(panic_always_abort)]` once in the sdk crate, instead of in every
+/// application crate.
 #[cfg(feature = "std")]
-pub fn always_abort() {
-    std::panic::always_abort();
-}
+pub fn always_abort() { std::panic::always_abort(); }
 
 #[cfg(feature = "std")]
 #[macro_export]
@@ -53,8 +56,7 @@ macro_rules! entry {
         #[cfg(target_os = "mozakvm")]
         mod mozak_generated_main {
             #[no_mangle]
-            fn bespoke_entrypoint() {
-                super::MOZAK_ENTRY(); }
+            fn bespoke_entrypoint() { super::MOZAK_ENTRY(); }
         }
     };
 }
