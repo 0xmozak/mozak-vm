@@ -4,8 +4,6 @@ use std::path::Path;
 use std::process::Command;
 pub const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
-    println!("cargo::rerun-if-changed=../mozakvm/src");
-    println!("cargo::rerun-if-changed=../core-logic/src");
     // build mozakvm binary
     let mozakvm_example_dir = Path::new("../mozakvm");
     let output = Command::new("cargo")
@@ -25,6 +23,7 @@ pub fn dump_self_prog_id(example: &str) -> Result<(), std::io::Error> {
     let target_path_str = format!(
         "../examples/{example}/mozakvm/target/riscv32im-mozak-mozakvm-elf/mozak-release/{example}-mozakvm"
     );
+    println!("cargo::rerun-if-changed={target_path_str}");
     let cli_dir = Path::new(CARGO_MANIFEST_DIR).join("../cli");
 
     let mut output = Command::new("cargo")
