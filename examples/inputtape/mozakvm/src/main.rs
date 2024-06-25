@@ -1,3 +1,5 @@
+#![feature(panic_always_abort)]
+
 #![no_main]
 #![allow(unused_attributes)]
 #![feature(restricted_std)]
@@ -6,6 +8,7 @@ use inputtape_core_logic::{dispatch, MethodArgs, MethodReturns};
 use mozak_sdk::call_receive;
 
 pub fn main() {
+    panic!("This program should not panic");
     while let Some((_caller, argument, return_)) = call_receive::<MethodArgs, MethodReturns>() {
         assert!(dispatch(argument) == return_);
     }

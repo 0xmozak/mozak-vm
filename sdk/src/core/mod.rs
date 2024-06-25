@@ -27,6 +27,7 @@ macro_rules! entry {
         mod mozak_generated_main {
             #[no_mangle]
             fn bespoke_entrypoint() {
+                std::panic::always_abort();
                 super::MOZAK_ENTRY();
                 {
                     mozak_sdk::common::system::ensure_clean_shutdown();
@@ -47,7 +48,8 @@ macro_rules! entry {
         #[cfg(target_os = "mozakvm")]
         mod mozak_generated_main {
             #[no_mangle]
-            fn bespoke_entrypoint() { super::MOZAK_ENTRY(); }
+            fn bespoke_entrypoint() {
+                super::MOZAK_ENTRY(); }
         }
     };
 }

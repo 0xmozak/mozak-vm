@@ -1,3 +1,5 @@
+#![feature(panic_always_abort)]
+
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 #![allow(clippy::missing_panics_doc)]
