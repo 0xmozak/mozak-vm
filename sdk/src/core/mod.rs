@@ -16,6 +16,11 @@ pub mod constants {
 }
 
 #[cfg(feature = "std")]
+pub fn always_abort() {
+    std::panic::always_abort();
+}
+
+#[cfg(feature = "std")]
 #[macro_export]
 macro_rules! entry {
     ($path:path) => {
@@ -27,7 +32,7 @@ macro_rules! entry {
         mod mozak_generated_main {
             #[no_mangle]
             fn bespoke_entrypoint() {
-                std::panic::always_abort();
+                $crate::core::always_abort();
                 super::MOZAK_ENTRY();
                 {
                     mozak_sdk::common::system::ensure_clean_shutdown();

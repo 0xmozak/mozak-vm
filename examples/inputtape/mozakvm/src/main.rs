@@ -1,5 +1,3 @@
-#![feature(panic_always_abort)]
-
 #![no_main]
 #![allow(unused_attributes)]
 #![feature(restricted_std)]
@@ -8,7 +6,6 @@ use inputtape_core_logic::{dispatch, MethodArgs, MethodReturns};
 use mozak_sdk::call_receive;
 
 pub fn main() {
-    panic!("This is an example panic.  DON'T MERGE into `main`!");
     while let Some((_caller, argument, return_)) = call_receive::<MethodArgs, MethodReturns>() {
         assert!(dispatch(argument) == return_);
     }
