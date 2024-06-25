@@ -18,19 +18,19 @@ mozakvm-check = """
     check \
         --target riscv32im-mozak-mozakvm-elf \
         -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
-        -Zbuild-std-features=compiler-builtins-mem \
+        -Zbuild-std-features=compiler-builtins-mem
     """
 mozakvm-clippy = """
     clippy \
         --target riscv32im-mozak-mozakvm-elf \
         -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
-        -Zbuild-std-features=compiler-builtins-mem \
+        -Zbuild-std-features=compiler-builtins-mem
     """
 mozakvm-run = """
     run --profile mozak-release \
           --target riscv32im-mozak-mozakvm-elf \
           -Zbuild-std=alloc,core,compiler_builtins,std,panic_abort,proc_macro \
-          -Zbuild-std-features=compiler-builtins-mem 
+          -Zbuild-std-features=compiler-builtins-mem
     """
 [target.riscv32im-mozak-mozakvm-elf]
 runner = "examples/scripts/run_script.sh"
