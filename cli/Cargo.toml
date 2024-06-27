@@ -43,7 +43,7 @@ tempfile = "3"
 [dev-dependencies]
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-runner = { path = "../runner", features = ["test"] }
-proptest = "1.4"
+proptest = "1.5"
 
 [features]
 bench = ["mozak-examples/mozak-sort", "mozak-examples/vector-alloc"]
