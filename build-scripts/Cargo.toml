@@ -1,0 +1,12 @@
+[package]
+categories = ["cryptography"]
+description = "Build scripts pertaining mozakvm targets"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "build-scripts"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[dependencies]

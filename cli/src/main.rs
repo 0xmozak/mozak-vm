@@ -63,8 +63,6 @@ pub struct RunArgs {
     elf: Input,
     #[arg(long)]
     system_tape: Option<Input>,
-    #[arg(long)]
-    self_prog_id: String,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -75,8 +73,6 @@ pub struct ProveArgs {
     batch_proof: Option<Output>,
     #[arg(long)]
     system_tape: Option<Input>,
-    #[arg(long)]
-    self_prog_id: String,
     recursive_proof: Option<Output>,
 }
 
@@ -94,7 +90,11 @@ enum Command {
     /// Verify the given proof from file.
     Verify { proof: Input },
     /// Verify the given recursive proof from file.
-    VerifyRecursiveProof { proof: Input, verifier_key: Input },
+    VerifyRecursiveProof {
+        proof: Input,
+        verifier_key: Input,
+        program_id: String,
+    },
     /// Builds a transaction bundle.
     BundleTransaction {
         /// System tape generated from native execution.
@@ -129,24 +129,18 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run(RunArgs {
-            elf,
-            system_tape,
-            self_prog_id,
-        }) => {
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+        Command::Run(RunArgs { elf, system_tape }) => {
             let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state: State<F> = State::new(program.clone(), raw_tapes);
             step(&program, state)?;
         }
-        Command::ProveAndVerify(RunArgs {
-            elf,
-            system_tape,
-            self_prog_id,
-        }) => {
+        Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
             let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
 
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.into());
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
 
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
@@ -155,14 +149,13 @@ fn main() -> Result<()> {
         Command::Prove(ProveArgs {
             elf,
             system_tape,
-            self_prog_id,
             mut proof,
             recursive_proof,
             batch_proof,
         }) => {
-            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id.clone().into());
-            let self_program_id: ProgramIdentifier = self_prog_id.into();
             let program = load_program(elf).unwrap();
+            let self_prog_id = get_self_prog_id::<F, C, D>(&program, &config);
+            let raw_tapes = raw_tapes_from_system_tape(system_tape, self_prog_id);
             let state = State::new(program.clone(), raw_tapes);
             let record = step(&program, state)?;
             let stark = if cli.debug {
@@ -247,7 +240,7 @@ fn main() -> Result<()> {
                 let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
                 debug_assert_eq!(
                     public_inputs.program_hash_as_bytes.to_vec(),
-                    self_program_id
+                    self_prog_id
                         .inner()
                         .into_iter()
                         .map(F::from_canonical_u8)
@@ -415,6 +408,7 @@ fn main() -> Result<()> {
         Command::VerifyRecursiveProof {
             mut proof,
             mut verifier_key,
+            program_id,
         } => {
             let mut circuit = circuit_data_for_recursion::<F, C, D>(
                 &VM_RECURSION_CONFIG,
@@ -432,6 +426,18 @@ fn main() -> Result<()> {
                 ProofWithPublicInputs::from_bytes(proof_buffer, &circuit.common).map_err(|_| {
                     anyhow::Error::msg("ProofWithPublicInputs deserialization failed.")
                 })?;
+            let public_inputs_array: [F; VM_PUBLIC_INPUT_SIZE] =
+                proof.public_inputs.clone().try_into().unwrap();
+
+            let public_inputs: VMRecursiveProofPublicInputs<F> = public_inputs_array.into();
+            assert_eq!(
+                public_inputs.program_hash_as_bytes.to_vec(),
+                ProgramIdentifier::from(program_id)
+                    .inner()
+                    .into_iter()
+                    .map(F::from_canonical_u8)
+                    .collect_vec()
+            );
             println!("Public Inputs: {:?}", proof.public_inputs);
             println!("Verifier Key: {:?}", circuit.verifier_only);
 

@@ -43,7 +43,7 @@ The RISC-V ELFs can be run with our CLI. Simply use the command `cargo mozakvm-r
 
 ```bash
 # in example/mozakvm
-cargo mozakvm-run -- --self-prog-id SELF_PROG_ID_HERE --system-tape SYSTEM_TAPE_PATH_HERE # system tape path is optional
+cargo mozakvm-run 
 ```
 ### Native
 

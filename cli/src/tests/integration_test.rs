@@ -37,8 +37,6 @@ fn test_prove_and_verify_recursive_proof_command() {
             "prove",
             elf_file,
             &proof_file.to_string_lossy(),
-            "--self-prog-id",
-            &self_prog_id,
             &recursive_proof_file.to_string_lossy(),
         ])
         .output()
@@ -63,6 +61,7 @@ fn test_prove_and_verify_recursive_proof_command() {
             "verify-recursive-proof",
             &recursive_proof_file.to_string_lossy(),
             &recursive_proof_vk.to_string_lossy(),
+            &self_prog_id,
         ])
         .output()
         .expect("Failed to execute verify-recursive-proof command");

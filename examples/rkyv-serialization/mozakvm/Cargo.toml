@@ -11,4 +11,4 @@ rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["poin
 rkyv_derive = "=0.8.0-alpha.1"
 
 [features]
-std = ["mozak-sdk/std"]
+std = ["mozak-sdk/default"]

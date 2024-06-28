@@ -8,7 +8,9 @@ mozak-sdk = { path = "../../../sdk" }
 rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = ["pointer_width_32", "alloc"] }
 rkyv_derive = "=0.8.0-alpha.1"
 token-core-logic = { path = "../core-logic" }
+token-elf-data = { path = "../elf-data" }
 wallet-core-logic = { path = "../../wallet/core-logic" }
+wallet-elf-data = { path = "../../wallet/elf-data" }
 
 [target.'cfg(not(target_os="mozakvm"))'.dependencies]
 hex = "0.4"
