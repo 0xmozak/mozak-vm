@@ -12,6 +12,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct MemoryInitConstraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type MemoryInitStark<F, const D: usize> =
     StarkFrom<F, MemoryInitConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

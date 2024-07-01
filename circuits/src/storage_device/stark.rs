@@ -11,6 +11,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct StorageDeviceConstraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type StorageDeviceStark<F, const D: usize> =
     StarkFrom<F, StorageDeviceConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

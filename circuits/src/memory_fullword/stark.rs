@@ -12,6 +12,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct FullWordMemoryConstraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type FullWordMemoryStark<F, const D: usize> =
     StarkFrom<F, FullWordMemoryConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
 

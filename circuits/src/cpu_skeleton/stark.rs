@@ -13,6 +13,7 @@ use crate::stark::mozak_stark::PublicInputs;
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuSkeletonConstraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type CpuSkeletonStark<F, const D: usize> =
     StarkFrom<F, CpuSkeletonConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
 

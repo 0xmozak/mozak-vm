@@ -36,6 +36,7 @@ impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for TapeCommitmentsConstraints 
 #[allow(clippy::module_name_repetitions)]
 pub struct TapeCommitmentsConstraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type TapeCommitmentsStark<F, const D: usize> =
     StarkFrom<F, TapeCommitmentsConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

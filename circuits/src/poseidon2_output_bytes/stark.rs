@@ -12,6 +12,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2OutputBytesConstraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type Poseidon2OutputBytesStark<F, const D: usize> =
     StarkFrom<F, Poseidon2OutputBytesConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

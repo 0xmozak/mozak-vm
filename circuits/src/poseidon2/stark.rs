@@ -108,6 +108,7 @@ where
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2_12Constraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type Poseidon2_12Stark<F, const D: usize> =
     StarkFrom<F, Poseidon2_12Constraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

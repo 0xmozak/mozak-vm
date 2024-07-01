@@ -16,6 +16,7 @@ pub struct BitshiftConstraints {}
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
+#[allow(clippy::module_name_repetitions)]
 pub type BitshiftStark<F, const D: usize> =
     StarkFrom<F, BitshiftConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

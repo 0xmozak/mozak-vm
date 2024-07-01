@@ -18,6 +18,7 @@ pub struct CpuConstraints {}
 /// A Gadget for CPU Instructions
 ///
 /// Instructions are either handled directly or through cross table lookup
+#[allow(clippy::module_name_repetitions)]
 pub type CpuStark<F, const D: usize> = StarkFrom<F, CpuConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
 
 /// Ensure that if opcode is straight line, then program counter is incremented

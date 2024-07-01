@@ -17,6 +17,7 @@ pub struct Poseidon2SpongeConstraints<F> {
     _f: PhantomData<F>,
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub type Poseidon2SpongeStark<F, const D: usize> =
     StarkFrom<F, Poseidon2SpongeConstraints<F>, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

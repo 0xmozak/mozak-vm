@@ -12,6 +12,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckU8Constraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type RangeCheckU8Stark<F, const D: usize> =
     StarkFrom<F, RangeCheckU8Constraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

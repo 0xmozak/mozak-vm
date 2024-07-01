@@ -13,6 +13,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct XorConstraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type XorStark<F, const D: usize> =
     StarkFrom<F, XorConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

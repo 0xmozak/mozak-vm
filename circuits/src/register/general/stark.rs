@@ -12,6 +12,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterConstraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type RegisterStark<F, const D: usize> =
     StarkFrom<F, RegisterConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 

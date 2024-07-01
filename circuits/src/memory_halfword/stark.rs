@@ -11,6 +11,7 @@ use crate::unstark::NoColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct HalfWordMemoryConstraints {}
 
+#[allow(clippy::module_name_repetitions)]
 pub type HalfWordMemoryStark<F, const D: usize> =
     StarkFrom<F, HalfWordMemoryConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
 
