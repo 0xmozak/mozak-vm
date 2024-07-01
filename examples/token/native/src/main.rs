@@ -2,12 +2,14 @@
 use mozak_sdk::common::types::{ProgramIdentifier, StateAddress, StateObject};
 use rkyv::rancor::Panic;
 use token_core_logic::{dispatch, MethodArgs};
+use token_elf_data::TOKEN_SELF_PROG_ID;
+use wallet_elf_data::WALLET_SELF_PROG_ID;
 
 fn main() {
-    let token_program = ProgramIdentifier::new_from_rand_seed(1);
+    let token_program = ProgramIdentifier::from(TOKEN_SELF_PROG_ID.to_string());
 
     // We assume both wallet are the same program for now
-    let remitter_program = ProgramIdentifier::new_from_rand_seed(2);
+    let remitter_program = ProgramIdentifier::from(WALLET_SELF_PROG_ID.to_string());
     let remittee_program = ProgramIdentifier::new_from_rand_seed(3);
     let remitter_private_key = wallet_core_logic::PrivateKey::new_from_rand_seed(4);
     let remitter_public_key = wallet_core_logic::PublicKey(

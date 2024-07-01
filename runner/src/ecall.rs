@@ -100,8 +100,8 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if Vec<u8> to string conversion fails.
     fn ecall_panic(self) -> (Aux<F>, Self) {
-        let msg_len = self.get_register_value(REG_A1);
-        let msg_ptr = self.get_register_value(REG_A2);
+        let msg_ptr = self.get_register_value(REG_A1);
+        let msg_len = self.get_register_value(REG_A2);
         let mut msg_vec = vec![];
         for addr in msg_ptr..(msg_ptr + msg_len) {
             msg_vec.push(self.load_u8(addr));
@@ -117,13 +117,13 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if Vec<u8> to string conversion fails.
     fn ecall_trace_log(self) -> (Aux<F>, Self) {
-        let msg_len = self.get_register_value(REG_A1);
-        let msg_ptr = self.get_register_value(REG_A2);
+        let msg_ptr = self.get_register_value(REG_A1);
+        let msg_len = self.get_register_value(REG_A2);
         let mut msg_vec = vec![];
         for addr in msg_ptr..(msg_ptr + msg_len) {
             msg_vec.push(self.load_u8(addr));
         }
-        log::trace!(
+        log::debug!(
             "VM TRACE LOG: {}",
             from_utf8(&msg_vec).expect("A valid utf8 VM trace log message should be provided")
         );
