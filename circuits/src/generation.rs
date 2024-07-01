@@ -20,7 +20,7 @@ use starky::stark::Stark;
 use crate::bitshift::generation::generate_shift_amount_trace;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
-use crate::expr::{build_debug, ConstraintType, GenerateConstraints, Vars, ViewOf, StarkFrom};
+use crate::expr::{build_debug, ConstraintType, GenerateConstraints, StarkFrom, Vars, ViewOf};
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;

@@ -1,12 +1,29 @@
+use core::fmt::Debug;
+use std::fmt::Display;
+
 use super::columns::RangeCheckColumnsView;
 use crate::columns_view::NumberOfColumns;
-use crate::unstark::{impl_name, Unstark};
+use crate::expr::{GenerateConstraints, StarkFrom};
+use crate::unstark::NoColumns;
 
-impl_name!(N, RangeCheckStark);
+#[derive(Default, Clone, Copy, Debug)]
+pub struct RangeCheckConstraints {}
+
+const COLUMNS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 0;
+
+impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for RangeCheckConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = RangeCheckColumnsView<E>;
+}
+
+impl Display for RangeCheckConstraints {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{:?}", self) }
+}
 
 #[allow(clippy::module_name_repetitions)]
 pub type RangeCheckStark<F, const D: usize> =
-    Unstark<F, N, D, RangeCheckColumnsView<F>, { RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS }>;
+    StarkFrom<F, RangeCheckConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 #[cfg(test)]
 mod tests {

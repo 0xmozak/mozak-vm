@@ -221,8 +221,10 @@ pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> 
 
     fn generate_constraints<'a, T: Copy + Debug>(
         &self,
-        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
-    ) -> ConstraintBuilder<Expr<'a, T>>;
+        _vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        ConstraintBuilder::default()
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default)]
