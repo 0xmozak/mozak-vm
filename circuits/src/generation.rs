@@ -225,7 +225,7 @@ pub fn debug_single_trace<
     public_inputs: &'a [F],
 ) where
     G: Sync + Copy + Display + GenerateConstraints<COLUMNS, PUBLIC_INPUTS>,
-    ViewOf<'a, G, F, COLUMNS, PUBLIC_INPUTS>: Debug, {
+    ViewOf<G, F, COLUMNS, PUBLIC_INPUTS>: Debug, {
     transpose_polys::<F, D, StarkFrom<F, G, D, COLUMNS, PUBLIC_INPUTS>>(trace_rows.to_vec())
         .iter()
         .enumerate()

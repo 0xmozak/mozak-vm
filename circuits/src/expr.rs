@@ -206,15 +206,23 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     }
 }
 
-// Helper Types to Access members of GenerateConstraints
-pub type PublicInputsOf<'a, S, T, const N: usize, const M: usize> =
-    <S as GenerateConstraints<N, M>>::PublicInputs<T>;
-pub type ViewOf<'a, S, T, const N: usize, const M: usize> =
-    <S as GenerateConstraints<N, M>>::View<T>;
+/// Convenience alias to `G::PublicInputs<T>`.
+pub type PublicInputsOf<G, T, const COLUMNS: usize, const PUBLIC_INPUTS: usize> =
+    <G as GenerateConstraints<COLUMNS, PUBLIC_INPUTS>>::PublicInputs<T>;
 
-pub type Vars<'a, S, T, const N: usize, const M: usize> =
-    StarkFrameTyped<ViewOf<'a, S, Expr<'a, T>, N, M>, PublicInputsOf<'a, S, Expr<'a, T>, N, M>>;
+/// Convenience alias to `G::View<T>`.
+pub type ViewOf<G, T, const COLUMNS: usize, const PUBLIC_INPUTS: usize> =
+    <G as GenerateConstraints<COLUMNS, PUBLIC_INPUTS>>::View<T>;
 
+/// Convenience alias to `StarkFrameTyped` that will be defined over
+/// `G::View<Expr<'a, T>>` and `G::PublicInputs<Expr<'a, T>>`
+pub type Vars<'a, G, T, const COLUMNS: usize, const PUBLIC_INPUTS: usize> = StarkFrameTyped<
+    ViewOf<G, Expr<'a, T>, COLUMNS, PUBLIC_INPUTS>,
+    PublicInputsOf<G, Expr<'a, T>, COLUMNS, PUBLIC_INPUTS>,
+>;
+
+/// Trait for generating constraints independently from the type of the field
+/// and independently from the API of the proving system.
 pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> {
     type View<E: Debug>: From<[E; COLUMNS]> + FromIterator<E>;
     type PublicInputs<E: Debug>: From<[E; PUBLIC_INPUTS]> + FromIterator<E>;
