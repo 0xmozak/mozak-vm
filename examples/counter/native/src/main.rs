@@ -45,7 +45,6 @@ fn main() {
     let counter = unsafe { rkyv::access_unchecked::<Counter>(&new_object3.data) };
     println!("Counter state after decrement: {}", counter.0);
 
-
     // `rkyv::access`` the `data` field of state objects as `Counter`, to compare
     // them without extra deserialization
     let old_counter = unsafe { rkyv::access_unchecked::<Counter>(&state_object.data) };

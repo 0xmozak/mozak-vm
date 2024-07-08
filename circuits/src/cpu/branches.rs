@@ -73,7 +73,7 @@ pub(crate) fn constraints<'a, P: Copy>(
     cb.always(ops.beq * (1 - lv.normalised_diff) * (next_pc - branched_pc));
     cb.always(ops.beq * lv.normalised_diff * (next_pc - bumped_pc));
 
-    // Check: for BNE, we reverse the checks of BNE.
+    // Check: for BNE, we reverse the checks of BEQ.
     cb.always(ops.bne * lv.normalised_diff * (next_pc - branched_pc));
     cb.always(ops.bne * (1 - lv.normalised_diff) * (next_pc - bumped_pc));
 }
