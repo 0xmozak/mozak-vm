@@ -80,6 +80,7 @@ where
         &all_proof.all_ctl_zs_last(),
         config,
     )?;
+    debug!("Verified");
 
     Ok(())
 }
