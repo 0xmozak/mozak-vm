@@ -31,6 +31,9 @@ fn main() {
     )
     .into();
 
+    let counter = unsafe { rkyv::access_unchecked::<Counter>(&new_object2.data) };
+    println!("Counter State after two increments: {}", counter.0);
+
     // decrease counter by 1
     let new_object3: StateObject = mozak_sdk::call_send(
         counter_program,
@@ -38,6 +41,9 @@ fn main() {
         dispatch,
     )
     .into();
+
+    let counter = unsafe { rkyv::access_unchecked::<Counter>(&new_object3.data) };
+    println!("Counter state after decrement: {}", counter.0);
 
     // `rkyv::access`` the `data` field of state objects as `Counter`, to compare
     // them without extra deserialization
