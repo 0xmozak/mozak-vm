@@ -1,6 +1,7 @@
 Example of a Counter as `StateObject`
 
 ## Flow
+
 - core-logic -> define the dispatcher of each action and related things.
 - native
   - src/main.rs -> you write all the external logic using core-logic and generate tapes out of it
@@ -8,9 +9,10 @@ Example of a Counter as `StateObject`
 - elf-data -> this directory is used as library for to fetch PROGRAM_IDENTIFIER
 - mozakvm -> defines the entry point of VM, here we have a while loop which waits for dispatch methods to execute.
 
-## Build 
+## Build
 
 To build on your target VM, use the following command.
+
 ```sh
 # in directory mozakvm
 cargo mozakvm-build
@@ -21,6 +23,7 @@ cargo mozakvm-build
 
 To run on your system, use the following command.
 here run = build + run the native program dump the tapes + emulate/run these tapes in vm build
+
 ```sh
 # in directory mozakvm
 cargo mozakvm-run
@@ -33,7 +36,9 @@ Test producing proof for ELF executions using the below command. Note that you m
 tapes and binary using above command.
 
 - Run the below commands in root dir
+
 ## Prove
+
 ```sh
 # --features="parallel" is for speeding up the proving by generating proof for multiple STARKy tables in parallel.
 MOZAK_STARK_DEBUG=true \
@@ -47,6 +52,7 @@ MOZAK_STARK_DEBUG=true \
 ## Verify
 
 - STARKY Proof -> hashmap of tableType vs proof (aka AllProof in code)
+
 ```sh
 MOZAK_STARK_DEBUG=true \
     cargo run --bin mozak-cli --features="parallel" -- verify -vvv \
@@ -55,6 +61,7 @@ MOZAK_STARK_DEBUG=true \
 
 - Recursive Proof
 Now here, we also need the Program Identifier, so let's first generate that.
+
 ```sh
 PROGRAM_ID=$(MOZAK_STARK_DEBUG=true \
   cargo run --bin mozak-cli -- self-prog-id -vvv \
@@ -70,6 +77,7 @@ MOZAK_STARK_DEBUG=true \
 ```
 
 ## Prove and Verify
+
 ```sh
 # from project root
 MOZAK_STARK_DEBUG=true \
