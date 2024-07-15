@@ -1,0 +1,20 @@
+[workspace]
+[package]
+edition = "2021"
+name = "counter-mozakvm"
+version = "0.1.0"
+
+[dependencies]
+counter-core-logic = { path = "../core-logic" }
+mozak-sdk = { path = "../../../sdk" }
+rkyv = { version = "=0.8.0-alpha.1", default-features = false, features = [
+  "pointer_width_32",
+  "alloc",
+] }
+
+[features]
+std = []
+
+# The following is read by `run_examples.py`
+[package.metadata.mozak]
+example_dependents = ["wallet"]
