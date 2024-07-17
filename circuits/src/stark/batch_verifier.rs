@@ -2,8 +2,8 @@ use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
 use log::debug;
+use plonky2::batch_fri::verifier::verify_batch_fri_proof;
 use plonky2::field::extension::Extendable;
-use plonky2::fri::batch_verifier::verify_batch_fri_proof;
 use plonky2::fri::proof::FriProof;
 use plonky2::fri::structure::{FriOpeningBatch, FriOpenings};
 use plonky2::hash::hash_types::RichField;

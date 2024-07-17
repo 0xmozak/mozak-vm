@@ -8,11 +8,11 @@ use log::Level::Debug;
 use log::{debug, log_enabled};
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
+use plonky2::batch_fri::oracle::BatchFriOracle;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialCoeffs;
 use plonky2::field::types::Field;
-use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::FriProof;
 use plonky2::fri::structure::{
@@ -49,11 +49,11 @@ const BATCH_COUNT: usize = 3;
 #[derive(Debug)]
 pub struct BatchFriOracleIndices {
     poly_count: TableKindArray<usize>,
-    // start index in BatchFriOracle's field merkle tree leaves
-    fmt_start_indices: TableKindArray<Option<usize>>,
+    // start index in BatchFriOracle's batch merkle tree leaves
+    bmt_start_indices: TableKindArray<Option<usize>>,
     // start index in BatchFriOracle's polynomial vector
     poly_start_indices: TableKindArray<Option<usize>>,
-    // degree bits (leaf layer) index in BatchFriOrable's field merkle tree
+    // degree bits (leaf layer) index in BatchFriOrable's batch merkle tree
     degree_bits_indices: TableKindArray<Option<usize>>,
 }
 
@@ -68,16 +68,16 @@ impl BatchFriOracleIndices {
 
         let mut poly_start_indices =
             all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(0));
-        let mut fmt_start_indices =
+        let mut bmt_start_indices =
             all_kind!(|kind| (!public_table_kinds.contains(&kind)).then_some(0));
         let mut poly_start_index = 0;
         for deg in &sorted_degree_bits {
-            let mut fmt_start_index = 0;
+            let mut bmt_start_index = 0;
             all_kind!(|kind| {
                 if !public_table_kinds.contains(&kind) && degree_bits[kind] == *deg {
-                    fmt_start_indices[kind] = Some(fmt_start_index);
+                    bmt_start_indices[kind] = Some(bmt_start_index);
                     poly_start_indices[kind] = Some(poly_start_index);
-                    fmt_start_index += poly_count[kind];
+                    bmt_start_index += poly_count[kind];
                     poly_start_index += poly_count[kind];
                 }
             });
@@ -96,7 +96,7 @@ impl BatchFriOracleIndices {
 
         BatchFriOracleIndices {
             poly_count,
-            fmt_start_indices,
+            bmt_start_indices,
             poly_start_indices,
             degree_bits_indices,
         }
@@ -442,8 +442,8 @@ where
             challenger.observe_cap(&c);
         }
     });
-    let fmt_trace_cap = batch_trace_commitments.field_merkle_tree.cap.clone();
-    challenger.observe_cap(&fmt_trace_cap);
+    let bmt_trace_cap = batch_trace_commitments.batch_merkle_tree.cap.clone();
+    challenger.observe_cap(&bmt_trace_cap);
 
     let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
     let ctl_data_per_table = timed!(
@@ -598,8 +598,8 @@ where
     let batch_ctl_zs_polys_len = batch_ctl_z_polys.len();
 
     // Commitment to all ctl_zs polynomials, except for those of public tables.
-    // Field Merkle tree is used as oracle here, same as we did for batched traces.
-    // (2nd FMT Oracle)
+    // Batch Merkle tree is used as oracle here, same as we did for batched traces.
+    // (2nd BMT Oracle)
     let batch_ctl_zs_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "compute batch Zs commitment",
@@ -613,7 +613,7 @@ where
         )
     );
 
-    let ctl_zs_cap = batch_ctl_zs_commitments.field_merkle_tree.cap.clone();
+    let ctl_zs_cap = batch_ctl_zs_commitments.batch_merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
@@ -627,7 +627,7 @@ where
             let degree = 1 << degree_bits[kind];
 
             let degree_bits_index = trace_indices.degree_bits_indices[kind].unwrap();
-            let trace_slice_start = trace_indices.fmt_start_indices[kind].unwrap();
+            let trace_slice_start = trace_indices.bmt_start_indices[kind].unwrap();
             let trace_slice_len = trace_indices.poly_count[kind];
             let get_trace_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
                 batch_trace_commitments.get_lde_values_packed(
@@ -639,7 +639,7 @@ where
                 )
             };
 
-            let ctl_zs_slice_start = ctl_zs_indices.fmt_start_indices[kind].unwrap();
+            let ctl_zs_slice_start = ctl_zs_indices.bmt_start_indices[kind].unwrap();
             let ctl_zs_slice_len = ctl_zs_indices.poly_count[kind];
             let get_ctl_zs_values_packed = |i_start, step| -> Vec<<F as Packable>::Packing> {
                 batch_ctl_zs_commitments.get_lde_values_packed(
@@ -701,7 +701,7 @@ where
     let batch_quotient_chunks_len = batch_quotient_chunks.len();
 
     // Commitment to quotient polynomials for all except those of public tables.
-    // Stored as Field merkle tree (3rd and final FMT oracle)
+    // Stored as Batch merkle tree (3rd and final BMT oracle)
     let batch_quotient_commitments: BatchFriOracle<F, C, D> = timed!(
         timing,
         "compute batch Zs commitment",
@@ -715,7 +715,7 @@ where
         )
     );
 
-    let quotient_polys_cap = batch_quotient_commitments.field_merkle_tree.cap.clone();
+    let quotient_polys_cap = batch_quotient_commitments.batch_merkle_tree.cap.clone();
     challenger.observe_cap(&quotient_polys_cap);
 
     let zeta = challenger.get_extension_challenge::<D>();
@@ -838,7 +838,7 @@ where
             }
         }),
         StarkProof {
-            trace_cap: batch_trace_commitments.field_merkle_tree.cap.clone(),
+            trace_cap: batch_trace_commitments.batch_merkle_tree.cap.clone(),
             ctl_zs_cap,
             quotient_polys_cap,
             openings: empty_opening_set,
