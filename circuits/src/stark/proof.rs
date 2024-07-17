@@ -1,8 +1,8 @@
 use itertools::{chain, Itertools};
 use mozak_sdk::common::types::ProgramIdentifier;
 use mozak_sdk::core::constants::DIGEST_BYTES;
+use plonky2::batch_fri::oracle::BatchFriOracle;
 use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::fri::batch_oracle::BatchFriOracle;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::{FriChallenges, FriChallengesTarget, FriProof, FriProofTarget};
 use plonky2::fri::structure::{
