@@ -11,7 +11,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = { version = "1.0", default-features = false }
-bitfield = "0.15"
+bitfield = "0.16"
 elf = { version = "0.7" }
 env_logger = { version = "0.11" }
 im = "15.1"
