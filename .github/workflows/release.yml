@@ -11,14 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-runner:
-    uses: ./.github/workflows/check-runner.yml
-    secrets: inherit
-
   draft-release:
     name: draft release
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     permissions:
       # Required to post the release
       contents: write

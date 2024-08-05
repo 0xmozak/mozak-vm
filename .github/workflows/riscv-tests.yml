@@ -16,14 +16,9 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check-runner:
-    uses: ./.github/workflows/check-runner.yml
-    secrets: inherit
-
   check-riscv-tests:
     name: "Check RISC-V Tests are up to date"
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
