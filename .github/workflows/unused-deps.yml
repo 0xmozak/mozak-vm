@@ -9,13 +9,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check-runner:
-    uses: ./.github/workflows/check-runner.yml
-    secrets: inherit
-
   cargo-udeps:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
@@ -27,7 +22,7 @@ jobs:
       - name: Install CI deps
         uses: ./.github/actions/ci-deps
         with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          runner-label: ubuntu-latest
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check for unused dependencies

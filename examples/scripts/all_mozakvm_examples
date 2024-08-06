@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Description: This script will run given command for 
+# Description: This script will run given command for
 # all mozakvm examples in examples directory. For
 # example, to build all mozakvm examples, run
 #
@@ -11,10 +11,10 @@ set -euo pipefail
 for example in *; do
     if [ -d "$example" ]; then
         cd "$example"
-        for target in  *; do
+        for target in *; do
             if [ "$target" == "mozakvm" ]; then
-                cd mozakvm;
-                "$@";
+                cd mozakvm
+                "$@"
                 cd ..
             fi
         done
