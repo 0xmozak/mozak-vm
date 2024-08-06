@@ -18,10 +18,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check-runner:
-    uses: ./.github/workflows/check-runner.yml
-    secrets: inherit
-
   cargo-test:
     strategy:
       # For PR run only `test` profile, for changes to `main` run both `test` and `release` profiles
@@ -35,15 +31,14 @@ jobs:
           - { isPR: true }
         include:
           - { profile: "test" }
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install CI deps
         uses: ./.github/actions/ci-deps
         with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          runner-label: ubuntu-latest
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compile and archive all the tests
@@ -53,15 +48,14 @@ jobs:
         run: nixdo MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
 
   sdk-sanity:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install CI deps
         uses: ./.github/actions/ci-deps
         with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          runner-label: ubuntu-latest
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: cargo-clippy (mozakvm, examples)
@@ -102,15 +96,14 @@ jobs:
           nixdo nice cargo test --locked --lib 
 
   run-examples:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install CI deps
         uses: ./.github/actions/ci-deps
         with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          runner-label: ubuntu-latest
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run examples
@@ -118,30 +111,28 @@ jobs:
           nixdo nice python3 run_examples.py
 
   cargo-clippy:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install CI deps
         uses: ./.github/actions/ci-deps
         with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          runner-label: ubuntu-latest
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Clippy linter
         run: nixdo nice cargo clippy --all-features --all-targets -- -D warnings
 
   cargo-build-examples:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install CI deps
         uses: ./.github/actions/ci-deps
         with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          runner-label: ubuntu-latest
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build all examples
@@ -149,15 +140,14 @@ jobs:
           cd examples-builder && nixdo nice cargo build --all-features
 
   cargo-fmt:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install CI deps
         uses: ./.github/actions/ci-deps
         with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          runner-label: ubuntu-latest
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run fmt
@@ -176,8 +166,7 @@ jobs:
         run: nixdo nice cargo fmt --all --check
 
   shellcheck:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -187,30 +176,28 @@ jobs:
           SHFMT_OPTS: --indent 4 --case-indent
 
   taplo-fmt:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install CI deps
         uses: ./.github/actions/ci-deps
         with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          runner-label: ubuntu-latest
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: taplo fmt
         run: nixdo nice taplo fmt --check
 
   test-transaction-bundling:
-    needs: check-runner
-    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install CI deps
         uses: ./.github/actions/ci-deps
         with:
-          runner-label: ${{ needs.check-runner.outputs.runner-label }}
+          runner-label: ubuntu-latest
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: test-transaction-bundling
