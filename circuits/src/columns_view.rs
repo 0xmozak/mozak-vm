@@ -27,10 +27,6 @@ pub(crate) const unsafe fn transmute_ref<T, U>(t: &T) -> &U {
     &*(std::ptr::from_ref::<T>(t).cast::<U>())
 }
 
-pub trait HasNamedColumns {
-    type Columns;
-}
-
 pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
 }

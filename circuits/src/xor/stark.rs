@@ -1,95 +1,56 @@
-use std::marker::PhantomData;
+use core::fmt::Debug;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use itertools::{chain, izip};
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::XorColumnsView;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::columns_view::NumberOfColumns;
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct XorStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct XorConstraints {}
 
-impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
-    type Columns = XorColumnsView<F>;
-}
+#[allow(clippy::module_name_repetitions)]
+pub type XorStark<F, const D: usize> =
+    StarkFrom<F, XorConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<XorColumnsView<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for XorConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = XorColumnsView<E>;
 
-    // We first convert both input and output to bit representation
-    // We then work with the bit representations to check the Xor result.
-
-    // Check: bit representation of inputs and output contains either 0 or 1.
-    for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-        constraints.always(bit_value.is_binary());
-    }
-
-    // Check: bit representation of inputs and output were generated correctly.
-    for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
-        constraints.always(Expr::reduce_with_powers(opx_limbs, 2) - opx);
-    }
-
-    // Check: output bit representation is Xor of input a and b bit representations
-    for (a, b, out) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-        // Xor behaves like addition in binary field, i.e. addition with wrap-around:
-        constraints.always((a + b - out) * (a + b - 2 - out));
-    }
-
-    constraints
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
+    fn generate_constraints<'a, T: Copy + Debug>(
         &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_packed(constraints, consumer);
-    }
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    fn constraint_degree(&self) -> usize { 3 }
+        // We first convert both input and output to bit representation
+        // We then work with the bit representations to check the Xor result.
 
-    fn eval_ext_circuit(
-        &self,
-        circuit_builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_ext(constraints, circuit_builder, consumer);
+        // Check: bit representation of inputs and output contains either 0 or 1.
+        for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+            constraints.always(bit_value.is_binary());
+        }
+
+        // Check: bit representation of inputs and output were generated correctly.
+        for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
+            constraints.always(Expr::reduce_with_powers(opx_limbs, 2) - opx);
+        }
+
+        // Check: output bit representation is Xor of input a and b bit representations
+        for (a, b, out) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+            // Xor behaves like addition in binary field, i.e. addition with wrap-around:
+            constraints.always((a + b - out) * (a + b - 2 - out));
+        }
+
+        constraints
     }
 }
 

@@ -1,35 +1,25 @@
-use std::marker::PhantomData;
+use core::fmt::Debug;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::{CpuState, OpSelectors};
 use super::{bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::columns_view::NumberOfColumns;
 use crate::cpu::shift;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
+
+// TODO: fix StarkNameDisplay?
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
+#[allow(clippy::module_name_repetitions)]
+pub struct CpuConstraints {}
 
 /// A Gadget for CPU Instructions
 ///
 /// Instructions are either handled directly or through cross table lookup
-#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct CpuStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
-    type Columns = CpuState<F>;
-}
+pub type CpuStark<F, const D: usize> = StarkFrom<F, CpuConstraints, { D }, COLUMNS, PUBLIC_INPUTS>;
 
 /// Ensure that if opcode is straight line, then program counter is incremented
 /// by 4.
@@ -78,69 +68,40 @@ fn populate_op2_value<'a, P: Copy>(
 const COLUMNS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<CpuState<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = &vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for CpuConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = CpuState<E>;
 
-    pc_ticks_up(lv, &mut constraints);
-
-    binary_selectors(&lv.inst.ops, &mut constraints);
-
-    // Registers
-    populate_op2_value(lv, &mut constraints);
-
-    // ADD is now handled by its own table.
-    constraints.always(lv.inst.ops.add);
-    sub::constraints(lv, &mut constraints);
-    bitwise::constraints(lv, &mut constraints);
-    branches::comparison_constraints(lv, &mut constraints);
-    branches::constraints(lv, &mut constraints);
-    memory::constraints(lv, &mut constraints);
-    signed_comparison::signed_constraints(lv, &mut constraints);
-    signed_comparison::slt_constraints(lv, &mut constraints);
-    shift::constraints(lv, &mut constraints);
-    div::constraints(lv, &mut constraints);
-    mul::constraints(lv, &mut constraints);
-    jalr::constraints(lv, &mut constraints);
-    ecall::constraints(lv, &mut constraints);
-
-    constraints
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
+    fn generate_constraints<'a, T: Debug + Copy>(
         &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        constraint_consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_packed(constraints, constraint_consumer);
-    }
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = &vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    fn constraint_degree(&self) -> usize { 3 }
+        pc_ticks_up(lv, &mut constraints);
 
-    fn eval_ext_circuit(
-        &self,
-        circuit_builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let expr_builder = ExprBuilder::default();
-        let constraints = generate_constraints(&expr_builder.to_typed_starkframe(vars));
-        build_ext(constraints, circuit_builder, constraint_consumer);
+        binary_selectors(&lv.inst.ops, &mut constraints);
+
+        // Registers
+        populate_op2_value(lv, &mut constraints);
+
+        // ADD is now handled by its own table.
+        constraints.always(lv.inst.ops.add);
+        sub::constraints(lv, &mut constraints);
+        bitwise::constraints(lv, &mut constraints);
+        branches::comparison_constraints(lv, &mut constraints);
+        branches::constraints(lv, &mut constraints);
+        memory::constraints(lv, &mut constraints);
+        signed_comparison::signed_constraints(lv, &mut constraints);
+        signed_comparison::slt_constraints(lv, &mut constraints);
+        shift::constraints(lv, &mut constraints);
+        div::constraints(lv, &mut constraints);
+        mul::constraints(lv, &mut constraints);
+        jalr::constraints(lv, &mut constraints);
+        ecall::constraints(lv, &mut constraints);
+
+        constraints
     }
 }
 

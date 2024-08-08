@@ -1,147 +1,104 @@
+use core::fmt::Debug;
 use std::marker::PhantomData;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
-use plonky2::hash::poseidon2::Poseidon2Permutation;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
+use plonky2::hash::poseidon2::{Poseidon2, Poseidon2Permutation};
 
 use super::columns::NUM_POSEIDON2_SPONGE_COLS;
-use crate::columns_view::HasNamedColumns;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct Poseidon2SpongeStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
+pub struct Poseidon2SpongeConstraints<F> {
+    _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> HasNamedColumns for Poseidon2SpongeStark<F, D> {
-    type Columns = Poseidon2Sponge<F>;
-}
+#[allow(clippy::module_name_repetitions)]
+pub type Poseidon2SpongeStark<F, const D: usize> =
+    StarkFrom<F, Poseidon2SpongeConstraints<F>, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 const COLUMNS: usize = NUM_POSEIDON2_SPONGE_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-// For design check https://docs.google.com/presentation/d/10Dv00xL3uggWTPc0L91cgu_dWUzhM7l1EQ5uDEI_cjg/edit?usp=sharing
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<Poseidon2Sponge<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-    rate: usize,
-    state_size: usize,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    // NOTE: clk and address will be used for CTL to CPU for is_init_permute rows
-    // only, and not be used for permute rows.
-    // For all non dummy rows we have CTL to Poseidon2 permute stark, with preimage
-    // and output columns.
+impl<F: Poseidon2> GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }>
+    for Poseidon2SpongeConstraints<F>
+{
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = Poseidon2Sponge<E>;
 
-    let rate = u8::try_from(rate).expect("rate > 255");
-    let state_size = u8::try_from(state_size).expect("state_size > 255");
-    let rate_scalar = i64::from(rate);
-    let lv = vars.local_values;
-    let nv = vars.next_values;
-    let mut constraints = ConstraintBuilder::default();
-
-    for val in [lv.ops.is_permute, lv.ops.is_init_permute, lv.gen_output] {
-        constraints.always(val.is_binary());
-    }
-    let is_exe = lv.ops.is_init_permute + lv.ops.is_permute;
-    constraints.always(is_exe.is_binary());
-
-    let is_dummy = 1 - is_exe;
-
-    // dummy row does not generate output
-    constraints.always(is_dummy * lv.gen_output);
-
-    // if row generates output then it must be last rate sized
-    // chunk of input.
-    constraints.always(lv.gen_output * (lv.input_len - rate_scalar));
-
-    let is_init_or_dummy = |vars: &Poseidon2Sponge<Expr<'a, T>>| {
-        (1 - vars.ops.is_init_permute) * (vars.ops.is_init_permute + vars.ops.is_permute)
-    };
-
-    // First row must be init permute or dummy row.
-    constraints.first_row(is_init_or_dummy(&lv));
-    // if row generates output then next row can be dummy or start of next hashing
-    constraints.always(lv.gen_output * is_init_or_dummy(&nv));
-
-    // Clk should not change within a sponge
-    constraints.transition(nv.ops.is_permute * (lv.clk - nv.clk));
-
-    let not_last_sponge = (1 - lv.gen_output) * (lv.ops.is_permute + lv.ops.is_init_permute);
-    // if current row consumes input and its not last sponge then next row must have
-    // length decreases by RATE, note that only actual execution row can consume
-    // input
-    constraints.transition(not_last_sponge * (lv.input_len - (nv.input_len + rate_scalar)));
-    // and input_addr increases by RATE
-    constraints.transition(not_last_sponge * (lv.input_addr - (nv.input_addr - rate_scalar)));
-
-    // For each init_permute capacity bits are zero.
-    for i in rate..state_size {
-        constraints.always(lv.ops.is_init_permute * (lv.preimage[i as usize] - 0));
-    }
-
-    // For each permute capacity bits are copied from previous output.
-    for i in rate..state_size {
-        constraints.always(
-            (1 - nv.ops.is_init_permute)
-                * nv.ops.is_permute
-                * (nv.preimage[i as usize] - lv.output[i as usize]),
-        );
-    }
-    constraints
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2SpongeStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
+    // For design check https://docs.google.com/presentation/d/10Dv00xL3uggWTPc0L91cgu_dWUzhM7l1EQ5uDEI_cjg/edit?usp=sharing
+    fn generate_constraints<'a, T: Copy + Debug>(
         &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(
-            &eb.to_typed_starkframe(vars),
-            Poseidon2Permutation::<F>::RATE,
-            Poseidon2Permutation::<F>::WIDTH,
-        );
-        build_packed(constraints, consumer);
-    }
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let rate = Poseidon2Permutation::<F>::RATE;
+        let state_size = Poseidon2Permutation::<F>::WIDTH;
+        // NOTE: clk and address will be used for CTL to CPU for is_init_permute rows
+        // only, and not be used for permute rows.
+        // For all non dummy rows we have CTL to Poseidon2 permute stark, with preimage
+        // and output columns.
 
-    #[allow(clippy::similar_names)]
-    fn eval_ext_circuit(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(
-            &eb.to_typed_starkframe(vars),
-            Poseidon2Permutation::<F>::RATE,
-            Poseidon2Permutation::<F>::WIDTH,
-        );
-        build_ext(constraints, builder, consumer);
-    }
+        let rate = u8::try_from(rate).expect("rate > 255");
+        let state_size = u8::try_from(state_size).expect("state_size > 255");
+        let rate_scalar = i64::from(rate);
+        let lv = vars.local_values;
+        let nv = vars.next_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    fn constraint_degree(&self) -> usize { 3 }
+        for val in [lv.ops.is_permute, lv.ops.is_init_permute, lv.gen_output] {
+            constraints.always(val.is_binary());
+        }
+        let is_exe = lv.ops.is_init_permute + lv.ops.is_permute;
+        constraints.always(is_exe.is_binary());
+
+        let is_dummy = 1 - is_exe;
+
+        // dummy row does not generate output
+        constraints.always(is_dummy * lv.gen_output);
+
+        // if row generates output then it must be last rate sized
+        // chunk of input.
+        constraints.always(lv.gen_output * (lv.input_len - rate_scalar));
+
+        let is_init_or_dummy = |vars: &Poseidon2Sponge<Expr<'a, T>>| {
+            (1 - vars.ops.is_init_permute) * (vars.ops.is_init_permute + vars.ops.is_permute)
+        };
+
+        // First row must be init permute or dummy row.
+        constraints.first_row(is_init_or_dummy(&lv));
+        // if row generates output then next row can be dummy or start of next hashing
+        constraints.always(lv.gen_output * is_init_or_dummy(&nv));
+
+        // Clk should not change within a sponge
+        constraints.transition(nv.ops.is_permute * (lv.clk - nv.clk));
+
+        let not_last_sponge = (1 - lv.gen_output) * (lv.ops.is_permute + lv.ops.is_init_permute);
+        // if current row consumes input and its not last sponge then next row must have
+        // length decreases by RATE, note that only actual execution row can consume
+        // input
+        constraints.transition(not_last_sponge * (lv.input_len - (nv.input_len + rate_scalar)));
+        // and input_addr increases by RATE
+        constraints.transition(not_last_sponge * (lv.input_addr - (nv.input_addr - rate_scalar)));
+
+        // For each init_permute capacity bits are zero.
+        for i in rate..state_size {
+            constraints.always(lv.ops.is_init_permute * (lv.preimage[i as usize] - 0));
+        }
+
+        // For each permute capacity bits are copied from previous output.
+        for i in rate..state_size {
+            constraints.always(
+                (1 - nv.ops.is_init_permute)
+                    * nv.ops.is_permute
+                    * (nv.preimage[i as usize] - lv.output[i as usize]),
+            );
+        }
+        constraints
+    }
 }
 
 #[cfg(test)]

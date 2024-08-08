@@ -1,115 +1,77 @@
-use std::marker::PhantomData;
+use core::fmt::Debug;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
-use crate::columns_view::HasNamedColumns;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::storage_device::columns::{StorageDevice, NUM_STORAGE_DEVICE_COLS};
 use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct StorageDeviceStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct StorageDeviceConstraints {}
 
-impl<F, const D: usize> HasNamedColumns for StorageDeviceStark<F, D> {
-    type Columns = StorageDevice<F>;
-}
+#[allow(clippy::module_name_repetitions)]
+pub type StorageDeviceStark<F, const D: usize> =
+    StarkFrom<F, StorageDeviceConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 const COLUMNS: usize = NUM_STORAGE_DEVICE_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-// Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<StorageDevice<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let nv = vars.next_values;
-    let mut constraints = ConstraintBuilder::default();
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for StorageDeviceConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = StorageDevice<E>;
 
-    constraints.always(lv.ops.is_memory_store.is_binary());
-    constraints.always(lv.ops.is_storage_device.is_binary());
-    constraints.always(lv.is_executed().is_binary());
-
-    // If nv.is_storage_device() == 1: lv.size == 0, also forces the last row to be
-    // size == 0 ! This constraints ensures loop unrolling was done correctly
-    constraints.always(nv.ops.is_storage_device * lv.size);
-    // If lv.is_lv_and_nv_are_memory_rows == 1:
-    //    nv.address == lv.address + 1 (wrapped)
-    //    nv.size == lv.size - 1 (not-wrapped)
-    let added = lv.addr + 1;
-    let wrapped = added - (1 << 32);
-    // nv.address == lv.address + 1 (wrapped)
-    constraints.always(lv.is_lv_and_nv_are_memory_rows * (nv.addr - added) * (nv.addr - wrapped));
-    // nv.size == lv.size - 1 (not-wrapped)
-    constraints.transition(nv.is_lv_and_nv_are_memory_rows * (nv.size - (lv.size - 1)));
-    // Edge cases:
-    //  a) - storage_device with size = 0: <-- this case is solved since CTL from
-    // CPU        a.1) is_lv_and_nv_are_memory_rows = 0 (no memory rows
-    // inserted)  b) - storage_device with size = 1: <-- this case needs to be
-    // solved separately        b.1) is_lv_and_nv_are_memory_rows = 0 (only one
-    // memory row inserted) To solve case-b:
-    // If lv.is_storage_device() == 1 && lv.size != 0:
-    //      lv.addr == nv.addr       <-- next row address must be the same !!!
-    //      lv.size === nv.size - 1  <-- next row size is decreased
-    constraints.transition(lv.ops.is_storage_device * lv.size * (nv.addr - lv.addr));
-    constraints.transition(lv.ops.is_storage_device * lv.size * (nv.size - (lv.size - 1)));
-    // If lv.is_storage_device() == 1 && lv.size == 0:
-    //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
-    // This one is ensured by:
-    //  1) is_binary(storage_device or memory)
-    //  2) if nv.is_storage_device() == 1: lv.size == 0
-
-    // If lv.is_storage_device() == 1 && nv.size != 0:
-    //      nv.is_lv_and_nv_are_memory_rows == 1
-    constraints.always(lv.ops.is_storage_device * nv.size * (nv.is_lv_and_nv_are_memory_rows - 1));
-
-    constraints
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for StorageDeviceStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-        where
-            FE: FieldExtension<D2, BaseField = F>,
-            P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
+    // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
+    fn generate_constraints<'a, T: Copy + Debug>(
         &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
-        build_packed(constraints, consumer);
-    }
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let nv = vars.next_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    fn eval_ext_circuit(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, consumer);
-    }
+        constraints.always(lv.ops.is_memory_store.is_binary());
+        constraints.always(lv.ops.is_storage_device.is_binary());
+        constraints.always(lv.is_executed().is_binary());
 
-    fn constraint_degree(&self) -> usize { 3 }
+        // If nv.is_storage_device() == 1: lv.size == 0, also forces the last row to be
+        // size == 0 ! This constraints ensures loop unrolling was done correctly
+        constraints.always(nv.ops.is_storage_device * lv.size);
+        // If lv.is_lv_and_nv_are_memory_rows == 1:
+        //    nv.address == lv.address + 1 (wrapped)
+        //    nv.size == lv.size - 1 (not-wrapped)
+        let added = lv.addr + 1;
+        let wrapped = added - (1 << 32);
+        // nv.address == lv.address + 1 (wrapped)
+        constraints
+            .always(lv.is_lv_and_nv_are_memory_rows * (nv.addr - added) * (nv.addr - wrapped));
+        // nv.size == lv.size - 1 (not-wrapped)
+        constraints.transition(nv.is_lv_and_nv_are_memory_rows * (nv.size - (lv.size - 1)));
+        // Edge cases:
+        //  a) - storage_device with size = 0: <-- this case is solved since CTL from
+        // CPU        a.1) is_lv_and_nv_are_memory_rows = 0 (no memory rows
+        // inserted)  b) - storage_device with size = 1: <-- this case needs to be
+        // solved separately        b.1) is_lv_and_nv_are_memory_rows = 0 (only one
+        // memory row inserted) To solve case-b:
+        // If lv.is_storage_device() == 1 && lv.size != 0:
+        //      lv.addr == nv.addr       <-- next row address must be the same !!!
+        //      lv.size === nv.size - 1  <-- next row size is decreased
+        constraints.transition(lv.ops.is_storage_device * lv.size * (nv.addr - lv.addr));
+        constraints.transition(lv.ops.is_storage_device * lv.size * (nv.size - (lv.size - 1)));
+        // If lv.is_storage_device() == 1 && lv.size == 0:
+        //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
+        // This one is ensured by:
+        //  1) is_binary(storage_device or memory)
+        //  2) if nv.is_storage_device() == 1: lv.size == 0
+
+        // If lv.is_storage_device() == 1 && nv.size != 0:
+        //      nv.is_lv_and_nv_are_memory_rows == 1
+        constraints
+            .always(lv.ops.is_storage_device * nv.size * (nv.is_lv_and_nv_are_memory_rows - 1));
+
+        constraints
+    }
 }
 
 #[cfg(test)]
