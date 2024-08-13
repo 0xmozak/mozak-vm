@@ -2,6 +2,8 @@
 ![Unused dependencies status](https://github.com/0xmozak/mozak-vm/actions/workflows/unused-deps.yml/badge.svg)
 ![MacOS CI status](https://github.com/0xmozak/mozak-vm/actions/workflows/macos-ci.yml/badge.svg)
 
+> Warning: the code is not audited and just a proof of concept at the moment.  In fact, we know of a few bugs that we are working on fixing, that would be glaring security holes, if you used this as-is.  So please don't.
+
 # Mozak RISC-V Virtual Machine
 
 If you are unfamiliar with the RISC-V instruction set, please have a look at the [RISC-V instruction set reference](https://github.com/jameslzhu/riscv-card/blob/master/riscv-card.pdf).
