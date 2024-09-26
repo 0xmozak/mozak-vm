@@ -1,88 +1,49 @@
-use std::marker::PhantomData;
+use core::fmt::Debug;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::{FIELDS_COUNT, NUM_POSEIDON2_OUTPUT_BYTES_COLS};
-use crate::columns_view::HasNamedColumns;
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::unstark::NoColumns;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct Poseidon2OutputBytesStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct Poseidon2OutputBytesConstraints {}
 
-impl<F, const D: usize> HasNamedColumns for Poseidon2OutputBytesStark<F, D> {
-    type Columns = Poseidon2OutputBytes<F>;
-}
+#[allow(clippy::module_name_repetitions)]
+pub type Poseidon2OutputBytesStark<F, const D: usize> =
+    StarkFrom<F, Poseidon2OutputBytesConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 const COLUMNS: usize = NUM_POSEIDON2_OUTPUT_BYTES_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<Poseidon2OutputBytes<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for Poseidon2OutputBytesConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = Poseidon2OutputBytes<E>;
 
-    constraints.always(lv.is_executed.is_binary());
-    for i in 0..FIELDS_COUNT {
-        let start_index = i * 8;
-        let end_index = i * 8 + 8;
-        constraints.always(
-            Expr::reduce_with_powers::<Vec<Expr<'a, T>>>(
-                lv.output_bytes[start_index..end_index].into(),
-                256,
-            ) - lv.output_fields[i],
-        );
-    }
-
-    constraints
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2OutputBytesStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
+    fn generate_constraints<'a, T: Copy + Debug>(
         &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
-        build_packed(constraints, consumer);
-    }
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    fn eval_ext_circuit(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, consumer);
-    }
+        constraints.always(lv.is_executed.is_binary());
+        for i in 0..FIELDS_COUNT {
+            let start_index = i * 8;
+            let end_index = i * 8 + 8;
+            constraints.always(
+                Expr::reduce_with_powers::<Vec<Expr<'a, T>>>(
+                    lv.output_bytes[start_index..end_index].into(),
+                    256,
+                ) - lv.output_fields[i],
+            );
+        }
 
-    fn constraint_degree(&self) -> usize { 3 }
+        constraints
+    }
 }
 
 #[cfg(test)]

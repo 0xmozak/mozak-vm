@@ -1,84 +1,47 @@
-use std::marker::PhantomData;
+use core::fmt::Debug;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::TapeCommitments;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::columns_view::NumberOfColumns;
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<TapeCommitments<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv: &TapeCommitments<Expr<'a, T>> = &vars.local_values;
-    let mut constraint = ConstraintBuilder::default();
-    constraint.always(lv.is_event_commitment_tape_row.is_binary());
-    constraint.always(lv.is_castlist_commitment_tape_row.is_binary());
-    constraint
-        .always((lv.is_castlist_commitment_tape_row + lv.is_event_commitment_tape_row).is_binary());
-    constraint
-        .always(lv.event_commitment_tape_multiplicity * (1 - lv.is_event_commitment_tape_row));
-    constraint.always(
-        lv.castlist_commitment_tape_multiplicity * (1 - lv.is_castlist_commitment_tape_row),
-    );
-    constraint
+
+impl GenerateConstraints<COLUMNS, PUBLIC_INPUTS> for TapeCommitmentsConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = TapeCommitments<E>;
+
+    fn generate_constraints<'a, T: Copy + Debug>(
+        &self,
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv: &TapeCommitments<Expr<'a, T>> = &vars.local_values;
+        let mut constraint = ConstraintBuilder::default();
+        constraint.always(lv.is_event_commitment_tape_row.is_binary());
+        constraint.always(lv.is_castlist_commitment_tape_row.is_binary());
+        constraint.always(
+            (lv.is_castlist_commitment_tape_row + lv.is_event_commitment_tape_row).is_binary(),
+        );
+        constraint
+            .always(lv.event_commitment_tape_multiplicity * (1 - lv.is_event_commitment_tape_row));
+        constraint.always(
+            lv.castlist_commitment_tape_multiplicity * (1 - lv.is_castlist_commitment_tape_row),
+        );
+        constraint
+    }
 }
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct TapeCommitmentsStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct TapeCommitmentsConstraints {}
 
-impl<F, const D: usize> HasNamedColumns for TapeCommitmentsStark<F, D> {
-    type Columns = TapeCommitments<F>;
-}
+#[allow(clippy::module_name_repetitions)]
+pub type TapeCommitmentsStark<F, const D: usize> =
+    StarkFrom<F, TapeCommitmentsConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 const COLUMNS: usize = TapeCommitments::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for TapeCommitmentsStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-        where
-            FE: FieldExtension<D2, BaseField = F>,
-            P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
-        &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
-        build_packed(constraints, consumer);
-    }
-
-    fn constraint_degree(&self) -> usize { 3 }
-
-    fn eval_ext_circuit(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, consumer);
-    }
-}
 
 #[cfg(test)]
 mod tests {

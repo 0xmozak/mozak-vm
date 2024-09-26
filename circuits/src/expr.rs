@@ -1,13 +1,18 @@
+use core::fmt::Debug;
+use std::fmt::Display;
+use std::marker::{Copy, PhantomData};
 use std::panic::Location;
 
 pub use expr::PureEvaluator;
-use expr::{BinOp, Cached, Evaluator, Expr, UnaOp};
+use expr::{BinOp, Cached, Evaluator, Expr, ExprBuilder, StarkFrameTyped, UnaOp};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::evaluation_frame::StarkFrame;
+use starky::stark::Stark;
 
 struct CircuitBuilderEvaluator<'a, F, const D: usize>
 where
@@ -69,9 +74,9 @@ where
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Constraint<E> {
-    constraint_type: ConstraintType,
-    location: &'static Location<'static>,
-    term: E,
+    pub constraint_type: ConstraintType,
+    pub location: &'static Location<'static>,
+    pub term: E,
 }
 
 impl<E> Constraint<E> {
@@ -87,7 +92,7 @@ impl<E> Constraint<E> {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Debug)]
-enum ConstraintType {
+pub enum ConstraintType {
     FirstRow,
     #[default]
     Always,
@@ -160,6 +165,22 @@ pub fn build_ext<F, const D: usize>(
     }
 }
 
+#[must_use]
+pub fn build_debug<F, FE, P, const D: usize, const D2: usize>(
+    cb: ConstraintBuilder<Expr<'_, P>>,
+) -> Vec<Constraint<P>>
+where
+    F: RichField,
+    F: Extendable<D>,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>, {
+    let mut evaluator = Cached::from(packed_field_evaluator());
+    cb.constraints
+        .into_iter()
+        .map(|c| c.map(|constraint| evaluator.eval(constraint)))
+        .collect()
+}
+
 pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
     cb: ConstraintBuilder<Expr<'_, P>>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -183,4 +204,89 @@ pub fn build_packed<F, FE, P, const D: usize, const D2: usize>(
             ConstraintType::LastRow => ConstraintConsumer::constraint_last_row,
         })(yield_constr, c.term);
     }
+}
+
+/// Convenience alias to `G::PublicInputs<T>`.
+pub type PublicInputsOf<G, T, const COLUMNS: usize, const PUBLIC_INPUTS: usize> =
+    <G as GenerateConstraints<COLUMNS, PUBLIC_INPUTS>>::PublicInputs<T>;
+
+/// Convenience alias to `G::View<T>`.
+pub type ViewOf<G, T, const COLUMNS: usize, const PUBLIC_INPUTS: usize> =
+    <G as GenerateConstraints<COLUMNS, PUBLIC_INPUTS>>::View<T>;
+
+/// Convenience alias to `StarkFrameTyped` that will be defined over
+/// `G::View<Expr<'a, T>>` and `G::PublicInputs<Expr<'a, T>>`
+pub type Vars<'a, G, T, const COLUMNS: usize, const PUBLIC_INPUTS: usize> = StarkFrameTyped<
+    ViewOf<G, Expr<'a, T>, COLUMNS, PUBLIC_INPUTS>,
+    PublicInputsOf<G, Expr<'a, T>, COLUMNS, PUBLIC_INPUTS>,
+>;
+
+/// Trait for generating constraints independently from the type of the field
+/// and independently from the API of the proving system.
+pub trait GenerateConstraints<const COLUMNS: usize, const PUBLIC_INPUTS: usize> {
+    type View<E: Debug>: From<[E; COLUMNS]> + FromIterator<E>;
+    type PublicInputs<E: Debug>: From<[E; PUBLIC_INPUTS]> + FromIterator<E>;
+
+    fn generate_constraints<'a, T: Copy + Debug>(
+        &self,
+        _vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        ConstraintBuilder::default()
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+pub struct StarkFrom<F, G, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> {
+    pub witness: G,
+    pub _f: PhantomData<F>,
+}
+
+impl<G: Display, F, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> Display
+    for StarkFrom<F, G, D, COLUMNS, PUBLIC_INPUTS>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.witness.fmt(f) }
+}
+
+impl<G, F, const D: usize, const COLUMNS: usize, const PUBLIC_INPUTS: usize> Stark<F, D>
+    for StarkFrom<F, G, D, COLUMNS, PUBLIC_INPUTS>
+where
+    G: Sync + GenerateConstraints<COLUMNS, PUBLIC_INPUTS> + Copy,
+    F: RichField + Extendable<D> + Debug,
+{
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, { COLUMNS }, { PUBLIC_INPUTS }>
+
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget =
+        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, { COLUMNS }, { PUBLIC_INPUTS }>;
+
+    fn eval_packed_generic<FE, P, const D2: usize>(
+        &self,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
+        constraint_consumer: &mut ConstraintConsumer<P>,
+    ) where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE> + Debug + Copy, {
+        let expr_builder = ExprBuilder::default();
+        let constraints = self
+            .witness
+            .generate_constraints::<_>(&expr_builder.to_typed_starkframe(vars));
+        build_packed(constraints, constraint_consumer);
+    }
+
+    fn eval_ext_circuit(
+        &self,
+        circuit_builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        constraint_consumer: &mut RecursiveConstraintConsumer<F, D>,
+    ) {
+        let expr_builder = ExprBuilder::default();
+        let constraints = self
+            .witness
+            .generate_constraints(&expr_builder.to_typed_starkframe(vars));
+        build_ext(constraints, circuit_builder, constraint_consumer);
+    }
+
+    fn constraint_degree(&self) -> usize { 3 }
 }

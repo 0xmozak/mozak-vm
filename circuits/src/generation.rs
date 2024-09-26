@@ -4,6 +4,7 @@
 use std::borrow::Borrow;
 use std::fmt::{Debug, Display};
 
+use expr::{ExprBuilder, StarkFrameTyped};
 use itertools::{izip, Itertools};
 use log::debug;
 use mozak_runner::elf::Program;
@@ -14,14 +15,12 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
 use plonky2::util::timing::TimingTree;
 use plonky2::util::transpose;
-use starky::constraint_consumer::ConstraintConsumer;
-use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
 use crate::bitshift::generation::generate_shift_amount_trace;
-use crate::columns_view::HasNamedColumns;
 use crate::cpu::generation::{generate_cpu_trace, generate_program_mult_trace};
 use crate::cpu_skeleton::generation::generate_cpu_skeleton_trace;
+use crate::expr::{build_debug, ConstraintType, GenerateConstraints, StarkFrom, Vars, ViewOf};
 use crate::memory::generation::generate_memory_trace;
 use crate::memory_fullword::generation::generate_fullword_memory_trace;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
@@ -209,36 +208,67 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     .build();
 
     all_starks!(mozak_stark, |stark, kind| {
-        debug_single_trace::<F, D, _>(stark, &traces_poly_values[kind], public_inputs[kind]);
+        debug_single_trace::<F, D, _, _, _>(stark, &traces_poly_values[kind], public_inputs[kind]);
     });
 }
 
 pub fn debug_single_trace<
-    F: RichField + Extendable<D> + Debug,
+    'a,
+    F: RichField + Extendable<D>,
     const D: usize,
-    S: Stark<F, D> + Display + HasNamedColumns,
+    G,
+    const COLUMNS: usize,
+    const PUBLIC_INPUTS: usize,
 >(
-    stark: &S,
-    trace_rows: &[PolynomialValues<F>],
-    public_inputs: &[F],
+    stark: &'a StarkFrom<F, G, D, COLUMNS, PUBLIC_INPUTS>,
+    trace_rows: &'a [PolynomialValues<F>],
+    public_inputs: &'a [F],
 ) where
-    S::Columns: FromIterator<F> + Debug, {
-    transpose_polys::<F, D, S>(trace_rows.to_vec())
+    G: Sync + Copy + Display + GenerateConstraints<COLUMNS, PUBLIC_INPUTS>,
+    ViewOf<G, F, COLUMNS, PUBLIC_INPUTS>: Debug, {
+    transpose_polys::<F, D, StarkFrom<F, G, D, COLUMNS, PUBLIC_INPUTS>>(trace_rows.to_vec())
         .iter()
         .enumerate()
         .circular_tuple_windows()
         .for_each(|((lv_row, lv), (nv_row, nv))| {
-            let mut consumer = ConstraintConsumer::new_debug_api(lv_row == 0, nv_row == 0);
-            let vars =
-                StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), public_inputs);
-            stark.eval_packed_generic(&vars, &mut consumer);
-            if consumer.debug_api_has_constraint_failed() {
-                let lv: S::Columns = lv.iter().copied().collect();
-                let nv: S::Columns = nv.iter().copied().collect();
+            let expr_builder = ExprBuilder::default();
+            let frame: StarkFrameTyped<Vec<F>, Vec<F>> =
+                StarkFrameTyped::from_values(lv, nv, public_inputs);
+            let vars: Vars<G, F, COLUMNS, PUBLIC_INPUTS> = expr_builder.inject_starkframe(frame);
+            let constraints = stark.witness.generate_constraints(&vars);
+            let evaluated = build_debug(constraints);
+
+            // Filter out only applicable constraints
+            let is_first_row = lv_row == 0;
+            let is_last_row = nv_row == 0;
+            let applicable = evaluated.into_iter().filter(|c| match c.constraint_type {
+                ConstraintType::FirstRow => is_first_row,
+                ConstraintType::Always => true,
+                ConstraintType::Transition => !is_last_row,
+                ConstraintType::LastRow => is_last_row,
+            });
+
+            // Get failed constraints
+            let failed: Vec<_> = applicable.filter(|c| !c.term.is_zeros()).collect();
+
+            let any_failed = !failed.is_empty();
+
+            if any_failed {
+                for c in failed {
+                    log::error!(
+                        "debug_single_trace :: non-zero constraint at {} = {}",
+                        c.location,
+                        c.term
+                    );
+                }
+
+                let lv: ViewOf<G, F, COLUMNS, PUBLIC_INPUTS> = lv.iter().copied().collect();
+                let nv: ViewOf<G, F, COLUMNS, PUBLIC_INPUTS> = nv.iter().copied().collect();
                 log::error!("Debug constraints for {stark}");
                 log::error!("lv-row[{lv_row}] - values: {lv:?}");
                 log::error!("nv-row[{nv_row}] - values: {nv:?}");
             }
-            assert!(!consumer.debug_api_has_constraint_failed());
+
+            assert!(!any_failed);
         });
 }

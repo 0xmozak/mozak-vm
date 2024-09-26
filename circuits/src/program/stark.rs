@@ -1,7 +1,3 @@
-use super::columns::ProgramRom;
-use crate::columns_view::NumberOfColumns;
-use crate::unstark::Unstark;
+use crate::unstark::unstark;
 
-#[allow(clippy::module_name_repetitions)]
-pub type ProgramStark<F, const D: usize> =
-    Unstark<F, D, ProgramRom<F>, { ProgramRom::<()>::NUMBER_OF_COLUMNS }>;
+unstark!(ProgramStark, super::columns::ProgramRom<T>);

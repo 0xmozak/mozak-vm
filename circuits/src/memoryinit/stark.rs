@@ -1,78 +1,39 @@
-use std::marker::PhantomData;
+use core::fmt::Debug;
 
-use expr::{Expr, ExprBuilder, StarkFrameTyped};
+use expr::Expr;
 use mozak_circuits_derive::StarkNameDisplay;
-use plonky2::field::extension::{Extendable, FieldExtension};
-use plonky2::field::packed::PackedField;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
-use starky::stark::Stark;
 
 use super::columns::MemoryInit;
-use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{build_ext, build_packed, ConstraintBuilder};
+use crate::columns_view::NumberOfColumns;
+use crate::expr::{ConstraintBuilder, GenerateConstraints, StarkFrom, Vars};
 use crate::unstark::NoColumns;
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct MemoryInitStark<F, const D: usize> {
-    pub _f: PhantomData<F>,
-}
+pub struct MemoryInitConstraints {}
 
-impl<F, const D: usize> HasNamedColumns for MemoryInitStark<F, D> {
-    type Columns = MemoryInit<F>;
-}
+#[allow(clippy::module_name_repetitions)]
+pub type MemoryInitStark<F, const D: usize> =
+    StarkFrom<F, MemoryInitConstraints, { D }, { COLUMNS }, { PUBLIC_INPUTS }>;
 
 const COLUMNS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-fn generate_constraints<'a, T: Copy>(
-    vars: &StarkFrameTyped<MemoryInit<Expr<'a, T>>, NoColumns<Expr<'a, T>>>,
-) -> ConstraintBuilder<Expr<'a, T>> {
-    let lv = vars.local_values;
-    let mut constraints = ConstraintBuilder::default();
+impl GenerateConstraints<{ COLUMNS }, { PUBLIC_INPUTS }> for MemoryInitConstraints {
+    type PublicInputs<E: Debug> = NoColumns<E>;
+    type View<E: Debug> = MemoryInit<E>;
 
-    constraints.always(lv.filter.is_binary());
-
-    constraints
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryInitStark<F, D> {
-    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
-
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>;
-    type EvaluationFrameTarget =
-        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
-
-    fn eval_packed_generic<FE, P, const D2: usize>(
+    fn generate_constraints<'a, T: Debug + Copy>(
         &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        consumer: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
-        build_packed(constraints, consumer);
-    }
+        vars: &Vars<'a, Self, T, COLUMNS, PUBLIC_INPUTS>,
+    ) -> ConstraintBuilder<Expr<'a, T>> {
+        let lv = vars.local_values;
+        let mut constraints = ConstraintBuilder::default();
 
-    fn eval_ext_circuit(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: &Self::EvaluationFrameTarget,
-        consumer: &mut RecursiveConstraintConsumer<F, D>,
-    ) {
-        let eb = ExprBuilder::default();
-        let constraints = generate_constraints(&eb.to_typed_starkframe(vars));
-        build_ext(constraints, builder, consumer);
-    }
+        constraints.always(lv.filter.is_binary());
 
-    fn constraint_degree(&self) -> usize { 3 }
+        constraints
+    }
 }
 
 #[cfg(test)]
