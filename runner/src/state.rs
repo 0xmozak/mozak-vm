@@ -214,6 +214,7 @@ pub struct Aux<F: RichField> {
     pub op2_raw: u32,
     pub poseidon2: Option<poseidon2::Entry<F>>,
     pub storage_device_entry: Option<StorageDeviceEntry>,
+    pub branch_taken: Option<bool>,
 }
 
 #[derive(Default, Clone)]
@@ -325,14 +326,23 @@ impl<F: RichField> State<F> {
     pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux<F>, Self) {
         let op1 = self.get_register_value(data.rs1);
         let op2 = self.get_register_value(data.rs2);
-        (
-            Aux::default(),
-            if op(op1, op2) {
-                self.set_pc(data.imm)
-            } else {
-                self.bump_pc()
-            },
-        )
+        if op(op1, op2) {
+            (
+                Aux {
+                    branch_taken: Some(true),
+                    ..Default::default()
+                },
+                self.set_pc(data.imm),
+            )
+        } else {
+            (
+                Aux {
+                    branch_taken: Some(false),
+                    ..Default::default()
+                },
+                self.bump_pc(),
+            )
+        }
     }
 }
 

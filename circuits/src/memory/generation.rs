@@ -8,10 +8,11 @@ use plonky2::hash::hash_types::RichField;
 use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_raw_value};
-use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::MemoryInit;
+use crate::ops::lw::columns::LoadWord;
+use crate::ops::sw::columns::StoreWord;
 use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::storage_device::columns::StorageDevice;
@@ -115,12 +116,16 @@ pub fn transform_poseidon2_output_bytes<F: RichField>(
 ///
 /// These need to be further interleaved with runtime memory trace generated
 /// from VM execution for final memory trace.
-pub fn transform_fullword<F: RichField>(
-    fullword_memory: &[FullWordMemory<F>],
+pub fn transform_sw<F: RichField>(
+    store_word: &[StoreWord<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
-    fullword_memory
-        .iter()
-        .flat_map(Into::<Vec<Memory<F>>>::into)
+    store_word.iter().flat_map(Into::<Vec<Memory<F>>>::into)
+}
+
+pub fn transform_lw<F: RichField>(
+    load_word: &[LoadWord<F>],
+) -> impl Iterator<Item = Memory<F>> + '_ {
+    load_word.iter().flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
 /// Generates Memory trace from a storage device table.
@@ -153,7 +158,8 @@ pub fn generate_memory_trace<F: RichField>(
     memory_init_rows: &[MemoryInit<F>],
     memory_zeroinit_rows: &[MemoryZeroInit<F>],
     halfword_memory_rows: &[HalfWordMemory<F>],
-    fullword_memory_rows: &[FullWordMemory<F>],
+    store_word_rows: &[StoreWord<F>],
+    load_word_rows: &[LoadWord<F>],
     private_tape_rows: &[StorageDevice<F>],
     public_tape_rows: &[StorageDevice<F>],
     call_tape_rows: &[StorageDevice<F>],
@@ -172,7 +178,8 @@ pub fn generate_memory_trace<F: RichField>(
         transform_memory_zero_init(memory_zeroinit_rows),
         generate_memory_trace_from_execution(step_rows),
         transform_halfword(halfword_memory_rows),
-        transform_fullword(fullword_memory_rows),
+        transform_sw(store_word_rows),
+        transform_lw(load_word_rows),
         transform_storage(private_tape_rows),
         transform_storage(public_tape_rows),
         transform_storage(call_tape_rows),
@@ -218,10 +225,10 @@ mod tests {
     use crate::memory::columns::Memory;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::memory_fullword::generation::generate_fullword_memory_trace;
     use crate::memory_halfword::generation::generate_halfword_memory_trace;
     use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
     use crate::memoryinit::generation::generate_memory_init_trace;
+    use crate::ops;
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
@@ -282,7 +289,9 @@ mod tests {
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&record.executed);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed
+        );
         let private_tape_rows = generate_private_tape_trace(&record.executed);
         let public_tape_rows = generate_public_tape_trace(&record.executed);
 
@@ -299,7 +308,8 @@ mod tests {
             &memory_init,
             &memory_zeroinit_rows,
             &halfword_memory,
-            &fullword_memory,
+            &store_word_rows,
+            &load_word_rows,
             &private_tape_rows,
             &public_tape_rows,
             &call_tape_rows,
@@ -374,7 +384,8 @@ mod tests {
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&[], &program);
 
         let halfword_memory = generate_halfword_memory_trace(&[]);
-        let fullword_memory = generate_fullword_memory_trace(&[]);
+        let store_word_rows = ops::sw::generate(&[]);
+        let load_word_rows = ops::lw::generate(&[]);
         let private_tape_rows = generate_private_tape_trace(&[]);
         let public_tape_rows = generate_public_tape_trace(&[]);
         let call_tape_rows = generate_call_tape_trace(&[]);
@@ -390,7 +401,8 @@ mod tests {
             &memory_init,
             &memory_zeroinit_rows,
             &halfword_memory,
-            &fullword_memory,
+            &store_word_rows,
+            &load_word_rows,
             &private_tape_rows,
             &public_tape_rows,
             &call_tape_rows,

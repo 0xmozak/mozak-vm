@@ -9,9 +9,10 @@ use crate::memory::columns::MemoryCtl;
 use crate::stark::mozak_stark::{HalfWordMemoryTable, TableWithTypedOutput};
 // use crate::stark::mozak_stark::{HalfWordMemoryTable, Table};
 
+columns_view_impl!(Ops);
 /// Operations (one-hot encoded)
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Ops<T> {
     // One of `is_store`, `is_load_u`
     // If none are `1`, it is a padding row

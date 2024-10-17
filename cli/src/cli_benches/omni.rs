@@ -130,7 +130,6 @@ pub fn omni_prepare(iterations: u32) -> (Program, ExecutionRecord<F>) {
             op: Op::LW,
             args: Args {
                 rd: 4,
-                rs1: 1,
                 rs2: 2,
                 ..Args::default()
             },
@@ -165,7 +164,6 @@ pub fn omni_prepare(iterations: u32) -> (Program, ExecutionRecord<F>) {
         Instruction {
             op: Op::SW,
             args: Args {
-                rd: 4,
                 rs1: 1,
                 rs2: 2,
                 ..Args::default()

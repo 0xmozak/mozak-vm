@@ -46,7 +46,6 @@ mod tests {
     use super::*;
     use crate::cpu::generation::generate_cpu_trace;
     use crate::memory::generation::generate_memory_trace;
-    use crate::memory_fullword::generation::generate_fullword_memory_trace;
     use crate::memory_halfword::generation::generate_halfword_memory_trace;
     use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
     use crate::memoryinit::generation::generate_memory_init_trace;
@@ -80,13 +79,14 @@ mod tests {
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
         let add_rows = ops::add::generate(&record);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
         let blt_rows = ops::blt_taken::generate(&record);
 
         let memory_init = generate_memory_init_trace(&program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let private_tape = generate_private_tape_trace(&record.executed);
         let public_tape = generate_public_tape_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
@@ -102,7 +102,8 @@ mod tests {
             &memory_init,
             &memory_zeroinit_rows,
             &halfword_memory,
-            &fullword_memory,
+            &store_word_rows,
+            &load_word_rows,
             &private_tape,
             &public_tape,
             &call_tape_rows,
@@ -117,6 +118,8 @@ mod tests {
         let (_, _, register_rows) = generate_register_trace(
             &cpu_rows,
             &add_rows,
+            &store_word_rows,
+            &load_word_rows,
             &blt_rows,
             &poseidon2_sponge_trace,
             &private_tape,
@@ -132,6 +135,8 @@ mod tests {
             &cpu_rows,
             &add_rows,
             &blt_rows,
+            &store_word_rows,
+            &load_word_rows,
             &memory_rows,
             &register_rows,
         );

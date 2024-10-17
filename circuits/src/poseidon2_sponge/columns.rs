@@ -17,7 +17,7 @@ use crate::register::RegisterCtl;
 use crate::stark::mozak_stark::{Poseidon2SpongeTable, TableWithTypedOutput};
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Ops<T> {
     pub is_init_permute: T,
     pub is_permute: T,

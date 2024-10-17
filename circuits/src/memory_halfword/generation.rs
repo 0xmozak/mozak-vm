@@ -71,10 +71,10 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
 
     use crate::memory::generation::generate_memory_trace;
-    use crate::memory_fullword::generation::generate_fullword_memory_trace;
     use crate::memory_halfword::generation::generate_halfword_memory_trace;
     use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
     use crate::memoryinit::generation::generate_memory_init_trace;
+    use crate::ops;
     use crate::poseidon2_output_bytes::generation::generate_poseidon2_output_bytes_trace;
     use crate::poseidon2_sponge::generation::generate_poseidon2_sponge_trace;
     use crate::storage_device::generation::{
@@ -162,7 +162,8 @@ mod tests {
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, &program);
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&record.executed);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
         let private_tape_rows = generate_private_tape_trace(&record.executed);
         let public_tape_rows = generate_public_tape_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
@@ -179,7 +180,8 @@ mod tests {
             &memory_init,
             &memory_zeroinit_rows,
             &halfword_memory,
-            &fullword_memory,
+            &store_word_rows,
+            &load_word_rows,
             &private_tape_rows,
             &public_tape_rows,
             &call_tape_rows,

@@ -27,8 +27,6 @@ use crate::cpu::generation::generate_cpu_trace;
 use crate::cpu::stark::CpuStark;
 use crate::memory::generation::generate_memory_trace;
 use crate::memory::stark::MemoryStark;
-use crate::memory_fullword::generation::generate_fullword_memory_trace;
-use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::generation::generate_halfword_memory_trace;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_zeroinit::generation::generate_memory_zero_init_trace;
@@ -150,13 +148,14 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
         let add_trace = ops::add::generate(record);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
         let blt_trace = ops::blt_taken::generate(record);
 
         let memory_init = generate_memory_init_trace(program);
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, program);
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let private_tape = generate_private_tape_trace(&record.executed);
         let public_tape = generate_public_tape_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
@@ -172,7 +171,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &memory_init,
             &memory_zeroinit_rows,
             &halfword_memory,
-            &fullword_memory,
+            &store_word_rows,
+            &load_word_rows,
             &private_tape,
             &public_tape,
             &call_tape_rows,
@@ -187,6 +187,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let (_, _, register_trace) = generate_register_trace(
             &cpu_trace,
             &add_trace,
+            &store_word_rows,
+            &load_word_rows,
             &blt_trace,
             &poseidon2_sponge_trace,
             &private_tape,
@@ -202,6 +204,8 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &cpu_trace,
             &add_trace,
             &blt_trace,
+            &store_word_rows,
+            &load_word_rows,
             &memory_trace,
             &register_trace,
         ));
@@ -249,7 +253,8 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let memory_zeroinit_rows = generate_memory_zero_init_trace(&record.executed, program);
 
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&record.executed);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
         let private_tape = generate_private_tape_trace(&record.executed);
         let public_tape = generate_public_tape_trace(&record.executed);
         let call_tape_rows = generate_call_tape_trace(&record.executed);
@@ -265,7 +270,8 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &memory_init,
             &memory_zeroinit_rows,
             &halfword_memory,
-            &fullword_memory,
+            &store_word_rows,
+            &load_word_rows,
             &private_tape,
             &public_tape,
             &call_tape_rows,
@@ -296,26 +302,6 @@ impl ProveAndVerify for HalfWordMemoryStark<F, D> {
         let stark = S::default();
         let trace_poly_values =
             trace_rows_to_poly_values(generate_halfword_memory_trace(&record.executed));
-        let proof = prove_table::<F, C, S, D>(
-            stark,
-            &config,
-            trace_poly_values,
-            &[],
-            &mut TimingTree::default(),
-        )?;
-
-        verify_stark_proof(stark, proof, &config)
-    }
-}
-
-impl ProveAndVerify for FullWordMemoryStark<F, D> {
-    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
-        type S = FullWordMemoryStark<F, D>;
-        let config = fast_test_config();
-
-        let stark = S::default();
-        let trace_poly_values =
-            trace_rows_to_poly_values(generate_fullword_memory_trace(&record.executed));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -397,6 +383,8 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(record);
         let add_trace = ops::add::generate(record);
+        let store_word_rows = ops::sw::generate(&record.executed);
+        let load_word_rows = ops::lw::generate(&record.executed);
         let blt_trace = ops::blt_taken::generate(record);
         let private_tape = generate_private_tape_trace(&record.executed);
         let public_tape = generate_public_tape_trace(&record.executed);
@@ -412,6 +400,8 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let (_, _, trace) = generate_register_trace(
             &cpu_trace,
             &add_trace,
+            &store_word_rows,
+            &load_word_rows,
             &blt_trace,
             &poseidon2_sponge_rows,
             &private_tape,
