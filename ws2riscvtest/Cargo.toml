@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name = "ws2riscvtest"
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
